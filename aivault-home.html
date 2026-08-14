@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>AIVAULT</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #171a21;
+      --line: #2a2f3a;
+      --text: #e8eaed;
+      --muted: #9aa3b2;
+      --accent: #3ecf8e;
+      --accent2: #5b8cff;
+      --danger: #ff6b6b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      background: rgba(15,17,21,.92);
+      backdrop-filter: blur(10px);
+      z-index: 20;
+    }
+    .brand {
+      font-weight: 700;
+      letter-spacing: .04em;
+    }
+    .pill {
+      font-size: 12px;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      padding: 4px 8px;
+      border-radius: 999px;
+    }
+    .spacer { flex: 1; }
+    .btn {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-owner {
+      background: #222833;
+      color: var(--text);
+    }
+    .btn-room {
+      background: var(--accent2);
+      color: white;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #062816;
+    }
+    main { padding: 14px; max-width: 900px; margin: 0 auto; }
+    .view { display: none; }
+    .view.active { display: block; }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    h1, h2, h3 { margin: 0 0 8px; }
+    p { color: var(--muted); line-height: 1.55; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    textarea, input {
+      width: 100%;
+      background: #0c0e13;
+      border: 1px solid var(--line);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 16px;
+    }
+    textarea { min-height: 90px; resize: vertical; }
+    .chat {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 45vh;
+      overflow: auto;
+      padding-right: 4px;
+    }
+    .msg {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: #12151c;
+    }
+    .msg .who { font-size: 12px; color: var(--accent); margin-bottom: 4px; }
+    .msg.user .who { color: var(--accent2); }
+    .studio {
+      position: relative;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background:
+        radial-gradient(circle at 20% 20%, #1b2744, transparent 40%),
+        radial-gradient(circle at 80% 0%, #163528, transparent 35%),
+        #0c0f16;
+      min-height: 360px;
+      padding: 16px;
+    }
+    .stage-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .live {
+      color: #ff8e8e;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .anchors {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .anchor {
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px 10px;
+      text-align: center;
+      min-height: 140px;
+    }
+    .avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      margin: 0 auto 8px;
+      background: linear-gradient(135deg, #5b8cff, #3ecf8e);
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+    }
+    .anchor h3 { font-size: 14px; }
+    .anchor p { font-size: 12px; margin: 0; }
+    .waiting {
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .tickers {
+      margin-top: 14px;
+      border-top: 1px solid var(--line);
+      padding-top: 10px;
+      font-size: 13px;
+      color: var(--muted);
+      max-height: 120px;
+      overflow: auto;
+    }
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">AIVAULT</div>
+    <div class="pill">Demo</div>
+    <div class="spacer"></div>
+    <button class="btn btn-owner" id="btnOwner">Owner</button>
+    <button class="btn btn-room" id="btnRoom">進入房間</button>
+  </div>
+
+  <main>
+    <!-- HOME -->
+    <section id="view-home" class="view active">
+      <div class="card">
+        <h2>專案工作區</h2>
+        <p>文字對話與任務處理。九月展示用：可發問、看回覆、留下工作痕跡。</p>
+      </div>
+
+      <div class="card">
+        <h3>目前角色（5）</h3>
+        <p>主播、助理主播、工程師、審核員、研究員</p>
+      </div>
+
+      <div class="card">
+        <h3>文字對話</h3>
+        <div class="chat" id="chat"></div>
+        <div style="height:10px"></div>
+        <textarea id="input" placeholder="輸入問題或任務（例如：幫我寫一個 add 函式）"></textarea>
+        <div style="height:10px"></div>
+        <div class="row">
+          <button class="btn btn-primary" id="btnSend">送出</button>
+          <button class="btn btn-owner" id="btnClear">清空對話</button>
+        </div>
+        <div class="hint">此為前台展示版。之後接上 API／Supabase 後，訊息會寫入後台事件。</div>
+      </div>
+    </section>
+
+    <!-- ROOM -->
+    <section id="view-room" class="view">
+      <div class="card">
+        <div class="stage-title">
+          <h2>數字人會議室</h2>
+          <div class="live">● LIVE</div>
+        </div>
+        <p>中途進入不重播，像遲到看電影，只從當下繼續。</p>
+      </div>
+
+      <div class="studio">
+        <div class="stage-title">
+          <strong>AIVAULT 播報台</strong>
+          <span class="pill">編制 3 人在場／5 人可換班</span>
+        </div>
+
+        <div class="anchors">
+          <div class="anchor">
+            <div class="avatar">主</div>
+            <h3>主播</h3>
+            <p>說明案件與進度</p>
+          </div>
+          <div class="anchor">
+            <div class="avatar">助</div>
+            <h3>助理主播</h3>
+            <p>補充與接力</p>
+          </div>
+        </div>
+
+        <div class="waiting">待命：工程師｜審核員｜研究員（時間到可進場換班）</div>
+        <div class="tickers" id="tickers">
+          <div>系統：房間已開啟，直播進行中。</div>
+        </div>
+      </div>
+
+      <div style="height:12px"></div>
+      <div class="card">
+        <h3>在房間發問</h3>
+        <textarea id="roomInput" placeholder="用語音或文字問問題（展示版先用文字）"></textarea>
+        <div style="height:10px"></div>
+        <button class="btn btn-primary" id="btnRoomSend">送出給播報台</button>
+        <div class="hint">之後這裡會接數字人與女聲朗讀。現在先用文字模擬播報。</div>
+      </div>
+
+      <div style="height:10px"></div>
+      <button class="btn btn-owner" id="btnBackHome">回到 Home</button>
+    </section>
+  </main>
+
+  <script>
+    const chat = document.getElementById('chat');
+    const input = document.getElementById('input');
+    const roomInput = document.getElementById('roomInput');
+    const tickers = document.getElementById('tickers');
+
+    const roles = {
+      host: '主播',
+      cohost: '助理主播',
+      eng: '工程師',
+      qa: '審核員',
+      research: '研究員'
+    };
+
+    function addMsg(who, text, isUser = false) {
+      const el = document.createElement('div');
+      el.className = 'msg' + (isUser ? ' user' : '');
+      el.innerHTML = `<div class="who">${who}</div><div>${text}</div>`;
+      chat.appendChild(el);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function addTicker(text) {
+      const el = document.createElement('div');
+      const t = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      el.textContent = `${t}｜${text}`;
+      tickers.appendChild(el);
+      tickers.scrollTop = tickers.scrollHeight;
+    }
+
+    function demoReply(q) {
+      const lower = (q || '').toLowerCase();
+      if (lower.includes('add') || q.includes('函式') || q.includes('程式')) {
+        return {
+          who: roles.eng,
+          text: '已收到開發任務。示範回覆：\nfunction add(a, b) {\n  return a + b;\n}\n（接上 API 後會寫入 artifacts 與 events）'
+        };
+      }
+      if (q.includes('審核') || q.includes('檢查')) {
+        return {
+          who: roles.qa,
+          text: '審核示範：目前為展示模式。接上後台後，會依真實交件給 PASS／FAIL。'
+        };
+      }
+      return {
+        who: roles.host,
+        text: '已收到。這是前台展示回覆。之後會改由 Groq／其他 API 與後台事件驅動，並可在會議室用數字人播報。'
+      };
+    }
+
+    document.getElementById('btnSend').onclick = () => {
+      const q = input.value.trim();
+      if (!q) return;
+      addMsg('Owner', q, true);
+      const r = demoReply(q);
+      setTimeout(() => addMsg(r.who, r.text), 350);
+      input.value = '';
+    };
+
+    document.getElementById('btnClear').onclick = () => { chat.innerHTML = ''; };
+
+    document.getElementById('btnRoom').onclick = () => {
+      document.getElementById('view-home').classList.remove('active');
+      document.getElementById('view-room').classList.add('active');
+      addTicker('Owner 中途進入房間（不中斷進行中內容）');
+    };
+
+    document.getElementById('btnBackHome').onclick = () => {
+      document.getElementById('view-room').classList.remove('active');
+      document.getElementById('view-home').classList.add('active');
+    };
+
+    document.getElementById('btnOwner').onclick = () => {
+      alert('Owner 工作區：之後可接登入與權限。');
+    };
+
+    document.getElementById('btnRoomSend').onclick = () => {
+      const q = roomInput.value.trim();
+      if (!q) return;
+      addTicker('主播：收到問題「' + q + '」');
+      setTimeout(() => {
+        const r = demoReply(q);
+        addTicker(r.who + '：' + r.text.replace(/\n/g, ' '));
+      }, 400);
+      roomInput.value = '';
+    };
+
+    // 初始一則
+    addMsg(roles.host, 'AIVAULT 前台展示版已啟動。Home 處理文字工作；右側可進入數字人會議室。');
+  </script>
+</body>
+</html>
