@@ -117,4 +117,129 @@
   <script>
     // ========== 設定 ==========
     const SUPABASE_URL = 'https://bbgehikkomhbyimmfik.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJiZ2VoaWtrb21oYnlpbW1tZmlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2Nzg5NzUsImV4
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJiZ2VoaWtrb21oYnlpbW1tZmlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2Nzg5NzUsImV4cCI6MjEwMjI1NDk3NX0.4F3vDWNqZHxT4lt2bdmUiQWvdhN8OZicGKDqeqgJwxM';
+    const AI_GATEWAY_URL = SUPABASE_URL + '/functions/v1/ai-gateway';
+
+    // ========== Agent 資料 ==========
+    const AGENTS = [
+      { id: 'a1', name: 'GPT', role: '架構分析', avatar: '🧠', color: 'var(--agent-gpt)', status: 'working', statusText: '在線', provider: 'groq' },
+      { id: 'a2', name: 'Grok', role: '研究與批判', avatar: '⚡', color: 'var(--agent-grok)', status: 'thinking', statusText: '在線', provider: 'groq' },
+      { id: 'a3', name: 'Coding Agent', role: '程式實作', avatar: '👩‍💻', color: 'var(--agent-coding)', status: 'idle', statusText: '待命', provider: 'groq' },
+      { id: 'a4', name: 'Research Agent', role: '資料研究', avatar: '🔍', color: 'var(--agent-research)', status: 'idle', statusText: '待命', provider: 'groq' },
+    ];
+
+    let messages = [
+      { sender: '系統', type: 'agent', text: 'AIVAULT 已接上真實 AI Gateway。可以開始下指令。', time: '—' }
+    ];
+
+    // ========== 真實 AI Gateway ==========
+    async function callAI(provider, userMessage, agentName) {
+      const systemPrompt = `你是 AIVAULT 平台中的「${agentName}」。請用繁體中文簡短回覆，語氣專業且直接。`;
+      const res = await fetch(AI_GATEWAY_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          provider: provider,
+          model: 'llama-3.3-70b-versatile',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage }
+          ]
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'AI 呼叫失敗');
+      return data.content || '（無回應）';
+    }
+
+    // ========== UI ==========
+    function showToast(text) {
+      const t = document.getElementById('toast');
+      t.textContent = text;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2500);
+    }
+
+    function renderAgents() {
+      document.getElementById('agentsGrid').innerHTML = AGENTS.map(a => `
+        <div class="agent-card">
+          <div class="agent-avatar" style="background:${a.color}22">${a.avatar}</div>
+          <div class="agent-name">${a.name}</div>
+          <div class="agent-role">${a.role}</div>
+          <div class="agent-status"><span class="status-dot ${a.status}"></span><span>${a.statusText}</span></div>
+        </div>
+      `).join('');
+    }
+
+    function renderMessages(id, limit = null) {
+      const el = document.getElementById(id);
+      const list = limit ? messages.slice(-limit) : messages;
+      el.innerHTML = list.map(m => `
+        <div class="msg ${m.type}">
+          <div class="msg-meta"><span class="msg-sender">${m.sender}</span><span>${m.time}</span></div>
+          <div class="msg-bubble">${m.text}</div>
+        </div>
+      `).join('');
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function nowTime() {
+      const t = new Date();
+      return t.getHours().toString().padStart(2,'0') + ':' + t.getMinutes().toString().padStart(2,'0');
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+      document.getElementById('sendBtn').disabled = true;
+
+      messages.push({ sender: 'Owner', type: 'owner', text, time: nowTime() });
+      renderMessages('chatMessages');
+      renderMessages('homeChatPreview', 5);
+
+      // 讓兩個 Agent 回應
+      const active = AGENTS.filter(a => a.status === 'working' || a.status === 'thinking' || a.status === 'idle').slice(0, 2);
+
+      for (const agent of active) {
+        const chatEl = document.getElementById('chatMessages');
+        const typing = document.createElement('div');
+        typing.className = 'msg agent';
+        typing.innerHTML = `<div class="msg-meta"><span class="msg-sender">${agent.name}</span></div><div class="msg-bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
+        chatEl.appendChild(typing);
+        chatEl.scrollTop = chatEl.scrollHeight;
+
+        try {
+          const reply = await callAI(agent.provider, text, agent.name);
+          typing.remove();
+          messages.push({ sender: agent.name, type: 'agent', text: reply, time: nowTime() });
+        } catch (err) {
+          typing.remove();
+          messages.push({ sender: agent.name, type: 'agent', text: '錯誤：' + err.message, time: nowTime() });
+        }
+        renderMessages('chatMessages');
+        renderMessages('homeChatPreview', 5);
+      }
+      document.getElementById('sendBtn').disabled = false;
+    }
+
+    document.getElementById('tabs').addEventListener('click', e => {
+      if (!e.target.classList.contains('tab')) return;
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      e.target.classList.add('active');
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-' + e.target.dataset.panel).classList.add('active');
+    });
+    document.getElementById('sendBtn').addEventListener('click', sendMessage);
+    document.getElementById('chatInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+
+    renderAgents();
+    renderMessages('chatMessages');
+    renderMessages('homeChatPreview', 5);
+  </script>
+</body>
+</html>
