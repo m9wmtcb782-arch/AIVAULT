@@ -7,47 +7,125 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#0f172a" />
   <title>AIVAULT — AI Agent 協作工作平台</title>
-  <link rel="apple-touch-icon" href="icon.png" />
-  <link rel="apple-touch-icon" sizes="180x180" href="icon.png" />
-  <meta name="apple-mobile-web-app-title" content="AIVAULT" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<link rel="apple-touch-icon" href="icon.png" />
+<link rel="apple-touch-icon" sizes="1080x1080" href="icon.png" />
+<meta name="apple-mobile-web-app-title" content="AIVAULT" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <style>
     :root {
-      --bg: #0b1120; --card: #1e293b; --border: #334155; --text: #f1f5f9; --text-muted: #94a3b8;
-      --primary: #3b82f6; --success: #22c55e; --warning: #f59e0b; --danger: #ef4444;
-      --agent-gpt: #10b981; --agent-grok: #8b5cf6; --agent-coding: #06b6d4; --agent-research: #f97316;
-      --agent-design: #ec4899; --agent-teacher: #84cc16; --agent-doctor: #14b8a6; --agent-lawyer: #a855f7;
+      --bg: #0b1120;
+      --card: #1e293b;
+      --card-hover: #334155;
+      --border: #334155;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --primary: #3b82f6;
+      --primary-dim: #1d4ed8;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --agent-gpt: #10b981;
+      --agent-grok: #8b5cf6;
+      --agent-coding: #06b6d4;
+      --agent-research: #f97316;
+      --agent-design: #ec4899;
+      --agent-teacher: #84cc16;
+      --agent-doctor: #14b8a6;
+      --agent-lawyer: #a855f7;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif; background: var(--bg); color: var(--text); min-height: 100dvh; line-height: 1.5; }
-    .header { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; }
-    .logo { display: flex; align-items: center; gap: 10px; }
-    .logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg,#3b82f6,#8b5cf6); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; }
-    .logo-text h1 { font-size: 18px; font-weight: 700; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+    .header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      border-radius: 10px; display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 16px; flex-shrink: 0;
+    }
+    .logo-text h1 { font-size: 18px; font-weight: 700; letter-spacing: 0.5px; }
     .logo-text p { font-size: 11px; color: var(--text-muted); }
-    .owner-badge { background: linear-gradient(135deg,#f59e0b,#d97706); color: #000; font-size: 11px; font-weight: 700; padding: 6px 10px; border-radius: 20px; border: none; }
-    .tabs { display: flex; gap: 4px; padding: 10px 12px; overflow-x: auto; border-bottom: 1px solid var(--border); background: #0f172a; }
-    .tab { flex-shrink: 0; padding: 8px 14px; border-radius: 20px; font-size: 13px; background: transparent; color: var(--text-muted); border: none; cursor: pointer; }
-    .tab.active { background: var(--primary); color: #fff; }
-    .content { padding: 16px; padding-bottom: 80px; max-width: 640px; margin: 0 auto; }
-    .section-title { font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; }
-    .agents-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-bottom: 24px; }
-    .agent-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px; }
-    .agent-avatar { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 8px; }
-    .agent-name { font-size: 14px; font-weight: 600; }
+    .header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .owner-badge {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #000; font-size: 11px; font-weight: 700;
+      padding: 6px 10px; border-radius: 20px; border: none; cursor: pointer;
+    }
+    .room-btn {
+      background: linear-gradient(135deg, #3b82f6, #6366f1);
+      color: #fff; font-size: 11px; font-weight: 700;
+      padding: 6px 12px; border-radius: 20px; border: none; cursor: pointer;
+    }
+    .tabs {
+      display: flex; gap: 4px; padding: 10px 12px; overflow-x: auto;
+      scrollbar-width: none; border-bottom: 1px solid var(--border); background: #0f172a;
+    }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab {
+      flex-shrink: 0; padding: 8px 14px; border-radius: 20px; font-size: 13px; font-weight: 500;
+      background: transparent; color: var(--text-muted); border: 1px solid transparent; cursor: pointer;
+    }
+    .tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+    .content { padding: 16px; padding-bottom: 100px; max-width: 640px; margin: 0 auto; }
+    .section-title {
+      font-size: 13px; font-weight: 600; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .agents-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 24px; }
+    @media (min-width: 480px) { .agents-grid { grid-template-columns: repeat(3, 1fr); } }
+    .agent-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+      padding: 14px; cursor: pointer;
+    }
+    .agent-avatar {
+      width: 42px; height: 42px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 8px;
+    }
+    .agent-name { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
     .agent-role { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
     .agent-status { display: flex; align-items: center; gap: 6px; font-size: 11px; }
-    .status-dot{width:7px;height:7px;border-radius:50%}
-.status-dot.working{background:var(--success);box-shadow:0 0 6px var(--success);animation:pulse 1.5s infinite}
-.status-dot.thinking{background:var(--warning);box-shadow:0 0 6px var(--warning);animation:pulse 1.2s infinite}
-.status-dot.idle{background:#64748b}
-.status-dot.offline{background:#475569}
-@keyframes pulse{
-  0%,100%{opacity:1}
-  50%{opacity:0.3}
-}
-    .chat-container { background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin-bottom: 24px; display: flex; flex-direction: column; height: 420px; }
-    .chat-header { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 600; display: flex; justify-content: space-between; }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .status-dot.working { background: var(--success); box-shadow: 0 0 6px var(--success); animation: pulse 1.5s infinite; }
+    .status-dot.thinking { background: var(--warning); box-shadow: 0 0 6px var(--warning); animation: pulse 1.2s infinite; }
+    .status-dot.idle { background: #64748b; }
+    .status-dot.offline { background: #475569; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .task-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
+    .task-item {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 12px 14px; display: flex; align-items: flex-start; gap: 12px;
+    }
+    .task-check {
+      width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; font-size: 12px;
+    }
+    .task-item.done .task-check { background: var(--success); border-color: var(--success); color: white; }
+    .task-item.active .task-check { border-color: var(--primary); background: rgba(59, 130, 246, 0.15); }
+    .task-title { font-size: 14px; font-weight: 500; }
+    .task-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .chat-container {
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+      overflow: hidden; margin-bottom: 24px; display: flex; flex-direction: column; height: 420px;
+    }
+    .chat-header {
+      padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 600;
+      display: flex; align-items: center; justify-content: space-between;
+    }
     .chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
     .msg { max-width: 88%; display: flex; flex-direction: column; gap: 4px; }
     .msg.owner { align-self: flex-end; }
@@ -55,22 +133,126 @@
     .msg-bubble { padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.45; }
     .msg.owner .msg-bubble { background: var(--primary); border-bottom-right-radius: 4px; }
     .msg.agent .msg-bubble { background: #334155; border-bottom-left-radius: 4px; }
-    .msg-meta { font-size: 11px; color: var(--text-muted); display: flex; gap: 6px; }
+    .msg-meta { font-size: 11px; color: var(--text-muted); padding: 0 4px; display: flex; align-items: center; gap: 6px; }
     .msg.owner .msg-meta { justify-content: flex-end; }
-    .chat-input-area { border-top: 1px solid var(--border); padding: 10px 12px; display: flex; gap: 8px; }
-    .chat-input { flex: 1; background: #0f172a; border: 1px solid var(--border); border-radius: 24px; padding: 10px 16px; color: var(--text); font-size: 14px; outline: none; }
-    .send-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--primary); border: none; color: #fff; font-size: 18px; }
-    .send-btn:disabled { opacity: .4; }
+    .msg-sender { font-weight: 600; font-size: 12px; }
+    .chat-input-area { border-top: 1px solid var(--border); padding: 10px 12px; display: flex; gap: 8px; align-items: center; }
+    .chat-input {
+      flex: 1; background: #0f172a; border: 1px solid var(--border); border-radius: 24px;
+      padding: 10px 16px; color: var(--text); font-size: 14px; outline: none;
+    }
+    .chat-input:focus { border-color: var(--primary); }
+    .send-btn {
+      width: 40px; height: 40px; border-radius: 50%; background: var(--primary); border: none;
+      color: white; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    .send-btn:disabled { opacity: 0.4; }
+    .approval-card {
+      background: linear-gradient(135deg, #1e293b, #1e1b4b); border: 1px solid #4c1d95;
+      border-radius: 14px; padding: 16px; margin-bottom: 24px;
+    }
+    .approval-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 13px; font-weight: 600; color: #c4b5fd; }
+    .approval-body { font-size: 14px; margin-bottom: 14px; line-height: 1.5; }
+    .approval-actions { display: flex; gap: 10px; }
+    .btn { flex: 1; padding: 10px; border-radius: 10px; font-size: 14px; font-weight: 600; border: none; cursor: pointer; }
+    .btn-approve { background: var(--success); color: #000; }
+    .btn-reject { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
+    .registry-list { display: flex; flex-direction: column; gap: 8px; }
+    .registry-item {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 12px 14px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .registry-info { display: flex; align-items: center; gap: 12px; }
+    .registry-icon {
+      width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px;
+    }
+    .toggle {
+      width: 44px; height: 24px; border-radius: 12px; background: #475569; position: relative; cursor: pointer;
+    }
+    .toggle.on { background: var(--success); }
+    .toggle::after {
+      content: ''; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: white;
+      top: 3px; left: 3px; transition: transform 0.2s;
+    }
+    .toggle.on::after { transform: translateX(20px); }
+    .workflow { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 24px; }
+    .workflow-step { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; position: relative; }
+    .workflow-step:not(:last-child)::after {
+      content: ''; position: absolute; left: 15px; top: 40px; bottom: -10px; width: 2px; background: var(--border);
+    }
+    .step-num {
+      width: 32px; height: 32px; border-radius: 50%; background: #334155;
+      display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; z-index: 1;
+    }
+    .workflow-step.done .step-num { background: var(--success); color: #000; }
+    .workflow-step.active .step-num { background: var(--primary); }
+    .step-content { flex: 1; }
+    .step-title { font-size: 14px; font-weight: 500; }
+    .step-agent { font-size: 12px; color: var(--text-muted); }
+    .demo-note {
+      text-align: center; font-size: 12px; color: var(--text-muted);
+      padding: 20px 16px; border-top: 1px solid var(--border); margin-top: 10px;
+    }
+    .demo-note strong { color: var(--primary); }
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px);
+      background: #1e293b; border: 1px solid var(--border); color: white;
+      padding: 12px 20px; border-radius: 12px; font-size: 14px; z-index: 400;
+      transition: transform 0.3s ease; max-width: 90%; text-align: center;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
     .panel { display: none; }
     .panel.active { display: block; }
-    .demo-note { text-align: center; font-size: 12px; color: var(--text-muted); padding: 20px 16px; border-top: 1px solid var(--border); }
-    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px); background: #1e293b; border: 1px solid var(--border); color: #fff; padding: 12px 20px; border-radius: 12px; font-size: 14px; z-index: 400; transition: .3s; }
-    .toast.show { transform: translateX(-50%) translateY(0); }
     .typing { display: flex; gap: 4px; padding: 8px 0; }
-    .typing span { width: 6px; height: 6px; background: #94a3b8; border-radius: 50%; animation: typing 1.2s infinite; }
-    .typing span:nth-child(2) { animation-delay: .2s; }
-    .typing span:nth-child(3) { animation-delay: .4s; }
-    @keyframes typing { 0%,60%,100% { transform: translateY(0); opacity: .4; } 30% { transform: translateY(-4px); opacity: 1; } }
+    .typing span {
+      width: 6px; height: 6px; background: #94a3b8; border-radius: 50%; animation: typing 1.2s infinite;
+    }
+    .typing span:nth-child(2) { animation-delay: 0.2s; }
+    .typing span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typing {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+      30% { transform: translateY(-4px); opacity: 1; }
+    }
+    #roomOverlay {
+      display: none; position: fixed; inset: 0; z-index: 300; background: var(--bg); overflow-y: auto;
+    }
+    #roomOverlay.show { display: block; }
+    .room-bar {
+      position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 10px;
+      padding: 12px 16px; background: rgba(15, 23, 42, 0.95); border-bottom: 1px solid var(--border);
+    }
+    .room-bar button {
+      background: #334155; color: #fff; border: none; border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 600;
+    }
+    .room-bar .live { margin-left: auto; color: #fca5a5; font-size: 12px; font-weight: 700; }
+    .studio {
+      margin: 16px; border-radius: 16px; border: 1px solid var(--border);
+      background: radial-gradient(circle at 15% 20%, #1e3a5f 0%, transparent 40%), radial-gradient(circle at 90% 10%, #14532d 0%, transparent 35%), #0f172a;
+      padding: 16px;
+    }
+    .anchors { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    .anchor {
+      background: rgba(30,41,59,.9); border: 1px solid var(--border); border-radius: 14px; padding: 16px 10px; text-align: center;
+    }
+    .anchor .av {
+      width: 52px; height: 52px; border-radius: 50%; margin: 0 auto 8px; display: grid; place-items: center;
+      font-size: 22px; background: linear-gradient(135deg, #3b82f6, #22c55e);
+    }
+    .ticker {
+      margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; font-size: 13px;
+      color: var(--text-muted); max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
+    }
+    .room-ask {
+      margin: 0 16px 24px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px;
+    }
+    .room-ask textarea {
+      width: 100%; min-height: 70px; background: #0f172a; border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text); padding: 10px 12px; font-size: 14px;
+    }
+    .room-ask .go {
+      margin-top: 10px; width: 100%; background: var(--primary); color: #fff; border: none;
+      border-radius: 10px; padding: 10px; font-weight: 600;
+    }
   </style>
 </head>
 <body>
@@ -82,21 +264,33 @@
         <p>AI Agent 協作工作平台</p>
       </div>
     </div>
-    <div class="owner-badge">OWNER</div>
+    <div class="header-right">
+      <button type="button" class="owner-badge" id="btnOwner">OWNER</button>
+      <button type="button" class="room-btn" id="btnEnterRoom">進入房間</button>
+    </div>
   </header>
 
   <nav class="tabs" id="tabs">
     <button class="tab active" data-panel="home">工作中心</button>
     <button class="tab" data-panel="chat">AI 協作</button>
+    <button class="tab" data-panel="task">任務流程</button>
+    <button class="tab" data-panel="agents">Agent</button>
+    <button class="tab" data-panel="providers">Providers</button>
+    <button class="tab" data-panel="approval">審批</button>
   </nav>
 
   <main class="content">
     <div class="panel active" id="panel-home">
       <div class="section-title">在線 Agent</div>
       <div class="agents-grid" id="agentsGrid"></div>
-      <div class="section-title">最新協作</div>
-      <div class="chat-container" style="height:280px">
-        <div class="chat-header"><span>AIVAULT 協作</span><span style="font-size:11px;color:var(--success)">● 真實 AI</span></div>
+      <div class="section-title">今日任務</div>
+      <div class="task-list" id="taskList"></div>
+      <div class="section-title">最新協作片段</div>
+      <div class="chat-container" style="height: 280px;">
+        <div class="chat-header">
+          <span>任務：AIVAULT 第一版架構討論</span>
+          <span style="font-size:11px;color:var(--text-muted)">Mock</span>
+        </div>
         <div class="chat-messages" id="homeChatPreview"></div>
       </div>
     </div>
@@ -104,146 +298,342 @@
     <div class="panel" id="panel-chat">
       <div class="section-title">多 Agent 協作聊天室</div>
       <div class="chat-container">
-        <div class="chat-header"><span>真實 AI 協作</span><span style="font-size:11px;color:var(--success)">● Live</span></div>
+        <div class="chat-header">
+          <span>AIVAULT 架構討論</span>
+          <span style="font-size:11px;color:var(--success)">● 進行中</span>
+        </div>
         <div class="chat-messages" id="chatMessages"></div>
         <div class="chat-input-area">
           <input class="chat-input" id="chatInput" placeholder="以 Owner 身份輸入指令..." />
           <button class="send-btn" id="sendBtn">↑</button>
         </div>
       </div>
-      <p style="font-size:12px;color:var(--text-muted);text-align:center;margin-top:8px">已接上真實 AI Gateway（Groq）</p>
+      <p style="font-size:12px;color:var(--text-muted);text-align:center;">
+        目前為 Mock 模式。輸入任何內容都會觸發 Agent 協作回應。
+      </p>
+    </div>
+
+    <div class="panel" id="panel-task">
+      <div class="section-title">任務工作流</div>
+      <div class="workflow" id="workflow"></div>
+      <div class="section-title">任務清單</div>
+      <div class="task-list" id="taskListFull"></div>
+    </div>
+
+    <div class="panel" id="panel-agents">
+      <div class="section-title">Agent Registry</div>
+      <div class="registry-list" id="agentRegistry"></div>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:16px;text-align:center;">
+        Agent 皆為資料驅動，未來可從後端動態載入，不寫死在程式碼。
+      </p>
+    </div>
+
+    <div class="panel" id="panel-providers">
+      <div class="section-title">AI Providers</div>
+      <div class="registry-list" id="providerRegistry"></div>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:16px;text-align:center;">
+        透過 AI Gateway + Provider Adapter 架構，未來可自由新增任何 Provider。
+      </p>
+    </div>
+
+    <div class="panel" id="panel-approval">
+      <div class="section-title">Owner Approval 佇列</div>
+      <div id="approvalList"></div>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:16px;text-align:center;">
+        高風險操作必須經過 Owner 批准。Permission Engine 架構已預留。
+      </p>
     </div>
   </main>
 
-  <div class="demo-note"><strong>AIVAULT v0.2</strong><br>真實 AI Gateway · Groq 已接入</div>
+  <div class="demo-note">
+    <strong>AIVAULT Demo v0.1</strong><br>
+    展示版 · Mock AI Gateway · 架構可擴充<br>
+    未來可接入真實 Provider / Agent / Voice / Avatar
+  </div>
+
+  <div id="roomOverlay">
+    <div class="room-bar">
+      <button type="button" id="btnLeaveRoom">← 回工作區</button>
+      <strong>數字人會議室</strong>
+      <span class="live">● LIVE</span>
+    </div>
+    <div class="studio">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <strong>AIVAULT 播報台</strong>
+        <span style="font-size:11px;color:var(--text-muted)">2 人在場 · 可換班</span>
+      </div>
+      <div class="anchors">
+        <div class="anchor"><div class="av">🎙️</div><div style="font-weight:600">主播</div><div style="font-size:12px;color:var(--text-muted)">說明案件與進度</div></div>
+        <div class="anchor"><div class="av">🎧</div><div style="font-weight:600">助理主播</div><div style="font-size:12px;color:var(--text-muted)">補充與接力</div></div>
+      </div>
+      <div style="margin-top:10px;font-size:12px;color:var(--text-muted)">待命：工程師｜審核員｜研究員</div>
+      <div class="ticker" id="roomTicker">
+        <div>系統：播報進行中。中途進入不重播，只從當下繼續。</div>
+      </div>
+    </div>
+    <div class="room-ask">
+      <div class="section-title" style="margin-bottom:8px;">在房間發問</div>
+      <textarea id="roomInput" placeholder="打字發問（之後可接語音／數字人）"></textarea>
+      <button type="button" class="go" id="btnRoomSend">送出給播報台</button>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <script>
-    // ========== 設定 ==========
-    const SUPABASE_URL = 'https://bbgehikkomhbyimmfik.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJiZ2VoaWtrb21oYnlpbW1tZmlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2Nzg5NzUsImV4cCI6MjEwMjI1NDk3NX0.4F3vDWNqZHxT4lt2bdmUiQWvdhN8OZicGKDqeqgJwxM';
-    const AI_GATEWAY_URL = SUPABASE_URL + '/functions/v1/ai-gateway';
-
-    // ========== Agent 資料 ==========
-    const AGENTS = [
-      { id: 'a1', name: 'GPT', role: '架構分析', avatar: '🧠', color: 'var(--agent-gpt)', status: 'working', statusText: '在線', provider: 'groq' },
-      { id: 'a2', name: 'Grok', role: '研究與批判', avatar: '⚡', color: 'var(--agent-grok)', status: 'thinking', statusText: '在線', provider: 'groq' },
-      { id: 'a3', name: 'Coding Agent', role: '程式實作', avatar: '👩‍💻', color: 'var(--agent-coding)', status: 'idle', statusText: '待命', provider: 'groq' },
-      { id: 'a4', name: 'Research Agent', role: '資料研究', avatar: '🔍', color: 'var(--agent-research)', status: 'idle', statusText: '待命', provider: 'groq' },
+    const MOCK_PROVIDERS = [
+      { id: 'p1', code: 'openai', name: 'OpenAI', status: 'active', models: ['gpt-4o', 'gpt-4o-mini'] },
+      { id: 'p2', code: 'xai', name: 'xAI (Grok)', status: 'active', models: ['grok-2', 'grok-2-mini'] },
+      { id: 'p3', code: 'anthropic', name: 'Anthropic', status: 'active', models: ['claude-3.5-sonnet'] },
+      { id: 'p4', code: 'google', name: 'Google', status: 'inactive', models: ['gemini-1.5-pro'] },
+      { id: 'p5', code: 'local', name: 'Local Model', status: 'inactive', models: ['llama-3'] },
+      { id: 'p6', code: 'custom', name: 'Custom AI', status: 'inactive', models: [] },
+    ];
+    const MOCK_AGENTS = [
+      { id: 'a1', name: 'GPT', role: '架構分析', avatar: '🧠', color: 'var(--agent-gpt)', status: 'working', statusText: '正在分析任務', provider: 'openai' },
+      { id: 'a2', name: 'Grok', role: '研究與批判', avatar: '⚡', color: 'var(--agent-grok)', status: 'thinking', statusText: '正在研究', provider: 'xai' },
+      { id: 'a3', name: 'Coding Agent', role: '程式實作', avatar: '👩‍💻', color: 'var(--agent-coding)', status: 'idle', statusText: '等待任務', provider: 'openai' },
+      { id: 'a4', name: 'Research Agent', role: '資料研究', avatar: '🔍', color: 'var(--agent-research)', status: 'idle', statusText: '待命', provider: 'anthropic' },
+      { id: 'a5', name: 'Design Agent', role: 'UI / UX', avatar: '🎨', color: 'var(--agent-design)', status: 'idle', statusText: '待命', provider: 'openai' },
+      { id: 'a6', name: 'Teacher Agent', role: '教學說明', avatar: '📚', color: 'var(--agent-teacher)', status: 'offline', statusText: '離線', provider: 'google' },
+      { id: 'a7', name: 'Doctor Agent', role: '醫療資訊', avatar: '🩺', color: 'var(--agent-doctor)', status: 'offline', statusText: '離線', provider: 'anthropic' },
+      { id: 'a8', name: 'Lawyer Agent', role: '法律研究', avatar: '⚖️', color: 'var(--agent-lawyer)', status: 'idle', statusText: '待命', provider: 'xai' },
+    ];
+    const MOCK_TASKS = [
+      { id: 't1', title: '分析產品架構', status: 'done', agent: 'GPT' },
+      { id: 't2', title: 'AI 協作討論', status: 'active', agent: 'GPT + Grok' },
+      { id: 't3', title: '建立 Demo 介面', status: 'pending', agent: 'Design Agent' },
+      { id: 't4', title: '設計 Permission Engine', status: 'pending', agent: 'Coding Agent' },
+      { id: 't5', title: 'Owner 最終審批', status: 'pending', agent: 'Owner' },
+    ];
+    const MOCK_WORKFLOW = [
+      { step: 1, title: '架構分析', agent: 'GPT', status: 'done' },
+      { step: 2, title: '批判與補強', agent: 'Grok', status: 'active' },
+      { step: 3, title: '前端設計建議', agent: 'Design Agent', status: 'pending' },
+      { step: 4, title: '程式實作規劃', agent: 'Coding Agent', status: 'pending' },
+      { step: 5, title: '法律合規檢查', agent: 'Lawyer Agent', status: 'pending' },
+      { step: 6, title: 'Owner 批准', agent: 'Owner', status: 'pending' },
+    ];
+    const MOCK_APPROVALS = [
+      { id: 'ap1', agent: 'Grok', action: '修改資料庫 Schema：新增 agent_capabilities 關聯表', risk: 'medium', time: '剛剛' },
+      { id: 'ap2', agent: 'Coding Agent', action: '請求執行 Terminal 指令：建立專案目錄結構', risk: 'high', time: '2 分鐘前' }
+    ];
+    const INITIAL_MESSAGES = [
+      { sender: 'GPT', type: 'agent', text: '我已分析目前需求。建議採用 Provider Adapter + Agent Registry 架構，確保未來可自由新增 AI。', time: '14:32' },
+      { sender: 'Grok', type: 'agent', text: '我不同意把第一版做得太複雜。應該先用 Mock 快速驗證協作流程，再逐步替換真實 Provider。', time: '14:33' },
+      { sender: 'GPT', type: 'agent', text: '重新評估後，我同意 Grok 的觀點。先建立可展示的協作原型，架構保持可擴充即可。', time: '14:34' },
+      { sender: 'Owner', type: 'owner', text: '採用第二方案。先做可操作 Demo，架構不能寫死。', time: '14:35' },
+      { sender: 'Grok', type: 'agent', text: '收到。我開始規劃手機優先的 UI 結構，並預留 AI Gateway 介面。', time: '14:36' },
+      { sender: 'GPT', type: 'agent', text: '同步進行 Task 與 Approval 流程設計，確保 Owner 擁有最終控制權。', time: '14:37' },
     ];
 
-    let messages = [
-      { sender: '系統', type: 'agent', text: 'AIVAULT 已接上真實 AI Gateway。可以開始下指令。', time: '—' }
-    ];
-
-    // ========== 真實 AI Gateway ==========
-    async function callAI(provider, userMessage, agentName) {
-      const systemPrompt = `你是 AIVAULT 平台中的「${agentName}」。請用繁體中文簡短回覆，語氣專業且直接。`;
-      const res = await fetch(AI_GATEWAY_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({
-          provider: provider,
-          model: 'llama-3.3-70b-versatile',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userMessage }
+    class MockAIGateway {
+      constructor() { this.adapters = new Map(); }
+      registerAdapter(providerCode, adapter) { this.adapters.set(providerCode, adapter); }
+      async chat(agent, message) {
+        const adapter = this.adapters.get(agent.provider) || this.adapters.get('mock');
+        return adapter.generate(agent, message);
+      }
+    }
+    class MockProviderAdapter {
+      async generate(agent, message) {
+        await new Promise(r => setTimeout(r, 800 + Math.random() * 1200));
+        const responses = {
+          'GPT': [
+            `針對「${message}」，我建議從架構完整性與可擴充性兩個角度分析。`,
+            `根據目前 AIVAULT 目標，我認為應該優先確保 Agent 之間的 Message Bus 暢通。`,
+            `我已更新分析結果，並準備提交給 Owner 審核。`
+          ],
+          'Grok': [
+            `我對「${message}」有不同看法。應該更務實，先驗證協作流程再談完美架構。`,
+            `從實用角度，我建議先完成手機可展示的原型。`,
+            `同意部分觀點，但執行順序我有調整建議。`
+          ],
+          'Coding Agent': [
+            `收到任務「${message}」。我可以開始規劃程式結構與介面定義。`,
+            `技術上可行。我會把 Adapter 介面先定義清楚。`
+          ],
+          'default': [
+            `收到 Owner 指令：「${message}」。正在處理中...`,
+            `已記錄任務，準備與其他 Agent 協作。`
           ]
-        })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'AI 呼叫失敗');
-      return data.content || '（無回應）';
+        };
+        const pool = responses[agent.name] || responses['default'];
+        return pool[Math.floor(Math.random() * pool.length)];
+      }
     }
+    const gateway = new MockAIGateway();
+    const mockAdapter = new MockProviderAdapter();
+    ['openai', 'xai', 'anthropic', 'google', 'local', 'custom', 'mock'].forEach(p => gateway.registerAdapter(p, mockAdapter));
 
-    // ========== UI ==========
-    function showToast(text) {
-      const t = document.getElementById('toast');
-      t.textContent = text;
-      t.classList.add('show');
-      setTimeout(() => t.classList.remove('show'), 2500);
-    }
+    let messages = [...INITIAL_MESSAGES];
+    let approvals = [...MOCK_APPROVALS];
 
     function renderAgents() {
-      document.getElementById('agentsGrid').innerHTML = AGENTS.map(a => `
-        <div class="agent-card">
+      document.getElementById('agentsGrid').innerHTML = MOCK_AGENTS.slice(0, 6).map(a => `
+        <div class="agent-card" data-id="${a.id}">
           <div class="agent-avatar" style="background:${a.color}22">${a.avatar}</div>
           <div class="agent-name">${a.name}</div>
           <div class="agent-role">${a.role}</div>
           <div class="agent-status"><span class="status-dot ${a.status}"></span><span>${a.statusText}</span></div>
-        </div>
-      `).join('');
+        </div>`).join('');
     }
-
-    function renderMessages(id, limit = null) {
-      const el = document.getElementById(id);
+    function renderTasks(containerId) {
+      document.getElementById(containerId).innerHTML = MOCK_TASKS.map(t => `
+        <div class="task-item ${t.status}">
+          <div class="task-check">${t.status === 'done' ? '✓' : t.status === 'active' ? '●' : '○'}</div>
+          <div><div class="task-title">${t.title}</div><div class="task-meta">${t.agent}</div></div>
+        </div>`).join('');
+    }
+    function renderWorkflow() {
+      document.getElementById('workflow').innerHTML = MOCK_WORKFLOW.map(s => `
+        <div class="workflow-step ${s.status}">
+          <div class="step-num">${s.status === 'done' ? '✓' : s.step}</div>
+          <div class="step-content"><div class="step-title">${s.title}</div><div class="step-agent">${s.agent}</div></div>
+        </div>`).join('');
+    }
+    function renderMessages(containerId, limit = null) {
+      const el = document.getElementById(containerId);
       const list = limit ? messages.slice(-limit) : messages;
       el.innerHTML = list.map(m => `
         <div class="msg ${m.type}">
           <div class="msg-meta"><span class="msg-sender">${m.sender}</span><span>${m.time}</span></div>
           <div class="msg-bubble">${m.text}</div>
-        </div>
-      `).join('');
+        </div>`).join('');
       el.scrollTop = el.scrollHeight;
     }
-
-    function nowTime() {
-      const t = new Date();
-      return t.getHours().toString().padStart(2,'0') + ':' + t.getMinutes().toString().padStart(2,'0');
+    function renderAgentRegistry() {
+      document.getElementById('agentRegistry').innerHTML = MOCK_AGENTS.map(a => `
+        <div class="registry-item">
+          <div class="registry-info">
+            <div class="registry-icon" style="background:${a.color}33">${a.avatar}</div>
+            <div><div style="font-weight:600;font-size:14px">${a.name}</div>
+            <div style="font-size:12px;color:var(--text-muted)">${a.role} · ${a.provider}</div></div>
+          </div>
+          <div class="toggle ${a.status !== 'offline' ? 'on' : ''}" data-id="${a.id}"></div>
+        </div>`).join('');
     }
-
+    function renderProviders() {
+      document.getElementById('providerRegistry').innerHTML = MOCK_PROVIDERS.map(p => `
+        <div class="registry-item">
+          <div class="registry-info">
+            <div class="registry-icon" style="background:#334155">🔌</div>
+            <div><div style="font-weight:600;font-size:14px">${p.name}</div>
+            <div style="font-size:12px;color:var(--text-muted)">${p.models.join(', ') || 'No models'}</div></div>
+          </div>
+          <div class="toggle ${p.status === 'active' ? 'on' : ''}" data-code="${p.code}"></div>
+        </div>`).join('');
+    }
+    function renderApprovals() {
+      const el = document.getElementById('approvalList');
+      if (approvals.length === 0) {
+        el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-muted)">目前沒有待審批項目</div>`;
+        return;
+      }
+      el.innerHTML = approvals.map(a => `
+        <div class="approval-card" data-id="${a.id}">
+          <div class="approval-header">⚠️ Owner Approval 請求 · ${a.time}</div>
+          <div class="approval-body"><strong>${a.agent}</strong> 想執行：<br>「${a.action}」
+            <div style="margin-top:6px;font-size:12px;color:var(--text-muted)">風險等級：${a.risk === 'high' ? '高' : '中'}</div>
+          </div>
+          <div class="approval-actions">
+            <button class="btn btn-approve" onclick="handleApproval('${a.id}', true)">批准</button>
+            <button class="btn btn-reject" onclick="handleApproval('${a.id}', false)">拒絕</button>
+          </div>
+        </div>`).join('');
+    }
+    function showToast(text) {
+      const t = document.getElementById('toast');
+      t.textContent = text; t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2500);
+    }
+    function handleApproval(id, approved) {
+      approvals = approvals.filter(a => a.id !== id);
+      renderApprovals();
+      showToast(approved ? '已批准操作' : '已拒絕操作');
+    }
     async function sendMessage() {
       const input = document.getElementById('chatInput');
       const text = input.value.trim();
       if (!text) return;
       input.value = '';
       document.getElementById('sendBtn').disabled = true;
-
-      messages.push({ sender: 'Owner', type: 'owner', text, time: nowTime() });
+      const now = new Date();
+      const time = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+      messages.push({ sender: 'Owner', type: 'owner', text, time });
       renderMessages('chatMessages');
-      renderMessages('homeChatPreview', 5);
-
-      // 讓兩個 Agent 回應
-      const active = AGENTS.filter(a => a.status === 'working' || a.status === 'thinking' || a.status === 'idle').slice(0, 2);
-
-      for (const agent of active) {
+      renderMessages('homeChatPreview', 4);
+      const activeAgents = MOCK_AGENTS.filter(a => a.status === 'working' || a.status === 'thinking' || a.status === 'idle').slice(0, 2);
+      for (const agent of activeAgents) {
         const chatEl = document.getElementById('chatMessages');
-        const typing = document.createElement('div');
-        typing.className = 'msg agent';
-        typing.innerHTML = `<div class="msg-meta"><span class="msg-sender">${agent.name}</span></div><div class="msg-bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
-        chatEl.appendChild(typing);
+        const typingDiv = document.createElement('div');
+        typingDiv.className = 'msg agent';
+        typingDiv.innerHTML = `<div class="msg-meta"><span class="msg-sender">${agent.name}</span></div><div class="msg-bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
+        chatEl.appendChild(typingDiv);
         chatEl.scrollTop = chatEl.scrollHeight;
-
-        try {
-          const reply = await callAI(agent.provider, text, agent.name);
-          typing.remove();
-          messages.push({ sender: agent.name, type: 'agent', text: reply, time: nowTime() });
-        } catch (err) {
-          typing.remove();
-          messages.push({ sender: agent.name, type: 'agent', text: '錯誤：' + err.message, time: nowTime() });
-        }
+        const reply = await gateway.chat(agent, text);
+        typingDiv.remove();
+        const t2 = new Date();
+        const time2 = `${t2.getHours().toString().padStart(2,'0')}:${t2.getMinutes().toString().padStart(2,'0')}`;
+        messages.push({ sender: agent.name, type: 'agent', text: reply, time: time2 });
         renderMessages('chatMessages');
-        renderMessages('homeChatPreview', 5);
+        renderMessages('homeChatPreview', 4);
       }
       document.getElementById('sendBtn').disabled = false;
     }
+    function nowHMS() {
+      const t = new Date();
+      return `${t.getHours().toString().padStart(2,'0')}:${t.getMinutes().toString().padStart(2,'0')}:${t.getSeconds().toString().padStart(2,'0')}`;
+    }
+    function addTicker(text) {
+      const el = document.createElement('div');
+      el.textContent = `${nowHMS()}｜${text}`;
+      const box = document.getElementById('roomTicker');
+      box.appendChild(el);
+      box.scrollTop = box.scrollHeight;
+    }
 
-    document.getElementById('tabs').addEventListener('click', e => {
+    document.getElementById('tabs').addEventListener('click', (e) => {
       if (!e.target.classList.contains('tab')) return;
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       e.target.classList.add('active');
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-      document.getElementById('panel-' + e.target.dataset.panel).classList.add('active');
+      document.getElementById(`panel-${e.target.dataset.panel}`).classList.add('active');
     });
     document.getElementById('sendBtn').addEventListener('click', sendMessage);
-    document.getElementById('chatInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+    document.getElementById('chatInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
+    document.getElementById('btnEnterRoom').addEventListener('click', () => {
+      document.getElementById('roomOverlay').classList.add('show');
+      addTicker('Owner 中途進入房間（不中斷進行中內容）');
+      showToast('已進入會議室');
+    });
+    document.getElementById('btnLeaveRoom').addEventListener('click', () => {
+      document.getElementById('roomOverlay').classList.remove('show');
+    });
+    document.getElementById('btnOwner').addEventListener('click', () => showToast('Owner 工作區'));
+    document.getElementById('btnRoomSend').addEventListener('click', () => {
+      const q = document.getElementById('roomInput').value.trim();
+      if (!q) return;
+      addTicker('主播：收到「' + q + '」');
+      setTimeout(() => addTicker('助理主播：已記錄（展示模式）'), 400);
+      document.getElementById('roomInput').value = '';
+    });
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('toggle')) {
+        e.target.classList.toggle('on');
+        showToast('狀態已更新（Demo）');
+      }
+    });
 
     renderAgents();
+    renderTasks('taskList');
+    renderTasks('taskListFull');
+    renderWorkflow();
     renderMessages('chatMessages');
-    renderMessages('homeChatPreview', 5);
+    renderMessages('homeChatPreview', 4);
+    renderAgentRegistry();
+    renderProviders();
+    renderApprovals();
   </script>
 </body>
 </html>
