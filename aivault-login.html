@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#070a11">
+<title>AIVAULT — Secure Login</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#060911;color:#edf5ff;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Noto Sans TC",sans-serif}
+body{display:grid;place-items:center;padding:24px;overflow-x:hidden}.bg{position:fixed;inset:0;background:radial-gradient(circle at 50% 8%,rgba(63,108,255,.18),transparent 35%),radial-gradient(circle at 80% 85%,rgba(0,225,255,.06),transparent 32%)}
+.bg:after{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);background-size:40px 40px}
+.card{position:relative;width:min(100%,430px);padding:36px 27px 27px;border:1px solid rgba(150,180,220,.17);border-radius:28px;background:rgba(10,15,25,.84);backdrop-filter:blur(25px);box-shadow:0 30px 90px rgba(0,0,0,.48)}
+.brand{text-align:center}.brandName{font-size:42px;font-weight:800;letter-spacing:.17em;margin-left:.17em;text-shadow:0 0 28px rgba(96,220,255,.16)}.tag{margin-top:9px;font-size:11px;letter-spacing:.2em;color:#8090aa}
+h1{text-align:center;font-size:21px;margin:35px 0 8px}.hint{text-align:center;color:#77869e;font-size:13px;margin-bottom:27px}
+.field{position:relative;margin-bottom:17px}label{display:block;color:#aab7cb;font-size:12px;margin-bottom:8px}input[type=email],input[type=password],input[type=text]{width:100%;height:50px;border-radius:13px;border:1px solid rgba(160,185,220,.18);background:#080d16;color:#fff;padding:0 15px;font-size:15px;outline:none}input:focus{border-color:rgba(101,232,255,.55);box-shadow:0 0 0 3px rgba(101,232,255,.07)}
+.eye{position:absolute;right:8px;bottom:5px;width:40px;height:40px;border:0;background:none;color:#8796ae}.row{display:flex;justify-content:space-between;align-items:center;color:#8794aa;font-size:12px;margin:3px 0 20px}.remember{display:flex;align-items:center;gap:7px}.remember input{width:15px;height:15px;accent-color:#75eaff}
+.login{width:100%;height:51px;border:0;border-radius:14px;background:linear-gradient(135deg,#e2fcff,#819aff);color:#07101a;font-weight:800;font-size:15px;box-shadow:0 12px 32px rgba(79,139,255,.2);cursor:pointer}.sep{display:flex;align-items:center;gap:12px;color:#56647b;font-size:10px;letter-spacing:.12em;margin:25px 0}.sep:before,.sep:after{content:"";height:1px;flex:1;background:rgba(255,255,255,.08)}
+.passkey{width:100%;height:47px;border-radius:13px;border:1px solid rgba(155,180,220,.18);background:rgba(255,255,255,.025);color:#c6d3e6;font-size:13px}.error{display:none;color:#ff9b9b;font-size:12px;margin:-5px 0 14px}.error.show{display:block}.security{text-align:center;color:#5f6d84;font-size:10px;line-height:1.7;margin-top:22px}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<main class="card">
+<section class="brand"><div class="brandName">AIVAULT</div><div class="tag">AI AGENT OPERATING SYSTEM</div></section>
+<h1>登入 AIVAULT</h1><div class="hint">安全進入你的 AI 工作空間</div>
+<form id="form" novalidate>
+<div class="field"><label for="email">帳號 / Email</label><input id="email" type="email" autocomplete="username" placeholder="name@example.com" required></div>
+<div class="field"><label for="password">密碼</label><input id="password" type="password" autocomplete="current-password" placeholder="輸入密碼" required><button class="eye" id="eye" type="button">◉</button></div>
+<div class="error" id="error">請輸入有效的帳號與密碼。</div>
+<div class="row"><label class="remember"><input id="remember" type="checkbox"> 記住此裝置</label><span>忘記密碼？</span></div>
+<button class="login" type="submit">登入 AIVAULT</button>
+</form>
+<div class="sep">SECURE ACCESS</div>
+<button class="passkey" type="button" id="passkey">使用 Passkey / Face ID / Touch ID</button>
+<div class="security">🔒 正式版本將使用 Supabase Auth 驗證身分與 Session。<br>密碼不會寫入前端程式碼。</div>
+</main>
+<script>
+const form=document.getElementById("form"),email=document.getElementById("email"),pass=document.getElementById("password"),error=document.getElementById("error");
+document.getElementById("eye").onclick=()=>{const s=pass.type==="password";pass.type=s?"text":"password";document.getElementById("eye").textContent=s?"◎":"◉"};
+form.onsubmit=e=>{
+ e.preventDefault();
+ if(!email.value.trim()||!pass.value){error.classList.add("show");return}
+ error.classList.remove("show");
+ // 目前僅為流程測試；正式接入 Supabase Auth 後，這裡改為 signInWithPassword。
+ sessionStorage.setItem("aivault_login_demo","1");
+ location.href="aivault-home.html";
+};
+document.getElementById("passkey").onclick=()=>alert("Passkey / Face ID 將在正式身分驗證接入後啟用。");
+</script>
+</body>
+</html>
