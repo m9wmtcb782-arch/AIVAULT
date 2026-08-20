@@ -1,57 +1,61 @@
-<!DOCTYPE html><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#070a11">
-<title>AIVAULT — Secure Login</title>
+<meta name="theme-color" content="#050812">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<title>AIVAULT — Secure Login</title>
 
 <style>
 *{
   box-sizing:border-box;
 }
 
-html,
-body{
+html,body{
   margin:0;
   min-height:100%;
-  background:#060911;
+  background:#050812;
   color:#edf5ff;
-  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Noto Sans TC",sans-serif;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Display",
+    "Noto Sans TC",
+    sans-serif;
 }
 
 body{
+  min-height:100dvh;
   display:grid;
   place-items:center;
   padding:24px;
-  overflow-x:hidden;
+  overflow:hidden;
 }
 
 .bg{
   position:fixed;
   inset:0;
-
   background:
     radial-gradient(
-      circle at 50% 8%,
-      rgba(63,108,255,.18),
-      transparent 35%
+      circle at 50% 5%,
+      rgba(63,108,255,.22),
+      transparent 36%
     ),
     radial-gradient(
-      circle at 80% 85%,
-      rgba(0,225,255,.06),
-      transparent 32%
+      circle at 85% 85%,
+      rgba(0,225,255,.10),
+      transparent 30%
     );
 }
 
-.bg:after{
+.bg::before{
   content:"";
   position:absolute;
   inset:0;
-
-  background-image:
+  background:
     linear-gradient(
       rgba(255,255,255,.018) 1px,
       transparent 1px
@@ -61,31 +65,41 @@ body{
       rgba(255,255,255,.018) 1px,
       transparent 1px
     );
-
   background-size:40px 40px;
+}
+
+.bg::after{
+  content:"";
+  position:absolute;
+  inset:-50%;
+  background:
+    conic-gradient(
+      from 0deg,
+      transparent,
+      rgba(75,220,255,.05),
+      transparent 30%
+    );
+  animation:rotateBg 20s linear infinite;
+}
+
+@keyframes rotateBg{
+  to{
+    transform:rotate(360deg);
+  }
 }
 
 .card{
   position:relative;
-
-  width:min(100%,430px);
-
-  padding:36px 27px 27px;
-
-  border:
-    1px solid rgba(150,180,220,.17);
-
-  border-radius:28px;
-
-  background:
-    rgba(10,15,25,.84);
-
-  backdrop-filter:blur(25px);
-
-  box-shadow:
-    0 30px 90px rgba(0,0,0,.48);
-
   z-index:2;
+  width:min(100%,430px);
+  padding:36px 27px 27px;
+  border:1px solid rgba(150,180,220,.17);
+  border-radius:28px;
+  background:rgba(10,15,25,.86);
+  backdrop-filter:blur(25px);
+  box-shadow:
+    0 30px 90px rgba(0,0,0,.55),
+    0 0 80px rgba(50,120,255,.06);
 }
 
 .brand{
@@ -93,18 +107,17 @@ body{
 }
 
 .brandName{
-  font-size:42px;
+  font-size:40px;
   font-weight:800;
-  letter-spacing:.17em;
-  margin-left:.17em;
-
+  letter-spacing:.16em;
+  margin-left:.16em;
   text-shadow:
-    0 0 28px rgba(96,220,255,.16);
+    0 0 28px rgba(96,220,255,.25);
 }
 
 .tag{
   margin-top:9px;
-  font-size:11px;
+  font-size:10px;
   letter-spacing:.2em;
   color:#8090aa;
 }
@@ -122,47 +135,6 @@ h1{
   margin-bottom:27px;
 }
 
-.mode{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:6px;
-
-  padding:4px;
-
-  margin-bottom:24px;
-
-  border-radius:13px;
-
-  background:
-    rgba(255,255,255,.035);
-}
-
-.mode button{
-  height:40px;
-
-  border:0;
-
-  border-radius:10px;
-
-  background:transparent;
-
-  color:#7888a0;
-
-  font-size:13px;
-
-  cursor:pointer;
-}
-
-.mode button.active{
-  background:
-    rgba(117,234,255,.12);
-
-  color:#8ef1ff;
-
-  box-shadow:
-    0 0 18px rgba(101,235,255,.06);
-}
-
 .field{
   position:relative;
   margin-bottom:17px;
@@ -170,72 +142,47 @@ h1{
 
 label{
   display:block;
-
   color:#aab7cb;
-
   font-size:12px;
-
   margin-bottom:8px;
 }
 
 input{
   width:100%;
   height:50px;
-
   border-radius:13px;
-
-  border:
-    1px solid rgba(160,185,220,.18);
-
+  border:1px solid rgba(160,185,220,.18);
   background:#080d16;
-
   color:#fff;
-
   padding:0 15px;
-
   font-size:15px;
-
   outline:none;
 }
 
 input:focus{
-  border-color:
-    rgba(101,232,255,.55);
-
+  border-color:rgba(101,232,255,.55);
   box-shadow:
-    0 0 0 3px
-    rgba(101,232,255,.07);
+    0 0 0 3px rgba(101,232,255,.07);
 }
 
 .eye{
   position:absolute;
-
   right:8px;
   bottom:5px;
-
   width:40px;
   height:40px;
-
   border:0;
-
   background:none;
-
   color:#8796ae;
-
   cursor:pointer;
 }
 
 .row{
   display:flex;
-
   justify-content:space-between;
-
   align-items:center;
-
   color:#8794aa;
-
   font-size:12px;
-
   margin:3px 0 20px;
 }
 
@@ -243,6 +190,7 @@ input:focus{
   display:flex;
   align-items:center;
   gap:7px;
+  margin:0;
 }
 
 .remember input{
@@ -252,41 +200,25 @@ input:focus{
 }
 
 .forgot{
-  border:0;
-  background:none;
-
-  color:#8192ad;
-
   cursor:pointer;
-
-  font-size:12px;
 }
 
 .login{
   width:100%;
   height:51px;
-
   border:0;
-
   border-radius:14px;
-
   background:
     linear-gradient(
       135deg,
       #e2fcff,
       #819aff
     );
-
   color:#07101a;
-
   font-weight:800;
-
   font-size:15px;
-
   box-shadow:
-    0 12px 32px
-    rgba(79,139,255,.2);
-
+    0 12px 32px rgba(79,139,255,.2);
   cursor:pointer;
 }
 
@@ -297,103 +229,82 @@ input:focus{
 
 .sep{
   display:flex;
-
   align-items:center;
-
   gap:12px;
-
   color:#56647b;
-
   font-size:10px;
-
   letter-spacing:.12em;
-
   margin:25px 0;
 }
 
-.sep:before,
-.sep:after{
+.sep::before,
+.sep::after{
   content:"";
-
   height:1px;
-
   flex:1;
-
-  background:
-    rgba(255,255,255,.08);
+  background:rgba(255,255,255,.08);
 }
 
-.passkey{
+.register{
   width:100%;
   height:47px;
-
   border-radius:13px;
-
-  border:
-    1px solid rgba(155,180,220,.18);
-
-  background:
-    rgba(255,255,255,.025);
-
+  border:1px solid rgba(155,180,220,.18);
+  background:rgba(255,255,255,.025);
   color:#c6d3e6;
-
   font-size:13px;
-
   cursor:pointer;
 }
 
-.message{
+.error{
   display:none;
-
-  border-radius:12px;
-
-  padding:11px 12px;
-
-  margin-bottom:15px;
-
+  color:#ff9b9b;
   font-size:12px;
-
-  line-height:1.6;
+  margin:-5px 0 14px;
+  line-height:1.5;
 }
 
-.message.show{
+.error.show{
   display:block;
 }
 
-.message.error{
-  color:#ffaaaa;
-
-  border:
-    1px solid rgba(255,100,100,.15);
-
-  background:
-    rgba(255,80,80,.06);
+.success{
+  display:none;
+  color:#72f5bb;
+  font-size:12px;
+  margin:-5px 0 14px;
+  line-height:1.5;
 }
 
-.message.success{
-  color:#8ef1ff;
-
-  border:
-    1px solid rgba(100,230,255,.15);
-
-  background:
-    rgba(80,220,255,.05);
+.success.show{
+  display:block;
 }
 
 .security{
   text-align:center;
-
   color:#5f6d84;
-
   font-size:10px;
-
   line-height:1.7;
-
   margin-top:22px;
 }
 
-.hidden{
-  display:none!important;
+.mode{
+  display:none;
+}
+
+.mode.show{
+  display:block;
+}
+
+.back{
+  display:none;
+  width:100%;
+  margin-top:12px;
+  background:none;
+  border:0;
+  color:#71819b;
+  font-size:12px;
+  cursor:pointer;
 }
 </style>
 </head>
@@ -404,727 +315,744 @@ input:focus{
 
 <main class="card">
 
-<section class="brand">
-  <div class="brandName">AIVAULT</div>
-  <div class="tag">
-    AI AGENT OPERATING SYSTEM
-  </div>
-</section>
+  <section class="brand">
+    <div class="brandName">AIVAULT</div>
+    <div class="tag">AI AGENT OPERATING SYSTEM</div>
+  </section>
 
-<h1 id="title">登入 AIVAULT</h1>
+  <!-- 登入 -->
+  <section id="loginMode" class="mode show">
 
-<div class="hint" id="hint">
-  安全進入你的 AI 工作空間
-</div>
+    <h1>登入 AIVAULT</h1>
 
+    <div class="hint">
+      安全進入你的 AI 工作空間
+    </div>
 
-<!-- 登入 / 註冊 -->
+    <form id="loginForm" novalidate>
 
-<div class="mode">
+      <div class="field">
+        <label for="loginEmail">
+          帳號 / Email
+        </label>
 
-  <button
-    id="loginMode"
-    class="active"
-    type="button"
-  >
-    登入
-  </button>
+        <input
+          id="loginEmail"
+          type="email"
+          autocomplete="username"
+          placeholder="name@example.com"
+          required
+        >
+      </div>
 
-  <button
-    id="registerMode"
-    type="button"
-  >
-    註冊帳號
-  </button>
+      <div class="field">
 
-</div>
+        <label for="loginPassword">
+          密碼
+        </label>
 
+        <input
+          id="loginPassword"
+          type="password"
+          autocomplete="current-password"
+          placeholder="輸入密碼"
+          required
+        >
 
-<form id="form" novalidate>
+        <button
+          class="eye"
+          id="loginEye"
+          type="button"
+        >
+          ◉
+        </button>
 
-  <!-- Email -->
+      </div>
 
-  <div class="field">
+      <div
+        class="error"
+        id="loginError"
+      ></div>
 
-    <label for="email">
-      Email
-    </label>
+      <div class="row">
 
-    <input
-      id="email"
-      type="email"
-      autocomplete="email"
-      placeholder="name@example.com"
-      required
-    >
+        <label class="remember">
+          <input
+            id="remember"
+            type="checkbox"
+          >
+          記住此裝置
+        </label>
 
-  </div>
+        <span
+          class="forgot"
+          id="forgot"
+        >
+          忘記密碼？
+        </span>
 
+      </div>
 
-  <!-- 密碼 -->
-
-  <div class="field">
-
-    <label for="password">
-      密碼
-    </label>
-
-    <input
-      id="password"
-      type="password"
-      autocomplete="current-password"
-      placeholder="輸入密碼"
-      required
-    >
-
-    <button
-      class="eye"
-      id="eye"
-      type="button"
-    >
-      ◉
-    </button>
-
-  </div>
-
-
-  <!-- 確認密碼 -->
-
-  <div
-    class="field hidden"
-    id="confirmField"
-  >
-
-    <label for="confirmPassword">
-      確認密碼
-    </label>
-
-    <input
-      id="confirmPassword"
-      type="password"
-      autocomplete="new-password"
-      placeholder="再次輸入密碼"
-    >
-
-  </div>
-
-
-  <!-- 訊息 -->
-
-  <div
-    class="message error"
-    id="error"
-  ></div>
-
-  <div
-    class="message success"
-    id="success"
-  ></div>
-
-
-  <!-- 登入選項 -->
-
-  <div
-    class="row"
-    id="loginOptions"
-  >
-
-    <label class="remember">
-
-      <input
-        id="remember"
-        type="checkbox"
+      <button
+        class="login"
+        id="loginButton"
+        type="submit"
       >
+        登入 AIVAULT
+      </button>
 
-      記住此裝置
+    </form>
 
-    </label>
+    <div class="sep">
+      SECURE ACCESS
+    </div>
 
     <button
-      class="forgot"
-      id="forgot"
+      class="register"
+      id="showRegister"
       type="button"
     >
-      忘記密碼？
+      建立 AIVAULT 帳號
     </button>
 
+  </section>
+
+
+  <!-- 註冊 -->
+  <section id="registerMode" class="mode">
+
+    <h1>建立 AIVAULT 帳號</h1>
+
+    <div class="hint">
+      建立你的 AI 工作空間
+    </div>
+
+    <form id="registerForm" novalidate>
+
+      <div class="field">
+
+        <label for="registerEmail">
+          Email
+        </label>
+
+        <input
+          id="registerEmail"
+          type="email"
+          autocomplete="email"
+          placeholder="name@example.com"
+          required
+        >
+
+      </div>
+
+      <div class="field">
+
+        <label for="registerPassword">
+          密碼
+        </label>
+
+        <input
+          id="registerPassword"
+          type="password"
+          autocomplete="new-password"
+          placeholder="至少 6 個字元"
+          required
+        >
+
+      </div>
+
+      <div class="field">
+
+        <label for="registerPassword2">
+          再次輸入密碼
+        </label>
+
+        <input
+          id="registerPassword2"
+          type="password"
+          autocomplete="new-password"
+          placeholder="再次輸入密碼"
+          required
+        >
+
+      </div>
+
+      <div
+        class="error"
+        id="registerError"
+      ></div>
+
+      <div
+        class="success"
+        id="registerSuccess"
+      ></div>
+
+      <button
+        class="login"
+        id="registerButton"
+        type="submit"
+      >
+        建立帳號
+      </button>
+
+    </form>
+
+    <button
+      class="back"
+      id="backLogin"
+      type="button"
+    >
+      ← 返回登入
+    </button>
+
+  </section>
+
+
+  <div class="security">
+    🔒 Supabase Auth 安全驗證<br>
+    密碼不會寫入前端程式碼
   </div>
-
-
-  <button
-    class="login"
-    id="submitButton"
-    type="submit"
-  >
-    登入 AIVAULT
-  </button>
-
-</form>
-
-
-<div class="sep">
-  SECURE ACCESS
-</div>
-
-
-<button
-  class="passkey"
-  type="button"
-  id="passkey"
->
-  使用 Passkey / Face ID / Touch ID
-</button>
-
-
-<div class="security">
-
-  🔒 AIVAULT 使用 Supabase Auth
-  進行身分驗證與 Session 管理。<br>
-
-  密碼不會儲存在前端程式碼中。
-
-</div>
 
 </main>
-
 
 <script>
 
 /* =========================================================
-   AIVAULT SUPABASE AUTH
-========================================================= */
-
-/*
-  ⚠️ 請把下面兩個值換成你的 Supabase Project 設定。
-
-  SUPABASE_URL：
-  Supabase Dashboard
-  → Project Settings
-  → API
-  → Project URL
-
-  SUPABASE_ANON_KEY：
-  Supabase Dashboard
-  → Project Settings
-  → API
-  → Publishable / anon key
-*/
+   AIVAULT Supabase
+   ========================================================= */
 
 const SUPABASE_URL =
   "https://clcddygkaaqqtsbswgdf.supabase.co";
 
-const SUPABASE_ANON_KEY =
+const SUPABASE_PUBLISHABLE_KEY =
   "sb_publishable_1D05YGthBrNGg-5L92TLCw_GiLnInBu";
 
 
 /* =========================================================
-   建立 Supabase Client
-========================================================= */
+   Supabase REST Auth
+   ========================================================= */
 
-const supabaseClient =
-  window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY
-  );
+async function supabaseAuth(
+  endpoint,
+  body
+){
+
+  const response =
+    await fetch(
+      `${SUPABASE_URL}/auth/v1/${endpoint}`,
+      {
+        method:"POST",
+
+        headers:{
+          "Content-Type":
+            "application/json",
+
+          "apikey":
+            SUPABASE_PUBLISHABLE_KEY
+        },
+
+        body:
+          JSON.stringify(body)
+      }
+    );
+
+  let data = null;
+
+  try{
+    data =
+      await response.json();
+  }catch{
+    data = {};
+  }
+
+  if(!response.ok){
+
+    throw new Error(
+      data?.msg ||
+      data?.message ||
+      data?.error_description ||
+      data?.error ||
+      "Supabase Auth 驗證失敗"
+    );
+
+  }
+
+  return data;
+}
 
 
 /* =========================================================
-   DOM
-========================================================= */
-
-const form =
-  document.getElementById("form");
-
-const email =
-  document.getElementById("email");
-
-const password =
-  document.getElementById("password");
-
-const confirmPassword =
-  document.getElementById("confirmPassword");
-
-const confirmField =
-  document.getElementById("confirmField");
-
-const error =
-  document.getElementById("error");
-
-const success =
-  document.getElementById("success");
+   Elements
+   ========================================================= */
 
 const loginMode =
-  document.getElementById("loginMode");
+  document.getElementById(
+    "loginMode"
+  );
 
 const registerMode =
-  document.getElementById("registerMode");
+  document.getElementById(
+    "registerMode"
+  );
 
-const title =
-  document.getElementById("title");
+const loginForm =
+  document.getElementById(
+    "loginForm"
+  );
 
-const hint =
-  document.getElementById("hint");
+const registerForm =
+  document.getElementById(
+    "registerForm"
+  );
 
-const submitButton =
-  document.getElementById("submitButton");
+const loginError =
+  document.getElementById(
+    "loginError"
+  );
 
-const loginOptions =
-  document.getElementById("loginOptions");
+const registerError =
+  document.getElementById(
+    "registerError"
+  );
 
-const forgot =
-  document.getElementById("forgot");
-
-const passkey =
-  document.getElementById("passkey");
-
-
-let currentMode = "login";
+const registerSuccess =
+  document.getElementById(
+    "registerSuccess"
+  );
 
 
 /* =========================================================
    顯示錯誤
-========================================================= */
+   ========================================================= */
 
-function showError(message){
+function showError(
+  element,
+  message
+){
 
-  error.textContent = message;
+  element.textContent =
+    message;
 
-  error.classList.add("show");
+  element.classList.add(
+    "show"
+  );
 
-  success.classList.remove("show");
+}
+
+function clearError(
+  element
+){
+
+  element.textContent = "";
+
+  element.classList.remove(
+    "show"
+  );
 
 }
 
 
 /* =========================================================
-   顯示成功
-========================================================= */
+   登入 / 註冊切換
+   ========================================================= */
 
-function showSuccess(message){
+document
+  .getElementById("showRegister")
+  .onclick = () => {
 
-  success.textContent = message;
+    clearError(loginError);
 
-  success.classList.add("show");
+    loginMode.classList.remove(
+      "show"
+    );
 
-  error.classList.remove("show");
+    registerMode.classList.add(
+      "show"
+    );
 
-}
-
-
-/* =========================================================
-   清除訊息
-========================================================= */
-
-function clearMessages(){
-
-  error.classList.remove("show");
-
-  success.classList.remove("show");
-
-}
+  };
 
 
-/* =========================================================
-   登入模式
-========================================================= */
+document
+  .getElementById("backLogin")
+  .onclick = () => {
 
-function setLoginMode(){
+    clearError(registerError);
 
-  currentMode = "login";
+    registerSuccess.classList.remove(
+      "show"
+    );
 
-  loginMode.classList.add("active");
+    registerMode.classList.remove(
+      "show"
+    );
 
-  registerMode.classList.remove("active");
+    loginMode.classList.add(
+      "show"
+    );
 
-  title.textContent =
-    "登入 AIVAULT";
-
-  hint.textContent =
-    "安全進入你的 AI 工作空間";
-
-  confirmField.classList.add("hidden");
-
-  loginOptions.classList.remove("hidden");
-
-  submitButton.textContent =
-    "登入 AIVAULT";
-
-  password.autocomplete =
-    "current-password";
-
-  clearMessages();
-
-}
-
-
-/* =========================================================
-   註冊模式
-========================================================= */
-
-function setRegisterMode(){
-
-  currentMode = "register";
-
-  registerMode.classList.add("active");
-
-  loginMode.classList.remove("active");
-
-  title.textContent =
-    "建立 AIVAULT 帳號";
-
-  hint.textContent =
-    "建立你的 AI 工作空間帳號";
-
-  confirmField.classList.remove("hidden");
-
-  loginOptions.classList.add("hidden");
-
-  submitButton.textContent =
-    "建立 AIVAULT 帳號";
-
-  password.autocomplete =
-    "new-password";
-
-  clearMessages();
-
-}
-
-
-/* =========================================================
-   模式按鈕
-========================================================= */
-
-loginMode.addEventListener(
-  "click",
-  setLoginMode
-);
-
-registerMode.addEventListener(
-  "click",
-  setRegisterMode
-);
+  };
 
 
 /* =========================================================
    密碼顯示
-========================================================= */
+   ========================================================= */
 
 document
-  .getElementById("eye")
-  .addEventListener(
-    "click",
-    function(){
+  .getElementById("loginEye")
+  .onclick = () => {
 
-      const show =
-        password.type === "password";
+    const input =
+      document.getElementById(
+        "loginPassword"
+      );
 
-      password.type =
-        show ? "text" : "password";
+    const show =
+      input.type === "password";
 
-      confirmPassword.type =
-        show ? "text" : "password";
+    input.type =
+      show
+        ? "text"
+        : "password";
 
-      this.textContent =
+    document
+      .getElementById("loginEye")
+      .textContent =
         show ? "◎" : "◉";
 
-    }
-  );
+  };
 
 
 /* =========================================================
    登入
-========================================================= */
+   ========================================================= */
 
-async function login(){
+loginForm.onsubmit =
+  async event => {
 
-  const emailValue =
-    email.value.trim();
+    event.preventDefault();
 
-  const passwordValue =
-    password.value;
+    clearError(loginError);
 
-  if(!emailValue){
+    const email =
+      document
+        .getElementById("loginEmail")
+        .value
+        .trim();
 
-    showError(
-      "請輸入 Email。"
-    );
+    const password =
+      document
+        .getElementById("loginPassword")
+        .value;
 
-    return;
-
-  }
-
-  if(!passwordValue){
-
-    showError(
-      "請輸入密碼。"
-    );
-
-    return;
-
-  }
+    const button =
+      document
+        .getElementById("loginButton");
 
 
-  submitButton.disabled = true;
+    if(!email){
 
-  submitButton.textContent =
-    "正在驗證…";
-
-  clearMessages();
-
-
-  try{
-
-    const {
-      data,
-      error: authError
-    } =
-      await supabaseClient.auth.signInWithPassword({
-
-        email:
-          emailValue,
-
-        password:
-          passwordValue
-
-      });
-
-
-    if(authError){
-
-      throw authError;
-
-    }
-
-
-    if(!data.session){
-
-      throw new Error(
-        "登入成功，但沒有取得 Session。"
+      showError(
+        loginError,
+        "請輸入 Email。"
       );
-
-    }
-
-
-    showSuccess(
-      "登入成功，正在進入 AIVAULT…"
-    );
-
-
-    setTimeout(() => {
-
-      window.location.href =
-        "aivault-home.html";
-
-    }, 600);
-
-
-  }catch(error){
-
-    console.error(error);
-
-    showError(
-      translateAuthError(
-        error
-      )
-    );
-
-    submitButton.disabled =
-      false;
-
-    submitButton.textContent =
-      "登入 AIVAULT";
-
-  }
-
-}
-
-
-/* =========================================================
-   註冊
-========================================================= */
-
-async function register(){
-
-  const emailValue =
-    email.value.trim();
-
-  const passwordValue =
-    password.value;
-
-  const confirmValue =
-    confirmPassword.value;
-
-
-  if(!emailValue){
-
-    showError(
-      "請輸入 Email。"
-    );
-
-    return;
-
-  }
-
-
-  if(passwordValue.length < 6){
-
-    showError(
-      "密碼至少需要 6 個字元。"
-    );
-
-    return;
-
-  }
-
-
-  if(passwordValue !== confirmValue){
-
-    showError(
-      "兩次輸入的密碼不一致。"
-    );
-
-    return;
-
-  }
-
-
-  submitButton.disabled =
-    true;
-
-  submitButton.textContent =
-    "正在建立帳號…";
-
-  clearMessages();
-
-
-  try{
-
-    const {
-      data,
-      error: authError
-    } =
-      await supabaseClient.auth.signUp({
-
-        email:
-          emailValue,
-
-        password:
-          passwordValue
-
-      });
-
-
-    if(authError){
-
-      throw authError;
-
-    }
-
-
-    /*
-      Supabase 若要求 Email 驗證，
-      session 通常會是 null。
-    */
-
-    if(!data.session){
-
-      showSuccess(
-        "帳號已建立！請到你的 Email 完成驗證，完成後再登入 AIVAULT。"
-      );
-
-      submitButton.disabled =
-        false;
-
-      submitButton.textContent =
-        "建立 AIVAULT 帳號";
 
       return;
 
     }
 
 
-    /*
-      如果 Supabase 沒有要求 Email 驗證，
-      可以直接進入 Home。
-    */
+    if(!password){
 
-    showSuccess(
-      "帳號建立成功，正在進入 AIVAULT…"
-    );
+      showError(
+        loginError,
+        "請輸入密碼。"
+      );
 
-
-    setTimeout(() => {
-
-      window.location.href =
-        "aivault-home.html";
-
-    }, 700);
-
-
-  }catch(error){
-
-    console.error(error);
-
-    showError(
-      translateAuthError(
-        error
-      )
-    );
-
-    submitButton.disabled =
-      false;
-
-    submitButton.textContent =
-      "建立 AIVAULT 帳號";
-
-  }
-
-}
-
-
-/* =========================================================
-   表單
-========================================================= */
-
-form.addEventListener(
-  "submit",
-  async function(event){
-
-    event.preventDefault();
-
-    if(currentMode === "login"){
-
-      await login();
-
-    }else{
-
-      await register();
+      return;
 
     }
 
-  }
-);
+
+    button.disabled = true;
+
+    button.textContent =
+      "正在驗證…";
+
+
+    try{
+
+      const data =
+        await supabaseAuth(
+          "token?grant_type=password",
+          {
+            email,
+            password
+          }
+        );
+
+
+      /*
+       * 儲存真正 Supabase Session
+       */
+
+      if(
+        data.access_token &&
+        data.refresh_token
+      ){
+
+        const storage =
+          document.getElementById(
+            "remember"
+          ).checked
+            ? localStorage
+            : sessionStorage;
+
+
+        storage.setItem(
+          "aivault_access_token",
+          data.access_token
+        );
+
+        storage.setItem(
+          "aivault_refresh_token",
+          data.refresh_token
+        );
+
+
+        if(data.user){
+
+          storage.setItem(
+            "aivault_user",
+            JSON.stringify(
+              data.user
+            )
+          );
+
+        }
+
+
+        /*
+         * 登入成功
+         *
+         * 不直接進 Home。
+         *
+         * 先進入啟動畫面。
+         */
+
+        window.location.href =
+          "aivault-startup.html";
+
+        return;
+
+      }
+
+
+      throw new Error(
+        "登入成功但沒有取得 Session。"
+      );
+
+    }catch(error){
+
+      showError(
+        loginError,
+        error.message ||
+        "帳號或密碼錯誤。"
+      );
+
+      button.disabled = false;
+
+      button.textContent =
+        "登入 AIVAULT";
+
+    }
+
+  };
+
+
+/* =========================================================
+   註冊
+   ========================================================= */
+
+registerForm.onsubmit =
+  async event => {
+
+    event.preventDefault();
+
+    clearError(registerError);
+
+    registerSuccess.classList.remove(
+      "show"
+    );
+
+
+    const email =
+      document
+        .getElementById("registerEmail")
+        .value
+        .trim();
+
+    const password =
+      document
+        .getElementById("registerPassword")
+        .value;
+
+    const password2 =
+      document
+        .getElementById("registerPassword2")
+        .value;
+
+    const button =
+      document
+        .getElementById("registerButton");
+
+
+    if(!email){
+
+      showError(
+        registerError,
+        "請輸入 Email。"
+      );
+
+      return;
+
+    }
+
+
+    if(password.length < 6){
+
+      showError(
+        registerError,
+        "密碼至少需要 6 個字元。"
+      );
+
+      return;
+
+    }
+
+
+    if(password !== password2){
+
+      showError(
+        registerError,
+        "兩次輸入的密碼不一致。"
+      );
+
+      return;
+
+    }
+
+
+    button.disabled = true;
+
+    button.textContent =
+      "正在建立帳號…";
+
+
+    try{
+
+      const data =
+        await supabaseAuth(
+          "signup",
+          {
+            email,
+            password
+          }
+        );
+
+
+      /*
+       * Supabase 若開啟 Email Confirmation，
+       * signup 後不會立即給 access_token。
+       */
+
+      if(
+        data.access_token &&
+        data.refresh_token
+      ){
+
+        sessionStorage.setItem(
+          "aivault_access_token",
+          data.access_token
+        );
+
+        sessionStorage.setItem(
+          "aivault_refresh_token",
+          data.refresh_token
+        );
+
+        if(data.user){
+
+          sessionStorage.setItem(
+            "aivault_user",
+            JSON.stringify(
+              data.user
+            )
+          );
+
+        }
+
+        window.location.href =
+          "aivault-startup.html";
+
+        return;
+
+      }
+
+
+      registerSuccess.textContent =
+        "帳號建立成功！如果 Supabase 要求 Email 驗證，請先完成 Email 驗證，再返回登入。";
+
+      registerSuccess.classList.add(
+        "show"
+      );
+
+
+      button.disabled = false;
+
+      button.textContent =
+        "建立帳號";
+
+
+    }catch(error){
+
+      showError(
+        registerError,
+        error.message ||
+        "建立帳號失敗。"
+      );
+
+      button.disabled = false;
+
+      button.textContent =
+        "建立帳號";
+
+    }
+
+  };
 
 
 /* =========================================================
    忘記密碼
-========================================================= */
+   ========================================================= */
 
-forgot.addEventListener(
-  "click",
-  async function(){
+document
+  .getElementById("forgot")
+  .onclick = async () => {
 
-    const emailValue =
-      email.value.trim();
+    const email =
+      document
+        .getElementById("loginEmail")
+        .value
+        .trim();
 
 
-    if(!emailValue){
+    if(!email){
 
       showError(
-        "請先輸入你的 Email，再點選忘記密碼。"
+        loginError,
+        "請先輸入 Email，再點選忘記密碼。"
       );
-
-      email.focus();
 
       return;
 
@@ -1133,236 +1061,47 @@ forgot.addEventListener(
 
     try{
 
-      const {
-        error: resetError
-      } =
-        await supabaseClient.auth
-          .resetPasswordForEmail(
-            emailValue,
-            {
-              redirectTo:
-                window.location.origin +
-                window.location.pathname
-            }
-          );
+      await fetch(
+        `${SUPABASE_URL}/auth/v1/recover`,
+        {
+          method:"POST",
 
+          headers:{
+            "Content-Type":
+              "application/json",
 
-      if(resetError){
+            "apikey":
+              SUPABASE_PUBLISHABLE_KEY
+          },
 
-        throw resetError;
+          body:JSON.stringify({
+            email,
 
-      }
-
-
-      showSuccess(
-        "密碼重設連結已寄到你的 Email，請檢查信箱。"
+            redirect_to:
+              `${window.location.origin}${window.location.pathname}`
+          })
+        }
       );
 
 
-    }catch(error){
+      clearError(loginError);
 
-      console.error(error);
+      alert(
+        "如果此 Email 已註冊，Supabase 將寄送密碼重設信件。"
+      );
+
+    }catch{
 
       showError(
-        translateAuthError(
-          error
-        )
+        loginError,
+        "目前無法送出密碼重設要求。"
       );
 
     }
 
-  }
-);
-
-
-/* =========================================================
-   Passkey
-========================================================= */
-
-passkey.addEventListener(
-  "click",
-  function(){
-
-    showError(
-      "Passkey / Face ID 尚未啟用。目前請使用 Email 與密碼登入。"
-    );
-
-  }
-);
-
-
-/* =========================================================
-   Supabase 錯誤轉中文
-========================================================= */
-
-function translateAuthError(error){
-
-  const message =
-    String(
-      error?.message || ""
-    ).toLowerCase();
-
-
-  if(
-    message.includes(
-      "invalid login credentials"
-    )
-  ){
-
-    return "Email 或密碼錯誤。";
-
-  }
-
-
-  if(
-    message.includes(
-      "email not confirmed"
-    )
-  ){
-
-    return "此帳號尚未完成 Email 驗證，請先到信箱完成驗證。";
-
-  }
-
-
-  if(
-    message.includes(
-      "user already registered"
-    )
-  ){
-
-    return "這個 Email 已經註冊過 AIVAULT 帳號。請直接登入。";
-
-  }
-
-
-  if(
-    message.includes(
-      "password should be at least"
-    )
-  ){
-
-    return "密碼長度不足，請設定更長的密碼。";
-
-  }
-
-
-  if(
-    message.includes(
-      "invalid email"
-    )
-  ){
-
-    return "Email 格式不正確。";
-
-  }
-
-
-  if(
-    message.includes(
-      "rate limit"
-    )
-  ){
-
-    return "操作太頻繁，請稍後再試。";
-
-  }
-
-
-  return (
-    error?.message ||
-    "身分驗證失敗，請稍後再試。"
-  );
-
-}
-
-
-/* =========================================================
-   啟動時檢查 Session
-========================================================= */
-
-async function checkExistingSession(){
-
-  try{
-
-    const {
-      data
-    } =
-      await supabaseClient.auth
-        .getSession();
-
-
-    if(data?.session){
-
-      window.location.href =
-        "aivault-home.html";
-
-    }
-
-  }catch(error){
-
-    console.error(
-      "Session check failed:",
-      error
-    );
-
-  }
-
-}
-
-
+  };
 
 </script>
 
-</body>
-</html>
-<html lang="zh-Hant">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#070a11">
-<title>AIVAULT — Secure Login</title>
-<style>
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#060911;color:#edf5ff;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Noto Sans TC",sans-serif}
-body{display:grid;place-items:center;padding:24px;overflow-x:hidden}.bg{position:fixed;inset:0;background:radial-gradient(circle at 50% 8%,rgba(63,108,255,.18),transparent 35%),radial-gradient(circle at 80% 85%,rgba(0,225,255,.06),transparent 32%)}
-.bg:after{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);background-size:40px 40px}
-.card{position:relative;width:min(100%,430px);padding:36px 27px 27px;border:1px solid rgba(150,180,220,.17);border-radius:28px;background:rgba(10,15,25,.84);backdrop-filter:blur(25px);box-shadow:0 30px 90px rgba(0,0,0,.48)}
-.brand{text-align:center}.brandName{font-size:42px;font-weight:800;letter-spacing:.17em;margin-left:.17em;text-shadow:0 0 28px rgba(96,220,255,.16)}.tag{margin-top:9px;font-size:11px;letter-spacing:.2em;color:#8090aa}
-h1{text-align:center;font-size:21px;margin:35px 0 8px}.hint{text-align:center;color:#77869e;font-size:13px;margin-bottom:27px}
-.field{position:relative;margin-bottom:17px}label{display:block;color:#aab7cb;font-size:12px;margin-bottom:8px}input[type=email],input[type=password],input[type=text]{width:100%;height:50px;border-radius:13px;border:1px solid rgba(160,185,220,.18);background:#080d16;color:#fff;padding:0 15px;font-size:15px;outline:none}input:focus{border-color:rgba(101,232,255,.55);box-shadow:0 0 0 3px rgba(101,232,255,.07)}
-.eye{position:absolute;right:8px;bottom:5px;width:40px;height:40px;border:0;background:none;color:#8796ae}.row{display:flex;justify-content:space-between;align-items:center;color:#8794aa;font-size:12px;margin:3px 0 20px}.remember{display:flex;align-items:center;gap:7px}.remember input{width:15px;height:15px;accent-color:#75eaff}
-.login{width:100%;height:51px;border:0;border-radius:14px;background:linear-gradient(135deg,#e2fcff,#819aff);color:#07101a;font-weight:800;font-size:15px;box-shadow:0 12px 32px rgba(79,139,255,.2);cursor:pointer}.sep{display:flex;align-items:center;gap:12px;color:#56647b;font-size:10px;letter-spacing:.12em;margin:25px 0}.sep:before,.sep:after{content:"";height:1px;flex:1;background:rgba(255,255,255,.08)}
-.passkey{width:100%;height:47px;border-radius:13px;border:1px solid rgba(155,180,220,.18);background:rgba(255,255,255,.025);color:#c6d3e6;font-size:13px}.error{display:none;color:#ff9b9b;font-size:12px;margin:-5px 0 14px}.error.show{display:block}.security{text-align:center;color:#5f6d84;font-size:10px;line-height:1.7;margin-top:22px}
-</style>
-</head>
-<body>
-<div class="bg"></div>
-<main class="card">
-<section class="brand"><div class="brandName">AIVAULT</div><div class="tag">AI AGENT OPERATING SYSTEM</div></section>
-<h1>登入 AIVAULT</h1><div class="hint">安全進入你的 AI 工作空間</div>
-<form id="form" novalidate>
-<div class="field"><label for="email">帳號 / Email</label><input id="email" type="email" autocomplete="username" placeholder="name@example.com" required></div>
-<div class="field"><label for="password">密碼</label><input id="password" type="password" autocomplete="current-password" placeholder="輸入密碼" required><button class="eye" id="eye" type="button">◉</button></div>
-<div class="error" id="error">請輸入有效的帳號與密碼。</div>
-<div class="row"><label class="remember"><input id="remember" type="checkbox"> 記住此裝置</label><span>忘記密碼？</span></div>
-<button class="login" type="submit">登入 AIVAULT</button>
-</form>
-<div class="sep">SECURE ACCESS</div>
-<button class="passkey" type="button" id="passkey">使用 Passkey / Face ID / Touch ID</button>
-<div class="security">🔒 正式版本將使用 Supabase Auth 驗證身分與 Session。<br>密碼不會寫入前端程式碼。</div>
-</main>
-<script>
-const form=document.getElementById("form"),email=document.getElementById("email"),pass=document.getElementById("password"),error=document.getElementById("error");
-document.getElementById("eye").onclick=()=>{const s=pass.type==="password";pass.type=s?"text":"password";document.getElementById("eye").textContent=s?"◎":"◉"};
-form.onsubmit=e=>{
- e.preventDefault();
- if(!email.value.trim()||!pass.value){error.classList.add("show");return}
- error.classList.remove("show");
- // 目前僅為流程測試；正式接入 Supabase Auth 後，這裡改為 signInWithPassword。
- sessionStorage.setItem("aivault_login_demo","1");
- location.href="aivault-home.html";
-};
-document.getElementById("passkey").onclick=()=>alert("Passkey / Face ID 將在正式身分驗證接入後啟用。");
-</script>
 </body>
 </html>
