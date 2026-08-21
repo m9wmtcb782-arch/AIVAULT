@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>AIVAULT · AI War Room</title>
+  <meta name="theme-color" content="#0a0e17" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0e17;
+      --surface: #121826;
+      --surface-2: #1a2234;
+      --border: #2a3548;
+      --text: #e8edf5;
+      --text-muted: #8b9bb4;
+      --accent: #3b82f6;
+      --accent-glow: rgba(59, 130, 246, 0.35);
+      --speaking: #22c55e;
+      --thinking: #f59e0b;
+      --listening: #64748b;
+      --danger: #ef4444;
+      --chief: #3b82f6;
+      --engineer: #06b6d4;
+      --auditor: #f43f5e;
+      --strategist: #a855f7;
+      --creator: #ec4899;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Inter", "Noto Sans TC", system-ui, sans-serif;
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ========== LAYOUT ========== */
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      max-width: 100vw;
+    }
+
+    /* Header */
+    .header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: linear-gradient(180deg, #0f1524 0%, var(--bg) 100%);
+      border-bottom: 1px solid var(--border);
+      z-index: 20;
+    }
+    .header-left { display: flex; align-items: center; gap: 10px; }
+    .logo {
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: 0.04em;
+      background: linear-gradient(90deg, #60a5fa, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: rgba(59,130,246,0.15);
+      color: #93c5fd;
+      border: 1px solid rgba(59,130,246,0.3);
+    }
+    .header-right { display: flex; gap: 8px; align-items: center; }
+    .icon-btn {
+      width: 34px; height: 34px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      display: grid; place-items: center;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .icon-btn:active { transform: scale(0.94); }
+    .icon-btn:hover { color: var(--text); border-color: #3b4a63; }
+
+    /* Main stage */
+    .stage {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 8px;
+      gap: 8px;
+      position: relative;
+    }
+
+    /* ========== VIDEO GRID ========== */
+    .video-grid {
+      flex: 1;
+      display: grid;
+      gap: 6px;
+      min-height: 0;
+    }
+
+    /* Mobile: Chief top, then 2×2 */
+    .video-grid {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1.15fr 1fr 1fr;
+      grid-template-areas:
+        "chief chief"
+        "engineer auditor"
+        "strategist creator";
+    }
+
+    @media (min-width: 900px) {
+      .video-grid {
+        grid-template-columns: 1fr 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        grid-template-areas:
+          "chief engineer auditor"
+          "strategist creator empty";
+      }
+      .video-grid .empty { display: block; }
+    }
+
+    .agent-window {
+      position: relative;
+      background: var(--surface);
+      border-radius: 14px;
+      overflow: hidden;
+      border: 2px solid transparent;
+      transition: border-color 0.25s, box-shadow 0.25s;
+      display: flex;
+      flex-direction: column;
+    }
+    .agent-window[data-agent="chief"] { grid-area: chief; }
+    .agent-window[data-agent="engineer"] { grid-area: engineer; }
+    .agent-window[data-agent="auditor"] { grid-area: auditor; }
+    .agent-window[data-agent="strategist"] { grid-area: strategist; }
+    .agent-window[data-agent="creator"] { grid-area: creator; }
+    .empty { grid-area: empty; display: none; }
+
+    .agent-window.speaking {
+      border-color: var(--speaking);
+      box-shadow: 0 0 0 1px var(--speaking), 0 0 24px rgba(34, 197, 94, 0.25);
+    }
+    .agent-window.thinking {
+      border-color: var(--thinking);
+      box-shadow: 0 0 0 1px var(--thinking), 0 0 18px rgba(245, 158, 11, 0.2);
+    }
+    .agent-window.listening {
+      border-color: var(--border);
+    }
+
+    /* Video / Avatar area */
+    .avatar-area {
+      flex: 1;
+      position: relative;
+      background: #0d121c;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      min-height: 0;
+    }
+    .avatar-area video,
+    .avatar-area img,
+    .avatar-placeholder {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .avatar-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      background: linear-gradient(145deg, #151d2e 0%, #0c111b 100%);
+    }
+    .avatar-circle {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      display: grid; place-items: center;
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      position: relative;
+    }
+    .avatar-circle::after {
+      content: "";
+      position: absolute;
+      inset: -3px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .agent-window.speaking .avatar-circle::after {
+      opacity: 1;
+      border-color: var(--speaking);
+      animation: pulse-ring 1.4s ease-out infinite;
+    }
+    @keyframes pulse-ring {
+      0% { transform: scale(1); opacity: 0.8; }
+      100% { transform: scale(1.35); opacity: 0; }
+    }
+
+    .agent-window[data-agent="chief"] .avatar-circle { background: var(--chief); }
+    .agent-window[data-agent="engineer"] .avatar-circle { background: var(--engineer); }
+    .agent-window[data-agent="auditor"] .avatar-circle { background: var(--auditor); }
+    .agent-window[data-agent="strategist"] .avatar-circle { background: var(--strategist); }
+    .agent-window[data-agent="creator"] .avatar-circle { background: var(--creator); }
+
+    /* LIVE badge */
+    .live-badge {
+      position: absolute;
+      top: 8px; left: 8px;
+      display: none;
+      align-items: center;
+      gap: 5px;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(6px);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: #fff;
+    }
+    .live-badge .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #ef4444;
+      animation: blink 1s infinite;
+    }
+    @keyframes blink { 50% { opacity: 0.3; } }
+    .agent-window.speaking .live-badge { display: flex; }
+
+    /* Status pill */
+    .status-pill {
+      position: absolute;
+      top: 8px; right: 8px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      padding: 3px 7px;
+      border-radius: 6px;
+      background: rgba(0,0,0,0.55);
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+    .agent-window.speaking .status-pill { color: #4ade80; background: rgba(34,197,94,0.2); }
+    .agent-window.thinking .status-pill { color: #fbbf24; background: rgba(245,158,11,0.2); }
+    .agent-window.listening .status-pill { color: #94a3b8; }
+
+    /* Name bar */
+    .name-bar {
+      flex-shrink: 0;
+      padding: 6px 10px;
+      background: var(--surface-2);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+    .name-info { min-width: 0; }
+    .name-info .role {
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .name-info .sub {
+      font-size: 9px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mic-indicator {
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      display: grid; place-items: center;
+      font-size: 10px;
+      background: rgba(255,255,255,0.06);
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+    .agent-window.speaking .mic-indicator {
+      background: rgba(34,197,94,0.25);
+      color: #4ade80;
+    }
+
+    /* Subtitle overlay */
+    .subtitle {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      padding: 8px 10px;
+      background: linear-gradient(transparent, rgba(0,0,0,0.85));
+      font-size: 11px;
+      line-height: 1.35;
+      color: #f1f5f9;
+      max-height: 45%;
+      overflow: hidden;
+      display: none;
+    }
+    .agent-window.speaking .subtitle { display: block; }
+
+    /* ========== OWNER PANEL ========== */
+    .owner-panel {
+      flex-shrink: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 10px 12px calc(10px + var(--safe-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .round-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .round-bar .round-label {
+      font-weight: 600;
+      color: #93c5fd;
+      background: rgba(59,130,246,0.12);
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+    .progress-dots { display: flex; gap: 4px; margin-left: auto; }
+    .progress-dots span {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--border);
+    }
+    .progress-dots span.done { background: var(--accent); }
+    .progress-dots span.current { background: #fbbf24; box-shadow: 0 0 6px #fbbf24; }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+    .owner-input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      color: var(--text);
+      font-size: 14px;
+      font-family: inherit;
+      resize: none;
+      min-height: 42px;
+      max-height: 90px;
+      line-height: 1.4;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .owner-input:focus { border-color: var(--accent); }
+    .owner-input::placeholder { color: #4b5a73; }
+
+    .action-btns { display: flex; gap: 6px; }
+    .btn {
+      height: 42px;
+      padding: 0 14px;
+      border-radius: 12px;
+      border: none;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn:active { transform: scale(0.96); }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-primary:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .btn-ghost {
+      background: var(--surface-2);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .btn-danger {
+      background: rgba(239,68,68,0.15);
+      color: #f87171;
+      border: 1px solid rgba(239,68,68,0.3);
+    }
+    .btn-success {
+      background: rgba(34,197,94,0.15);
+      color: #4ade80;
+      border: 1px solid rgba(34,197,94,0.35);
+    }
+
+    /* Control row */
+    .control-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .control-row .btn { height: 34px; font-size: 12px; padding: 0 10px; }
+
+    /* Transcript drawer */
+    .transcript {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      max-height: 42%;
+      background: rgba(10,14,23,0.96);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border);
+      border-radius: 16px 16px 0 0;
+      transform: translateY(100%);
+      transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+      z-index: 30;
+      display: flex;
+      flex-direction: column;
+    }
+    .transcript.open { transform: translateY(0); }
+    .transcript-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .transcript-header h3 { font-size: 14px; font-weight: 600; }
+    .transcript-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .msg {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      max-width: 92%;
+    }
+    .msg.owner { align-self: flex-end; }
+    .msg .meta {
+      font-size: 10px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 6px;
+    }
+    .msg .bubble {
+      padding: 8px 12px;
+      border-radius: 12px;
+      font-size: 13px;
+      line-height: 1.45;
+      background: var(--surface-2);
+    }
+    .msg.owner .bubble {
+      background: rgba(59,130,246,0.2);
+      border: 1px solid rgba(59,130,246,0.25);
+    }
+    .msg[data-role="Chief"] .bubble { border-left: 3px solid var(--chief); }
+    .msg[data-role="Engineer"] .bubble { border-left: 3px solid var(--engineer); }
+    .msg[data-role="Auditor"] .bubble { border-left: 3px solid var(--auditor); }
+    .msg[data-role="Strategist"] .bubble { border-left: 3px solid var(--strategist); }
+    .msg[data-role="Creator"] .bubble { border-left: 3px solid var(--creator); }
+
+    /* Overlay screens */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(6,9,16,0.88);
+      backdrop-filter: blur(8px);
+      z-index: 40;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+    .overlay.visible { display: flex; }
+    .overlay h2 { font-size: 20px; margin-bottom: 8px; }
+    .overlay p { color: var(--text-muted); font-size: 14px; max-width: 320px; margin-bottom: 20px; }
+    .overlay .btn { min-width: 140px; justify-content: center; }
+
+    /* History list */
+    .history-list {
+      width: 100%;
+      max-width: 420px;
+      max-height: 60vh;
+      overflow-y: auto;
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .history-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .history-item:hover { border-color: var(--accent); }
+    .history-item .title { font-weight: 600; font-size: 14px; }
+    .history-item .meta { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.25s;
+      z-index: 100;
+      white-space: nowrap;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Loading spinner */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <button class="icon-btn" id="btnBackHome" title="返回工作台" style="margin-right:4px;">←</button>
+        <div class="logo">AIVAULT</div>
+        <span class="badge">AI WAR ROOM</span>
+      </div>
+      <div class="header-right">
+        <button class="icon-btn" id="btnHistory" title="歷史會議">📋</button>
+        <button class="icon-btn" id="btnTranscript" title="對話紀錄">💬</button>
+        <button class="icon-btn" id="btnSettings" title="設定">⚙️</button>
+      </div>
+    </header>
+
+    <!-- Stage -->
+    <main class="stage">
+      <div class="video-grid" id="videoGrid">
+        <!-- Chief -->
+        <div class="agent-window listening" data-agent="chief" id="win-chief">
+          <div class="avatar-area">
+            <div class="live-badge"><span class="dot"></span> LIVE</div>
+            <div class="status-pill" data-status>LISTENING</div>
+            <div class="avatar-placeholder">
+              <div class="avatar-circle">C</div>
+            </div>
+            <div class="subtitle" data-subtitle></div>
+          </div>
+          <div class="name-bar">
+            <div class="name-info">
+              <div class="role">Chief · 首席分析師</div>
+              <div class="sub">30 · 主持 / 拆解 / 決策</div>
+            </div>
+            <div class="mic-indicator">🎤</div>
+          </div>
+        </div>
+
+        <!-- Engineer -->
+        <div class="agent-window listening" data-agent="engineer" id="win-engineer">
+          <div class="avatar-area">
+            <div class="live-badge"><span class="dot"></span> LIVE</div>
+            <div class="status-pill" data-status>LISTENING</div>
+            <div class="avatar-placeholder">
+              <div class="avatar-circle">E</div>
+            </div>
+            <div class="subtitle" data-subtitle></div>
+          </div>
+          <div class="name-bar">
+            <div class="name-info">
+              <div class="role">Engineer · 技術架構師</div>
+              <div class="sub">30 · 架構 / API / DB</div>
+            </div>
+            <div class="mic-indicator">🎤</div>
+          </div>
+        </div>
+
+        <!-- Auditor -->
+        <div class="agent-window listening" data-agent="auditor" id="win-auditor">
+          <div class="avatar-area">
+            <div class="live-badge"><span class="dot"></span> LIVE</div>
+            <div class="status-pill" data-status>LISTENING</div>
+            <div class="avatar-placeholder">
+              <div class="avatar-circle">A</div>
+            </div>
+            <div class="subtitle" data-subtitle></div>
+          </div>
+          <div class="name-bar">
+            <div class="name-info">
+              <div class="role">Auditor · 風險審查官</div>
+              <div class="sub">30 · 找漏洞 / 反駁</div>
+            </div>
+            <div class="mic-indicator">🎤</div>
+          </div>
+        </div>
+
+        <!-- Strategist -->
+        <div class="agent-window listening" data-agent="strategist" id="win-strategist">
+          <div class="avatar-area">
+            <div class="live-badge"><span class="dot"></span> LIVE</div>
+            <div class="status-pill" data-status>LISTENING</div>
+            <div class="avatar-placeholder">
+              <div class="avatar-circle">S</div>
+            </div>
+            <div class="subtitle" data-subtitle></div>
+          </div>
+          <div class="name-bar">
+            <div class="name-info">
+              <div class="role">Strategist · 策略研究員</div>
+              <div class="sub">30 · 市場 / 法規 / 策略</div>
+            </div>
+            <div class="mic-indicator">🎤</div>
+          </div>
+        </div>
+
+        <!-- Creator -->
+        <div class="agent-window listening" data-agent="creator" id="win-creator">
+          <div class="avatar-area">
+            <div class="live-badge"><span class="dot"></span> LIVE</div>
+            <div class="status-pill" data-status>LISTENING</div>
+            <div class="avatar-placeholder">
+              <div class="avatar-circle">Cr</div>
+            </div>
+            <div class="subtitle" data-subtitle></div>
+          </div>
+          <div class="name-bar">
+            <div class="name-info">
+              <div class="role">Creator · 解決方案設計師</div>
+              <div class="sub">30 · UI/UX / 創意整合</div>
+            </div>
+            <div class="mic-indicator">🎤</div>
+          </div>
+        </div>
+
+        <div class="empty"></div>
+      </div>
+
+      <!-- Transcript drawer -->
+      <div class="transcript" id="transcript">
+        <div class="transcript-header">
+          <h3>會議紀錄</h3>
+          <button class="icon-btn" id="btnCloseTranscript" style="width:28px;height:28px;">✕</button>
+        </div>
+        <div class="transcript-body" id="transcriptBody"></div>
+      </div>
+    </main>
+
+    <!-- Owner Panel -->
+    <footer class="owner-panel">
+      <div class="round-bar">
+        <span class="round-label" id="roundLabel">等待開始</span>
+        <span id="meetingTitle" style="opacity:0.7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+        <div class="progress-dots" id="progressDots">
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+
+      <div class="input-row">
+        <textarea
+          class="owner-input"
+          id="ownerInput"
+          rows="1"
+          placeholder="輸入問題，啟動 AI 董事會會議…"
+          maxlength="2000"
+        ></textarea>
+        <div class="action-btns">
+          <button class="btn btn-ghost" id="btnMic" title="語音輸入">🎙️</button>
+          <button class="btn btn-primary" id="btnSend">
+            <span id="sendLabel">開始</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="control-row" id="controlRow" style="display:none;">
+        <button class="btn btn-ghost" id="btnNextRound">下一輪 ▶️</button>
+        <button class="btn btn-ghost" id="btnPause">暫停</button>
+        <button class="btn btn-danger" id="btnStop">結束會議</button>
+        <button class="btn btn-success" id="btnApprove" style="display:none;">✅ 批准決策</button>
+      </div>
+    </footer>
+
+    <!-- Overlays -->
+    <div class="overlay" id="overlayStart">
+      <h2>AI War Room</h2>
+      <p>五位專家 AI 將依序分析、交叉質詢、辯論，最後產出決策。<br/>你是 Owner，負責提出問題並批准最終方案。</p>
+      <button class="btn btn-primary" id="btnStartNew">建立新會議</button>
+      <button class="btn btn-ghost" id="btnViewHistory" style="margin-top:10px;">查看歷史會議</button>
+    </div>
+
+    <div class="overlay" id="overlayHistory">
+      <h2>歷史會議</h2>
+      <div class="history-list" id="historyList"></div>
+      <button class="btn btn-ghost" id="btnCloseHistory" style="margin-top:16px;">關閉</button>
+    </div>
+
+    <div class="overlay" id="overlayDecision">
+      <h2>最終決策待批准</h2>
+      <p id="decisionPreview" style="text-align:left;max-height:40vh;overflow:auto;background:var(--surface);padding:14px;border-radius:12px;font-size:13px;line-height:1.5;"></p>
+      <div style="display:flex;gap:10px;margin-top:8px;">
+        <button class="btn btn-success" id="btnConfirmApprove">✅ 批准並結束</button>
+        <button class="btn btn-ghost" id="btnReject">返回繼續</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // =====================================================
+    // AIVAULT AI WAR ROOM — Frontend
+    // =====================================================
+    // This page is designed to be integrated into existing
+    // AIVAULT main screen without destroying other features.
+    // All real API keys stay in Supabase Edge Function secrets.
+    // =====================================================
+
+    const AGENTS = {
+      chief:     { id: 'chief',     role: 'Chief',     name: '首席分析師', gender: 'male',   color: '#3b82f6' },
+      engineer:  { id: 'engineer',  role: 'Engineer',  name: '技術架構師', gender: 'male',   color: '#06b6d4' },
+      auditor:   { id: 'auditor',   role: 'Auditor',   name: '風險審查官', gender: 'male',   color: '#f43f5e' },
+      strategist:{ id: 'strategist',role: 'Strategist',name: '策略研究員', gender: 'female', color: '#a855f7' },
+      creator:   { id: 'creator',   role: 'Creator',   name: '解決方案設計師', gender: 'female', color: '#ec4899' },
+    };
+
+    const ROUND_NAMES = [
+      'Owner 提問',
+      'Analysis 分析',
+      'Cross Exam 交叉質詢',
+      'Debate 辯論',
+      'Synthesis 整合',
+      'Final Decision 決策',
+    ];
+
+    // ---------- State ----------
+    let state = {
+      meetingId: null,
+      currentRound: -1,
+      status: 'idle', // idle | active | paused | awaiting_approval | completed
+      messages: [],
+      isProcessing: false,
+      useDemoMode: true, // set false when Supabase is connected
+    };
+
+    // ---------- DOM ----------
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => document.querySelectorAll(sel);
+
+    // ---------- Toast ----------
+    function toast(msg, ms = 2400) {
+      const el = $('#toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), ms);
+    }
+
+    // ---------- Agent Window Status ----------
+    function setAgentStatus(agentId, status, subtitle = '') {
+      const win = $(`#win-${agentId}`);
+      if (!win) return;
+      win.classList.remove('speaking', 'thinking', 'listening');
+      win.classList.add(status);
+      const pill = win.querySelector('[data-status]');
+      if (pill) pill.textContent = status.toUpperCase();
+      const sub = win.querySelector('[data-subtitle]');
+      if (sub) {
+        sub.textContent = subtitle || '';
+        if (status === 'speaking' && subtitle) sub.style.display = 'block';
+        else if (status !== 'speaking') sub.style.display = 'none';
+      }
+    }
+
+    function resetAllAgents(status = 'listening') {
+      Object.keys(AGENTS).forEach(id => setAgentStatus(id, status));
+    }
+
+    // ---------- Transcript ----------
+    function addTranscriptMessage({ role, content, agentId, isOwner = false }) {
+      const body = $('#transcriptBody');
+      const div = document.createElement('div');
+      div.className = 'msg' + (isOwner ? ' owner' : '');
+      if (role) div.dataset.role = role;
+      const time = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      div.innerHTML = `
+        <div class="meta"><span>${role || 'Owner'}</span><span>${time}</span></div>
+        <div class="bubble">${escapeHtml(content)}</div>
+      `;
+      body.appendChild(div);
+      body.scrollTop = body.scrollHeight;
+      state.messages.push({ role, content, agentId, isOwner, time });
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // ---------- Progress ----------
+    function updateRoundUI() {
+      const label = $('#roundLabel');
+      const dots = $('#progressDots').children;
+      const r = state.currentRound;
+      if (r < 0) {
+        label.textContent = '等待開始';
+      } else if (r <= 5) {
+        label.textContent = `ROUND ${r} · ${ROUND_NAMES[r]}`;
+      } else {
+        label.textContent = '待 Owner 批准';
+      }
+      for (let i = 0; i < dots.length; i++) {
+        dots[i].classList.remove('done', 'current');
+        if (i < r) dots[i].classList.add('done');
+        else if (i === r) dots[i].classList.add('current');
+      }
+    }
+
+    // ---------- Browser TTS (fallback voice) ----------
+    const voiceMap = {
+      chief: null, engineer: null, auditor: null, strategist: null, creator: null
+    };
+    function pickVoices() {
+      const voices = speechSynthesis.getVoices();
+      const zh = voices.filter(v => v.lang.startsWith('zh'));
+      const en = voices.filter(v => v.lang.startsWith('en'));
+      const pool = zh.length ? zh : en;
+      if (!pool.length) return;
+      // Prefer different voices
+      voiceMap.chief = pool[0];
+      voiceMap.engineer = pool[1] || pool[0];
+      voiceMap.auditor = pool[2] || pool[0];
+      voiceMap.strategist = pool.find(v => v.name.toLowerCase().includes('female') || v.name.includes('女')) || pool[0];
+      voiceMap.creator = pool.find(v => v !== voiceMap.strategist && (v.name.toLowerCase().includes('female') || v.name.includes('女'))) || pool[1] || pool[0];
+    }
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+      speechSynthesis.onvoiceschanged = pickVoices;
+    }
+    pickVoices();
+
+    function speak(agentId, text) {
+      return new Promise((resolve) => {
+        if (!window.speechSynthesis) { resolve(); return; }
+        speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text.slice(0, 280)); // keep short for demo
+        u.lang = 'zh-TW';
+        u.rate = 1.05;
+        u.pitch = agentId === 'strategist' || agentId === 'creator' ? 1.15 : 0.95;
+        if (voiceMap[agentId]) u.voice = voiceMap[agentId];
+        u.onend = resolve;
+        u.onerror = resolve;
+        speechSynthesis.speak(u);
+      });
+    }
+
+    // ---------- Demo Mode Responses (when no backend) ----------
+    const DEMO_RESPONSES = {
+      analysis: {
+        chief: 'Owner 提出的問題已收到。我先拆解核心目標與限制條件，接著請各位從各自專業角度分析。Engineer，先從技術可行性開始。',
+        engineer: '從技術角度，這個需求可以拆成三層：前端介面、後端 API Gateway、以及持久化層。建議使用現有 AIVAULT 的 Agent Registry + Edge Function 架構，避免重複造輪。主要技術風險在於即時語音與 Avatar 同步。',
+        auditor: '我對 Engineer 的樂觀有保留。即時多 Agent 串流會帶來延遲與成本問題。如果五個 Agent 同時呼叫 API，成本會快速上升，而且錯誤處理如果沒有回退機制，整場會議會卡死。',
+        strategist: '從市場與法規來看，這類「AI 董事會」產品目前競爭者不多，但使用者教育成本高。法規面要注意資料留存與個資，尤其是會議紀錄可能包含商業機密。建議先鎖定 B2B 內部決策場景。',
+        creator: '綜合以上，我建議產品體驗走「電影感會議室」路線：五個視窗、即時狀態、字幕、回放。UI 必須手機優先，否則長輩或移動場景用不了。稍後我會提出具體互動流程。',
+      },
+      cross_examination: {
+        engineer: 'Auditor，你提到的成本問題，我認為可以用「依序發言 + 快取共用 context」來壓低 token 用量。你認為哪個環節風險最大？',
+        auditor: '最大風險是「沒有硬性 round 上限」導致無限對話。另外，如果 Avatar Video 服務掛掉，整場會議體驗會崩。Engineer 你有備援方案嗎？',
+        strategist: 'Creator，你提的電影感很好，但真實使用者真的會坐下來聽五個 AI 辯論嗎？還是他們只想快速看到結論？',
+        creator: 'Strategist 說得對。所以我設計成「可跳過中間輪次、直接看 Final Decision」，同時保留完整回放給想深入研究的人。',
+        chief: '質詢很有價值。我要求下一輪進入正式辯論，每個人必須針對風險提出具體修正方案，而不是只指出問題。',
+      },
+      debate: {
+        auditor: '我堅持：必須有硬性 6 輪上限，以及可隨時由 Owner 中止的按鈕。否則成本與時間不可控。',
+        engineer: '接受。我修正架構：Orchestrator 強制 max_rounds=6，並在每輪結束後檢查 token 使用量。Avatar 失敗時降級為靜態頭像 + TTS。',
+        strategist: '成本修正後，商業模式可以做成「按會議計費」或「月訂閱含固定場次」。這比純 API 轉售更有產品感。',
+        creator: '我把降級體驗也納入設計：當 Avatar 不可用時，視窗改顯示角色顏色圓形 + 動態說話波紋，保持「有人在開會」的感覺。',
+        chief: '辯論結論清楚：硬性輪次、降級機制、按場計費。進入整合階段。',
+      },
+      synthesis: {
+        creator: '最終方案草案：\n1. 固定 5 Agent + 6 階段流程\n2. 手機 Chief 置頂 + 2×2\n3. 所有對話進 Supabase，支援 Replay\n4. API Key 只存在 Edge Secrets\n5. Avatar / TTS / LLM 三層分離，可獨立替換\n6. Owner 可隨時 Pause / Stop / Approve',
+        chief: 'Creator 的草案完整。我補充：會議結束後自動產生 Summary + Action Items，並寫入 meeting_decisions 與 meeting_artifacts。準備進入 Final Decision。',
+      },
+      final_decision: {
+        chief: `【最終方案】
+採用「5 AI 固定角色 + 6 階段會議流程」的 AI War Room 架構，整合進現有 AIVAULT，不破壞主畫面。
+
+【理由】
+1. 五人分工形成完整閉環：分析→技術→質疑→策略→創意整合。
+2. 固定輪次與角色提示詞可控制成本與品質。
+3. 所有對話與決策落庫，支援回放與審計。
+
+【主要風險】
+- 即時 Avatar Video 成本與穩定性（已規劃降級方案）
+- 長會議 token 消耗（已用依序發言 + 硬性輪次上限緩解）
+
+【下一步行動】
+1. 部署本 SQL Schema 與兩個 Edge Function
+2. 前端掛載到 AIVAULT 主畫面「War Room」入口
+3. 配置 5 組 API Key 到 Supabase Secrets
+4. 接上真實 TTS / Avatar Adapter
+5. Owner 實際跑一場會議驗證閉環`
+      }
+    };
+
+    // ---------- Demo Runner ----------
+    async function runDemoRound(roundType) {
+      const orderMap = {
+        analysis: ['chief', 'engineer', 'auditor', 'strategist', 'creator'],
+        cross_examination: ['engineer', 'auditor', 'strategist', 'creator', 'chief'],
+        debate: ['auditor', 'engineer', 'strategist', 'creator', 'chief'],
+        synthesis: ['creator', 'chief'],
+        final_decision: ['chief'],
+      };
+      const order = orderMap[roundType] || [];
+      const responses = DEMO_RESPONSES[roundType] || {};
+
+      for (const agentId of order) {
+        setAgentStatus(agentId, 'thinking');
+        await sleep(600 + Math.random() * 400);
+
+        const text = responses[agentId] || `（${AGENTS[agentId].role} 發言）`;
+        setAgentStatus(agentId, 'speaking', text.slice(0, 80) + (text.length > 80 ? '…' : ''));
+        addTranscriptMessage({ role: AGENTS[agentId].role, content: text, agentId });
+
+        await speak(agentId, text);
+        setAgentStatus(agentId, 'listening');
+        await sleep(300);
+      }
+    }
+
+    function sleep(ms) {
+      return new Promise(r => setTimeout(r, ms));
+    }
+
+    // ---------- Core Flow ----------
+    async function startMeeting(ownerMessage) {
+      if (state.isProcessing) return;
+      state.isProcessing = true;
+      $('#btnSend').disabled = true;
+      $('#sendLabel').innerHTML = '<span class="spinner"></span>';
+
+      const title = ownerMessage.slice(0, 40) + (ownerMessage.length > 40 ? '…' : '');
+      $('#meetingTitle').textContent = title;
+      $('#controlRow').style.display = 'flex';
+      $('#overlayStart').classList.remove('visible');
+
+      if (state.useDemoMode) {
+        state.meetingId = 'demo-' + Date.now();
+        state.status = 'active';
+        state.currentRound = 0;
+        state.messages = [];
+        $('#transcriptBody').innerHTML = '';
+        addTranscriptMessage({ role: 'Owner', content: ownerMessage, isOwner: true });
+        updateRoundUI();
+        resetAllAgents('listening');
+        toast('會議已建立（Demo 模式）');
+        state.isProcessing = false;
+        $('#btnSend').disabled = false;
+        $('#sendLabel').textContent = '送出';
+        // Auto run first analysis after short delay
+        setTimeout(() => runNextRound(), 800);
+        return;
+      }
+
+      // Real mode would call warroom-orchestrator here
+      // const res = await callOrchestrator({ action: 'create_meeting', title, owner_message: ownerMessage });
+      toast('請先連接 Supabase 後關閉 Demo 模式');
+      state.isProcessing = false;
+      $('#btnSend').disabled = false;
+      $('#sendLabel').textContent = '開始';
+    }
+
+    async function runNextRound() {
+      if (state.isProcessing || state.status === 'completed') return;
+      if (state.currentRound >= 5) {
+        state.status = 'awaiting_approval';
+        updateRoundUI();
+        $('#btnApprove').style.display = 'inline-flex';
+        $('#btnNextRound').style.display = 'none';
+        // Show decision overlay
+        const lastChief = [...state.messages].reverse().find(m => m.role === 'Chief');
+        $('#decisionPreview').textContent = lastChief?.content || '（無決策內容）';
+        $('#overlayDecision').classList.add('visible');
+        return;
+      }
+
+      state.isProcessing = true;
+      $('#btnNextRound').disabled = true;
+      const next = state.currentRound + 1;
+      state.currentRound = next;
+      updateRoundUI();
+
+      const roundTypes = ['owner_input', 'analysis', 'cross_examination', 'debate', 'synthesis', 'final_decision'];
+      const rt = roundTypes[next];
+
+      resetAllAgents('listening');
+      toast(`進入 ${ROUND_NAMES[next]}`);
+
+      if (state.useDemoMode) {
+        await runDemoRound(rt);
+        if (next === 5) {
+          state.status = 'awaiting_approval';
+          $('#btnApprove').style.display = 'inline-flex';
+          $('#btnNextRound').style.display = 'none';
+          const last = state.messages.filter(m => m.role === 'Chief').pop();
+          $('#decisionPreview').textContent = last?.content || '';
+          $('#overlayDecision').classList.add('visible');
+        }
+      }
+
+      state.isProcessing = false;
+      $('#btnNextRound').disabled = false;
+    }
+
+    // ---------- Event Bindings ----------
+    function bindEvents() {
+      const back = document.getElementById('btnBackHome');
+      if (back) back.addEventListener('click', () => { location.href = 'aivault-home.html'; });
+
+      $('#btnSend').addEventListener('click', () => {
+        const text = $('#ownerInput').value.trim();
+        if (!text) return;
+        if (state.status === 'idle' || !state.meetingId) {
+          startMeeting(text);
+          $('#ownerInput').value = '';
+        } else {
+          // Additional owner input during meeting
+          addTranscriptMessage({ role: 'Owner', content: text, isOwner: true });
+          $('#ownerInput').value = '';
+          toast('已送出補充意見');
+        }
+      });
+
+      $('#ownerInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          $('#btnSend').click();
+        }
+      });
+
+      $('#btnNextRound').addEventListener('click', () => runNextRound());
+
+      $('#btnApprove').addEventListener('click', () => {
+        $('#overlayDecision').classList.add('visible');
+      });
+
+      $('#btnConfirmApprove').addEventListener('click', () => {
+        state.status = 'completed';
+        $('#overlayDecision').classList.remove('visible');
+        toast('決策已批准，會議結束');
+        addTranscriptMessage({ role: 'Owner', content: '✅ 批准最終決策', isOwner: true });
+        $('#controlRow').style.display = 'none';
+        resetAllAgents('listening');
+      });
+
+      $('#btnReject').addEventListener('click', () => {
+        $('#overlayDecision').classList.remove('visible');
+        toast('已返回會議');
+      });
+
+      $('#btnStop').addEventListener('click', () => {
+        if (!confirm('確定結束會議？')) return;
+        state.status = 'completed';
+        speechSynthesis.cancel();
+        resetAllAgents('listening');
+        $('#controlRow').style.display = 'none';
+        toast('會議已結束');
+      });
+
+      $('#btnPause').addEventListener('click', () => {
+        if (state.status === 'paused') {
+          state.status = 'active';
+          $('#btnPause').textContent = '暫停';
+          toast('已恢復');
+        } else {
+          state.status = 'paused';
+          speechSynthesis.cancel();
+          $('#btnPause').textContent = '繼續';
+          toast('已暫停');
+        }
+      });
+
+      $('#btnTranscript').addEventListener('click', () => {
+        $('#transcript').classList.toggle('open');
+      });
+      $('#btnCloseTranscript').addEventListener('click', () => {
+        $('#transcript').classList.remove('open');
+      });
+
+      $('#btnStartNew').addEventListener('click', () => {
+        $('#overlayStart').classList.remove('visible');
+        $('#ownerInput').focus();
+      });
+
+      $('#btnViewHistory, #btnHistory').forEach?.(); // poly
+      ['btnViewHistory', 'btnHistory'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('click', () => {
+          $('#overlayHistory').classList.add('visible');
+          renderHistory();
+        });
+      });
+
+      $('#btnCloseHistory').addEventListener('click', () => {
+        $('#overlayHistory').classList.remove('visible');
+      });
+
+      // Auto resize textarea
+      $('#ownerInput').addEventListener('input', function () {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 90) + 'px';
+      });
+    }
+
+    function renderHistory() {
+      const list = $('#historyList');
+      list.innerHTML = `
+        <div class="history-item">
+          <div class="title">Demo · AI War Room 架構討論</div>
+          <div class="meta">2026/08/21 · 5 Agents · 6 rounds · Demo</div>
+        </div>
+        <div style="color:var(--text-muted);font-size:13px;padding:12px;text-align:center;">
+          連接 Supabase 後將顯示真實會議紀錄
+        </div>
+      `;
+    }
+
+    // ---------- Init ----------
+    function init() {
+      bindEvents();
+      resetAllAgents('listening');
+      updateRoundUI();
+      // Show start overlay only if no active meeting
+      if (!state.meetingId) {
+        $('#overlayStart').classList.add('visible');
+      }
+      // Auto pick voices after load
+      setTimeout(pickVoices, 500);
+    }
+
+    init();
+
+    // Expose for debugging / future integration
+    window.AIVAULT_WARROOM = {
+      state,
+      setAgentStatus,
+      startMeeting,
+      runNextRound,
+      AGENTS,
+    };
+  </script>
+</body>
+</html>
