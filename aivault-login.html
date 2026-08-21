@@ -120,6 +120,20 @@ input:focus{border-color:rgba(101,232,255,.55);box-shadow:0 0 0 3px rgba(101,232
 
   // 登入成功後要去的頁面
   const HOME_URL = 'aivault-home.html'
+  const ADMIN_URL = 'aivault-admin.html'
+
+  function isAdminUser(user) {
+    if (!user) return false
+    const role =
+      user.app_metadata?.role ||
+      user.user_metadata?.role ||
+      ''
+    return role === 'admin' || role === 'owner'
+  }
+
+  function redirectAfterAuth(user) {
+    location.replace(isAdminUser(user) ? ADMIN_URL : HOME_URL)
+  }
 
   // =====================================================
   // ② 引入 supabase-js（CDN ESM）
@@ -190,8 +204,8 @@ input:focus{border-color:rgba(101,232,255,.55);box-shadow:0 0 0 3px rgba(101,232
   async function checkExistingSession() {
     if (!supabase) return
     const { data: { session } } = await supabase.auth.getSession()
-    if (session) {
-      location.replace(HOME_URL)
+    if (session?.user) {
+      redirectAfterAuth(session.user)
     }
   }
   checkExistingSession()
@@ -251,10 +265,11 @@ input:focus{border-color:rgba(101,232,255,.55);box-shadow:0 0 0 3px rgba(101,232
         localStorage.removeItem('aivault_remember_email')
       }
 
-      showSuccess('登入成功，正在進入工作台…')
-      // 短暫延遲讓使用者看到成功提示
+      const user = data.user
+      const admin = isAdminUser(user)
+      showSuccess(admin ? '管理員登入成功，進入後台…' : '登入成功，正在進入工作台…')
       setTimeout(() => {
-        location.href = HOME_URL
+        redirectAfterAuth(user)
       }, 400)
 
     } catch (err) {
