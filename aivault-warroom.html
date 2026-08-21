@@ -711,6 +711,7 @@
         <span class="badge">專案研討</span>
       </div>
       <div class="header-right">
+        <button class="icon-btn" id="btnLang" title="切換中文/English" style="min-width:40px;font-size:12px;font-weight:700;color:#5eead4;border-color:#0f766e;">中文</button>
         <button class="icon-btn" id="btnSound" title="聲音開關">🔊</button>
         <button class="icon-btn" id="btnHistory" title="歷史會議">📋</button>
         <button class="icon-btn" id="btnTranscript" title="對話紀錄">💬</button>
@@ -1038,6 +1039,27 @@
     // 注意：iOS / 多數瀏覽器必須在「使用者手勢」後才能出聲
     let audioUnlocked = false;
     let ttsEnabled = true;
+
+    let uiLang = localStorage.getItem('aivault_lang') || 'zh';
+    function applyLangBtn() {
+      const b = document.getElementById('btnLang');
+      if (b) {
+        b.textContent = uiLang === 'zh' ? '中文' : 'EN';
+        b.title = uiLang === 'zh' ? '目前繁中，點擊切換 English' : 'English now, tap for 中文';
+      }
+      const input = document.getElementById('ownerInput');
+      if (input) {
+        input.placeholder = uiLang === 'zh'
+          ? '輸入問題，啟動專案研討會議…'
+          : 'Type a question to start the meeting…';
+      }
+    }
+    function setUiLang(lang) {
+      uiLang = lang === 'en' ? 'en' : 'zh';
+      localStorage.setItem('aivault_lang', uiLang);
+      applyLangBtn();
+    }
+
     const voiceMap = {
       chief: null, engineer: null, auditor: null, strategist: null, creator: null
     };
@@ -1070,8 +1092,10 @@
 
       // 中文優先
       const preferZh = (list) => {
+        const tw = list.filter(v => /zh-tw|zh_tw|taiwan|曉|美佳|ting/i.test(v.lang + v.name));
         const zh = list.filter(v => /zh|cmn|chinese|台灣|国语|國語/i.test(v.lang + v.name));
-        return zh.length ? zh.concat(list.filter(v => !zh.includes(v))) : list;
+        const ordered = [...tw, ...zh.filter(v => !tw.includes(v))];
+        return ordered.length ? ordered.concat(list.filter(v => !ordered.includes(v))) : list;
       };
 
       const males = preferZh(uniq.filter(v => genderOf(v) === 'male'));
@@ -1102,11 +1126,12 @@
       voiceMap.creator = takeStrict(females, true);
 
       window.__voiceParams = {
-        chief:      { rate: 0.94, pitch: 0.78, gender: 'male' },
-        engineer:   { rate: 1.00, pitch: 0.88, gender: 'male' },
-        auditor:    { rate: 0.90, pitch: 0.70, gender: 'male' },
-        strategist: { rate: 1.05, pitch: 1.32, gender: 'female' },
-        creator:    { rate: 1.08, pitch: 1.42, gender: 'female' }
+        // 語速慢；女聲偏蘿莉（高 pitch）
+        chief:      { rate: 0.76, pitch: 0.78, gender: 'male' },
+        engineer:   { rate: 0.78, pitch: 0.88, gender: 'male' },
+        auditor:    { rate: 0.74, pitch: 0.70, gender: 'male' },
+        strategist: { rate: 0.80, pitch: 1.55, gender: 'female' },
+        creator:    { rate: 0.82, pitch: 1.65, gender: 'female' }
       };
 
       window.__ttsGenderReady = {
@@ -1167,11 +1192,14 @@
           const u = new SpeechSynthesisUtterance(chunk);
           const params = (window.__voiceParams && window.__voiceParams[agentId]) || { rate: 1, pitch: 1, gender: 'male' };
           u.volume = 1;
-          u.rate = params.rate;
+          u.rate = Math.min(0.88, Math.max(0.7, params.rate || 0.8)); // 語速偏慢
           if (params.gender === 'female') {
-            u.pitch = Math.max(1.25, params.pitch || 1.35);
+            // 蘿莉音：更高、略快一點仍整體偏慢
+            u.pitch = Math.max(1.5, Math.min(2.0, params.pitch || 1.6));
+            u.rate = Math.min(0.85, Math.max(0.72, params.rate || 0.8));
           } else {
             u.pitch = Math.min(0.95, params.pitch || 0.85);
+            u.rate = Math.min(0.85, Math.max(0.7, params.rate || 0.78));
           }
 
           // 發言當下再次檢查：絕不讓女角色用男聲、男角色用女聲
@@ -1197,7 +1225,7 @@
             u.voice = chosen;
             u.lang = chosen.lang || 'zh-TW';
           } else {
-            u.lang = 'zh-TW';
+            u.lang = (typeof uiLang !== 'undefined' && uiLang === 'en') ? 'en-US' : 'zh-TW'; // 繁體中文
             // 沒有對應性別語音時，只靠 pitch 區分，仍不套用錯誤性別的 voice
           }
 
@@ -1277,6 +1305,43 @@
       }
     };
 
+
+    const DEMO_RESPONSES_EN = {
+      analysis: {
+        chief: 'Owner request received. I will break down goals and constraints, then each specialist will comment. Engineer, start with technical feasibility.',
+        engineer: 'Technically we can split UI, API Gateway, and persistence. Reuse AIVAULT Agent Registry and Edge Functions. Main risk is realtime voice and avatar sync.',
+        auditor: 'I am cautious about cost and latency if five agents call APIs at once. Without fallback, the meeting can stall.',
+        strategist: 'Market is open but education cost is high. Watch data retention and privacy for meeting logs. Focus B2B internal decisions first.',
+        creator: 'Product should feel like a cinematic meeting room: five windows, live status, captions, replay. Mobile-first is mandatory.',
+      },
+      cross_examination: {
+        engineer: 'Auditor, we can cut tokens with sequential turns and shared context. Where is the highest risk?',
+        auditor: 'No hard round limit, and avatar outage. Engineer, what is the fallback?',
+        strategist: 'Creator, will users sit through a five-AI debate, or only want the final decision?',
+        creator: 'Support skip-to-decision plus full replay for deep review.',
+        chief: 'Next: formal debate with concrete fixes, not only problems.',
+      },
+      debate: {
+        auditor: 'Hard max 6 rounds and Owner stop control are mandatory.',
+        engineer: 'Accepted. Orchestrator enforces max_rounds=6. Avatar failure degrades to avatar circle plus TTS.',
+        strategist: 'Pricing can be per-meeting or monthly quota.',
+        creator: 'Degraded UI keeps speaking waveform so it still feels live.',
+        chief: 'Consensus: hard rounds, degradation, per-session billing. Move to synthesis.',
+      },
+      synthesis: {
+        creator: 'Final draft: 1) 5 agents + 6 stages 2) mobile Chief top + 2x2 3) persist all turns 4) keys only in Edge Secrets 5) Owner Pause/Stop/Approve',
+        chief: 'Add auto Summary and Action Items at end. Ready for Final Decision.',
+      },
+      final_decision: {
+        chief: '[Decision] Adopt fixed 5-AI meeting flow in AIVAULT.\n[Why] Clear roles and cost control.\n[Risks] Avatar cost; mitigated by TTS fallback.\n[Next] Deploy schema, wire entry, configure keys, run one live trial.'
+      }
+    };
+
+    function getDemoResponses(roundType) {
+      if (uiLang === 'en') return (DEMO_RESPONSES_EN[roundType] || {});
+      return (DEMO_RESPONSES[roundType] || {});
+    }
+
     // ---------- Demo Runner ----------
     async function runDemoRound(roundType) {
       unlockAudio();
@@ -1288,7 +1353,7 @@
         final_decision: ['chief'],
       };
       const order = orderMap[roundType] || [];
-      const responses = DEMO_RESPONSES[roundType] || {};
+      const responses = getDemoResponses(roundType);
 
       for (const agentId of order) {
         setAgentStatus(agentId, 'thinking');
@@ -1548,6 +1613,130 @@
     };
 
 
+    
+    // ---------- 聽 Owner 語音命令 ----------
+    let recognizing = false;
+    let recognition = null;
+
+    function getRecognition() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) return null;
+      if (recognition) return recognition;
+      recognition = new SR();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+      recognition.lang = (uiLang === 'en') ? 'en-US' : 'zh-TW';
+
+      recognition.onstart = () => {
+        recognizing = true;
+        const btn = document.getElementById('btnMic');
+        if (btn) {
+          btn.textContent = '🔴';
+          btn.style.borderColor = '#ef4444';
+        }
+      };
+      recognition.onend = () => {
+        recognizing = false;
+        const btn = document.getElementById('btnMic');
+        if (btn) {
+          btn.textContent = '🎙️';
+          btn.style.borderColor = '';
+        }
+      };
+      recognition.onerror = (e) => {
+        recognizing = false;
+        console.warn('speech error', e.error);
+        const btn = document.getElementById('btnMic');
+        if (btn) btn.textContent = '🎙️';
+      };
+      recognition.onresult = (event) => {
+        let finalText = '';
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const r = event.results[i];
+          if (r.isFinal) finalText += r[0].transcript;
+          else interim += r[0].transcript;
+        }
+        const input = document.getElementById('ownerInput');
+        if (input && interim) input.value = interim;
+        if (finalText.trim()) {
+          if (input) input.value = finalText.trim();
+          handleVoiceCommand(finalText.trim());
+        }
+      };
+      return recognition;
+    }
+
+    function startListen() {
+      unlockAudio();
+      const rec = getRecognition();
+      if (!rec) {
+        alert(uiLang === 'en'
+          ? 'Speech recognition not supported in this browser.'
+          : '此瀏覽器不支援語音辨識，請改用文字輸入。');
+        return;
+      }
+      try {
+        if (recognizing) {
+          rec.stop();
+          return;
+        }
+        rec.lang = (uiLang === 'en') ? 'en-US' : 'zh-TW';
+        rec.start();
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+
+    async function handleVoiceCommand(text) {
+      const raw = text.trim();
+      if (!raw) return;
+      const lower = raw.toLowerCase();
+      addTranscriptMessage({
+        role: 'Owner',
+        content: raw,
+        isOwner: true
+      });
+
+      // 命令關鍵字
+      const isEn = uiLang === 'en';
+      if (/結束會議|停止會議|stop meeting|end meeting/i.test(raw)) {
+        document.getElementById('btnStop')?.click();
+        return;
+      }
+      if (/下一輪|下一步|next round|continue/i.test(raw)) {
+        document.getElementById('btnNextRound')?.click();
+        return;
+      }
+      if (/暫停|pause/i.test(raw)) {
+        document.getElementById('btnPause')?.click();
+        return;
+      }
+      if (/批准|同意|approve/i.test(raw)) {
+        document.getElementById('btnApprove')?.click();
+        return;
+      }
+      if (/收起鍵盤|關閉鍵盤|hide keyboard/i.test(raw)) {
+        hideKeyboard?.();
+        return;
+      }
+      if (/切換英文|switch to english|english please/i.test(raw)) {
+        setUiLang('en');
+        return;
+      }
+      if (/切換中文|switch to chinese|中文模式/i.test(raw)) {
+        setUiLang('zh');
+        return;
+      }
+
+      // 一般發言：填入後等同送出／開始
+      const input = document.getElementById('ownerInput');
+      if (input) input.value = raw;
+      const send = document.getElementById('btnSend');
+      if (send) send.click();
+    }
+
     function hideKeyboard() {
       const input = document.getElementById('ownerInput');
       if (input) {
@@ -1559,6 +1748,19 @@
       window.scrollTo(0, 0);
       setTimeout(() => window.scrollTo(0, 0), 50);
     }
+
+    document.getElementById('btnLang')?.addEventListener('click', () => {
+      setUiLang(uiLang === 'zh' ? 'en' : 'zh');
+      if (ttsEnabled) {
+        speak('chief', uiLang === 'zh' ? '已切換為中文' : 'Switched to English');
+      }
+    });
+    applyLangBtn();
+
+    document.getElementById('btnMic')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      startListen();
+    });
 
     document.getElementById('btnHideKeyboard')?.addEventListener('click', (e) => {
       e.preventDefault();
