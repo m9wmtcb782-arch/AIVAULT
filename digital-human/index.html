@@ -3,176 +3,1388 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <title>AIVAULT 動態架構討論 Demo - 數字人</title>
+
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif;
-      background: #0f1115;
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        "Noto Sans TC",
+        sans-serif;
+
+      background:
+        radial-gradient(
+          circle at top,
+          #18202c 0%,
+          #0f1115 45%,
+          #090b0f 100%
+        );
+
       color: #e8eaed;
       min-height: 100vh;
-      padding: 24px;
+      padding: 24px 16px 40px;
     }
+
     h1 {
       text-align: center;
-      font-size: 1.4rem;
-      font-weight: 600;
+      font-size: 1.45rem;
+      font-weight: 700;
       margin-bottom: 8px;
-      letter-spacing: 0.02em;
+      letter-spacing: 0.03em;
     }
+
     .subtitle {
       text-align: center;
       color: #9aa0a6;
       font-size: 0.9rem;
       margin-bottom: 28px;
     }
+
+    /* =========================================================
+       Agent Grid
+    ========================================================= */
+
     .agents {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 20px;
-      max-width: 900px;
-      margin: 0 auto 32px;
+
+      grid-template-columns:
+        repeat(auto-fit, minmax(155px, 1fr));
+
+      gap: 18px;
+
+      max-width: 980px;
+
+      margin:
+        0 auto 30px;
     }
+
+    /* =========================================================
+       Agent Card
+    ========================================================= */
+
     .agent {
-      background: #1a1d24;
-      border-radius: 16px;
-      padding: 16px;
+      position: relative;
+
+      background:
+        linear-gradient(
+          145deg,
+          rgba(30, 35, 44, 0.98),
+          rgba(18, 21, 27, 0.98)
+        );
+
+      border-radius: 18px;
+
+      padding: 18px 14px;
+
       text-align: center;
+
       border: 2px solid transparent;
-      transition: border-color 0.3s, box-shadow 0.3s, transform 0.2s;
+
+      transition:
+        border-color 0.25s ease,
+        box-shadow 0.25s ease,
+        transform 0.2s ease;
+
+      overflow: hidden;
     }
+
+    /* =========================================================
+       Speaking Agent
+    ========================================================= */
+
     .agent.active {
       border-color: #4ade80;
-      box-shadow: 0 0 24px rgba(74, 222, 128, 0.25);
+
+      box-shadow:
+        0 0 16px rgba(74, 222, 128, 0.25),
+        0 0 42px rgba(74, 222, 128, 0.12);
+
       transform: translateY(-4px);
     }
-    .agent img {
-      width: 120px;
-      height: 120px;
+
+    /* =========================================================
+       Avatar Stage
+    ========================================================= */
+
+    .avatar-stage {
+      position: relative;
+
+      width: 128px;
+      height: 128px;
+
+      margin:
+        0 auto 13px;
+
       border-radius: 50%;
-      object-fit: cover;
-      border: 3px solid #2d323c;
-      margin-bottom: 12px;
     }
+
+    .agent img {
+      width: 128px;
+      height: 128px;
+
+      border-radius: 50%;
+
+      object-fit: cover;
+
+      border: 3px solid #2d323c;
+
+      display: block;
+
+      transition:
+        border-color 0.25s ease,
+        transform 0.15s ease,
+        filter 0.2s ease;
+    }
+
     .agent.active img {
       border-color: #4ade80;
+
+      filter:
+        brightness(1.08)
+        saturate(1.08);
     }
+
+    /* =========================================================
+       Face Animation
+    ========================================================= */
+
+    .agent.speaking .avatar-stage {
+      animation:
+        headBreathing 1.6s ease-in-out infinite;
+    }
+
+    .agent.speaking img {
+      animation:
+        faceMovement 1.15s ease-in-out infinite;
+    }
+
+    @keyframes headBreathing {
+      0% {
+        transform:
+          translateY(0)
+          scale(1);
+      }
+
+      50% {
+        transform:
+          translateY(-1px)
+          scale(1.018);
+      }
+
+      100% {
+        transform:
+          translateY(0)
+          scale(1);
+      }
+    }
+
+    @keyframes faceMovement {
+      0% {
+        transform:
+          translateX(0)
+          rotate(0deg);
+      }
+
+      25% {
+        transform:
+          translateX(-1px)
+          rotate(-0.3deg);
+      }
+
+      50% {
+        transform:
+          translateX(1px)
+          rotate(0.3deg);
+      }
+
+      75% {
+        transform:
+          translateX(-0.5px)
+          rotate(-0.15deg);
+      }
+
+      100% {
+        transform:
+          translateX(0)
+          rotate(0deg);
+      }
+    }
+
+    /* =========================================================
+       Mouth
+       ========================================================= */
+
+    .mouth {
+      position: absolute;
+
+      left: 50%;
+
+      /*
+        這個位置是以一般正面人物照片估算。
+        不同照片的人臉位置不同，因此第一版採用
+        通用動畫，而不是強制精準定位。
+      */
+
+      bottom: 27%;
+
+      transform:
+        translateX(-50%)
+        scaleY(0.18);
+
+      width: 28px;
+
+      height: 8px;
+
+      border-radius:
+        50% 50% 45% 45%;
+
+      background:
+        rgba(20, 20, 24, 0.88);
+
+      opacity: 0;
+
+      transform-origin:
+        center center;
+
+      transition:
+        opacity 0.08s linear,
+        transform 0.06s linear;
+    }
+
+    .agent.speaking .mouth {
+      opacity: 0.88;
+    }
+
+    /* =========================================================
+       Eye blink overlay
+    ========================================================= */
+
+    .blink {
+      position: absolute;
+
+      left: 50%;
+      top: 50%;
+
+      width: 74px;
+      height: 30px;
+
+      transform:
+        translate(-50%, -50%);
+
+      pointer-events: none;
+
+      opacity: 0;
+
+      border-radius: 50%;
+    }
+
+    .agent.blinking .blink {
+      animation:
+        blinkAnimation 0.12s ease-in-out;
+    }
+
+    @keyframes blinkAnimation {
+      0% {
+        opacity: 0;
+        transform:
+          translate(-50%, -50%)
+          scaleY(0);
+      }
+
+      50% {
+        opacity: 0.18;
+        transform:
+          translate(-50%, -50%)
+          scaleY(1);
+      }
+
+      100% {
+        opacity: 0;
+        transform:
+          translate(-50%, -50%)
+          scaleY(0);
+      }
+    }
+
+    /* =========================================================
+       Speaking Indicator
+    ========================================================= */
+
+    .speaking-indicator {
+      position: absolute;
+
+      left: 50%;
+      bottom: -3px;
+
+      transform:
+        translateX(-50%);
+
+      background: #4ade80;
+
+      color: #07140b;
+
+      font-size: 0.68rem;
+
+      font-weight: 800;
+
+      padding:
+        3px 9px;
+
+      border-radius: 999px;
+
+      opacity: 0;
+
+      transition:
+        opacity 0.2s ease;
+    }
+
+    .agent.speaking .speaking-indicator {
+      opacity: 1;
+    }
+
+    /* =========================================================
+       Agent Name / Role
+    ========================================================= */
+
     .agent .name {
-      font-weight: 600;
+      font-weight: 700;
+
       font-size: 0.95rem;
-      margin-bottom: 4px;
+
+      margin-bottom: 5px;
     }
+
     .agent .role {
       font-size: 0.75rem;
+
       color: #9aa0a6;
     }
+
+    /* =========================================================
+       Player
+    ========================================================= */
+
     .player-wrap {
-      max-width: 520px;
-      margin: 0 auto 24px;
-      background: #1a1d24;
-      border-radius: 12px;
-      padding: 16px 20px;
+      max-width: 620px;
+
+      margin:
+        0 auto 20px;
+
+      background:
+        rgba(26, 29, 36, 0.95);
+
+      border:
+        1px solid rgba(255, 255, 255, 0.05);
+
+      border-radius: 14px;
+
+      padding:
+        16px 20px;
+
       display: flex;
+
       align-items: center;
+
       gap: 16px;
+
+      box-shadow:
+        0 10px 30px rgba(0, 0, 0, 0.2);
     }
+
     audio {
       width: 100%;
-      height: 36px;
+      height: 38px;
     }
+
+    /* =========================================================
+       Status
+    ========================================================= */
+
     .status {
       text-align: center;
-      font-size: 0.85rem;
+
+      font-size: 0.88rem;
+
       color: #9aa0a6;
+
       margin-top: 12px;
+
+      min-height: 22px;
     }
+
+    .status.speaking {
+      color: #4ade80;
+
+      font-weight: 600;
+    }
+
+    /* =========================================================
+       Volume Meter
+    ========================================================= */
+
+    .meter-wrap {
+      max-width: 420px;
+
+      margin:
+        14px auto 0;
+
+      height: 5px;
+
+      background:
+        #20242c;
+
+      border-radius: 999px;
+
+      overflow: hidden;
+    }
+
+    .meter {
+      width: 0%;
+
+      height: 100%;
+
+      background:
+        #4ade80;
+
+      border-radius: 999px;
+
+      transition:
+        width 0.06s linear;
+    }
+
+    /* =========================================================
+       Note
+    ========================================================= */
+
     .note {
-      max-width: 600px;
-      margin: 32px auto 0;
-      font-size: 0.8rem;
+      max-width: 680px;
+
+      margin:
+        28px auto 0;
+
+      font-size: 0.78rem;
+
       color: #6b7280;
+
       text-align: center;
-      line-height: 1.5;
+
+      line-height: 1.6;
     }
+
+    /* =========================================================
+       Mobile
+    ========================================================= */
+
+    @media (max-width: 600px) {
+
+      body {
+        padding:
+          18px 12px 32px;
+      }
+
+      h1 {
+        font-size: 1.25rem;
+      }
+
+      .subtitle {
+        font-size: 0.82rem;
+      }
+
+      .agents {
+        grid-template-columns:
+          repeat(2, minmax(0, 1fr));
+
+        gap: 12px;
+      }
+
+      .agent {
+        padding:
+          14px 8px;
+      }
+
+      .avatar-stage,
+      .agent img {
+        width: 105px;
+        height: 105px;
+      }
+
+      .agent .name {
+        font-size: 0.82rem;
+      }
+
+      .agent .role {
+        font-size: 0.68rem;
+      }
+
+      .mouth {
+        width: 23px;
+        height: 7px;
+      }
+
+      .player-wrap {
+        padding:
+          13px;
+      }
+    }
+
   </style>
 </head>
+
 <body>
-  <h1>動態架構設計討論</h1>
-  <p class="subtitle">可操作 Demo · 數字人協作原型 · 自然中文語音</p>
 
-  <div class="agents">
-    <div class="agent" id="agent-a">
-      <img src="agent_a.jpg" alt="Agent A">
-      <div class="name">代理 A · Luna</div>
-      <div class="role">架構抽象</div>
-    </div>
-    <div class="agent" id="agent-b">
-      <img src="agent_b.jpg" alt="Agent B">
-      <div class="name">代理 B · Eve</div>
-      <div class="role">介面與擴充</div>
-    </div>
-    <div class="agent" id="agent-c">
-      <img src="agent_c.jpg" alt="Agent C">
-      <div class="name">代理 C · Altair</div>
-      <div class="role">議程引導</div>
-    </div>
-    <div class="agent" id="agent-d">
-      <img src="agent_d.jpg" alt="Agent D">
-      <div class="name">代理 D · Atlas</div>
-      <div class="role">介面定義</div>
-    </div>
-    <div class="agent" id="agent-e">
-      <img src="agent_e.jpg" alt="Agent E">
-      <div class="name">代理 E · Helios</div>
-      <div class="role">狀態與閉環</div>
-    </div>
-  </div>
+  <h1>AIVAULT 動態架構討論</h1>
 
-  <div class="player-wrap">
-    <audio id="audio" controls src="dynamic_architecture_discussion.mp3"></audio>
-  </div>
-  <p class="status" id="status">點擊播放開始討論</p>
-
-  <p class="note">
-    此頁示範：AI agents 使用自然多角色中文語音 + 數字人呈現。<br>
-    語音為真實 TTS 產出，架構保持可擴充、不寫死特定 Provider。
+  <p class="subtitle">
+    AI Agent 協作會議 · 數字人動態呈現 · 音訊驅動原型
   </p>
 
+  <!-- =======================================================
+       AGENTS
+  ======================================================== -->
+
+  <div class="agents">
+
+    <div class="agent" id="agent-a">
+
+      <div class="avatar-stage">
+
+        <img
+          src="agent_a.jpg"
+          alt="Agent A"
+        >
+
+        <div class="mouth"></div>
+
+        <div class="blink"></div>
+
+        <div class="speaking-indicator">
+          說話中
+        </div>
+
+      </div>
+
+      <div class="name">
+        代理 A · Luna
+      </div>
+
+      <div class="role">
+        架構抽象
+      </div>
+
+    </div>
+
+
+    <div class="agent" id="agent-b">
+
+      <div class="avatar-stage">
+
+        <img
+          src="agent_b.jpg"
+          alt="Agent B"
+        >
+
+        <div class="mouth"></div>
+
+        <div class="blink"></div>
+
+        <div class="speaking-indicator">
+          說話中
+        </div>
+
+      </div>
+
+      <div class="name">
+        代理 B · Eve
+      </div>
+
+      <div class="role">
+        介面與擴充
+      </div>
+
+    </div>
+
+
+    <div class="agent" id="agent-c">
+
+      <div class="avatar-stage">
+
+        <img
+          src="agent_c.jpg"
+          alt="Agent C"
+        >
+
+        <div class="mouth"></div>
+
+        <div class="blink"></div>
+
+        <div class="speaking-indicator">
+          說話中
+        </div>
+
+      </div>
+
+      <div class="name">
+        代理 C · Altair
+      </div>
+
+      <div class="role">
+        議程引導
+      </div>
+
+    </div>
+
+
+    <div class="agent" id="agent-d">
+
+      <div class="avatar-stage">
+
+        <img
+          src="agent_d.jpg"
+          alt="Agent D"
+        >
+
+        <div class="mouth"></div>
+
+        <div class="blink"></div>
+
+        <div class="speaking-indicator">
+          說話中
+        </div>
+
+      </div>
+
+      <div class="name">
+        代理 D · Atlas
+      </div>
+
+      <div class="role">
+        介面定義
+      </div>
+
+    </div>
+
+
+    <div class="agent" id="agent-e">
+
+      <div class="avatar-stage">
+
+        <img
+          src="agent_e.jpg"
+          alt="Agent E"
+        >
+
+        <div class="mouth"></div>
+
+        <div class="blink"></div>
+
+        <div class="speaking-indicator">
+          說話中
+        </div>
+
+      </div>
+
+      <div class="name">
+        代理 E · Helios
+      </div>
+
+      <div class="role">
+        狀態與閉環
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- =======================================================
+       AUDIO PLAYER
+  ======================================================== -->
+
+  <div class="player-wrap">
+
+    <audio
+      id="audio"
+      controls
+      preload="auto"
+      src="dynamic_architecture_discussion.mp3"
+    ></audio>
+
+  </div>
+
+
+  <!-- =======================================================
+       STATUS
+  ======================================================== -->
+
+  <p
+    class="status"
+    id="status"
+  >
+    點擊播放開始討論
+  </p>
+
+
+  <!-- =======================================================
+       VOLUME METER
+  ======================================================== -->
+
+  <div class="meter-wrap">
+
+    <div
+      class="meter"
+      id="meter"
+    ></div>
+
+  </div>
+
+
+  <!-- =======================================================
+       DESCRIPTION
+  ======================================================== -->
+
+  <p class="note">
+
+    第一版數字人原型：<br>
+
+    以實際播放音訊的音量驅動說話動畫，
+    並同步呈現 Agent 高亮、嘴部張合、臉部微動與眨眼。<br>
+
+    目前仍屬前端呈現 Demo，
+    下一階段可接 AIVAULT AI Gateway 與即時 TTS。
+
+  </p>
+
+
   <script>
-    const audio = document.getElementById('audio');
-    const status = document.getElementById('status');
-    const agents = ['agent-a', 'agent-b', 'agent-c', 'agent-d', 'agent-e'];
-    let current = -1;
-    let interval = null;
 
-    // 簡單輪播高亮（因無精準時間戳），模擬誰在說話
-    function startHighlight() {
-      clearInterval(interval);
-      interval = setInterval(() => {
-        agents.forEach(id => document.getElementById(id).classList.remove('active'));
-        current = (current + 1) % agents.length;
-        document.getElementById(agents[current]).classList.add('active');
-      }, 4200);
+    /* =========================================================
+       DOM
+    ========================================================= */
+
+    const audio =
+      document.getElementById("audio");
+
+    const status =
+      document.getElementById("status");
+
+    const meter =
+      document.getElementById("meter");
+
+
+    const agentElements = {
+
+      "agent-a":
+        document.getElementById("agent-a"),
+
+      "agent-b":
+        document.getElementById("agent-b"),
+
+      "agent-c":
+        document.getElementById("agent-c"),
+
+      "agent-d":
+        document.getElementById("agent-d"),
+
+      "agent-e":
+        document.getElementById("agent-e")
+
+    };
+
+
+    const agentIds = [
+      "agent-a",
+      "agent-b",
+      "agent-c",
+      "agent-d",
+      "agent-e"
+    ];
+
+
+    /* =========================================================
+       AUDIO ANALYSER
+    ========================================================= */
+
+    let audioContext = null;
+
+    let analyser = null;
+
+    let sourceNode = null;
+
+    let animationFrame = null;
+
+    let audioConnected = false;
+
+
+    /* =========================================================
+       Current Speaker
+    ========================================================= */
+
+    let currentSpeaker = -1;
+
+    let speakerTimer = null;
+
+
+    /* =========================================================
+       Blink Timer
+    ========================================================= */
+
+    let blinkTimer = null;
+
+
+    /* =========================================================
+       Create Audio Analyser
+    ========================================================= */
+
+    function setupAudioAnalyser() {
+
+      if (audioConnected) {
+        return;
+      }
+
+      try {
+
+        audioContext =
+          new (
+            window.AudioContext ||
+            window.webkitAudioContext
+          )();
+
+        analyser =
+          audioContext.createAnalyser();
+
+        analyser.fftSize = 256;
+
+        analyser.smoothingTimeConstant =
+          0.65;
+
+        sourceNode =
+          audioContext.createMediaElementSource(audio);
+
+        sourceNode.connect(analyser);
+
+        analyser.connect(
+          audioContext.destination
+        );
+
+        audioConnected = true;
+
+      } catch (error) {
+
+        console.warn(
+          "Audio analyser 初始化失敗：",
+          error
+        );
+
+      }
+
     }
 
-    function stopHighlight() {
-      clearInterval(interval);
-      agents.forEach(id => document.getElementById(id).classList.remove('active'));
-      current = -1;
+
+    /* =========================================================
+       Clear Active State
+    ========================================================= */
+
+    function clearAgents() {
+
+      agentIds.forEach(id => {
+
+        const element =
+          agentElements[id];
+
+        if (!element) {
+          return;
+        }
+
+        element.classList.remove(
+          "active",
+          "speaking",
+          "blinking"
+        );
+
+        const mouth =
+          element.querySelector(".mouth");
+
+        if (mouth) {
+
+          mouth.style.transform =
+            "translateX(-50%) scaleY(0.18)";
+
+        }
+
+        if (mouth) {
+          mouth.style.opacity = "0";
+        }
+
+      });
+
     }
 
-    audio.addEventListener('play', () => {
-      status.textContent = '討論進行中…';
-      startHighlight();
-    });
-    audio.addEventListener('pause', () => {
-      status.textContent = '已暫停';
-      stopHighlight();
-    });
-    audio.addEventListener('ended', () => {
-      status.textContent = '討論結束';
-      stopHighlight();
-    });
+
+    /* =========================================================
+       Select Speaker
+    ========================================================= */
+
+    function setSpeaker(index) {
+
+      if (
+        index < 0 ||
+        index >= agentIds.length
+      ) {
+        return;
+      }
+
+      agentIds.forEach((id, i) => {
+
+        const element =
+          agentElements[id];
+
+        if (!element) {
+          return;
+        }
+
+        element.classList.toggle(
+          "active",
+          i === index
+        );
+
+        element.classList.toggle(
+          "speaking",
+          i === index
+        );
+
+      });
+
+      currentSpeaker = index;
+
+      const name =
+        agentElements[
+          agentIds[index]
+        ].querySelector(".name");
+
+      if (name) {
+
+        status.textContent =
+          name.textContent.trim() +
+          " 正在發言…";
+
+        status.classList.add(
+          "speaking"
+        );
+
+      }
+
+    }
+
+
+    /* =========================================================
+       Demo Speaker Rotation
+       ---------------------------------------------------------
+       這裡只是因為目前 MP3 沒有 speaker timestamp。
+       真正接 AIVAULT TTS 後，這段會被移除。
+    ========================================================= */
+
+    function startSpeakerRotation() {
+
+      clearInterval(speakerTimer);
+
+      currentSpeaker = -1;
+
+      speakerTimer =
+        setInterval(() => {
+
+          currentSpeaker =
+            (currentSpeaker + 1) %
+            agentIds.length;
+
+          setSpeaker(
+            currentSpeaker
+          );
+
+        }, 4200);
+
+    }
+
+
+    function stopSpeakerRotation() {
+
+      clearInterval(
+        speakerTimer
+      );
+
+      speakerTimer = null;
+
+    }
+
+
+    /* =========================================================
+       Mouth Animation
+    ========================================================= */
+
+    function updateMouth(volume) {
+
+      if (
+        currentSpeaker < 0 ||
+        currentSpeaker >= agentIds.length
+      ) {
+        return;
+      }
+
+      const id =
+        agentIds[currentSpeaker];
+
+      const element =
+        agentElements[id];
+
+      if (!element) {
+        return;
+      }
+
+      const mouth =
+        element.querySelector(".mouth");
+
+      if (!mouth) {
+        return;
+      }
+
+
+      /*
+        將音量 0～1 放大。
+
+        實際嘴巴高度：
+        小聲 → 小幅張開
+        大聲 → 張得比較大
+      */
+
+      const normalized =
+        Math.min(
+          1,
+          Math.max(
+            0,
+            volume * 3.2
+          )
+        );
+
+
+      const scale =
+        0.18 +
+        normalized * 1.7;
+
+
+      const height =
+        6 +
+        normalized * 12;
+
+
+      mouth.style.transform =
+        "translateX(-50%) scaleY(" +
+        scale +
+        ")";
+
+
+      mouth.style.height =
+        height + "px";
+
+
+      mouth.style.opacity =
+        (
+          0.35 +
+          normalized * 0.55
+        ).toFixed(2);
+
+    }
+
+
+    /* =========================================================
+       Audio Analysis Loop
+    ========================================================= */
+
+    function analyseAudio() {
+
+      if (
+        !analyser ||
+        audio.paused ||
+        audio.ended
+      ) {
+
+        animationFrame =
+          requestAnimationFrame(
+            analyseAudio
+          );
+
+        return;
+      }
+
+
+      const data =
+        new Uint8Array(
+          analyser.frequencyBinCount
+        );
+
+
+      analyser.getByteTimeDomainData(
+        data
+      );
+
+
+      let sum = 0;
+
+
+      for (
+        let i = 0;
+        i < data.length;
+        i++
+      ) {
+
+        const value =
+          (
+            data[i] -
+            128
+          ) / 128;
+
+        sum +=
+          value * value;
+
+      }
+
+
+      const rms =
+        Math.sqrt(
+          sum / data.length
+        );
+
+
+      updateMouth(rms);
+
+
+      const meterValue =
+        Math.min(
+          100,
+          rms * 500
+        );
+
+
+      meter.style.width =
+        meterValue + "%";
+
+
+      animationFrame =
+        requestAnimationFrame(
+          analyseAudio
+        );
+
+    }
+
+
+    /* =========================================================
+       Blink
+    ========================================================= */
+
+    function scheduleBlink() {
+
+      clearTimeout(
+        blinkTimer
+      );
+
+
+      const delay =
+        2500 +
+        Math.random() * 4500;
+
+
+      blinkTimer =
+        setTimeout(() => {
+
+          /*
+            偶爾讓目前 Agent 或隨機 Agent
+            做一次眨眼動畫。
+          */
+
+          const index =
+            currentSpeaker >= 0
+              ? currentSpeaker
+              : Math.floor(
+                  Math.random() *
+                  agentIds.length
+                );
+
+
+          const element =
+            agentElements[
+              agentIds[index]
+            ];
+
+
+          if (element) {
+
+            element.classList.add(
+              "blinking"
+            );
+
+
+            setTimeout(() => {
+
+              element.classList.remove(
+                "blinking"
+              );
+
+            }, 140);
+
+          }
+
+
+          scheduleBlink();
+
+        }, delay);
+
+    }
+
+
+    /* =========================================================
+       PLAY
+    ========================================================= */
+
+    audio.addEventListener(
+      "play",
+      async () => {
+
+        setupAudioAnalyser();
+
+
+        if (
+          audioContext &&
+          audioContext.state ===
+          "suspended"
+        ) {
+
+          try {
+
+            await audioContext.resume();
+
+          } catch (error) {
+
+            console.warn(
+              "AudioContext resume 失敗：",
+              error
+            );
+
+          }
+
+        }
+
+
+        status.textContent =
+          "討論進行中…";
+
+        status.classList.add(
+          "speaking"
+        );
+
+
+        startSpeakerRotation();
+
+        analyseAudio();
+
+        scheduleBlink();
+
+      }
+    );
+
+
+    /* =========================================================
+       PAUSE
+    ========================================================= */
+
+    audio.addEventListener(
+      "pause",
+      () => {
+
+        if (!audio.ended) {
+
+          status.textContent =
+            "已暫停";
+
+        }
+
+        stopSpeakerRotation();
+
+        clearAgents();
+
+        meter.style.width =
+          "0%";
+
+        status.classList.remove(
+          "speaking"
+        );
+
+      }
+    );
+
+
+    /* =========================================================
+       ENDED
+    ========================================================= */
+
+    audio.addEventListener(
+      "ended",
+      () => {
+
+        status.textContent =
+          "討論結束";
+
+        status.classList.remove(
+          "speaking"
+        );
+
+        stopSpeakerRotation();
+
+        clearAgents();
+
+        meter.style.width =
+          "0%";
+
+        clearTimeout(
+          blinkTimer
+        );
+
+      }
+    );
+
+
+    /* =========================================================
+       ERROR
+    ========================================================= */
+
+    audio.addEventListener(
+      "error",
+      () => {
+
+        status.textContent =
+          "音訊載入失敗，請確認 MP3 與 index.html 位於同一資料夾。";
+
+        status.classList.remove(
+          "speaking"
+        );
+
+      }
+    );
+
+
+    /* =========================================================
+       INITIAL STATE
+    ========================================================= */
+
+    clearAgents();
+
   </script>
+
 </body>
 </html>
