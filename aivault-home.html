@@ -1222,7 +1222,7 @@
         class="room-btn"
         id="btnEnterRoom"
       >
-        進入房間
+        AI 董事會
       </button>
 
     </div>
@@ -1295,6 +1295,21 @@
       class="panel active"
       id="panel-home"
     >
+
+      <!-- 五人 AI 視訊會議入口（原版格式上只加這塊） -->
+      <div id="warroomEntry" class="agent-card" style="margin-bottom:16px; grid-column:1/-1; display:block; border-color:rgba(59,130,246,.4); background:linear-gradient(135deg,#1e293b,#1e3a5f);">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+          <div>
+            <div class="agent-name" style="font-size:15px;">AI 董事會 · 視訊會議</div>
+            <div class="agent-role" style="margin-bottom:0;">
+              5 位 AI 真人視窗 · Chief / Engineer / Auditor / Strategist / Creator
+            </div>
+          </div>
+          <div style="flex-shrink:0; padding:8px 12px; border-radius:20px; background:linear-gradient(135deg,#3b82f6,#6366f1); color:#fff; font-size:12px; font-weight:700;">
+            進入會議
+          </div>
+        </div>
+      </div>
 
       <div class="section-title">
         在線 Agent
@@ -1746,7 +1761,7 @@
        ============================================================ */
 
     const SUPABASE_URL =
-      'https://bbgehikkomhbyimmfik.supabase.co';
+      'https://clcddygkaaqqtsbswgdf.supabase.co';
 
     /*
      * 這裡放你原本的 Supabase ANON KEY。
@@ -1765,15 +1780,54 @@
      */
 
     const SUPABASE_ANON_KEY =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJiZ2VoaWtrb21oYnlpbW1tZmlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2Nzg5NzUsImV4cCI6MjEwMjI1NDk3NX0.4F3vDWNqZHxT4lt2bdmUiQWvdhN8OZicGKDqeqgJwxM';
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE';
 
 
     /*
      * 真正的 AI Gateway。
      */
 
+
     const AI_GATEWAY_URL =
       `${SUPABASE_URL}/functions/v1/ai-gateway`;
+
+    /* Auth：判斷是否管理員（user_metadata.role 或 app_metadata.role） */
+    let currentUser = null;
+    let isAdmin = false;
+
+    function readRole(user) {
+      if (!user) return '';
+      return user.app_metadata?.role || user.user_metadata?.role || '';
+    }
+
+    async function bootstrapAuth() {
+      try {
+        const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+        const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          auth: { persistSession: true, autoRefreshToken: true, storage: window.localStorage }
+        });
+        const { data: { session } } = await sb.auth.getSession();
+        currentUser = session?.user || null;
+        const role = readRole(currentUser);
+        isAdmin = role === 'admin' || role === 'owner';
+
+        const btnOwner = document.getElementById('btnOwner');
+        if (btnOwner) {
+          if (!isAdmin) {
+            btnOwner.style.display = 'none';
+          } else {
+            btnOwner.style.display = '';
+          }
+        }
+
+        // 未登入可選擇導回 login（可依需求開啟）
+        // if (!session) location.replace('aivault-login.html');
+      } catch (e) {
+        console.warn('Auth bootstrap failed', e);
+      }
+    }
+    bootstrapAuth();
+
 
 
     /* ============================================================
@@ -1844,177 +1898,62 @@
 
       {
         id: 'a1',
-
-        name: 'GPT',
-
-        role: '架構分析',
-
-        avatar: '🧠',
-
+        name: 'Chief',
+        role: '首席分析師',
+        avatar: '🎯',
         color: 'var(--agent-gpt)',
-
         status: 'working',
-
-        statusText: '正在分析任務',
-
+        statusText: '主持會議',
         provider: 'groq',
-
-        model:
-          'llama-3.3-70b-versatile'
+        model: 'llama-3.3-70b-versatile'
       },
-
 
       {
         id: 'a2',
-
-        name: 'Grok',
-
-        role: '研究與批判',
-
-        avatar: '⚡',
-
-        color: 'var(--agent-grok)',
-
+        name: 'Engineer',
+        role: '技術架構師',
+        avatar: '⚙️',
+        color: 'var(--agent-coding)',
         status: 'thinking',
-
-        statusText: '正在研究',
-
+        statusText: '評估技術',
         provider: 'groq',
-
-        model:
-          'llama-3.3-70b-versatile'
+        model: 'llama-3.3-70b-versatile'
       },
-
 
       {
         id: 'a3',
-
-        name: 'Coding Agent',
-
-        role: '程式實作',
-
-        avatar: '👩‍💻',
-
-        color: 'var(--agent-coding)',
-
+        name: 'Auditor',
+        role: '風險審查官',
+        avatar: '🛡️',
+        color: 'var(--agent-grok)',
         status: 'idle',
-
-        statusText: '等待任務',
-
-        provider: 'groq',
-
-        model:
-          'llama-3.3-70b-versatile'
+        statusText: '待命',
+        provider: 'gemini',
+        model: 'gemini-2.5-flash'
       },
-
 
       {
         id: 'a4',
-
-        name: 'Research Agent',
-
-        role: '資料研究',
-
-        avatar: '🔍',
-
+        name: 'Strategist',
+        role: '策略研究員',
+        avatar: '📊',
         color: 'var(--agent-research)',
-
         status: 'idle',
-
         statusText: '待命',
-
         provider: 'gemini',
-
-        model:
-          'gemini-2.5-flash'
+        model: 'gemini-2.5-flash'
       },
-
 
       {
         id: 'a5',
-
-        name: 'Design Agent',
-
-        role: 'UI / UX',
-
-        avatar: '🎨',
-
+        name: 'Creator',
+        role: '解決方案設計師',
+        avatar: '✨',
         color: 'var(--agent-design)',
-
         status: 'idle',
-
         statusText: '待命',
-
-        provider: 'groq',
-
-        model:
-          'llama-3.3-70b-versatile'
-      },
-
-
-      {
-        id: 'a6',
-
-        name: 'Teacher Agent',
-
-        role: '教學說明',
-
-        avatar: '📚',
-
-        color: 'var(--agent-teacher)',
-
-        status: 'offline',
-
-        statusText: '離線',
-
         provider: 'gemini',
-
-        model:
-          'gemini-2.5-flash'
-      },
-
-
-      {
-        id: 'a7',
-
-        name: 'Doctor Agent',
-
-        role: '醫療資訊',
-
-        avatar: '🩺',
-
-        color: 'var(--agent-doctor)',
-
-        status: 'offline',
-
-        statusText: '離線',
-
-        provider: 'gemini',
-
-        model:
-          'gemini-2.5-flash'
-      },
-
-
-      {
-        id: 'a8',
-
-        name: 'Lawyer Agent',
-
-        role: '法律研究',
-
-        avatar: '⚖️',
-
-        color: 'var(--agent-lawyer)',
-
-        status: 'idle',
-
-        statusText: '待命',
-
-        provider: 'gemini',
-
-        model:
-          'gemini-2.5-flash'
+        model: 'gemini-2.5-flash'
       }
 
     ];
@@ -2030,28 +1969,28 @@
         id: 't1',
         title: '分析產品架構',
         status: 'done',
-        agent: 'GPT'
+        agent: 'Chief'
       },
 
       {
         id: 't2',
         title: 'AI 協作討論',
         status: 'active',
-        agent: 'GPT + Grok'
+        agent: 'Chief + Engineer'
       },
 
       {
         id: 't3',
         title: '建立 Demo 介面',
         status: 'pending',
-        agent: 'Design Agent'
+        agent: 'Creator'
       },
 
       {
         id: 't4',
         title: '設計 Permission Engine',
         status: 'pending',
-        agent: 'Coding Agent'
+        agent: 'Engineer'
       },
 
       {
@@ -2073,35 +2012,35 @@
       {
         step: 1,
         title: '架構分析',
-        agent: 'GPT',
+        agent: 'Chief',
         status: 'done'
       },
 
       {
         step: 2,
         title: '批判與補強',
-        agent: 'Grok',
+        agent: 'Auditor',
         status: 'active'
       },
 
       {
         step: 3,
         title: '前端設計建議',
-        agent: 'Design Agent',
+        agent: 'Creator',
         status: 'pending'
       },
 
       {
         step: 4,
         title: '程式實作規劃',
-        agent: 'Coding Agent',
+        agent: 'Engineer',
         status: 'pending'
       },
 
       {
         step: 5,
         title: '法律合規檢查',
-        agent: 'Lawyer Agent',
+        agent: 'Strategist',
         status: 'pending'
       },
 
@@ -2138,7 +2077,7 @@
       {
         id: 'ap1',
 
-        agent: 'Grok',
+        agent: 'Auditor',
 
         action:
           '修改資料庫 Schema：新增 agent_capabilities 關聯表',
@@ -2152,7 +2091,7 @@
       {
         id: 'ap2',
 
-        agent: 'Coding Agent',
+        agent: 'Engineer',
 
         action:
           '請求執行 Terminal 指令：建立專案目錄結構',
@@ -2172,7 +2111,7 @@
     let messages = [
 
       {
-        sender: 'GPT',
+        sender: 'Chief',
         type: 'agent',
 
         text:
@@ -2183,7 +2122,7 @@
 
 
       {
-        sender: 'Grok',
+        sender: 'Auditor',
         type: 'agent',
 
         text:
@@ -2194,7 +2133,7 @@
 
 
       {
-        sender: 'GPT',
+        sender: 'Chief',
         type: 'agent',
 
         text:
@@ -2529,7 +2468,7 @@ Owner 擁有最終決策權。
       container.innerHTML =
 
         AGENTS
-          .slice(0, 6)
+          .slice(0, 5)
           .map(agent => `
 
             <div
@@ -3467,31 +3406,22 @@ Owner 擁有最終決策權。
        ㉖ 進入數字人房間
        ============================================================ */
 
+    // 進入五人 AI 視訊會議（War Room）
     document
       .getElementById('btnEnterRoom')
       .addEventListener(
         'click',
         () => {
-
-          document
-            .getElementById(
-              'roomOverlay'
-            )
-            .classList
-            .add('show');
-
-
-          addTicker(
-            'Owner 中途進入房間（不中斷進行中內容）'
-          );
-
-
-          showToast(
-            '已進入會議室'
-          );
-
+          location.href = 'aivault-warroom.html';
         }
       );
+
+    const warroomEntry = document.getElementById('warroomEntry');
+    if (warroomEntry) {
+      warroomEntry.addEventListener('click', () => {
+        location.href = 'aivault-warroom.html';
+      });
+    }
 
 
     /* ============================================================
@@ -3524,7 +3454,10 @@ Owner 擁有最終決策權。
       .addEventListener(
         'click',
         () => {
-          // 進入後台管理治理中心
+          if (!isAdmin) {
+            showToast('需要管理員權限');
+            return;
+          }
           window.location.href = 'aivault-admin.html';
         }
       );
