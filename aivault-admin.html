@@ -144,6 +144,29 @@
       padding: 20px 16px; border-top: 1px solid var(--border); margin-top: 10px;
     }
     .demo-note strong { color: var(--primary); }
+    .btn-promote {
+      flex-shrink: 0;
+      border: none;
+      border-radius: 10px;
+      padding: 7px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      background: linear-gradient(135deg, #3b82f6, #6366f1);
+      color: #fff;
+    }
+    .btn-promote:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-demote {
+      flex-shrink: 0;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 7px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      background: transparent;
+      color: var(--text-muted);
+    }
   </style>
 </head>
 <body>
@@ -222,7 +245,7 @@
       <div class="agent-card" data-go="agents">
         <div class="agent-avatar" style="background:#8b5cf622">🤖</div>
         <div class="agent-name">AI Agents</div>
-        <div class="agent-role">五人董事會</div>
+        <div class="agent-role">技術 Agent</div>
       </div>
       <div class="agent-card" data-go="gateway">
         <div class="agent-avatar" style="background:#06b6d422">🔌</div>
@@ -239,32 +262,26 @@
 
   <!-- 人員 -->
   <div class="panel" id="panel-people">
-    <div class="section-title">管理人員</div>
-    <div class="list">
+    <div class="section-title" style="justify-content:space-between;">
+      <span>使用者列表</span>
+      <button type="button" class="btn-pill btn-back" id="btnRefreshUsers" style="font-size:11px;">重新整理</button>
+    </div>
+    <div class="list" id="userList">
       <div class="list-item">
         <div>
-          <div class="title">OWNER</div>
-          <div class="meta">role: owner · 最高權限</div>
+          <div class="title">載入中…</div>
+          <div class="meta">正在向 Edge Function 取得使用者</div>
         </div>
-        <span class="badge amber">OWNER</span>
-      </div>
-      <div class="list-item">
-        <div>
-          <div class="title">Admin</div>
-          <div class="meta">role: admin · 後台管理</div>
-        </div>
-        <span class="badge blue">ADMIN</span>
-      </div>
-      <div class="list-item">
-        <div>
-          <div class="title">一般使用者</div>
-          <div class="meta">role: user · 僅工作台</div>
-        </div>
-        <span class="badge green">USER</span>
       </div>
     </div>
-    <div class="section-title">角色說明</div>
+    <div class="section-title">操作說明</div>
     <div class="list">
+      <div class="list-item">
+        <div>
+          <div class="title">一鍵升為 admin</div>
+          <div class="meta">需已部署 promote-user Edge Function，並設定 SERVICE_ROLE_KEY</div>
+        </div>
+      </div>
       <div class="list-item">
         <div>
           <div class="title">登入分流</div>
@@ -276,7 +293,7 @@
 
   <!-- Agent -->
   <div class="panel" id="panel-agents">
-    <div class="section-title">五人董事會 Agent</div>
+    <div class="section-title">技術 Agent Agent</div>
     <div class="agents-grid">
       <div class="agent-card">
         <div class="agent-avatar" style="background:#10b98122">🎯</div>
@@ -388,7 +405,7 @@
       </div>
       <div class="list-item">
         <div>
-          <div class="title">AI 董事會</div>
+          <div class="title">專案研討會議</div>
           <div class="meta">aivault-warroom.html</div>
         </div>
       </div>
@@ -404,12 +421,21 @@
 
 <div class="toast" id="toast"></div>
 
-<script>
+<script type="module">
+  const SUPABASE_URL = 'https://clcddygkaaqqtsbswgdf.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE';
+  const ADMIN_USERS_URL = `${SUPABASE_URL}/functions/v1/admin-users`;
+
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, autoRefreshToken: true, storage: window.localStorage }
+  });
+
   function showToast(text) {
-    const t = document.getElementById('toast');
-    t.textContent = text;
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 2200);
+    const el = document.getElementById('toast');
+    el.textContent = text;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 2200);
   }
 
   function switchPanel(name) {
@@ -419,6 +445,7 @@
     document.querySelectorAll('.panel').forEach(p => {
       p.classList.toggle('active', p.id === 'panel-' + name);
     });
+    if (name === 'people') loadUsers();
   }
 
   document.getElementById('tabs').addEventListener('click', (e) => {
@@ -433,6 +460,126 @@
   document.getElementById('btnBack').onclick = () => {
     location.href = 'aivault-home.html';
   };
+
+  document.getElementById('btnRefreshUsers').onclick = () => loadUsers();
+
+  function escapeHTML(v) {
+    return String(v)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;');
+  }
+
+  function roleBadge(role) {
+    if (role === 'owner') return '<span class="badge amber">OWNER</span>';
+    if (role === 'admin') return '<span class="badge blue">ADMIN</span>';
+    return '<span class="badge green">USER</span>';
+  }
+
+  async function getAccessToken() {
+    const { data: { session } } = await sb.auth.getSession();
+    return session?.access_token || null;
+  }
+
+  async function loadUsers() {
+    const box = document.getElementById('userList');
+    box.innerHTML = `<div class="list-item"><div><div class="title">載入中…</div><div class="meta">呼叫 admin-users</div></div></div>`;
+
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        box.innerHTML = `<div class="list-item"><div><div class="title">尚未登入</div><div class="meta">請重新登入後再試</div></div></div>`;
+        return;
+      }
+
+      const res = await fetch(ADMIN_USERS_URL, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'apikey': SUPABASE_ANON_KEY
+        }
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || data.message || `HTTP ${res.status}`);
+      }
+
+      const users = data.users || [];
+      if (!users.length) {
+        box.innerHTML = `<div class="list-item"><div><div class="title">尚無使用者</div><div class="meta">請先用註冊頁建立帳號</div></div></div>`;
+        return;
+      }
+
+      box.innerHTML = users.map(u => {
+        const role = u.role || 'user';
+        const email = escapeHTML(u.email || '(no email)');
+        const id = escapeHTML(u.id);
+        const canPromote = role !== 'admin' && role !== 'owner';
+        const canDemote = role === 'admin';
+        let actions = '';
+        if (canPromote) {
+          actions = `<button class="btn-promote" data-id="${id}" data-action="admin">升為 admin</button>`;
+        } else if (canDemote) {
+          actions = `<button class="btn-demote" data-id="${id}" data-action="user">降為 user</button>`;
+        } else {
+          actions = `<span class="badge amber">OWNER</span>`;
+        }
+        return `
+          <div class="list-item">
+            <div style="min-width:0;">
+              <div class="title">${email}</div>
+              <div class="meta">role: ${escapeHTML(role)}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              ${roleBadge(role)}
+              ${actions}
+            </div>
+          </div>`;
+      }).join('');
+
+      box.querySelectorAll('[data-action]').forEach(btn => {
+        btn.addEventListener('click', () => setRole(btn.dataset.id, btn.dataset.action, btn));
+      });
+    } catch (err) {
+      box.innerHTML = `
+        <div class="list-item">
+          <div>
+            <div class="title">無法載入使用者</div>
+            <div class="meta">${escapeHTML(err.message)}</div>
+            <div class="meta" style="margin-top:6px;">請確認已部署 Edge Function：admin-users</div>
+          </div>
+        </div>`;
+    }
+  }
+
+  async function setRole(userId, role, btn) {
+    if (!userId) return;
+    btn.disabled = true;
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(ADMIN_USERS_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'apikey': SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ user_id: userId, role })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || data.message || `HTTP ${res.status}`);
+      showToast(role === 'admin' ? '已升為 admin' : '已改為 user');
+      await loadUsers();
+    } catch (err) {
+      showToast('操作失敗：' + err.message);
+      btn.disabled = false;
+    }
+  }
+
+  // 進入人員頁時可預載
+  // loadUsers();
 </script>
 </body>
 </html>

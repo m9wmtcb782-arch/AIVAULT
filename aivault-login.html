@@ -68,8 +68,8 @@ input:focus{border-color:rgba(101,232,255,.55);box-shadow:0 0 0 3px rgba(101,232
     <div class="brandName">AIVAULT</div>
     <div class="tag">AI AGENT OPERATING SYSTEM</div>
   </section>
-  <h1>登入 AIVAULT</h1>
-  <div class="hint">安全進入你的 AI 工作空間</div>
+  <h1 id="pageTitle">登入 AIVAULT</h1>
+  <div class="hint" id="pageHint">安全進入你的 AI 工作空間</div>
 
   <form id="form" novalidate>
     <div class="field">
@@ -81,11 +81,15 @@ input:focus{border-color:rgba(101,232,255,.55);box-shadow:0 0 0 3px rgba(101,232
       <input id="password" type="password" autocomplete="current-password" placeholder="輸入密碼" required>
       <button class="eye" id="eye" type="button" aria-label="顯示密碼">◉</button>
     </div>
+    <div class="field" id="confirmField" style="display:none;">
+      <label for="confirm">確認密碼</label>
+      <input id="confirm" type="password" autocomplete="new-password" placeholder="再輸入一次密碼">
+    </div>
 
     <div class="error" id="error"></div>
     <div class="success" id="success"></div>
 
-    <div class="row">
+    <div class="row" id="loginRow">
       <label class="remember">
         <input id="remember" type="checkbox"> 記住此裝置
       </label>
@@ -96,6 +100,11 @@ input:focus{border-color:rgba(101,232,255,.55);box-shadow:0 0 0 3px rgba(101,232
       <span id="loginLabel">登入 AIVAULT</span>
     </button>
   </form>
+
+  <div style="text-align:center;margin-top:16px;font-size:13px;color:#8090aa;">
+    <span id="switchHint">還沒有帳號？</span>
+    <button type="button" class="link-btn" id="btnSwitchMode" style="font-size:13px;margin-left:4px;">立即註冊</button>
+  </div>
 
   <div class="sep">SECURE ACCESS</div>
   <button class="passkey" type="button" id="passkey">使用 Passkey / Face ID / Touch ID</button>
@@ -195,9 +204,11 @@ input:focus{border-color:rgba(101,232,255,.55);box-shadow:0 0 0 3px rgba(101,232
   }
   function setLoading(on) {
     btnLogin.disabled = on
+    const idle = mode === 'register' ? '建立帳號' : '登入 AIVAULT'
+    const busy = mode === 'register' ? '註冊中…' : '登入中…'
     loginLabel.innerHTML = on
-      ? '<span class="spinner"></span> 登入中…'
-      : '登入 AIVAULT'
+      ? '<span class="spinner"></span> ' + busy
+      : idle
   }
 
   // 已登入就直接跳轉
@@ -217,7 +228,34 @@ input:focus{border-color:rgba(101,232,255,.55);box-shadow:0 0 0 3px rgba(101,232
     rememberEl.checked = true
   }
 
-  // 正式登入
+  // 模式：login | register
+  let mode = 'login'
+  const confirmEl = document.getElementById('confirm')
+  const confirmField = document.getElementById('confirmField')
+  const pageTitle = document.getElementById('pageTitle')
+  const pageHint = document.getElementById('pageHint')
+  const loginRow = document.getElementById('loginRow')
+  const switchHint = document.getElementById('switchHint')
+  const btnSwitchMode = document.getElementById('btnSwitchMode')
+
+  function setMode(next) {
+    mode = next
+    clearMsg()
+    const isReg = mode === 'register'
+    pageTitle.textContent = isReg ? '註冊 AIVAULT' : '登入 AIVAULT'
+    pageHint.textContent = isReg ? '建立帳號，開始使用 AI 工作空間' : '安全進入你的 AI 工作空間'
+    confirmField.style.display = isReg ? 'block' : 'none'
+    loginRow.style.display = isReg ? 'none' : 'flex'
+    loginLabel.textContent = isReg ? '建立帳號' : '登入 AIVAULT'
+    switchHint.textContent = isReg ? '已經有帳號？' : '還沒有帳號？'
+    btnSwitchMode.textContent = isReg ? '返回登入' : '立即註冊'
+    passEl.autocomplete = isReg ? 'new-password' : 'current-password'
+    confirmEl.value = ''
+  }
+
+  btnSwitchMode.onclick = () => setMode(mode === 'login' ? 'register' : 'login')
+
+  // 登入 / 註冊
   form.onsubmit = async (e) => {
     e.preventDefault()
     clearMsg()
@@ -231,10 +269,60 @@ input:focus{border-color:rgba(101,232,255,.55);box-shadow:0 0 0 3px rgba(101,232
     }
 
     if (!supabase) {
-      showError('尚未設定 Supabase 專案金鑰，無法登入。')
+      showError('尚未設定 Supabase 專案金鑰，無法繼續。')
       return
     }
 
+    if (mode === 'register') {
+      const confirm = confirmEl.value
+      if (password.length < 6) {
+        showError('密碼至少需要 6 個字元。')
+        return
+      }
+      if (password !== confirm) {
+        showError('兩次輸入的密碼不一致。')
+        return
+      }
+
+      setLoading(true)
+      try {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { role: 'user' }
+          }
+        })
+
+        if (error) {
+          let msg = error.message || '註冊失敗，請稍後再試。'
+          if (msg.toLowerCase().includes('already') || msg.includes('registered')) {
+            msg = '此 Email 已註冊，請直接登入。'
+          }
+          showError(msg)
+          setLoading(false)
+          return
+        }
+
+        // 若專案關閉 email 確認，可能直接有 session
+        if (data.session && data.user) {
+          showSuccess('註冊成功，正在進入…')
+          setTimeout(() => redirectAfterAuth(data.user), 500)
+          return
+        }
+
+        showSuccess('註冊成功！請至信箱點擊驗證連結後再登入。')
+        setLoading(false)
+        setMode('login')
+      } catch (err) {
+        console.error(err)
+        showError('網路或系統錯誤，請稍後再試。')
+        setLoading(false)
+      }
+      return
+    }
+
+    // login
     setLoading(true)
 
     try {
@@ -244,7 +332,6 @@ input:focus{border-color:rgba(101,232,255,.55);box-shadow:0 0 0 3px rgba(101,232
       })
 
       if (error) {
-        // 刻意使用較通用的錯誤訊息，避免帳號枚舉
         let msg = '登入失敗，請檢查帳號或密碼。'
         if (error.message?.includes('Email not confirmed')) {
           msg = '此帳號尚未完成 Email 驗證，請先至信箱點擊確認連結。'
@@ -258,7 +345,6 @@ input:focus{border-color:rgba(101,232,255,.55);box-shadow:0 0 0 3px rgba(101,232
         return
       }
 
-      // 記住 email
       if (rememberEl.checked) {
         localStorage.setItem('aivault_remember_email', email)
       } else {
