@@ -1222,7 +1222,16 @@
         class="room-btn"
         id="btnEnterRoom"
       >
-        AI 董事會
+        專案研討會議
+      </button>
+
+      <button
+        type="button"
+        class="room-btn"
+        id="btnLogout"
+        style="background:#334155;"
+      >
+        登出
       </button>
 
     </div>
@@ -1296,13 +1305,13 @@
       id="panel-home"
     >
 
-      <!-- 五人 AI 視訊會議入口（原版格式上只加這塊） -->
+      <!-- 專案研討會議入口 -->
       <div id="warroomEntry" class="agent-card" style="margin-bottom:16px; grid-column:1/-1; display:block; border-color:rgba(59,130,246,.4); background:linear-gradient(135deg,#1e293b,#1e3a5f);">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
           <div>
-            <div class="agent-name" style="font-size:15px;">AI 董事會 · 視訊會議</div>
+            <div class="agent-name" style="font-size:15px;">專案研討會議</div>
             <div class="agent-role" style="margin-bottom:0;">
-              5 位 AI 真人視窗 · Chief / Engineer / Auditor / Strategist / Creator
+              6 位 AI 技術協作 · Chief / Engineer / Auditor / Strategist / Creator / Coordinator
             </div>
           </div>
           <div style="flex-shrink:0; padding:8px 12px; border-radius:20px; background:linear-gradient(135deg,#3b82f6,#6366f1); color:#fff; font-size:12px; font-weight:700;">
@@ -1900,10 +1909,10 @@
         id: 'a1',
         name: 'Chief',
         role: '首席分析師',
-        avatar: '🎯',
+        avatar: '🧠',
         color: 'var(--agent-gpt)',
         status: 'working',
-        statusText: '主持會議',
+        statusText: '主持研討',
         provider: 'groq',
         model: 'llama-3.3-70b-versatile'
       },
@@ -1912,7 +1921,7 @@
         id: 'a2',
         name: 'Engineer',
         role: '技術架構師',
-        avatar: '⚙️',
+        avatar: '🧠',
         color: 'var(--agent-coding)',
         status: 'thinking',
         statusText: '評估技術',
@@ -1924,7 +1933,7 @@
         id: 'a3',
         name: 'Auditor',
         role: '風險審查官',
-        avatar: '🛡️',
+        avatar: '🧠',
         color: 'var(--agent-grok)',
         status: 'idle',
         statusText: '待命',
@@ -1936,7 +1945,7 @@
         id: 'a4',
         name: 'Strategist',
         role: '策略研究員',
-        avatar: '📊',
+        avatar: '🧠',
         color: 'var(--agent-research)',
         status: 'idle',
         statusText: '待命',
@@ -1948,12 +1957,24 @@
         id: 'a5',
         name: 'Creator',
         role: '解決方案設計師',
-        avatar: '✨',
+        avatar: '🧠',
         color: 'var(--agent-design)',
         status: 'idle',
         statusText: '待命',
         provider: 'gemini',
         model: 'gemini-2.5-flash'
+      },
+
+      {
+        id: 'a6',
+        name: 'Coordinator',
+        role: '整合協調官',
+        avatar: '🧠',
+        color: 'var(--agent-teacher)',
+        status: 'idle',
+        statusText: '待命',
+        provider: 'groq',
+        model: 'llama-3.3-70b-versatile'
       }
 
     ];
@@ -2468,7 +2489,7 @@ Owner 擁有最終決策權。
       container.innerHTML =
 
         AGENTS
-          .slice(0, 5)
+          .slice(0, 6)
           .map(agent => `
 
             <div
@@ -3459,6 +3480,28 @@ Owner 擁有最終決策權。
             return;
           }
           window.location.href = 'aivault-admin.html';
+        }
+      );
+
+    // 登出
+    document
+      .getElementById('btnLogout')
+      .addEventListener(
+        'click',
+        async () => {
+          try {
+            const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+            const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+              auth: { persistSession: true, autoRefreshToken: true, storage: window.localStorage }
+            });
+            await sb.auth.signOut();
+          } catch (e) {
+            console.warn(e);
+          }
+          try {
+            localStorage.removeItem('aivault_remember_email');
+          } catch (_) {}
+          location.replace('aivault-login.html');
         }
       );
 
