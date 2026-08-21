@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AIVAULT 動態架構討論 Demo - 數字人</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif;
+      background: #0f1115;
+      color: #e8eaed;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    h1 {
+      text-align: center;
+      font-size: 1.4rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+      letter-spacing: 0.02em;
+    }
+    .subtitle {
+      text-align: center;
+      color: #9aa0a6;
+      font-size: 0.9rem;
+      margin-bottom: 28px;
+    }
+    .agents {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 20px;
+      max-width: 900px;
+      margin: 0 auto 32px;
+    }
+    .agent {
+      background: #1a1d24;
+      border-radius: 16px;
+      padding: 16px;
+      text-align: center;
+      border: 2px solid transparent;
+      transition: border-color 0.3s, box-shadow 0.3s, transform 0.2s;
+    }
+    .agent.active {
+      border-color: #4ade80;
+      box-shadow: 0 0 24px rgba(74, 222, 128, 0.25);
+      transform: translateY(-4px);
+    }
+    .agent img {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid #2d323c;
+      margin-bottom: 12px;
+    }
+    .agent.active img {
+      border-color: #4ade80;
+    }
+    .agent .name {
+      font-weight: 600;
+      font-size: 0.95rem;
+      margin-bottom: 4px;
+    }
+    .agent .role {
+      font-size: 0.75rem;
+      color: #9aa0a6;
+    }
+    .player-wrap {
+      max-width: 520px;
+      margin: 0 auto 24px;
+      background: #1a1d24;
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    audio {
+      width: 100%;
+      height: 36px;
+    }
+    .status {
+      text-align: center;
+      font-size: 0.85rem;
+      color: #9aa0a6;
+      margin-top: 12px;
+    }
+    .note {
+      max-width: 600px;
+      margin: 32px auto 0;
+      font-size: 0.8rem;
+      color: #6b7280;
+      text-align: center;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <h1>動態架構設計討論</h1>
+  <p class="subtitle">可操作 Demo · 數字人協作原型 · 自然中文語音</p>
+
+  <div class="agents">
+    <div class="agent" id="agent-a">
+      <img src="agent_a.jpg" alt="Agent A">
+      <div class="name">代理 A · Luna</div>
+      <div class="role">架構抽象</div>
+    </div>
+    <div class="agent" id="agent-b">
+      <img src="agent_b.jpg" alt="Agent B">
+      <div class="name">代理 B · Eve</div>
+      <div class="role">介面與擴充</div>
+    </div>
+    <div class="agent" id="agent-c">
+      <img src="agent_c.jpg" alt="Agent C">
+      <div class="name">代理 C · Altair</div>
+      <div class="role">議程引導</div>
+    </div>
+    <div class="agent" id="agent-d">
+      <img src="agent_d.jpg" alt="Agent D">
+      <div class="name">代理 D · Atlas</div>
+      <div class="role">介面定義</div>
+    </div>
+    <div class="agent" id="agent-e">
+      <img src="agent_e.jpg" alt="Agent E">
+      <div class="name">代理 E · Helios</div>
+      <div class="role">狀態與閉環</div>
+    </div>
+  </div>
+
+  <div class="player-wrap">
+    <audio id="audio" controls src="dynamic_architecture_discussion.mp3"></audio>
+  </div>
+  <p class="status" id="status">點擊播放開始討論</p>
+
+  <p class="note">
+    此頁示範：AI agents 使用自然多角色中文語音 + 數字人呈現。<br>
+    語音為真實 TTS 產出，架構保持可擴充、不寫死特定 Provider。
+  </p>
+
+  <script>
+    const audio = document.getElementById('audio');
+    const status = document.getElementById('status');
+    const agents = ['agent-a', 'agent-b', 'agent-c', 'agent-d', 'agent-e'];
+    let current = -1;
+    let interval = null;
+
+    // 簡單輪播高亮（因無精準時間戳），模擬誰在說話
+    function startHighlight() {
+      clearInterval(interval);
+      interval = setInterval(() => {
+        agents.forEach(id => document.getElementById(id).classList.remove('active'));
+        current = (current + 1) % agents.length;
+        document.getElementById(agents[current]).classList.add('active');
+      }, 4200);
+    }
+
+    function stopHighlight() {
+      clearInterval(interval);
+      agents.forEach(id => document.getElementById(id).classList.remove('active'));
+      current = -1;
+    }
+
+    audio.addEventListener('play', () => {
+      status.textContent = '討論進行中…';
+      startHighlight();
+    });
+    audio.addEventListener('pause', () => {
+      status.textContent = '已暫停';
+      stopHighlight();
+    });
+    audio.addEventListener('ended', () => {
+      status.textContent = '討論結束';
+      stopHighlight();
+    });
+  </script>
+</body>
+</html>
