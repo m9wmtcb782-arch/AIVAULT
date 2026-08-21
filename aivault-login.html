@@ -3,1105 +3,307 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#050812">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
+<meta name="theme-color" content="#070a11">
 <title>AIVAULT — Secure Login</title>
-
 <style>
-*{
-  box-sizing:border-box;
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#060911;color:#edf5ff;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Noto Sans TC",sans-serif}
+body{display:grid;place-items:center;padding:24px;overflow-x:hidden}
+.bg{position:fixed;inset:0;background:radial-gradient(circle at 50% 8%,rgba(63,108,255,.18),transparent 35%),radial-gradient(circle at 80% 85%,rgba(0,225,255,.06),transparent 32%)}
+.bg:after{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);background-size:40px 40px}
+.card{position:relative;width:min(100%,430px);padding:36px 27px 27px;border:1px solid rgba(150,180,220,.17);border-radius:28px;background:rgba(10,15,25,.84);backdrop-filter:blur(25px);box-shadow:0 30px 90px rgba(0,0,0,.48)}
+.brand{text-align:center}
+.brandName{font-size:42px;font-weight:800;letter-spacing:.17em;margin-left:.17em;text-shadow:0 0 28px rgba(96,220,255,.16)}
+.tag{margin-top:9px;font-size:11px;letter-spacing:.2em;color:#8090aa}
+h1{text-align:center;font-size:21px;margin:35px 0 8px}
+.hint{text-align:center;color:#77869e;font-size:13px;margin-bottom:27px}
+.field{position:relative;margin-bottom:17px}
+label{display:block;color:#aab7cb;font-size:12px;margin-bottom:8px}
+input[type=email],input[type=password],input[type=text]{
+  width:100%;height:50px;border-radius:13px;border:1px solid rgba(160,185,220,.18);
+  background:#080d16;color:#fff;padding:0 15px;font-size:15px;outline:none
 }
-
-html,body{
-  margin:0;
-  min-height:100%;
-  background:#050812;
-  color:#edf5ff;
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    "SF Pro Display",
-    "Noto Sans TC",
-    sans-serif;
-}
-
-body{
-  min-height:100dvh;
-  display:grid;
-  place-items:center;
-  padding:24px;
-  overflow:hidden;
-}
-
-.bg{
-  position:fixed;
-  inset:0;
-  background:
-    radial-gradient(
-      circle at 50% 5%,
-      rgba(63,108,255,.22),
-      transparent 36%
-    ),
-    radial-gradient(
-      circle at 85% 85%,
-      rgba(0,225,255,.10),
-      transparent 30%
-    );
-}
-
-.bg::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  background:
-    linear-gradient(
-      rgba(255,255,255,.018) 1px,
-      transparent 1px
-    ),
-    linear-gradient(
-      90deg,
-      rgba(255,255,255,.018) 1px,
-      transparent 1px
-    );
-  background-size:40px 40px;
-}
-
-.bg::after{
-  content:"";
-  position:absolute;
-  inset:-50%;
-  background:
-    conic-gradient(
-      from 0deg,
-      transparent,
-      rgba(75,220,255,.05),
-      transparent 30%
-    );
-  animation:rotateBg 20s linear infinite;
-}
-
-@keyframes rotateBg{
-  to{
-    transform:rotate(360deg);
-  }
-}
-
-.card{
-  position:relative;
-  z-index:2;
-  width:min(100%,430px);
-  padding:36px 27px 27px;
-  border:1px solid rgba(150,180,220,.17);
-  border-radius:28px;
-  background:rgba(10,15,25,.86);
-  backdrop-filter:blur(25px);
-  box-shadow:
-    0 30px 90px rgba(0,0,0,.55),
-    0 0 80px rgba(50,120,255,.06);
-}
-
-.brand{
-  text-align:center;
-}
-
-.brandName{
-  font-size:40px;
-  font-weight:800;
-  letter-spacing:.16em;
-  margin-left:.16em;
-  text-shadow:
-    0 0 28px rgba(96,220,255,.25);
-}
-
-.tag{
-  margin-top:9px;
-  font-size:10px;
-  letter-spacing:.2em;
-  color:#8090aa;
-}
-
-h1{
-  text-align:center;
-  font-size:21px;
-  margin:35px 0 8px;
-}
-
-.hint{
-  text-align:center;
-  color:#77869e;
-  font-size:13px;
-  margin-bottom:27px;
-}
-
-.field{
-  position:relative;
-  margin-bottom:17px;
-}
-
-label{
-  display:block;
-  color:#aab7cb;
-  font-size:12px;
-  margin-bottom:8px;
-}
-
-input{
-  width:100%;
-  height:50px;
-  border-radius:13px;
-  border:1px solid rgba(160,185,220,.18);
-  background:#080d16;
-  color:#fff;
-  padding:0 15px;
-  font-size:15px;
-  outline:none;
-}
-
-input:focus{
-  border-color:rgba(101,232,255,.55);
-  box-shadow:
-    0 0 0 3px rgba(101,232,255,.07);
-}
-
-.eye{
-  position:absolute;
-  right:8px;
-  bottom:5px;
-  width:40px;
-  height:40px;
-  border:0;
-  background:none;
-  color:#8796ae;
-  cursor:pointer;
-}
-
-.row{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  color:#8794aa;
-  font-size:12px;
-  margin:3px 0 20px;
-}
-
-.remember{
-  display:flex;
-  align-items:center;
-  gap:7px;
-  margin:0;
-}
-
-.remember input{
-  width:15px;
-  height:15px;
-  accent-color:#75eaff;
-}
-
-.forgot{
-  cursor:pointer;
-}
-
+input:focus{border-color:rgba(101,232,255,.55);box-shadow:0 0 0 3px rgba(101,232,255,.07)}
+.eye{position:absolute;right:8px;bottom:5px;width:40px;height:40px;border:0;background:none;color:#8796ae;cursor:pointer}
+.row{display:flex;justify-content:space-between;align-items:center;color:#8794aa;font-size:12px;margin:3px 0 20px}
+.remember{display:flex;align-items:center;gap:7px;cursor:pointer}
+.remember input{width:15px;height:15px;accent-color:#75eaff}
 .login{
-  width:100%;
-  height:51px;
-  border:0;
-  border-radius:14px;
-  background:
-    linear-gradient(
-      135deg,
-      #e2fcff,
-      #819aff
-    );
-  color:#07101a;
-  font-weight:800;
-  font-size:15px;
-  box-shadow:
-    0 12px 32px rgba(79,139,255,.2);
-  cursor:pointer;
+  width:100%;height:51px;border:0;border-radius:14px;
+  background:linear-gradient(135deg,#e2fcff,#819aff);color:#07101a;
+  font-weight:800;font-size:15px;box-shadow:0 12px 32px rgba(79,139,255,.2);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px
 }
-
-.login:disabled{
-  opacity:.55;
-  cursor:wait;
+.login:disabled{opacity:.55;cursor:not-allowed}
+.sep{display:flex;align-items:center;gap:12px;color:#56647b;font-size:10px;letter-spacing:.12em;margin:25px 0}
+.sep:before,.sep:after{content:"";height:1px;flex:1;background:rgba(255,255,255,.08)}
+.passkey{
+  width:100%;height:47px;border-radius:13px;border:1px solid rgba(155,180,220,.18);
+  background:rgba(255,255,255,.025);color:#c6d3e6;font-size:13px;cursor:pointer
 }
-
-.sep{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  color:#56647b;
-  font-size:10px;
-  letter-spacing:.12em;
-  margin:25px 0;
+.error{display:none;color:#ff9b9b;font-size:12px;margin:-5px 0 14px;line-height:1.4}
+.error.show{display:block}
+.success{display:none;color:#86efac;font-size:12px;margin:-5px 0 14px}
+.success.show{display:block}
+.security{text-align:center;color:#5f6d84;font-size:10px;line-height:1.7;margin-top:22px}
+.spinner{
+  width:16px;height:16px;border:2px solid rgba(7,16,26,.25);border-top-color:#07101a;
+  border-radius:50%;animation:spin .7s linear infinite
 }
-
-.sep::before,
-.sep::after{
-  content:"";
-  height:1px;
-  flex:1;
-  background:rgba(255,255,255,.08);
+@keyframes spin{to{transform:rotate(360deg)}}
+.config-warn{
+  margin-top:16px;padding:10px 12px;border-radius:10px;
+  background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);
+  color:#fbbf24;font-size:11px;line-height:1.5;display:none
 }
-
-.register{
-  width:100%;
-  height:47px;
-  border-radius:13px;
-  border:1px solid rgba(155,180,220,.18);
-  background:rgba(255,255,255,.025);
-  color:#c6d3e6;
-  font-size:13px;
-  cursor:pointer;
-}
-
-.error{
-  display:none;
-  color:#ff9b9b;
-  font-size:12px;
-  margin:-5px 0 14px;
-  line-height:1.5;
-}
-
-.error.show{
-  display:block;
-}
-
-.success{
-  display:none;
-  color:#72f5bb;
-  font-size:12px;
-  margin:-5px 0 14px;
-  line-height:1.5;
-}
-
-.success.show{
-  display:block;
-}
-
-.security{
-  text-align:center;
-  color:#5f6d84;
-  font-size:10px;
-  line-height:1.7;
-  margin-top:22px;
-}
-
-.mode{
-  display:none;
-}
-
-.mode.show{
-  display:block;
-}
-
-.back{
-  display:none;
-  width:100%;
-  margin-top:12px;
-  background:none;
-  border:0;
-  color:#71819b;
-  font-size:12px;
-  cursor:pointer;
-}
+.config-warn.show{display:block}
+.link-btn{background:none;border:none;color:#7dd3fc;font-size:12px;cursor:pointer;padding:0}
+.link-btn:hover{text-decoration:underline}
 </style>
 </head>
-
 <body>
-
 <div class="bg"></div>
-
 <main class="card">
-
   <section class="brand">
     <div class="brandName">AIVAULT</div>
     <div class="tag">AI AGENT OPERATING SYSTEM</div>
   </section>
+  <h1>登入 AIVAULT</h1>
+  <div class="hint">安全進入你的 AI 工作空間</div>
 
-  <!-- 登入 -->
-  <section id="loginMode" class="mode show">
-
-    <h1>登入 AIVAULT</h1>
-
-    <div class="hint">
-      安全進入你的 AI 工作空間
+  <form id="form" novalidate>
+    <div class="field">
+      <label for="email">帳號 / Email</label>
+      <input id="email" type="email" autocomplete="username" placeholder="name@example.com" required>
+    </div>
+    <div class="field">
+      <label for="password">密碼</label>
+      <input id="password" type="password" autocomplete="current-password" placeholder="輸入密碼" required>
+      <button class="eye" id="eye" type="button" aria-label="顯示密碼">◉</button>
     </div>
 
-    <form id="loginForm" novalidate>
+    <div class="error" id="error"></div>
+    <div class="success" id="success"></div>
 
-      <div class="field">
-        <label for="loginEmail">
-          帳號 / Email
-        </label>
-
-        <input
-          id="loginEmail"
-          type="email"
-          autocomplete="username"
-          placeholder="name@example.com"
-          required
-        >
-      </div>
-
-      <div class="field">
-
-        <label for="loginPassword">
-          密碼
-        </label>
-
-        <input
-          id="loginPassword"
-          type="password"
-          autocomplete="current-password"
-          placeholder="輸入密碼"
-          required
-        >
-
-        <button
-          class="eye"
-          id="loginEye"
-          type="button"
-        >
-          ◉
-        </button>
-
-      </div>
-
-      <div
-        class="error"
-        id="loginError"
-      ></div>
-
-      <div class="row">
-
-        <label class="remember">
-          <input
-            id="remember"
-            type="checkbox"
-          >
-          記住此裝置
-        </label>
-
-        <span
-          class="forgot"
-          id="forgot"
-        >
-          忘記密碼？
-        </span>
-
-      </div>
-
-      <button
-        class="login"
-        id="loginButton"
-        type="submit"
-      >
-        登入 AIVAULT
-      </button>
-
-    </form>
-
-    <div class="sep">
-      SECURE ACCESS
+    <div class="row">
+      <label class="remember">
+        <input id="remember" type="checkbox"> 記住此裝置
+      </label>
+      <button type="button" class="link-btn" id="btnForgot">忘記密碼？</button>
     </div>
 
-    <button
-      class="register"
-      id="showRegister"
-      type="button"
-    >
-      建立 AIVAULT 帳號
+    <button class="login" type="submit" id="btnLogin">
+      <span id="loginLabel">登入 AIVAULT</span>
     </button>
+  </form>
 
-  </section>
-
-
-  <!-- 註冊 -->
-  <section id="registerMode" class="mode">
-
-    <h1>建立 AIVAULT 帳號</h1>
-
-    <div class="hint">
-      建立你的 AI 工作空間
-    </div>
-
-    <form id="registerForm" novalidate>
-
-      <div class="field">
-
-        <label for="registerEmail">
-          Email
-        </label>
-
-        <input
-          id="registerEmail"
-          type="email"
-          autocomplete="email"
-          placeholder="name@example.com"
-          required
-        >
-
-      </div>
-
-      <div class="field">
-
-        <label for="registerPassword">
-          密碼
-        </label>
-
-        <input
-          id="registerPassword"
-          type="password"
-          autocomplete="new-password"
-          placeholder="至少 6 個字元"
-          required
-        >
-
-      </div>
-
-      <div class="field">
-
-        <label for="registerPassword2">
-          再次輸入密碼
-        </label>
-
-        <input
-          id="registerPassword2"
-          type="password"
-          autocomplete="new-password"
-          placeholder="再次輸入密碼"
-          required
-        >
-
-      </div>
-
-      <div
-        class="error"
-        id="registerError"
-      ></div>
-
-      <div
-        class="success"
-        id="registerSuccess"
-      ></div>
-
-      <button
-        class="login"
-        id="registerButton"
-        type="submit"
-      >
-        建立帳號
-      </button>
-
-    </form>
-
-    <button
-      class="back"
-      id="backLogin"
-      type="button"
-    >
-      ← 返回登入
-    </button>
-
-  </section>
-
+  <div class="sep">SECURE ACCESS</div>
+  <button class="passkey" type="button" id="passkey">使用 Passkey / Face ID / Touch ID</button>
 
   <div class="security">
-    🔒 Supabase Auth 安全驗證<br>
-    密碼不會寫入前端程式碼
+    🔒 使用 Supabase Auth 驗證身分與 Session。<br>
+    密碼不會寫入前端程式碼 · Access Token 僅存於本機。
   </div>
 
+  <div class="config-warn" id="configWarn">
+    ⚠️ 尚未設定 SUPABASE_URL / SUPABASE_ANON_KEY。<br>
+    請在下方 script 區塊填入你的專案資訊後再測試登入。
+  </div>
 </main>
 
-<script>
+<script type="module">
+  // =====================================================
+  // ① 請填入你的 Supabase 專案資訊
+  // =====================================================
+  const SUPABASE_URL = 'https://clcddygkaaqqtsbswgdf.supabase.co'
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE'
 
-/* =========================================================
-   AIVAULT Supabase
-   ========================================================= */
+  // 登入成功後要去的頁面
+  const HOME_URL = 'aivault-home.html'
 
-const SUPABASE_URL =
-  "https://clcddygkaaqqtsbswgdf.supabase.co";
+  // =====================================================
+  // ② 引入 supabase-js（CDN ESM）
+  // =====================================================
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
 
-const SUPABASE_PUBLISHABLE_KEY =
-  "sb_publishable_1D05YGthBrNGg-5L92TLCw_GiLnInBu";
+  const isConfigured =
+    SUPABASE_URL &&
+    !SUPABASE_URL.includes('YOUR_PROJECT') &&
+    SUPABASE_ANON_KEY &&
+    !SUPABASE_ANON_KEY.includes('YOUR_SUPABASE')
 
+  const supabase = isConfigured
+    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: true,
+          storage: window.localStorage
+        }
+      })
+    : null
 
-/* =========================================================
-   Supabase REST Auth
-   ========================================================= */
+  // DOM
+  const form = document.getElementById('form')
+  const emailEl = document.getElementById('email')
+  const passEl = document.getElementById('password')
+  const errorEl = document.getElementById('error')
+  const successEl = document.getElementById('success')
+  const btnLogin = document.getElementById('btnLogin')
+  const loginLabel = document.getElementById('loginLabel')
+  const rememberEl = document.getElementById('remember')
+  const configWarn = document.getElementById('configWarn')
 
-async function supabaseAuth(
-  endpoint,
-  body
-){
-
-  const response =
-    await fetch(
-      `${SUPABASE_URL}/auth/v1/${endpoint}`,
-      {
-        method:"POST",
-
-        headers:{
-          "Content-Type":
-            "application/json",
-
-          "apikey":
-            SUPABASE_PUBLISHABLE_KEY
-        },
-
-        body:
-          JSON.stringify(body)
-      }
-    );
-
-  let data = null;
-
-  try{
-    data =
-      await response.json();
-  }catch{
-    data = {};
+  if (!isConfigured) {
+    configWarn.classList.add('show')
   }
 
-  if(!response.ok){
-
-    throw new Error(
-      data?.msg ||
-      data?.message ||
-      data?.error_description ||
-      data?.error ||
-      "Supabase Auth 驗證失敗"
-    );
-
+  // 顯示／隱藏密碼
+  document.getElementById('eye').onclick = () => {
+    const show = passEl.type === 'password'
+    passEl.type = show ? 'text' : 'password'
+    document.getElementById('eye').textContent = show ? '◎' : '◉'
   }
 
-  return data;
-}
+  function showError(msg) {
+    errorEl.textContent = msg
+    errorEl.classList.add('show')
+    successEl.classList.remove('show')
+  }
+  function showSuccess(msg) {
+    successEl.textContent = msg
+    successEl.classList.add('show')
+    errorEl.classList.remove('show')
+  }
+  function clearMsg() {
+    errorEl.classList.remove('show')
+    successEl.classList.remove('show')
+  }
+  function setLoading(on) {
+    btnLogin.disabled = on
+    loginLabel.innerHTML = on
+      ? '<span class="spinner"></span> 登入中…'
+      : '登入 AIVAULT'
+  }
 
+  // 已登入就直接跳轉
+  async function checkExistingSession() {
+    if (!supabase) return
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session) {
+      location.replace(HOME_URL)
+    }
+  }
+  checkExistingSession()
 
-/* =========================================================
-   Elements
-   ========================================================= */
+  // 記住帳號（只記 email，不記密碼）
+  const savedEmail = localStorage.getItem('aivault_remember_email')
+  if (savedEmail) {
+    emailEl.value = savedEmail
+    rememberEl.checked = true
+  }
 
-const loginMode =
-  document.getElementById(
-    "loginMode"
-  );
+  // 正式登入
+  form.onsubmit = async (e) => {
+    e.preventDefault()
+    clearMsg()
 
-const registerMode =
-  document.getElementById(
-    "registerMode"
-  );
+    const email = emailEl.value.trim()
+    const password = passEl.value
 
-const loginForm =
-  document.getElementById(
-    "loginForm"
-  );
-
-const registerForm =
-  document.getElementById(
-    "registerForm"
-  );
-
-const loginError =
-  document.getElementById(
-    "loginError"
-  );
-
-const registerError =
-  document.getElementById(
-    "registerError"
-  );
-
-const registerSuccess =
-  document.getElementById(
-    "registerSuccess"
-  );
-
-
-/* =========================================================
-   顯示錯誤
-   ========================================================= */
-
-function showError(
-  element,
-  message
-){
-
-  element.textContent =
-    message;
-
-  element.classList.add(
-    "show"
-  );
-
-}
-
-function clearError(
-  element
-){
-
-  element.textContent = "";
-
-  element.classList.remove(
-    "show"
-  );
-
-}
-
-
-/* =========================================================
-   登入 / 註冊切換
-   ========================================================= */
-
-document
-  .getElementById("showRegister")
-  .onclick = () => {
-
-    clearError(loginError);
-
-    loginMode.classList.remove(
-      "show"
-    );
-
-    registerMode.classList.add(
-      "show"
-    );
-
-  };
-
-
-document
-  .getElementById("backLogin")
-  .onclick = () => {
-
-    clearError(registerError);
-
-    registerSuccess.classList.remove(
-      "show"
-    );
-
-    registerMode.classList.remove(
-      "show"
-    );
-
-    loginMode.classList.add(
-      "show"
-    );
-
-  };
-
-
-/* =========================================================
-   密碼顯示
-   ========================================================= */
-
-document
-  .getElementById("loginEye")
-  .onclick = () => {
-
-    const input =
-      document.getElementById(
-        "loginPassword"
-      );
-
-    const show =
-      input.type === "password";
-
-    input.type =
-      show
-        ? "text"
-        : "password";
-
-    document
-      .getElementById("loginEye")
-      .textContent =
-        show ? "◎" : "◉";
-
-  };
-
-
-/* =========================================================
-   登入
-   ========================================================= */
-
-loginForm.onsubmit =
-  async event => {
-
-    event.preventDefault();
-
-    clearError(loginError);
-
-    const email =
-      document
-        .getElementById("loginEmail")
-        .value
-        .trim();
-
-    const password =
-      document
-        .getElementById("loginPassword")
-        .value;
-
-    const button =
-      document
-        .getElementById("loginButton");
-
-
-    if(!email){
-
-      showError(
-        loginError,
-        "請輸入 Email。"
-      );
-
-      return;
-
+    if (!email || !password) {
+      showError('請輸入帳號與密碼。')
+      return
     }
 
-
-    if(!password){
-
-      showError(
-        loginError,
-        "請輸入密碼。"
-      );
-
-      return;
-
+    if (!supabase) {
+      showError('尚未設定 Supabase 專案金鑰，無法登入。')
+      return
     }
 
+    setLoading(true)
 
-    button.disabled = true;
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
 
-    button.textContent =
-      "正在驗證…";
-
-
-    try{
-
-      const data =
-        await supabaseAuth(
-          "token?grant_type=password",
-          {
-            email,
-            password
-          }
-        );
-
-
-      /*
-       * 儲存真正 Supabase Session
-       */
-
-      if(
-        data.access_token &&
-        data.refresh_token
-      ){
-
-        const storage =
-          document.getElementById(
-            "remember"
-          ).checked
-            ? localStorage
-            : sessionStorage;
-
-
-        storage.setItem(
-          "aivault_access_token",
-          data.access_token
-        );
-
-        storage.setItem(
-          "aivault_refresh_token",
-          data.refresh_token
-        );
-
-
-        if(data.user){
-
-          storage.setItem(
-            "aivault_user",
-            JSON.stringify(
-              data.user
-            )
-          );
-
+      if (error) {
+        // 刻意使用較通用的錯誤訊息，避免帳號枚舉
+        let msg = '登入失敗，請檢查帳號或密碼。'
+        if (error.message?.includes('Email not confirmed')) {
+          msg = '此帳號尚未完成 Email 驗證，請先至信箱點擊確認連結。'
+        } else if (error.message?.includes('Invalid login credentials')) {
+          msg = '帳號或密碼錯誤。'
+        } else if (error.status === 429) {
+          msg = '嘗試次數過多，請稍後再試。'
         }
-
-
-        /*
-         * 登入成功
-         *
-         * 不直接進 Home。
-         *
-         * 先進入啟動畫面。
-         */
-
-        window.location.href =
-          "aivault-startup.html";
-
-        return;
-
+        showError(msg)
+        setLoading(false)
+        return
       }
 
-
-      throw new Error(
-        "登入成功但沒有取得 Session。"
-      );
-
-    }catch(error){
-
-      showError(
-        loginError,
-        error.message ||
-        "帳號或密碼錯誤。"
-      );
-
-      button.disabled = false;
-
-      button.textContent =
-        "登入 AIVAULT";
-
-    }
-
-  };
-
-
-/* =========================================================
-   註冊
-   ========================================================= */
-
-registerForm.onsubmit =
-  async event => {
-
-    event.preventDefault();
-
-    clearError(registerError);
-
-    registerSuccess.classList.remove(
-      "show"
-    );
-
-
-    const email =
-      document
-        .getElementById("registerEmail")
-        .value
-        .trim();
-
-    const password =
-      document
-        .getElementById("registerPassword")
-        .value;
-
-    const password2 =
-      document
-        .getElementById("registerPassword2")
-        .value;
-
-    const button =
-      document
-        .getElementById("registerButton");
-
-
-    if(!email){
-
-      showError(
-        registerError,
-        "請輸入 Email。"
-      );
-
-      return;
-
-    }
-
-
-    if(password.length < 6){
-
-      showError(
-        registerError,
-        "密碼至少需要 6 個字元。"
-      );
-
-      return;
-
-    }
-
-
-    if(password !== password2){
-
-      showError(
-        registerError,
-        "兩次輸入的密碼不一致。"
-      );
-
-      return;
-
-    }
-
-
-    button.disabled = true;
-
-    button.textContent =
-      "正在建立帳號…";
-
-
-    try{
-
-      const data =
-        await supabaseAuth(
-          "signup",
-          {
-            email,
-            password
-          }
-        );
-
-
-      /*
-       * Supabase 若開啟 Email Confirmation，
-       * signup 後不會立即給 access_token。
-       */
-
-      if(
-        data.access_token &&
-        data.refresh_token
-      ){
-
-        sessionStorage.setItem(
-          "aivault_access_token",
-          data.access_token
-        );
-
-        sessionStorage.setItem(
-          "aivault_refresh_token",
-          data.refresh_token
-        );
-
-        if(data.user){
-
-          sessionStorage.setItem(
-            "aivault_user",
-            JSON.stringify(
-              data.user
-            )
-          );
-
-        }
-
-        window.location.href =
-          "aivault-startup.html";
-
-        return;
-
+      // 記住 email
+      if (rememberEl.checked) {
+        localStorage.setItem('aivault_remember_email', email)
+      } else {
+        localStorage.removeItem('aivault_remember_email')
       }
 
+      showSuccess('登入成功，正在進入工作台…')
+      // 短暫延遲讓使用者看到成功提示
+      setTimeout(() => {
+        location.href = HOME_URL
+      }, 400)
 
-      registerSuccess.textContent =
-        "帳號建立成功！如果 Supabase 要求 Email 驗證，請先完成 Email 驗證，再返回登入。";
+    } catch (err) {
+      console.error(err)
+      showError('網路或系統錯誤，請稍後再試。')
+      setLoading(false)
+    }
+  }
 
-      registerSuccess.classList.add(
-        "show"
-      );
-
-
-      button.disabled = false;
-
-      button.textContent =
-        "建立帳號";
-
-
-    }catch(error){
-
-      showError(
-        registerError,
-        error.message ||
-        "建立帳號失敗。"
-      );
-
-      button.disabled = false;
-
-      button.textContent =
-        "建立帳號";
-
+  // 忘記密碼
+  document.getElementById('btnForgot').onclick = async () => {
+    clearMsg()
+    const email = emailEl.value.trim()
+    if (!email) {
+      showError('請先輸入 Email，再點「忘記密碼」。')
+      return
+    }
+    if (!supabase) {
+      showError('尚未設定 Supabase，無法寄送重設信。')
+      return
     }
 
-  };
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/aivault-login.html'
+    })
 
-
-/* =========================================================
-   忘記密碼
-   ========================================================= */
-
-document
-  .getElementById("forgot")
-  .onclick = async () => {
-
-    const email =
-      document
-        .getElementById("loginEmail")
-        .value
-        .trim();
-
-
-    if(!email){
-
-      showError(
-        loginError,
-        "請先輸入 Email，再點選忘記密碼。"
-      );
-
-      return;
-
+    if (error) {
+      showError('無法寄送重設密碼信件：' + (error.message || '未知錯誤'))
+    } else {
+      showSuccess('已寄出重設密碼連結，請至信箱查收。')
     }
+  }
 
+  // Passkey 預留
+  document.getElementById('passkey').onclick = () => {
+    showError('Passkey / Face ID 將在下一階段啟用。目前請使用 Email + 密碼登入。')
+  }
 
-    try{
-
-      await fetch(
-        `${SUPABASE_URL}/auth/v1/recover`,
-        {
-          method:"POST",
-
-          headers:{
-            "Content-Type":
-              "application/json",
-
-            "apikey":
-              SUPABASE_PUBLISHABLE_KEY
-          },
-
-          body:JSON.stringify({
-            email,
-
-            redirect_to:
-              `${window.location.origin}${window.location.pathname}`
-          })
-        }
-      );
-
-
-      clearError(loginError);
-
-      alert(
-        "如果此 Email 已註冊，Supabase 將寄送密碼重設信件。"
-      );
-
-    }catch{
-
-      showError(
-        loginError,
-        "目前無法送出密碼重設要求。"
-      );
-
-    }
-
-  };
-
+  // 監聽 Auth 狀態（可選）
+  if (supabase) {
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        // 已在 submit 處理跳轉
+      }
+      if (event === 'SIGNED_OUT') {
+        // 未來可在此清狀態
+      }
+    })
+  }
 </script>
-
 </body>
 </html>
