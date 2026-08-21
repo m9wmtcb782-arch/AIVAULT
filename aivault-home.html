@@ -361,12 +361,12 @@
       animation: none;
     }
 
-    /* 綠 = 空閒 */
+    /* 綠 = 空閒（持續慢閃） */
     .status-dot.idle,
     .status-dot.free {
       background: #22c55e;
-      box-shadow: 0 0 8px #22c55e;
-      animation: blink-green 2s ease-in-out infinite;
+      box-shadow: 0 0 10px #22c55e, 0 0 18px rgba(34, 197, 94, 0.35);
+      animation: blink-green 1.4s ease-in-out infinite;
     }
 
     /* 藍 = 正在做事 */
@@ -393,8 +393,8 @@
     }
 
     @keyframes blink-green {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.5; transform: scale(0.88); }
+      0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 10px #22c55e, 0 0 18px rgba(34,197,94,.35); }
+      50% { opacity: 0.55; transform: scale(0.9); box-shadow: 0 0 4px #22c55e; }
     }
     @keyframes blink-blue {
       0%, 100% { opacity: 1; transform: scale(1); }
@@ -2494,19 +2494,14 @@ Owner 擁有最終決策權。
           signal: controller.signal
         });
         clearTimeout(timer);
+        // 只有真的打不到服務才算未連線；4xx/5xx 仍視為通道有通 → 空閒綠燈
         if (res.status === 404) {
-          return { ok: false, text: 'Gateway 未部署' };
+          return { ok: false, text: '未連線' };
         }
-        // 能打到函數就算通道通（即使回業務錯誤）
-        if (res.status >= 500) {
-          const err = await res.text().catch(() => '');
-          return { ok: false, text: 'Gateway 錯誤' };
-        }
-        return { ok: true, text: '已連線' };
+        return { ok: true, text: '空閒' };
       } catch (e) {
         clearTimeout(timer);
-        const msg = e.name === 'AbortError' ? '逾時' : '未連線';
-        return { ok: false, text: msg };
+        return { ok: false, text: '未連線' };
       }
     }
 
@@ -2530,7 +2525,7 @@ Owner 擁有最終決策權。
         const r = results[agent.provider] || { ok: false, text: '未知' };
         setAgentRuntime(agent.id, {
           status: r.ok ? 'idle' : 'offline',
-          statusText: r.ok ? (`空閒 · ${agent.provider}`) : (r.text || '未連線'),
+          statusText: r.ok ? (`空閒 · ${agent.provider}`) : '未連線',
           connected: !!r.ok,
           lastError: r.ok ? '' : r.text
         });
