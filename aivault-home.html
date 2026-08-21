@@ -336,42 +336,77 @@
       font-size: 11px;
     }
 
+    /*
+      狀態燈（依忙碌程度）
+      紅 = 很忙／開會議中
+      黃 = 有點忙
+      藍 = 正在做事
+      綠 = 空閒
+      灰黑 = 未連線
+    */
     .status-dot {
-      width: 7px;
-      height: 7px;
-
+      width: 9px;
+      height: 9px;
       border-radius: 50%;
       flex-shrink: 0;
+      background: #1a1a1a;
+      box-shadow: inset 0 0 2px rgba(255,255,255,.12);
     }
 
-    .status-dot.working {
-      background: var(--success);
-      box-shadow: 0 0 6px var(--success);
-      animation: pulse 1.5s infinite;
-    }
-
-    .status-dot.thinking {
-      background: var(--warning);
-      box-shadow: 0 0 6px var(--warning);
-      animation: pulse 1.2s infinite;
-    }
-
-    .status-dot.idle {
-      background: #64748b;
-    }
-
+    /* 灰黑 = 未連線 */
+    .status-dot.standby,
     .status-dot.offline {
-      background: #475569;
+      background: #1a1a1a;
+      box-shadow: 0 0 0 1px rgba(255,255,255,.14);
+      animation: none;
     }
 
-    @keyframes pulse {
-      0%, 100% {
-        opacity: 1;
-      }
+    /* 綠 = 空閒 */
+    .status-dot.idle,
+    .status-dot.free {
+      background: #22c55e;
+      box-shadow: 0 0 8px #22c55e;
+      animation: blink-green 2s ease-in-out infinite;
+    }
 
-      50% {
-        opacity: 0.4;
-      }
+    /* 藍 = 正在做事 */
+    .status-dot.working,
+    .status-dot.thinking {
+      background: #3b82f6;
+      box-shadow: 0 0 10px #3b82f6;
+      animation: blink-blue 0.85s ease-in-out infinite;
+    }
+
+    /* 黃 = 有點忙 */
+    .status-dot.busy {
+      background: #eab308;
+      box-shadow: 0 0 10px #eab308;
+      animation: blink-yellow 0.75s ease-in-out infinite;
+    }
+
+    /* 紅 = 很忙／開會議中 */
+    .status-dot.meeting,
+    .status-dot.critical {
+      background: #ef4444;
+      box-shadow: 0 0 12px #ef4444;
+      animation: blink-red 0.55s ease-in-out infinite;
+    }
+
+    @keyframes blink-green {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.88); }
+    }
+    @keyframes blink-blue {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.35; transform: scale(0.8); }
+    }
+    @keyframes blink-yellow {
+      0%, 100% { opacity: 1; transform: scale(1.05); }
+      50% { opacity: 0.4; transform: scale(0.75); }
+    }
+    @keyframes blink-red {
+      0%, 100% { opacity: 1; transform: scale(1.08); }
+      50% { opacity: 0.3; transform: scale(0.72); }
     }
 
     /* =========================================================
@@ -1903,81 +1938,40 @@
      * Gemini
      */
 
+    /* 只存設定，狀態不寫死，一律由 runtime 更新 */
     const AGENTS = [
-
-      {
-        id: 'a1',
-        name: 'Chief',
-        role: '首席分析師',
-        avatar: '🧠',
-        color: 'var(--agent-gpt)',
-        status: 'working',
-        statusText: '主持研討',
-        provider: 'groq',
-        model: 'llama-3.3-70b-versatile'
-      },
-
-      {
-        id: 'a2',
-        name: 'Engineer',
-        role: '技術架構師',
-        avatar: '🧠',
-        color: 'var(--agent-coding)',
-        status: 'thinking',
-        statusText: '評估技術',
-        provider: 'groq',
-        model: 'llama-3.3-70b-versatile'
-      },
-
-      {
-        id: 'a3',
-        name: 'Auditor',
-        role: '風險審查官',
-        avatar: '🧠',
-        color: 'var(--agent-grok)',
-        status: 'idle',
-        statusText: '待命',
-        provider: 'gemini',
-        model: 'gemini-2.5-flash'
-      },
-
-      {
-        id: 'a4',
-        name: 'Strategist',
-        role: '策略研究員',
-        avatar: '🧠',
-        color: 'var(--agent-research)',
-        status: 'idle',
-        statusText: '待命',
-        provider: 'gemini',
-        model: 'gemini-2.5-flash'
-      },
-
-      {
-        id: 'a5',
-        name: 'Creator',
-        role: '解決方案設計師',
-        avatar: '🧠',
-        color: 'var(--agent-design)',
-        status: 'idle',
-        statusText: '待命',
-        provider: 'gemini',
-        model: 'gemini-2.5-flash'
-      },
-
-      {
-        id: 'a6',
-        name: 'Coordinator',
-        role: '整合協調官',
-        avatar: '🧠',
-        color: 'var(--agent-teacher)',
-        status: 'idle',
-        statusText: '待命',
-        provider: 'groq',
-        model: 'llama-3.3-70b-versatile'
-      }
-
+      { id: 'a1', name: 'Chief', role: '首席分析師', avatar: '🧠', color: 'var(--agent-gpt)', provider: 'groq', model: 'llama-3.3-70b-versatile' },
+      { id: 'a2', name: 'Engineer', role: '技術架構師', avatar: '🧠', color: 'var(--agent-coding)', provider: 'groq', model: 'llama-3.3-70b-versatile' },
+      { id: 'a3', name: 'Auditor', role: '風險審查官', avatar: '🧠', color: 'var(--agent-grok)', provider: 'gemini', model: 'gemini-2.5-flash' },
+      { id: 'a4', name: 'Strategist', role: '策略研究員', avatar: '🧠', color: 'var(--agent-research)', provider: 'gemini', model: 'gemini-2.5-flash' },
+      { id: 'a5', name: 'Creator', role: '解決方案設計師', avatar: '🧠', color: 'var(--agent-design)', provider: 'gemini', model: 'gemini-2.5-flash' },
+      { id: 'a6', name: 'Coordinator', role: '整合協調官', avatar: '🧠', color: 'var(--agent-teacher)', provider: 'groq', model: 'llama-3.3-70b-versatile' }
     ];
+
+    /* agentId -> { status, statusText, lastError, connected } */
+    const agentRuntime = {};
+    AGENTS.forEach(a => {
+      agentRuntime[a.id] = {
+        status: 'thinking',
+        statusText: '檢查連線…',
+        connected: false,
+        lastError: ''
+      };
+    });
+
+    function getAgentView(agent) {
+      const rt = agentRuntime[agent.id] || {};
+      return {
+        ...agent,
+        status: rt.status || 'offline',
+        statusText: rt.statusText || '未知',
+        connected: !!rt.connected
+      };
+    }
+
+    function setAgentRuntime(agentId, patch) {
+      agentRuntime[agentId] = { ...(agentRuntime[agentId] || {}), ...patch };
+    }
 
 
     /* ============================================================
@@ -2478,6 +2472,73 @@ Owner 擁有最終決策權。
        ⑫ Render Agent
        ============================================================ */
 
+
+    /* 依 provider 即時探測，不寫死狀態 */
+    async function probeProvider(provider, model) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 10000);
+      try {
+        const res = await fetch(AI_GATEWAY_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+          },
+          body: JSON.stringify({
+            provider,
+            model,
+            agent: 'healthcheck',
+            systemPrompt: 'Reply with the single word OK.',
+            messages: [{ role: 'user', content: 'healthcheck' }]
+          }),
+          signal: controller.signal
+        });
+        clearTimeout(timer);
+        if (res.status === 404) {
+          return { ok: false, text: 'Gateway 未部署' };
+        }
+        // 能打到函數就算通道通（即使回業務錯誤）
+        if (res.status >= 500) {
+          const err = await res.text().catch(() => '');
+          return { ok: false, text: 'Gateway 錯誤' };
+        }
+        return { ok: true, text: '已連線' };
+      } catch (e) {
+        clearTimeout(timer);
+        const msg = e.name === 'AbortError' ? '逾時' : '未連線';
+        return { ok: false, text: msg };
+      }
+    }
+
+    async function checkGatewayConnections() {
+      AGENTS.forEach(a => setAgentRuntime(a.id, {
+        status: 'working',
+        statusText: '檢查連線…',
+        connected: false
+      }));
+      renderAgents();
+      renderAgentRegistry();
+
+      const providers = [...new Set(AGENTS.map(a => a.provider))];
+      const results = {};
+      await Promise.all(providers.map(async (provider) => {
+        const sample = AGENTS.find(a => a.provider === provider);
+        results[provider] = await probeProvider(provider, sample.model);
+      }));
+
+      AGENTS.forEach(agent => {
+        const r = results[agent.provider] || { ok: false, text: '未知' };
+        setAgentRuntime(agent.id, {
+          status: r.ok ? 'idle' : 'offline',
+          statusText: r.ok ? (`空閒 · ${agent.provider}`) : (r.text || '未連線'),
+          connected: !!r.ok,
+          lastError: r.ok ? '' : r.text
+        });
+      });
+      renderAgents();
+      renderAgentRegistry();
+    }
+
     function renderAgents() {
 
       const container =
@@ -2490,7 +2551,9 @@ Owner 擁有最終決策權。
 
         AGENTS
           .slice(0, 6)
-          .map(agent => `
+          .map(raw => {
+            const agent = getAgentView(raw);
+            return `
 
             <div
               class="agent-card"
@@ -2512,7 +2575,7 @@ Owner 擁有最終決策權。
               </div>
 
               <div class="agent-role">
-                ${agent.role}
+                ${agent.role} · ${agent.provider}
               </div>
 
               <div class="agent-status">
@@ -2530,7 +2593,8 @@ Owner 擁有最終決策權。
 
             </div>
 
-          `)
+          `;
+          })
           .join('');
 
     }
@@ -2795,7 +2859,7 @@ Owner 擁有最終決策權。
 
               <div
                 class="toggle
-                ${agent.status !== 'offline'
+                ${getAgentView(agent).connected
                   ? 'on'
                   : ''}"
                 data-id="${agent.id}"
@@ -3104,14 +3168,14 @@ Owner 擁有最終決策權。
 
       const activeAgents =
         AGENTS
-          .filter(agent =>
-            agent.status === 'working'
-            ||
-            agent.status === 'thinking'
-            ||
-            agent.status === 'idle'
-          )
+          .filter(agent => getAgentView(agent).connected)
           .slice(0, 2);
+
+      if (!activeAgents.length) {
+        showToast('沒有已連線的 Agent，請檢查 AI Gateway');
+        sendButton.disabled = false;
+        return;
+      }
 
 
       /*
@@ -3183,22 +3247,45 @@ Owner 擁有最終決策權。
            * 真正呼叫 Supabase AI Gateway
            */
 
-          const reply =
-            await callAIGateway({
+          // 藍：正在做事
+          setAgentRuntime(agent.id, {
+            status: 'working',
+            statusText: '正在做事…',
+            connected: true
+          });
+          renderAgents();
 
-              provider:
-                agent.provider,
+          const replyPromise = callAIGateway({
+            provider: agent.provider,
+            model: getAgentModel(agent),
+            agentName: agent.name,
+            userMessage: text
+          });
 
-              model:
-                getAgentModel(agent),
-
-              agentName:
-                agent.name,
-
-              userMessage:
-                text
-
+          // 超過 2.5 秒仍未回 → 黃：有點忙
+          const busyTimer = setTimeout(() => {
+            setAgentRuntime(agent.id, {
+              status: 'busy',
+              statusText: '有點忙…',
+              connected: true
             });
+            renderAgents();
+          }, 2500);
+
+          let reply;
+          try {
+            reply = await replyPromise;
+          } finally {
+            clearTimeout(busyTimer);
+          }
+
+          // 綠：空閒
+          setAgentRuntime(agent.id, {
+            status: 'idle',
+            statusText: '空閒 · ' + agent.provider,
+            connected: true
+          });
+          renderAgents();
 
 
           /*
@@ -3428,11 +3515,25 @@ Owner 擁有最終決策權。
        ============================================================ */
 
     // 進入五人 AI 視訊會議（War Room）
+    function markAgentsInMeeting() {
+      AGENTS.forEach(a => {
+        if (getAgentView(a).connected) {
+          setAgentRuntime(a.id, {
+            status: 'meeting',
+            statusText: '開會議中',
+            connected: true
+          });
+        }
+      });
+      renderAgents();
+    }
+
     document
       .getElementById('btnEnterRoom')
       .addEventListener(
         'click',
         () => {
+          markAgentsInMeeting();
           location.href = 'aivault-warroom.html';
         }
       );
@@ -3440,6 +3541,7 @@ Owner 擁有最終決策權。
     const warroomEntry = document.getElementById('warroomEntry');
     if (warroomEntry) {
       warroomEntry.addEventListener('click', () => {
+        markAgentsInMeeting();
         location.href = 'aivault-warroom.html';
       });
     }
@@ -3501,7 +3603,7 @@ Owner 擁有最終決策權。
           try {
             localStorage.removeItem('aivault_remember_email');
           } catch (_) {}
-          location.replace('aivault-login.html');
+          location.replace('aivault-logout.html');
         }
       );
 
@@ -3598,6 +3700,7 @@ Owner 擁有最終決策權。
        ============================================================ */
 
     renderAgents();
+    checkGatewayConnections();
 
     renderTasks(
       'taskList'
