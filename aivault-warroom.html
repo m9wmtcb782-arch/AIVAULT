@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>AIVAULT · AI War Room</title>
+  <title>AIVAULT · 專案研討會議</title>
   <meta name="theme-color" content="#0a0e17" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -569,9 +569,10 @@
       <div class="header-left">
         <button class="icon-btn" id="btnBackHome" title="返回工作台" style="margin-right:4px;">←</button>
         <div class="logo">AIVAULT</div>
-        <span class="badge">AI WAR ROOM</span>
+        <span class="badge">專案研討</span>
       </div>
       <div class="header-right">
+        <button class="icon-btn" id="btnSound" title="聲音開關">🔊</button>
         <button class="icon-btn" id="btnHistory" title="歷史會議">📋</button>
         <button class="icon-btn" id="btnTranscript" title="對話紀錄">💬</button>
         <button class="icon-btn" id="btnSettings" title="設定">⚙️</button>
@@ -704,7 +705,7 @@
           class="owner-input"
           id="ownerInput"
           rows="1"
-          placeholder="輸入問題，啟動 AI 董事會會議…"
+          placeholder="輸入問題，啟動 專案研討會議…"
           maxlength="2000"
         ></textarea>
         <div class="action-btns">
@@ -725,7 +726,7 @@
 
     <!-- Overlays -->
     <div class="overlay" id="overlayStart">
-      <h2>AI War Room</h2>
+      <h2>專案研討會議</h2>
       <p>五位專家 AI 將依序分析、交叉質詢、辯論，最後產出決策。<br/>你是 Owner，負責提出問題並批准最終方案。</p>
       <button class="btn btn-primary" id="btnStartNew">建立新會議</button>
       <button class="btn btn-ghost" id="btnViewHistory" style="margin-top:10px;">查看歷史會議</button>
@@ -751,7 +752,7 @@
 
   <script>
     // =====================================================
-    // AIVAULT AI WAR ROOM — Frontend
+    // AIVAULT 專案研討 — Frontend
     // =====================================================
     // This page is designed to be integrated into existing
     // AIVAULT main screen without destroying other features.
@@ -860,40 +861,173 @@
       }
     }
 
-    // ---------- Browser TTS (fallback voice) ----------
+    // ---------- Browser TTS ----------
+    // 注意：iOS / 多數瀏覽器必須在「使用者手勢」後才能出聲
+    let audioUnlocked = false;
+    let ttsEnabled = true;
     const voiceMap = {
       chief: null, engineer: null, auditor: null, strategist: null, creator: null
     };
+
     function pickVoices() {
-      const voices = speechSynthesis.getVoices();
-      const zh = voices.filter(v => v.lang.startsWith('zh'));
-      const en = voices.filter(v => v.lang.startsWith('en'));
-      const pool = zh.length ? zh : en;
-      if (!pool.length) return;
-      // Prefer different voices
-      voiceMap.chief = pool[0];
-      voiceMap.engineer = pool[1] || pool[0];
-      voiceMap.auditor = pool[2] || pool[0];
-      voiceMap.strategist = pool.find(v => v.name.toLowerCase().includes('female') || v.name.includes('女')) || pool[0];
-      voiceMap.creator = pool.find(v => v !== voiceMap.strategist && (v.name.toLowerCase().includes('female') || v.name.includes('女'))) || pool[1] || pool[0];
+      if (!window.speechSynthesis) return;
+      const voices = speechSynthesis.getVoices() || [];
+      if (!voices.length) return;
+
+      const scoreGender = (v) => {
+        const s = (v.name + ' ' + v.lang).toLowerCase();
+        let female = 0, male = 0;
+        // 女聲關鍵字（含常見系統中文/英文女聲）
+        if (/female|woman|girl|女|ting-ting|meijia|mei-jia|hanhan|yating|xiao(?:xiao|yi|yan|mo|rou)|samantha|karen|moira|victoria|karen|fiona|karen|zira|susan|linda|google us english female|google uk english female|microsoft.*(?:zira|huihui|yaoyao|xiaoxiao)/i.test(s)) female += 3;
+        if (/male|man|boy|男|yunjian|yunxi|kangkang|liang|david|daniel|mark|google us english male|google uk english male|microsoft.*(?:david|mark|kangkang)/i.test(s)) male += 3;
+        // 語言偏好：zh 優先
+        if (/zh|cmn|chinese|台灣|国语|國語/.test(s)) {
+          female += 0.5; male += 0.5;
+        }
+        return { female, male, s };
+      };
+
+      const uniq = [];
+      const seen = new Set();
+      for (const v of voices) {
+        const key = (v.voiceURI || v.name) + '|' + v.lang;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        uniq.push(v);
+      }
+
+      const ranked = uniq.map(v => ({ v, ...scoreGender(v) }));
+      const females = ranked.filter(x => x.female > x.male).sort((a, b) => b.female - a.female).map(x => x.v);
+      const males = ranked.filter(x => x.male > x.female).sort((a, b) => b.male - a.male).map(x => x.v);
+      const neutral = ranked.filter(x => x.female === x.male).map(x => x.v);
+
+      const used = new Set();
+      function takeFrom(list, fallbacks) {
+        for (const listTry of [list, ...fallbacks]) {
+          for (const v of listTry) {
+            if (v && !used.has(v)) {
+              used.add(v);
+              return v;
+            }
+          }
+        }
+        // 不夠時仍回傳一個，稍後用 pitch 拉開
+        return list[0] || fallbacks.flat()[0] || uniq[0];
+      }
+
+      // 固定角色性別：男男男、女女
+      voiceMap.chief = takeFrom(males, [neutral, uniq]);
+      voiceMap.engineer = takeFrom(males, [neutral, uniq]);
+      voiceMap.auditor = takeFrom(males, [neutral, uniq]);
+      voiceMap.strategist = takeFrom(females, [neutral, uniq]);
+      voiceMap.creator = takeFrom(females, [neutral, uniq]);
+
+      // 男聲偏低沉、女聲偏高亮；即使同語音引擎也要明顯不同
+      window.__voiceParams = {
+        chief:      { rate: 0.94, pitch: 0.80, gender: 'male' },
+        engineer:   { rate: 1.02, pitch: 0.92, gender: 'male' },
+        auditor:    { rate: 0.90, pitch: 0.72, gender: 'male' },
+        strategist: { rate: 1.06, pitch: 1.28, gender: 'female' },
+        creator:    { rate: 1.10, pitch: 1.38, gender: 'female' }
+      };
+
+      try {
+        console.log('[AIVAULT TTS gender]', {
+          males: males.map(v => v.name).slice(0, 8),
+          females: females.map(v => v.name).slice(0, 8),
+          assign: {
+            chief: voiceMap.chief && voiceMap.chief.name,
+            engineer: voiceMap.engineer && voiceMap.engineer.name,
+            auditor: voiceMap.auditor && voiceMap.auditor.name,
+            strategist: voiceMap.strategist && voiceMap.strategist.name,
+            creator: voiceMap.creator && voiceMap.creator.name
+          }
+        });
+      } catch (e) {}
     }
-    if (speechSynthesis.onvoiceschanged !== undefined) {
-      speechSynthesis.onvoiceschanged = pickVoices;
+
+    function unlockAudio() {
+      if (audioUnlocked) return;
+      audioUnlocked = true;
+      try {
+        // WebAudio 解鎖（iOS 需要）
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) {
+          const ctx = new AC();
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          g.gain.value = 0.0001;
+          osc.connect(g); g.connect(ctx.destination);
+          osc.start(); osc.stop(ctx.currentTime + 0.05);
+          ctx.resume && ctx.resume();
+        }
+      } catch (e) {}
+      try {
+        if (window.speechSynthesis) {
+          // 用空字串 utterance 解鎖 TTS
+          const u = new SpeechSynthesisUtterance('');
+          u.volume = 0;
+          speechSynthesis.speak(u);
+          speechSynthesis.cancel();
+          pickVoices();
+        }
+      } catch (e) {}
     }
-    pickVoices();
 
     function speak(agentId, text) {
       return new Promise((resolve) => {
-        if (!window.speechSynthesis) { resolve(); return; }
-        speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(text.slice(0, 280)); // keep short for demo
-        u.lang = 'zh-TW';
-        u.rate = 1.05;
-        u.pitch = agentId === 'strategist' || agentId === 'creator' ? 1.15 : 0.95;
-        if (voiceMap[agentId]) u.voice = voiceMap[agentId];
-        u.onend = resolve;
-        u.onerror = resolve;
-        speechSynthesis.speak(u);
+        if (!ttsEnabled || !window.speechSynthesis) { resolve(); return; }
+        unlockAudio();
+        pickVoices();
+
+        // iOS 有時 cancel 後立刻 speak 會沒聲音，稍微延遲
+        const run = () => {
+          try { speechSynthesis.cancel(); } catch (e) {}
+          const chunk = String(text || '').slice(0, 320);
+          if (!chunk.trim()) { resolve(); return; }
+
+          const u = new SpeechSynthesisUtterance(chunk);
+          const params = (window.__voiceParams && window.__voiceParams[agentId]) || { rate: 1, pitch: 1, gender: 'male' };
+          u.volume = 1;
+          u.rate = params.rate;
+          // 強制性別音高：男 ≤1.0、女 ≥1.2，避免分錯聲
+          if (params.gender === 'female') {
+            u.pitch = Math.max(1.2, params.pitch || 1.3);
+          } else {
+            u.pitch = Math.min(1.0, params.pitch || 0.9);
+          }
+          if (voiceMap[agentId]) {
+            u.voice = voiceMap[agentId];
+            if (voiceMap[agentId].lang) u.lang = voiceMap[agentId].lang;
+            else u.lang = 'zh-TW';
+          } else {
+            u.lang = 'zh-TW';
+          }
+
+          let done = false;
+          const finish = () => {
+            if (done) return;
+            done = true;
+            resolve();
+          };
+          u.onend = finish;
+          u.onerror = finish;
+          // 保險：若 onend 沒觸發
+          setTimeout(finish, Math.min(20000, 1200 + chunk.length * 80));
+
+          try {
+            speechSynthesis.speak(u);
+            // Chrome bug：偶發 pause，需要 resume
+            setTimeout(() => {
+              try {
+                if (speechSynthesis.paused) speechSynthesis.resume();
+              } catch (e) {}
+            }, 50);
+          } catch (e) {
+            finish();
+          }
+        };
+        setTimeout(run, 60);
       });
     }
 
@@ -903,7 +1037,7 @@
         chief: 'Owner 提出的問題已收到。我先拆解核心目標與限制條件，接著請各位從各自專業角度分析。Engineer，先從技術可行性開始。',
         engineer: '從技術角度，這個需求可以拆成三層：前端介面、後端 API Gateway、以及持久化層。建議使用現有 AIVAULT 的 Agent Registry + Edge Function 架構，避免重複造輪。主要技術風險在於即時語音與 Avatar 同步。',
         auditor: '我對 Engineer 的樂觀有保留。即時多 Agent 串流會帶來延遲與成本問題。如果五個 Agent 同時呼叫 API，成本會快速上升，而且錯誤處理如果沒有回退機制，整場會議會卡死。',
-        strategist: '從市場與法規來看，這類「AI 董事會」產品目前競爭者不多，但使用者教育成本高。法規面要注意資料留存與個資，尤其是會議紀錄可能包含商業機密。建議先鎖定 B2B 內部決策場景。',
+        strategist: '從市場與法規來看，這類「專案研討」產品目前競爭者不多，但使用者教育成本高。法規面要注意資料留存與個資，尤其是會議紀錄可能包含商業機密。建議先鎖定 B2B 內部決策場景。',
         creator: '綜合以上，我建議產品體驗走「電影感會議室」路線：五個視窗、即時狀態、字幕、回放。UI 必須手機優先，否則長輩或移動場景用不了。稍後我會提出具體互動流程。',
       },
       cross_examination: {
@@ -926,7 +1060,7 @@
       },
       final_decision: {
         chief: `【最終方案】
-採用「5 AI 固定角色 + 6 階段會議流程」的 AI War Room 架構，整合進現有 AIVAULT，不破壞主畫面。
+採用「5 AI 固定角色 + 6 階段會議流程」的 專案研討會議 架構，整合進現有 AIVAULT，不破壞主畫面。
 
 【理由】
 1. 五人分工形成完整閉環：分析→技術→質疑→策略→創意整合。
@@ -948,6 +1082,7 @@
 
     // ---------- Demo Runner ----------
     async function runDemoRound(roundType) {
+      unlockAudio();
       const orderMap = {
         analysis: ['chief', 'engineer', 'auditor', 'strategist', 'creator'],
         cross_examination: ['engineer', 'auditor', 'strategist', 'creator', 'chief'],
@@ -1058,6 +1193,24 @@
 
     // ---------- Event Bindings ----------
     function bindEvents() {
+      // 任何點擊先解鎖聲音（iOS 必要）
+      document.addEventListener('click', () => unlockAudio(), { once: false });
+      document.addEventListener('touchstart', () => unlockAudio(), { once: false });
+      const btnSound = document.getElementById('btnSound');
+      if (btnSound) {
+        btnSound.addEventListener('click', () => {
+          unlockAudio();
+          ttsEnabled = !ttsEnabled;
+          btnSound.textContent = ttsEnabled ? '🔊' : '🔇';
+          if (!ttsEnabled) {
+            try { speechSynthesis.cancel(); } catch (e) {}
+          } else {
+            // 測試音
+            speak('chief', '聲音已開啟');
+          }
+        });
+      }
+
       const back = document.getElementById('btnBackHome');
       if (back) back.addEventListener('click', () => { location.href = 'aivault-home.html'; });
 
@@ -1160,7 +1313,7 @@
       const list = $('#historyList');
       list.innerHTML = `
         <div class="history-item">
-          <div class="title">Demo · AI War Room 架構討論</div>
+          <div class="title">Demo · 專案研討會議 架構討論</div>
           <div class="meta">2026/08/21 · 5 Agents · 6 rounds · Demo</div>
         </div>
         <div style="color:var(--text-muted);font-size:13px;padding:12px;text-align:center;">
