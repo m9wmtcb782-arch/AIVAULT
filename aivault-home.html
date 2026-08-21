@@ -1376,35 +1376,34 @@
 
 
       <div class="section-title">
-        最新協作片段
+        AI 連線測試對話
       </div>
 
       <div
         class="chat-container"
-        style="height:280px;"
+        style="height:380px;"
       >
 
         <div class="chat-header">
-
-          <span>
-            任務：AIVAULT 第一版架構討論
-          </span>
-
-          <span
-            style="
-              font-size:11px;
-              color:var(--success)
-            "
-          >
-            ● Real AI
-          </span>
-
+          <span>測試 AI 是否聯線說話</span>
+          <span style="font-size:11px;color:var(--success)">● Gateway</span>
         </div>
 
         <div
           class="chat-messages"
           id="homeChatPreview"
+          style="overflow-y:auto;-webkit-overflow-scrolling:touch;"
         ></div>
+
+        <div class="chat-input-area">
+          <input
+            class="chat-input"
+            id="homeChatInput"
+            placeholder="輸入問題，測試 AI 連線…"
+            autocomplete="off"
+          />
+          <button class="send-btn" id="homeSendBtn" type="button">↑</button>
+        </div>
 
       </div>
 
@@ -1891,24 +1890,26 @@
 
       {
         id: 'p1',
-        code: 'groq',
-        name: 'Groq',
+        code: 'gemini3',
+        name: 'Gemini 3',
         status: 'active',
-
-        models: [
-          'llama-3.3-70b-versatile'
-        ]
+        models: ['gemini-2.5-flash']
       },
 
       {
         id: 'p2',
-        code: 'gemini',
-        name: 'Google Gemini',
+        code: 'gemini2',
+        name: 'Gemini 2',
         status: 'active',
+        models: ['gemini-2.5-flash']
+      },
 
-        models: [
-          'gemini-2.5-flash'
-        ]
+      {
+        id: 'p3',
+        code: 'groq',
+        name: 'Groq',
+        status: 'active',
+        models: ['llama-3.3-70b-versatile']
       }
 
     ];
@@ -1940,12 +1941,12 @@
 
     /* 只存設定，狀態不寫死，一律由 runtime 更新 */
     const AGENTS = [
-      { id: 'a1', name: 'Chief', role: '首席分析師', avatar: '🧠', color: 'var(--agent-gpt)', provider: 'groq', model: 'llama-3.3-70b-versatile' },
-      { id: 'a2', name: 'Engineer', role: '技術架構師', avatar: '🧠', color: 'var(--agent-coding)', provider: 'groq', model: 'llama-3.3-70b-versatile' },
-      { id: 'a3', name: 'Auditor', role: '風險審查官', avatar: '🧠', color: 'var(--agent-grok)', provider: 'gemini', model: 'gemini-2.5-flash' },
-      { id: 'a4', name: 'Strategist', role: '策略研究員', avatar: '🧠', color: 'var(--agent-research)', provider: 'gemini', model: 'gemini-2.5-flash' },
-      { id: 'a5', name: 'Creator', role: '解決方案設計師', avatar: '🧠', color: 'var(--agent-design)', provider: 'gemini', model: 'gemini-2.5-flash' },
-      { id: 'a6', name: 'Coordinator', role: '整合協調官', avatar: '🧠', color: 'var(--agent-teacher)', provider: 'groq', model: 'llama-3.3-70b-versatile' }
+      { id: 'a1', name: 'Chief', role: '首席分析師', avatar: '🧠', color: 'var(--agent-gpt)', provider: 'gemini3', model: 'gemini-2.5-flash' },
+      { id: 'a2', name: 'Engineer', role: '技術架構師', avatar: '🧠', color: 'var(--agent-coding)', provider: 'gemini2', model: 'gemini-2.5-flash' },
+      { id: 'a3', name: 'Auditor', role: '風險審查官', avatar: '🧠', color: 'var(--agent-grok)', provider: 'groq', model: 'llama-3.3-70b-versatile' },
+      { id: 'a4', name: 'Strategist', role: '策略研究員', avatar: '🧠', color: 'var(--agent-research)', provider: 'groq', model: 'llama-3.3-70b-versatile' },
+      { id: 'a5', name: 'Creator', role: '解決方案設計師', avatar: '🧠', color: 'var(--agent-design)', provider: 'gemini3', model: 'gemini-2.5-flash' },
+      { id: 'a6', name: 'Coordinator', role: '整合協調官', avatar: '🧠', color: 'var(--agent-teacher)', provider: 'gemini2', model: 'gemini-2.5-flash' }
     ];
 
     /* agentId -> { status, statusText, lastError, connected } */
@@ -2126,7 +2127,7 @@
     let messages = [
 
       {
-        sender: 'Chief',
+        sender: 'Chief', role: '首席分析師',
         type: 'agent',
 
         text:
@@ -2137,7 +2138,7 @@
 
 
       {
-        sender: 'Auditor',
+        sender: 'Auditor', role: '風險審查官',
         type: 'agent',
 
         text:
@@ -2148,7 +2149,7 @@
 
 
       {
-        sender: 'Chief',
+        sender: 'Chief', role: '首席分析師',
         type: 'agent',
 
         text:
@@ -2456,10 +2457,8 @@ Owner 擁有最終決策權。
       }
 
 
-      if (agent.provider === 'gemini') {
-
+      if (agent.provider === 'gemini' || agent.provider === 'gemini2' || agent.provider === 'gemini3') {
         return 'gemini-2.5-flash';
-
       }
 
 
@@ -2740,7 +2739,7 @@ Owner 擁有最終決策權。
               <div class="msg-meta">
 
                 <span class="msg-sender">
-                  ${escapeHTML(message.sender)}
+                  ${message.type === 'agent' ? '🤖 ' : ''}${escapeHTML(message.sender)}${message.role ? ' · ' + escapeHTML(message.role) : ''}
                 </span>
 
                 <span>
@@ -3092,31 +3091,33 @@ Owner 擁有最終決策權。
        ㉑ 真正送出 Owner 指令
        ============================================================ */
 
-    async function sendMessage() {
+    async function sendMessage(fromHome) {
 
       const input =
         document.getElementById(
-          'chatInput'
-        );
+          fromHome ? 'homeChatInput' : 'chatInput'
+        ) || document.getElementById('chatInput');
 
       const sendButton =
         document.getElementById(
-          'sendBtn'
-        );
+          fromHome ? 'homeSendBtn' : 'sendBtn'
+        ) || document.getElementById('sendBtn');
 
+      const homeInput = document.getElementById('homeChatInput');
+      const chatInput = document.getElementById('chatInput');
+      const homeBtn = document.getElementById('homeSendBtn');
+      const chatBtn = document.getElementById('sendBtn');
 
-      const text =
-        input.value.trim();
-
+      const text = (input && input.value.trim()) || '';
 
       if (!text) {
         return;
       }
 
-
-      input.value = '';
-
-      sendButton.disabled = true;
+      if (homeInput) homeInput.value = '';
+      if (chatInput) chatInput.value = '';
+      if (homeBtn) homeBtn.disabled = true;
+      if (chatBtn) chatBtn.disabled = true;
 
 
       /*
@@ -3142,8 +3143,7 @@ Owner 擁有最終決策權。
 
 
       renderMessages(
-        'homeChatPreview',
-        4
+        'homeChatPreview'
       );
 
 
@@ -3295,19 +3295,11 @@ Owner 擁有最終決策權。
            */
 
           messages.push({
-
-            sender:
-              agent.name,
-
-            type:
-              'agent',
-
-            text:
-              reply,
-
-            time:
-              nowTime()
-
+            sender: agent.name,
+            role: agent.role,
+            type: 'agent',
+            text: reply,
+            time: nowTime()
           });
 
 
@@ -3321,19 +3313,11 @@ Owner 擁有最終決策權。
 
 
           messages.push({
-
-            sender:
-              agent.name,
-
-            type:
-              'agent',
-
-            text:
-              `AI Gateway 錯誤：${error.message}`,
-
-            time:
-              nowTime()
-
+            sender: agent.name,
+            role: agent.role,
+            type: 'agent',
+            text: `AI Gateway 錯誤：${error.message}`,
+            time: nowTime()
           });
 
         }
@@ -3352,8 +3336,8 @@ Owner 擁有最終決策權。
       }
 
 
-      sendButton.disabled =
-        false;
+      if (homeBtn) homeBtn.disabled = false;
+      if (chatBtn) chatBtn.disabled = false;
 
     }
 
@@ -3477,8 +3461,22 @@ Owner 擁有最終決策權。
       .getElementById('sendBtn')
       .addEventListener(
         'click',
-        sendMessage
+        () => sendMessage(false)
       );
+
+    const homeSendBtn = document.getElementById('homeSendBtn');
+    if (homeSendBtn) {
+      homeSendBtn.addEventListener('click', () => sendMessage(true));
+    }
+    const homeChatInput = document.getElementById('homeChatInput');
+    if (homeChatInput) {
+      homeChatInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          sendMessage(true);
+        }
+      });
+    }
 
 
     /* ============================================================
@@ -3712,8 +3710,7 @@ Owner 擁有最終決策權。
     );
 
     renderMessages(
-      'homeChatPreview',
-      4
+      'homeChatPreview'
     );
 
     renderAgentRegistry();

@@ -2,13 +2,92 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=overlays-content" />
   <title>AIVAULT · 專案研討會議</title>
   <meta name="theme-color" content="#0a0e17" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet" />
   <style>
+    /* 完全禁止上下滑動 */
+    html, body {
+      overflow: hidden !important;
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      height: 100dvh !important;
+      max-height: 100dvh !important;
+      overscroll-behavior: none !important;
+      touch-action: none;
+    }
+    body * {
+      overscroll-behavior: none;
+    }
+    /* 僅對話框、會議紀錄可捲動 */
+    .dialogue-box,
+    .transcript-body,
+    #transcriptBody,
+    #dialogueBox {
+      touch-action: pan-y;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+    textarea, input {
+      touch-action: manipulation;
+    }
+
+
+    /* 鎖死會議畫面：鍵盤只覆蓋、不往上推 AI */
+    html, body {
+      height: 100%;
+      height: 100dvh;
+      max-height: 100dvh;
+      overflow: hidden !important;
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      overscroll-behavior: none;
+      touch-action: manipulation;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+    /* 整頁高度鎖在初始視窗，鍵盤不改 layout viewport 時 AI 不動 */
+    .app, #app, .app-shell {
+      flex: 1;
+      min-height: 0;
+      height: 100%;
+      max-height: 100dvh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      flex-shrink: 0;
+    }
+    main, main.stage {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: hidden !important;
+      /* 不隨鍵盤縮小 */
+    }
+    .agents-grid, .video-grid, .grid {
+      min-height: 0;
+      height: 100%;
+    }
+    /* 底部固定；鍵盤用 overlays-content 蓋上來，不推 main */
+    .owner-panel {
+      flex-shrink: 0 !important;
+      position: relative;
+      z-index: 50;
+      transform: none !important; /* 禁止被 JS 上推 */
+      max-height: 42vh;
+    }
+    .owner-input, textarea.owner-input {
+      font-size: 16px;
+    }
     :root {
       --bg: #0a0e17;
       --surface: #121826;
@@ -326,7 +405,60 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
+      max-height: 48vh;
     }
+    .dialogue-box {
+      flex: 1 1 auto;
+      min-height: 120px;
+      max-height: 28vh;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .dialogue-box .dlg-empty {
+      color: var(--text-muted);
+      font-size: 12px;
+      text-align: center;
+      padding: 16px 8px;
+    }
+    .dlg-msg {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      max-width: 95%;
+    }
+    .dlg-msg.owner { align-self: flex-end; }
+    .dlg-msg.agent { align-self: flex-start; }
+    .dlg-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .dlg-msg.owner .dlg-meta { justify-content: flex-end; }
+    .dlg-sender { font-weight: 700; color: #93c5fd; }
+    .dlg-msg.owner .dlg-sender { color: #fbbf24; }
+    .dlg-bubble {
+      font-size: 13px;
+      line-height: 1.45;
+      padding: 8px 11px;
+      border-radius: 12px;
+      background: var(--surface-2);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .dlg-msg.owner .dlg-bubble {
+      background: rgba(59,130,246,0.25);
+      border-bottom-right-radius: 4px;
+    }
+    .dlg-msg.agent .dlg-bubble { border-bottom-left-radius: 4px; }
 
     .round-bar {
       display: flex;
@@ -410,6 +542,13 @@
       color: #f87171;
       border: 1px solid rgba(239,68,68,0.3);
     }
+    
+    #btnHideKeyboard {
+      min-width: 42px;
+      padding: 0 10px;
+      font-size: 14px;
+    }
+
     .btn-success {
       background: rgba(34,197,94,0.15);
       color: #4ade80;
@@ -700,6 +839,10 @@
         </div>
       </div>
 
+      <div class="dialogue-box" id="dialogueBox">
+        <div class="dlg-empty" id="dialogueEmpty">AI 發言會顯示在這裡</div>
+      </div>
+
       <div class="input-row">
         <textarea
           class="owner-input"
@@ -710,6 +853,7 @@
         ></textarea>
         <div class="action-btns">
           <button class="btn btn-ghost" id="btnMic" title="語音輸入">🎙️</button>
+          <button class="btn btn-ghost" id="btnHideKeyboard" title="收起鍵盤" type="button">⌨️↓</button>
           <button class="btn btn-primary" id="btnSend">
             <span id="sendLabel">開始</span>
           </button>
@@ -820,17 +964,46 @@
 
     // ---------- Transcript ----------
     function addTranscriptMessage({ role, content, agentId, isOwner = false }) {
-      const body = $('#transcriptBody');
-      const div = document.createElement('div');
-      div.className = 'msg' + (isOwner ? ' owner' : '');
-      if (role) div.dataset.role = role;
       const time = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      div.innerHTML = `
-        <div class="meta"><span>${role || 'Owner'}</span><span>${time}</span></div>
-        <div class="bubble">${escapeHtml(content)}</div>
-      `;
-      body.appendChild(div);
-      body.scrollTop = body.scrollHeight;
+
+      // 原會議紀錄抽屉
+      const body = $('#transcriptBody');
+      if (body) {
+        const div = document.createElement('div');
+        div.className = 'msg' + (isOwner ? ' owner' : '');
+        if (role) div.dataset.role = role;
+        div.innerHTML = `
+          <div class="meta"><span>${role || 'Owner'}</span><span>${time}</span></div>
+          <div class="bubble">${escapeHtml(content)}</div>
+        `;
+        body.appendChild(div);
+        body.scrollTop = body.scrollHeight;
+      }
+
+      // 下方常駐對話框：顯示誰在說話
+      const box = document.getElementById('dialogueBox');
+      if (box) {
+        const empty = document.getElementById('dialogueEmpty');
+        if (empty) empty.remove();
+        const agentName = agentId && window.AGENTS && AGENTS[agentId]
+          ? (AGENTS[agentId].name || agentId)
+          : '';
+        const label = isOwner
+          ? 'OWNER'
+          : (agentName ? `🤖 ${agentName} · ${role || ''}` : (role || 'AI'));
+        const row = document.createElement('div');
+        row.className = 'dlg-msg ' + (isOwner ? 'owner' : 'agent');
+        row.innerHTML = `
+          <div class="dlg-meta">
+            <span class="dlg-sender">${escapeHtml(label)}</span>
+            <span>${time}</span>
+          </div>
+          <div class="dlg-bubble">${escapeHtml(content)}</div>
+        `;
+        box.appendChild(row);
+        box.scrollTop = box.scrollHeight;
+      }
+
       state.messages.push({ role, content, agentId, isOwner, time });
     }
 
@@ -874,18 +1047,17 @@
       const voices = speechSynthesis.getVoices() || [];
       if (!voices.length) return;
 
-      const scoreGender = (v) => {
-        const s = (v.name + ' ' + v.lang).toLowerCase();
-        let female = 0, male = 0;
-        // 女聲關鍵字（含常見系統中文/英文女聲）
-        if (/female|woman|girl|女|ting-ting|meijia|mei-jia|hanhan|yating|xiao(?:xiao|yi|yan|mo|rou)|samantha|karen|moira|victoria|karen|fiona|karen|zira|susan|linda|google us english female|google uk english female|microsoft.*(?:zira|huihui|yaoyao|xiaoxiao)/i.test(s)) female += 3;
-        if (/male|man|boy|男|yunjian|yunxi|kangkang|liang|david|daniel|mark|google us english male|google uk english male|microsoft.*(?:david|mark|kangkang)/i.test(s)) male += 3;
-        // 語言偏好：zh 優先
-        if (/zh|cmn|chinese|台灣|国语|國語/.test(s)) {
-          female += 0.5; male += 0.5;
-        }
-        return { female, male, s };
-      };
+      // 嚴格判斷性別：無法判斷則當 neutral，不可拿男聲給女角色
+      function genderOf(v) {
+        const s = ((v && (v.name + ' ' + v.lang + ' ' + (v.voiceURI || ''))) || '').toLowerCase();
+        const femaleRe = /female|woman|girl|\bf\b|女|小姐|婷|美佳|meijia|mei-jia|hanhan|yating|yaoyao|huihui|xiaoxiao|xiaoyi|xiaoyan|xiaomo|xiaorou|samantha|karen|moira|victoria|fiona|zira|susan|linda|hazel|google[[:space:]uk]*english female|microsoft.*(zira|huihui|yaoyao|xiaoxiao)/i;
+        const maleRe = /male|man|boy|\bm\b|男|先生|yunjian|yunxi|yunyang|kangkang|liang|david|daniel|mark|george|google[[:space:]uk]*english male|microsoft.*(david|mark|kangkang|yunjian)/i;
+        const isF = femaleRe.test(s);
+        const isM = maleRe.test(s);
+        if (isF && !isM) return 'female';
+        if (isM && !isF) return 'male';
+        return 'neutral';
+      }
 
       const uniq = [];
       const seen = new Set();
@@ -896,52 +1068,58 @@
         uniq.push(v);
       }
 
-      const ranked = uniq.map(v => ({ v, ...scoreGender(v) }));
-      const females = ranked.filter(x => x.female > x.male).sort((a, b) => b.female - a.female).map(x => x.v);
-      const males = ranked.filter(x => x.male > x.female).sort((a, b) => b.male - a.male).map(x => x.v);
-      const neutral = ranked.filter(x => x.female === x.male).map(x => x.v);
+      // 中文優先
+      const preferZh = (list) => {
+        const zh = list.filter(v => /zh|cmn|chinese|台灣|国语|國語/i.test(v.lang + v.name));
+        return zh.length ? zh.concat(list.filter(v => !zh.includes(v))) : list;
+      };
+
+      const males = preferZh(uniq.filter(v => genderOf(v) === 'male'));
+      const females = preferZh(uniq.filter(v => genderOf(v) === 'female'));
+      const neutrals = preferZh(uniq.filter(v => genderOf(v) === 'neutral'));
 
       const used = new Set();
-      function takeFrom(list, fallbacks) {
-        for (const listTry of [list, ...fallbacks]) {
-          for (const v of listTry) {
-            if (v && !used.has(v)) {
-              used.add(v);
-              return v;
-            }
+      function takeStrict(preferred, allowNeutral) {
+        for (const v of preferred) {
+          if (!used.has(v)) { used.add(v); return v; }
+        }
+        if (allowNeutral) {
+          for (const v of neutrals) {
+            if (!used.has(v)) { used.add(v); return v; }
           }
         }
-        // 不夠時仍回傳一個，稍後用 pitch 拉開
-        return list[0] || fallbacks.flat()[0] || uniq[0];
+        // 不夠也不要跨性別：重複同性別最後一個，或 null
+        if (preferred.length) return preferred[preferred.length - 1];
+        if (allowNeutral && neutrals.length) return neutrals[neutrals.length - 1];
+        return null;
       }
 
-      // 固定角色性別：男男男、女女
-      voiceMap.chief = takeFrom(males, [neutral, uniq]);
-      voiceMap.engineer = takeFrom(males, [neutral, uniq]);
-      voiceMap.auditor = takeFrom(males, [neutral, uniq]);
-      voiceMap.strategist = takeFrom(females, [neutral, uniq]);
-      voiceMap.creator = takeFrom(females, [neutral, uniq]);
+      // ★ 禁止跨性別：女角色絕不用 male 清單，男角色絕不用 female 清單
+      voiceMap.chief = takeStrict(males, true);
+      voiceMap.engineer = takeStrict(males, true);
+      voiceMap.auditor = takeStrict(males, true);
+      voiceMap.strategist = takeStrict(females, true);
+      voiceMap.creator = takeStrict(females, true);
 
-      // 男聲偏低沉、女聲偏高亮；即使同語音引擎也要明顯不同
       window.__voiceParams = {
-        chief:      { rate: 0.94, pitch: 0.80, gender: 'male' },
-        engineer:   { rate: 1.02, pitch: 0.92, gender: 'male' },
-        auditor:    { rate: 0.90, pitch: 0.72, gender: 'male' },
-        strategist: { rate: 1.06, pitch: 1.28, gender: 'female' },
-        creator:    { rate: 1.10, pitch: 1.38, gender: 'female' }
+        chief:      { rate: 0.94, pitch: 0.78, gender: 'male' },
+        engineer:   { rate: 1.00, pitch: 0.88, gender: 'male' },
+        auditor:    { rate: 0.90, pitch: 0.70, gender: 'male' },
+        strategist: { rate: 1.05, pitch: 1.32, gender: 'female' },
+        creator:    { rate: 1.08, pitch: 1.42, gender: 'female' }
+      };
+
+      window.__ttsGenderReady = {
+        maleCount: males.length,
+        femaleCount: females.length,
+        neutralCount: neutrals.length
       };
 
       try {
-        console.log('[AIVAULT TTS gender]', {
-          males: males.map(v => v.name).slice(0, 8),
-          females: females.map(v => v.name).slice(0, 8),
-          assign: {
-            chief: voiceMap.chief && voiceMap.chief.name,
-            engineer: voiceMap.engineer && voiceMap.engineer.name,
-            auditor: voiceMap.auditor && voiceMap.auditor.name,
-            strategist: voiceMap.strategist && voiceMap.strategist.name,
-            creator: voiceMap.creator && voiceMap.creator.name
-          }
+        console.log('[AIVAULT TTS strict gender]', {
+          maleVoices: males.map(v => v.name),
+          femaleVoices: females.map(v => v.name),
+          assign: Object.fromEntries(Object.keys(voiceMap).map(k => [k, voiceMap[k] && voiceMap[k].name]))
         });
       } catch (e) {}
     }
@@ -990,18 +1168,37 @@
           const params = (window.__voiceParams && window.__voiceParams[agentId]) || { rate: 1, pitch: 1, gender: 'male' };
           u.volume = 1;
           u.rate = params.rate;
-          // 強制性別音高：男 ≤1.0、女 ≥1.2，避免分錯聲
           if (params.gender === 'female') {
-            u.pitch = Math.max(1.2, params.pitch || 1.3);
+            u.pitch = Math.max(1.25, params.pitch || 1.35);
           } else {
-            u.pitch = Math.min(1.0, params.pitch || 0.9);
+            u.pitch = Math.min(0.95, params.pitch || 0.85);
           }
-          if (voiceMap[agentId]) {
-            u.voice = voiceMap[agentId];
-            if (voiceMap[agentId].lang) u.lang = voiceMap[agentId].lang;
-            else u.lang = 'zh-TW';
+
+          // 發言當下再次檢查：絕不讓女角色用男聲、男角色用女聲
+          const genderOfVoice = (v) => {
+            if (!v) return 'neutral';
+            const s = (v.name + ' ' + v.lang + ' ' + (v.voiceURI || '')).toLowerCase();
+            if (/female|woman|女|婷|美佳|hanhan|yating|xiaoxiao|samantha|karen|zira/i.test(s)) return 'female';
+            if (/male|man|男|yunjian|yunxi|kangkang|david|daniel|mark/i.test(s)) return 'male';
+            return 'neutral';
+          };
+
+          let chosen = voiceMap[agentId];
+          const need = params.gender;
+          if (chosen && genderOfVoice(chosen) !== 'neutral' && genderOfVoice(chosen) !== need) {
+            chosen = null; // 丟掉跨性別語音
+          }
+          if (!chosen) {
+            const all = speechSynthesis.getVoices() || [];
+            const pool = all.filter(v => genderOfVoice(v) === need);
+            chosen = pool[0] || null;
+          }
+          if (chosen) {
+            u.voice = chosen;
+            u.lang = chosen.lang || 'zh-TW';
           } else {
             u.lang = 'zh-TW';
+            // 沒有對應性別語音時，只靠 pitch 區分，仍不套用錯誤性別的 voice
           }
 
           let done = false;
@@ -1129,6 +1326,10 @@
         state.currentRound = 0;
         state.messages = [];
         $('#transcriptBody').innerHTML = '';
+        const dbox = document.getElementById('dialogueBox');
+        if (dbox) {
+          dbox.innerHTML = '<div class="dlg-empty" id="dialogueEmpty">AI 發言會顯示在這裡</div>';
+        }
         addTranscriptMessage({ role: 'Owner', content: ownerMessage, isOwner: true });
         updateRoundUI();
         resetAllAgents('listening');
@@ -1345,6 +1546,57 @@
       runNextRound,
       AGENTS,
     };
-  </script>
+
+
+    function hideKeyboard() {
+      const input = document.getElementById('ownerInput');
+      if (input) {
+        input.blur();
+      }
+      if (document.activeElement && document.activeElement.blur) {
+        document.activeElement.blur();
+      }
+      window.scrollTo(0, 0);
+      setTimeout(() => window.scrollTo(0, 0), 50);
+    }
+
+    document.getElementById('btnHideKeyboard')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      hideKeyboard();
+    });
+
+    // 點 AI 視窗空白處也收起鍵盤
+    document.querySelector('main')?.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('.owner-panel')) return;
+      if (e.target.closest('textarea, input, button, a')) return;
+      hideKeyboard();
+    });
+
+
+    (function preventPageScroll() {
+      document.addEventListener('touchmove', function (e) {
+        let el = e.target;
+        while (el && el !== document.body) {
+          if (el.classList && (el.classList.contains('dialogue-box') || el.classList.contains('transcript-body'))) {
+            return; // allow
+          }
+          if (el.id === 'dialogueBox' || el.id === 'transcriptBody') return;
+          if (el.tagName === 'TEXTAREA') return;
+          el = el.parentElement;
+        }
+        e.preventDefault();
+      }, { passive: false });
+
+      document.addEventListener('scroll', function () {
+        window.scrollTo(0, 0);
+      }, { passive: false });
+
+      // 鎖住 body 捲動位置
+      document.body.addEventListener('touchstart', function () {
+        if (window.scrollY !== 0) window.scrollTo(0, 0);
+      }, { passive: true });
+    })();
+
+</script>
 </body>
 </html>
