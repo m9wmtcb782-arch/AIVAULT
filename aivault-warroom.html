@@ -1,27 +1,36 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport"
-      content="width=device-width, initial-scale=1.0,
-               maximum-scale=1.0, user-scalable=no">
 
-<title>AIVAULT War Room</title>
+<meta name="viewport"
+      content="width=device-width,
+               initial-scale=1,
+               maximum-scale=1,
+               user-scalable=no,
+               viewport-fit=cover">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AIVAULT">
+<meta name="theme-color" content="#050914">
+
+<title>AIVAULT · AI War Room</title>
 
 <style>
 :root{
-  --bg:#050912;
+  --bg:#050914;
   --panel:#0b1220;
   --panel2:#101a2c;
-  --line:rgba(255,255,255,.10);
-  --text:#f4f7fb;
-  --muted:#8c99ad;
-  --cyan:#25d9ff;
-  --blue:#4b7dff;
-  --green:#31e981;
-  --yellow:#ffd166;
-  --red:#ff5268;
-  --purple:#a879ff;
+  --border:rgba(255,255,255,.10);
+  --text:#f5f7fb;
+  --muted:#8b98ad;
+  --blue:#4da3ff;
+  --cyan:#31d7ff;
+  --green:#34d399;
+  --yellow:#fbbf24;
+  --red:#fb7185;
+  --purple:#a78bfa;
+  --shadow:0 18px 60px rgba(0,0,0,.45);
 }
 
 *{
@@ -29,21 +38,25 @@
   -webkit-tap-highlight-color:transparent;
 }
 
-html,body{
+html,
+body{
   margin:0;
-  padding:0;
   width:100%;
-  height:100%;
+  min-height:100%;
   background:var(--bg);
   color:var(--text);
   font-family:
     -apple-system,
     BlinkMacSystemFont,
+    "SF Pro Display",
     "PingFang TC",
     "Noto Sans TC",
-    "Microsoft JhengHei",
+    Arial,
     sans-serif;
-  overflow:hidden;
+}
+
+body{
+  overflow-x:hidden;
 }
 
 button,
@@ -57,451 +70,578 @@ button{
 }
 
 .app{
-  width:100%;
-  height:100%;
-  display:flex;
-  flex-direction:column;
-  overflow:hidden;
+  min-height:100vh;
+  padding:
+    max(12px, env(safe-area-inset-top))
+    max(12px, env(safe-area-inset-right))
+    max(20px, env(safe-area-inset-bottom))
+    max(12px, env(safe-area-inset-left));
 }
 
-/* =========================================================
-   HEADER
-========================================================= */
+/* ============================================================
+   TOP BAR
+============================================================ */
 
-.header{
-  height:62px;
-  min-height:62px;
+.topbar{
+  height:58px;
   display:flex;
   align-items:center;
   justify-content:space-between;
-  padding:0 14px;
-  border-bottom:1px solid var(--line);
-  background:rgba(5,9,18,.94);
+  gap:10px;
+  position:sticky;
+  top:0;
+  z-index:30;
+  background:rgba(5,9,20,.92);
   backdrop-filter:blur(18px);
-  z-index:20;
+  border-bottom:1px solid var(--border);
 }
 
-.header-left{
+.brand{
   display:flex;
   align-items:center;
   gap:10px;
-}
-
-.logo{
-  width:36px;
-  height:36px;
-  border-radius:11px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:
-    radial-gradient(circle at 30% 25%,#66efff,transparent 35%),
-    linear-gradient(135deg,#0c3b63,#10182a);
-  border:1px solid rgba(37,217,255,.35);
-  box-shadow:0 0 20px rgba(37,217,255,.16);
-  font-weight:900;
-  font-size:14px;
-}
-
-.title-wrap{
-  display:flex;
-  flex-direction:column;
-  line-height:1.1;
-}
-
-.title{
-  font-size:15px;
-  font-weight:800;
-}
-
-.subtitle{
-  font-size:10px;
-  color:var(--muted);
-  margin-top:4px;
-}
-
-.status{
-  display:flex;
-  align-items:center;
-  gap:6px;
-  font-size:10px;
-  color:var(--green);
-}
-
-.status-dot{
-  width:7px;
-  height:7px;
-  border-radius:50%;
-  background:var(--green);
-  box-shadow:0 0 9px var(--green);
-}
-
-.header-actions{
-  display:flex;
-  gap:6px;
-}
-
-.icon-btn{
-  width:36px;
-  height:36px;
-  border:1px solid var(--line);
-  border-radius:10px;
-  background:rgba(255,255,255,.035);
-  color:#fff;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-/* =========================================================
-   MAIN
-========================================================= */
-
-.main{
-  flex:1;
-  min-height:0;
-  display:flex;
-  flex-direction:column;
-  overflow:hidden;
-}
-
-/* =========================================================
-   AGENT GRID
-========================================================= */
-
-.agent-grid{
-  flex:1;
-  min-height:0;
-  display:grid;
-  grid-template-columns:repeat(5,minmax(0,1fr));
-  gap:8px;
-  padding:10px;
-  overflow:hidden;
-}
-
-.agent-card{
-  position:relative;
   min-width:0;
-  min-height:0;
-  border:1px solid var(--line);
-  border-radius:16px;
-  overflow:hidden;
-  background:
-    linear-gradient(180deg,
-      rgba(255,255,255,.035),
-      rgba(255,255,255,.012));
-  transition:
-    border-color .25s ease,
-    box-shadow .25s ease,
-    transform .25s ease;
 }
 
-.agent-card.speaking{
-  border-color:rgba(37,217,255,.75);
+.brand-mark{
+  width:34px;
+  height:34px;
+  border-radius:10px;
+  display:grid;
+  place-items:center;
+  background:
+    radial-gradient(circle at 35% 25%, #61e8ff, #2368ff 45%, #09142d 75%);
   box-shadow:
-    0 0 0 1px rgba(37,217,255,.15),
-    0 0 28px rgba(37,217,255,.18);
-  transform:translateY(-1px);
+    0 0 25px rgba(49,215,255,.35);
+  font-size:16px;
 }
 
-.agent-card.thinking{
-  border-color:rgba(168,121,255,.6);
-  box-shadow:0 0 25px rgba(168,121,255,.12);
+.brand-text{
+  min-width:0;
 }
 
-.agent-card.approved{
-  border-color:rgba(49,233,129,.55);
-}
-
-.agent-visual{
-  height:42%;
-  min-height:120px;
-  position:relative;
-  overflow:hidden;
-  background:
-    radial-gradient(circle at 50% 35%,
-      rgba(37,217,255,.13),
-      transparent 48%),
-    linear-gradient(180deg,#0b1525,#07101c);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-.avatar{
-  width:74px;
-  height:74px;
-  border-radius:50%;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:29px;
+.brand-title{
+  font-size:14px;
   font-weight:800;
-  color:#fff;
-  border:1px solid rgba(255,255,255,.18);
-  box-shadow:
-    inset 0 0 20px rgba(255,255,255,.05),
-    0 0 25px rgba(0,0,0,.3);
+  letter-spacing:.08em;
 }
 
-.agent-card:nth-child(1) .avatar{
-  background:linear-gradient(145deg,#21364d,#0d1624);
-}
-
-.agent-card:nth-child(2) .avatar{
-  background:linear-gradient(145deg,#193e56,#0c1824);
-}
-
-.agent-card:nth-child(3) .avatar{
-  background:linear-gradient(145deg,#402d4d,#141020);
-}
-
-.agent-card:nth-child(4) .avatar{
-  background:linear-gradient(145deg,#253b35,#0d1714);
-}
-
-.agent-card:nth-child(5) .avatar{
-  background:linear-gradient(145deg,#44332b,#17100c);
-}
-
-.speaking-ring{
-  position:absolute;
-  width:92px;
-  height:92px;
-  border-radius:50%;
-  border:1px solid rgba(37,217,255,.0);
-}
-
-.speaking .speaking-ring{
-  border-color:rgba(37,217,255,.65);
-  animation:pulse 1.3s infinite;
-}
-
-@keyframes pulse{
-  0%{
-    transform:scale(.92);
-    opacity:.9;
-  }
-  70%{
-    transform:scale(1.16);
-    opacity:.1;
-  }
-  100%{
-    transform:scale(.92);
-    opacity:.9;
-  }
-}
-
-.agent-status{
-  position:absolute;
-  top:8px;
-  left:8px;
-  padding:4px 7px;
-  border-radius:7px;
-  font-size:9px;
-  background:rgba(0,0,0,.45);
-  border:1px solid rgba(255,255,255,.08);
-  backdrop-filter:blur(8px);
-}
-
-.agent-status.speak{
-  color:var(--cyan);
-}
-
-.agent-status.think{
-  color:var(--purple);
-}
-
-.agent-status.idle{
+.brand-sub{
   color:var(--muted);
-}
-
-.voice-tag{
-  position:absolute;
-  top:8px;
-  right:8px;
-  font-size:8px;
-  color:rgba(255,255,255,.55);
-  background:rgba(0,0,0,.4);
-  padding:4px 6px;
-  border-radius:6px;
-}
-
-.agent-info{
-  padding:8px 9px 6px;
-}
-
-.agent-name{
-  font-size:13px;
-  font-weight:800;
-}
-
-.agent-role{
-  font-size:9px;
-  color:var(--cyan);
+  font-size:10px;
   margin-top:2px;
 }
 
-.agent-message{
-  flex:1;
-  min-height:0;
-  margin:0 8px 8px;
-  padding:8px;
-  border-radius:9px;
-  background:rgba(0,0,0,.20);
-  border:1px solid rgba(255,255,255,.05);
-  overflow:auto;
-  font-size:10px;
-  line-height:1.55;
-  color:#d9e2ee;
+.top-actions{
+  display:flex;
+  gap:7px;
 }
 
-/* =========================================================
-   MEETING STATUS
-========================================================= */
+.icon-btn{
+  width:38px;
+  height:38px;
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.045);
+  color:white;
+  border-radius:11px;
+  display:grid;
+  place-items:center;
+  font-size:17px;
+}
 
-.round-bar{
-  height:34px;
-  min-height:34px;
-  padding:0 12px;
+.icon-btn:active{
+  transform:scale(.96);
+}
+
+/* ============================================================
+   STATUS
+============================================================ */
+
+.statusbar{
   display:flex;
   align-items:center;
   justify-content:space-between;
-  border-top:1px solid var(--line);
-  border-bottom:1px solid var(--line);
-  background:rgba(8,14,25,.96);
+  padding:12px 2px;
+  gap:10px;
 }
 
-.round-left{
+.status-left{
   display:flex;
   align-items:center;
   gap:8px;
+  min-width:0;
 }
 
-.round-label{
-  font-size:10px;
-  color:var(--muted);
+.live-dot{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 14px var(--green);
 }
 
-.round-value{
+.status-text{
+  font-size:12px;
+  color:#cbd5e1;
+}
+
+.round-info{
   font-size:11px;
-  font-weight:800;
-  color:var(--cyan);
-}
-
-.meeting-state{
-  font-size:10px;
   color:var(--muted);
+  white-space:nowrap;
 }
 
-/* =========================================================
+/* ============================================================
    OWNER PANEL
-========================================================= */
+============================================================ */
 
 .owner-panel{
-  min-height:128px;
-  padding:9px 10px 10px;
-  border-top:1px solid var(--line);
   background:
-    linear-gradient(180deg,
-      rgba(12,19,32,.98),
-      rgba(5,9,18,.98));
+    linear-gradient(
+      135deg,
+      rgba(28,61,110,.28),
+      rgba(8,15,29,.9)
+    );
+  border:1px solid rgba(77,163,255,.22);
+  border-radius:18px;
+  padding:13px;
+  box-shadow:var(--shadow);
+}
+
+.owner-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:9px;
 }
 
 .owner-label{
   display:flex;
   align-items:center;
-  justify-content:space-between;
-  margin-bottom:7px;
-}
-
-.owner-title{
-  font-size:11px;
+  gap:8px;
+  font-size:12px;
   font-weight:800;
 }
 
-.owner-hint{
-  color:var(--muted);
+.owner-badge{
   font-size:9px;
+  padding:3px 7px;
+  border-radius:999px;
+  background:rgba(77,163,255,.13);
+  color:#8cc9ff;
+  border:1px solid rgba(77,163,255,.2);
 }
 
-.input-row{
+.owner-input-row{
   display:flex;
-  gap:7px;
+  align-items:flex-end;
+  gap:8px;
 }
 
 #ownerInput{
   flex:1;
-  min-width:0;
-  height:54px;
-  max-height:90px;
+  min-height:48px;
+  max-height:110px;
   resize:none;
-  padding:10px;
-  border:1px solid var(--line);
-  border-radius:11px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:13px;
   outline:none;
-  background:rgba(255,255,255,.045);
-  color:#fff;
+  color:white;
+  background:rgba(0,0,0,.25);
   line-height:1.45;
-  font-size:13px;
 }
 
 #ownerInput:focus{
-  border-color:rgba(37,217,255,.55);
-  box-shadow:0 0 0 2px rgba(37,217,255,.06);
+  border-color:rgba(77,163,255,.6);
+  box-shadow:0 0 0 3px rgba(77,163,255,.08);
 }
 
 .send-btn{
-  width:54px;
-  height:54px;
+  width:48px;
+  height:48px;
   border:0;
-  border-radius:11px;
-  background:linear-gradient(135deg,#17c9ee,#4c72ff);
-  color:#fff;
-  font-size:20px;
+  border-radius:14px;
+  background:linear-gradient(135deg,#2388ff,#5b5df6);
+  color:white;
+  font-size:18px;
+  box-shadow:0 10px 30px rgba(35,136,255,.22);
 }
 
-.owner-controls{
+.owner-tools{
   display:flex;
-  gap:6px;
-  margin-top:7px;
+  gap:7px;
+  margin-top:8px;
   overflow-x:auto;
+  scrollbar-width:none;
+}
+
+.owner-tools::-webkit-scrollbar{
+  display:none;
+}
+
+.tool-btn{
+  flex:0 0 auto;
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.035);
+  color:#d7deea;
+  border-radius:10px;
+  padding:8px 11px;
+  font-size:11px;
+}
+
+.tool-btn.active{
+  border-color:rgba(49,215,255,.45);
+  color:#7eeaff;
+  background:rgba(49,215,255,.08);
+}
+
+/* ============================================================
+   WAR ROOM
+============================================================ */
+
+.room{
+  margin-top:12px;
+}
+
+.room-title{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:10px;
+}
+
+.room-title strong{
+  font-size:14px;
+}
+
+.room-title span{
+  font-size:10px;
+  color:var(--muted);
+}
+
+/*
+  未來數位人／真人影像只需要放入 .agent-avatar 的 img
+  不改動 Agent 卡片與 War Room 核心架構。
+*/
+
+.agent-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:9px;
+}
+
+.agent-card{
+  min-height:190px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,.055),
+      rgba(255,255,255,.018)
+    );
+  border:1px solid var(--border);
+  border-radius:17px;
+  padding:10px;
+  position:relative;
+  overflow:hidden;
+  transition:
+    transform .25s ease,
+    border-color .25s ease,
+    box-shadow .25s ease;
+}
+
+.agent-card.active{
+  border-color:rgba(49,215,255,.48);
+  box-shadow:
+    0 0 0 1px rgba(49,215,255,.06),
+    0 0 35px rgba(49,215,255,.10);
+  transform:translateY(-1px);
+}
+
+.agent-card.speaking{
+  border-color:rgba(52,211,153,.65);
+  box-shadow:
+    0 0 0 1px rgba(52,211,153,.08),
+    0 0 40px rgba(52,211,153,.13);
+}
+
+.agent-card.thinking{
+  border-color:rgba(167,139,250,.5);
+}
+
+.agent-top{
+  display:flex;
+  align-items:center;
+  gap:9px;
+}
+
+.agent-avatar{
+  width:48px;
+  height:48px;
+  flex:0 0 48px;
+  border-radius:14px;
+  display:grid;
+  place-items:center;
+  font-size:24px;
+  background:
+    radial-gradient(
+      circle at 35% 25%,
+      rgba(255,255,255,.22),
+      rgba(255,255,255,.04)
+    );
+  border:1px solid rgba(255,255,255,.10);
+  overflow:hidden;
+  position:relative;
+}
+
+.agent-avatar img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+
+.agent-info{
+  min-width:0;
+}
+
+.agent-name{
+  font-size:12px;
+  font-weight:800;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.agent-role{
+  font-size:9px;
+  color:var(--muted);
+  margin-top:3px;
+}
+
+.agent-status{
+  margin-left:auto;
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:#64748b;
+}
+
+.agent-status.listening{
+  background:#64748b;
+}
+
+.agent-status.thinking{
+  background:var(--purple);
+  box-shadow:0 0 12px var(--purple);
+  animation:pulse 1s infinite;
+}
+
+.agent-status.speaking{
+  background:var(--green);
+  box-shadow:0 0 13px var(--green);
+  animation:pulse .65s infinite;
+}
+
+.agent-status.done{
+  background:var(--blue);
+}
+
+@keyframes pulse{
+  0%,100%{
+    transform:scale(.8);
+    opacity:.55;
+  }
+  50%{
+    transform:scale(1.25);
+    opacity:1;
+  }
+}
+
+.agent-position{
+  margin-top:9px;
+  padding:7px 9px;
+  border-radius:9px;
+  background:rgba(255,255,255,.035);
+  color:#b9c6d9;
+  font-size:9px;
+  line-height:1.4;
+}
+
+.agent-speech{
+  margin-top:8px;
+  min-height:62px;
+  max-height:95px;
+  overflow:auto;
+  color:#e7edf7;
+  font-size:11px;
+  line-height:1.55;
+}
+
+.agent-speech::-webkit-scrollbar{
+  width:2px;
+}
+
+.agent-speech::-webkit-scrollbar-thumb{
+  background:#334155;
+}
+
+.agent-footer{
+  position:absolute;
+  bottom:9px;
+  left:10px;
+  right:10px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+
+.agent-round{
+  font-size:8px;
+  color:#64748b;
+}
+
+.agent-thinking{
+  font-size:8px;
+  color:#9aa8bd;
+}
+
+@media(min-width:850px){
+  .agent-grid{
+    grid-template-columns:repeat(5,minmax(0,1fr));
+  }
+
+  .agent-card{
+    min-height:230px;
+  }
+}
+
+/* ============================================================
+   TRANSCRIPT
+============================================================ */
+
+.transcript{
+  margin-top:12px;
+  background:rgba(8,14,27,.85);
+  border:1px solid var(--border);
+  border-radius:16px;
+  overflow:hidden;
+}
+
+.transcript-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:11px 13px;
+  border-bottom:1px solid var(--border);
+}
+
+.transcript-title{
+  font-size:12px;
+  font-weight:800;
+}
+
+.transcript-body{
+  max-height:270px;
+  overflow:auto;
+  padding:10px;
+}
+
+.transcript-empty{
+  text-align:center;
+  padding:25px 10px;
+  color:var(--muted);
+  font-size:11px;
+}
+
+.message{
+  display:flex;
+  gap:8px;
+  margin-bottom:10px;
+}
+
+.message.owner{
+  flex-direction:row-reverse;
+}
+
+.message-avatar{
+  width:28px;
+  height:28px;
+  flex:0 0 28px;
+  border-radius:9px;
+  display:grid;
+  place-items:center;
+  background:rgba(255,255,255,.06);
+  font-size:13px;
+}
+
+.message-box{
+  max-width:82%;
+  padding:8px 10px;
+  border-radius:11px;
+  background:rgba(255,255,255,.045);
+  border:1px solid rgba(255,255,255,.06);
+}
+
+.message.owner .message-box{
+  background:rgba(77,163,255,.12);
+  border-color:rgba(77,163,255,.18);
+}
+
+.message-name{
+  font-size:9px;
+  color:#8fa1b8;
+  margin-bottom:3px;
+}
+
+.message-content{
+  font-size:11px;
+  line-height:1.5;
+}
+
+/* ============================================================
+   CONTROL ROW
+============================================================ */
+
+.control-row{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:7px;
+  margin-top:12px;
 }
 
 .control-btn{
-  flex:0 0 auto;
-  height:34px;
-  padding:0 11px;
-  border:1px solid var(--line);
-  border-radius:9px;
-  background:rgba(255,255,255,.035);
-  color:#dce6f4;
-  font-size:10px;
+  min-height:43px;
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.04);
+  color:#e5e7eb;
+  border-radius:12px;
+  font-size:11px;
+  font-weight:700;
+}
+
+.control-btn:active{
+  transform:scale(.97);
 }
 
 .control-btn.primary{
-  border-color:rgba(37,217,255,.35);
-  color:var(--cyan);
+  background:linear-gradient(135deg,#2563eb,#4f46e5);
+  border-color:transparent;
 }
 
-.control-btn.warning{
-  border-color:rgba(255,209,102,.30);
-  color:var(--yellow);
+.control-btn.approve{
+  background:linear-gradient(135deg,#059669,#10b981);
+  border-color:transparent;
 }
 
 .control-btn.danger{
-  border-color:rgba(255,82,104,.3);
-  color:var(--red);
+  color:#fecaca;
+  border-color:rgba(251,113,133,.25);
+  background:rgba(251,113,133,.06);
 }
 
-.control-btn.success{
-  border-color:rgba(49,233,129,.3);
-  color:var(--green);
-}
-
-/* =========================================================
-   OVERLAY
-========================================================= */
+/* ============================================================
+   OVERLAYS
+============================================================ */
 
 .overlay{
   position:fixed;
@@ -510,9 +650,9 @@ button{
   display:none;
   align-items:center;
   justify-content:center;
-  padding:18px;
+  padding:20px;
   background:rgba(0,0,0,.72);
-  backdrop-filter:blur(10px);
+  backdrop-filter:blur(14px);
 }
 
 .overlay.visible{
@@ -520,13 +660,13 @@ button{
 }
 
 .dialog{
-  width:min(470px,100%);
-  max-height:90vh;
+  width:min(520px,100%);
+  max-height:85vh;
   overflow:auto;
-  border:1px solid var(--line);
-  border-radius:18px;
   background:#0b1220;
-  box-shadow:0 25px 80px rgba(0,0,0,.5);
+  border:1px solid var(--border);
+  border-radius:20px;
+  box-shadow:0 30px 100px rgba(0,0,0,.65);
   padding:18px;
 }
 
@@ -536,7 +676,7 @@ button{
 }
 
 .dialog p{
-  color:var(--muted);
+  color:#9aa8bd;
   font-size:12px;
   line-height:1.6;
 }
@@ -549,135 +689,52 @@ button{
 
 .dialog-actions button{
   flex:1;
-  height:42px;
-  border:1px solid var(--line);
-  border-radius:10px;
+  min-height:44px;
+  border-radius:12px;
+  border:1px solid var(--border);
   background:rgba(255,255,255,.05);
-  color:#fff;
+  color:white;
 }
 
 .dialog-actions .confirm{
-  background:linear-gradient(135deg,#17c9ee,#4c72ff);
+  background:linear-gradient(135deg,#059669,#10b981);
   border:0;
 }
 
-/* =========================================================
-   TRANSCRIPT
-========================================================= */
-
-.transcript{
-  position:fixed;
-  right:0;
-  top:0;
-  width:min(420px,94vw);
-  height:100%;
-  z-index:80;
-  transform:translateX(100%);
-  transition:transform .25s ease;
-  background:#080f1b;
-  border-left:1px solid var(--line);
-  box-shadow:-20px 0 60px rgba(0,0,0,.4);
-  display:flex;
-  flex-direction:column;
-}
-
-.transcript.open{
-  transform:translateX(0);
-}
-
-.transcript-head{
-  height:58px;
-  min-height:58px;
-  padding:0 13px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  border-bottom:1px solid var(--line);
-}
-
-.transcript-head strong{
-  font-size:14px;
-}
-
-.transcript-body{
-  flex:1;
-  overflow:auto;
-  padding:12px;
-}
-
-.transcript-message{
-  margin-bottom:10px;
-  padding:9px;
-  border-radius:10px;
-  background:rgba(255,255,255,.04);
-  border:1px solid rgba(255,255,255,.05);
-}
-
-.transcript-message.owner{
-  border-color:rgba(37,217,255,.25);
-}
-
-.transcript-meta{
-  display:flex;
-  justify-content:space-between;
-  font-size:9px;
-  color:var(--muted);
-  margin-bottom:5px;
-}
-
-.transcript-content{
-  font-size:11px;
-  line-height:1.55;
-  white-space:pre-wrap;
-}
-
-/* =========================================================
-   HISTORY
-========================================================= */
-
-.history-list{
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-}
-
 .history-item{
-  padding:11px;
-  border:1px solid var(--line);
-  border-radius:11px;
+  padding:13px;
+  margin-bottom:8px;
+  border:1px solid var(--border);
+  border-radius:13px;
   background:rgba(255,255,255,.035);
 }
 
-.history-item .history-title{
+.history-item .title{
   font-size:12px;
-  font-weight:800;
+  font-weight:700;
 }
 
-.history-item .history-meta{
+.history-item .meta{
   margin-top:5px;
   font-size:9px;
   color:var(--muted);
 }
 
-/* =========================================================
-   TOAST
-========================================================= */
-
 .toast{
   position:fixed;
   left:50%;
-  bottom:150px;
+  bottom:calc(25px + env(safe-area-inset-bottom));
   transform:translateX(-50%) translateY(20px);
-  z-index:200;
+  z-index:300;
   opacity:0;
   pointer-events:none;
-  transition:.25s ease;
-  padding:9px 13px;
-  border-radius:10px;
-  background:#111b2c;
-  border:1px solid var(--line);
-  color:#fff;
+  padding:10px 15px;
+  border-radius:999px;
+  background:rgba(15,23,42,.95);
+  border:1px solid rgba(255,255,255,.12);
+  color:white;
   font-size:11px;
+  transition:.25s ease;
 }
 
 .toast.show{
@@ -685,79 +742,106 @@ button{
   transform:translateX(-50%) translateY(0);
 }
 
-/* =========================================================
-   MOBILE
-========================================================= */
+/* ============================================================
+   VOICE
+============================================================ */
 
-@media(max-width:800px){
+.voice-indicator{
+  position:fixed;
+  top:72px;
+  right:12px;
+  z-index:80;
+  display:none;
+  align-items:center;
+  gap:7px;
+  padding:7px 10px;
+  border-radius:999px;
+  background:rgba(5,9,20,.9);
+  border:1px solid rgba(52,211,153,.3);
+  color:#86efac;
+  font-size:9px;
+}
 
-  .header{
-    height:56px;
-    min-height:56px;
+.voice-indicator.visible{
+  display:flex;
+}
+
+.voice-bars{
+  display:flex;
+  align-items:flex-end;
+  gap:2px;
+  height:13px;
+}
+
+.voice-bars span{
+  width:2px;
+  background:#34d399;
+  animation:voiceBar .55s infinite alternate;
+}
+
+.voice-bars span:nth-child(2){
+  animation-delay:.12s;
+}
+
+.voice-bars span:nth-child(3){
+  animation-delay:.25s;
+}
+
+@keyframes voiceBar{
+  from{height:3px}
+  to{height:13px}
+}
+
+/* ============================================================
+   STARTUP
+============================================================ */
+
+.startup{
+  text-align:center;
+}
+
+.startup-logo{
+  width:65px;
+  height:65px;
+  margin:0 auto 16px;
+  border-radius:20px;
+  display:grid;
+  place-items:center;
+  font-size:29px;
+  background:
+    radial-gradient(circle at 35% 25%,#62eaff,#275eff 48%,#08122c);
+  box-shadow:0 0 50px rgba(49,215,255,.28);
+}
+
+.startup h2{
+  margin-bottom:7px;
+}
+
+.startup p{
+  margin:0;
+}
+
+/* ============================================================
+   RESPONSIVE
+============================================================ */
+
+@media(max-width:430px){
+  .agent-card{
+    min-height:184px;
   }
 
-  .agent-grid{
-    grid-template-columns:repeat(2,minmax(0,1fr));
-    grid-template-rows:repeat(3,minmax(0,1fr));
-    gap:6px;
-    padding:7px;
-  }
-
-  .agent-card:nth-child(5){
-    grid-column:1 / span 2;
-  }
-
-  .agent-visual{
-    height:40%;
-    min-height:80px;
-  }
-
-  .avatar{
-    width:54px;
-    height:54px;
-    font-size:22px;
-  }
-
-  .speaking-ring{
-    width:68px;
-    height:68px;
-  }
-
-  .agent-info{
-    padding:5px 7px 4px;
+  .agent-avatar{
+    width:44px;
+    height:44px;
+    flex-basis:44px;
   }
 
   .agent-name{
     font-size:11px;
   }
 
-  .agent-role{
-    font-size:8px;
-  }
-
-  .agent-message{
-    font-size:9px;
-    margin:0 6px 6px;
-    padding:6px;
-  }
-
-  .owner-panel{
-    min-height:128px;
-  }
-}
-
-@media(max-height:700px){
-
-  .agent-visual{
-    min-height:65px;
-  }
-
-  .agent-message{
-    font-size:8px;
-  }
-
-  .owner-panel{
-    min-height:116px;
+  .agent-speech{
+    font-size:10px;
   }
 }
 </style>
@@ -767,52 +851,51 @@ button{
 
 <div class="app">
 
-  <!-- ======================================================
-       HEADER
-  ======================================================= -->
+  <!-- ========================================================
+       TOP BAR
+  ========================================================= -->
 
-  <header class="header">
+  <header class="topbar">
 
-    <div class="header-left">
-
-      <div class="logo">AI</div>
-
-      <div class="title-wrap">
-        <div class="title">AIVAULT WAR ROOM</div>
-
-        <div class="subtitle">
-          Multi-Agent Governance Meeting
-        </div>
-      </div>
-
-      <div class="status">
-        <span class="status-dot"></span>
-        ONLINE
-      </div>
-
-    </div>
-
-    <div class="header-actions">
-
-      <button
-        id="btnLang"
-        class="icon-btn"
-        title="切換語言">
-        中
-      </button>
-
-      <button
-        id="btnHistory"
-        class="icon-btn"
-        title="歷史會議">
-        📜
-      </button>
+    <div class="brand">
 
       <button
         id="btnBackHome"
         class="icon-btn"
-        title="返回首頁">
+        aria-label="返回首頁">
         ←
+      </button>
+
+      <div class="brand-mark">
+        AI
+      </div>
+
+      <div class="brand-text">
+        <div class="brand-title">
+          AIVAULT WAR ROOM
+        </div>
+
+        <div class="brand-sub">
+          AI MULTI-AGENT GOVERNANCE
+        </div>
+      </div>
+
+    </div>
+
+    <div class="top-actions">
+
+      <button
+        id="btnLang"
+        class="icon-btn"
+        title="語言">
+        中
+      </button>
+
+      <button
+        id="btnViewHistory"
+        class="icon-btn"
+        title="歷史紀錄">
+        ◷
       </button>
 
     </div>
@@ -820,388 +903,255 @@ button{
   </header>
 
 
-  <!-- ======================================================
-       MAIN
-  ======================================================= -->
+  <!-- ========================================================
+       STATUS
+  ========================================================= -->
 
-  <main class="main">
+  <section class="statusbar">
 
-    <!-- FIVE AGENTS -->
+    <div class="status-left">
 
-    <section
-      id="agentGrid"
-      class="agent-grid">
+      <span
+        id="liveDot"
+        class="live-dot">
+      </span>
 
-      <!-- AGENT 01 CHIEF 男聲① -->
+      <span
+        id="statusText"
+        class="status-text">
+        等待 Owner 提出問題
+      </span>
 
-      <article
-        class="agent-card"
-        id="agentCard-chief">
+    </div>
 
-        <div class="agent-visual">
+    <div
+      id="roundInfo"
+      class="round-info">
+      Round 0 / 6
+    </div>
 
-          <div
-            id="status-chief"
-            class="agent-status idle">
-            等待
-          </div>
+  </section>
 
-          <div class="voice-tag">
-            男聲①
-          </div>
 
-          <div class="speaking-ring"></div>
+  <!-- ========================================================
+       OWNER
+  ========================================================= -->
 
-          <div class="avatar">
-            C
-          </div>
+  <section class="owner-panel">
 
-        </div>
+    <div class="owner-head">
 
-        <div class="agent-info">
+      <div class="owner-label">
+        <span>👤</span>
+        <span>OWNER</span>
 
-          <div class="agent-name">
-            CHIEF
-          </div>
-
-          <div class="agent-role">
-            首席決策 Agent
-          </div>
-
-        </div>
-
-        <div
-          id="message-chief"
-          class="agent-message">
-          等待 Owner 提出問題……
-        </div>
-
-      </article>
-
-
-      <!-- AGENT 02 STRATEGY 男聲② -->
-
-      <article
-        class="agent-card"
-        id="agentCard-strategy">
-
-        <div class="agent-visual">
-
-          <div
-            id="status-strategy"
-            class="agent-status idle">
-            等待
-          </div>
-
-          <div class="voice-tag">
-            男聲②
-          </div>
-
-          <div class="speaking-ring"></div>
-
-          <div class="avatar">
-            S
-          </div>
-
-        </div>
-
-        <div class="agent-info">
-
-          <div class="agent-name">
-            STRATEGY
-          </div>
-
-          <div class="agent-role">
-            策略分析 Agent
-          </div>
-
-        </div>
-
-        <div
-          id="message-strategy"
-          class="agent-message">
-          等待前一位 Agent 發言……
-        </div>
-
-      </article>
-
-
-      <!-- AGENT 03 RISK 男聲③ -->
-
-      <article
-        class="agent-card"
-        id="agentCard-risk">
-
-        <div class="agent-visual">
-
-          <div
-            id="status-risk"
-            class="agent-status idle">
-            等待
-          </div>
-
-          <div class="voice-tag">
-            男聲③
-          </div>
-
-          <div class="speaking-ring"></div>
-
-          <div class="avatar">
-            R
-          </div>
-
-        </div>
-
-        <div class="agent-info">
-
-          <div class="agent-name">
-            RISK
-          </div>
-
-          <div class="agent-role">
-            風險辯論 Agent
-          </div>
-
-        </div>
-
-        <div
-          id="message-risk"
-          class="agent-message">
-          等待前面 Agent 的觀點……
-        </div>
-
-      </article>
-
-
-      <!-- AGENT 04 RESEARCH 女聲① -->
-
-      <article
-        class="agent-card"
-        id="agentCard-research">
-
-        <div class="agent-visual">
-
-          <div
-            id="status-research"
-            class="agent-status idle">
-            等待
-          </div>
-
-          <div class="voice-tag">
-            女聲①
-          </div>
-
-          <div class="speaking-ring"></div>
-
-          <div class="avatar">
-            R
-          </div>
-
-        </div>
-
-        <div class="agent-info">
-
-          <div class="agent-name">
-            RESEARCH
-          </div>
-
-          <div class="agent-role">
-            研究分析 Agent
-          </div>
-
-        </div>
-
-        <div
-          id="message-research"
-          class="agent-message">
-          等待研究與辯論……
-        </div>
-
-      </article>
-
-
-      <!-- AGENT 05 AUDIT 女聲② -->
-
-      <article
-        class="agent-card"
-        id="agentCard-audit">
-
-        <div class="agent-visual">
-
-          <div
-            id="status-audit"
-            class="agent-status idle">
-            等待
-          </div>
-
-          <div class="voice-tag">
-            女聲②
-          </div>
-
-          <div class="speaking-ring"></div>
-
-          <div class="avatar">
-            A
-          </div>
-
-        </div>
-
-        <div class="agent-info">
-
-          <div class="agent-name">
-            AUDIT
-          </div>
-
-          <div class="agent-role">
-            最終審查 Agent
-          </div>
-
-        </div>
-
-        <div
-          id="message-audit"
-          class="agent-message">
-          等待全部 Agent 完成分析……
-        </div>
-
-      </article>
-
-    </section>
-
-
-    <!-- ROUND -->
-
-    <div class="round-bar">
-
-      <div class="round-left">
-
-        <span class="round-label">
-          MEETING
+        <span class="owner-badge">
+          COMMANDER
         </span>
-
-        <span
-          id="roundValue"
-          class="round-value">
-          Round 0
-        </span>
-
       </div>
 
-      <div
-        id="meetingState"
-        class="meeting-state">
-        等待 Owner
-      </div>
+      <span
+        id="meetingIdLabel"
+        style="font-size:9px;color:var(--muted);">
+        尚未建立會議
+      </span>
 
     </div>
 
 
-    <!-- OWNER -->
+    <div class="owner-input-row">
 
-    <section class="owner-panel">
+      <textarea
+        id="ownerInput"
+        rows="1"
+        placeholder="輸入問題，讓 5 個 AI 開始討論……"></textarea>
 
-      <div class="owner-label">
+      <button
+        id="btnSend"
+        class="send-btn">
+        ➤
+      </button>
 
-        <div class="owner-title">
-          OWNER
-        </div>
+    </div>
 
-        <div class="owner-hint">
-          輸入問題後開始 AI 辯論
-        </div>
+
+    <div class="owner-tools">
+
+      <button
+        id="btnMic"
+        class="tool-btn">
+        🎙️ 語音
+      </button>
+
+      <button
+        id="btnHideKeyboard"
+        class="tool-btn">
+        ⌨️ 收起鍵盤
+      </button>
+
+      <button
+        id="btnTranscript"
+        class="tool-btn">
+        📜 討論紀錄
+      </button>
+
+      <button
+        id="btnHistory"
+        class="tool-btn">
+        🗂️ 歷史
+      </button>
+
+    </div>
+
+  </section>
+
+
+  <!-- ========================================================
+       WAR ROOM
+  ========================================================= -->
+
+  <main>
+
+    <section class="room">
+
+      <div class="room-title">
+
+        <strong>
+          五人 AI 決策會議
+        </strong>
+
+        <span>
+          INDEPENDENT AGENTS
+        </span>
 
       </div>
 
-      <div class="input-row">
 
-        <textarea
-          id="ownerInput"
-          placeholder="輸入你的問題、需求或決策指令……"
-          rows="1"></textarea>
-
-        <button
-          id="btnSend"
-          class="send-btn">
-          ➤
-        </button>
-
-      </div>
-
-      <div class="owner-controls">
-
-        <button
-          id="btnMic"
-          class="control-btn primary">
-          🎙️ 語音
-        </button>
-
-        <button
-          id="btnNextRound"
-          class="control-btn primary">
-          ▶ 下一輪
-        </button>
-
-        <button
-          id="btnPause"
-          class="control-btn warning">
-          ⏸ 暫停
-        </button>
-
-        <button
-          id="btnTranscript"
-          class="control-btn">
-          💬 紀錄
-        </button>
-
-        <button
-          id="btnViewHistory"
-          class="control-btn">
-          📜 歷史
-        </button>
-
-        <button
-          id="btnApprove"
-          class="control-btn success">
-          ✓ 批准
-        </button>
-
-        <button
-          id="btnStop"
-          class="control-btn danger">
-          ⛔ 結束
-        </button>
+      <div
+        id="agentGrid"
+        class="agent-grid">
 
       </div>
 
     </section>
+
+
+    <!-- ======================================================
+         TRANSCRIPT
+    ======================================================= -->
+
+    <section
+      id="transcript"
+      class="transcript">
+
+      <div class="transcript-head">
+
+        <div class="transcript-title">
+          即時討論紀錄
+        </div>
+
+        <button
+          id="btnCloseTranscript"
+          class="tool-btn">
+          關閉
+        </button>
+
+      </div>
+
+      <div
+        id="transcriptBody"
+        class="transcript-body">
+
+        <div class="transcript-empty">
+          尚無討論紀錄
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ======================================================
+         CONTROLS
+    ======================================================= -->
+
+    <div
+      id="controlRow"
+      class="control-row">
+
+      <button
+        id="btnPause"
+        class="control-btn">
+        暫停
+      </button>
+
+      <button
+        id="btnNextRound"
+        class="control-btn primary">
+        下一輪
+      </button>
+
+      <button
+        id="btnApprove"
+        class="control-btn approve">
+        批准
+      </button>
+
+      <button
+        id="btnStop"
+        class="control-btn danger">
+        結束
+      </button>
+
+    </div>
 
   </main>
 
 </div>
 
 
-<!-- ========================================================
+<!-- ==========================================================
+     VOICE INDICATOR
+=========================================================== -->
+
+<div
+  id="voiceIndicator"
+  class="voice-indicator">
+
+  <div class="voice-bars">
+    <span></span>
+    <span></span>
+    <span></span>
+  </div>
+
+  <span id="voiceAgentName">
+    AI 正在說話
+  </span>
+
+</div>
+
+
+<!-- ==========================================================
      START OVERLAY
-========================================================= -->
+=========================================================== -->
 
 <div
   id="overlayStart"
-  class="overlay">
+  class="overlay visible">
 
-  <div class="dialog">
+  <div class="dialog startup">
+
+    <div class="startup-logo">
+      AI
+    </div>
 
     <h2>
-      AIVAULT War Room
+      AIVAULT WAR ROOM
     </h2>
 
     <p>
-      五個獨立 AI Agent 將針對 Owner 的問題進行分析、
-      支持、反駁、風險檢查與最終審查。
-    </p>
-
-    <p>
-      五個 Agent 使用不同角色與不同國語聲音（3男2女）。
-      未來可直接將 Agent 視窗替換為 AI 數位人。
+      五個獨立 AI 將針對 Owner 的問題<br>
+      分別提出自己的觀點、質疑、風險與建議。
     </p>
 
     <div class="dialog-actions">
@@ -1219,9 +1169,9 @@ button{
 </div>
 
 
-<!-- ========================================================
-     APPROVAL
-========================================================= -->
+<!-- ==========================================================
+     APPROVE
+=========================================================== -->
 
 <div
   id="overlayDecision"
@@ -1230,11 +1180,11 @@ button{
   <div class="dialog">
 
     <h2>
-      Owner 最終批准
+      批准最終決策
     </h2>
 
     <p>
-      確定要批准目前五個 Agent 綜合後的最終決策嗎？
+      Owner 即將批准目前五個 AI 綜合討論後的決策。
       批准後會議將進入 completed 狀態。
     </p>
 
@@ -1242,7 +1192,7 @@ button{
 
       <button
         id="btnReject">
-        返回
+        返回會議
       </button>
 
       <button
@@ -1258,9 +1208,9 @@ button{
 </div>
 
 
-<!-- ========================================================
+<!-- ==========================================================
      HISTORY
-========================================================= -->
+=========================================================== -->
 
 <div
   id="overlayHistory"
@@ -1269,12 +1219,10 @@ button{
   <div class="dialog">
 
     <h2>
-      歷史會議
+      會議歷史
     </h2>
 
-    <div
-      id="historyList"
-      class="history-list">
+    <div id="historyList">
     </div>
 
     <div class="dialog-actions">
@@ -1291,40 +1239,6 @@ button{
 </div>
 
 
-<!-- ========================================================
-     TRANSCRIPT
-========================================================= -->
-
-<aside
-  id="transcript"
-  class="transcript">
-
-  <div class="transcript-head">
-
-    <strong>
-      會議紀錄
-    </strong>
-
-    <button
-      id="btnCloseTranscript"
-      class="icon-btn">
-      ×
-    </button>
-
-  </div>
-
-  <div
-    id="transcriptBody"
-    class="transcript-body">
-  </div>
-
-</aside>
-
-
-<!-- ========================================================
-     TOAST
-========================================================= -->
-
 <div
   id="toast"
   class="toast">
@@ -1333,1302 +1247,3069 @@ button{
 
 <script>
 
-/* =========================================================
+/* ============================================================
    AIVAULT WAR ROOM
-   Version: 2.1
-   3男2女 國語發音修正版
-========================================================= */
+   ------------------------------------------------------------
+   核心原則：
+
+   1. Owner 是唯一會議主持人
+   2. 五個 Agent 各自擁有獨立人格與決策角色
+   3. 每一輪 Agent 都會參考前一位 Agent 的公開觀點
+   4. Agent 不共享同一段固定台詞
+   5. 語音由 Agent 自己的 voice profile 控制
+   6. 未來可把 avatar emoji 換成真人／數位人影像
+   7. 會議紀錄可儲存到 localStorage
+   8. 保留 Supabase 擴充接口
+============================================================ */
 
 
-/* =========================================================
-   CONFIG
-========================================================= */
+/* ============================================================
+   SUPABASE CONFIG
+   ------------------------------------------------------------
+   如果之後要接你現在的 Supabase：
 
-const CONFIG = {
+   SUPABASE_URL
+   SUPABASE_ANON_KEY
 
-  AI_GATEWAY_URL:
-    '',
+   這裡可以直接填。
 
-  SUPABASE_URL:
-    '',
+   War Room 不依賴 Supabase 才能運作。
+   沒填時仍會用 localStorage 保存會議。
+============================================================ */
 
-  SUPABASE_ANON_KEY:
-    '',
-
-  LANGUAGE:
-    'zh-TW',
-
-  DEFAULT_ROUND:
-    1,
-
-  MAX_ROUNDS:
-    6,
-
-  SPEECH_ENABLED:
-    true
-
-};
+const SUPABASE_URL = "";
+const SUPABASE_ANON_KEY = "";
 
 
-/* =========================================================
-   HELPERS
-========================================================= */
+/* ============================================================
+   UTIL
+============================================================ */
 
-const $ = selector =>
-  document.querySelector(selector);
+const $ = id => document.getElementById(id);
 
-const sleep = ms =>
-  new Promise(resolve => setTimeout(resolve, ms));
+function uid(prefix="wr"){
+  return prefix + "_" +
+    Date.now().toString(36) +
+    "_" +
+    Math.random().toString(36).slice(2,8);
+}
 
+function nowText(){
+  const d = new Date();
 
-/* =========================================================
-   STATE
-========================================================= */
+  const pad = n =>
+    String(n).padStart(2,"0");
 
-const state = {
+  return (
+    d.getFullYear() + "/" +
+    pad(d.getMonth()+1) + "/" +
+    pad(d.getDate()) + " " +
+    pad(d.getHours()) + ":" +
+    pad(d.getMinutes()) + ":" +
+    pad(d.getSeconds())
+  );
+}
 
-  status:
-    'idle',
+function escapeHTML(value){
 
-  meetingId:
-    null,
+  return String(value ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
 
-  round:
-    0,
-
-  currentAgent:
-    null,
-
-  ownerQuestion:
-    '',
-
-  transcript:
-    [],
-
-  roundHistory:
-    [],
-
-  agents: {},
-
-  speechUnlocked:
-    false,
-
-  voicesReady:
-    false,
-
-  recognition:
-    null,
-
-  recognizing:
-    false,
-
-  uiLang:
-    'zh',
-
-  paused:
-    false
-
-};
+}
 
 
-/* =========================================================
+/* ============================================================
    FIVE INDEPENDENT AGENTS
-========================================================= */
+============================================================ */
 
 const AGENTS = [
 
   {
-    id: 'chief',
-    name: 'CHIEF',
-    gender: 'male',
-    voiceProfile: 'male-1',
-    role: '首席決策 Agent',
-    description: '負責建立問題框架、提出初始判斷與決策方向。',
-    systemPrompt: `
-你是 AIVAULT CHIEF。
+    id:"strategist",
+    name:"ALEX",
+    role:"戰略總監",
+    gender:"male",
+    avatar:"🧑🏻‍💼",
 
-你的任務不是附和其他 AI。
+    color:"#4da3ff",
 
-你必須：
-1. 獨立分析 Owner 的問題。
-2. 建立問題框架。
-3. 提出你的明確立場。
-4. 說明支持理由。
-5. 指出可能的決策方向。
-6. 如果後面的 Agent 不同意，你必須能回應。
+    position:
+      "負責長期戰略、商業方向與整體可行性。",
 
-你的發言必須像真正參與會議的人，
-而不是客服，也不是主持人。
-    `.trim()
+    voiceProfile:{
+      gender:"male",
+      pitch:.82,
+      rate:.92,
+      preferred:[
+        "Microsoft Yunyang",
+        "Yunyang",
+        "Microsoft Yunxi",
+        "Yunxi",
+        "Daniel"
+      ]
+    },
+
+    style:[
+      "從長期戰略判斷",
+      "重視可擴充性",
+      "關注資源配置",
+      "反對短視的快速決策"
+    ]
   },
 
+
   {
-    id: 'strategy',
-    name: 'STRATEGY',
-    gender: 'male',
-    voiceProfile: 'male-2',
-    role: '策略分析 Agent',
-    description: '負責挑戰 CHIEF 的方案並提出替代策略。',
-    systemPrompt: `
-你是 AIVAULT STRATEGY。
+    id:"engineer",
+    name:"MARK",
+    role:"技術架構師",
+    gender:"male",
+    avatar:"👨🏻‍💻",
 
-你必須閱讀 Owner 問題與 CHIEF 的發言。
+    color:"#31d7ff",
 
-你不能直接重複 CHIEF。
+    position:
+      "負責技術架構、系統穩定性、API、資料庫與實作風險。",
 
-你必須：
-1. 判斷 CHIEF 是否合理。
-2. 找出 CHIEF 忽略的地方。
-3. 必要時直接反駁。
-4. 提出至少一個替代方案。
-5. 說明你的方案為什麼更好。
+    voiceProfile:{
+      gender:"male",
+      pitch:.70,
+      rate:.98,
+      preferred:[
+        "Microsoft Yunxi",
+        "Yunxi",
+        "Microsoft Yunyang",
+        "Yunyang",
+        "Alex"
+      ]
+    },
 
-你的發言要具有獨立立場。
-    `.trim()
+    style:[
+      "先確認技術可行性",
+      "尋找架構漏洞",
+      "重視穩定性",
+      "要求可以實際部署"
+    ]
   },
 
+
   {
-    id: 'risk',
-    name: 'RISK',
-    gender: 'male',
-    voiceProfile: 'male-3',
-    role: '風險辯論 Agent',
-    description: '負責攻擊方案、找漏洞與潛在風險。',
-    systemPrompt: `
-你是 AIVAULT RISK。
+    id:"critic",
+    name:"DAVID",
+    role:"風險審查官",
+    gender:"male",
+    avatar:"👨🏻‍⚖️",
 
-你不是來附和任何人的。
+    color:"#fbbf24",
 
-你必須閱讀目前所有發言，
-並從反方角度挑戰方案。
+    position:
+      "負責法律、資安、治理、風險與最壞情境分析。",
 
-你要特別注意：
-- 技術風險
-- 法律風險
-- 資安風險
-- 商業風險
-- 執行風險
-- AI 幻覺與錯誤
+    voiceProfile:{
+      gender:"male",
+      pitch:.62,
+      rate:.88,
+      preferred:[
+        "Microsoft Yunyang",
+        "Yunyang",
+        "Microsoft Yunxi",
+        "Yunxi",
+        "Thomas"
+      ]
+    },
 
-如果你認為其他 Agent 錯了，
-直接指出錯在哪裡。
-
-你的任務是讓整個方案經得起攻擊。
-    `.trim()
+    style:[
+      "主動挑戰前一位 Agent",
+      "尋找風險",
+      "要求證據",
+      "避免不可逆決策"
+    ]
   },
 
+
   {
-    id: 'research',
-    name: 'RESEARCH',
-    gender: 'female',
-    voiceProfile: 'female-1',
-    role: '研究分析 Agent',
-    description: '負責比較不同觀點、補充證據與研究角度。',
-    systemPrompt: `
-你是 AIVAULT RESEARCH。
+    id:"product",
+    name:"MAYA",
+    role:"產品與使用者總監",
+    gender:"female",
+    avatar:"👩🏻‍💼",
 
-你必須閱讀 Owner 與前三位 Agent 的內容。
+    color:"#a78bfa",
 
-你不能只是摘要。
+    position:
+      "負責使用者體驗、產品價值、流程與商業落地。",
 
-你必須：
-1. 比較不同立場。
-2. 找出哪些論點有道理。
-3. 找出哪些論點缺乏依據。
-4. 提出你自己的判斷。
-5. 如果必要，反駁前三位 Agent。
-6. 提出可驗證或研究的方向。
+    voiceProfile:{
+      gender:"female",
+      pitch:1.04,
+      rate:.96,
+      preferred:[
+        "Microsoft HsiaoChen",
+        "HsiaoChen",
+        "Microsoft HsiaoYu",
+        "HsiaoYu",
+        "Samantha"
+      ]
+    },
 
-你的任務是提高決策品質。
-    `.trim()
+    style:[
+      "站在使用者角度",
+      "重視產品是否真正有價值",
+      "挑戰過度工程化",
+      "關注操作體驗"
+    ]
   },
 
+
   {
-    id: 'audit',
-    name: 'AUDIT',
-    gender: 'female',
-    voiceProfile: 'female-2',
-    role: '最終審查 Agent',
-    description: '負責整合五方觀點並找出目前最可靠的方案。',
-    systemPrompt: `
-你是 AIVAULT AUDIT。
+    id:"researcher",
+    name:"LUNA",
+    role:"研究與證據官",
+    gender:"female",
+    avatar:"👩🏻‍🔬",
 
-你必須閱讀：
-Owner 問題，
-CHIEF，
-STRATEGY，
-RISK，
-RESEARCH。
+    color:"#34d399",
 
-你不是主持人。
+    position:
+      "負責資料、研究、證據品質與方案比較。",
 
-你必須提出自己的審查結論。
+    voiceProfile:{
+      gender:"female",
+      pitch:1.12,
+      rate:1.02,
+      preferred:[
+        "Microsoft HsiaoYu",
+        "HsiaoYu",
+        "Microsoft HsiaoChen",
+        "HsiaoChen",
+        "Karen"
+      ]
+    },
 
-你要：
-1. 判斷誰的論點最有說服力。
-2. 指出仍然存在的問題。
-3. 指出不能接受的風險。
-4. 提出最終建議。
-5. 如果前面 Agent 全部錯了，也必須直接說。
-
-最後提供：
-「目前建議」
-「主要理由」
-「尚未解決風險」
-    `.trim()
+    style:[
+      "要求資料支持",
+      "比較不同方案",
+      "指出未知資訊",
+      "避免憑印象下結論"
+    ]
   }
 
 ];
 
 
-/* =========================================================
-   INITIAL AGENT STATE
-========================================================= */
+/* ============================================================
+   STATE
+============================================================ */
 
-AGENTS.forEach(agent => {
-  state.agents[agent.id] = {
-    status: 'listening',
-    lastMessage: '',
-    speaking: false,
-    voice: null
-  };
+const state = {
+
+  meetingId:null,
+
+  status:"idle",
+
+  round:0,
+
+  maxRounds:6,
+
+  topic:"",
+
+  transcript:[],
+
+  currentSpeaker:null,
+
+  speakingQueue:[],
+
+  currentIndex:-1,
+
+  agentStates:{},
+
+  agentLastStatements:{},
+
+  decision:null,
+
+  startedAt:null,
+
+  updatedAt:null
+
+};
+
+AGENTS.forEach(agent=>{
+  state.agentStates[agent.id] = "listening";
+  state.agentLastStatements[agent.id] = "";
 });
 
 
-/* =========================================================
-   VOICE ENGINE  (3男2女 國語)
-========================================================= */
+/* ============================================================
+   UI LANGUAGE
+============================================================ */
+
+let uiLang = "zh";
+
+function setUiLang(lang){
+
+  uiLang =
+    lang === "en"
+      ? "en"
+      : "zh";
+
+  $("btnLang").textContent =
+    uiLang === "zh"
+      ? "中"
+      : "EN";
+
+  updateRecognitionLanguage();
+
+}
+
+function applyLangBtn(){
+
+  $("btnLang").textContent = "中";
+
+}
+
+
+/* ============================================================
+   TOAST
+============================================================ */
+
+let toastTimer = null;
+
+function toast(message){
+
+  const el = $("toast");
+
+  el.textContent = message;
+
+  el.classList.add("show");
+
+  clearTimeout(toastTimer);
+
+  toastTimer =
+    setTimeout(()=>{
+      el.classList.remove("show");
+    },2200);
+}
+
+
+/* ============================================================
+   AGENT RENDER
+============================================================ */
+
+function renderAgents(){
+
+  const grid = $("agentGrid");
+
+  grid.innerHTML =
+    AGENTS.map(agent=>{
+
+      const status =
+        state.agentStates[agent.id] || "listening";
+
+      const statement =
+        state.agentLastStatements[agent.id] ||
+        "等待 Owner 提出問題。";
+
+      return `
+
+        <article
+          class="agent-card ${status}"
+          id="agent-card-${agent.id}">
+
+          <div class="agent-top">
+
+            <div
+              class="agent-avatar"
+              id="avatar-${agent.id}">
+
+              ${agent.avatar}
+
+            </div>
+
+            <div class="agent-info">
+
+              <div class="agent-name">
+                ${escapeHTML(agent.name)}
+              </div>
+
+              <div class="agent-role">
+                ${escapeHTML(agent.role)}
+              </div>
+
+            </div>
+
+            <div
+              class="agent-status ${status}"
+              id="agent-status-${agent.id}">
+            </div>
+
+          </div>
+
+
+          <div class="agent-position">
+            ${escapeHTML(agent.position)}
+          </div>
+
+
+          <div
+            class="agent-speech"
+            id="agent-speech-${agent.id}">
+
+            ${escapeHTML(statement)}
+
+          </div>
+
+
+          <div class="agent-footer">
+
+            <span
+              class="agent-round"
+              id="agent-round-${agent.id}">
+              Round ${state.round}
+            </span>
+
+            <span
+              class="agent-thinking"
+              id="agent-thinking-${agent.id}">
+              ${status === "thinking" ? "分析中…" : ""}
+            </span>
+
+          </div>
+
+        </article>
+
+      `;
+
+    }).join("");
+
+}
+
+
+/* ============================================================
+   AGENT STATUS
+============================================================ */
+
+function setAgentStatus(agentId,status){
+
+  state.agentStates[agentId] = status;
+
+  const card =
+    $("agent-card-" + agentId);
+
+  const dot =
+    $("agent-status-" + agentId);
+
+  const thinking =
+    $("agent-thinking-" + agentId);
+
+  if(card){
+
+    card.classList.remove(
+      "active",
+      "speaking",
+      "thinking"
+    );
+
+    if(status === "speaking"){
+      card.classList.add(
+        "active",
+        "speaking"
+      );
+    }
+
+    if(status === "thinking"){
+      card.classList.add(
+        "active",
+        "thinking"
+      );
+    }
+  }
+
+  if(dot){
+
+    dot.className =
+      "agent-status " + status;
+
+  }
+
+  if(thinking){
+
+    thinking.textContent =
+      status === "thinking"
+        ? "分析中…"
+        : status === "speaking"
+        ? "發言中…"
+        : "";
+
+  }
+
+}
+
+
+/* ============================================================
+   AGENT STATEMENT
+============================================================ */
+
+function setAgentStatement(agentId,text){
+
+  state.agentLastStatements[agentId] = text;
+
+  const el =
+    $("agent-speech-" + agentId);
+
+  if(el){
+
+    el.textContent = text;
+
+    el.scrollTop = el.scrollHeight;
+
+  }
+
+}
+
+
+/* ============================================================
+   TRANSCRIPT
+============================================================ */
+
+function addTranscriptMessage({
+  role,
+  content,
+  isOwner=false,
+  agentId=null
+}){
+
+  const item = {
+
+    id:uid("msg"),
+
+    role,
+
+    content,
+
+    isOwner,
+
+    agentId,
+
+    time:nowText(),
+
+    round:state.round
+
+  };
+
+  state.transcript.push(item);
+
+  renderTranscript();
+
+  saveMeeting();
+
+  return item;
+
+}
+
+
+function renderTranscript(){
+
+  const body =
+    $("transcriptBody");
+
+  if(!state.transcript.length){
+
+    body.innerHTML = `
+      <div class="transcript-empty">
+        尚無討論紀錄
+      </div>
+    `;
+
+    return;
+
+  }
+
+  body.innerHTML =
+    state.transcript.map(item=>{
+
+      let avatar = "🤖";
+
+      if(item.isOwner){
+
+        avatar = "👤";
+
+      }else{
+
+        const agent =
+          AGENTS.find(
+            a=>a.id === item.agentId
+          );
+
+        if(agent){
+          avatar = agent.avatar;
+        }
+
+      }
+
+      return `
+
+        <div class="message ${item.isOwner ? "owner" : ""}">
+
+          <div class="message-avatar">
+            ${avatar}
+          </div>
+
+          <div class="message-box">
+
+            <div class="message-name">
+              ${escapeHTML(item.role)}
+              · Round ${item.round}
+            </div>
+
+            <div class="message-content">
+              ${escapeHTML(item.content)}
+            </div>
+
+          </div>
+
+        </div>
+
+      `;
+
+    }).join("");
+
+  body.scrollTop = body.scrollHeight;
+
+}
+
+
+/* ============================================================
+   VOICE ENGINE
+   ------------------------------------------------------------
+   重點：
+
+   iOS Safari / 部分瀏覽器第一次使用 speechSynthesis 時，
+   voice list 尚未完成，因此不能等到第五輪才處理。
+
+   這裡：
+   1. 頁面載入時預先取得 voices
+   2. 開始會議的使用者點擊事件立即 unlock
+   3. 第一個 Agent 發言前再次確保 voices ready
+   4. 每個 Agent 都有自己的 voice profile
+============================================================ */
 
 let availableVoices = [];
 
-const VOICE_PROFILES = {
-  'male-1': {
-    gender: 'male',
-    preferred: ['Mei-Jia', 'zh-TW', 'Chinese Taiwan', 'Ting-Ting'],
-    rate: 0.90,
-    pitch: 0.70
-  },
-  'male-2': {
-    gender: 'male',
-    preferred: ['zh-TW', 'Chinese Taiwan'],
-    rate: 0.95,
-    pitch: 0.78
-  },
-  'male-3': {
-    gender: 'male',
-    preferred: ['zh-TW', 'Chinese'],
-    rate: 0.88,
-    pitch: 0.62
-  },
-  'female-1': {
-    gender: 'female',
-    preferred: ['Mei-Jia', 'Ting-Ting', 'zh-TW'],
-    rate: 1.02,
-    pitch: 1.18
-  },
-  'female-2': {
-    gender: 'female',
-    preferred: ['zh-TW', 'Chinese'],
-    rate: 0.98,
-    pitch: 1.25
-  }
-};
+let audioUnlocked = false;
 
-function loadVoices() {
-  if (!('speechSynthesis' in window)) return;
-  availableVoices = window.speechSynthesis.getVoices().filter(Boolean);
-  state.voicesReady = availableVoices.length > 0;
+let currentUtterance = null;
+
+function loadVoices(){
+
+  availableVoices =
+    window.speechSynthesis
+      ? window.speechSynthesis.getVoices()
+      : [];
+
+  return availableVoices;
+
 }
 
-if ('speechSynthesis' in window) {
-  loadVoices();
-  window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
-}
+if("speechSynthesis" in window){
 
-
-/* =========================================================
-   FIND VOICE  (依性別盡量分開)
-========================================================= */
-
-function findVoice(agent) {
-  const profile = VOICE_PROFILES[agent.voiceProfile];
-  if (!profile) return null;
-
-  const isMale = profile.gender === 'male';
-
-  const used = new Set(
-    AGENTS
-      .filter(a => a.id !== agent.id && state.agents[a.id]?.voice)
-      .map(a => state.agents[a.id].voice?.name)
-      .filter(Boolean)
-  );
-
-  const zhVoices = availableVoices.filter(v => {
-    const lang = String(v.lang || '').toLowerCase();
-    return lang.startsWith('zh');
-  });
-
-  const genderMatched = zhVoices.filter(v => {
-    const name = (v.name || '').toLowerCase();
-    if (isMale) {
-      return name.includes('male') || name.includes('男') || !name.includes('female');
-    } else {
-      return name.includes('female') || name.includes('女') || name.includes('mei') || name.includes('ting');
-    }
-  });
-
-  let candidate = (genderMatched.length ? genderMatched : zhVoices)
-    .find(v => !used.has(v.name));
-
-  if (!candidate) {
-    candidate = zhVoices.find(v => !used.has(v.name)) || zhVoices[0] || null;
-  }
-
-  return candidate;
-}
-
-
-/* =========================================================
-   INITIALIZE FIVE VOICES
-========================================================= */
-
-function initializeAgentVoices() {
   loadVoices();
 
-  AGENTS.forEach(a => {
-    state.agents[a.id].voice = null;
-  });
-
-  AGENTS.forEach(agent => {
-    state.agents[agent.id].voice = findVoice(agent);
-  });
-}
-
-
-/* =========================================================
-   AUDIO UNLOCK
-========================================================= */
-
-let audioContext = null;
-
-function unlockAudio() {
-  try {
-    if (!audioContext) {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (AC) audioContext = new AC();
-    }
-    if (audioContext && audioContext.state === 'suspended') {
-      audioContext.resume();
-    }
-  } catch (e) {
-    console.warn('Audio unlock failed', e);
-  }
-
-  try {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
+  speechSynthesis.onvoiceschanged =
+    ()=>{
       loadVoices();
-      initializeAgentVoices();
-      state.speechUnlocked = true;
-    }
-  } catch (e) {
-    console.warn('Speech unlock failed', e);
-  }
+    };
+
 }
 
 
-/* =========================================================
-   SPEAK
-========================================================= */
+/* ------------------------------------------------------------
+   找最適合的中文聲音
+------------------------------------------------------------ */
 
-function speakAgent(agent, text) {
-  return new Promise(resolve => {
-    if (!CONFIG.SPEECH_ENABLED || !('speechSynthesis' in window) || !text) {
+function findVoice(agent){
+
+  const voices =
+    availableVoices.length
+      ? availableVoices
+      : loadVoices();
+
+  if(!voices.length){
+    return null;
+  }
+
+
+  const preferred =
+    agent.voiceProfile.preferred || [];
+
+
+  /* 第一優先：指定名稱 */
+
+  for(const wanted of preferred){
+
+    const found =
+      voices.find(v =>
+        v.name
+          .toLowerCase()
+          .includes(wanted.toLowerCase())
+      );
+
+    if(found){
+      return found;
+    }
+
+  }
+
+
+  /* 第二優先：中文 */
+
+  const zhVoices =
+    voices.filter(v =>
+      /^zh/i.test(v.lang) ||
+      /chinese|中文|mandarin|普通話/i.test(v.name)
+    );
+
+
+  /*
+    第三優先：
+    依 Agent 固定索引分配。
+
+    即使系統只有少量中文 voice，
+    五個 Agent 仍然不會全部拿同一個設定。
+  */
+
+  if(zhVoices.length){
+
+    const index =
+      AGENTS.indexOf(agent) %
+      zhVoices.length;
+
+    return zhVoices[index];
+
+  }
+
+
+  /* 最後才使用系統預設 */
+
+  return voices[0] || null;
+
+}
+
+
+/* ------------------------------------------------------------
+   Audio unlock
+------------------------------------------------------------ */
+
+function unlockAudio(){
+
+  if(audioUnlocked){
+    return;
+  }
+
+  audioUnlocked = true;
+
+  loadVoices();
+
+  /*
+    不播放空白音。
+    iOS 對空白 utterance 有時不視為真正的語音解鎖。
+
+    這裡只建立 speech engine 狀態，
+    真正第一個 Agent 發言仍然會在使用者開始會議後播放。
+  */
+
+  try{
+    speechSynthesis.resume();
+  }catch(e){}
+
+}
+
+
+/* ------------------------------------------------------------
+   語音播放
+------------------------------------------------------------ */
+
+function speakAgent(agent,text){
+
+  return new Promise(resolve=>{
+
+    if(
+      !("speechSynthesis" in window) ||
+      !text ||
+      state.status === "paused"
+    ){
       resolve();
       return;
     }
 
-    if (!state.agents[agent.id].voice) {
-      initializeAgentVoices();
+
+    unlockAudio();
+
+    loadVoices();
+
+
+    /*
+      確保上一個 Agent 已停止，
+      不讓五個聲音重疊。
+    */
+
+    try{
+      speechSynthesis.cancel();
+    }catch(e){}
+
+
+    const utterance =
+      new SpeechSynthesisUtterance(text);
+
+
+    const voice =
+      findVoice(agent);
+
+
+    if(voice){
+
+      utterance.voice = voice;
+
     }
 
-    const profile = VOICE_PROFILES[agent.voiceProfile];
 
-    const utterance = new SpeechSynthesisUtterance(text);
+    /*
+      國語優先
+    */
 
-    utterance.lang = 'zh-TW';
-    utterance.voice = state.agents[agent.id].voice;
-    utterance.rate = profile?.rate || 1;
-    utterance.pitch = profile?.pitch || 1;
+    utterance.lang =
+      voice && /^zh/i.test(voice.lang)
+        ? voice.lang
+        : "zh-TW";
+
+
+    /*
+      每個 Agent 有自己的音高與速度。
+      如果系統真的提供男女聲，
+      優先使用對應 voice；
+      如果系統沒有，
+      至少保持五個 Agent 聽起來不同。
+    */
+
+    utterance.pitch =
+      agent.voiceProfile.pitch;
+
+    utterance.rate =
+      agent.voiceProfile.rate;
+
     utterance.volume = 1;
 
-    state.currentAgent = agent.id;
-    state.agents[agent.id].speaking = true;
-    setAgentStatus(agent.id, 'speaking');
 
-    utterance.onend = () => {
-      state.agents[agent.id].speaking = false;
-      setAgentStatus(agent.id, 'listening');
-      state.currentAgent = null;
-      resolve();
-    };
+    currentUtterance =
+      utterance;
 
-    utterance.onerror = error => {
-      console.warn('Speech error', error);
-      state.agents[agent.id].speaking = false;
-      setAgentStatus(agent.id, 'listening');
-      state.currentAgent = null;
-      resolve();
-    };
 
-    window.speechSynthesis.cancel();
+    const indicator =
+      $("voiceIndicator");
 
-    setTimeout(() => {
-      try {
-        window.speechSynthesis.speak(utterance);
-      } catch (e) {
-        console.warn(e);
-        resolve();
+    const agentName =
+      $("voiceAgentName");
+
+
+    if(indicator){
+
+      indicator.classList.add("visible");
+
+    }
+
+    if(agentName){
+
+      agentName.textContent =
+        `${agent.name} · ${agent.role}`;
+
+    }
+
+
+    setAgentStatus(
+      agent.id,
+      "speaking"
+    );
+
+
+    utterance.onend = ()=>{
+
+      setAgentStatus(
+        agent.id,
+        "done"
+      );
+
+      if(indicator){
+
+        indicator.classList.remove("visible");
+
       }
-    }, 80);
+
+      currentUtterance = null;
+
+      resolve();
+
+    };
+
+
+    utterance.onerror = ()=>{
+
+      setAgentStatus(
+        agent.id,
+        "done"
+      );
+
+      if(indicator){
+
+        indicator.classList.remove("visible");
+
+      }
+
+      currentUtterance = null;
+
+      resolve();
+
+    };
+
+
+    try{
+
+      speechSynthesis.speak(
+        utterance
+      );
+
+      /*
+        iOS Safari 某些版本在第一次 speak 後
+        queue 會處於 paused 狀態。
+      */
+
+      setTimeout(()=>{
+        try{
+          speechSynthesis.resume();
+        }catch(e){}
+      },80);
+
+    }catch(e){
+
+      console.warn(
+        "Speech synthesis error:",
+        e
+      );
+
+      resolve();
+
+    }
+
   });
+
 }
 
 
-/* =========================================================
-   UI STATUS
-========================================================= */
+/* ============================================================
+   STOP VOICE
+============================================================ */
 
-function setAgentStatus(agentId, status) {
-  const card = document.getElementById(`agentCard-${agentId}`);
-  const statusEl = document.getElementById(`status-${agentId}`);
+function stopVoice(){
 
-  if (!card || !statusEl) return;
+  try{
 
-  card.classList.remove('speaking', 'thinking', 'approved');
-  statusEl.className = 'agent-status';
+    if("speechSynthesis" in window){
 
-  if (status === 'speaking') {
-    card.classList.add('speaking');
-    statusEl.classList.add('speak');
-    statusEl.textContent = '正在發言';
-  } else if (status === 'thinking') {
-    card.classList.add('thinking');
-    statusEl.classList.add('think');
-    statusEl.textContent = '思考中';
-  } else if (status === 'approved') {
-    card.classList.add('approved');
-    statusEl.textContent = '已完成';
-  } else {
-    statusEl.classList.add('idle');
-    statusEl.textContent = '等待';
+      speechSynthesis.cancel();
+
+      speechSynthesis.resume();
+
+    }
+
+  }catch(e){}
+
+  currentUtterance = null;
+
+  $("voiceIndicator")
+    ?.classList.remove("visible");
+
+}
+
+
+/* ============================================================
+   THINKING MODEL
+   ------------------------------------------------------------
+   重要：
+
+   這裡不是顯示 AI 的私人 chain-of-thought。
+
+   War Room 顯示的是：
+   「公開判斷摘要」
+
+   每個 Agent 都有不同的：
+   - 立場
+   - 關注點
+   - 對前一位的回應方式
+   - 結論
+============================================================ */
+
+
+/* ============================================================
+   內容解析
+============================================================ */
+
+function extractKeywords(topic){
+
+  const clean =
+    topic
+      .replace(/[，。！？、,.!?]/g," ")
+      .trim();
+
+  const words =
+    clean
+      .split(/\s+/)
+      .filter(Boolean);
+
+  return words.slice(0,8);
+
+}
+
+
+/* ============================================================
+   Agent 公開分析生成器
+============================================================ */
+
+function generateAgentResponse(
+  agent,
+  topic,
+  round,
+  previousStatements
+){
+
+  const keywords =
+    extractKeywords(topic);
+
+  const key =
+    keywords.length
+      ? keywords.join("、")
+      : "目前議題";
+
+
+  const previous =
+    previousStatements.length
+      ? previousStatements[
+          previousStatements.length - 1
+        ]
+      : "";
+
+
+  /*
+    每個 Agent 的內容結構完全不同。
+  */
+
+  if(agent.id === "strategist"){
+
+    if(round === 1){
+
+      return `
+我的第一個判斷是，這個問題不能只看眼前功能。
+我會先把「${key}」放進 AIVAULT 的長期產品架構來看。
+如果現在的決策會限制未來 Agent、模組或商業流程，我不建議直接定死。
+目前我的方向是先建立可擴充的核心，再把具體功能模組化。
+`.trim();
+
+    }
+
+    return `
+我重新檢視前面的討論後，仍然認為核心問題是長期可擴充性。
+${previous ? "前一位的觀點有價值，但我認為不能因此犧牲整體架構。" : ""}
+如果要推進，我建議把目前決策分成「現在必做」與「未來可替換」兩層。
+這樣 AIVAULT 才不會因為一次決策而被綁死。
+`.trim();
+
   }
-}
 
 
-/* =========================================================
-   DISPLAY AGENT MESSAGE
-========================================================= */
+  if(agent.id === "engineer"){
 
-function setAgentMessage(agentId, text) {
-  const el = document.getElementById(`message-${agentId}`);
-  if (!el) return;
-  el.textContent = text;
-  el.scrollTop = el.scrollHeight;
-}
+    if(round === 1){
 
+      return `
+我先從技術面拆解。
+目前最需要確認的不是畫面，而是資料流、Agent 狀態、API 邊界與失敗處理。
+「${key}」如果要真正進入系統，必須能被保存、追蹤、重試，而且不能讓前端直接掌握敏感金鑰。
+我的結論是：可以做，但要先把核心服務邊界定清楚。
+`.trim();
 
-/* =========================================================
-   TRANSCRIPT
-========================================================= */
+    }
 
-function addTranscriptMessage({ role, content, isOwner = false, round = state.round }) {
-  const item = {
-    id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
-    role,
-    content,
-    round,
-    timestamp: new Date().toISOString(),
-    isOwner
-  };
+    return `
+我不同意把這件事只當成產品功能。
+前面的討論如果沒有考慮資料一致性與錯誤恢復，實際部署後會出問題。
+我建議保留目前 War Room 介面，但讓每個 Agent 的狀態、訊息與決策都變成獨立資料。
+這樣未來接真正 AI API 時，不需要重寫房間。
+`.trim();
 
-  state.transcript.push(item);
-  renderTranscript();
-}
-
-function renderTranscript() {
-  const body = $('#transcriptBody');
-  if (!body) return;
-
-  body.innerHTML = state.transcript.map(item => `
-    <div class="transcript-message ${item.isOwner ? 'owner' : ''}">
-      <div class="transcript-meta">
-        <span>${escapeHTML(item.role)}</span>
-        <span>Round ${item.round}</span>
-      </div>
-      <div class="transcript-content">
-        ${escapeHTML(item.content)}
-      </div>
-    </div>
-  `).join('');
-
-  body.scrollTop = body.scrollHeight;
-}
+  }
 
 
-/* =========================================================
-   ESCAPE HTML
-========================================================= */
+  if(agent.id === "critic"){
 
-function escapeHTML(value) {
-  return String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
-}
+    if(round === 1){
 
+      return `
+我先反對過快通過。
+目前至少有三個風險需要被確認：權限、資料保存，以及錯誤決策造成的後果。
+尤其是「${key}」，如果沒有明確的批准門檻，AI 的建議可能被誤認成最終決策。
+我的立場是可以繼續研究，但現在不應直接批准。
+`.trim();
 
-/* =========================================================
-   TOAST
-========================================================= */
+    }
 
-let toastTimer = null;
+    return `
+我要挑戰前面的結論。
+如果我們只是因為「可以實作」就認為「可以上線」，這是錯誤的。
+真正需要問的是：出了問題誰能停止、誰能追蹤、誰能回溯。
+因此我要求把審批與 Audit Log 保留在流程核心，而不是事後補。
+`.trim();
 
-function toast(message) {
-  const el = $('#toast');
-  if (!el) return;
-
-  el.textContent = message;
-  el.classList.add('show');
-  clearTimeout(toastTimer);
-
-  toastTimer = setTimeout(() => {
-    el.classList.remove('show');
-  }, 2200);
-}
+  }
 
 
-/* =========================================================
-   MEETING ID
-========================================================= */
+  if(agent.id === "product"){
 
-function createMeetingId() {
-  return (
-    'WR-' +
-    new Date().toISOString().replace(/\D/g, '').slice(0, 14) +
-    '-' +
-    Math.random().toString(36).slice(2, 7).toUpperCase()
-  );
-}
+    if(round === 1){
 
+      return `
+我從使用者角度看，這個方案最大的問題是使用者到底能不能理解。
+如果五個 AI 只是輪流說話，Owner 不會覺得這是一個真正的決策團隊。
+所以我支持把每個 Agent 的角色、立場與不同意見清楚呈現。
+產品價值不是 AI 越多越好，而是 Owner 能看懂誰支持、誰反對、為什麼。
+`.trim();
 
-/* =========================================================
-   UPDATE ROUND UI
-========================================================= */
+    }
 
-function updateRoundUI() {
-  $('#roundValue').textContent = `Round ${state.round}`;
+    return `
+我同意技術與風險需要處理，但我要提醒大家不要把產品做成工程控制台。
+Owner 最後需要的是「我現在應該做什麼」。
+所以每一輪討論之後，應該留下清楚的判斷摘要，而不是大量無法閱讀的內容。
+`.trim();
 
-  const stateText =
-    state.status === 'idle' ? '等待 Owner' :
-    state.status === 'active' ? 'AI 辯論進行中' :
-    state.status === 'paused' ? '已暫停' :
-    state.status === 'completed' ? '會議完成' :
-    state.status;
-
-  $('#meetingState').textContent = stateText;
-}
+  }
 
 
-/* =========================================================
-   BUILD AGENT CONTEXT
-========================================================= */
+  if(agent.id === "researcher"){
 
-function buildAgentContext(agent, currentRound) {
-  const conversation = state.transcript.map(item => {
-    return `[Round ${item.round}] ${item.role}: ${item.content}`;
-  }).join('\n\n');
+    if(round === 1){
+
+      return `
+我目前不會急著支持任何一方。
+因為現階段我們知道的是方案方向，但還缺少足夠證據驗證實際效果。
+我建議把未知事項列出來，再針對關鍵問題做 Research。
+對「${key}」而言，最重要的是區分已確認資訊、假設，以及尚未驗證的部分。
+`.trim();
+
+    }
+
+    return `
+我重新整理目前五方觀點。
+戰略關注長期性，工程關注落地，風險官關注失誤，產品關注使用者，而我關注證據。
+目前最大的缺口不是更多意見，而是哪些結論已經被實際驗證。
+因此下一步應該針對爭議最大的項目取得證據。
+`.trim();
+
+  }
+
 
   return `
-AIVAULT WAR ROOM
+我會從自己的職責重新評估目前議題。
+目前不建議直接下最終決策，應先確認關鍵條件。
+`.trim();
 
-Owner 問題：
-${state.ownerQuestion}
-
-目前 Round：
-${currentRound}
-
-你的身份：
-${agent.name}
-
-你的角色：
-${agent.role}
-
-你的任務：
-${agent.systemPrompt}
-
-以下是目前完整會議內容：
-
-${conversation}
-
-請針對目前會議狀態，
-提出你自己的判斷。
-
-重要：
-- 不要假裝其他 Agent 的意見是自己的。
-- 不要只是摘要。
-- 可以同意。
-- 可以反駁。
-- 可以指出其他 Agent 的錯誤。
-- 必須有自己的觀點。
-- 不要說「作為 AI」。
-- 不要描述你正在執行什麼程式。
-- 用自然的台灣國語口吻。
-- 這是會議發言，不是報告。
-- 回答控制在約 80～180 個中文字。
-  `.trim();
 }
 
 
-/* =========================================================
-   REAL AI GATEWAY
-========================================================= */
+/* ============================================================
+   產生 Agent 對前一位的回應
+============================================================ */
 
-async function callAIGateway(agent, context) {
-  if (!CONFIG.AI_GATEWAY_URL) {
-    return generateLocalAgentResponse(agent);
+function generateDebateResponse(
+  agent,
+  topic,
+  round,
+  previousAgent,
+  previousText
+){
+
+  if(!previousAgent || !previousText){
+
+    return generateAgentResponse(
+      agent,
+      topic,
+      round,
+      []
+    );
+
   }
 
-  try {
-    const response = await fetch(CONFIG.AI_GATEWAY_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        agent_id: agent.id,
-        agent_name: agent.name,
-        role: agent.role,
-        system_prompt: agent.systemPrompt,
-        message: context,
-        meeting_id: state.meetingId,
-        round: state.round,
-        language: 'zh-TW'
-      })
-    });
 
-    if (!response.ok) {
-      throw new Error(`AI Gateway HTTP ${response.status}`);
+  if(agent.id === "critic"){
+
+    return `
+我不同意 ${previousAgent.name} 把目前方案直接視為可接受。
+${previousText.slice(0,90)}
+這段觀點解決了部分問題，但沒有回答風險發生時誰負責。
+我的要求是增加明確的 Governance Gate，再進入下一階段。
+`.trim();
+
+  }
+
+
+  if(agent.id === "engineer"){
+
+    return `
+我補充 ${previousAgent.name} 的觀點，但從實作角度要修正一點。
+${previousText.slice(0,90)}
+如果要落地，這個結論必須轉成清楚的 API、資料結構與狀態流程。
+否則現在的共識仍然只是概念。
+`.trim();
+
+  }
+
+
+  if(agent.id === "product"){
+
+    return `
+我部分同意 ${previousAgent.name}，但我不認為技術或風險本身就是產品答案。
+${previousText.slice(0,90)}
+Owner 最後仍然需要一個簡單、可理解的決策結果。
+所以我支持保留這個方向，但必須降低使用者操作複雜度。
+`.trim();
+
+  }
+
+
+  if(agent.id === "researcher"){
+
+    return `
+我認為 ${previousAgent.name} 的判斷有一個需要驗證的前提。
+${previousText.slice(0,90)}
+目前這個前提還不能當成事實。
+我建議把它列為待驗證事項，避免團隊把假設當成共識。
+`.trim();
+
+  }
+
+
+  if(agent.id === "strategist"){
+
+    return `
+我理解 ${previousAgent.name} 的顧慮，但我會把視角拉回整體。
+${previousText.slice(0,90)}
+如果現在只解決局部問題，未來反而可能增加重構成本。
+因此我支持保留這個方向，但架構必須允許後續替換。
+`.trim();
+
+  }
+
+
+  return generateAgentResponse(
+    agent,
+    topic,
+    round,
+    [previousText]
+  );
+
+}
+
+
+/* ============================================================
+   RUN ONE ROUND
+============================================================ */
+
+async function runNextRound(){
+
+  if(!state.meetingId){
+
+    toast("請先建立會議");
+
+    return;
+
+  }
+
+
+  if(
+    state.status === "paused" ||
+    state.status === "completed"
+  ){
+
+    return;
+
+  }
+
+
+  if(state.round >= state.maxRounds){
+
+    toast("已完成最大討論輪數");
+
+    return;
+
+  }
+
+
+  stopVoice();
+
+
+  state.round++;
+
+  state.status = "active";
+
+  updateRoundUI();
+
+
+  const statementsThisRound = [];
+
+  let previousAgent = null;
+
+  let previousText = "";
+
+
+  for(const agent of AGENTS){
+
+    if(state.status !== "active"){
+
+      break;
+
     }
 
-    const data = await response.json();
-    return data.content || data.text || data.message || '目前 Agent 沒有產生有效回應。';
 
-  } catch (error) {
-    console.error('AI Gateway error', error);
-    toast(`${agent.name} Gateway 失敗，暫時使用本地回應`);
-    return generateLocalAgentResponse(agent);
+    /*
+      Agent 進入思考狀態
+    */
+
+    setAgentStatus(
+      agent.id,
+      "thinking"
+    );
+
+
+    $("statusText").textContent =
+      `${agent.name} 正在分析其他 Agent 的觀點…`;
+
+
+    /*
+      不顯示私人 chain-of-thought。
+      只顯示短暫的公開狀態。
+    */
+
+    await delay(
+      650 + Math.random()*600
+    );
+
+
+    if(state.status !== "active"){
+
+      break;
+
+    }
+
+
+    let response;
+
+
+    if(roundIsFirstForAgent(agent)){
+
+      response =
+        generateAgentResponse(
+          agent,
+          state.topic,
+          state.round,
+          statementsThisRound
+        );
+
+    }else{
+
+      response =
+        generateDebateResponse(
+          agent,
+          state.topic,
+          state.round,
+          previousAgent,
+          previousText
+        );
+
+    }
+
+
+    /*
+      儲存自己的獨立觀點
+    */
+
+    setAgentStatement(
+      agent.id,
+      response
+    );
+
+
+    addTranscriptMessage({
+      role:agent.name,
+      content:response,
+      isOwner:false,
+      agentId:agent.id
+    });
+
+
+    statementsThisRound.push(
+      response
+    );
+
+
+    previousAgent = agent;
+
+    previousText = response;
+
+
+    /*
+      第一輪也會真正播放。
+    */
+
+    await speakAgent(
+      agent,
+      response
+    );
+
+
+    if(state.status !== "active"){
+
+      break;
+
+    }
+
+
+    setAgentStatus(
+      agent.id,
+      "done"
+    );
+
+
+    await delay(300);
+
   }
+
+
+  if(state.status === "active"){
+
+    $("statusText").textContent =
+      `Round ${state.round} 完成，等待 Owner 指示`;
+
+  }
+
+
+  saveMeeting();
+
 }
 
 
-/* =========================================================
-   LOCAL AGENT FALLBACK
-========================================================= */
+/* ============================================================
+   FIRST ROUND CHECK
+============================================================ */
 
-function generateLocalAgentResponse(agent) {
-  const previous = state.transcript.filter(x => !x.isOwner).slice(-5);
+function roundIsFirstForAgent(agent){
 
-  if (agent.id === 'chief') {
-    return '我先建立問題框架。目前最重要的不是立即執行，而是先確認目標、限制條件與最終決策標準。我建議先把核心問題拆開，再決定具體方案，這樣後續 Agent 才有共同基礎。';
-  }
+  const count =
+    state.transcript.filter(
+      x => x.agentId === agent.id
+    ).length;
 
-  if (agent.id === 'strategy') {
-    return previous.length
-      ? '我不同意完全沿用前一個方案。CHIEF 的方向可以成立，但目前缺少替代方案比較。如果我們直接執行，後面可能會被單一路徑綁住。我建議同時保留第二方案，再用成本、速度與可控性比較。'
-      : '我認為應該先建立至少兩個可行方案，再比較成本、速度與可控性。';
-  }
+  return count === 0;
 
-  if (agent.id === 'risk') {
-    return '我目前最大的疑慮是風險沒有被充分量化。前面的方向可以討論，但不能因為方案看起來合理就直接執行。我要求至少確認技術、資安、法律以及實際執行上的失敗情境。';
-  }
-
-  if (agent.id === 'research') {
-    return '我比較前面三個觀點後，認為 CHIEF 的框架、STRATEGY 的替代方案以及 RISK 的風險檢查都需要保留。但目前仍缺少可以驗證的依據。我的建議是把尚未確認的部分列成驗證事項，不要直接當成既定事實。';
-  }
-
-  if (agent.id === 'audit') {
-    return '綜合目前四位 Agent，我不建議現在直接進入不可逆的執行。比較穩健的做法是先確認關鍵風險與驗證事項，再進行有限度測試。目前最合理的決策是保留替代方案，同時建立明確的 Owner 審批點。';
-  }
-
-  return '目前沒有足夠資料形成獨立判斷。';
 }
 
 
-/* =========================================================
-   ONE AGENT SPEAK
-========================================================= */
+/* ============================================================
+   DELAY
+============================================================ */
 
-async function runAgent(agent) {
-  if (state.status !== 'active') return null;
+function delay(ms){
 
-  while (state.status === 'paused') {
-    await sleep(250);
-  }
+  return new Promise(
+    resolve =>
+      setTimeout(resolve,ms)
+  );
 
-  setAgentStatus(agent.id, 'thinking');
-  setAgentMessage(agent.id, '正在閱讀目前會議內容……');
-
-  const context = buildAgentContext(agent, state.round);
-  const response = await callAIGateway(agent, context);
-
-  if (state.status !== 'active') return response;
-
-  state.agents[agent.id].lastMessage = response;
-  setAgentMessage(agent.id, response);
-
-  addTranscriptMessage({
-    role: agent.name,
-    content: response,
-    round: state.round
-  });
-
-  await speakAgent(agent, response);
-  return response;
 }
 
 
-/* =========================================================
+/* ============================================================
    START MEETING
-========================================================= */
+============================================================ */
 
-async function startMeeting(question) {
-  const text = String(question || '').trim();
-  if (!text) return;
+function startMeeting(topic){
+
+  const clean =
+    String(topic || "").trim();
+
+  if(!clean){
+
+    toast("請先輸入問題");
+
+    return;
+
+  }
+
+
+  /*
+    非常重要：
+    startMeeting 是由 Owner 按鈕觸發。
+    這個 click context 會拿來解鎖 speechSynthesis。
+  */
 
   unlockAudio();
-  initializeAgentVoices();
 
-  state.meetingId = createMeetingId();
-  state.status = 'active';
-  state.paused = false;
-  state.round = 1;
-  state.ownerQuestion = text;
-  state.transcript = [];
-  state.roundHistory = [];
+
+  stopVoice();
+
+
+  state.meetingId =
+    uid("meeting");
+
+  state.status =
+    "active";
+
+  state.round =
+    0;
+
+  state.topic =
+    clean;
+
+  state.transcript =
+    [];
+
+  state.currentSpeaker =
+    null;
+
+  state.agentLastStatements =
+    {};
+
+  state.startedAt =
+    nowText();
+
+  state.updatedAt =
+    nowText();
+
+  AGENTS.forEach(agent=>{
+
+    state.agentStates[agent.id] =
+      "listening";
+
+    state.agentLastStatements[agent.id] =
+      "等待本輪議題。";
+
+  });
+
+
+  $("meetingIdLabel").textContent =
+    state.meetingId.slice(-10);
+
+
+  $("overlayStart")
+    .classList.remove("visible");
+
+
+  $("controlRow")
+    .style.display = "grid";
+
+
+  renderAgents();
+
+  renderTranscript();
+
+  updateRoundUI();
+
 
   addTranscriptMessage({
-    role: 'Owner',
-    content: text,
-    isOwner: true,
-    round: 1
+
+    role:"Owner",
+
+    content:clean,
+
+    isOwner:true,
+
+    agentId:null
+
   });
 
-  AGENTS.forEach(agent => {
-    state.agents[agent.id].lastMessage = '';
-    state.agents[agent.id].speaking = false;
-    setAgentStatus(agent.id, 'listening');
-    setAgentMessage(agent.id, '等待輪到我發言……');
+
+  $("statusText").textContent =
+    "五個 Agent 正在準備第一輪分析…";
+
+
+  saveMeeting();
+
+
+  /*
+    第一輪立刻開始。
+  */
+
+  setTimeout(
+    ()=>{
+      runNextRound();
+    },
+    100
+  );
+
+}
+
+
+/* ============================================================
+   PAUSE / RESUME
+============================================================ */
+
+function togglePause(){
+
+  if(state.status === "completed"){
+
+    return;
+
+  }
+
+
+  if(state.status === "paused"){
+
+    state.status =
+      "active";
+
+    $("btnPause").textContent =
+      "暫停";
+
+    $("statusText").textContent =
+      "已恢復，繼續 AI 討論";
+
+    try{
+      speechSynthesis.resume();
+    }catch(e){}
+
+    toast("會議已恢復");
+
+    return;
+
+  }
+
+
+  state.status =
+    "paused";
+
+
+  try{
+    speechSynthesis.pause();
+  }catch(e){}
+
+
+  $("btnPause").textContent =
+    "繼續";
+
+
+  $("statusText").textContent =
+    "會議已暫停";
+
+
+  toast("會議已暫停");
+
+}
+
+
+/* ============================================================
+   COMPLETE
+============================================================ */
+
+function completeMeeting(reason){
+
+  state.status =
+    "completed";
+
+  state.updatedAt =
+    nowText();
+
+  state.decision =
+    reason || "meeting_completed";
+
+
+  stopVoice();
+
+
+  $("controlRow")
+    .style.display = "none";
+
+
+  AGENTS.forEach(agent=>{
+
+    setAgentStatus(
+      agent.id,
+      "listening"
+    );
+
   });
 
-  $('#overlayStart').classList.remove('visible');
-  updateRoundUI();
-  toast('War Room 已開始，AI 正在進行第一輪辯論');
 
-  await runCurrentRound();
+  $("statusText").textContent =
+    "會議已結束";
+
+
+  saveMeeting();
+
 }
 
 
-/* =========================================================
-   RUN CURRENT ROUND
-========================================================= */
-
-async function runCurrentRound() {
-  if (state.status !== 'active') return;
-
-  for (const agent of AGENTS) {
-    if (state.status !== 'active') break;
-
-    while (state.status === 'paused') {
-      await sleep(300);
-    }
-
-    await runAgent(agent);
-    await sleep(250);
-  }
-
-  if (state.status === 'active') {
-    state.roundHistory.push({
-      round: state.round,
-      completedAt: new Date().toISOString(),
-      messages: state.transcript.filter(x => x.round === state.round)
-    });
-
-    updateRoundUI();
-    toast(`Round ${state.round} 完成`);
-  }
-}
-
-
-/* =========================================================
-   NEXT ROUND
-========================================================= */
-
-async function runNextRound() {
-  if (!state.meetingId) {
-    toast('請先提出 Owner 問題');
-    return;
-  }
-
-  if (state.status === 'completed') {
-    toast('會議已完成');
-    return;
-  }
-
-  unlockAudio();
-
-  if (state.status === 'paused') {
-    state.status = 'active';
-    state.paused = false;
-    $('#btnPause').textContent = '⏸ 暫停';
-  }
-
-  state.round += 1;
-
-  if (state.round > CONFIG.MAX_ROUNDS) {
-    state.round = CONFIG.MAX_ROUNDS;
-    toast('已達最大會議輪數');
-    return;
-  }
-
-  updateRoundUI();
-  await runCurrentRound();
-}
-
-
-/* =========================================================
-   OWNER SEND
-========================================================= */
-
-async function sendOwnerMessage() {
-  const input = $('#ownerInput');
-  const text = input.value.trim();
-  if (!text) return;
-
-  unlockAudio();
-  input.value = '';
-  input.style.height = '54px';
-
-  if (state.status === 'idle' || !state.meetingId) {
-    await startMeeting(text);
-    return;
-  }
-
-  addTranscriptMessage({
-    role: 'Owner',
-    content: text,
-    isOwner: true,
-    round: state.round
-  });
-
-  state.ownerQuestion += `\nOwner 補充：${text}`;
-  toast('Owner 意見已加入本輪會議');
-}
-
-
-/* =========================================================
-   PAUSE
-========================================================= */
-
-function togglePause() {
-  if (state.status === 'completed') return;
-
-  if (state.status === 'paused') {
-    state.status = 'active';
-    state.paused = false;
-    $('#btnPause').textContent = '⏸ 暫停';
-    toast('會議已恢復');
-  } else {
-    state.status = 'paused';
-    state.paused = true;
-
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
-
-    AGENTS.forEach(agent => {
-      state.agents[agent.id].speaking = false;
-      setAgentStatus(agent.id, 'listening');
-    });
-
-    $('#btnPause').textContent = '▶ 繼續';
-    toast('會議已暫停');
-  }
-
-  updateRoundUI();
-}
-
-
-/* =========================================================
-   STOP MEETING
-========================================================= */
-
-function stopMeeting() {
-  if (!confirm('確定結束這場會議？')) return;
-
-  state.status = 'completed';
-  state.paused = false;
-
-  if ('speechSynthesis' in window) {
-    window.speechSynthesis.cancel();
-  }
-
-  AGENTS.forEach(agent => {
-    state.agents[agent.id].speaking = false;
-    setAgentStatus(agent.id, 'approved');
-  });
-
-  updateRoundUI();
-  toast('會議已結束，紀錄已保留');
-}
-
-
-/* =========================================================
+/* ============================================================
    APPROVE
-========================================================= */
+============================================================ */
 
-function openApproval() {
-  if (!state.meetingId) {
-    toast('目前沒有進行中的會議');
-    return;
-  }
-  $('#overlayDecision').classList.add('visible');
-}
+function approveMeeting(){
 
-function confirmApproval() {
-  state.status = 'completed';
-  $('#overlayDecision').classList.remove('visible');
+  state.decision =
+    "approved";
 
   addTranscriptMessage({
-    role: 'Owner',
-    content: '✅ Owner 批准最終決策',
-    isOwner: true,
-    round: state.round
+
+    role:"Owner",
+
+    content:"✅ Owner 批准目前最終決策。",
+
+    isOwner:true
+
   });
 
-  if ('speechSynthesis' in window) {
-    window.speechSynthesis.cancel();
-  }
 
-  AGENTS.forEach(agent => {
-    setAgentStatus(agent.id, 'approved');
-  });
+  completeMeeting(
+    "approved"
+  );
 
-  updateRoundUI();
-  toast('最終決策已批准，會議完成');
+
+  toast(
+    "決策已批准，會議完成"
+  );
+
 }
 
 
-/* =========================================================
-   HISTORY
-========================================================= */
+/* ============================================================
+   HISTORY STORAGE
+============================================================ */
 
-function renderHistory() {
-  const list = $('#historyList');
-  const saved = JSON.parse(localStorage.getItem('AIVAULT_WAR_ROOM_HISTORY') || '[]');
+const STORAGE_KEY =
+  "AIVAULT_WAR_ROOM_HISTORY_V2";
 
-  if (!saved.length) {
+
+function getHistory(){
+
+  try{
+
+    return JSON.parse(
+      localStorage.getItem(
+        STORAGE_KEY
+      ) || "[]"
+    );
+
+  }catch(e){
+
+    return [];
+
+  }
+
+}
+
+
+function saveMeeting(){
+
+  if(!state.meetingId){
+
+    return;
+
+  }
+
+
+  state.updatedAt =
+    nowText();
+
+
+  const record = {
+
+    meetingId:
+      state.meetingId,
+
+    topic:
+      state.topic,
+
+    status:
+      state.status,
+
+    round:
+      state.round,
+
+    maxRounds:
+      state.maxRounds,
+
+    decision:
+      state.decision,
+
+    startedAt:
+      state.startedAt,
+
+    updatedAt:
+      state.updatedAt,
+
+    transcript:
+      state.transcript
+
+  };
+
+
+  let history =
+    getHistory();
+
+
+  const index =
+    history.findIndex(
+      item =>
+        item.meetingId ===
+        state.meetingId
+    );
+
+
+  if(index >= 0){
+
+    history[index] =
+      record;
+
+  }else{
+
+    history.unshift(
+      record
+    );
+
+  }
+
+
+  /*
+    最多保留 50 場，
+    避免手機 localStorage 過大。
+  */
+
+  history =
+    history.slice(0,50);
+
+
+  try{
+
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(history)
+    );
+
+  }catch(e){
+
+    console.warn(
+      "localStorage save failed",
+      e
+    );
+
+  }
+
+
+  /*
+    如果設定 Supabase，
+    再非同步同步。
+  */
+
+  syncMeetingToSupabase(
+    record
+  );
+
+}
+
+
+/* ============================================================
+   SUPABASE OPTIONAL SYNC
+============================================================ */
+
+async function syncMeetingToSupabase(record){
+
+  if(
+    !SUPABASE_URL ||
+    !SUPABASE_ANON_KEY
+  ){
+
+    return;
+
+  }
+
+
+  /*
+    預留資料表：
+    war_room_meetings
+
+    建議欄位：
+
+    id
+    topic
+    status
+    round
+    decision
+    started_at
+    updated_at
+    transcript jsonb
+
+    這裡不阻塞 War Room。
+  */
+
+  try{
+
+    await fetch(
+      `${SUPABASE_URL}/rest/v1/war_room_meetings`,
+      {
+        method:"POST",
+
+        headers:{
+          "Content-Type":
+            "application/json",
+
+          "apikey":
+            SUPABASE_ANON_KEY,
+
+          "Authorization":
+            `Bearer ${SUPABASE_ANON_KEY}`,
+
+          "Prefer":
+            "resolution=merge-duplicates"
+        },
+
+        body:JSON.stringify({
+
+          id:
+            record.meetingId,
+
+          topic:
+            record.topic,
+
+          status:
+            record.status,
+
+          round:
+            record.round,
+
+          decision:
+            record.decision,
+
+          started_at:
+            record.startedAt,
+
+          updated_at:
+            record.updatedAt,
+
+          transcript:
+            record.transcript
+
+        })
+
+      }
+    );
+
+  }catch(error){
+
+    console.warn(
+      "Supabase sync unavailable:",
+      error
+    );
+
+  }
+
+}
+
+
+/* ============================================================
+   HISTORY UI
+============================================================ */
+
+function renderHistory(){
+
+  const list =
+    $("historyList");
+
+  const history =
+    getHistory();
+
+
+  if(!history.length){
+
     list.innerHTML = `
-      <div style="color:var(--muted);font-size:11px;padding:20px;text-align:center;">
-        目前還沒有歷史會議
+
+      <div
+        style="
+          color:var(--muted);
+          font-size:12px;
+          text-align:center;
+          padding:25px 10px;
+        ">
+
+        尚無會議紀錄
+
       </div>
+
     `;
+
     return;
+
   }
 
-  list.innerHTML = saved.slice().reverse().map(meeting => `
-    <div class="history-item">
-      <div class="history-title">${escapeHTML(meeting.question)}</div>
-      <div class="history-meta">
-        ${escapeHTML(meeting.meetingId)} · ${meeting.rounds} rounds · ${escapeHTML(meeting.date)}
-      </div>
-    </div>
-  `).join('');
+
+  list.innerHTML =
+    history.map(item=>{
+
+      const agents =
+        AGENTS.length;
+
+
+      return `
+
+        <div
+          class="history-item"
+          data-meeting-id="${escapeHTML(item.meetingId)}">
+
+          <div class="title">
+            ${escapeHTML(item.topic)}
+          </div>
+
+          <div class="meta">
+
+            ${escapeHTML(item.startedAt || "")}
+            · ${agents} Agents
+            · ${item.round || 0} rounds
+            · ${escapeHTML(item.status || "")}
+
+          </div>
+
+          <button
+            class="tool-btn history-open"
+            data-id="${escapeHTML(item.meetingId)}"
+            style="margin-top:8px;">
+
+            查看紀錄
+
+          </button>
+
+        </div>
+
+      `;
+
+    }).join("");
+
+
+  list
+    .querySelectorAll(".history-open")
+    .forEach(button=>{
+
+      button.addEventListener(
+        "click",
+        ()=>{
+          loadHistoryMeeting(
+            button.dataset.id
+          );
+        }
+      );
+
+    });
+
 }
 
-function saveHistory() {
-  if (!state.meetingId) return;
 
-  const existing = JSON.parse(localStorage.getItem('AIVAULT_WAR_ROOM_HISTORY') || '[]');
+/* ============================================================
+   LOAD HISTORY
+============================================================ */
 
-  existing.push({
-    meetingId: state.meetingId,
-    question: state.ownerQuestion,
-    rounds: state.round,
-    date: new Date().toLocaleString('zh-TW'),
-    transcript: state.transcript
-  });
+function loadHistoryMeeting(id){
 
-  localStorage.setItem('AIVAULT_WAR_ROOM_HISTORY', JSON.stringify(existing.slice(-100)));
-}
+  const history =
+    getHistory();
+
+  const record =
+    history.find(
+      item =>
+        item.meetingId === id
+    );
 
 
-/* =========================================================
-   SPEECH RECOGNITION
-========================================================= */
+  if(!record){
 
-function getRecognition() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) return null;
+    toast("找不到會議");
 
-  if (state.recognition) return state.recognition;
-
-  const recognition = new SR();
-  recognition.continuous = false;
-  recognition.interimResults = true;
-  recognition.maxAlternatives = 1;
-  recognition.lang = 'zh-TW';
-
-  recognition.onstart = () => {
-    state.recognizing = true;
-    $('#btnMic').textContent = '🔴 聆聽中';
-  };
-
-  recognition.onend = () => {
-    state.recognizing = false;
-    $('#btnMic').textContent = '🎙️ 語音';
-  };
-
-  recognition.onerror = error => {
-    console.warn('Speech recognition:', error);
-    state.recognizing = false;
-    $('#btnMic').textContent = '🎙️ 語音';
-  };
-
-  recognition.onresult = event => {
-    let finalText = '';
-    let interim = '';
-
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      const result = event.results[i];
-      if (result.isFinal) {
-        finalText += result[0].transcript;
-      } else {
-        interim += result[0].transcript;
-      }
-    }
-
-    const input = $('#ownerInput');
-    if (interim && input) input.value = interim;
-    if (finalText.trim()) {
-      input.value = finalText.trim();
-      sendOwnerMessage();
-    }
-  };
-
-  state.recognition = recognition;
-  return recognition;
-}
-
-function startListen() {
-  unlockAudio();
-  const recognition = getRecognition();
-
-  if (!recognition) {
-    alert('此瀏覽器不支援語音辨識，請使用文字輸入。');
     return;
+
   }
 
-  if (state.recognizing) {
-    recognition.stop();
-    return;
-  }
 
-  try {
-    recognition.lang = 'zh-TW';
-    recognition.start();
-  } catch (error) {
-    console.warn(error);
-  }
-}
+  state.meetingId =
+    record.meetingId;
 
+  state.topic =
+    record.topic;
 
-/* =========================================================
-   LANGUAGE
-========================================================= */
+  state.status =
+    record.status;
 
-function setUiLang(lang) {
-  state.uiLang = lang;
-  $('#btnLang').textContent = lang === 'zh' ? '中' : 'EN';
-}
+  state.round =
+    record.round;
 
+  state.maxRounds =
+    record.maxRounds || 6;
 
-/* =========================================================
-   KEYBOARD
-========================================================= */
+  state.decision =
+    record.decision;
 
-function hideKeyboard() {
-  const input = $('#ownerInput');
-  if (input) input.blur();
+  state.startedAt =
+    record.startedAt;
 
-  if (document.activeElement && typeof document.activeElement.blur === 'function') {
-    document.activeElement.blur();
-  }
+  state.updatedAt =
+    record.updatedAt;
 
-  window.scrollTo(0, 0);
-}
+  state.transcript =
+    record.transcript || [];
 
 
-/* =========================================================
-   BIND EVENTS
-========================================================= */
+  AGENTS.forEach(agent=>{
 
-function bindEvents() {
-  $('#btnBackHome')?.addEventListener('click', () => {
-    location.href = 'aivault-home.html';
+    const messages =
+      state.transcript.filter(
+        item =>
+          item.agentId ===
+          agent.id
+      );
+
+    const last =
+      messages[messages.length-1];
+
+    state.agentLastStatements[
+      agent.id
+    ] =
+      last
+        ? last.content
+        : "此 Agent 尚無發言。";
+
   });
 
-  $('#btnSend')?.addEventListener('click', sendOwnerMessage);
 
-  $('#ownerInput')?.addEventListener('keydown', event => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      sendOwnerMessage();
-    }
-  });
-
-  $('#ownerInput')?.addEventListener('input', function () {
-    this.style.height = 'auto';
-    this.style.height = Math.min(this.scrollHeight, 90) + 'px';
-  });
-
-  $('#btnNextRound')?.addEventListener('click', runNextRound);
-  $('#btnPause')?.addEventListener('click', togglePause);
-  $('#btnStop')?.addEventListener('click', stopMeeting);
-  $('#btnApprove')?.addEventListener('click', openApproval);
-
-  $('#btnConfirmApprove')?.addEventListener('click', () => {
-    saveHistory();
-    confirmApproval();
-  });
-
-  $('#btnReject')?.addEventListener('click', () => {
-    $('#overlayDecision').classList.remove('visible');
-  });
-
-  $('#btnTranscript')?.addEventListener('click', () => {
-    $('#transcript').classList.toggle('open');
-  });
-
-  $('#btnCloseTranscript')?.addEventListener('click', () => {
-    $('#transcript').classList.remove('open');
-  });
-
-  $('#btnHistory')?.addEventListener('click', () => {
-    $('#overlayHistory').classList.add('visible');
-    renderHistory();
-  });
-
-  $('#btnViewHistory')?.addEventListener('click', () => {
-    $('#overlayHistory').classList.add('visible');
-    renderHistory();
-  });
-
-  $('#btnCloseHistory')?.addEventListener('click', () => {
-    $('#overlayHistory').classList.remove('visible');
-  });
-
-  $('#btnStartNew')?.addEventListener('click', () => {
-    unlockAudio();
-    $('#overlayStart').classList.remove('visible');
-    $('#ownerInput').focus();
-  });
-
-  $('#btnLang')?.addEventListener('click', () => {
-    setUiLang(state.uiLang === 'zh' ? 'en' : 'zh');
-  });
-
-  $('#btnMic')?.addEventListener('click', event => {
-    event.preventDefault();
-    startListen();
-  });
-
-  $('main')?.addEventListener('pointerdown', event => {
-    if (event.target.closest('.owner-panel')) return;
-    if (event.target.closest('textarea,input,button,a')) return;
-    hideKeyboard();
-  });
-
-  document.addEventListener('touchmove', event => {
-    let el = event.target;
-    while (el && el !== document.body) {
-      if (el.classList && (el.classList.contains('agent-message') || el.classList.contains('transcript-body'))) {
-        return;
-      }
-      if (el.tagName === 'TEXTAREA') return;
-      el = el.parentElement;
-    }
-    event.preventDefault();
-  }, { passive: false });
-
-  document.addEventListener('scroll', () => {
-    window.scrollTo(0, 0);
-  }, { passive: true });
-}
+  $("meetingIdLabel").textContent =
+    state.meetingId.slice(-10);
 
 
-/* =========================================================
-   INITIALIZE
-========================================================= */
+  renderAgents();
 
-function init() {
-  bindEvents();
-  loadVoices();
-  initializeAgentVoices();
-
-  AGENTS.forEach(agent => {
-    setAgentStatus(agent.id, 'listening');
-  });
+  renderTranscript();
 
   updateRoundUI();
 
-  if (!state.meetingId) {
-    $('#overlayStart').classList.add('visible');
+
+  $("overlayHistory")
+    .classList.remove("visible");
+
+
+  toast(
+    "已載入歷史會議"
+  );
+
+}
+
+
+/* ============================================================
+   UPDATE ROUND
+============================================================ */
+
+function updateRoundUI(){
+
+  $("roundInfo").textContent =
+    `Round ${state.round} / ${state.maxRounds}`;
+
+}
+
+
+/* ============================================================
+   KEYBOARD
+============================================================ */
+
+function hideKeyboard(){
+
+  const input =
+    $("ownerInput");
+
+  if(input){
+
+    input.blur();
+
   }
 
-  setTimeout(() => {
-    loadVoices();
-    initializeAgentVoices();
-  }, 500);
 
-  setTimeout(() => {
-    loadVoices();
-    initializeAgentVoices();
-  }, 1500);
+  if(
+    document.activeElement &&
+    document.activeElement.blur
+  ){
+
+    document.activeElement.blur();
+
+  }
+
+
+  window.scrollTo(0,0);
+
+  setTimeout(
+    ()=>{
+      window.scrollTo(0,0);
+    },
+    50
+  );
+
 }
+
+
+/* ============================================================
+   SPEECH RECOGNITION
+============================================================ */
+
+let recognition =
+  null;
+
+let recognizing =
+  false;
+
+
+function getRecognition(){
+
+  const SR =
+    window.SpeechRecognition ||
+    window.webkitSpeechRecognition;
+
+
+  if(!SR){
+
+    return null;
+
+  }
+
+
+  if(recognition){
+
+    return recognition;
+
+  }
+
+
+  recognition =
+    new SR();
+
+
+  recognition.continuous =
+    false;
+
+  recognition.interimResults =
+    true;
+
+  recognition.maxAlternatives =
+    1;
+
+  recognition.lang =
+    "zh-TW";
+
+
+  recognition.onstart =
+    ()=>{
+
+      recognizing = true;
+
+      $("btnMic").textContent =
+        "🔴 收音中";
+
+    };
+
+
+  recognition.onend =
+    ()=>{
+
+      recognizing = false;
+
+      $("btnMic").textContent =
+        "🎙️ 語音";
+
+    };
+
+
+  recognition.onerror =
+    event=>{
+
+      recognizing = false;
+
+      $("btnMic").textContent =
+        "🎙️ 語音";
+
+      console.warn(
+        "Speech recognition:",
+        event.error
+      );
+
+    };
+
+
+  recognition.onresult =
+    event=>{
+
+      let finalText = "";
+
+      let interim = "";
+
+
+      for(
+        let i =
+          event.resultIndex;
+
+        i <
+          event.results.length;
+
+        i++
+      ){
+
+        const result =
+          event.results[i];
+
+
+        if(result.isFinal){
+
+          finalText +=
+            result[0].transcript;
+
+        }else{
+
+          interim +=
+            result[0].transcript;
+
+        }
+
+      }
+
+
+      if(interim){
+
+        $("ownerInput").value =
+          interim;
+
+      }
+
+
+      if(finalText.trim()){
+
+        $("ownerInput").value =
+          finalText.trim();
+
+        $("btnSend").click();
+
+      }
+
+    };
+
+
+  return recognition;
+
+}
+
+
+function updateRecognitionLanguage(){
+
+  if(!recognition){
+
+    return;
+
+  }
+
+
+  recognition.lang =
+    uiLang === "en"
+      ? "en-US"
+      : "zh-TW";
+
+}
+
+
+function startListen(){
+
+  unlockAudio();
+
+  const rec =
+    getRecognition();
+
+
+  if(!rec){
+
+    alert(
+      "此瀏覽器不支援語音辨識，請使用文字輸入。"
+    );
+
+    return;
+
+  }
+
+
+  if(recognizing){
+
+    rec.stop();
+
+    return;
+
+  }
+
+
+  updateRecognitionLanguage();
+
+
+  try{
+
+    rec.start();
+
+  }catch(error){
+
+    console.warn(error);
+
+  }
+
+}
+
+
+/* ============================================================
+   EVENTS
+============================================================ */
+
+function bindEvents(){
+
+
+  /* 返回首頁 */
+
+  $("btnBackHome")
+    .addEventListener(
+      "click",
+      ()=>{
+        location.href =
+          "aivault-home.html";
+      }
+    );
+
+
+  /* Owner Send */
+
+  $("btnSend")
+    .addEventListener(
+      "click",
+      ()=>{
+
+        const text =
+          $("ownerInput")
+            .value
+            .trim();
+
+
+        if(!text){
+
+          return;
+
+        }
+
+
+        unlockAudio();
+
+
+        /*
+          尚未建立會議
+        */
+
+        if(
+          state.status === "idle" ||
+          !state.meetingId
+        ){
+
+          startMeeting(
+            text
+          );
+
+        }else{
+
+          /*
+            會議中的 Owner 補充意見
+          */
+
+          addTranscriptMessage({
+
+            role:"Owner",
+
+            content:text,
+
+            isOwner:true
+
+          });
+
+
+          state.topic +=
+            "\nOwner補充：" +
+            text;
+
+
+          $("statusText").textContent =
+            "已收到 Owner 補充意見";
+
+
+          toast(
+            "已送出補充意見"
+          );
+
+        }
+
+
+        $("ownerInput").value = "";
+
+        $("ownerInput").style.height =
+          "auto";
+
+      }
+    );
+
+
+  /* Enter */
+
+  $("ownerInput")
+    .addEventListener(
+      "keydown",
+      event=>{
+
+        if(
+          event.key === "Enter" &&
+          !event.shiftKey
+        ){
+
+          event.preventDefault();
+
+          $("btnSend").click();
+
+        }
+
+      }
+    );
+
+
+  /* Auto resize */
+
+  $("ownerInput")
+    .addEventListener(
+      "input",
+      function(){
+
+        this.style.height =
+          "auto";
+
+        this.style.height =
+          Math.min(
+            this.scrollHeight,
+            110
+          ) + "px";
+
+      }
+    );
+
+
+  /* Next Round */
+
+  $("btnNextRound")
+    .addEventListener(
+      "click",
+      ()=>{
+
+        unlockAudio();
+
+        runNextRound();
+
+      }
+    );
+
+
+  /* Pause */
+
+  $("btnPause")
+    .addEventListener(
+      "click",
+      togglePause
+    );
+
+
+  /* Approve */
+
+  $("btnApprove")
+    .addEventListener(
+      "click",
+      ()=>{
+
+        if(
+          !state.meetingId ||
+          state.status === "idle"
+        ){
+
+          toast("尚未開始會議");
+
+          return;
+
+        }
+
+        $("overlayDecision")
+          .classList.add("visible");
+
+      }
+    );
+
+
+  /* Confirm approve */
+
+  $("btnConfirmApprove")
+    .addEventListener(
+      "click",
+      ()=>{
+
+        $("overlayDecision")
+          .classList.remove(
+            "visible"
+          );
+
+        approveMeeting();
+
+      }
+    );
+
+
+  /* Reject */
+
+  $("btnReject")
+    .addEventListener(
+      "click",
+      ()=>{
+
+        $("overlayDecision")
+          .classList.remove(
+            "visible"
+          );
+
+        toast(
+          "已返回會議"
+        );
+
+      }
+    );
+
+
+  /* Stop */
+
+  $("btnStop")
+    .addEventListener(
+      "click",
+      ()=>{
+
+        if(
+          !confirm(
+            "確定結束這場會議？"
+          )
+        ){
+
+          return;
+
+        }
+
+
+        addTranscriptMessage({
+
+          role:"System",
+
+          content:
+            "會議由 Owner 結束。",
+
+          isOwner:false
+
+        });
+
+
+        completeMeeting(
+          "owner_ended"
+        );
+
+
+        toast(
+          "會議已結束"
+        );
+
+      }
+    );
+
+
+  /* Transcript */
+
+  $("btnTranscript")
+    .addEventListener(
+      "click",
+      ()=>{
+        $("transcript")
+          .scrollIntoView({
+            behavior:"smooth",
+            block:"start"
+          });
+      }
+    );
+
+
+  $("btnCloseTranscript")
+    .addEventListener(
+      "click",
+      ()=>{
+        $("transcript")
+          .style.display =
+            "none";
+
+        setTimeout(
+          ()=>{
+            $("transcript")
+              .style.display =
+                "";
+          },
+          300
+        );
+      }
+    );
+
+
+  /* Start */
+
+  $("btnStartNew")
+    .addEventListener(
+      "click",
+      ()=>{
+
+        unlockAudio();
+
+        $("overlayStart")
+          .classList.remove(
+            "visible"
+          );
+
+        $("ownerInput")
+          .focus();
+
+      }
+    );
+
+
+  /* History */
+
+  $("btnViewHistory")
+    .addEventListener(
+      "click",
+      ()=>{
+
+        $("overlayHistory")
+          .classList.add(
+            "visible"
+          );
+
+        renderHistory();
+
+      }
+    );
+
+
+  $("btnHistory")
+    .addEventListener(
+      "click",
+      ()=>{
+
+        $("overlayHistory")
+          .classList.add(
+            "visible"
+          );
+
+        renderHistory();
+
+      }
+    );
+
+
+  $("btnCloseHistory")
+    .addEventListener(
+      "click",
+      ()=>{
+        $("overlayHistory")
+          .classList.remove(
+            "visible"
+          );
+      }
+    );
+
+
+  /* Language */
+
+  $("btnLang")
+    .addEventListener(
+      "click",
+      ()=>{
+
+        setUiLang(
+          uiLang === "zh"
+            ? "en"
+            : "zh"
+        );
+
+        toast(
+          uiLang === "zh"
+            ? "已切換中文"
+            : "Switched to English"
+        );
+
+      }
+    );
+
+
+  /* Mic */
+
+  $("btnMic")
+    .addEventListener(
+      "click",
+      event=>{
+
+        event.preventDefault();
+
+        startListen();
+
+      }
+    );
+
+
+  /* Hide keyboard */
+
+  $("btnHideKeyboard")
+    .addEventListener(
+      "click",
+      event=>{
+
+        event.preventDefault();
+
+        hideKeyboard();
+
+      }
+    );
+
+
+  /*
+    點房間空白處收鍵盤
+  */
+
+  document
+    .querySelector("main")
+    ?.addEventListener(
+      "pointerdown",
+      event=>{
+
+        if(
+          event.target.closest(
+            ".owner-panel"
+          )
+        ){
+
+          return;
+
+        }
+
+
+        if(
+          event.target.closest(
+            "textarea,input,button,a"
+          )
+        ){
+
+          return;
+
+        }
+
+
+        hideKeyboard();
+
+      }
+    );
+
+
+  /*
+    iPhone 防止整頁亂滑。
+    允許 transcript 與 textarea 自己滑。
+  */
+
+  document.addEventListener(
+    "touchmove",
+    event=>{
+
+      let el =
+        event.target;
+
+
+      while(
+        el &&
+        el !== document.body
+      ){
+
+        if(
+          el.classList &&
+          (
+            el.classList.contains(
+              "transcript-body"
+            ) ||
+            el.classList.contains(
+              "agent-speech"
+            )
+          )
+        ){
+
+          return;
+
+        }
+
+
+        if(
+          el.tagName === "TEXTAREA"
+        ){
+
+          return;
+
+        }
+
+
+        el =
+          el.parentElement;
+
+      }
+
+
+      event.preventDefault();
+
+    },
+    {
+      passive:false
+    }
+  );
+
+
+}
+
+
+/* ============================================================
+   INIT
+============================================================ */
+
+function init(){
+
+  bindEvents();
+
+  renderAgents();
+
+  renderTranscript();
+
+  updateRoundUI();
+
+  applyLangBtn();
+
+
+  $("controlRow")
+    .style.display =
+      "grid";
+
+
+  /*
+    預載聲音。
+  */
+
+  loadVoices();
+
+
+  setTimeout(
+    ()=>{
+      loadVoices();
+    },
+    300
+  );
+
+
+  setTimeout(
+    ()=>{
+      loadVoices();
+    },
+    1000
+  );
+
+
+  /*
+    如果頁面重新整理，
+    不自動播放語音。
+    避免 iOS 阻擋。
+  */
+
+  console.log(
+    "AIVAULT WAR ROOM initialized."
+  );
+
+}
+
 
 init();
 
 
-/* =========================================================
-   DEBUG / FUTURE INTEGRATION
-========================================================= */
+/* ============================================================
+   PUBLIC API
+============================================================ */
 
-window.AIVAULT_WAR_ROOM = {
+window.AIVAULT_WARROOM = {
+
   state,
+
   AGENTS,
+
   startMeeting,
+
   runNextRound,
-  runCurrentRound,
-  runAgent,
+
+  togglePause,
+
+  completeMeeting,
+
+  saveMeeting,
+
+  renderHistory,
+
+  loadHistoryMeeting,
+
   speakAgent,
-  initializeAgentVoices,
-  unlockAudio,
-  addTranscriptMessage,
-  saveHistory
+
+  stopVoice,
+
+  setAgentStatus,
+
+  setAgentStatement
+
 };
+
+
+/* ============================================================
+   DEBUG
+============================================================ */
+
+/*
+  在 Console 可以測試：
+
+  AIVAULT_WARROOM.startMeeting(
+    "請討論 AIVAULT 下一階段應該先做什麼"
+  );
+
+  也可以查看：
+
+  AIVAULT_WARROOM.state
+*/
 
 </script>
 
