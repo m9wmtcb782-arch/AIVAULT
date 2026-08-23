@@ -343,7 +343,7 @@ async function findTopics(){
     duration:state.duration,
     mode:state.mode,
     topics:[],
-    selected_topic:null,
+    selected_topics:[],
     outline:'',
     episodes:[],
     script:'',
@@ -391,20 +391,29 @@ Hook：
 
 function renderTopics(){
   const list=state.project?.topics||[];
-  document.getElementById('topicHeader').textContent='為你找到 '+list.length+' 個故事方向';
-  document.getElementById('topicList').innerHTML=list.map(t=>`
-    <div class="topic">
-      <h4>${esc(t.title)}</h4>
+  const selected=new Set((state.project.selected_topics||[]).map(x=>x.id));
+  const n=selected.size;
+  document.getElementById('topicHeader').textContent='為你找到 '+list.length+' 個故事方向'+(n?(' · 已選 '+n+' 個'):'（可多選）');
+  document.getElementById('topicList').innerHTML=list.map(t=>{
+    const on=selected.has(t.id);
+    return `<div class="topic" style="${on?'border-color:#f43f5e':''}">
+      <h4>${esc(t.title)} ${on?'<span class="badge ok">已選</span>':''}</h4>
       <div class="meta">
         <span class="badge">${esc(t.type||'')}</span>
         <span class="badge warn">${esc(t.fact_hint||'需查證')}</span>
       </div>
       <div style="font-size:12px;color:var(--muted);margin-top:6px;white-space:pre-wrap">${esc((t.raw||'').slice(0,320))}</div>
       <div class="row">
-        <button class="btn primary" type="button" data-pick="${t.id}">選擇此題材</button>
+        <button class="btn ${on?'success':'primary'}" type="button" data-pick="${t.id}">${on?'取消選擇':'加入選擇'}</button>
         <button class="btn ghost" type="button" data-drop="${t.id}">刪除</button>
       </div>
-    </div>`).join('')||'<div class="empty">無題材</div>';
+    </div>`;
+  }).join('')+ (list.length?`<div class="row" style="margin-top:12px"><button class="btn primary" type="button" id="btnConfirmTopics">確認已選題材（${n}）並建立大綱</button></div>`:'') ||'<div class="empty">無題材</div>';
+  document.getElementById('btnConfirmTopics')?.addEventListener('click',()=>{
+    if(!(state.project.selected_topics||[]).length){toast('請至少選擇一個題材');return}
+    switchTab('outline');
+    toast('已確認 '+state.project.selected_topics.length+' 個題材');
+  });
 }
 
 function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
@@ -412,20 +421,35 @@ function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 function pickTopic(id){
   const t=state.project.topics.find(x=>x.id===id);
   if(!t)return;
-  state.project.selected_topic=t;
-  state.project.topics.forEach(x=>x.status=x.id===id?'已選':'待選');
+  state.project.selected_topics=state.project.selected_topics||[];
+  const i=state.project.selected_topics.findIndex(x=>x.id===id);
+  if(i>=0){
+    state.project.selected_topics.splice(i,1);
+    t.status='待選';
+    toast('已取消：'+t.title);
+  }else{
+    state.project.selected_topics.push(t);
+    t.status='已選';
+    toast('已加入：'+t.title);
+  }
   renderTopics();
-  switchTab('outline');
-  toast('已選擇：'+t.title);
   persistCurrent();
+}
+function selectedTopicsText(){
+  const arr=state.project?.selected_topics||[];
+  if(!arr.length)return '';
+  return arr.map((t,i)=>`【題材${i+1}】${t.title}\n${t.raw||''}`).join('\n\n');
+}
+function primaryTopic(){
+  return (state.project?.selected_topics||[])[0]||null;
 }
 
 async function buildOutline(){
-  const p=state.project;if(!p?.selected_topic){toast('請先選題材');return}
+  const p=state.project;if(!(p?.selected_topics||[]).length){toast('請先選擇至少一個題材');return}
   try{
     const text=await callAI('Story',
       `你是 Story Agent。建立清晰分幕故事大綱（第一幕…結論）。${FACT_RULE} 繁體中文。`,
-      `主題：${p.theme}\n題材：${p.selected_topic.title}\n內容：\n${p.selected_topic.raw}\n長度：${p.duration}\n模式：${p.mode}`
+      `主題：${p.theme}\n題材：${(primaryTopic()?.title||"")}\n內容：\n${selectedTopicsText()}\n長度：${p.duration}\n模式：${p.mode}`
     );
     p.outline=text;
     document.getElementById('outlineView').textContent=text;
@@ -436,13 +460,13 @@ async function buildOutline(){
 }
 
 async function buildSeries(){
-  const p=state.project;if(!p?.selected_topic){toast('請先選題材');return}
+  const p=state.project;if(!(p?.selected_topics||[]).length){toast('請先選擇至少一個題材');return}
   try{
     const text=await callAI('Story',
       `你是 Story Agent。規劃系列分集 6～10 集。每集格式：
 第N集｜標題｜核心知識｜與前後集關係｜狀態：待製作
 維持系列一致性，勿矛盾。${FACT_RULE}`,
-      `系列方向：${p.theme}\n主標題可從：${p.selected_topic.title}\n大綱：\n${p.outline||p.selected_topic.raw}`
+      `系列方向：${p.theme}\n主標題可從：${(primaryTopic()?.title||"")}\n大綱：\n${p.outline||selectedTopicsText()}`
     );
     const lines=text.split(/\n+/).filter(l=/第\s*\d+\s*集/.test(l));
     p.episodes=lines.map((l,i)=>({id:uid(),n:i+1,title:l.trim(),status:'待製作',content:''}));
@@ -459,7 +483,7 @@ async function buildSeries(){
 }
 
 async function buildScript(){
-  const p=state.project;if(!p?.selected_topic){toast('請先選題材');return}
+  const p=state.project;if(!(p?.selected_topics||[]).length){toast('請先選擇至少一個題材');return}
   document.getElementById('scriptDur').textContent=p.duration;
   try{
     const text=await callAI('Script',
@@ -469,7 +493,7 @@ async function buildScript(){
 【旁白稿】適合口述、可分行
 字數與節奏符合長度：${p.duration}
 ${FACT_RULE}`,
-      `題材：${p.selected_topic.title}\n大綱：\n${p.outline||''}\n長度：${p.duration}\n模式：${p.mode}`
+      `題材：${(primaryTopic()?.title||"")}\n大綱：\n${p.outline||''}\n長度：${p.duration}\n模式：${p.mode}`
     );
     const parts=text.split(/【旁白稿】/);
     p.script=(parts[0]||text).replace(/【完整文案】/,'').trim();
@@ -488,7 +512,7 @@ async function factCheck(){
     const text=await callAI('FactChecker',
       `你是 Fact Checker。逐條標註：✓已驗證 ⚠部分需查證 ⚠情境模擬 ✕無法確認。
 檢查是否把虛構當真實、有無來源、法律醫療風險。輸出清單與修改建議。${FACT_RULE}`,
-      `文案：\n${p.script}\n\n題材原文：\n${p.selected_topic?.raw||''}`
+      `文案：\n${p.script}\n\n題材原文：\n${selectedTopicsText()||''}`
     );
     p.fact_check=text;
     document.getElementById('factView').textContent=text;
@@ -526,7 +550,7 @@ async function discuss(){
   try{
     const ans=await callAI('Story',
       `你是影片企劃顧問。依目前題材與文案協助修改方向。${FACT_RULE}`,
-      `題材：${p.selected_topic?.title}\n大綱：${(p.outline||'').slice(0,1500)}\n文案摘錄：${(p.script||'').slice(0,2000)}\n\nOwner：${q}`
+      `題材：${(primaryTopic()?.title||"")}\n大綱：${(p.outline||'').slice(0,1500)}\n文案摘錄：${(p.script||'').slice(0,2000)}\n\nOwner：${q}`
     );
     p.discuss.push({role:'ai',text:ans,at:nowL()});
     renderDiscuss();
@@ -572,7 +596,7 @@ async function finalReview(){
     const text=await callAI('Reviewer',
       `Final Review 檢查清單：錯誤事實、無來源重大聲明、虛構當真實、法律醫療風險、前後矛盾、分集矛盾、長度是否符合、旁白時長、字幕、分鏡一致性。
 最後明確給：【通過】或【需要修改】與理由。${FACT_RULE}`,
-      `長度：${p.duration}\n題材：${p.selected_topic?.title}\n大綱：${(p.outline||'').slice(0,1500)}\n文案：${(p.script||'').slice(0,3500)}\n查核：${(p.fact_check||'').slice(0,1500)}\n分鏡：${(p.storyboard||'').slice(0,1000)}`
+      `長度：${p.duration}\n題材：${(primaryTopic()?.title||"")}\n大綱：${(p.outline||'').slice(0,1500)}\n文案：${(p.script||'').slice(0,3500)}\n查核：${(p.fact_check||'').slice(0,1500)}\n分鏡：${(p.storyboard||'').slice(0,1000)}`
     );
     p.review=text;
     document.getElementById('reviewView').textContent=text;

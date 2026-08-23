@@ -133,22 +133,114 @@
       flex-shrink: 0;
     }
 
+    .logo {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .logo-text {
+      min-width: 0;
+      overflow: hidden;
+    }
+
     .logo-text h1 {
       font-size: 18px;
       font-weight: 700;
       letter-spacing: 0.5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .logo-text p {
       font-size: 11px;
       color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .gear-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #1e293b;
+      color: #e2e8f0;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      margin-left: 4px;
+    }
+
+    @media (max-width: 420px) {
+      .logo-text p { display: none; }
+      .logo-text h1 { font-size: 16px; }
+      .owner-badge { padding: 5px 8px; font-size: 10px; }
+      .room-btn { padding: 6px 8px; font-size: 11px; }
+      .header { padding: 10px 10px; gap: 6px; }
+      .header-right { gap: 5px; }
+    }
+    .account-mask {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.55);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .account-mask.show { display: flex; }
+    .account-panel {
+      width: min(400px, 100%);
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      max-height: 90vh;
+      overflow: auto;
+    }
+    .account-panel h3 { font-size: 16px; margin-bottom: 10px; }
+    .account-panel label {
+      display: block;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin: 10px 0 4px;
+    }
+    .account-panel input {
+      width: 100%;
+      background: #020617;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      color: var(--text);
+      font: inherit;
+    }
+    .account-panel .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+    .account-panel .meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      word-break: break-all;
     }
 
     .header-right {
       display: flex;
       align-items: center;
-      gap: 8px;
-      flex-shrink: 0;
+      gap: 6px;
+      flex: 0 0 auto;
+      max-width: 58%;
+      flex-wrap: nowrap;
+      overflow: visible;
     }
 
     .owner-badge {
@@ -1529,6 +1621,14 @@
 
       <button
         type="button"
+        class="gear-btn"
+        id="btnAccountGear"
+        title="帳號設定"
+        aria-label="帳號設定"
+      >⚙</button>
+
+      <button
+        type="button"
         class="owner-badge"
         id="btnOwner"
       >
@@ -1556,6 +1656,28 @@
 
   </header>
 
+
+
+  <!-- Account settings -->
+  <div class="account-mask" id="accountMask">
+    <div class="account-panel" role="dialog" aria-label="帳號設定">
+      <h3>帳號設定</h3>
+      <div class="meta" id="acctEmail">—</div>
+      <div class="meta" id="acctRole" style="margin-top:4px">—</div>
+      <label>暱稱</label>
+      <input id="acctNickname" placeholder="顯示暱稱" autocomplete="nickname"/>
+      <label>新密碼（至少 6 碼，空白則不改）</label>
+      <input id="acctNewPass" type="password" placeholder="新密碼" autocomplete="new-password"/>
+      <label>確認新密碼</label>
+      <input id="acctNewPass2" type="password" placeholder="再輸入一次" autocomplete="new-password"/>
+      <div class="row">
+        <button type="button" class="room-btn" id="btnSaveAccount">儲存</button>
+        <button type="button" class="room-btn" id="btnOpenAdmin" style="background:#334155;display:none">後台管理</button>
+        <button type="button" class="room-btn" id="btnCloseAccount" style="background:#1e293b">關閉</button>
+      </div>
+      <p class="meta" style="margin-top:10px" id="acctMsg"></p>
+    </div>
+  </div>
 
   <!-- =========================================================
        Navigation
@@ -2238,7 +2360,9 @@
         const { data: { session } } = await sb.auth.getSession();
         currentUser = session?.user || null;
         const role = readRole(currentUser);
-        isAdmin = role === 'admin' || role === 'owner';
+        const email = (currentUser?.email || '').toLowerCase();
+        const ADMIN_EMAILS = ['n_950143@hotmail.com'];
+        isAdmin = role === 'admin' || role === 'owner' || ADMIN_EMAILS.includes(email);
 
         const btnOwner = document.getElementById('btnOwner');
         if (btnOwner) {
@@ -4930,6 +5054,78 @@ ${workflowLines}
       if (chip?.dataset.section) showProposalSection(chip.dataset.section);
     });
 
+
+
+    /* ============================================================
+       Account gear (nickname / password / admin link)
+       ============================================================ */
+    const ADMIN_EMAILS = ['n_950143@hotmail.com'];
+
+    async function getSb() {
+      const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+      return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: { persistSession: true, autoRefreshToken: true, storage: window.localStorage }
+      });
+    }
+
+    async function openAccountPanel() {
+      const mask = document.getElementById('accountMask');
+      const sb = await getSb();
+      const { data: { session } } = await sb.auth.getSession();
+      const user = session?.user || currentUser;
+      const email = (user?.email || '').toLowerCase();
+      const role = readRole(user);
+      const nick = user?.user_metadata?.nickname || user?.user_metadata?.full_name || '';
+      document.getElementById('acctEmail').textContent = user?.email || '未登入';
+      document.getElementById('acctRole').textContent =
+        '角色：' + (role || (ADMIN_EMAILS.includes(email) ? 'admin' : 'user'));
+      document.getElementById('acctNickname').value = nick;
+      document.getElementById('acctNewPass').value = '';
+      document.getElementById('acctNewPass2').value = '';
+      document.getElementById('acctMsg').textContent = '';
+      const adminBtn = document.getElementById('btnOpenAdmin');
+      const canAdmin = role === 'admin' || role === 'owner' || ADMIN_EMAILS.includes(email);
+      adminBtn.style.display = canAdmin ? '' : 'none';
+      mask.classList.add('show');
+    }
+
+    document.getElementById('btnAccountGear')?.addEventListener('click', () => {
+      openAccountPanel().catch(e => showToast(e.message || '無法開啟帳號設定'));
+    });
+    document.getElementById('btnCloseAccount')?.addEventListener('click', () => {
+      document.getElementById('accountMask')?.classList.remove('show');
+    });
+    document.getElementById('accountMask')?.addEventListener('click', (e) => {
+      if (e.target.id === 'accountMask') e.currentTarget.classList.remove('show');
+    });
+    document.getElementById('btnOpenAdmin')?.addEventListener('click', () => {
+      location.href = 'aivault-admin.html';
+    });
+    document.getElementById('btnSaveAccount')?.addEventListener('click', async () => {
+      const msg = document.getElementById('acctMsg');
+      msg.textContent = '儲存中…';
+      try {
+        const sb = await getSb();
+        const nick = document.getElementById('acctNickname').value.trim();
+        const p1 = document.getElementById('acctNewPass').value;
+        const p2 = document.getElementById('acctNewPass2').value;
+        const updates = { data: { nickname: nick } };
+        const { error: e1 } = await sb.auth.updateUser(updates);
+        if (e1) throw e1;
+        if (p1 || p2) {
+          if (p1.length < 6) throw new Error('密碼至少 6 碼');
+          if (p1 !== p2) throw new Error('兩次密碼不一致');
+          const { error: e2 } = await sb.auth.updateUser({ password: p1 });
+          if (e2) throw e2;
+        }
+        msg.textContent = '已更新暱稱' + (p1 ? '與密碼' : '');
+        showToast('帳號設定已儲存');
+        const { data: { session } } = await sb.auth.getSession();
+        currentUser = session?.user || currentUser;
+      } catch (err) {
+        msg.textContent = err.message || '儲存失敗';
+      }
+    });
 
     /* ============================================================
        ㉘ Owner
