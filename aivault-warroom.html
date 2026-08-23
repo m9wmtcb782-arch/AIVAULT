@@ -1859,7 +1859,7 @@ function stopSpeech(){
 }
 
 /* =========================================================
-   GOVERNANCE ENGINE（唯一入口）
+   GOVERNANCE ENGINE
 ========================================================= */
 
 async function callGovernanceEngine(payload){
@@ -1913,7 +1913,61 @@ async function callGovernanceEngine(payload){
 }
 
 /* =========================================================
-   真實 Agent 分析（完全依賴後端，禁止任何前端假回覆）
+   AI GATEWAY（真正產生 Agent 分析內容）
+========================================================= */
+
+async function callAiGateway(payload){
+  if(!SUPABASE_URL || !SUPABASE_ANON_KEY){
+    return {
+      success:false,
+      error:"Supabase 尚未設定（缺少 SUPABASE_URL 或 ANON_KEY）"
+    };
+  }
+
+  const endpoint =
+    SUPABASE_URL.replace(/\/$/,"") +
+    "/functions/v1/ai-gateway";
+
+  try{
+    const response = await fetch(endpoint,{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": "Bearer " + SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const text = await response.text();
+    let data;
+    try{
+      data = text ? JSON.parse(text) : {};
+    }catch(e){
+      data = { raw: text };
+    }
+
+    if(!response.ok){
+      return {
+        success:false,
+        status: response.status,
+        data,
+        error: data?.error || data?.message || `HTTP ${response.status}`
+      };
+    }
+
+    return { success:true, data };
+  }catch(error){
+    return {
+      success:false,
+      error: error?.message || String(error)
+    };
+  }
+}
+
+/* =========================================================
+   真實 Agent 分析
+   流程：Governance 允許後 → AI Gateway 產生內容
 ========================================================= */
 
 async function analyzeAgent(agentId, question, round, mode){
@@ -1927,33 +1981,52 @@ async function analyzeAgent(agentId, question, round, mode){
       ? state.roundAnalyses[prevRound]
       : {};
 
-  const payload = {
-    action: "war_room_analysis",
-    meeting_id: state.meetingId,
+  // 1. 先讓 Governance 做允許檢查（可選，失敗不阻擋）
+  try {
+    await callGovernanceEngine({
+      action: "war_room_analysis",
+      meeting_id: state.meetingId,
+      topic_id: state.meetingId,
+      round,
+      mode,
+      message: question,
+      owner_message: question,
+      selected_agents: state.selectedAgents,
+      current_agent: agentId,
+      agent:{
+        id: agentId,
+        name: AGENTS[agentId].name,
+        role: AGENTS[agentId].role
+      },
+      system_prompt: AGENTS[agentId].system,
+      previous_messages: state.messages.slice(-30),
+      previous_analyses: previousAnalyses,
+      governance:{
+        enforce_topic_lock: true,
+        enforce_selected_agents: true,
+        max_agents: 3,
+        project_auto_create: false
+      }
+    });
+  } catch(e) {}
+
+  // 2. 真正產生回答：呼叫 AI Gateway
+  const gatewayPayload = {
+    provider: "groq",
+    model: "openai/gpt-oss-120b",
+    systemPrompt: AGENTS[agentId].system,
+    messages: [
+      {
+        role: "user",
+        content: `Owner 問題：\n${question}\n\n請以你的角色（${AGENTS[agentId].name}｜${AGENTS[agentId].role}）獨立分析並回答。\n模式：${mode}\nRound：${round}`
+      }
+    ],
+    ownerQuestion: question,
     topic_id: state.meetingId,
-    round,
-    mode,
-    message: question,
-    owner_message: question,
-    selected_agents: state.selectedAgents,
-    current_agent: agentId,
-    agent:{
-      id: agentId,
-      name: AGENTS[agentId].name,
-      role: AGENTS[agentId].role
-    },
-    system_prompt: AGENTS[agentId].system,
-    previous_messages: state.messages.slice(-30),
-    previous_analyses: previousAnalyses,
-    governance:{
-      enforce_topic_lock: true,
-      enforce_selected_agents: true,
-      max_agents: 3,
-      project_auto_create: false
-    }
+    agent: agentId
   };
 
-  const remote = await callGovernanceEngine(payload);
+  const remote = await callAiGateway(gatewayPayload);
 
   if(!remote.success){
     setAgentStatus(agentId, "error");
@@ -1979,7 +2052,7 @@ async function analyzeAgent(agentId, question, round, mode){
     setAgentStatus(agentId, "error");
     return {
       error: true,
-      answer: "AI 執行失敗\n\n原因：Governance Engine / AI Gateway 未回傳有效分析內容",
+      answer: "AI 執行失敗\n\n原因：AI Gateway 未回傳有效分析內容",
       provider: data.provider || null,
       model: data.model || null
     };
@@ -2080,25 +2153,42 @@ async function runFinalSynthesis(question){
     allAnalyses[r] = state.roundAnalyses[r];
   });
 
-  const payload = {
-    action: "war_room_synthesis",
-    meeting_id: state.meetingId,
+  // 整理前面各輪分析摘要
+  let analysisSummary = "";
+  Object.keys(allAnalyses).forEach(r => {
+    analysisSummary += `\n=== Round ${r} ===\n`;
+    Object.keys(allAnalyses[r] || {}).forEach(aid => {
+      const a = allAnalyses[r][aid];
+      if(a && a.answer && !a.error){
+        analysisSummary += `\n【${AGENTS[aid]?.name || aid}】\n${a.answer}\n`;
+      }
+    });
+  });
+
+  const systemPrompt = `你是 AIVAULT 的 Final Synthesis Engine。
+請根據 Owner 原始問題與各 Agent 的獨立分析，產出最終綜合回答。
+要求：
+1. 先直接回答 Owner 的問題
+2. 摘要各 Agent 共識與分歧
+3. 不要強行建立 Project
+4. 保持簡潔清楚`;
+
+  const gatewayPayload = {
+    provider: "groq",
+    model: "openai/gpt-oss-120b",
+    systemPrompt,
+    messages: [
+      {
+        role: "user",
+        content: `Owner 問題：\n${question}\n\n各 Agent 分析：\n${analysisSummary}\n\n請產出最終綜合回答。`
+      }
+    ],
+    ownerQuestion: question,
     topic_id: state.meetingId,
-    round: state.round,
-    message: question,
-    owner_message: question,
-    selected_agents: state.selectedAgents,
-    previous_messages: state.messages.slice(-40),
-    all_analyses: allAnalyses,
-    governance:{
-      enforce_topic_lock: true,
-      enforce_selected_agents: true,
-      max_agents: 3,
-      project_auto_create: false
-    }
+    agent: "final_synthesis"
   };
 
-  const remote = await callGovernanceEngine(payload);
+  const remote = await callAiGateway(gatewayPayload);
 
   if(!remote.success){
     const err = `AI 執行失敗（Final Synthesis）\n\n原因：${formatError(remote)}`;
@@ -2125,7 +2215,7 @@ async function runFinalSynthesis(question){
   if(!content || !String(content).trim()){
     addMessage({
       role: "SYSTEM",
-      content: "AI 執行失敗（Final Synthesis）\n\n原因：後端未回傳有效綜合結果",
+      content: "AI 執行失敗（Final Synthesis）\n\n原因：AI Gateway 未回傳有效綜合結果",
       status: "error",
       round: state.round
     });
