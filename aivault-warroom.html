@@ -200,6 +200,17 @@ button:disabled{
   justify-content:center;
   overflow:hidden;
   transition:.2s;
+  cursor:pointer;
+  -webkit-user-select:none;
+  user-select:none;
+}
+
+.agent-card.selected:active{
+  transform:scale(.96);
+}
+
+.agent-card.has-answer .agent-avatar{
+  box-shadow:0 0 0 2px rgba(56,189,248,.45);
 }
 
 .agent-card.not-selected{
@@ -454,6 +465,37 @@ button:disabled{
 .voice-btn.active{
   border-color:#ef4444;
   color:#fecaca;
+}
+
+.rate-control{
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  gap:4px;
+  height:32px;
+  padding:0 8px;
+  border-radius:8px;
+  border:1px solid var(--line);
+  background:#0b111c;
+  color:#cbd5e1;
+  font-size:11px;
+  white-space:nowrap;
+}
+
+.rate-control label{
+  color:#8b99ad;
+  font-size:10px;
+}
+
+.rate-control select{
+  height:24px;
+  border:0;
+  border-radius:5px;
+  background:#111827;
+  color:#e2e8f0;
+  font-size:11px;
+  outline:none;
+  padding:0 4px;
 }
 
 /* =========================================================
@@ -1039,6 +1081,17 @@ button:disabled{
           暫停
         </button>
 
+        <div class="rate-control" title="調整 AI 朗讀語速">
+          <label for="speechRate">語速</label>
+          <select id="speechRate">
+            <option value="0.85">慢</option>
+            <option value="1.0">正常</option>
+            <option value="1.25" selected>快</option>
+            <option value="1.5">很快</option>
+            <option value="1.8">極快</option>
+          </select>
+        </div>
+
         <button
           class="control-btn primary"
           id="btnNextRound">
@@ -1476,6 +1529,8 @@ const state = {
   },
   agentSpeaking:null,
   voiceUnlocked:false,
+  speechRate: 1.25,
+  lastAgentAnswers:{},
   uiLang:"zh",
   paused:false,
   history:[],
@@ -1607,6 +1662,7 @@ function enterWarRoom(){
   state.approval = null;
   state.classification = null;
   state.projectCandidate = false;
+  state.lastAgentAnswers = {};
 
   AGENT_IDS.forEach(id => {
     const selected = state.selectedAgents.includes(id);
@@ -1618,7 +1674,7 @@ function enterWarRoom(){
     if(card){
       card.classList.toggle("selected", selected);
       card.classList.toggle("not-selected", !selected);
-      card.classList.remove("thinking","speaking");
+      card.classList.remove("thinking","speaking","has-answer");
     }
     const stateEl = $("state-" + id);
     if(stateEl) stateEl.textContent = selected ? "在線" : "未參會";
@@ -1799,6 +1855,11 @@ function unlockAudio(){
 function speakAgent(agentId, text){
   if(!state.voiceUnlocked || state.paused || !text) return;
   if(!state.selectedAgents.includes(agentId)) return;
+
+  // 記住每位 Agent 最後一次有效回答，方便點頭像重播
+  state.lastAgentAnswers[agentId] = String(text).trim();
+  markAgentHasAnswer(agentId);
+
   speechQueue.push({ agentId, text });
   processSpeechQueue();
 }
@@ -1819,7 +1880,7 @@ function processSpeechQueue(){
   try{
     const utterance = new SpeechSynthesisUtterance(item.text);
     utterance.lang = "zh-TW";
-    utterance.rate = 0.94;
+    utterance.rate = Number(state.speechRate) || 1.25;
     utterance.pitch =
       item.agentId === "strategy" ? 0.82 :
       item.agentId === "tech"     ? 0.92 :
@@ -1856,6 +1917,57 @@ function stopSpeech(){
   }catch(e){}
   state.agentSpeaking = null;
   state.selectedAgents.forEach(id => setAgentStatus(id, "listening"));
+}
+
+/* 點擊 Agent 頭像 → 重播該 Agent 最近一次回答 */
+function replayAgentSpeech(agentId){
+  if(!state.selectedAgents.includes(agentId)){
+    toast("此 Agent 未參會");
+    return;
+  }
+
+  unlockAudio();
+
+  // 優先用記憶中的最後回答，否則從 messages 找
+  let text = state.lastAgentAnswers[agentId] || "";
+
+  if(!text){
+    for(let i = state.messages.length - 1; i >= 0; i--){
+      const m = state.messages[i];
+      if(m.role === "AGENT" && m.agent_id === agentId && m.content && m.status !== "error"){
+        text = m.content;
+        break;
+      }
+    }
+  }
+
+  if(!text){
+    toast(`${AGENTS[agentId]?.name || agentId} 尚無回答可播放`);
+    return;
+  }
+
+  // 打斷目前播放，立刻播放指定 Agent
+  stopSpeech();
+  state.paused = false;
+  const pauseBtn = $("btnPause");
+  if(pauseBtn) pauseBtn.textContent = "暫停";
+
+  speakAgent(agentId, text);
+  toast(`播放：${AGENTS[agentId]?.name || agentId}`);
+}
+
+function markAgentHasAnswer(agentId){
+  const card = $("agentCard-" + agentId);
+  if(card) card.classList.add("has-answer");
+}
+
+function setSpeechRate(value){
+  const rate = Number(value);
+  if(!Number.isFinite(rate) || rate < 0.5 || rate > 2.5) return;
+  state.speechRate = rate;
+  try{
+    localStorage.setItem("AIVAULT_SPEECH_RATE", String(rate));
+  }catch(e){}
 }
 
 /* =========================================================
@@ -2731,6 +2843,7 @@ function newMeeting(){
   state.paused = false;
   state.finalSynthesis = null;
   state.approval = null;
+  state.lastAgentAnswers = {};
 
   $("dialogue").innerHTML = "";
   $("roundText").textContent = "Round 0";
@@ -2744,7 +2857,7 @@ function newMeeting(){
     const online = card?.querySelector(".online");
     if(online) online.classList.add("off");
     if(card){
-      card.classList.remove("selected","thinking","speaking");
+      card.classList.remove("selected","thinking","speaking","has-answer");
       card.classList.add("not-selected");
     }
     const stateEl = $("state-" + id);
@@ -2907,6 +3020,21 @@ function bindEvents(){
   $("ownerInput")?.addEventListener("input", autoResizeTextarea);
   $("ownerInput")?.addEventListener("keydown", handleInputKeydown);
 
+  // 語速調整
+  $("speechRate")?.addEventListener("change", (e) => {
+    setSpeechRate(e.target.value);
+    toast(`語速：${e.target.options[e.target.selectedIndex].text}`);
+  });
+
+  // 點擊 Agent 頭像 → 播放該 Agent 回答
+  AGENT_IDS.forEach(agentId => {
+    const card = $("agentCard-" + agentId);
+    if(!card) return;
+    card.addEventListener("click", () => {
+      replayAgentSpeech(agentId);
+    });
+  });
+
   document.querySelectorAll(".overlay").forEach(overlay => {
     overlay.addEventListener("click", event => {
       if(event.target !== overlay) return;
@@ -2923,6 +3051,24 @@ function bindEvents(){
 
 function init(){
   loadHistory();
+
+  // 載入上次語速設定
+  try{
+    const savedRate = localStorage.getItem("AIVAULT_SPEECH_RATE");
+    if(savedRate){
+      const rate = Number(savedRate);
+      if(Number.isFinite(rate) && rate >= 0.5 && rate <= 2.5){
+        state.speechRate = rate;
+        const sel = $("speechRate");
+        if(sel){
+          const opt = Array.from(sel.options).find(o => Math.abs(Number(o.value) - rate) < 0.01);
+          if(opt) sel.value = opt.value;
+          else sel.value = String(rate);
+        }
+      }
+    }
+  }catch(e){}
+
   renderAgentSelector();
   bindEvents();
   autoResizeTextarea();
