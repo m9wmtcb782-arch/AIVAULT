@@ -1069,6 +1069,226 @@
     }
 
     /* =========================================================
+       Proposal Library + Book Reader
+       ========================================================= */
+
+    #proposalLibraryOverlay,
+    #proposalOverlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 320;
+      background: var(--bg);
+      overflow-y: auto;
+    }
+
+    #proposalLibraryOverlay.show,
+    #proposalOverlay.show {
+      display: block;
+    }
+
+    .proposal-bar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: rgba(15, 23, 42, 0.96);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    .proposal-bar button {
+      background: #334155;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .proposal-bar button.primary {
+      background: linear-gradient(135deg, #3b82f6, #6366f1);
+    }
+
+    .proposal-bar button.success {
+      background: var(--success);
+      color: #000;
+    }
+
+    .proposal-bar button.voice-on {
+      background: #7c3aed;
+    }
+
+    .proposal-wrap {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 16px;
+      padding-bottom: 100px;
+    }
+
+    .proposal-status {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .proposal-stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    @media (min-width: 520px) {
+      .proposal-stats {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    .stat-card {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .stat-card .n {
+      font-size: 22px;
+      font-weight: 800;
+      color: #93c5fd;
+    }
+
+    .stat-card .l {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .chart-grid {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .chart-card {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .chart-card h3 {
+      font-size: 13px;
+      margin-bottom: 8px;
+      color: #cbd5e1;
+    }
+
+    .chart-card canvas {
+      width: 100%;
+      height: 180px;
+      display: block;
+      background: #020617;
+      border-radius: 8px;
+    }
+
+    .book-nav {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+      scrollbar-width: none;
+    }
+
+    .book-nav::-webkit-scrollbar { display: none; }
+
+    .book-chip {
+      flex: 0 0 auto;
+      padding: 6px 12px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: #1e293b;
+      color: #94a3b8;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .book-chip.active {
+      background: rgba(59,130,246,.25);
+      border-color: #3b82f6;
+      color: #93c5fd;
+    }
+
+    .proposal-doc {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 18px;
+      line-height: 1.75;
+      font-size: 14px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      min-height: 280px;
+    }
+
+    .library-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .library-item {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      cursor: pointer;
+    }
+
+    .library-item:hover {
+      border-color: #3b82f6;
+    }
+
+    .library-item h3 {
+      font-size: 15px;
+      margin-bottom: 4px;
+    }
+
+    .library-item .meta {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .library-empty {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 40px 16px;
+    }
+
+    @media print {
+      body * { visibility: hidden !important; }
+      #proposalOverlay, #proposalOverlay * { visibility: visible !important; }
+      #proposalOverlay {
+        position: static !important;
+        display: block !important;
+        background: white !important;
+        color: black !important;
+      }
+      .proposal-bar, .book-nav { display: none !important; }
+      .proposal-doc, .chart-card, .stat-card {
+        border-color: #ccc !important;
+        background: white !important;
+        color: black !important;
+      }
+    }
+
+    /* =========================================================
        Digital Human Room
        ========================================================= */
 
@@ -1383,6 +1603,14 @@
       data-panel="approval"
     >
       審批
+    </button>
+
+    <button
+      class="tab"
+      type="button"
+      id="tabProposalLibrary"
+    >
+      企劃書庫
     </button>
 
   </nav>
@@ -1851,6 +2079,53 @@
   </div>
 
 
+  <!-- Proposal Library：所有企劃專案 -->
+  <div id="proposalLibraryOverlay">
+    <div class="proposal-bar">
+      <button type="button" id="btnCloseLibrary">← 返回</button>
+      <strong style="flex:1;">企劃案書庫</strong>
+      <button type="button" class="primary" id="btnNewProposalFromLib">產出最新企劃</button>
+    </div>
+    <div class="proposal-wrap">
+      <div class="proposal-status">選擇一份企劃案進入書籍式閱覽（含圖表與語音）</div>
+      <div class="library-list" id="proposalLibraryList"></div>
+    </div>
+  </div>
+
+  <!-- Proposal Reader：書籍式閱覽 + 圖表 + 語音 -->
+  <div id="proposalOverlay">
+    <div class="proposal-bar">
+      <button type="button" id="btnCloseProposal">← 書庫</button>
+      <strong style="flex:1;" id="proposalTitle">最終企劃方案</strong>
+      <button type="button" id="btnProposalVoice">▶ 語音</button>
+      <button type="button" class="primary" id="btnDownloadPdf">下載 PDF</button>
+      <button type="button" class="success" id="btnApproveProposal">批准結案</button>
+    </div>
+    <div class="proposal-wrap">
+      <div class="proposal-status" id="proposalStatus">準備中…</div>
+
+      <div class="proposal-stats" id="proposalStats"></div>
+
+      <div class="chart-grid">
+        <div class="chart-card">
+          <h3>任務完成度</h3>
+          <canvas id="chartTaskStatus" width="640" height="180"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>工作流進度走勢</h3>
+          <canvas id="chartWorkflowTrend" width="640" height="180"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Agent 連線與負載</h3>
+          <canvas id="chartAgentLoad" width="640" height="180"></canvas>
+        </div>
+      </div>
+
+      <div class="book-nav" id="bookNav"></div>
+      <div class="proposal-doc" id="proposalDoc">正在彙整最終企劃方案…</div>
+    </div>
+  </div>
+
   <!-- Toast -->
 
   <div
@@ -2133,7 +2408,7 @@
 
       {
         id: 't5',
-        title: 'Owner 最終審批',
+        title: 'Owner 最終審批（產出企劃 PDF）',
         status: 'pending',
         agent: 'Owner'
       }
@@ -2742,6 +3017,7 @@ Owner 擁有最終決策權。
           containerId
         );
 
+      if (!container) return;
 
       container.innerHTML =
 
@@ -2751,6 +3027,9 @@ Owner 擁有最終決策權。
             <div
               class="task-item
               ${task.status}"
+              data-task-id="${task.id}"
+              style="cursor:pointer;"
+              title="點擊切換狀態：待辦 → 進行中 → 完成"
             >
 
               <div class="task-check">
@@ -2773,6 +3052,14 @@ Owner 擁有最終決策權。
 
                 <div class="task-meta">
                   ${task.agent}
+                  ·
+                  ${
+                    task.status === 'done'
+                      ? '已完成'
+                      : task.status === 'active'
+                        ? '進行中'
+                        : '待辦'
+                  }
                 </div>
 
               </div>
@@ -2782,6 +3069,769 @@ Owner 擁有最終決策權。
           `)
           .join('');
 
+    }
+
+    function cycleTaskStatus(taskId) {
+      const task = TASKS.find(t => t.id === taskId);
+      if (!task) return;
+
+      if (task.status === 'pending') {
+        task.status = 'active';
+        renderTasks('taskList');
+        renderTasks('taskListFull');
+        syncWorkflowWithTasks();
+        executeTaskAction(task);
+        return;
+      }
+
+      if (task.status === 'active') {
+        // 進行中再點一次 = 標記完成
+        task.status = 'done';
+        renderTasks('taskList');
+        renderTasks('taskListFull');
+        syncWorkflowWithTasks();
+        showToast(`任務完成：${task.title}`);
+        return;
+      }
+
+      task.status = 'pending';
+      showToast(`任務重置：${task.title}`);
+      renderTasks('taskList');
+      renderTasks('taskListFull');
+      syncWorkflowWithTasks();
+    }
+
+    function switchTab(panelName) {
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.panel === panelName);
+      });
+      document.querySelectorAll('.panel').forEach(panel => {
+        panel.classList.toggle('active', panel.id === `panel-${panelName}`);
+      });
+    }
+
+    /* 每個任務真正啟動的流程 */
+    async function executeTaskAction(task) {
+      showToast(`啟動：${task.title}`);
+
+      if (task.id === 't1') {
+        selectedChatAgents = ['a1'];
+        renderAgentPickBars();
+        switchTab('chat');
+        await runTaskAI(task, '請以首席分析師身份，針對 AIVAULT 產品架構做精簡分析：核心模組、風險、下一版優先順序。條列輸出。');
+        return;
+      }
+
+      if (task.id === 't2') {
+        selectedChatAgents = ['a1', 'a2'];
+        renderAgentPickBars();
+        switchTab('chat');
+        await runTaskAI(task, '請針對「AIVAULT 多 Agent 協作流程」提出可執行討論重點與分工建議。');
+        return;
+      }
+
+      if (task.id === 't3') {
+        // 建立 Demo 介面
+        selectedChatAgents = ['a5'];
+        renderAgentPickBars();
+        switchTab('chat');
+        await runTaskAI(task, '你是解決方案設計師 Creator。請為 AIVAULT Demo 介面產出：1) 必要畫面清單 2) 每畫面核心元件 3) 最小可展示流程。不要空談。');
+        return;
+      }
+
+      if (task.id === 't4') {
+        // 設計 Permission Engine
+        selectedChatAgents = ['a2', 'a3'];
+        renderAgentPickBars();
+        switchTab('chat');
+        await runTaskAI(task, '請設計 AIVAULT Permission Engine 最小可行方案：角色、權限點、Owner Approval 觸發條件、Agent 呼叫檢查時機。用條列。');
+        return;
+      }
+
+      if (task.id === 't5') {
+        // Owner 最終審批 = 產出最終企劃方案頁 + 可下載 PDF
+        await openFinalProposalPage(task);
+        return;
+      }
+
+      switchTab('chat');
+      await runTaskAI(task, `請執行任務：${task.title}`);
+    }
+
+    async function runTaskAI(task, prompt) {
+      const targets = selectedChatAgents.length
+        ? AGENTS.filter(a => selectedChatAgents.includes(a.id) && getAgentView(a).connected)
+        : AGENTS.filter(a => getAgentView(a).connected).slice(0, 1);
+
+      if (!targets.length) {
+        showToast('沒有可用的連線 Agent，無法執行任務');
+        return;
+      }
+
+      messages.push({
+        sender: 'Owner',
+        type: 'owner',
+        text: `[任務] ${task.title}\n${prompt}`,
+        time: nowTime()
+      });
+      renderMessages('chatMessages');
+      renderMessages('homeChatPreview', 6);
+
+      for (const agent of targets) {
+        setAgentRuntime(agent.id, {
+          status: 'working',
+          statusText: `執行：${task.title}`,
+          connected: true
+        });
+        renderAgents();
+
+        try {
+          const reply = await callAIGateway({
+            provider: agent.provider,
+            model: getAgentModel(agent),
+            agentName: agent.name,
+            userMessage: prompt
+          });
+          messages.push({
+            sender: agent.name,
+            role: agent.role,
+            type: 'agent',
+            text: reply,
+            time: nowTime()
+          });
+        } catch (err) {
+          messages.push({
+            sender: agent.name,
+            role: agent.role,
+            type: 'agent',
+            text: `任務執行失敗：${err.message || err}`,
+            time: nowTime()
+          });
+        }
+
+        setAgentRuntime(agent.id, {
+          status: 'idle',
+          statusText: '空閒 · ' + agent.provider,
+          connected: true
+        });
+        renderAgents();
+        renderMessages('chatMessages');
+        renderMessages('homeChatPreview', 6);
+      }
+    }
+
+    /* ============================================================
+       企劃書庫 + 書籍閱覽 + 圖表 + 語音 + PDF
+       ============================================================ */
+
+    let finalProposalText = '';
+    let currentProposalId = null;
+    let proposalSections = [];
+    let proposalSpeaking = false;
+    let proposalUtterance = null;
+
+    function loadProposalLibrary() {
+      try {
+        const raw = localStorage.getItem('AIVAULT_PROPOSAL_LIBRARY');
+        const list = raw ? JSON.parse(raw) : [];
+        return Array.isArray(list) ? list : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveProposalLibrary(list) {
+      try {
+        localStorage.setItem('AIVAULT_PROPOSAL_LIBRARY', JSON.stringify(list.slice(0, 30)));
+      } catch (e) {}
+    }
+
+    function collectSystemStats() {
+      const done = TASKS.filter(t => t.status === 'done').length;
+      const active = TASKS.filter(t => t.status === 'active').length;
+      const pending = TASKS.filter(t => t.status === 'pending').length;
+      const total = TASKS.length || 1;
+      const completionRate = Math.round((done / total) * 100);
+
+      const wfDone = WORKFLOW.filter(s => s.status === 'done').length;
+      const wfActive = WORKFLOW.filter(s => s.status === 'active').length;
+      const wfPending = WORKFLOW.filter(s => s.status === 'pending').length;
+
+      const online = AGENTS.filter(a => getAgentView(a).connected).length;
+      const offline = AGENTS.length - online;
+      const agentMsgs = messages.filter(m => m.type === 'agent').length;
+      const ownerMsgs = messages.filter(m => m.type === 'owner').length;
+      const approvalCount = approvals.length;
+
+      return {
+        done, active, pending, total, completionRate,
+        wfDone, wfActive, wfPending,
+        online, offline, agentMsgs, ownerMsgs, approvalCount
+      };
+    }
+
+    function buildProposalContext() {
+      const stats = collectSystemStats();
+      const taskLines = TASKS.map(t =>
+        `- [${t.status}] ${t.title}（${t.agent}）`
+      ).join('\n');
+
+      const recent = messages
+        .slice(-16)
+        .map(m => `${m.sender}: ${String(m.text).slice(0, 400)}`)
+        .join('\n\n');
+
+      const workflowLines = WORKFLOW.map(s =>
+        `- [${s.status}] ${s.step}. ${s.title}（${s.agent}）`
+      ).join('\n');
+
+      const statsBlock = `
+任務完成率：${stats.completionRate}%（完成 ${stats.done} / 進行中 ${stats.active} / 待辦 ${stats.pending}）
+工作流：完成 ${stats.wfDone} · 進行中 ${stats.wfActive} · 待辦 ${stats.wfPending}
+Agent 連線：在線 ${stats.online} / 離線 ${stats.offline}
+對話量：Owner ${stats.ownerMsgs} · Agent ${stats.agentMsgs}
+待審批：${stats.approvalCount}`;
+
+      return { taskLines, recent, workflowLines, stats, statsBlock };
+    }
+
+    function splitProposalSections(text) {
+      const raw = String(text || '').trim();
+      if (!raw) return [{ id: 'all', title: '全文', body: '（無內容）' }];
+
+      const parts = raw.split(/\n(?=[一二三四五六七八九十]+[、．.]\s*)/);
+      if (parts.length <= 1) {
+        return [{ id: 'all', title: '全文', body: raw }];
+      }
+
+      return parts.map((p, i) => {
+        const line = p.trim().split('\n')[0] || `章節 ${i + 1}`;
+        const title = line.slice(0, 24);
+        return { id: 's' + i, title, body: p.trim() };
+      });
+    }
+
+    function renderBookNav(sections) {
+      const nav = document.getElementById('bookNav');
+      if (!nav) return;
+      nav.innerHTML = sections.map((s, i) =>
+        `<button type="button" class="book-chip ${i === 0 ? 'active' : ''}" data-section="${s.id}">${escapeHTML(s.title)}</button>`
+      ).join('');
+    }
+
+    function showProposalSection(sectionId) {
+      const sec = proposalSections.find(s => s.id === sectionId) || proposalSections[0];
+      if (!sec) return;
+      const doc = document.getElementById('proposalDoc');
+      if (doc) doc.textContent = sec.body;
+      document.querySelectorAll('.book-chip').forEach(chip => {
+        chip.classList.toggle('active', chip.dataset.section === sec.id);
+      });
+    }
+
+    function renderProposalStats(stats) {
+      const el = document.getElementById('proposalStats');
+      if (!el) return;
+      el.innerHTML = `
+        <div class="stat-card"><div class="n">${stats.completionRate}%</div><div class="l">任務完成率</div></div>
+        <div class="stat-card"><div class="n">${stats.done}/${stats.total}</div><div class="l">任務完成數</div></div>
+        <div class="stat-card"><div class="n">${stats.online}</div><div class="l">在線 Agent</div></div>
+        <div class="stat-card"><div class="n">${stats.agentMsgs}</div><div class="l">Agent 回覆數</div></div>
+      `;
+    }
+
+    function drawBarChart(canvasId, labels, values, colors) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = '#020617';
+      ctx.fillRect(0, 0, w, h);
+
+      const max = Math.max(...values, 1);
+      const gap = 16;
+      const barW = (w - gap * (values.length + 1)) / values.length;
+
+      values.forEach((v, i) => {
+        const bh = (v / max) * (h - 50);
+        const x = gap + i * (barW + gap);
+        const y = h - 28 - bh;
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.fillRect(x, y, barW, bh);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(String(v), x + barW / 2, y - 6);
+        ctx.fillText(labels[i], x + barW / 2, h - 10);
+      });
+    }
+
+    function drawLineChart(canvasId, labels, values) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = '#020617';
+      ctx.fillRect(0, 0, w, h);
+
+      const max = Math.max(...values, 1);
+      const pad = 30;
+      const stepX = (w - pad * 2) / Math.max(values.length - 1, 1);
+
+      ctx.strokeStyle = '#334155';
+      ctx.beginPath();
+      ctx.moveTo(pad, h - pad);
+      ctx.lineTo(w - pad, h - pad);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      values.forEach((v, i) => {
+        const x = pad + i * stepX;
+        const y = h - pad - (v / max) * (h - pad * 2);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      values.forEach((v, i) => {
+        const x = pad + i * stepX;
+        const y = h - pad - (v / max) * (h - pad * 2);
+        ctx.fillStyle = '#7dd3fc';
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(labels[i], x, h - 8);
+      });
+    }
+
+    function renderProposalCharts(stats) {
+      drawBarChart(
+        'chartTaskStatus',
+        ['完成', '進行中', '待辦'],
+        [stats.done, stats.active, stats.pending],
+        ['#22c55e', '#3b82f6', '#64748b']
+      );
+
+      // 工作流走勢：每一步完成=1, 進行中=0.5, 待辦=0 累積
+      let acc = 0;
+      const trend = WORKFLOW.map(s => {
+        if (s.status === 'done') acc += 1;
+        else if (s.status === 'active') acc += 0.5;
+        return acc;
+      });
+      drawLineChart(
+        'chartWorkflowTrend',
+        WORKFLOW.map(s => 'S' + s.step),
+        trend
+      );
+
+      drawBarChart(
+        'chartAgentLoad',
+        ['在線', '離線', 'Agent訊息', 'Owner訊息'],
+        [stats.online, stats.offline, stats.agentMsgs, stats.ownerMsgs],
+        ['#22c55e', '#ef4444', '#a78bfa', '#f59e0b']
+      );
+    }
+
+    function openProposalLibrary() {
+      stopProposalVoice();
+      document.getElementById('proposalOverlay')?.classList.remove('show');
+      document.getElementById('proposalLibraryOverlay')?.classList.add('show');
+      renderProposalLibrary();
+    }
+
+    function closeProposalLibrary() {
+      document.getElementById('proposalLibraryOverlay')?.classList.remove('show');
+    }
+
+    function renderProposalLibrary() {
+      const list = loadProposalLibrary();
+      const el = document.getElementById('proposalLibraryList');
+      if (!el) return;
+
+      if (!list.length) {
+        el.innerHTML = `<div class="library-empty">尚無企劃案。<br>請到任務「Owner 最終審批」產出，或點上方「產出最新企劃」。</div>`;
+        return;
+      }
+
+      el.innerHTML = list.map(item => `
+        <div class="library-item" data-id="${escapeHTML(item.id)}">
+          <h3>${escapeHTML(item.title || '未命名企劃')}</h3>
+          <div class="meta">
+            ${escapeHTML(item.createdAt || '')}
+            · 完成率 ${item.stats?.completionRate ?? '-'}%
+            · ${item.approved ? '已批准' : '草稿'}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function openProposalById(id) {
+      const list = loadProposalLibrary();
+      const item = list.find(x => x.id === id);
+      if (!item) {
+        showToast('找不到此企劃案');
+        return;
+      }
+      currentProposalId = item.id;
+      finalProposalText = item.text || '';
+      proposalSections = splitProposalSections(finalProposalText);
+      const stats = item.stats || collectSystemStats();
+
+      document.getElementById('proposalLibraryOverlay')?.classList.remove('show');
+      document.getElementById('proposalOverlay')?.classList.add('show');
+      document.getElementById('proposalTitle').textContent = item.title || '企劃方案';
+      document.getElementById('proposalStatus').textContent =
+        `${item.createdAt || ''} · ${item.author || 'AIVAULT'} · ${item.approved ? '已批准' : '草稿'}`;
+
+      renderProposalStats(stats);
+      setTimeout(() => renderProposalCharts(stats), 50);
+      renderBookNav(proposalSections);
+      showProposalSection(proposalSections[0]?.id);
+    }
+
+    function persistCurrentProposal(meta) {
+      if (!finalProposalText) return null;
+      const stats = collectSystemStats();
+      const id = currentProposalId || ('prop-' + Date.now().toString(36));
+      currentProposalId = id;
+      const item = {
+        id,
+        title: meta?.title || 'AIVAULT 最終企劃方案',
+        text: finalProposalText,
+        stats,
+        author: meta?.author || 'Coordinator',
+        createdAt: meta?.createdAt || new Date().toLocaleString('zh-TW'),
+        approved: !!meta?.approved
+      };
+      const list = loadProposalLibrary().filter(x => x.id !== id);
+      list.unshift(item);
+      saveProposalLibrary(list);
+      return item;
+    }
+
+    async function openFinalProposalPage(task) {
+      stopProposalVoice();
+      document.getElementById('proposalLibraryOverlay')?.classList.remove('show');
+      const overlay = document.getElementById('proposalOverlay');
+      const statusEl = document.getElementById('proposalStatus');
+      const docEl = document.getElementById('proposalDoc');
+
+      if (overlay) overlay.classList.add('show');
+      if (statusEl) statusEl.textContent = '正在彙整任務、工作流、統計數據與討論，產出完整企劃…';
+      if (docEl) docEl.textContent = '請稍候，正在撰寫最終企劃方案並產生圖表…';
+
+      const stats = collectSystemStats();
+      renderProposalStats(stats);
+      setTimeout(() => renderProposalCharts(stats), 30);
+
+      const { taskLines, recent, workflowLines, statsBlock } = buildProposalContext();
+
+      const prompt = `你是 AIVAULT 的 Coordinator（整合協調官）。
+請根據系統數據與討論，撰寫「AIVAULT 完整最終企劃案」（繁體中文）。
+
+【統計數據】
+${statsBlock}
+
+【任務清單】
+${taskLines}
+
+【工作流】
+${workflowLines}
+
+【近期討論摘要】
+${recent || '（尚無足夠討論紀錄）'}
+
+請輸出完整企劃案，必須包含：
+一、專案名稱與目標
+二、產品定位
+三、核心架構
+四、數據洞察（解讀上方完成率、Agent 負載、對話量）
+五、已完成事項
+六、進行中與待辦
+七、風險與合規
+八、資源與時程（30 天計畫）
+九、Owner 決策建議
+
+要求：引用實際數字、可執行、不要空話。`;
+
+      let agent = AGENTS.find(a => a.id === 'a6' && getAgentView(a).connected)
+        || AGENTS.find(a => getAgentView(a).connected)
+        || AGENTS[0];
+
+      try {
+        setAgentRuntime(agent.id, {
+          status: 'working',
+          statusText: '撰寫最終企劃…',
+          connected: true
+        });
+        renderAgents();
+
+        const reply = await callAIGateway({
+          provider: agent.provider,
+          model: getAgentModel(agent),
+          agentName: agent.name,
+          userMessage: prompt
+        });
+
+        finalProposalText = String(reply || '').trim() || buildFallbackProposal(taskLines, workflowLines, statsBlock);
+      } catch (err) {
+        finalProposalText = buildFallbackProposal(taskLines, workflowLines, statsBlock)
+          + `\n\n（AI Gateway 暫時失敗，以上為本機彙整）\n錯誤：${err.message || err}`;
+        showToast('AI 失敗，已改用本機彙整底稿');
+      }
+
+      proposalSections = splitProposalSections(finalProposalText);
+      renderBookNav(proposalSections);
+      showProposalSection(proposalSections[0]?.id);
+
+      if (statusEl) {
+        statusEl.textContent = `最終企劃已產出 · ${nowTime()} · by ${agent.name} · 完成率 ${stats.completionRate}%`;
+      }
+      document.getElementById('proposalTitle').textContent = 'AIVAULT 最終企劃方案';
+
+      persistCurrentProposal({
+        title: 'AIVAULT 最終企劃方案',
+        author: agent.name,
+        createdAt: new Date().toLocaleString('zh-TW'),
+        approved: false
+      });
+
+      messages.push({
+        sender: agent.name,
+        role: agent.role,
+        type: 'agent',
+        text: '【最終企劃方案已產出】可在企劃書庫閱覽、語音播放、下載含圖表 PDF。',
+        time: nowTime()
+      });
+      renderMessages('chatMessages');
+      renderMessages('homeChatPreview', 4);
+
+      approvals = [{
+        id: 'ap-final-' + Date.now().toString(36),
+        agent: agent.name,
+        action: 'Owner 最終審批：批准 AIVAULT 最終企劃方案並結案',
+        risk: 'high',
+        time: '剛剛'
+      }].concat(approvals.filter(a => !String(a.id).startsWith('ap-final-')));
+      renderApprovals();
+
+      setAgentRuntime(agent.id, {
+        status: 'idle',
+        statusText: '空閒 · ' + agent.provider,
+        connected: true
+      });
+      renderAgents();
+      showToast('企劃已就緒：可語音、閱覽章節、下載 PDF');
+    }
+
+    function buildFallbackProposal(taskLines, workflowLines, statsBlock) {
+      return `AIVAULT 最終企劃方案（本機彙整）
+
+一、專案名稱與目標
+AIVAULT — AI Agent 協作工作平台
+目標：建立可擴充的多 Agent 協作、治理與 Owner 審批閉環。
+
+二、產品定位
+「AI 公司正在工作」的任務舞台與共同記憶中心，而非單純聊天室。
+
+三、核心架構
+1. AI Gateway（Provider Adapter）
+2. Agent Registry
+3. Governance / Cognitive
+4. Owner Approval
+5. War Room
+
+四、數據洞察
+${statsBlock || ''}
+
+五、任務現況
+${taskLines}
+
+六、工作流現況
+${workflowLines}
+
+七、風險與合規
+- API Key 不可放前端
+- 高風險操作必須 Owner 批准
+
+八、下一階段 30 天計畫
+1. 穩定 AI Gateway
+2. 任務與審批入庫
+3. War Room / Home 閉環
+4. 企劃 PDF 歸檔
+
+九、Owner 決策建議
+請於本頁批准結案或提出修改點。`;
+    }
+
+    function closeProposalPage() {
+      stopProposalVoice();
+      document.getElementById('proposalOverlay')?.classList.remove('show');
+      openProposalLibrary();
+    }
+
+    function stopProposalVoice() {
+      proposalSpeaking = false;
+      try { window.speechSynthesis?.cancel(); } catch (e) {}
+      const btn = document.getElementById('btnProposalVoice');
+      if (btn) {
+        btn.textContent = '▶ 語音';
+        btn.classList.remove('voice-on');
+      }
+    }
+
+    function toggleProposalVoice() {
+      if (!('speechSynthesis' in window)) {
+        showToast('此裝置不支援語音播放');
+        return;
+      }
+      if (proposalSpeaking) {
+        stopProposalVoice();
+        return;
+      }
+      const text = document.getElementById('proposalDoc')?.textContent || finalProposalText;
+      if (!text?.trim()) {
+        showToast('沒有可播放的內容');
+        return;
+      }
+      stopProposalVoice();
+      proposalUtterance = new SpeechSynthesisUtterance(text);
+      proposalUtterance.lang = 'zh-TW';
+      proposalUtterance.rate = 1.1;
+      proposalUtterance.onend = () => stopProposalVoice();
+      proposalUtterance.onerror = () => stopProposalVoice();
+      proposalSpeaking = true;
+      const btn = document.getElementById('btnProposalVoice');
+      if (btn) {
+        btn.textContent = '■ 停止';
+        btn.classList.add('voice-on');
+      }
+      window.speechSynthesis.speak(proposalUtterance);
+    }
+
+    function downloadProposalPdf() {
+      const text = finalProposalText || document.getElementById('proposalDoc')?.textContent || '';
+      if (!text.trim()) {
+        showToast('尚無企劃內容可下載');
+        return;
+      }
+
+      const stats = collectSystemStats();
+      const c1 = document.getElementById('chartTaskStatus')?.toDataURL('image/png') || '';
+      const c2 = document.getElementById('chartWorkflowTrend')?.toDataURL('image/png') || '';
+      const c3 = document.getElementById('chartAgentLoad')?.toDataURL('image/png') || '';
+
+      const w = window.open('', '_blank');
+      if (!w) {
+        showToast('請允許彈出視窗以下載 PDF');
+        return;
+      }
+
+      const safe = String(text)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;');
+
+      w.document.write(`<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"/>
+<title>AIVAULT 最終企劃方案</title>
+<style>
+  @page { margin: 16mm; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Noto Sans TC", "Microsoft JhengHei", sans-serif; color:#111; line-height:1.7; font-size:11.5pt; }
+  h1 { font-size:18pt; margin:0 0 6px; }
+  h2 { font-size:13pt; margin:18px 0 8px; border-bottom:1px solid #ddd; padding-bottom:4px; }
+  .meta { color:#555; font-size:10pt; margin-bottom:14px; }
+  .stats { display:flex; gap:10px; flex-wrap:wrap; margin:12px 0; }
+  .stat { border:1px solid #ddd; border-radius:8px; padding:8px 12px; min-width:110px; }
+  .stat b { display:block; font-size:16pt; }
+  .charts img { width:100%; max-width:640px; margin:8px 0 14px; border:1px solid #eee; }
+  .doc { white-space:pre-wrap; word-break:break-word; }
+</style></head><body>
+<h1>AIVAULT 最終企劃方案</h1>
+<div class="meta">產出時間：${new Date().toLocaleString('zh-TW')} · 含統計數據與圖表分析</div>
+<div class="stats">
+  <div class="stat"><b>${stats.completionRate}%</b>任務完成率</div>
+  <div class="stat"><b>${stats.done}/${stats.total}</b>任務完成數</div>
+  <div class="stat"><b>${stats.online}</b>在線 Agent</div>
+  <div class="stat"><b>${stats.agentMsgs}</b>Agent 回覆</div>
+</div>
+<h2>圖表分析</h2>
+<div class="charts">
+  ${c1 ? `<div>任務完成度</div><img src="${c1}"/>` : ''}
+  ${c2 ? `<div>工作流進度走勢</div><img src="${c2}"/>` : ''}
+  ${c3 ? `<div>Agent 連線與負載</div><img src="${c3}"/>` : ''}
+</div>
+<h2>企劃正文</h2>
+<div class="doc">${safe}</div>
+<script>setTimeout(function(){ window.print(); }, 400);<\/script>
+</body></html>`);
+      w.document.close();
+      showToast('已開啟列印視窗，請選擇「儲存為 PDF」');
+    }
+
+    function approveFinalProposal() {
+      if (!finalProposalText) {
+        showToast('請先產出企劃方案');
+        return;
+      }
+
+      const task = TASKS.find(t => t.id === 't5');
+      if (task) task.status = 'done';
+
+      persistCurrentProposal({
+        title: 'AIVAULT 最終企劃方案',
+        author: 'Owner',
+        createdAt: new Date().toLocaleString('zh-TW'),
+        approved: true
+      });
+
+      approvals = approvals.filter(a => !String(a.action || '').includes('最終企劃方案'));
+      renderApprovals();
+      renderTasks('taskList');
+      renderTasks('taskListFull');
+      syncWorkflowWithTasks();
+
+      messages.push({
+        sender: 'Owner',
+        type: 'owner',
+        text: '【Owner 批准】最終企劃方案已批准結案，已歸檔至企劃書庫。',
+        time: nowTime()
+      });
+      renderMessages('chatMessages');
+      renderMessages('homeChatPreview', 4);
+
+      stopProposalVoice();
+      showToast('最終企劃已批准並歸檔');
+      document.getElementById('proposalOverlay')?.classList.remove('show');
+      openProposalLibrary();
+    }
+
+    function syncWorkflowWithTasks() {
+      // 依任務完成度粗略同步工作流步驟
+      const doneCount = TASKS.filter(t => t.status === 'done').length;
+      const activeCount = TASKS.filter(t => t.status === 'active').length;
+
+      WORKFLOW.forEach((step, idx) => {
+        if (idx < doneCount) {
+          step.status = 'done';
+        } else if (idx === doneCount && activeCount > 0) {
+          step.status = 'active';
+        } else if (idx === doneCount && activeCount === 0 && doneCount < WORKFLOW.length) {
+          step.status = 'active';
+        } else {
+          step.status = 'pending';
+        }
+      });
+      renderWorkflow();
     }
 
 
@@ -2805,6 +3855,9 @@ Owner 擁有最終決策權。
             <div
               class="workflow-step
               ${step.status}"
+              data-step="${step.step}"
+              style="cursor:pointer;"
+              title="點擊：標記此步驟為進行中；長按邏輯簡化為點擊切換"
             >
 
               <div class="step-num">
@@ -2825,6 +3878,14 @@ Owner 擁有最終決策權。
 
                 <div class="step-agent">
                   ${step.agent}
+                  ·
+                  ${
+                    step.status === 'done'
+                      ? '已完成'
+                      : step.status === 'active'
+                        ? '進行中'
+                        : '待辦'
+                  }
                 </div>
 
               </div>
@@ -2834,6 +3895,31 @@ Owner 擁有最終決策權。
           `)
           .join('');
 
+    }
+
+    function setWorkflowStep(stepNum) {
+      const idx = WORKFLOW.findIndex(s => s.step === stepNum);
+      if (idx < 0) return;
+
+      WORKFLOW.forEach((s, i) => {
+        if (i < idx) s.status = 'done';
+        else if (i === idx) s.status = 'active';
+        else s.status = 'pending';
+      });
+
+      // 同步對應任務（若有）
+      if (TASKS[idx]) {
+        TASKS.forEach((t, i) => {
+          if (i < idx) t.status = 'done';
+          else if (i === idx) t.status = 'active';
+          else if (t.status === 'active') t.status = 'pending';
+        });
+        renderTasks('taskList');
+        renderTasks('taskListFull');
+      }
+
+      renderWorkflow();
+      showToast(`工作流進行到：${WORKFLOW[idx].title}`);
     }
 
 
@@ -3203,24 +4289,35 @@ Owner 擁有最終決策權。
       approved
     ) {
 
+      const item = approvals.find(a => a.id === id);
+
       approvals =
         approvals.filter(
           approval =>
             approval.id !== id
         );
 
-
       renderApprovals();
 
-
-      showToast(
-
-        approved
-          ? '已批准操作'
-          : '已拒絕操作'
-
-      );
-
+      if (item) {
+        // 批准後寫入任務清單
+        if (approved) {
+          const newId = 't' + Date.now().toString(36);
+          TASKS.push({
+            id: newId,
+            title: `[已批准] ${item.action}`,
+            status: 'active',
+            agent: item.agent
+          });
+          renderTasks('taskList');
+          renderTasks('taskListFull');
+          showToast(`已批准：${item.agent}`);
+        } else {
+          showToast(`已拒絕：${item.agent}`);
+        }
+      } else {
+        showToast(approved ? '已批准操作' : '已拒絕操作');
+      }
     }
 
 
@@ -3698,6 +4795,32 @@ Owner 擁有最終決策權。
         }
       );
 
+    // 企劃書庫 + 閱覽頁
+    document.getElementById('btnCloseProposal')?.addEventListener('click', closeProposalPage);
+    document.getElementById('btnDownloadPdf')?.addEventListener('click', downloadProposalPdf);
+    document.getElementById('btnApproveProposal')?.addEventListener('click', approveFinalProposal);
+    document.getElementById('btnProposalVoice')?.addEventListener('click', toggleProposalVoice);
+    document.getElementById('btnCloseLibrary')?.addEventListener('click', closeProposalLibrary);
+    document.getElementById('btnNewProposalFromLib')?.addEventListener('click', () => {
+      const t = TASKS.find(x => x.id === 't5') || { id: 't5', title: 'Owner 最終審批' };
+      openFinalProposalPage(t);
+    });
+    document.getElementById('tabProposalLibrary')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openProposalLibrary();
+    });
+
+    document.getElementById('proposalLibraryList')?.addEventListener('click', (e) => {
+      const item = e.target.closest('.library-item');
+      if (item?.dataset.id) openProposalById(item.dataset.id);
+    });
+
+    document.getElementById('bookNav')?.addEventListener('click', (e) => {
+      const chip = e.target.closest('.book-chip');
+      if (chip?.dataset.section) showProposalSection(chip.dataset.section);
+    });
+
 
     /* ============================================================
        ㉘ Owner
@@ -3747,7 +4870,7 @@ Owner 擁有最終決策權。
       .getElementById('btnRoomSend')
       .addEventListener(
         'click',
-        () => {
+        async () => {
 
           const input =
             document.getElementById(
@@ -3768,32 +4891,23 @@ Owner 擁有最終決策權。
             `Owner：${question}`
           );
 
-
-          /*
-           * 目前房間仍然是 UI。
-           *
-           * 下一階段可以接：
-           *
-           * Room AI Gateway
-           * ↓
-           * TTS
-           * ↓
-           * Digital Human
-           */
-
-          setTimeout(
-            () => {
-
-              addTicker(
-                '系統：問題已送入 AIVAULT 協作流程'
-              );
-
-            },
-            400
-          );
-
-
           input.value = '';
+          addTicker('系統：送入 AI Gateway…');
+
+          const agent =
+            AGENTS.find(a => getAgentView(a).connected) || AGENTS[0];
+
+          try {
+            const reply = await callAIGateway({
+              provider: agent.provider,
+              model: getAgentModel(agent),
+              agentName: agent.name,
+              userMessage: question
+            });
+            addTicker(`${agent.name}：${String(reply).slice(0, 120)}${String(reply).length > 120 ? '…' : ''}`);
+          } catch (err) {
+            addTicker(`系統錯誤：${err.message || err}`);
+          }
 
         }
       );
@@ -3807,19 +4921,82 @@ Owner 擁有最終決策權。
       'click',
       event => {
 
-        if (
-          event.target.classList
-            .contains('toggle')
-        ) {
+        // Agent / Provider Toggle（真正啟用／停用）
+        const toggleEl = event.target.closest('.toggle');
+        if (toggleEl) {
+          const agentId = toggleEl.dataset.id;
+          const providerCode = toggleEl.dataset.code;
 
-          event.target.classList
-            .toggle('on');
+          if (agentId) {
+            const wasOn = toggleEl.classList.contains('on');
+            toggleEl.classList.toggle('on');
+            const nowOn = toggleEl.classList.contains('on');
 
+            setAgentRuntime(agentId, {
+              connected: nowOn,
+              status: nowOn ? 'idle' : 'offline',
+              statusText: nowOn ? '空閒（手動啟用）' : '已停用'
+            });
 
-          showToast(
-            '狀態已更新'
-          );
+            if (!nowOn) {
+              selectedChatAgents = selectedChatAgents.filter(id => id !== agentId);
+            }
 
+            renderAgents();
+            renderAgentPickBars();
+            showToast(nowOn ? 'Agent 已啟用' : 'Agent 已停用');
+            return;
+          }
+
+          if (providerCode) {
+            const provider = PROVIDERS.find(p => p.code === providerCode);
+            if (provider) {
+              const nowOn = !toggleEl.classList.contains('on');
+              toggleEl.classList.toggle('on');
+              provider.status = nowOn ? 'active' : 'inactive';
+
+              // 同 provider 的 Agent 一併更新
+              AGENTS.forEach(a => {
+                if (a.provider === providerCode) {
+                  setAgentRuntime(a.id, {
+                    connected: nowOn,
+                    status: nowOn ? 'idle' : 'offline',
+                    statusText: nowOn ? (`空閒 · ${providerCode}`) : 'Provider 已關閉'
+                  });
+                  if (!nowOn) {
+                    selectedChatAgents = selectedChatAgents.filter(id => id !== a.id);
+                  }
+                }
+              });
+
+              renderAgents();
+              renderAgentRegistry();
+              renderAgentPickBars();
+              showToast(
+                nowOn
+                  ? `Provider ${provider.name} 已啟用`
+                  : `Provider ${provider.name} 已關閉`
+              );
+            }
+            return;
+          }
+
+          toggleEl.classList.toggle('on');
+          showToast('狀態已更新');
+          return;
+        }
+
+        // 任務點擊
+        const taskItem = event.target.closest('.task-item');
+        if (taskItem && taskItem.dataset.taskId) {
+          cycleTaskStatus(taskItem.dataset.taskId);
+          return;
+        }
+
+        // 工作流步驟點擊
+        const stepItem = event.target.closest('.workflow-step');
+        if (stepItem && stepItem.dataset.step) {
+          setWorkflowStep(Number(stepItem.dataset.step));
           return;
         }
 
