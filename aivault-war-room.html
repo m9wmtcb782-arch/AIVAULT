@@ -1,0 +1,2856 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<meta name="theme-color" content="#05070d">
+<title>AIVAULT War Room</title>
+
+<style>
+:root{
+  --bg:#05070d;
+  --panel:#0b101b;
+  --panel2:#101827;
+  --line:#1d293b;
+  --text:#edf4ff;
+  --muted:#8b99ad;
+  --blue:#38bdf8;
+  --green:#22c55e;
+  --yellow:#facc15;
+  --red:#ef4444;
+  --purple:#a78bfa;
+}
+
+*{
+  box-sizing:border-box;
+  -webkit-tap-highlight-color:transparent;
+}
+
+html,body{
+  margin:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:var(--bg);
+  color:var(--text);
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "PingFang TC",
+    "Noto Sans TC",
+    "Microsoft JhengHei",
+    sans-serif;
+}
+
+button,
+textarea{
+  font:inherit;
+}
+
+button{
+  cursor:pointer;
+}
+
+button:disabled{
+  cursor:not-allowed;
+}
+
+.app{
+  width:100%;
+  height:100dvh;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+.header{
+  height:58px;
+  flex:0 0 58px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 14px;
+  background:rgba(5,7,13,.96);
+  border-bottom:1px solid var(--line);
+  z-index:20;
+}
+
+.brand{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  font-weight:800;
+  letter-spacing:.5px;
+}
+
+.brand-mark{
+  width:31px;
+  height:31px;
+  border-radius:9px;
+  display:grid;
+  place-items:center;
+  background:linear-gradient(135deg,#1e293b,#0f172a);
+  border:1px solid #334155;
+  color:#7dd3fc;
+  font-size:15px;
+}
+
+.room-title{
+  font-size:15px;
+}
+
+.room-sub{
+  color:var(--muted);
+  font-size:10px;
+  margin-top:1px;
+}
+
+.header-actions{
+  display:flex;
+  gap:6px;
+}
+
+.icon-btn{
+  width:36px;
+  height:36px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:#0b111c;
+  color:#dbeafe;
+}
+
+/* =========================================================
+   ROOM
+========================================================= */
+
+.room{
+  flex:1;
+  min-height:0;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+
+.status-bar{
+  min-height:42px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 13px;
+  border-bottom:1px solid var(--line);
+  background:#080d16;
+}
+
+.status-left{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:12px;
+}
+
+.live-dot{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 10px rgba(34,197,94,.8);
+}
+
+.live-dot.off{
+  background:#475569;
+  box-shadow:none;
+}
+
+.status-right{
+  color:var(--muted);
+  font-size:11px;
+}
+
+/* =========================================================
+   AGENT GRID
+========================================================= */
+
+.agent-grid{
+  flex:0 0 auto;
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:7px;
+  padding:8px;
+  background:#060a12;
+  border-bottom:1px solid var(--line);
+}
+
+.agent-card{
+  min-width:0;
+  height:88px;
+  position:relative;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:
+    radial-gradient(circle at 50% 0%,rgba(56,189,248,.08),transparent 55%),
+    #0b111c;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  transition:.2s;
+}
+
+.agent-card.not-selected{
+  opacity:.28;
+  filter:grayscale(.65);
+}
+
+.agent-card.selected{
+  border-color:rgba(56,189,248,.7);
+  box-shadow:0 0 14px rgba(56,189,248,.12);
+}
+
+.agent-card.thinking{
+  border-color:rgba(56,189,248,.65);
+  box-shadow:0 0 15px rgba(56,189,248,.12);
+}
+
+.agent-card.speaking{
+  border-color:rgba(34,197,94,.8);
+  box-shadow:0 0 18px rgba(34,197,94,.12);
+}
+
+.agent-avatar{
+  width:39px;
+  height:39px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  font-size:21px;
+  border:1px solid #334155;
+  background:#111827;
+  margin-bottom:3px;
+}
+
+.agent-name{
+  font-size:11px;
+  font-weight:700;
+  white-space:nowrap;
+}
+
+.agent-role{
+  color:var(--muted);
+  font-size:9px;
+  white-space:nowrap;
+}
+
+.online{
+  position:absolute;
+  top:6px;
+  right:6px;
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 7px rgba(34,197,94,.9);
+}
+
+.online.off{
+  background:#475569;
+  box-shadow:none;
+}
+
+.agent-state{
+  position:absolute;
+  bottom:3px;
+  color:#64748b;
+  font-size:8px;
+}
+
+/* =========================================================
+   DIALOGUE
+========================================================= */
+
+.dialogue-wrap{
+  flex:1;
+  min-height:0;
+  overflow:hidden;
+  position:relative;
+}
+
+.dialogue{
+  height:100%;
+  overflow-y:auto;
+  padding:12px 11px 130px;
+  -webkit-overflow-scrolling:touch;
+}
+
+.message{
+  display:flex;
+  gap:9px;
+  margin-bottom:13px;
+  animation:messageIn .25s ease;
+}
+
+@keyframes messageIn{
+  from{
+    opacity:0;
+    transform:translateY(5px);
+  }
+  to{
+    opacity:1;
+    transform:none;
+  }
+}
+
+.message.owner{
+  flex-direction:row-reverse;
+}
+
+.message.system .message-body{
+  background:#080d16;
+  border-color:#26354b;
+  color:#94a3b8;
+}
+
+.message-content{
+  max-width:min(86%,680px);
+}
+
+.message-avatar{
+  flex:0 0 31px;
+  width:31px;
+  height:31px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  background:#111827;
+  border:1px solid #334155;
+  font-size:16px;
+}
+
+.message-head{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-bottom:4px;
+  font-size:10px;
+  color:var(--muted);
+}
+
+.message.owner .message-head{
+  justify-content:flex-end;
+}
+
+.message-name{
+  color:#dbeafe;
+  font-weight:700;
+}
+
+.message-body{
+  border:1px solid var(--line);
+  background:#0b111c;
+  border-radius:11px;
+  padding:10px 11px;
+  font-size:13px;
+  line-height:1.7;
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+
+.message.owner .message-body{
+  background:#10243a;
+  border-color:#17476b;
+}
+
+.thinking-box{
+  color:#94a3b8;
+  font-style:italic;
+}
+
+/* =========================================================
+   OWNER PANEL
+========================================================= */
+
+.owner-panel{
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  z-index:10;
+  padding:8px;
+  background:linear-gradient(
+    to top,
+    rgba(5,7,13,1) 72%,
+    rgba(5,7,13,.92) 100%
+  );
+}
+
+.input-row{
+  display:flex;
+  gap:7px;
+  align-items:flex-end;
+}
+
+.owner-input{
+  flex:1;
+  min-height:44px;
+  max-height:110px;
+  resize:none;
+  border:1px solid #26354b;
+  border-radius:12px;
+  background:#0b111c;
+  color:white;
+  outline:none;
+  padding:11px 12px;
+  line-height:1.45;
+}
+
+.owner-input:focus{
+  border-color:#256a93;
+}
+
+.send-btn{
+  width:46px;
+  height:44px;
+  border:0;
+  border-radius:12px;
+  background:#0284c7;
+  color:white;
+  font-size:18px;
+}
+
+.control-row{
+  display:flex;
+  gap:6px;
+  margin-top:7px;
+  overflow-x:auto;
+}
+
+.control-btn{
+  flex:0 0 auto;
+  height:32px;
+  padding:0 11px;
+  border-radius:8px;
+  border:1px solid var(--line);
+  background:#0b111c;
+  color:#cbd5e1;
+  font-size:11px;
+}
+
+.control-btn.primary{
+  border-color:#075985;
+  background:#082f49;
+  color:#bae6fd;
+}
+
+.control-btn.danger{
+  color:#fecaca;
+  border-color:#4b1d1d;
+}
+
+.voice-btn.active{
+  border-color:#ef4444;
+  color:#fecaca;
+}
+
+/* =========================================================
+   OVERLAYS
+========================================================= */
+
+.overlay{
+  position:fixed;
+  inset:0;
+  z-index:100;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  background:rgba(0,0,0,.72);
+  backdrop-filter:blur(8px);
+}
+
+.overlay.visible{
+  display:flex;
+}
+
+.modal{
+  width:min(94vw,560px);
+  max-height:85dvh;
+  overflow:auto;
+  border:1px solid #26354b;
+  border-radius:17px;
+  background:#0b111c;
+  box-shadow:0 20px 70px rgba(0,0,0,.55);
+  padding:18px;
+}
+
+.modal h2{
+  margin:0 0 8px;
+  font-size:18px;
+}
+
+.modal p{
+  color:#94a3b8;
+  font-size:13px;
+  line-height:1.7;
+}
+
+.modal-actions{
+  display:flex;
+  gap:8px;
+  justify-content:flex-end;
+  margin-top:15px;
+}
+
+.modal-btn{
+  height:38px;
+  padding:0 14px;
+  border-radius:9px;
+  border:1px solid var(--line);
+  background:#111827;
+  color:#e2e8f0;
+}
+
+.modal-btn.primary{
+  background:#075985;
+  border-color:#0369a1;
+}
+
+/* =========================================================
+   AGENT SELECTOR
+========================================================= */
+
+.agent-selector-modal{
+  width:min(94vw,620px);
+}
+
+.selection-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:14px;
+}
+
+.selection-counter{
+  flex:0 0 auto;
+  padding:6px 9px;
+  border-radius:8px;
+  border:1px solid #164e63;
+  background:#082f49;
+  color:#bae6fd;
+  font-size:11px;
+  font-weight:700;
+}
+
+.selection-counter.warning{
+  border-color:#713f12;
+  background:#422006;
+  color:#fde68a;
+}
+
+.selection-help{
+  color:#94a3b8;
+  font-size:12px;
+  line-height:1.6;
+  margin-bottom:13px;
+}
+
+.agent-select-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:9px;
+}
+
+.agent-select-card{
+  position:relative;
+  min-height:82px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:11px;
+  border-radius:12px;
+  border:1px solid var(--line);
+  background:#080d16;
+  color:#e2e8f0;
+  text-align:left;
+  transition:.18s;
+}
+
+.agent-select-card.selected{
+  border-color:#0284c7;
+  background:
+    radial-gradient(
+      circle at 0 0,
+      rgba(56,189,248,.12),
+      transparent 60%
+    ),
+    #0b1724;
+}
+
+.agent-select-card.disabled{
+  opacity:.35;
+}
+
+.agent-select-avatar{
+  width:42px;
+  height:42px;
+  flex:0 0 42px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:#111827;
+  border:1px solid #334155;
+  font-size:21px;
+}
+
+.agent-select-info{
+  min-width:0;
+}
+
+.agent-select-name{
+  font-size:13px;
+  font-weight:800;
+}
+
+.agent-select-role{
+  margin-top:2px;
+  color:#8b99ad;
+  font-size:10px;
+}
+
+.agent-select-check{
+  position:absolute;
+  top:8px;
+  right:8px;
+  width:20px;
+  height:20px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  border:1px solid #334155;
+  color:#64748b;
+  font-size:11px;
+}
+
+.agent-select-card.selected
+.agent-select-check{
+  border-color:#0284c7;
+  background:#0284c7;
+  color:white;
+}
+
+.selected-summary{
+  margin-top:12px;
+  padding:10px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:#070b12;
+  color:#94a3b8;
+  font-size:11px;
+  line-height:1.6;
+}
+
+.selected-summary strong{
+  color:#dbeafe;
+}
+
+/* =========================================================
+   HISTORY
+========================================================= */
+
+.history-item{
+  padding:12px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:#080d16;
+  margin-bottom:7px;
+}
+
+.history-title{
+  font-size:13px;
+  font-weight:700;
+}
+
+.history-meta{
+  margin-top:4px;
+  color:var(--muted);
+  font-size:10px;
+}
+
+.history-empty{
+  color:#64748b;
+  text-align:center;
+  padding:20px;
+}
+
+/* =========================================================
+   DECISION
+========================================================= */
+
+.decision-box{
+  border:1px solid #164e63;
+  border-radius:10px;
+  padding:11px;
+  margin-top:10px;
+  background:#061a27;
+  color:#bae6fd;
+  font-size:12px;
+  line-height:1.6;
+}
+
+/* =========================================================
+   TOAST
+========================================================= */
+
+.toast{
+  position:fixed;
+  left:50%;
+  bottom:90px;
+  transform:translateX(-50%) translateY(15px);
+  opacity:0;
+  pointer-events:none;
+  z-index:200;
+  padding:9px 13px;
+  border-radius:9px;
+  background:#111827;
+  border:1px solid #334155;
+  color:#e2e8f0;
+  font-size:12px;
+  transition:.2s;
+  max-width:90vw;
+  text-align:center;
+}
+
+.toast.show{
+  opacity:1;
+  transform:translateX(-50%) translateY(0);
+}
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media(max-width:520px){
+
+  .agent-grid{
+    gap:4px;
+    padding:6px;
+  }
+
+  .agent-card{
+    height:78px;
+    border-radius:9px;
+  }
+
+  .agent-avatar{
+    width:32px;
+    height:32px;
+    font-size:17px;
+  }
+
+  .agent-name{
+    font-size:9px;
+  }
+
+  .agent-role{
+    font-size:7px;
+  }
+
+  .message-content{
+    max-width:84%;
+  }
+
+  .agent-select-grid{
+    grid-template-columns:1fr;
+  }
+
+  .agent-select-card{
+    min-height:70px;
+  }
+}
+
+@media(max-width:380px){
+
+  .agent-card{
+    height:72px;
+  }
+
+  .agent-avatar{
+    width:29px;
+    height:29px;
+    font-size:15px;
+  }
+
+  .agent-name{
+    font-size:8px;
+  }
+
+  .agent-role{
+    display:none;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<header class="header">
+
+  <div class="brand">
+
+    <div class="brand-mark">
+      AI
+    </div>
+
+    <div>
+
+      <div class="room-title">
+        AIVAULT WAR ROOM
+      </div>
+
+      <div class="room-sub">
+        最多 3 Agent 協作會議
+      </div>
+
+    </div>
+
+  </div>
+
+  <div class="header-actions">
+
+    <button
+      class="icon-btn"
+      id="btnBackHome">
+      ⌂
+    </button>
+
+    <button
+      class="icon-btn"
+      id="btnLang">
+      中
+    </button>
+
+  </div>
+
+</header>
+
+<main class="room">
+
+  <div class="status-bar">
+
+    <div class="status-left">
+
+      <span
+        class="live-dot off"
+        id="roomLive">
+      </span>
+
+      <span id="roomStatus">
+        尚未進入會議
+      </span>
+
+    </div>
+
+    <div
+      class="status-right"
+      id="roundText">
+      Round 0
+    </div>
+
+  </div>
+
+  <section class="agent-grid">
+
+    <div
+      class="agent-card not-selected"
+      id="agentCard-strategy">
+
+      <span class="online off"></span>
+
+      <div class="agent-avatar">
+        🧠
+      </div>
+
+      <div class="agent-name">
+        凌策
+      </div>
+
+      <div class="agent-role">
+        戰略官
+      </div>
+
+      <div
+        class="agent-state"
+        id="state-strategy">
+        未參會
+      </div>
+
+    </div>
+
+    <div
+      class="agent-card not-selected"
+      id="agentCard-tech">
+
+      <span class="online off"></span>
+
+      <div class="agent-avatar">
+        ⚙️
+      </div>
+
+      <div class="agent-name">
+        岳衡
+      </div>
+
+      <div class="agent-role">
+        技術官
+      </div>
+
+      <div
+        class="agent-state"
+        id="state-tech">
+        未參會
+      </div>
+
+    </div>
+
+    <div
+      class="agent-card not-selected"
+      id="agentCard-risk">
+
+      <span class="online off"></span>
+
+      <div class="agent-avatar">
+        🛡️
+      </div>
+
+      <div class="agent-name">
+        沈岳
+      </div>
+
+      <div class="agent-role">
+        風險官
+      </div>
+
+      <div
+        class="agent-state"
+        id="state-risk">
+        未參會
+      </div>
+
+    </div>
+
+    <div
+      class="agent-card not-selected"
+      id="agentCard-research">
+
+      <span class="online off"></span>
+
+      <div class="agent-avatar">
+        🔬
+      </div>
+
+      <div class="agent-name">
+        若曦
+      </div>
+
+      <div class="agent-role">
+        研究官
+      </div>
+
+      <div
+        class="agent-state"
+        id="state-research">
+        未參會
+      </div>
+
+    </div>
+
+    <div
+      class="agent-card not-selected"
+      id="agentCard-review">
+
+      <span class="online off"></span>
+
+      <div class="agent-avatar">
+        ⚖️
+      </div>
+
+      <div class="agent-name">
+        知衡
+      </div>
+
+      <div class="agent-role">
+        審查官
+      </div>
+
+      <div
+        class="agent-state"
+        id="state-review">
+        未參會
+      </div>
+
+    </div>
+
+  </section>
+
+  <section class="dialogue-wrap">
+
+    <div
+      class="dialogue"
+      id="dialogue">
+    </div>
+
+    <div class="owner-panel">
+
+      <div class="input-row">
+
+        <textarea
+          id="ownerInput"
+          class="owner-input"
+          rows="1"
+          placeholder="輸入問題、想法或要求……">
+        </textarea>
+
+        <button
+          class="send-btn"
+          id="btnSend">
+          ➤
+        </button>
+
+      </div>
+
+      <div class="control-row">
+
+        <button
+          class="control-btn voice-btn"
+          id="btnMic">
+          🎙️ 語音
+        </button>
+
+        <button
+          class="control-btn"
+          id="btnPause">
+          暫停
+        </button>
+
+        <button
+          class="control-btn primary"
+          id="btnNextRound">
+          下一輪
+        </button>
+
+        <button
+          class="control-btn"
+          id="btnTranscript">
+          討論紀錄
+        </button>
+
+        <button
+          class="control-btn"
+          id="btnHistory">
+          歷史
+        </button>
+
+        <button
+          class="control-btn"
+          id="btnApprove">
+          ✓ 批准
+        </button>
+
+        <button
+          class="control-btn danger"
+          id="btnStop">
+          結束
+        </button>
+
+      </div>
+
+    </div>
+
+  </section>
+
+</main>
+
+</div>
+
+<!-- =======================================================
+     AGENT SELECT
+======================================================= -->
+
+<div
+  class="overlay visible"
+  id="overlayAgentSelect">
+
+  <div class="modal agent-selector-modal">
+
+    <div class="selection-header">
+
+      <div>
+
+        <h2>
+          選擇本次參會 AI
+        </h2>
+
+        <p style="margin:0;">
+          進入會議室前先決定由哪些 Agent 參與。
+        </p>
+
+      </div>
+
+      <div
+        class="selection-counter"
+        id="selectionCounter">
+        0 / 3
+      </div>
+
+    </div>
+
+    <div class="selection-help">
+      每場會議最多 3 個 Agent。
+      你可以依照問題選擇最適合的 AI。
+      未被選中的 Agent 不會進入本次會議，
+      也不會呼叫後端模型。
+    </div>
+
+    <div
+      class="agent-select-grid"
+      id="agentSelectGrid">
+    </div>
+
+    <div
+      class="selected-summary"
+      id="selectedSummary">
+      尚未選擇參會 AI。
+    </div>
+
+    <div class="modal-actions">
+
+      <button
+        class="modal-btn"
+        id="btnCancelAgentSelect">
+        返回
+      </button>
+
+      <button
+        class="modal-btn primary"
+        id="btnEnterWarRoom">
+        進入會議室
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+<!-- =======================================================
+     DECISION
+======================================================= -->
+
+<div
+  class="overlay"
+  id="overlayDecision">
+
+  <div class="modal">
+
+    <h2>
+      Owner 最終批准
+    </h2>
+
+    <p>
+      批准後，本次 War Room 會議將進入完成狀態。
+      系統會將目前會議摘要與 Owner 決策保存至本機歷史，
+      若已配置 Governance Engine，也會同步送往後端。
+    </p>
+
+    <div
+      class="decision-box"
+      id="decisionSummary">
+    </div>
+
+    <div class="modal-actions">
+
+      <button
+        class="modal-btn"
+        id="btnReject">
+        返回
+      </button>
+
+      <button
+        class="modal-btn primary"
+        id="btnConfirmApprove">
+        確認批准
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+<!-- =======================================================
+     HISTORY
+======================================================= -->
+
+<div
+  class="overlay"
+  id="overlayHistory">
+
+  <div class="modal">
+
+    <h2>
+      會議歷史
+    </h2>
+
+    <div id="historyList">
+    </div>
+
+    <div class="modal-actions">
+
+      <button
+        class="modal-btn"
+        id="btnCloseHistory">
+        關閉
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+<!-- =======================================================
+     TRANSCRIPT
+======================================================= -->
+
+<div
+  class="overlay"
+  id="transcript">
+
+  <div class="modal">
+
+    <h2>
+      完整討論紀錄
+    </h2>
+
+    <div
+      id="transcriptBody"
+      style="
+      white-space:pre-wrap;
+      line-height:1.7;
+      font-size:12px;
+      color:#cbd5e1;
+      ">
+    </div>
+
+    <div class="modal-actions">
+
+      <button
+        class="modal-btn"
+        id="btnCloseTranscript">
+        關閉
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+<div
+  class="toast"
+  id="toast">
+</div>
+
+<script>
+"use strict";
+
+/* =========================================================
+   AIVAULT WAR ROOM
+   真實動態後端流程
+   已徹底移除所有模擬數據、假回答、localAnalyze、固定台詞
+   已修正 MESSAGE_REQUIRED：所有呼叫 Governance Engine 都帶 message 欄位
+========================================================= */
+
+/* =========================================================
+   SUPABASE
+========================================================= */
+
+const SUPABASE_URL =
+  window.AIVAULT_CONFIG?.SUPABASE_URL ||
+  localStorage.getItem("AIVAULT_SUPABASE_URL") ||
+  "https://clcddygkaaqqtsbswgdf.supabase.co";
+
+const SUPABASE_ANON_KEY =
+  window.AIVAULT_CONFIG?.SUPABASE_ANON_KEY ||
+  localStorage.getItem("AIVAULT_SUPABASE_ANON_KEY") ||
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE";
+
+const GOVERNANCE_FUNCTION =
+  window.AIVAULT_CONFIG?.GOVERNANCE_FUNCTION ||
+  "governance-engine";
+
+const MAX_MEETING_AGENTS = 3;
+
+/* =========================================================
+   UTILITY
+========================================================= */
+
+const $ = id => document.getElementById(id);
+
+function escapeHTML(value){
+  return String(value ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+function toast(message){
+  const el = $("toast");
+  if(!el) return;
+  el.textContent = message;
+  el.classList.add("show");
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(
+    () => el.classList.remove("show"),
+    2600
+  );
+}
+
+function generateId(prefix="id"){
+  return (
+    prefix + "-" +
+    Date.now().toString(36) + "-" +
+    Math.random().toString(36).slice(2,9)
+  );
+}
+
+function formatError(remote){
+  if(!remote) return "未知錯誤";
+  if(remote.error) return String(remote.error);
+  if(remote.status) return `HTTP ${remote.status}`;
+  if(remote.data){
+    if(typeof remote.data === "string") return remote.data;
+    if(remote.data.error) return String(remote.data.error);
+    if(remote.data.message) return String(remote.data.message);
+    try{ return JSON.stringify(remote.data); }catch(e){}
+  }
+  return "後端未回傳有效結果";
+}
+
+/* =========================================================
+   AGENT REGISTRY（僅角色規則 / System Prompt，絕非固定回答）
+========================================================= */
+
+const AGENTS = {
+  strategy:{
+    id:"strategy",
+    name:"凌策",
+    role:"戰略官",
+    avatar:"🧠",
+    system:`你是 AIVAULT 的戰略官「凌策」。
+你的工作不是附和其他 Agent。
+你必須獨立分析 Owner 的原始問題。
+優先判斷：
+1. Owner 到底在問什麼？
+2. 這是不是問題？
+3. 是一般問題、討論、測試、需求、專案、決策，還是其他類型？
+4. 是否真的存在可交付成果？
+5. 是否真的需要啟動 Project Flow？
+禁止：
+- 把每句話都當成專案。
+- 沒有交付成果就建立 Project。
+- 重複其他 Agent 的說法。
+- 假裝自己已經知道答案。
+- 使用固定劇本。
+如果不同意其他 Agent，必須明確指出原因。
+每一次回答都必須針對本次 Owner 的具體問題重新分析，不可套用任何預設句型。`
+  },
+  tech:{
+    id:"tech",
+    name:"岳衡",
+    role:"技術官",
+    avatar:"⚙️",
+    system:`你是 AIVAULT 的技術官「岳衡」。
+你必須從技術可行性、系統邏輯、資料流程與實作成本分析 Owner 的問題。
+你不能因為其他 Agent 說「這是需求」就接受。
+你必須自己判斷：
+- 有沒有技術問題？
+- 是否需要實作？
+- 有沒有明確輸入與輸出？
+- 是否需要建立 Task？
+- 是否只是 Owner 測試 AI？
+- 如果是 Project，最小可交付成果是什麼？
+如果其他 Agent 的技術推論錯誤，要反駁。
+每一次回答都必須針對本次 Owner 的具體問題重新分析，不可套用任何預設句型。`
+  },
+  risk:{
+    id:"risk",
+    name:"沈岳",
+    role:"風險官",
+    avatar:"🛡️",
+    system:`你是 AIVAULT 的風險官「沈岳」。
+你必須獨立尋找：
+- 語意誤判
+- 安全問題
+- 法律／治理問題
+- 個資風險
+- 錯誤自動化
+- 不應建立 Project 的情況
+- AI 過度自信
+- Agent 互相附和造成的集體錯誤
+你不是來唱反調，而是要找真正的風險。
+如果你認為其他 Agent 判斷錯誤，要具體說明哪一點錯。
+每一次回答都必須針對本次 Owner 的具體問題重新分析，不可套用任何預設句型。`
+  },
+  research:{
+    id:"research",
+    name:"若曦",
+    role:"研究官",
+    avatar:"🔬",
+    system:`你是 AIVAULT 的研究官「若曦」。
+你的任務是分析 Owner 問題的語意、背景、可能需要的證據與知識。
+先判斷：
+- 這是不是一個需要研究的問題？
+- Owner 是要答案、測試、討論，還是要求產出？
+- 現有資訊是否足夠？
+- 是否需要 Research？
+- 如果需要 Research，研究問題到底是什麼？
+你不能把「需要知道答案」直接等同於「需要建立 Project」。
+你必須自己思考。
+每一次回答都必須針對本次 Owner 的具體問題重新分析，不可套用任何預設句型。`
+  },
+  review:{
+    id:"review",
+    name:"知衡",
+    role:"審查官",
+    avatar:"⚖️",
+    system:`你是 AIVAULT 的審查官「知衡」。
+你不是會議主持人。
+你必須先獨立判斷 Owner 的原始問題，
+再比較其他 Agent 的分析。
+你尤其要檢查：
+1. 是否誤把問題當成專案？
+2. 是否誤把測試當成需求？
+3. 是否有 Agent 只是重複別人？
+4. 是否有足夠證據建立 Project？
+5. 是否應該回答 Owner 的問題，而不是建立流程？
+最後給出你的判斷與理由。
+如果多數 Agent 錯了，你必須否決多數。
+每一次回答都必須針對本次 Owner 的具體問題重新分析，不可套用任何預設句型。`
+  }
+};
+
+const AGENT_IDS = Object.keys(AGENTS);
+
+/* =========================================================
+   STATE
+========================================================= */
+
+const state = {
+  meetingId:null,
+  status:"idle",
+  round:0,
+  phase:"idle",
+  ownerInput:"",
+  classification:null,
+  classificationConfidence:null,
+  projectCandidate:false,
+  messages:[],
+  roundAnalyses:{},
+  selectedAgents:[],
+  agentOnline:{
+    strategy:false,
+    tech:false,
+    risk:false,
+    research:false,
+    review:false
+  },
+  agentSpeaking:null,
+  voiceUnlocked:false,
+  uiLang:"zh",
+  paused:false,
+  history:[],
+  lastGovernanceResult:null,
+  finalSynthesis:null,
+  approval:null
+};
+
+/* =========================================================
+   LOCAL HISTORY
+========================================================= */
+
+function loadHistory(){
+  try{
+    const raw = localStorage.getItem("AIVAULT_WAR_ROOM_HISTORY");
+    state.history = raw ? JSON.parse(raw) : [];
+    if(!Array.isArray(state.history)) state.history = [];
+  }catch(e){
+    state.history = [];
+  }
+}
+
+function saveHistory(){
+  try{
+    localStorage.setItem(
+      "AIVAULT_WAR_ROOM_HISTORY",
+      JSON.stringify(state.history.slice(0,50))
+    );
+  }catch(e){}
+}
+
+/* =========================================================
+   AGENT SELECTOR
+========================================================= */
+
+function renderAgentSelector(){
+  const grid = $("agentSelectGrid");
+  if(!grid) return;
+  grid.innerHTML = "";
+
+  AGENT_IDS.forEach(agentId => {
+    const agent = AGENTS[agentId];
+    const selected = state.selectedAgents.includes(agentId);
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "agent-select-card" + (selected ? " selected" : "");
+    card.dataset.agent = agentId;
+    card.innerHTML = `
+      <div class="agent-select-avatar">${escapeHTML(agent.avatar)}</div>
+      <div class="agent-select-info">
+        <div class="agent-select-name">${escapeHTML(agent.name)}</div>
+        <div class="agent-select-role">${escapeHTML(agent.role)}</div>
+      </div>
+      <div class="agent-select-check">${selected ? "✓" : ""}</div>
+    `;
+    card.addEventListener("click", () => toggleAgentSelection(agentId));
+    grid.appendChild(card);
+  });
+  updateSelectionUI();
+}
+
+function toggleAgentSelection(agentId){
+  const exists = state.selectedAgents.includes(agentId);
+  if(exists){
+    state.selectedAgents = state.selectedAgents.filter(id => id !== agentId);
+    renderAgentSelector();
+    return;
+  }
+  if(state.selectedAgents.length >= MAX_MEETING_AGENTS){
+    toast("每場會議最多只能選 3 個 Agent");
+    return;
+  }
+  state.selectedAgents.push(agentId);
+  renderAgentSelector();
+}
+
+function updateSelectionUI(){
+  const count = state.selectedAgents.length;
+  const counter = $("selectionCounter");
+  const summary = $("selectedSummary");
+  const enterButton = $("btnEnterWarRoom");
+
+  if(counter){
+    counter.textContent = `${count} / ${MAX_MEETING_AGENTS}`;
+    counter.classList.toggle("warning", count >= MAX_MEETING_AGENTS);
+  }
+
+  if(summary){
+    if(!count){
+      summary.innerHTML = "尚未選擇參會 AI。";
+    }else{
+      const names = state.selectedAgents
+        .map(id => `${AGENTS[id].name}（${AGENTS[id].role}）`)
+        .join("、");
+      summary.innerHTML = `<strong>本次參會：</strong> ${escapeHTML(names)}`;
+    }
+  }
+
+  if(enterButton){
+    enterButton.disabled = count < 1;
+    enterButton.style.opacity = count < 1 ? ".45" : "1";
+  }
+
+  document.querySelectorAll(".agent-select-card").forEach(card => {
+    const id = card.dataset.agent;
+    const selected = state.selectedAgents.includes(id);
+    const disabled = count >= MAX_MEETING_AGENTS && !selected;
+    card.classList.toggle("disabled", disabled);
+  });
+}
+
+/* =========================================================
+   ENTER WAR ROOM
+========================================================= */
+
+function enterWarRoom(){
+  if(state.selectedAgents.length < 1){
+    toast("請至少選擇 1 個 Agent");
+    return;
+  }
+
+  state.meetingId = generateId("warroom");
+  state.status = "active";
+  state.round = 0;
+  state.phase = "idle";
+  state.messages = [];
+  state.roundAnalyses = {};
+  state.finalSynthesis = null;
+  state.approval = null;
+  state.classification = null;
+  state.projectCandidate = false;
+
+  AGENT_IDS.forEach(id => {
+    const selected = state.selectedAgents.includes(id);
+    state.agentOnline[id] = selected;
+
+    const card = $("agentCard-" + id);
+    const online = card?.querySelector(".online");
+    if(online) online.classList.toggle("off", !selected);
+    if(card){
+      card.classList.toggle("selected", selected);
+      card.classList.toggle("not-selected", !selected);
+      card.classList.remove("thinking","speaking");
+    }
+    const stateEl = $("state-" + id);
+    if(stateEl) stateEl.textContent = selected ? "在線" : "未參會";
+  });
+
+  $("overlayAgentSelect").classList.remove("visible");
+  $("roomLive").classList.remove("off");
+  $("roomStatus").textContent = `${state.selectedAgents.length} Agents 參會`;
+  $("roundText").textContent = "Round 0";
+
+  addMessage({
+    role:"SYSTEM",
+    content:
+      `War Room 已建立。\n\n` +
+      `Meeting ID：${state.meetingId}\n\n` +
+      `本次參會 Agent：\n` +
+      state.selectedAgents
+        .map(id => `• ${AGENTS[id].name}｜${AGENTS[id].role}`)
+        .join("\n") +
+      `\n\n未選擇的 Agent 不會參與本次會議，也不會被呼叫。\n` +
+      `所有分析皆由 Governance Engine → AI Gateway 動態產生。`
+  });
+
+  toast(`已進入會議室：${state.selectedAgents.length} Agents`);
+  unlockAudio();
+  $("ownerInput")?.focus();
+}
+
+/* =========================================================
+   MESSAGE
+========================================================= */
+
+function addMessage({
+  role,
+  agentId=null,
+  content,
+  provider=null,
+  model=null,
+  status="ok",
+  round=null
+}){
+  const message = {
+    id: generateId("msg"),
+    meeting_id: state.meetingId,
+    topic_id: state.meetingId,
+    role,
+    agent_id: agentId,
+    content: String(content ?? ""),
+    provider: provider || null,
+    model: model || null,
+    status,
+    round: round ?? state.round,
+    timestamp: new Date().toISOString()
+  };
+
+  state.messages.push(message);
+  renderMessage(message);
+  return message;
+}
+
+function renderMessage(message){
+  const dialogue = $("dialogue");
+  if(!dialogue) return;
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "message " + (
+    message.role === "OWNER" ? "owner" :
+    message.role === "SYSTEM" ? "system" : ""
+  );
+
+  let name = "AIVAULT";
+  let avatar = "AI";
+
+  if(message.role === "OWNER"){
+    name = "Owner";
+    avatar = "👤";
+  }else if(message.role === "AGENT"){
+    const agent = AGENTS[message.agent_id];
+    if(agent){
+      name = agent.name;
+      avatar = agent.avatar;
+    }
+  }else if(message.role === "SYSTEM"){
+    name = "SYSTEM";
+    avatar = "◆";
+  }
+
+  wrapper.innerHTML = `
+    <div class="message-avatar">${escapeHTML(avatar)}</div>
+    <div class="message-content">
+      <div class="message-head">
+        <span class="message-name">${escapeHTML(name)}</span>
+        <span>${escapeHTML(
+          new Date(message.timestamp).toLocaleTimeString("zh-TW",{
+            hour:"2-digit",
+            minute:"2-digit"
+          })
+        )}</span>
+      </div>
+      <div class="message-body">${escapeHTML(message.content)}</div>
+    </div>
+  `;
+
+  dialogue.appendChild(wrapper);
+  dialogue.scrollTop = dialogue.scrollHeight;
+}
+
+/* =========================================================
+   AGENT STATUS
+========================================================= */
+
+function setAgentStatus(agentId, status){
+  if(!state.selectedAgents.includes(agentId)) return;
+
+  const card = $("agentCard-" + agentId);
+  const stateEl = $("state-" + agentId);
+  if(!card || !stateEl) return;
+
+  card.classList.remove("thinking","speaking");
+
+  if(status === "thinking"){
+    card.classList.add("thinking");
+    stateEl.textContent = "分析中";
+  }else if(status === "speaking"){
+    card.classList.add("speaking");
+    stateEl.textContent = "發言中";
+  }else if(status === "error"){
+    stateEl.textContent = "失敗";
+  }else{
+    stateEl.textContent = "在線";
+  }
+}
+
+/* =========================================================
+   SPEECH（只朗讀真實 AI 回覆）
+========================================================= */
+
+let voices = [];
+let speechQueue = [];
+let speaking = false;
+
+function loadVoices(){
+  if("speechSynthesis" in window){
+    voices = window.speechSynthesis.getVoices();
+  }
+}
+
+if("speechSynthesis" in window){
+  loadVoices();
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+}
+
+function findVoice(agentId){
+  if(!voices.length) return null;
+  const chinese = voices.filter(v =>
+    /^zh/i.test(v.lang) ||
+    /chinese|mandarin|中文|國語|普通話/i.test(v.name)
+  );
+  const pool = chinese.length ? chinese : voices;
+  const index = state.selectedAgents.indexOf(agentId);
+  return pool[index >= 0 ? index % pool.length : 0] || pool[0] || null;
+}
+
+function unlockAudio(){
+  state.voiceUnlocked = true;
+  loadVoices();
+  try{
+    if("speechSynthesis" in window){
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance("");
+      u.volume = 0;
+      u.lang = "zh-TW";
+      window.speechSynthesis.speak(u);
+    }
+  }catch(e){}
+}
+
+function speakAgent(agentId, text){
+  if(!state.voiceUnlocked || state.paused || !text) return;
+  if(!state.selectedAgents.includes(agentId)) return;
+  speechQueue.push({ agentId, text });
+  processSpeechQueue();
+}
+
+function processSpeechQueue(){
+  if(speaking || state.paused) return;
+  const item = speechQueue.shift();
+  if(!item) return;
+  if(!state.selectedAgents.includes(item.agentId)){
+    processSpeechQueue();
+    return;
+  }
+
+  speaking = true;
+  state.agentSpeaking = item.agentId;
+  setAgentStatus(item.agentId, "speaking");
+
+  try{
+    const utterance = new SpeechSynthesisUtterance(item.text);
+    utterance.lang = "zh-TW";
+    utterance.rate = 0.94;
+    utterance.pitch =
+      item.agentId === "strategy" ? 0.82 :
+      item.agentId === "tech"     ? 0.92 :
+      item.agentId === "risk"     ? 0.78 :
+      item.agentId === "research" ? 1.04 : 1.12;
+
+    const voice = findVoice(item.agentId);
+    if(voice) utterance.voice = voice;
+
+    utterance.onend = finishSpeech;
+    utterance.onerror = finishSpeech;
+    window.speechSynthesis.speak(utterance);
+  }catch(e){
+    finishSpeech();
+  }
+}
+
+function finishSpeech(){
+  speaking = false;
+  if(state.agentSpeaking){
+    setAgentStatus(state.agentSpeaking, "listening");
+  }
+  state.agentSpeaking = null;
+  setTimeout(processSpeechQueue, 80);
+}
+
+function stopSpeech(){
+  speechQueue = [];
+  speaking = false;
+  try{
+    if("speechSynthesis" in window){
+      window.speechSynthesis.cancel();
+    }
+  }catch(e){}
+  state.agentSpeaking = null;
+  state.selectedAgents.forEach(id => setAgentStatus(id, "listening"));
+}
+
+/* =========================================================
+   GOVERNANCE ENGINE（唯一入口）
+========================================================= */
+
+async function callGovernanceEngine(payload){
+  if(!SUPABASE_URL || !SUPABASE_ANON_KEY){
+    return {
+      success:false,
+      error:"Supabase 尚未設定（缺少 SUPABASE_URL 或 ANON_KEY）"
+    };
+  }
+
+  const endpoint =
+    SUPABASE_URL.replace(/\/$/,"") +
+    "/functions/v1/" +
+    GOVERNANCE_FUNCTION;
+
+  try{
+    const response = await fetch(endpoint,{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": "Bearer " + SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const text = await response.text();
+    let data;
+    try{
+      data = text ? JSON.parse(text) : {};
+    }catch(e){
+      data = { raw: text };
+    }
+
+    if(!response.ok){
+      return {
+        success:false,
+        status: response.status,
+        data,
+        error: data?.error || data?.message || `HTTP ${response.status}`
+      };
+    }
+
+    return { success:true, data };
+  }catch(error){
+    return {
+      success:false,
+      error: error?.message || String(error)
+    };
+  }
+}
+
+/* =========================================================
+   真實 Agent 分析（完全依賴後端，禁止任何前端假回覆）
+========================================================= */
+
+async function analyzeAgent(agentId, question, round, mode){
+  if(!state.selectedAgents.includes(agentId)) return null;
+
+  setAgentStatus(agentId, "thinking");
+
+  const prevRound = round - 1;
+  const previousAnalyses =
+    prevRound >= 1 && state.roundAnalyses[prevRound]
+      ? state.roundAnalyses[prevRound]
+      : {};
+
+  const payload = {
+    action: "war_room_analysis",
+    meeting_id: state.meetingId,
+    topic_id: state.meetingId,
+    round,
+    mode,
+    message: question,
+    owner_message: question,
+    selected_agents: state.selectedAgents,
+    current_agent: agentId,
+    agent:{
+      id: agentId,
+      name: AGENTS[agentId].name,
+      role: AGENTS[agentId].role
+    },
+    system_prompt: AGENTS[agentId].system,
+    previous_messages: state.messages.slice(-30),
+    previous_analyses: previousAnalyses,
+    governance:{
+      enforce_topic_lock: true,
+      enforce_selected_agents: true,
+      max_agents: 3,
+      project_auto_create: false
+    }
+  };
+
+  const remote = await callGovernanceEngine(payload);
+
+  if(!remote.success){
+    setAgentStatus(agentId, "error");
+    const errMsg = `AI 執行失敗\n\n原因：${formatError(remote)}`;
+    return {
+      error: true,
+      answer: errMsg,
+      provider: null,
+      model: null
+    };
+  }
+
+  const data = remote.data || {};
+  const content =
+    data.content ||
+    data.answer ||
+    data.analysis ||
+    data.result?.content ||
+    data.result?.answer ||
+    data.message;
+
+  if(!content || typeof content !== "string" || !content.trim()){
+    setAgentStatus(agentId, "error");
+    return {
+      error: true,
+      answer: "AI 執行失敗\n\n原因：Governance Engine / AI Gateway 未回傳有效分析內容",
+      provider: data.provider || null,
+      model: data.model || null
+    };
+  }
+
+  const result = {
+    error: false,
+    answer: String(content).trim(),
+    classification: data.classification || data.topic_type || null,
+    confidence: data.confidence ?? data.classification_confidence ?? null,
+    projectCandidate: data.project_candidate === true || data.projectCandidate === true,
+    provider: data.provider || data.result?.provider || null,
+    model: data.model || data.result?.model || null,
+    raw: data
+  };
+
+  if(!state.roundAnalyses[round]) state.roundAnalyses[round] = {};
+  state.roundAnalyses[round][agentId] = result;
+
+  setAgentStatus(agentId, "listening");
+  return result;
+}
+
+/* =========================================================
+   ROUND 執行（並行，誰先完成誰先顯示）
+========================================================= */
+
+async function runIndependentRound(question){
+  state.round += 1;
+  state.phase = "independent";
+  $("roundText").textContent = `Round ${state.round}`;
+  $("roomStatus").textContent = `${state.selectedAgents.length} Agents 獨立分析中`;
+
+  const participants = [...state.selectedAgents];
+  const tasks = participants.map(agentId =>
+    analyzeAgent(agentId, question, state.round, "independent")
+      .then(result => {
+        if(!result) return;
+        addMessage({
+          role: "AGENT",
+          agentId,
+          content: result.answer,
+          provider: result.provider,
+          model: result.model,
+          status: result.error ? "error" : "ok",
+          round: state.round
+        });
+        if(result.answer) speakAgent(agentId, result.answer);
+      })
+  );
+
+  await Promise.all(tasks);
+  updateClassificationFromRound(state.round);
+  $("roomStatus").textContent =
+    `${state.selectedAgents.length} Agents 已完成 Round ${state.round}（獨立分析）`;
+  saveCurrentMeetingDraft();
+}
+
+async function runReviewRound(question){
+  state.round += 1;
+  state.phase = "review";
+  $("roundText").textContent = `Round ${state.round}`;
+  $("roomStatus").textContent = `${state.selectedAgents.length} Agents Cross-Agent Review 中`;
+
+  const participants = [...state.selectedAgents];
+  const tasks = participants.map(agentId =>
+    analyzeAgent(agentId, question, state.round, "review")
+      .then(result => {
+        if(!result) return;
+        addMessage({
+          role: "AGENT",
+          agentId,
+          content: result.answer,
+          provider: result.provider,
+          model: result.model,
+          status: result.error ? "error" : "ok",
+          round: state.round
+        });
+        if(result.answer) speakAgent(agentId, result.answer);
+      })
+  );
+
+  await Promise.all(tasks);
+  updateClassificationFromRound(state.round);
+  $("roomStatus").textContent =
+    `${state.selectedAgents.length} Agents 已完成 Round ${state.round}（Cross-Agent Review）`;
+  saveCurrentMeetingDraft();
+}
+
+async function runFinalSynthesis(question){
+  state.round += 1;
+  state.phase = "synthesis";
+  $("roundText").textContent = `Round ${state.round}`;
+  $("roomStatus").textContent = "Final Synthesis 執行中";
+
+  const allAnalyses = {};
+  Object.keys(state.roundAnalyses).forEach(r => {
+    allAnalyses[r] = state.roundAnalyses[r];
+  });
+
+  const payload = {
+    action: "war_room_synthesis",
+    meeting_id: state.meetingId,
+    topic_id: state.meetingId,
+    round: state.round,
+    message: question,
+    owner_message: question,
+    selected_agents: state.selectedAgents,
+    previous_messages: state.messages.slice(-40),
+    all_analyses: allAnalyses,
+    governance:{
+      enforce_topic_lock: true,
+      enforce_selected_agents: true,
+      max_agents: 3,
+      project_auto_create: false
+    }
+  };
+
+  const remote = await callGovernanceEngine(payload);
+
+  if(!remote.success){
+    const err = `AI 執行失敗（Final Synthesis）\n\n原因：${formatError(remote)}`;
+    addMessage({
+      role: "SYSTEM",
+      content: err,
+      status: "error",
+      round: state.round
+    });
+    $("roomStatus").textContent = "Final Synthesis 失敗";
+    toast("Final Synthesis 失敗");
+    saveCurrentMeetingDraft();
+    return;
+  }
+
+  const data = remote.data || {};
+  const content =
+    data.content ||
+    data.answer ||
+    data.synthesis ||
+    data.result?.content ||
+    data.result?.answer;
+
+  if(!content || !String(content).trim()){
+    addMessage({
+      role: "SYSTEM",
+      content: "AI 執行失敗（Final Synthesis）\n\n原因：後端未回傳有效綜合結果",
+      status: "error",
+      round: state.round
+    });
+    $("roomStatus").textContent = "Final Synthesis 失敗";
+    toast("Final Synthesis 失敗");
+    saveCurrentMeetingDraft();
+    return;
+  }
+
+  state.finalSynthesis = {
+    content: String(content).trim(),
+    provider: data.provider || null,
+    model: data.model || null,
+    classification: data.classification || null,
+    projectCandidate: data.project_candidate === true
+  };
+
+  if(state.finalSynthesis.classification){
+    state.classification = state.finalSynthesis.classification;
+  }
+  if(typeof data.project_candidate === "boolean"){
+    state.projectCandidate = data.project_candidate;
+  }
+
+  addMessage({
+    role: "SYSTEM",
+    content:
+      `【Final Synthesis】\n\n` +
+      state.finalSynthesis.content,
+    provider: state.finalSynthesis.provider,
+    model: state.finalSynthesis.model,
+    status: "ok",
+    round: state.round
+  });
+
+  $("roomStatus").textContent = "Final Synthesis 完成";
+  toast("Final Synthesis 完成");
+  saveCurrentMeetingDraft();
+}
+
+/* =========================================================
+   CLASSIFICATION（只從真實後端結果彙整）
+========================================================= */
+
+function updateClassificationFromRound(round){
+  const results = Object.values(state.roundAnalyses[round] || {})
+    .filter(r => r && !r.error);
+
+  if(!results.length) return;
+
+  const classifications = results
+    .map(r => r.classification)
+    .filter(Boolean);
+
+  const projectVotes = results.filter(r => r.projectCandidate === true).length;
+
+  if(classifications.length){
+    const count = {};
+    classifications.forEach(item => {
+      count[item] = (count[item] || 0) + 1;
+    });
+    state.classification =
+      Object.entries(count)
+        .sort((a,b) => b[1] - a[1])[0]?.[0] ||
+      classifications[0];
+  }
+
+  state.projectCandidate =
+    projectVotes >= Math.ceil(results.length / 2);
+
+  const confidenceValues = results
+    .map(r => Number(r.confidence))
+    .filter(n => Number.isFinite(n));
+
+  state.classificationConfidence =
+    confidenceValues.length
+      ? confidenceValues.reduce((a,b) => a+b, 0) / confidenceValues.length
+      : null;
+}
+
+/* =========================================================
+   OWNER SEND
+========================================================= */
+
+async function sendOwnerMessage(){
+  if(state.status !== "active"){
+    toast("請先進入 War Room");
+    return;
+  }
+
+  const input = $("ownerInput");
+  const text = input.value.trim();
+  if(!text){
+    toast("請先輸入內容");
+    return;
+  }
+
+  unlockAudio();
+  state.ownerInput = text;
+
+  addMessage({
+    role: "OWNER",
+    content: text
+  });
+
+  input.value = "";
+  autoResizeTextarea();
+
+  state.round = 0;
+  state.phase = "idle";
+  state.roundAnalyses = {};
+  state.finalSynthesis = null;
+  $("roundText").textContent = "Round 0";
+
+  $("roomStatus").textContent = "Governance Engine 檢查中";
+
+  const governance = await callGovernanceEngine({
+    action: "topic_check",
+    meeting_id: state.meetingId,
+    topic_id: state.meetingId,
+    message: text,
+    owner_message: text,
+    selected_agents: state.selectedAgents,
+    governance:{
+      max_agents: 3,
+      enforce_topic_lock: true,
+      project_auto_create: false,
+      require_owner_approval: true
+    }
+  });
+
+  state.lastGovernanceResult = governance;
+
+  if(!governance.success){
+    const err = `AI 執行失敗（Governance Engine）\n\n原因：${formatError(governance)}`;
+    addMessage({
+      role: "SYSTEM",
+      content: err,
+      status: "error"
+    });
+    $("roomStatus").textContent = "Governance 失敗";
+    toast("Governance Engine 失敗");
+    return;
+  }
+
+  const gData = governance.data || {};
+  const gSummaryParts = [];
+  if(gData.classification || gData.topic_type){
+    gSummaryParts.push(`分類：${gData.classification || gData.topic_type}`);
+  }
+  if(typeof gData.project_candidate === "boolean"){
+    gSummaryParts.push(`Project 候選：${gData.project_candidate ? "是" : "否"}`);
+  }
+  if(gData.topic_lock !== undefined){
+    gSummaryParts.push(`Topic Lock：${gData.topic_lock ? "啟用" : "關閉"}`);
+  }
+  if(gData.note || gData.summary || gData.message){
+    gSummaryParts.push(String(gData.note || gData.summary || gData.message));
+  }
+
+  if(gSummaryParts.length){
+    addMessage({
+      role: "SYSTEM",
+      content: "【Governance / Cognitive】\n" + gSummaryParts.join("\n"),
+      status: "ok"
+    });
+  }
+
+  state.classification =
+    gData.classification ||
+    gData.topic_type ||
+    state.classification;
+
+  if(typeof gData.project_candidate === "boolean"){
+    state.projectCandidate = gData.project_candidate;
+  }
+
+  $("roomStatus").textContent = "開始 Agent 獨立分析";
+  await runIndependentRound(text);
+}
+
+/* =========================================================
+   NEXT ROUND
+========================================================= */
+
+async function nextRound(){
+  if(state.status !== "active"){
+    toast("目前沒有進行中的會議");
+    return;
+  }
+  if(state.paused){
+    toast("目前會議已暫停");
+    return;
+  }
+
+  const ownerMessages = state.messages.filter(m => m.role === "OWNER");
+  if(!ownerMessages.length){
+    toast("請先輸入 Owner 問題");
+    return;
+  }
+
+  const question =
+    state.ownerInput.trim() ||
+    ownerMessages.at(-1)?.content ||
+    "";
+
+  if(state.phase === "independent"){
+    await runReviewRound(question);
+  }else if(state.phase === "review"){
+    await runFinalSynthesis(question);
+  }else if(state.phase === "synthesis" || state.phase === "done"){
+    toast("已完成 Final Synthesis，可進行批准或結束會議");
+  }else{
+    await runIndependentRound(question);
+  }
+}
+
+/* =========================================================
+   PAUSE
+========================================================= */
+
+function togglePause(){
+  state.paused = !state.paused;
+  const button = $("btnPause");
+
+  if(state.paused){
+    stopSpeech();
+    button.textContent = "繼續";
+    $("roomStatus").textContent = "會議已暫停";
+    toast("War Room 已暫停");
+  }else{
+    button.textContent = "暫停";
+    $("roomStatus").textContent =
+      `${state.selectedAgents.length} Agents 在線`;
+    processSpeechQueue();
+    toast("War Room 已繼續");
+  }
+}
+
+/* =========================================================
+   APPROVAL
+========================================================= */
+
+function openApproval(){
+  if(state.status !== "active"){
+    toast("目前沒有可以批准的會議");
+    return;
+  }
+  if(!state.messages.some(m => m.role === "AGENT")){
+    toast("請先讓 Agent 完成分析");
+    return;
+  }
+
+  const summary = $("decisionSummary");
+  if(summary){
+    summary.innerHTML = `
+      <strong>會議分類：</strong>
+      ${escapeHTML(state.classification || "尚未分類")}
+      <br>
+      <strong>Project 候選：</strong>
+      ${state.projectCandidate ? "是" : "否"}
+      <br>
+      <strong>Round：</strong>
+      ${state.round}
+      <br>
+      <strong>參會 Agent：</strong>
+      ${escapeHTML(
+        state.selectedAgents.map(id => AGENTS[id].name).join("、")
+      )}
+      <br>
+      <strong>Final Synthesis：</strong>
+      ${state.finalSynthesis ? "已完成" : "尚未執行"}
+    `;
+  }
+  $("overlayDecision").classList.add("visible");
+}
+
+async function confirmApprove(){
+  $("overlayDecision").classList.remove("visible");
+  state.status = "approved";
+  stopSpeech();
+
+  const approval = await callGovernanceEngine({
+    action: "owner_approval",
+    meeting_id: state.meetingId,
+    topic_id: state.meetingId,
+    message: "Owner 批准",
+    owner_approved: true,
+    classification: state.classification,
+    project_candidate: state.projectCandidate,
+    selected_agents: state.selectedAgents,
+    messages: state.messages,
+    final_analyses: state.roundAnalyses,
+    final_synthesis: state.finalSynthesis
+  });
+
+  state.lastGovernanceResult = approval;
+  state.approval = {
+    approved: true,
+    timestamp: new Date().toISOString(),
+    remote: approval
+  };
+
+  saveCompletedMeeting();
+
+  $("roomLive").classList.add("off");
+  $("roomStatus").textContent = "Owner 已批准";
+
+  addMessage({
+    role: "SYSTEM",
+    content:
+      "Owner 已完成最終批准。\n" +
+      "本次 War Room 會議已進入完成狀態。"
+  });
+
+  toast("Owner 批准完成");
+}
+
+function closeApproval(){
+  $("overlayDecision").classList.remove("visible");
+}
+
+/* =========================================================
+   SAVE
+========================================================= */
+
+function buildMeetingRecord(){
+  return {
+    id: state.meetingId,
+    meeting_id: state.meetingId,
+    topic_id: state.meetingId,
+    created_at: new Date().toISOString(),
+    status: state.status,
+    round: state.round,
+    phase: state.phase,
+    classification: state.classification,
+    classification_confidence: state.classificationConfidence,
+    project_candidate: state.projectCandidate,
+    selected_agents: state.selectedAgents.map(id => ({
+      id,
+      name: AGENTS[id].name,
+      role: AGENTS[id].role
+    })),
+    messages: state.messages,
+    round_analyses: state.roundAnalyses,
+    final_synthesis: state.finalSynthesis,
+    final_decision: state.finalSynthesis?.content || null,
+    approval: state.approval
+  };
+}
+
+function saveCurrentMeetingDraft(){
+  try{
+    localStorage.setItem(
+      "AIVAULT_WAR_ROOM_CURRENT",
+      JSON.stringify(buildMeetingRecord())
+    );
+  }catch(e){}
+}
+
+function saveCompletedMeeting(){
+  const record = buildMeetingRecord();
+  state.history.unshift(record);
+  state.history = state.history.slice(0,50);
+  saveHistory();
+  saveCurrentMeetingDraft();
+}
+
+/* =========================================================
+   HISTORY UI
+========================================================= */
+
+function renderHistory(){
+  const list = $("historyList");
+  if(!list) return;
+  list.innerHTML = "";
+
+  if(!state.history.length){
+    list.innerHTML = `<div class="history-empty">尚無會議歷史</div>`;
+    return;
+  }
+
+  state.history.forEach(item => {
+    const div = document.createElement("div");
+    div.className = "history-item";
+    const agents = (item.selected_agents || []).map(a => a.name).join("、");
+    div.innerHTML = `
+      <div class="history-title">
+        ${escapeHTML(item.classification || "War Room 會議")}
+      </div>
+      <div class="history-meta">
+        ${escapeHTML(
+          item.created_at
+            ? new Date(item.created_at).toLocaleString("zh-TW")
+            : ""
+        )}
+      </div>
+      <div class="history-meta">
+        Round ${escapeHTML(item.round ?? 0)}
+        ／
+        Agent：${escapeHTML(agents || "無")}
+      </div>
+      <div class="history-meta">
+        Project 候選：${item.project_candidate ? "是" : "否"}
+      </div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+function openHistory(){
+  renderHistory();
+  $("overlayHistory").classList.add("visible");
+}
+
+function closeHistory(){
+  $("overlayHistory").classList.remove("visible");
+}
+
+/* =========================================================
+   TRANSCRIPT
+========================================================= */
+
+function openTranscript(){
+  const body = $("transcriptBody");
+  if(!body) return;
+
+  if(!state.messages.length){
+    body.textContent = "目前沒有討論紀錄。";
+  }else{
+    body.textContent = state.messages.map(message => {
+      let name = "SYSTEM";
+      if(message.role === "OWNER") name = "Owner";
+      else if(message.role === "AGENT"){
+        name = AGENTS[message.agent_id]?.name || message.agent_id;
+      }
+      const meta = [];
+      if(message.round != null) meta.push(`R${message.round}`);
+      if(message.provider) meta.push(message.provider);
+      if(message.model) meta.push(message.model);
+      if(message.status && message.status !== "ok") meta.push(message.status);
+
+      return (
+        `[${new Date(message.timestamp).toLocaleString("zh-TW")}] ${name}` +
+        (meta.length ? ` (${meta.join(" / ")})` : "") +
+        `\n` +
+        message.content
+      );
+    }).join("\n\n--------------------\n\n");
+  }
+  $("transcript").classList.add("visible");
+}
+
+function closeTranscript(){
+  $("transcript").classList.remove("visible");
+}
+
+/* =========================================================
+   END MEETING
+========================================================= */
+
+function stopMeeting(){
+  if(state.status === "idle"){
+    toast("目前沒有進行中的會議");
+    return;
+  }
+
+  stopSpeech();
+  state.status = "ended";
+  saveCompletedMeeting();
+
+  $("roomLive").classList.add("off");
+  $("roomStatus").textContent = "會議已結束";
+
+  addMessage({
+    role: "SYSTEM",
+    content: "本次 War Room 已結束。\n會議紀錄已保存。"
+  });
+
+  AGENT_IDS.forEach(id => {
+    state.agentOnline[id] = false;
+    const card = $("agentCard-" + id);
+    const online = card?.querySelector(".online");
+    if(online) online.classList.add("off");
+    if(card){
+      card.classList.remove("selected","thinking","speaking");
+      card.classList.add("not-selected");
+    }
+    const stateEl = $("state-" + id);
+    if(stateEl) stateEl.textContent = "未參會";
+  });
+
+  toast("War Room 已結束");
+}
+
+/* =========================================================
+   NEW MEETING
+========================================================= */
+
+function newMeeting(){
+  stopSpeech();
+  state.meetingId = null;
+  state.status = "idle";
+  state.round = 0;
+  state.phase = "idle";
+  state.ownerInput = "";
+  state.classification = null;
+  state.classificationConfidence = null;
+  state.projectCandidate = false;
+  state.messages = [];
+  state.roundAnalyses = {};
+  state.selectedAgents = [];
+  state.paused = false;
+  state.finalSynthesis = null;
+  state.approval = null;
+
+  $("dialogue").innerHTML = "";
+  $("roundText").textContent = "Round 0";
+  $("roomStatus").textContent = "尚未進入會議";
+  $("roomLive").classList.add("off");
+  $("btnPause").textContent = "暫停";
+
+  AGENT_IDS.forEach(id => {
+    state.agentOnline[id] = false;
+    const card = $("agentCard-" + id);
+    const online = card?.querySelector(".online");
+    if(online) online.classList.add("off");
+    if(card){
+      card.classList.remove("selected","thinking","speaking");
+      card.classList.add("not-selected");
+    }
+    const stateEl = $("state-" + id);
+    if(stateEl) stateEl.textContent = "未參會";
+  });
+
+  renderAgentSelector();
+  $("overlayAgentSelect").classList.add("visible");
+}
+
+/* =========================================================
+   HOME
+========================================================= */
+
+function goHome(){
+  const configured = window.AIVAULT_CONFIG?.HOME_URL;
+  if(configured){
+    location.href = configured;
+    return;
+  }
+  const current = location.pathname;
+  if(current.includes("aivault-war-room")){
+    location.href = "aivault-home.html";
+    return;
+  }
+  location.href = "aivault-home.html";
+}
+
+/* =========================================================
+   LANGUAGE
+========================================================= */
+
+function toggleLanguage(){
+  state.uiLang = state.uiLang === "zh" ? "en" : "zh";
+  $("btnLang").textContent = state.uiLang === "zh" ? "中" : "EN";
+  if(state.uiLang === "en"){
+    $("ownerInput").placeholder = "Enter a question, idea or request...";
+    toast("English interface mode");
+  }else{
+    $("ownerInput").placeholder = "輸入問題、想法或要求……";
+    toast("已切換中文介面");
+  }
+}
+
+/* =========================================================
+   TEXTAREA
+========================================================= */
+
+function autoResizeTextarea(){
+  const el = $("ownerInput");
+  if(!el) return;
+  el.style.height = "auto";
+  el.style.height = Math.min(el.scrollHeight, 110) + "px";
+}
+
+/* =========================================================
+   VOICE RECOGNITION
+========================================================= */
+
+let recognition = null;
+let recognizing = false;
+
+function initRecognition(){
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!Recognition) return false;
+
+  recognition = new Recognition();
+  recognition.lang = "zh-TW";
+  recognition.continuous = false;
+  recognition.interimResults = true;
+
+  recognition.onstart = () => {
+    recognizing = true;
+    $("btnMic").classList.add("active");
+    $("btnMic").textContent = "⏺️ 聆聽中";
+  };
+
+  recognition.onresult = event => {
+    let transcript = "";
+    for(let i = event.resultIndex; i < event.results.length; i++){
+      transcript += event.results[i][0].transcript;
+    }
+    $("ownerInput").value = transcript;
+    autoResizeTextarea();
+  };
+
+  recognition.onerror = event => {
+    recognizing = false;
+    $("btnMic").classList.remove("active");
+    $("btnMic").textContent = "🎙️ 語音";
+    toast("語音辨識失敗：" + (event.error || "unknown"));
+  };
+
+  recognition.onend = () => {
+    recognizing = false;
+    $("btnMic").classList.remove("active");
+    $("btnMic").textContent = "🎙️ 語音";
+  };
+
+  return true;
+}
+
+function toggleRecognition(){
+  unlockAudio();
+  if(!recognition){
+    if(!initRecognition()){
+      toast("此瀏覽器不支援語音辨識");
+      return;
+    }
+  }
+  if(recognizing){
+    recognition.stop();
+    return;
+  }
+  try{
+    recognition.start();
+  }catch(e){
+    toast("語音辨識目前無法啟動");
+  }
+}
+
+/* =========================================================
+   KEYBOARD
+========================================================= */
+
+function handleInputKeydown(event){
+  if(event.key === "Enter" && !event.shiftKey){
+    event.preventDefault();
+    sendOwnerMessage();
+  }
+}
+
+/* =========================================================
+   EVENT BINDINGS
+========================================================= */
+
+function bindEvents(){
+  $("btnEnterWarRoom")?.addEventListener("click", enterWarRoom);
+
+  $("btnCancelAgentSelect")?.addEventListener("click", () => {
+    state.selectedAgents = [];
+    renderAgentSelector();
+    goHome();
+  });
+
+  $("btnSend")?.addEventListener("click", sendOwnerMessage);
+  $("btnNextRound")?.addEventListener("click", nextRound);
+  $("btnPause")?.addEventListener("click", togglePause);
+  $("btnMic")?.addEventListener("click", toggleRecognition);
+  $("btnTranscript")?.addEventListener("click", openTranscript);
+  $("btnHistory")?.addEventListener("click", openHistory);
+  $("btnApprove")?.addEventListener("click", openApproval);
+  $("btnReject")?.addEventListener("click", closeApproval);
+  $("btnConfirmApprove")?.addEventListener("click", confirmApprove);
+  $("btnCloseHistory")?.addEventListener("click", closeHistory);
+  $("btnCloseTranscript")?.addEventListener("click", closeTranscript);
+  $("btnStop")?.addEventListener("click", stopMeeting);
+  $("btnBackHome")?.addEventListener("click", goHome);
+  $("btnLang")?.addEventListener("click", toggleLanguage);
+  $("ownerInput")?.addEventListener("input", autoResizeTextarea);
+  $("ownerInput")?.addEventListener("keydown", handleInputKeydown);
+
+  document.querySelectorAll(".overlay").forEach(overlay => {
+    overlay.addEventListener("click", event => {
+      if(event.target !== overlay) return;
+      if(overlay.id === "overlayHistory") closeHistory();
+      else if(overlay.id === "transcript") closeTranscript();
+      else if(overlay.id === "overlayDecision") closeApproval();
+    });
+  });
+}
+
+/* =========================================================
+   INITIALIZE
+========================================================= */
+
+function init(){
+  loadHistory();
+  renderAgentSelector();
+  bindEvents();
+  autoResizeTextarea();
+
+  $("overlayAgentSelect").classList.add("visible");
+  state.selectedAgents = [];
+  renderAgentSelector();
+  loadVoices();
+
+  if(!SUPABASE_URL || !SUPABASE_ANON_KEY){
+    console.info(
+      "AIVAULT: Supabase configuration not detected. 所有 Agent 分析將無法執行（已移除本地假回覆）。"
+    );
+  }
+}
+
+init();
+</script>
+
+</body>
+</html>
