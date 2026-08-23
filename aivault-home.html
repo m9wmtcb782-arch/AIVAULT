@@ -1631,6 +1631,21 @@
       id="panel-home"
     >
 
+      <!-- AI 企劃書工作台入口（獨立模組） -->
+      <div id="proposalWsEntry" class="agent-card" style="margin-bottom:12px; grid-column:1/-1; display:block; border-color:rgba(167,139,250,.45); background:linear-gradient(135deg,#1e1b4b,#1e293b);">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+          <div>
+            <div class="agent-name" style="font-size:15px;">AI 企劃書工作台</div>
+            <div class="agent-role" style="margin-bottom:0;">
+              需求分析 · 章節架構 · 翻書閱覽 · 語音 · 版本修訂 · 垃圾桶 · 下載
+            </div>
+          </div>
+          <div style="flex-shrink:0; padding:8px 12px; border-radius:20px; background:linear-gradient(135deg,#8b5cf6,#6366f1); color:#fff; font-size:12px; font-weight:700;">
+            進入工作台
+          </div>
+        </div>
+      </div>
+
       <!-- 專案研討會議入口 -->
       <div id="warroomEntry" class="agent-card" style="margin-bottom:16px; grid-column:1/-1; display:block; border-color:rgba(59,130,246,.4); background:linear-gradient(135deg,#1e293b,#1e3a5f);">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
@@ -3230,6 +3245,34 @@ Owner 擁有最終決策權。
     let proposalSpeaking = false;
     let proposalUtterance = null;
 
+    /* 正式企劃案 24 章（模組化；不修改 Gateway / Governance） */
+    const PROPOSAL_CHAPTERS = [
+      { no: '01', title: '計畫摘要' },
+      { no: '02', title: '產業與市場背景' },
+      { no: '03', title: '現有問題與需求' },
+      { no: '04', title: 'AIVAULT 核心理念與定位' },
+      { no: '05', title: 'AIVAULT 整體產品架構' },
+      { no: '06', title: 'AI Agent 協作架構' },
+      { no: '07', title: 'Cognitive Engine' },
+      { no: '08', title: 'Governance Engine' },
+      { no: '09', title: 'AI Gateway' },
+      { no: '10', title: 'Multi-Agent / Cross-Agent Review' },
+      { no: '11', title: 'Security & Governance' },
+      { no: '12', title: '資料庫與 Memory System' },
+      { no: '13', title: '前端與使用者體驗' },
+      { no: '14', title: '產品服務與商業流程' },
+      { no: '15', title: '商業模式與營收模式' },
+      { no: '16', title: '市場競爭與差異化' },
+      { no: '17', title: '法律、個資與合規' },
+      { no: '18', title: '開發與部署計畫' },
+      { no: '19', title: '成本與財務規劃' },
+      { no: '20', title: '風險管理' },
+      { no: '21', title: 'KPI 與效益評估' },
+      { no: '22', title: '未來發展藍圖' },
+      { no: '23', title: '結論' },
+      { no: '24', title: '附件' }
+    ];
+
     function loadProposalLibrary() {
       try {
         const raw = localStorage.getItem('AIVAULT_PROPOSAL_LIBRARY');
@@ -3299,14 +3342,23 @@ Agent 連線：在線 ${stats.online} / 離線 ${stats.offline}
       const raw = String(text || '').trim();
       if (!raw) return [{ id: 'all', title: '全文', body: '（無內容）' }];
 
-      const parts = raw.split(/\n(?=[一二三四五六七八九十]+[、．.]\s*)/);
+      // 優先依 01｜ / 01| / 第01章 切割
+      let parts = raw.split(/\n(?=\s*0?[1-9]\d?\s*[｜|、.．]\s*)/);
       if (parts.length <= 1) {
-        return [{ id: 'all', title: '全文', body: raw }];
+        parts = raw.split(/\n(?=[一二三四五六七八九十]+[、．.]\s*)/);
+      }
+      if (parts.length <= 1) {
+        // 依正式章節標題強制分章（若 AI 未編號）
+        return PROPOSAL_CHAPTERS.map((ch, i) => ({
+          id: 'ch' + ch.no,
+          title: ch.no + '｜' + ch.title,
+          body: i === 0 ? raw : `（本章內容併於全文，請見章節導覽「全文」）`
+        })).concat([{ id: 'all', title: '全文', body: raw }]);
       }
 
       return parts.map((p, i) => {
         const line = p.trim().split('\n')[0] || `章節 ${i + 1}`;
-        const title = line.slice(0, 24);
+        const title = line.replace(/^\s+/, '').slice(0, 36);
         return { id: 's' + i, title, body: p.trim() };
       });
     }
@@ -3536,10 +3588,21 @@ Agent 連線：在線 ${stats.online} / 離線 ${stats.offline}
 
       const { taskLines, recent, workflowLines, statsBlock } = buildProposalContext();
 
-      const prompt = `你是 AIVAULT 的 Coordinator（整合協調官）。
-請根據系統數據與討論，撰寫「AIVAULT 完整最終企劃案」（繁體中文）。
+      const chapterList = PROPOSAL_CHAPTERS
+        .map(c => `${c.no}｜${c.title}`)
+        .join('\n');
 
-【統計數據】
+      const prompt = `你是 AIVAULT 的 Coordinator（整合協調官）。
+請撰寫「AIVAULT 正式產品／平台企劃案」（繁體中文）。
+
+【定位（必須遵守）】
+AIVAULT 是「AI Agent 協作工作平台／AI 作業系統」，不是單一聊天機器人。
+核心閉環：
+Owner → Front-End → Cognitive Engine → Governance Engine → AI Gateway
+→ Multi-Provider AI → Multi-Agent → Cross-Agent Review → Final Synthesis
+→ Governance Validation → Owner Approval → Deliverable → Version/Audit/Memory
+
+【系統即時統計（必須引用）】
 ${statsBlock}
 
 【任務清單】
@@ -3551,18 +3614,24 @@ ${workflowLines}
 【近期討論摘要】
 ${recent || '（尚無足夠討論紀錄）'}
 
-請輸出完整企劃案，必須包含：
-一、專案名稱與目標
-二、產品定位
-三、核心架構
-四、數據洞察（解讀上方完成率、Agent 負載、對話量）
-五、已完成事項
-六、進行中與待辦
-七、風險與合規
-八、資源與時程（30 天計畫）
-九、Owner 決策建議
+【開發狀態標示規則】
+- AI Gateway（Groq/Gemini、internal_auth、Key rotation）：Completed / Tested
+- Governance Engine（可呼叫、MESSAGE 傳遞已修正）：Completed / Tested（治理規則本體不重寫）
+- War Room 多 Agent + 語音：Completed / Tested（前台閉環）
+- Home 工作中心／任務啟動／企劃書庫：Completed / In Progress
+- Cognitive Engine 完整後端閉環：In Progress / 需與現況對齊
+- Agent Marketplace、Enterprise 營收：Future（不得寫成已存在營收）
 
-要求：引用實際數字、可執行、不要空話。`;
+請嚴格輸出以下 24 章，每章以「01｜標題」開頭，章節齊全：
+${chapterList}
+
+寫作要求：
+1. 不得把 AIVAULT 寫成單純 Chatbot。
+2. 保留 Cognitive / Governance / AI Gateway / Multi-Agent / Cross-Agent Review / Owner Approval。
+3. 區分「目前產品能力」與「未來商業規劃」。
+4. 合規章節寫「法遵風險分析與後續措施」，不要宣稱完全合法。
+5. 引用上方統計數字做數據洞察。
+6. 專業、可執行、條列清楚。`;
 
       let agent = AGENTS.find(a => a.id === 'a6' && getAgentView(a).connected)
         || AGENTS.find(a => getAgentView(a).connected)
@@ -4773,6 +4842,9 @@ ${workflowLines}
         location.href = 'aivault-warroom.html';
       });
     }
+    document.getElementById('proposalWsEntry')?.addEventListener('click', () => {
+      location.href = 'aivault-proposal-workspace.html';
+    });
 
 
     /* ============================================================
@@ -4808,7 +4880,8 @@ ${workflowLines}
     document.getElementById('tabProposalLibrary')?.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      openProposalLibrary();
+      // 正式 AI 企劃書工作台（獨立模組，不改 Gateway）
+      location.href = 'aivault-proposal-workspace.html';
     });
 
     document.getElementById('proposalLibraryList')?.addEventListener('click', (e) => {

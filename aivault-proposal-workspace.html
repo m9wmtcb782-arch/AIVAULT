@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<meta name="theme-color" content="#0b1120" />
+<title>AIVAULT — AI 企劃書工作台</title>
+<style>
+:root{
+  --bg:#0b1120;--card:#111827;--line:#1f2a3a;--text:#e8eef8;--muted:#8b9bb0;
+  --blue:#3b82f6;--green:#22c55e;--red:#ef4444;--purple:#a78bfa;--yellow:#f59e0b;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;line-height:1.55}
+button,input,textarea,select{font:inherit}
+button{cursor:pointer}
+button:disabled{opacity:.45;cursor:not-allowed}
+
+.top{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:10px;padding:12px 14px;background:rgba(11,17,32,.96);border-bottom:1px solid var(--line);backdrop-filter:blur(10px)}
+.brand{display:flex;align-items:center;gap:8px;font-weight:800}
+.logo{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:grid;place-items:center;font-size:12px;font-weight:900}
+.top h1{font-size:15px}
+.top .sub{font-size:11px;color:var(--muted);font-weight:500}
+.top-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:none;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:700;background:#1e293b;color:#fff}
+.btn.primary{background:linear-gradient(135deg,#3b82f6,#6366f1)}
+.btn.success{background:var(--green);color:#04120a}
+.btn.danger{background:transparent;border:1px solid var(--red);color:#fca5a5}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--muted)}
+
+.wrap{max-width:1100px;margin:0 auto;padding:16px;padding-bottom:100px}
+.panel{display:none}.panel.active{display:block}
+.section-title{font-size:13px;color:var(--muted);font-weight:700;letter-spacing:.4px;margin:8px 0 12px;text-transform:uppercase}
+
+.search{display:flex;gap:8px;margin-bottom:14px}
+.search input{flex:1;background:#0f172a;border:1px solid var(--line);border-radius:12px;padding:11px 14px;color:var(--text);outline:none}
+.search input:focus{border-color:var(--blue)}
+
+.grid{display:grid;grid-template-columns:1fr;gap:10px}
+@media(min-width:720px){.grid{grid-template-columns:1fr 1fr}}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.card h3{font-size:15px;margin-bottom:6px}
+.meta{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:#1e293b;color:#93c5fd}
+.badge.approved{background:rgba(34,197,94,.15);color:#86efac}
+.badge.trash{background:rgba(239,68,68,.12);color:#fca5a5}
+.badge.draft{background:rgba(148,163,184,.12);color:#cbd5e1}
+.card-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.card-actions .btn{padding:7px 10px;font-size:12px}
+
+.create-box textarea{width:100%;min-height:110px;background:#0f172a;border:1px solid var(--line);border-radius:12px;padding:12px;color:var(--text);resize:vertical}
+.create-box .hint{font-size:12px;color:var(--muted);margin:8px 0 12px}
+
+.analysis-box{background:#0f172a;border:1px solid var(--line);border-radius:12px;padding:14px;white-space:pre-wrap;font-size:14px;line-height:1.65;max-height:50vh;overflow:auto}
+
+.chapters{display:flex;flex-direction:column;gap:8px}
+.chapter-row{display:flex;align-items:center;gap:8px;background:#0f172a;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.chapter-row input{flex:1;background:transparent;border:none;color:var(--text);outline:none}
+.chapter-row .ops{display:flex;gap:4px}
+.chapter-row .ops button{padding:4px 8px;font-size:11px;border-radius:8px;background:#1e293b;border:none;color:#cbd5e1}
+
+/* Reader */
+.reader-shell{display:flex;flex-direction:column;gap:10px}
+.reader-toolbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;position:sticky;top:58px;z-index:40;background:rgba(11,17,32,.95);padding:8px 0;border-bottom:1px solid var(--line)}
+.reader-main{display:grid;gap:12px}
+@media(min-width:900px){.reader-main{grid-template-columns:1fr 320px}}
+
+.book{
+  background:linear-gradient(180deg,#0f172a,#0b1220);
+  border:1px solid var(--line);border-radius:16px;min-height:62vh;
+  padding:18px 16px 24px;position:relative;
+  box-shadow:0 20px 50px rgba(0,0,0,.35);
+}
+.book-cover{text-align:center;padding:28px 10px}
+.book-cover .kicker{font-size:12px;color:var(--purple);font-weight:700;letter-spacing:1px}
+.book-cover h2{font-size:22px;margin:10px 0}
+.book-cover .info{font-size:12px;color:var(--muted)}
+.book-body{white-space:pre-wrap;font-size:15px;line-height:1.8;word-break:break-word}
+.book-body .hl{background:rgba(167,139,250,.25);outline:1px solid rgba(167,139,250,.5);border-radius:4px}
+.page-foot{display:flex;justify-content:space-between;align-items:center;margin-top:18px;font-size:12px;color:var(--muted)}
+.nav-row{display:flex;gap:8px;justify-content:center;margin-top:10px}
+
+.side{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;max-height:70vh;overflow:auto}
+.side h4{font-size:13px;margin-bottom:8px;color:#cbd5e1}
+.side textarea{width:100%;min-height:90px;background:#0f172a;border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--text);margin-bottom:8px}
+.suggest-item{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;background:#0f172a;font-size:13px}
+.suggest-item .acts{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.version-item{padding:8px 0;border-bottom:1px solid var(--line);font-size:12px;cursor:pointer}
+.version-item:hover{color:#93c5fd}
+.version-item.active{color:#93c5fd;font-weight:700}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(120px);background:#1e293b;border:1px solid var(--line);color:#fff;padding:12px 18px;border-radius:12px;z-index:100;transition:.25s;max-width:90%;text-align:center;font-size:14px}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+.modal-mask{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:80;align-items:center;justify-content:center;padding:16px}
+.modal-mask.show{display:flex}
+.modal{background:#111827;border:1px solid var(--line);border-radius:14px;padding:16px;width:min(420px,100%)}
+.modal h3{margin-bottom:8px}
+.modal p{font-size:13px;color:var(--muted);margin-bottom:14px}
+.modal .row{display:flex;gap:8px;justify-content:flex-end}
+
+.rate-select,.voice-select{background:#0f172a;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:6px 8px;font-size:12px}
+.empty{text-align:center;padding:40px 16px;color:var(--muted)}
+.check{width:18px;height:18px;accent-color:var(--blue)}
+.batch{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="logo">AI</div>
+    <div>
+      <h1>AI 企劃書工作台</h1>
+      <div class="sub">Proposal Intelligence · 不修改 Gateway</div>
+    </div>
+  </div>
+  <div class="top-actions">
+    <button class="btn ghost" type="button" id="btnHome">Home</button>
+    <button class="btn ghost" type="button" id="btnTrashView">垃圾桶</button>
+    <button class="btn primary" type="button" id="btnNew">＋ 建立新企劃案</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- LIBRARY -->
+  <section class="panel active" id="panel-library">
+    <div class="search">
+      <input id="searchInput" placeholder="搜尋企劃案名稱、章節、內容、意見…" />
+      <button class="btn" type="button" id="btnSearch">搜尋</button>
+    </div>
+    <div class="batch">
+      <button class="btn danger" type="button" id="btnBatchDelete">批次刪除</button>
+      <button class="btn" type="button" id="btnBatchExport">批次匯出 HTML</button>
+    </div>
+    <div class="section-title">我的企劃案</div>
+    <div class="grid" id="proposalGrid"></div>
+  </section>
+
+  <!-- CREATE / ANALYZE -->
+  <section class="panel" id="panel-create">
+    <div class="section-title">建立新企劃案 · 只要告訴我想做什麼</div>
+    <div class="card create-box">
+      <textarea id="needInput" placeholder="例：我想建立一個 AI Agent 協作平台，讓企業可以讓多個 AI 分工完成工作。"></textarea>
+      <div class="hint">第一階段只做需求理解，不會直接亂寫整本企劃書。</div>
+      <button class="btn primary" type="button" id="btnAnalyze">AI 分析需求</button>
+    </div>
+    <div id="analysisBlock" style="display:none;margin-top:14px">
+      <div class="section-title">企劃案分析摘要</div>
+      <div class="analysis-box" id="analysisText"></div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+        <button class="btn success" type="button" id="btnConfirmStructure">按此方向建立章節架構</button>
+        <button class="btn ghost" type="button" id="btnReanalyze">重新分析</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- STRUCTURE -->
+  <section class="panel" id="panel-structure">
+    <div class="section-title">企劃書架構 · 可新增／編輯／排序／移除</div>
+    <div class="chapters" id="chapterList"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <button class="btn" type="button" id="btnAddChapter">＋ 新增章節</button>
+      <button class="btn primary" type="button" id="btnGenerateDoc">AI 產生完整企劃書</button>
+      <button class="btn ghost" type="button" id="btnBackLib1">返回列表</button>
+    </div>
+  </section>
+
+  <!-- READER -->
+  <section class="panel" id="panel-reader">
+    <div class="reader-shell">
+      <div class="reader-toolbar">
+        <button class="btn ghost" type="button" id="btnBackLib2">← 列表</button>
+        <button class="btn" type="button" id="btnToc">目錄</button>
+        <button class="btn" type="button" id="btnPrev">‹ 上一章</button>
+        <button class="btn" type="button" id="btnNext">下一章 ›</button>
+        <select class="rate-select" id="speechRate">
+          <option value="0.5">0.5x</option>
+          <option value="0.75">0.75x</option>
+          <option value="1" selected>1.0x</option>
+          <option value="1.25">1.25x</option>
+          <option value="1.5">1.5x</option>
+          <option value="1.75">1.75x</option>
+          <option value="2">2.0x</option>
+        </select>
+        <select class="voice-select" id="speechVoice"></select>
+        <button class="btn primary" type="button" id="btnPlay">▶ 播放</button>
+        <button class="btn" type="button" id="btnPause">⏸ 暫停</button>
+        <button class="btn" type="button" id="btnResume">▶ 繼續</button>
+        <button class="btn" type="button" id="btnStop">⏹ 停止</button>
+        <button class="btn" type="button" id="btnExportPdf">⬇ PDF</button>
+        <button class="btn" type="button" id="btnExportHtml">⬇ HTML</button>
+        <button class="btn success" type="button" id="btnApprove">✅ 通過</button>
+      </div>
+
+      <div class="reader-main">
+        <div class="book" id="book">
+          <div class="book-cover" id="bookCover"></div>
+          <div class="book-body" id="bookBody"></div>
+          <div class="page-foot">
+            <span id="pageInfo">—</span>
+            <span id="progressInfo">—</span>
+          </div>
+          <div class="nav-row">
+            <button class="btn" type="button" id="btnPrev2">上一章</button>
+            <button class="btn" type="button" id="btnNext2">下一章</button>
+          </div>
+        </div>
+
+        <aside class="side">
+          <h4>AI 分析／指導</h4>
+          <button class="btn primary" type="button" id="btnAiGuide" style="width:100%;margin-bottom:10px">產生指導建議</button>
+          <div id="guideList"></div>
+
+          <h4 style="margin-top:14px">提出意見（Owner Correction）</h4>
+          <textarea id="ownerFeedback" placeholder="例：我不同意這個市場假設。請改成 B2B。"></textarea>
+          <button class="btn danger" type="button" id="btnSubmitFeedback" style="width:100%">送出修改意見 → 建立新版本</button>
+
+          <h4 style="margin-top:14px">針對本段詢問 AI</h4>
+          <textarea id="askSelection" placeholder="為什麼你這樣判斷？／若預算減半呢？"></textarea>
+          <button class="btn" type="button" id="btnAskAi" style="width:100%;margin-bottom:10px">詢問 AI</button>
+          <div class="analysis-box" id="askAnswer" style="max-height:160px;font-size:12px;display:none"></div>
+
+          <h4 style="margin-top:14px">版本</h4>
+          <div id="versionList"></div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRASH -->
+  <section class="panel" id="panel-trash">
+    <div class="section-title">垃圾桶</div>
+    <div class="grid" id="trashGrid"></div>
+    <div style="margin-top:12px">
+      <button class="btn danger" type="button" id="btnEmptyTrash">清空垃圾桶</button>
+      <button class="btn ghost" type="button" id="btnBackLib3">返回列表</button>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+<div class="modal-mask" id="confirmModal">
+  <div class="modal">
+    <h3 id="confirmTitle">確認</h3>
+    <p id="confirmMsg">確定執行？</p>
+    <div class="row">
+      <button class="btn ghost" type="button" id="confirmNo">取消</button>
+      <button class="btn danger" type="button" id="confirmYes">確定</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   AIVAULT Proposal Intelligence Layer (Frontend Module)
+   - Does NOT modify AI Gateway / Governance / Cognitive Edge Functions
+   - Uses existing AI Gateway only as provider transport
+   - Storage: localStorage schema ready for Supabase migration
+========================================================= */
+
+const SUPABASE_URL = 'https://clcddygkaaqqtsbswgdf.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE';
+const AI_GATEWAY_URL = `${SUPABASE_URL}/functions/v1/ai-gateway`;
+
+const STORAGE_KEY = 'AIVAULT_PROPOSAL_WS_V1';
+const DEFAULT_CHAPTERS = [
+  '01 計畫摘要','02 背景與問題','03 市場與需求分析','04 企劃目的','05 目標對象',
+  '06 解決方案','07 產品／服務內容','08 系統架構','09 AI Agent 架構','10 執行策略',
+  '11 商業模式','12 市場競爭分析','13 法律與合規','14 資安與風險','15 執行時程',
+  '16 人力配置','17 成本與預算','18 KPI','19 預期效益','20 未來發展','21 結論'
+];
+
+const state = {
+  proposals: [],
+  currentId: null,
+  currentVersion: 1,
+  chapterIndex: 0,
+  analysis: '',
+  draftNeed: '',
+  draftChapters: [],
+  selectedIds: new Set(),
+  speaking: false,
+  paused: false,
+  confirmCb: null
+};
+
+function uid(prefix){ return prefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function nowISO(){ return new Date().toISOString(); }
+function nowLocal(){ return new Date().toLocaleString('zh-TW'); }
+function escapeHTML(v){ return String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
+function showToast(t){ const el=document.getElementById('toast'); el.textContent=t; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),2500); }
+function showPanel(name){ document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active')); document.getElementById('panel-'+name)?.classList.add('active'); }
+
+function loadDB(){
+  try{ const raw=localStorage.getItem(STORAGE_KEY); state.proposals = raw? JSON.parse(raw):[]; if(!Array.isArray(state.proposals)) state.proposals=[]; }
+  catch(e){ state.proposals=[]; }
+}
+function saveDB(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state.proposals)); }catch(e){} }
+
+function getProposal(id){ return state.proposals.find(p=>p.id===id); }
+function getCurrent(){ return getProposal(state.currentId); }
+function getVersion(p, n){ return (p?.versions||[]).find(v=>v.version_number===n) || (p?.versions||[])[0]; }
+
+/* -------- AI Gateway (read-only client; no gateway code changes) -------- */
+async function callAI(systemPrompt, userMessage, agentName='Proposal Intelligence'){
+  const res = await fetch(AI_GATEWAY_URL,{
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${SUPABASE_ANON_KEY}` },
+    body: JSON.stringify({
+      provider:'gemini3',
+      model:'gemini-2.5-flash',
+      agent: agentName,
+      systemPrompt,
+      messages:[
+        { role:'system', content: systemPrompt },
+        { role:'user', content: userMessage }
+      ]
+    })
+  });
+  let data; try{ data=await res.json(); }catch{ throw new Error('AI Gateway 回傳非 JSON'); }
+  if(!res.ok) throw new Error(data?.error||data?.message||`HTTP ${res.status}`);
+  const content = data?.content || data?.response || data?.text || data?.message || data?.choices?.[0]?.message?.content;
+  if(!content) throw new Error('AI Gateway 無內容');
+  return String(content);
+}
+
+/* -------- Library -------- */
+function renderLibrary(filter=''){
+  const grid=document.getElementById('proposalGrid');
+  const q=filter.trim().toLowerCase();
+  const list=state.proposals.filter(p=>!p.deleted_at).filter(p=>{
+    if(!q) return true;
+    const blob=[p.title,p.need, ...(p.versions||[]).map(v=>v.content||''), ...(p.comments||[]).map(c=>c.text||'')].join('\n').toLowerCase();
+    return blob.includes(q);
+  });
+  if(!list.length){ grid.innerHTML=`<div class="empty">尚無企劃案。點右上角「建立新企劃案」開始。</div>`; return; }
+  grid.innerHTML=list.map(p=>{
+    const v=getVersion(p, p.current_version)||{};
+    const status=p.status||'Draft';
+    return `<div class="card">
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        <input class="check" type="checkbox" data-id="${p.id}" ${state.selectedIds.has(p.id)?'checked':''}/>
+        <div style="flex:1">
+          <h3>${escapeHTML(p.title||'未命名企劃')}</h3>
+          <div class="meta">
+            <span class="badge ${status==='Approved'?'approved':'draft'}">${escapeHTML(status)}</span>
+            <span>V${p.current_version||1}</span>
+            <span>${escapeHTML(p.updated_at_local||'')}</span>
+            <span>完成度 ${p.completion||0}%</span>
+          </div>
+          <div class="card-actions">
+            <button class="btn" data-act="read" data-id="${p.id}">📖 閱讀</button>
+            <button class="btn" data-act="guide" data-id="${p.id}">🤖 AI 分析</button>
+            <button class="btn" data-act="regen" data-id="${p.id}">🔄 重新產生</button>
+            <button class="btn" data-act="pdf" data-id="${p.id}">⬇ PDF</button>
+            <button class="btn danger" data-act="del" data-id="${p.id}">🗑 刪除</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderTrash(){
+  const grid=document.getElementById('trashGrid');
+  const list=state.proposals.filter(p=>p.deleted_at);
+  if(!list.length){ grid.innerHTML=`<div class="empty">垃圾桶是空的</div>`; return; }
+  grid.innerHTML=list.map(p=>`<div class="card">
+    <h3>${escapeHTML(p.title)}</h3>
+    <div class="meta"><span class="badge trash">已刪除</span><span>${escapeHTML(p.deleted_at_local||'')}</span><span>V${p.current_version}</span></div>
+    <div class="card-actions">
+      <button class="btn success" data-act="restore" data-id="${p.id}">恢復</button>
+      <button class="btn danger" data-act="purge" data-id="${p.id}">永久刪除</button>
+    </div>
+  </div>`).join('');
+}
+
+/* -------- Create / Analyze -------- */
+async function analyzeNeed(){
+  const need=document.getElementById('needInput').value.trim();
+  if(!need){ showToast('請先輸入你想做什麼'); return; }
+  state.draftNeed=need;
+  showToast('AI 正在分析需求…');
+  const system=`你是 AIVAULT Proposal Intelligence Layer。AIVAULT 是 AI Agent 協作工作平台／AI 作業系統，不是聊天機器人。
+請只做「需求理解」，不要直接寫完整企劃書。使用繁體中文。
+必須區分【實際資料】與【AI 預估／假設】。`;
+  const user=`使用者需求：
+${need}
+
+請輸出「企劃案分析摘要」，包含：
+1. 使用者需求整理
+2. 建議專案名稱
+3. 專案類型
+4. 問題背景
+5. 目標
+6. 目標使用者
+7. 核心需求
+8. 預期成果
+9. 技術需求
+10. 商業需求
+11. 法律／合規需求
+12. 可能風險
+最後問：是否按照這個方向建立企劃書？`;
+  try{
+    const text=await callAI(system,user,'Proposal Analyst');
+    state.analysis=text;
+    document.getElementById('analysisText').textContent=text;
+    document.getElementById('analysisBlock').style.display='block';
+    showToast('分析完成，請確認方向');
+  }catch(e){
+    showToast('分析失敗：'+e.message);
+  }
+}
+
+function buildStructureFromAnalysis(){
+  // default chapters; AI may have suggested type — Owner can edit
+  state.draftChapters = DEFAULT_CHAPTERS.map(t=>({ id:uid('sec'), title:t }));
+  // try extract project name
+  const m = state.analysis.match(/專案名稱[：:]\s*(.+)/);
+  state.draftTitle = (m && m[1].trim().slice(0,40)) || state.draftNeed.slice(0,24) || '未命名企劃';
+  renderChapterEditor();
+  showPanel('structure');
+}
+
+function renderChapterEditor(){
+  const el=document.getElementById('chapterList');
+  el.innerHTML=state.draftChapters.map((c,i)=>`<div class="chapter-row" data-i="${i}">
+    <span style="color:var(--muted);font-size:12px;width:24px">${i+1}</span>
+    <input value="${escapeHTML(c.title)}" data-edit="${c.id}"/>
+    <div class="ops">
+      <button type="button" data-up="${c.id}">↑</button>
+      <button type="button" data-down="${c.id}">↓</button>
+      <button type="button" data-rm="${c.id}">🗑</button>
+    </div>
+  </div>`).join('');
+}
+
+async function generateFullDocument(){
+  // sync titles from inputs
+  document.querySelectorAll('#chapterList input[data-edit]').forEach(inp=>{
+    const id=inp.getAttribute('data-edit');
+    const ch=state.draftChapters.find(c=>c.id===id);
+    if(ch) ch.title=inp.value.trim()||ch.title;
+  });
+  if(!state.draftChapters.length){ showToast('至少需要一個章節'); return; }
+
+  showToast('AI 正在依章節產生企劃書…');
+  const titles=state.draftChapters.map(c=>c.title).join('\n');
+  const system=`你是 AIVAULT Proposal Synthesis 模組。
+產出正式企劃書正文（繁體中文）。
+AIVAULT 定位：AI Agent 協作工作平台／AI 作業系統（含 Cognitive Engine、Governance Engine、AI Gateway、Multi-Agent、Cross-Agent Review、Owner Approval）。
+規則：
+1. 不得寫成單純聊天機器人。
+2. 必須區分【實際資料】【AI 預估】【商業假設】【情境分析】。
+3. 不得虛構「已有營收」。
+4. 合規寫「法遵風險與後續措施」，不要宣稱完全合法。
+5. 每章以「## 章節標題」開頭。`;
+  const user=`使用者原始需求：
+${state.draftNeed}
+
+分析摘要：
+${state.analysis}
+
+請依下列章節依序完整撰寫：
+${titles}
+
+每章包含：內容、分析、假設（若有）、結論、建議。`;
+
+  try{
+    const content=await callAI(system,user,'Proposal Writer');
+    const id=uid('prop');
+    const version={
+      version_id: uid('ver'),
+      version_number: 1,
+      created_at: nowISO(),
+      created_at_local: nowLocal(),
+      created_by: 'AI',
+      change_reason: '初版產生',
+      owner_instruction: '',
+      content,
+      sections: state.draftChapters.map(c=>({id:c.id,title:c.title})),
+      status: 'AI Generated'
+    };
+    const proposal={
+      id,
+      title: state.draftTitle || '未命名企劃',
+      need: state.draftNeed,
+      analysis: state.analysis,
+      status: 'AI Generated',
+      current_version: 1,
+      completion: 70,
+      created_at: nowISO(),
+      updated_at: nowISO(),
+      updated_at_local: nowLocal(),
+      deleted_at: null,
+      versions:[version],
+      comments:[],
+      guides:[],
+      reading:{ chapterIndex:0, updated_at: nowISO() }
+    };
+    state.proposals.unshift(proposal);
+    saveDB();
+    state.currentId=id;
+    state.currentVersion=1;
+    state.chapterIndex=0;
+    openReader(id,1);
+    showToast('企劃書已產生');
+  }catch(e){
+    showToast('產生失敗：'+e.message);
+  }
+}
+
+/* -------- Reader -------- */
+function parseChapters(content, sectionMeta){
+  const text=String(content||'');
+  const parts=text.split(/\n(?=##\s+)/);
+  let chapters=[];
+  if(parts.length>1){
+    chapters=parts.map((p,i)=>{
+      const lines=p.trim().split('\n');
+      const title=(lines[0]||'').replace(/^##\s*/,'').trim() || (sectionMeta[i]?.title)||`章節 ${i+1}`;
+      return { title, body: p.trim() };
+    });
+  } else if(sectionMeta?.length){
+    chapters=sectionMeta.map((s,i)=>({ title:s.title, body: i===0? text : `（本章內容請見全文整合版）\n\n${text}` }));
+  } else {
+    chapters=[{ title:'全文', body:text||'（無內容）' }];
+  }
+  return chapters;
+}
+
+function openReader(id, versionNumber){
+  const p=getProposal(id);
+  if(!p){ showToast('找不到企劃案'); return; }
+  state.currentId=id;
+  state.currentVersion=versionNumber || p.current_version || 1;
+  state.chapterIndex=p.reading?.chapterIndex || 0;
+  showPanel('reader');
+  renderReader();
+}
+
+function renderReader(){
+  const p=getCurrent(); if(!p) return;
+  const v=getVersion(p, state.currentVersion); if(!v) return;
+  const chapters=parseChapters(v.content, v.sections||[]);
+  if(state.chapterIndex<0) state.chapterIndex=0;
+  if(state.chapterIndex>=chapters.length) state.chapterIndex=chapters.length-1;
+  const ch=chapters[state.chapterIndex];
+
+  document.getElementById('bookCover').innerHTML=`
+    <div class="kicker">AIVAULT PROPOSAL</div>
+    <h2>${escapeHTML(p.title)}</h2>
+    <div class="info">版本 V${v.version_number} · ${escapeHTML(v.created_at_local||'')} · ${escapeHTML(p.status)}</div>
+    <div class="info" style="margin-top:8px">${escapeHTML(ch.title)}</div>`;
+  document.getElementById('bookBody').textContent=ch.body;
+  document.getElementById('pageInfo').textContent=`章節 ${state.chapterIndex+1} / ${chapters.length}`;
+  const pct=Math.round(((state.chapterIndex+1)/chapters.length)*100);
+  document.getElementById('progressInfo').textContent=`閱讀進度 ${pct}%`;
+  p.reading={ chapterIndex: state.chapterIndex, updated_at: nowISO() };
+  saveDB();
+
+  // versions
+  const vl=document.getElementById('versionList');
+  vl.innerHTML=(p.versions||[]).slice().sort((a,b)=>b.version_number-a.version_number).map(ver=>`
+    <div class="version-item ${ver.version_number===state.currentVersion?'active':''}" data-v="${ver.version_number}">
+      V${ver.version_number} · ${escapeHTML(ver.change_reason||'')} · ${escapeHTML(ver.created_at_local||'')}
+    </div>`).join('');
+
+  renderGuides(p);
+}
+
+function renderGuides(p){
+  const el=document.getElementById('guideList');
+  const list=p.guides||[];
+  if(!list.length){ el.innerHTML=`<div style="font-size:12px;color:var(--muted)">尚未產生建議</div>`; return; }
+  el.innerHTML=list.map((g,i)=>`<div class="suggest-item">
+    <div>${escapeHTML(g.text)}</div>
+    <div class="acts">
+      <button class="btn success" data-guide="adopt" data-i="${i}">採用</button>
+      <button class="btn" data-guide="reject" data-i="${i}">拒絕</button>
+      <button class="btn" data-guide="explain" data-i="${i}">說明</button>
+    </div>
+  </div>`).join('');
+}
+
+/* -------- TTS -------- */
+function loadVoices(){
+  const sel=document.getElementById('speechVoice');
+  const voices=window.speechSynthesis?.getVoices?.()||[];
+  const preferred=voices.filter(v=>/zh|Chinese|Taiwan|Hong|China/i.test(v.lang+v.name));
+  const list=preferred.length?preferred:voices;
+  sel.innerHTML=list.map((v,i)=>`<option value="${i}">${v.name} (${v.lang})</option>`).join('') || `<option value="-1">系統預設</option>`;
+  sel._voices=list;
+}
+function stopSpeech(){ try{ speechSynthesis.cancel(); }catch(e){} state.speaking=false; state.paused=false; }
+function playSpeech(){
+  if(!('speechSynthesis' in window)){ showToast('此裝置不支援語音'); return; }
+  stopSpeech();
+  const text=document.getElementById('bookBody').textContent||'';
+  if(!text.trim()){ showToast('沒有可朗讀內容'); return; }
+  const u=new SpeechSynthesisUtterance(text);
+  u.rate=parseFloat(document.getElementById('speechRate').value||'1');
+  const sel=document.getElementById('speechVoice');
+  const voices=sel._voices||[];
+  const idx=parseInt(sel.value,10);
+  if(voices[idx]) u.voice=voices[idx];
+  u.lang=voices[idx]?.lang || 'zh-TW';
+  u.onend=()=>{ state.speaking=false; /* auto next chapter */
+    const p=getCurrent(); if(!p) return;
+    const v=getVersion(p,state.currentVersion);
+    const chapters=parseChapters(v.content,v.sections||[]);
+    if(state.chapterIndex < chapters.length-1){
+      state.chapterIndex++;
+      renderReader();
+      setTimeout(playSpeech, 400);
+    } else showToast('已朗讀至最後一章');
+  };
+  state.speaking=true; state.paused=false;
+  speechSynthesis.speak(u);
+}
+function pauseSpeech(){ if(speechSynthesis.speaking){ speechSynthesis.pause(); state.paused=true; } }
+function resumeSpeech(){ if(state.paused){ speechSynthesis.resume(); state.paused=false; } else if(!state.speaking) playSpeech(); }
+
+/* -------- AI Guide / Feedback / Ask -------- */
+async function generateGuide(){
+  const p=getCurrent(); if(!p) return;
+  const v=getVersion(p,state.currentVersion);
+  showToast('AI 分析中…');
+  try{
+    const text=await callAI(
+      '你是 AIVAULT 企劃顧問。用繁體中文列出 5-8 點具體建議。每點一行，不要空話。指出證據不足、過度樂觀假設、技術/法律風險、需 Owner 決策處。',
+      `企劃：${p.title}\n需求：${p.need}\n內容摘要：\n${String(v.content).slice(0,6000)}`
+    );
+    const items=text.split(/\n+/).map(s=>s.replace(/^\s*[-*\d.、)）]+\s*/,'').trim()).filter(Boolean).slice(0,8);
+    p.guides=items.map(t=>({text:t,status:'open'}));
+    saveDB(); renderGuides(p); showToast('指導建議已產生');
+  }catch(e){ showToast('分析失敗：'+e.message); }
+}
+
+async function submitOwnerFeedback(){
+  const p=getCurrent(); if(!p) return;
+  const feedback=document.getElementById('ownerFeedback').value.trim();
+  if(!feedback){ showToast('請輸入意見'); return; }
+  const old=getVersion(p,state.currentVersion);
+  showToast('AI 理解 Owner 意見並產生新版本…');
+  try{
+    const content=await callAI(
+      `你是 AIVAULT Proposal Revision 模組。Owner 具有最終決策權。
+根據 Owner Instruction 修改企劃書，產生完整新版正文。
+保留可用章節，修正被反對的部分。繁體中文。每章以 ## 標題 開頭。
+必須標示【實際資料】【AI 預估】【商業假設】。`,
+      `原企劃：\n${old.content}\n\nOwner Instruction（必須遵守）：\n${feedback}`
+    );
+    const newNo=(p.versions?.length||0)+1;
+    const ver={
+      version_id:uid('ver'),
+      version_number:newNo,
+      created_at:nowISO(),
+      created_at_local:nowLocal(),
+      created_by:'AI',
+      change_reason:'Owner Correction',
+      owner_instruction:feedback,
+      content,
+      sections: old.sections||[],
+      status:'Revision'
+    };
+    p.versions.push(ver);
+    p.current_version=newNo;
+    p.status='Revision';
+    p.updated_at=nowISO();
+    p.updated_at_local=nowLocal();
+    p.comments=p.comments||[];
+    p.comments.push({id:uid('cmt'), text:feedback, at:nowLocal(), type:'owner_instruction'});
+    document.getElementById('ownerFeedback').value='';
+    saveDB();
+    state.currentVersion=newNo;
+    state.chapterIndex=0;
+    renderReader();
+    showToast('已建立 V'+newNo);
+  }catch(e){ showToast('修改失敗：'+e.message); }
+}
+
+async function askAboutSection(){
+  const p=getCurrent(); if(!p) return;
+  const q=document.getElementById('askSelection').value.trim();
+  if(!q){ showToast('請輸入問題'); return; }
+  const body=document.getElementById('bookBody').textContent||'';
+  try{
+    const ans=await callAI(
+      '你是企劃顧問。只根據「目前章節內容」回答，不要重寫整本。繁體中文。若屬假設請標明。',
+      `目前章節：\n${body.slice(0,5000)}\n\n問題：${q}`
+    );
+    const box=document.getElementById('askAnswer');
+    box.style.display='block';
+    box.textContent=ans;
+  }catch(e){ showToast('詢問失敗：'+e.message); }
+}
+
+function approveCurrent(){
+  const p=getCurrent(); if(!p) return;
+  p.status='Approved';
+  p.completion=100;
+  p.updated_at=nowISO();
+  p.updated_at_local=nowLocal();
+  const v=getVersion(p,state.currentVersion);
+  if(v) v.status='Approved';
+  saveDB();
+  renderReader();
+  showToast('已批准此版本');
+}
+
+/* -------- Export -------- */
+function exportHtml(p, v){
+  const html=`<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"/><title>${escapeHTML(p.title)}</title>
+<style>body{font-family:sans-serif;max-width:800px;margin:40px auto;line-height:1.7;padding:0 16px;white-space:pre-wrap}</style></head>
+<body><h1>${escapeHTML(p.title)}</h1><p>版本 V${v.version_number} · ${escapeHTML(v.created_at_local||'')}</p>
+<hr/>${escapeHTML(v.content)}</body></html>`;
+  const blob=new Blob([html],{type:'text/html'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`AIVAULT_${(p.title||'proposal').replace(/[\\/:*?"<>|]/g,'_')}_V${v.version_number}.html`;
+  a.click();
+}
+
+function exportPdf(p, v){
+  const w=window.open('','_blank');
+  if(!w){ showToast('請允許彈出視窗'); return; }
+  w.document.write(`<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"/><title>${escapeHTML(p.title)}</title>
+<style>@page{margin:16mm}body{font-family:-apple-system,"Noto Sans TC",sans-serif;line-height:1.7;color:#111}
+h1{font-size:20pt}.meta{color:#555;font-size:10pt;margin-bottom:16px}.doc{white-space:pre-wrap}</style></head>
+<body><h1>${escapeHTML(p.title)}</h1>
+<div class="meta">AIVAULT 企劃書 · V${v.version_number} · ${escapeHTML(v.created_at_local||'')} · ${escapeHTML(p.status)}</div>
+<div class="doc">${escapeHTML(v.content)}</div>
+<script>setTimeout(()=>print(),300)<\/script></body></html>`);
+  w.document.close();
+}
+
+/* -------- Trash -------- */
+function softDelete(id){
+  const p=getProposal(id); if(!p) return;
+  p.deleted_at=nowISO();
+  p.deleted_at_local=nowLocal();
+  p.status='Trash';
+  saveDB(); renderLibrary(); showToast('已移至垃圾桶');
+}
+function restore(id){
+  const p=getProposal(id); if(!p) return;
+  p.deleted_at=null; p.deleted_at_local=null; p.status=p.status==='Trash'?'Draft':p.status;
+  saveDB(); renderTrash(); renderLibrary(); showToast('已恢復');
+}
+function purge(id){
+  state.proposals=state.proposals.filter(p=>p.id!==id);
+  saveDB(); renderTrash(); showToast('已永久刪除');
+}
+
+function confirmDialog(title,msg,cb){
+  document.getElementById('confirmTitle').textContent=title;
+  document.getElementById('confirmMsg').textContent=msg;
+  state.confirmCb=cb;
+  document.getElementById('confirmModal').classList.add('show');
+}
+
+/* -------- Events -------- */
+document.getElementById('btnHome').onclick=()=>location.href='aivault-home.html';
+document.getElementById('btnNew').onclick=()=>{ showPanel('create'); document.getElementById('analysisBlock').style.display='none'; };
+document.getElementById('btnTrashView').onclick=()=>{ showPanel('trash'); renderTrash(); };
+document.getElementById('btnAnalyze').onclick=analyzeNeed;
+document.getElementById('btnReanalyze').onclick=analyzeNeed;
+document.getElementById('btnConfirmStructure').onclick=buildStructureFromAnalysis;
+document.getElementById('btnAddChapter').onclick=()=>{ state.draftChapters.push({id:uid('sec'), title:(state.draftChapters.length+1).toString().padStart(2,'0')+' 新章節'}); renderChapterEditor(); };
+document.getElementById('btnGenerateDoc').onclick=generateFullDocument;
+document.getElementById('btnBackLib1').onclick=()=>{ showPanel('library'); renderLibrary(); };
+document.getElementById('btnBackLib2').onclick=()=>{ stopSpeech(); showPanel('library'); renderLibrary(); };
+document.getElementById('btnBackLib3').onclick=()=>{ showPanel('library'); renderLibrary(); };
+document.getElementById('btnSearch').onclick=()=>renderLibrary(document.getElementById('searchInput').value);
+document.getElementById('searchInput').addEventListener('keydown',e=>{ if(e.key==='Enter') renderLibrary(e.target.value); });
+
+document.getElementById('chapterList').addEventListener('click',e=>{
+  const up=e.target.getAttribute('data-up');
+  const down=e.target.getAttribute('data-down');
+  const rm=e.target.getAttribute('data-rm');
+  if(up){ const i=state.draftChapters.findIndex(c=>c.id===up); if(i>0){ const t=state.draftChapters[i-1]; state.draftChapters[i-1]=state.draftChapters[i]; state.draftChapters[i]=t; renderChapterEditor(); } }
+  if(down){ const i=state.draftChapters.findIndex(c=>c.id===down); if(i>=0 && i<state.draftChapters.length-1){ const t=state.draftChapters[i+1]; state.draftChapters[i+1]=state.draftChapters[i]; state.draftChapters[i]=t; renderChapterEditor(); } }
+  if(rm){ state.draftChapters=state.draftChapters.filter(c=>c.id!==rm); renderChapterEditor(); }
+});
+
+document.getElementById('proposalGrid').addEventListener('click',e=>{
+  const cb=e.target.closest('input.check');
+  if(cb){ const id=cb.getAttribute('data-id'); if(cb.checked) state.selectedIds.add(id); else state.selectedIds.delete(id); return; }
+  const btn=e.target.closest('button[data-act]'); if(!btn) return;
+  const id=btn.getAttribute('data-id'); const act=btn.getAttribute('data-act');
+  const p=getProposal(id); if(!p) return;
+  if(act==='read') openReader(id, p.current_version);
+  if(act==='guide'){ openReader(id, p.current_version); setTimeout(generateGuide, 200); }
+  if(act==='regen'){ state.draftNeed=p.need; state.analysis=p.analysis||''; state.draftTitle=p.title; document.getElementById('needInput').value=p.need; document.getElementById('analysisText').textContent=p.analysis||''; document.getElementById('analysisBlock').style.display=p.analysis?'block':'none'; showPanel('create'); showToast('可重新分析或從架構再產生'); }
+  if(act==='pdf'){ exportPdf(p, getVersion(p,p.current_version)); }
+  if(act==='del') softDelete(id);
+});
+
+document.getElementById('trashGrid').addEventListener('click',e=>{
+  const btn=e.target.closest('button[data-act]'); if(!btn) return;
+  const id=btn.getAttribute('data-id'); const act=btn.getAttribute('data-act');
+  if(act==='restore') restore(id);
+  if(act==='purge') confirmDialog('永久刪除','確定永久刪除嗎？此操作無法復原。',()=>purge(id));
+});
+
+document.getElementById('btnEmptyTrash').onclick=()=>confirmDialog('清空垃圾桶','確定清空全部已刪除企劃？',()=>{
+  state.proposals=state.proposals.filter(p=>!p.deleted_at); saveDB(); renderTrash(); showToast('已清空');
+});
+
+document.getElementById('btnBatchDelete').onclick=()=>{
+  if(!state.selectedIds.size){ showToast('請先勾選'); return; }
+  [...state.selectedIds].forEach(softDelete); state.selectedIds.clear(); renderLibrary();
+};
+document.getElementById('btnBatchExport').onclick=()=>{
+  if(!state.selectedIds.size){ showToast('請先勾選'); return; }
+  [...state.selectedIds].forEach(id=>{ const p=getProposal(id); if(p) exportHtml(p, getVersion(p,p.current_version)); });
+};
+
+document.getElementById('btnPrev').onclick=document.getElementById('btnPrev2').onclick=()=>{ stopSpeech(); state.chapterIndex--; renderReader(); };
+document.getElementById('btnNext').onclick=document.getElementById('btnNext2').onclick=()=>{ stopSpeech(); state.chapterIndex++; renderReader(); };
+document.getElementById('btnToc').onclick=()=>{
+  const p=getCurrent(); if(!p) return;
+  const v=getVersion(p,state.currentVersion);
+  const chapters=parseChapters(v.content,v.sections||[]);
+  const names=chapters.map((c,i)=>`${i+1}. ${c.title}`).join('\n');
+  const n=prompt('輸入章節編號跳轉：\n'+names, String(state.chapterIndex+1));
+  const idx=parseInt(n,10)-1; if(!isNaN(idx)){ state.chapterIndex=idx; renderReader(); }
+};
+document.getElementById('btnPlay').onclick=playSpeech;
+document.getElementById('btnPause').onclick=pauseSpeech;
+document.getElementById('btnResume').onclick=resumeSpeech;
+document.getElementById('btnStop').onclick=stopSpeech;
+document.getElementById('btnAiGuide').onclick=generateGuide;
+document.getElementById('btnSubmitFeedback').onclick=submitOwnerFeedback;
+document.getElementById('btnAskAi').onclick=askAboutSection;
+document.getElementById('btnApprove').onclick=approveCurrent;
+document.getElementById('btnExportPdf').onclick=()=>{ const p=getCurrent(); if(p) exportPdf(p,getVersion(p,state.currentVersion)); };
+document.getElementById('btnExportHtml').onclick=()=>{ const p=getCurrent(); if(p) exportHtml(p,getVersion(p,state.currentVersion)); };
+
+document.getElementById('versionList').addEventListener('click',e=>{
+  const item=e.target.closest('[data-v]'); if(!item) return;
+  stopSpeech(); state.currentVersion=parseInt(item.getAttribute('data-v'),10); state.chapterIndex=0; renderReader();
+});
+document.getElementById('guideList').addEventListener('click',e=>{
+  const btn=e.target.closest('[data-guide]'); if(!btn) return;
+  const i=parseInt(btn.getAttribute('data-i'),10);
+  const act=btn.getAttribute('data-guide');
+  const p=getCurrent(); if(!p||!p.guides[i]) return;
+  if(act==='adopt'){ document.getElementById('ownerFeedback').value='請採用此建議並修改企劃：'+p.guides[i].text; showToast('已填入意見框，可送出建立新版本'); }
+  if(act==='reject'){ p.guides[i].status='rejected'; saveDB(); renderGuides(p); showToast('已拒絕'); }
+  if(act==='explain'){ document.getElementById('askSelection').value='請詳細說明：'+p.guides[i].text; askAboutSection(); }
+});
+
+document.getElementById('confirmNo').onclick=()=>{ document.getElementById('confirmModal').classList.remove('show'); state.confirmCb=null; };
+document.getElementById('confirmYes').onclick=()=>{ document.getElementById('confirmModal').classList.remove('show'); const cb=state.confirmCb; state.confirmCb=null; if(cb) cb(); };
+
+if('speechSynthesis' in window){
+  loadVoices();
+  speechSynthesis.onvoiceschanged=loadVoices;
+}
+
+loadDB();
+renderLibrary();
+console.log('AIVAULT Proposal Workspace ready. Gateway client-only.');
+</script>
+</body>
+</html>
