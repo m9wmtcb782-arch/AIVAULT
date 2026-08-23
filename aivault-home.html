@@ -639,6 +639,69 @@
       opacity: 0.4;
     }
 
+    /* Agent 選擇（可單選／多選） */
+    .agent-pick-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      background: #0f172a;
+      align-items: center;
+    }
+
+    .agent-pick-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-right: 2px;
+      flex-shrink: 0;
+    }
+
+    .agent-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: #1e293b;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      transition: .15s;
+    }
+
+    .agent-chip:hover {
+      border-color: #475569;
+      color: var(--text);
+    }
+
+    .agent-chip.selected {
+      background: rgba(59, 130, 246, 0.2);
+      border-color: var(--primary);
+      color: #93c5fd;
+    }
+
+    .agent-chip.offline {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    .agent-chip .chip-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #475569;
+    }
+
+    .agent-chip.selected .chip-dot {
+      background: #3b82f6;
+      box-shadow: 0 0 6px #3b82f6;
+    }
+
     /* =========================================================
        Workflow
        ========================================================= */
@@ -1227,7 +1290,7 @@
     <div class="logo">
 
       <div class="logo-icon">
-        AV
+        AI
       </div>
 
       <div class="logo-text">
@@ -1389,6 +1452,8 @@
           <span style="font-size:11px;color:var(--success)">● Gateway</span>
         </div>
 
+        <div class="agent-pick-bar" id="homeAgentPick"></div>
+
         <div
           class="chat-messages"
           id="homeChatPreview"
@@ -1442,6 +1507,7 @@
 
         </div>
 
+        <div class="agent-pick-bar" id="chatAgentPick"></div>
 
         <div
           class="chat-messages"
@@ -1972,6 +2038,62 @@
 
     function setAgentRuntime(agentId, patch) {
       agentRuntime[agentId] = { ...(agentRuntime[agentId] || {}), ...patch };
+    }
+
+    /* 聊天室可指定要回覆的 Agent（可單選／多選） */
+    let selectedChatAgents = [];
+
+    function renderAgentPickBars() {
+      ['homeAgentPick', 'chatAgentPick'].forEach(containerId => {
+        const bar = document.getElementById(containerId);
+        if (!bar) return;
+
+        bar.innerHTML =
+          `<span class="agent-pick-label">指定 AI：</span>` +
+          AGENTS.map(agent => {
+            const view = getAgentView(agent);
+            const selected = selectedChatAgents.includes(agent.id);
+            const offline = !view.connected;
+            return `
+              <button
+                type="button"
+                class="agent-chip ${selected ? 'selected' : ''} ${offline ? 'offline' : ''}"
+                data-agent-id="${agent.id}"
+                title="${offline ? '未連線' : (selected ? '已選（點擊取消）' : '點擊選取')}"
+              >
+                <span class="chip-dot"></span>
+                ${escapeHTML(agent.name)}
+              </button>
+            `;
+          }).join('') +
+          `<button type="button" class="agent-chip" id="${containerId}-all" style="border-style:dashed;">
+            全選在線
+          </button>`;
+      });
+    }
+
+    function toggleChatAgent(agentId) {
+      const view = getAgentView(AGENTS.find(a => a.id === agentId) || {});
+      if (!view.connected) {
+        showToast('此 Agent 尚未連線');
+        return;
+      }
+      if (selectedChatAgents.includes(agentId)) {
+        selectedChatAgents = selectedChatAgents.filter(id => id !== agentId);
+      } else {
+        selectedChatAgents.push(agentId);
+      }
+      renderAgentPickBars();
+    }
+
+    function selectAllOnlineAgents() {
+      selectedChatAgents = AGENTS
+        .filter(a => getAgentView(a).connected)
+        .map(a => a.id);
+      if (!selectedChatAgents.length) {
+        showToast('目前沒有已連線的 Agent');
+      }
+      renderAgentPickBars();
     }
 
 
@@ -2531,6 +2653,21 @@ Owner 擁有最終決策權。
       });
       renderAgents();
       renderAgentRegistry();
+
+      // 預設選前兩個在線 Agent
+      if (!selectedChatAgents.length) {
+        selectedChatAgents = AGENTS
+          .filter(a => getAgentView(a).connected)
+          .slice(0, 2)
+          .map(a => a.id);
+      } else {
+        // 移除已離線的選取
+        selectedChatAgents = selectedChatAgents.filter(id => {
+          const a = AGENTS.find(x => x.id === id);
+          return a && getAgentView(a).connected;
+        });
+      }
+      renderAgentPickBars();
     }
 
     function renderAgents() {
@@ -3148,27 +3285,28 @@ Owner 擁有最終決策權。
 
 
       /*
-       * 找目前在線 Agent。
-       *
-       * 目前先讓前兩個 Agent 回覆。
-       *
-       * 後續可以改成：
-       *
-       * Permission Engine
-       * ↓
-       * Task Router
-       * ↓
-       * 自動決定哪些 Agent 工作
+       * 使用使用者指定的 Agent（可單選／多選）。
+       * 若未指定，預設用前兩個已連線的 Agent。
        */
 
-      const activeAgents =
-        AGENTS
-          .filter(agent => getAgentView(agent).connected)
-          .slice(0, 2);
+      let activeAgents =
+        selectedChatAgents.length
+          ? AGENTS.filter(agent =>
+              selectedChatAgents.includes(agent.id) &&
+              getAgentView(agent).connected
+            )
+          : AGENTS
+              .filter(agent => getAgentView(agent).connected)
+              .slice(0, 2);
 
       if (!activeAgents.length) {
-        showToast('沒有已連線的 Agent，請檢查 AI Gateway');
-        sendButton.disabled = false;
+        showToast(
+          selectedChatAgents.length
+            ? '所選 Agent 目前未連線，請重新選擇'
+            : '沒有已連線的 Agent，請檢查 AI Gateway'
+        );
+        if (homeBtn) homeBtn.disabled = false;
+        if (chatBtn) chatBtn.disabled = false;
         return;
       }
 
@@ -3682,6 +3820,18 @@ Owner 擁有最終決策權。
             '狀態已更新'
           );
 
+          return;
+        }
+
+        // Agent 選擇 chip
+        const chip = event.target.closest('.agent-chip');
+        if (chip) {
+          if (chip.id && chip.id.endsWith('-all')) {
+            selectAllOnlineAgents();
+            return;
+          }
+          const agentId = chip.dataset.agentId;
+          if (agentId) toggleChatAgent(agentId);
         }
 
       }
@@ -3693,6 +3843,7 @@ Owner 擁有最終決策權。
        ============================================================ */
 
     renderAgents();
+    renderAgentPickBars();
     checkGatewayConnections();
 
     renderTasks(
