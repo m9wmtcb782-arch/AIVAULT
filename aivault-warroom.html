@@ -1275,6 +1275,7 @@ button:disabled{
    AIVAULT WAR ROOM
    真實動態後端流程
    已徹底移除所有模擬數據、假回答、localAnalyze、固定台詞
+   已修正 MESSAGE_REQUIRED：所有呼叫 Governance Engine 都帶 message 欄位
 ========================================================= */
 
 /* =========================================================
@@ -1927,20 +1928,15 @@ async function analyzeAgent(agentId, question, round, mode){
       : {};
 
   const payload = {
-  action: "war_room_analysis",
-  meeting_id: state.meetingId,
-  topic_id: state.meetingId,
-  round,
-  mode,
-
-  // Governance Engine 必填
-  message: question,
-
-  // 保留原本欄位，不刪除
-  owner_message: question,
-
-  selected_agents: state.selectedAgents,
-  current_agent: agentId,
+    action: "war_room_analysis",
+    meeting_id: state.meetingId,
+    topic_id: state.meetingId,
+    round,
+    mode,
+    message: question,
+    owner_message: question,
+    selected_agents: state.selectedAgents,
+    current_agent: agentId,
     agent:{
       id: agentId,
       name: AGENTS[agentId].name,
@@ -2085,18 +2081,13 @@ async function runFinalSynthesis(question){
   });
 
   const payload = {
-  action: "war_room_synthesis",
-  meeting_id: state.meetingId,
-  topic_id: state.meetingId,
-  round: state.round,
-
-  // Governance Engine 必填
-  message: question,
-
-  // 保留原本欄位
-  owner_message: question,
-
-  selected_agents: state.selectedAgents,
+    action: "war_room_synthesis",
+    meeting_id: state.meetingId,
+    topic_id: state.meetingId,
+    round: state.round,
+    message: question,
+    owner_message: question,
+    selected_agents: state.selectedAgents,
     previous_messages: state.messages.slice(-40),
     all_analyses: allAnalyses,
     governance:{
@@ -2252,17 +2243,12 @@ async function sendOwnerMessage(){
   $("roomStatus").textContent = "Governance Engine 檢查中";
 
   const governance = await callGovernanceEngine({
-  action: "topic_check",
-  meeting_id: state.meetingId,
-  topic_id: state.meetingId,
-
-  // Governance Engine 必填
-  message: text,
-
-  // 保留原本欄位
-  owner_message: text,
-
-  selected_agents: state.selectedAgents,
+    action: "topic_check",
+    meeting_id: state.meetingId,
+    topic_id: state.meetingId,
+    message: text,
+    owner_message: text,
+    selected_agents: state.selectedAgents,
     governance:{
       max_agents: 3,
       enforce_topic_lock: true,
@@ -2426,6 +2412,7 @@ async function confirmApprove(){
     action: "owner_approval",
     meeting_id: state.meetingId,
     topic_id: state.meetingId,
+    message: "Owner 批准",
     owner_approved: true,
     classification: state.classification,
     project_candidate: state.projectCandidate,
