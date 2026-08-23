@@ -104,6 +104,28 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .empty{text-align:center;padding:40px 16px;color:var(--muted)}
 .check{width:18px;height:18px;accent-color:var(--blue)}
 .batch{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+
+/* Meeting Room */
+.meet-setup label{display:block;font-size:13px;margin:10px 0 6px;color:var(--muted)}
+.meet-setup select,.meet-setup input[type=text]{width:100%;background:#0f172a;border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--text)}
+.mode-row{display:flex;gap:16px;flex-wrap:wrap;margin:8px 0 12px}
+.mode-row label{display:flex;align-items:center;gap:6px;color:var(--text);font-size:14px;margin:0}
+.meet-layout{display:grid;gap:10px}
+@media(min-width:960px){.meet-layout{grid-template-columns:240px 1fr 280px}}
+.meet-col{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;min-height:420px;display:flex;flex-direction:column}
+.meet-col h4{font-size:13px;margin-bottom:8px;color:#cbd5e1}
+.meet-chat{flex:1;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:4px;max-height:48vh}
+.m-msg{padding:10px 12px;border-radius:12px;font-size:13px;line-height:1.55;white-space:pre-wrap}
+.m-msg.owner{background:rgba(59,130,246,.2);align-self:flex-end;max-width:90%}
+.m-msg.ai{background:#0f172a;border:1px solid var(--line);align-self:flex-start;max-width:92%}
+.m-msg .src{font-size:11px;color:var(--muted);margin-bottom:4px}
+.meet-input{display:flex;gap:6px;margin-top:8px}
+.meet-input input{flex:1;background:#0f172a;border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--text)}
+.ctx-box{font-size:12px;color:var(--muted);background:#0f172a;border:1px solid var(--line);border-radius:10px;padding:10px;white-space:pre-wrap;max-height:200px;overflow:auto}
+.sec-list{display:flex;flex-direction:column;gap:4px;max-height:180px;overflow:auto}
+.sec-list button{text-align:left;background:#0f172a;border:1px solid var(--line);border-radius:8px;padding:7px 9px;color:#cbd5e1;font-size:12px}
+.sec-list button.active{border-color:var(--blue);color:#93c5fd}
+.impact-list{font-size:13px;line-height:1.6}
 </style>
 </head>
 <body>
@@ -118,6 +140,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
   <div class="top-actions">
     <button class="btn ghost" type="button" id="btnHome">Home</button>
     <button class="btn ghost" type="button" id="btnTrashView">垃圾桶</button>
+    <button class="btn" type="button" id="btnMeeting">🎙 會議室</button>
     <button class="btn primary" type="button" id="btnNew">＋ 建立新企劃案</button>
   </div>
 </header>
@@ -235,6 +258,98 @@ button:disabled{opacity:.45;cursor:not-allowed}
     <div style="margin-top:12px">
       <button class="btn danger" type="button" id="btnEmptyTrash">清空垃圾桶</button>
       <button class="btn ghost" type="button" id="btnBackLib3">返回列表</button>
+    </div>
+  </section>
+
+  <!-- MEETING SETUP -->
+  <section class="panel" id="panel-meet-setup">
+    <div class="section-title">建立會議室</div>
+    <div class="card meet-setup">
+      <div class="mode-row">
+        <label><input type="radio" name="meetMode" value="general" checked /> 一般 AI 諮詢</label>
+        <label><input type="radio" name="meetMode" value="proposal" /> 企劃案討論／審查</label>
+      </div>
+      <div id="meetProposalPick" style="display:none">
+        <label>選擇企劃書（將鎖定版本）</label>
+        <select id="meetProposalSelect"></select>
+        <label>鎖定版本</label>
+        <select id="meetVersionSelect"></select>
+        <div class="ctx-box" id="meetPickInfo" style="margin-top:10px">選擇後顯示企劃名稱／版本／狀態</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+        <button class="btn primary" type="button" id="btnStartMeet">開始會議</button>
+        <button class="btn ghost" type="button" id="btnCancelMeet">取消</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- MEETING ROOM -->
+  <section class="panel" id="panel-meeting">
+    <div class="section-title" id="meetTitle">AI 會議室</div>
+    <div class="meet-layout">
+      <div class="meet-col">
+        <h4>📖 Context</h4>
+        <div class="ctx-box" id="meetCtxBox">General</div>
+        <h4 style="margin-top:10px">章節（點選鎖定討論範圍）</h4>
+        <div class="sec-list" id="meetSecList"></div>
+      </div>
+      <div class="meet-col">
+        <h4>🎬 Meeting Room · <span id="meetModeBadge">General</span></h4>
+        <div class="meet-chat" id="meetChat"></div>
+        <div class="meet-input">
+          <input id="meetTextInput" placeholder="輸入問題，或使用語音…" />
+          <button class="btn primary" type="button" id="btnMeetSend">送出</button>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
+          <button class="btn" type="button" id="btnMicStart">🎙 開始說話</button>
+          <button class="btn" type="button" id="btnMicStop">⏹ 停止辨識</button>
+          <select class="rate-select" id="meetRate">
+            <option value="0.5">0.5x</option><option value="0.75">0.75x</option>
+            <option value="1" selected>1.0x</option><option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option><option value="1.75">1.75x</option>
+            <option value="2">2.0x</option>
+          </select>
+          <button class="btn" type="button" id="btnMeetSpeak">🔊 朗讀回答</button>
+          <button class="btn" type="button" id="btnMeetPause">⏸</button>
+          <button class="btn" type="button" id="btnMeetResume">▶</button>
+          <button class="btn danger" type="button" id="btnMeetEnd">結束會議</button>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
+          <button class="btn" type="button" id="btnMeetObject">提出異議</button>
+          <button class="btn" type="button" id="btnMeetRevise">要求修改</button>
+          <button class="btn" type="button" id="btnMeetResearch">要求研究</button>
+          <button class="btn success" type="button" id="btnMeetMakeVer">產生新版草稿</button>
+        </div>
+      </div>
+      <div class="meet-col">
+        <h4>🧠 AI Analysis</h4>
+        <div class="ctx-box" id="meetAnalysisBox">等待對話…</div>
+        <h4 style="margin-top:10px">決策／待辦</h4>
+        <div class="ctx-box" id="meetDecisionBox">—</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MEETING END / REVISION -->
+  <section class="panel" id="panel-meet-end">
+    <div class="section-title">本次會議成果確認</div>
+    <div class="card">
+      <div class="analysis-box" id="meetSummaryText" style="max-height:28vh"></div>
+      <div class="mode-row" style="margin-top:12px;flex-direction:column;align-items:flex-start">
+        <label><input type="radio" name="endAction" value="none" checked /> 不修改企劃書，只保存會議紀錄</label>
+        <label><input type="radio" name="endAction" value="partial" /> 修改部分企劃書</label>
+        <label><input type="radio" name="endAction" value="direction" /> 重新調整企劃書方向</label>
+        <label><input type="radio" name="endAction" value="rebuild" /> 重新製作企劃書</label>
+        <label><input type="radio" name="endAction" value="from_meeting" /> 依照會議內容建立新版企劃書</label>
+      </div>
+      <div id="impactBlock" style="display:none;margin-top:12px">
+        <div class="section-title">影響分析 Impact Analysis</div>
+        <div class="impact-list analysis-box" id="impactText"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+        <button class="btn primary" type="button" id="btnConfirmEnd">確認</button>
+        <button class="btn ghost" type="button" id="btnBackMeet">返回會議</button>
+      </div>
     </div>
   </section>
 </main>
@@ -761,8 +876,373 @@ function confirmDialog(title,msg,cb){
   document.getElementById('confirmModal').classList.add('show');
 }
 
+/* =========================================================
+   Proposal Review Meeting (independent module)
+   Modes: general | proposal
+   Does NOT modify AI Gateway / Governance / Cognitive
+========================================================= */
+const MEET_KEY = 'AIVAULT_MEETINGS_V1';
+state.meetings = [];
+state.meeting = null; // active session
+state.meetRecognition = null;
+state.lastAiText = '';
+
+function loadMeetings(){
+  try{ const r=localStorage.getItem(MEET_KEY); state.meetings=r?JSON.parse(r):[]; if(!Array.isArray(state.meetings)) state.meetings=[]; }
+  catch(e){ state.meetings=[]; }
+}
+function saveMeetings(){ try{ localStorage.setItem(MEET_KEY, JSON.stringify(state.meetings.slice(0,50))); }catch(e){} }
+
+function openMeetSetup(){
+  const sel=document.getElementById('meetProposalSelect');
+  const list=state.proposals.filter(p=>!p.deleted_at);
+  sel.innerHTML = list.length
+    ? list.map(p=>`<option value="${p.id}">${escapeHTML(p.title)} · V${p.current_version} · ${escapeHTML(p.status||'')}</option>`).join('')
+    : `<option value="">（尚無企劃案）</option>`;
+  refreshMeetVersionSelect();
+  showPanel('meet-setup');
+  syncMeetModeUI();
+}
+
+function syncMeetModeUI(){
+  const mode=[...document.querySelectorAll('input[name=meetMode]')].find(r=>r.checked)?.value||'general';
+  document.getElementById('meetProposalPick').style.display = mode==='proposal' ? 'block':'none';
+}
+
+function refreshMeetVersionSelect(){
+  const pid=document.getElementById('meetProposalSelect').value;
+  const p=getProposal(pid);
+  const vs=document.getElementById('meetVersionSelect');
+  if(!p){ vs.innerHTML='<option value="">—</option>'; document.getElementById('meetPickInfo').textContent='請先建立企劃案'; return; }
+  vs.innerHTML=(p.versions||[]).map(v=>`<option value="${v.version_number}">V${v.version_number} · ${escapeHTML(v.change_reason||v.status||'')}</option>`).join('');
+  vs.value=String(p.current_version);
+  updateMeetPickInfo();
+}
+
+function updateMeetPickInfo(){
+  const p=getProposal(document.getElementById('meetProposalSelect').value);
+  const vn=parseInt(document.getElementById('meetVersionSelect').value,10);
+  const v=p && getVersion(p,vn);
+  if(!p||!v){ document.getElementById('meetPickInfo').textContent='找不到選定版本'; return; }
+  document.getElementById('meetPickInfo').textContent=
+    `企劃：${p.title}\n版本：V${v.version_number}\n狀態：${p.status}\n最後修改：${p.updated_at_local||''}\n\n此會議將鎖定 V${v.version_number}，不會因之後產生新版而自動切換。`;
+}
+
+function startMeeting(){
+  const mode=[...document.querySelectorAll('input[name=meetMode]')].find(r=>r.checked)?.value||'general';
+  const meeting={
+    meeting_id: uid('meet'),
+    mode,
+    proposal_id: null,
+    version_id: null,
+    version_number: null,
+    section_id: null,
+    section_title: null,
+    locked_at: nowISO(),
+    messages: [],
+    decisions: [],
+    research: [],
+    revision_requests: [],
+    summary: '',
+    created_at: nowISO(),
+    created_at_local: nowLocal()
+  };
+  if(mode==='proposal'){
+    const p=getProposal(document.getElementById('meetProposalSelect').value);
+    const vn=parseInt(document.getElementById('meetVersionSelect').value,10);
+    const v=p && getVersion(p,vn);
+    if(!p||!v){ showToast('請選擇有效企劃書與版本'); return; }
+    meeting.proposal_id=p.id;
+    meeting.version_number=vn;
+    meeting.version_id=v.version_id;
+    if(!confirm(`接下來的討論將以「${p.title} V${vn}」為主要上下文。確定開始？`)) return;
+  }
+  state.meeting=meeting;
+  state.meetings.unshift(meeting);
+  saveMeetings();
+  renderMeetingRoom();
+  showPanel('meeting');
+  addMeetMsg('ai', mode==='proposal'
+    ? `已進入企劃案討論模式。\nContext 已鎖定：${getProposal(meeting.proposal_id)?.title} V${meeting.version_number}\n我將優先依據該版本內容回答，並區分【企劃書內容】【外部研究】【AI 推論】。`
+    : '已進入一般 AI 諮詢模式。本場會議未綁定任何企劃書，不會自動修改企劃案。');
+}
+
+function renderMeetingRoom(){
+  const m=state.meeting; if(!m) return;
+  document.getElementById('meetModeBadge').textContent = m.mode==='proposal' ? 'Proposal' : 'General';
+  document.getElementById('meetTitle').textContent = m.mode==='proposal'
+    ? `企劃案會議室 · ${getProposal(m.proposal_id)?.title||''} V${m.version_number}`
+    : '一般 AI 諮詢會議室';
+  if(m.mode==='proposal'){
+    const p=getProposal(m.proposal_id);
+    const v=getVersion(p, m.version_number);
+    document.getElementById('meetCtxBox').textContent =
+      `Mode: Proposal\nProposal: ${p?.title}\nVersion: V${m.version_number} (locked)\nStatus: ${p?.status}\nSection: ${m.section_title||'（整本／未指定）'}`;
+    const chapters=parseChapters(v?.content||'', v?.sections||[]);
+    document.getElementById('meetSecList').innerHTML = chapters.map((c,i)=>
+      `<button type="button" data-sec="${i}" class="${m.section_id===String(i)?'active':''}">${escapeHTML(c.title)}</button>`
+    ).join('');
+  } else {
+    document.getElementById('meetCtxBox').textContent='Mode: General\n未綁定企劃書\n不得自動產生 Proposal Revision';
+    document.getElementById('meetSecList').innerHTML='<div style="font-size:12px;color:var(--muted)">一般模式無章節鎖定</div>';
+  }
+  const chat=document.getElementById('meetChat');
+  chat.innerHTML=(m.messages||[]).map(msg=>
+    `<div class="m-msg ${msg.role}"><div class="src">${msg.role==='owner'?'Owner': 'AI'} · ${escapeHTML(msg.at||'')}${msg.source? ' · '+escapeHTML(msg.source):''}</div>${escapeHTML(msg.text)}</div>`
+  ).join('');
+  chat.scrollTop=chat.scrollHeight;
+  document.getElementById('meetDecisionBox').textContent =
+    (m.decisions||[]).map(d=>`• ${d.text}`).join('\n') || '—';
+}
+
+function addMeetMsg(role, text, source){
+  if(!state.meeting) return;
+  state.meeting.messages.push({ role, text, source: source||'', at: nowLocal() });
+  saveMeetings();
+  renderMeetingRoom();
+  if(role==='ai') state.lastAiText=text;
+}
+
+/** Proposal Retrieval Layer — never dump whole book unless needed */
+function retrieveProposalContext(question){
+  const m=state.meeting;
+  if(!m || m.mode!=='proposal') return { layer:'none', text:'' };
+  const p=getProposal(m.proposal_id);
+  const v=getVersion(p, m.version_number);
+  if(!p||!v) return { layer:'missing', text:'找不到指定企劃書／版本。' };
+  const chapters=parseChapters(v.content, v.sections||[]);
+  const q=question||'';
+  const wantWhole=/整[份本]|最大的問題|整體|總結|全面|方向/.test(q);
+  let body='';
+  if(m.section_id!=null && chapters[m.section_id]){
+    body = chapters[m.section_id].body.slice(0, 5000);
+  } else if(wantWhole){
+    body = chapters.map(c=>`【${c.title}】\n${c.body.slice(0,800)}`).join('\n\n').slice(0,9000);
+  } else {
+    // keyword soft match on chapter titles
+    const hit=chapters.findIndex(c=>q.includes(c.title.slice(0,6)) || c.title.includes(q.slice(0,4)));
+    if(hit>=0) body=chapters[hit].body.slice(0,5000);
+    else body = (v.content||'').slice(0,3500);
+  }
+  return {
+    layer:'proposal',
+    text:`【企劃書鎖定】${p.title} V${m.version_number}\n【章節】${m.section_title||'未指定'}\n【內容摘錄】\n${body}`
+  };
+}
+
+async function meetSend(text, opts={}){
+  const m=state.meeting; if(!m) return;
+  const q=String(text||'').trim();
+  if(!q) return;
+  addMeetMsg('owner', q);
+
+  const retrieval=retrieveProposalContext(q);
+  if(retrieval.layer==='missing'){
+    addMeetMsg('ai', retrieval.text, '系統');
+    return;
+  }
+
+  const isRevisionIntent=opts.forceRevision || /改掉|不同意|重做|修改|改成|刪除這個|重新|不要.*模式|要求/.test(q);
+  const needResearch=/市場有多大|2026|外部|最新|研究|資料來源|有依據嗎/.test(q) && m.mode==='proposal';
+
+  let system, user;
+  if(m.mode==='general'){
+    system=`你是 AIVAULT 一般諮詢顧問。本場 Meeting Mode=General，未綁定企劃書，禁止產生或修改任何 Proposal。繁體中文。區分【AI 推論】與已知事實。`;
+    user=q;
+  } else {
+    system=`你是 AIVAULT 企劃案會議室顧問。
+Meeting Mode=Proposal。必須優先依據鎖定企劃書版本回答。
+回答時明確標示來源：
+【企劃書內容】【外部研究／需驗證】【AI 推論／建議】
+不可把推論寫成企劃書原文。
+若 Owner 要求修改，先做可行性判斷：A 可直接執行 / B 可執行但需連動其他章節 / C 目前不可直接成立，並說明原因與替代方案。
+Owner 有最終決策權。繁體中文。`;
+    user=`${retrieval.text}\n\nOwner 問題／指示：\n${q}\n\n${needResearch?'（系統提示：此題可能需要 Research，若企劃書不足請說明並詢問是否研究。）':''}\n${isRevisionIntent?'（系統提示：可能為 Owner Revision Instruction，請做可行性分析。）':''}`;
+  }
+
+  document.getElementById('meetAnalysisBox').textContent='思考中…';
+  try{
+    const ans=await callAI(system, user, 'Meeting Agent');
+    addMeetMsg('ai', ans, m.mode==='proposal'?'Proposal Context':'General');
+    document.getElementById('meetAnalysisBox').textContent =
+      (m.mode==='proposal'
+        ? `Context: ${getProposal(m.proposal_id)?.title} V${m.version_number}\nSection: ${m.section_title||'—'}\n`
+        : 'Context: General\n') + ans.slice(0,1200);
+
+    if(isRevisionIntent && m.mode==='proposal'){
+      m.revision_requests.push({ id:uid('rr'), text:q, at:nowLocal() });
+      m.decisions.push({ text:`Revision 意向：${q.slice(0,80)}`, at:nowLocal() });
+      saveMeetings();
+      renderMeetingRoom();
+    }
+    if(needResearch){
+      m.research.push({ q, at:nowLocal() });
+      saveMeetings();
+    }
+    // optional auto speak
+  }catch(e){
+    addMeetMsg('ai', '回答失敗：'+e.message, '錯誤');
+  }
+}
+
+function startMic(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ showToast('此瀏覽器不支援語音輸入'); return; }
+  try{ state.meetRecognition?.stop(); }catch(e){}
+  const rec=new SR();
+  rec.lang='zh-TW';
+  rec.continuous=false;
+  rec.interimResults=false;
+  rec.onresult=(ev)=>{
+    const t=ev.results[0][0].transcript;
+    document.getElementById('meetTextInput').value=t;
+    showToast('語音已轉文字');
+  };
+  rec.onerror=()=>showToast('語音辨識失敗');
+  state.meetRecognition=rec;
+  rec.start();
+  showToast('請開始說話…');
+}
+function stopMic(){ try{ state.meetRecognition?.stop(); }catch(e){} }
+
+function speakMeetAnswer(){
+  if(!state.lastAiText){ showToast('尚無 AI 回答可朗讀'); return; }
+  if(!('speechSynthesis' in window)){ showToast('不支援語音'); return; }
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(state.lastAiText);
+  u.rate=parseFloat(document.getElementById('meetRate').value||'1');
+  u.lang='zh-TW';
+  speechSynthesis.speak(u);
+}
+
+function endMeetingFlow(){
+  const m=state.meeting; if(!m) return;
+  // auto summary
+  const ownerQs=m.messages.filter(x=>x.role==='owner').map(x=>'• '+x.text).join('\n')||'（無）';
+  const revs=(m.revision_requests||[]).map(x=>'• '+x.text).join('\n')||'（無）';
+  m.summary=`會議 ${m.meeting_id}\n模式：${m.mode}\n時間：${m.created_at_local}\n`+
+    (m.mode==='proposal'?`企劃：${getProposal(m.proposal_id)?.title} V${m.version_number}\n`:'')+
+    `\n【Owner 問題／指示】\n${ownerQs}\n\n【修改意向】\n${revs}\n\n【決策】\n${(m.decisions||[]).map(d=>'• '+d.text).join('\n')||'（無）'}`;
+  document.getElementById('meetSummaryText').textContent=m.summary;
+  document.getElementById('impactBlock').style.display='none';
+  saveMeetings();
+  showPanel('meet-end');
+}
+
+async function confirmMeetingEnd(){
+  const m=state.meeting; if(!m) return;
+  const action=[...document.querySelectorAll('input[name=endAction]')].find(r=>r.checked)?.value||'none';
+
+  if(action==='none' || m.mode!=='proposal'){
+    showToast(action==='none'?'已保存會議紀錄，未修改企劃書':'一般模式不可直接改企劃書');
+    state.meeting=null;
+    showPanel('library');
+    renderLibrary();
+    return;
+  }
+
+  // Impact analysis + revision
+  const p=getProposal(m.proposal_id);
+  const v=getVersion(p, m.version_number);
+  if(!p||!v){ showToast('找不到企劃版本'); return; }
+
+  showToast('產生影響分析與新版本草稿…');
+  try{
+    const impact=await callAI(
+      '你是 AIVAULT Impact Analysis。列出受影響章節與未受影響章節。繁體中文。',
+      `原企劃摘要：\n${String(v.content).slice(0,5000)}\n\n會議修改意向：\n${(m.revision_requests||[]).map(x=>x.text).join('\n')||m.summary}\n結束動作：${action}`
+    );
+    document.getElementById('impactText').textContent=impact;
+    document.getElementById('impactBlock').style.display='block';
+
+    const newContent=await callAI(
+      `你是 AIVAULT Proposal Revision。根據會議決策修改企劃書，產生完整新版。
+不得覆蓋說明：這是新版本草稿。每章以 ## 標題。標示【實際資料】【AI 預估】【商業假設】。繁體中文。
+保留 AI 風險警告於文中。`,
+      `原版本 V${m.version_number}：\n${v.content}\n\n會議摘要：\n${m.summary}\n\nImpact：\n${impact}\n\n請產出完整修訂正文。`
+    );
+
+    const newNo=(p.versions?.length||0)+1;
+    const ver={
+      version_id:uid('ver'),
+      version_number:newNo,
+      created_at:nowISO(),
+      created_at_local:nowLocal(),
+      created_by:'AI',
+      change_reason:`Meeting ${m.meeting_id} Revision`,
+      owner_instruction:(m.revision_requests||[]).map(x=>x.text).join(' | '),
+      content:newContent,
+      sections:v.sections||[],
+      status:'Draft',
+      meeting_id:m.meeting_id,
+      impact
+    };
+    p.versions.push(ver);
+    p.current_version=newNo;
+    p.status='REVISION_REQUIRED';
+    p.updated_at=nowISO();
+    p.updated_at_local=nowLocal();
+    p.decisions=p.decisions||[];
+    p.decisions.push({
+      decision_id:uid('dec'),
+      meeting_id:m.meeting_id,
+      proposal_id:p.id,
+      version_id:ver.version_id,
+      owner_instruction:ver.owner_instruction,
+      ai_analysis:impact,
+      ai_risk_warning:'見新版內文風險段落',
+      owner_final_decision:action,
+      created_at:nowLocal()
+    });
+    saveDB();
+    m.revision_produced=newNo;
+    saveMeetings();
+
+    showToast(`已建立 V${newNo} Draft（原 V${m.version_number} 保留）`);
+    state.meeting=null;
+    openReader(p.id, newNo);
+  }catch(e){
+    showToast('修訂失敗：'+e.message);
+  }
+}
+
 /* -------- Events -------- */
 document.getElementById('btnHome').onclick=()=>location.href='aivault-home.html';
+document.getElementById('btnMeeting').onclick=openMeetSetup;
+document.querySelectorAll('input[name=meetMode]').forEach(r=>r.addEventListener('change', syncMeetModeUI));
+document.getElementById('meetProposalSelect')?.addEventListener('change', refreshMeetVersionSelect);
+document.getElementById('meetVersionSelect')?.addEventListener('change', updateMeetPickInfo);
+document.getElementById('btnStartMeet').onclick=startMeeting;
+document.getElementById('btnCancelMeet').onclick=()=>{ showPanel('library'); renderLibrary(); };
+document.getElementById('btnMeetSend').onclick=()=>{ const el=document.getElementById('meetTextInput'); const t=el.value; el.value=''; meetSend(t); };
+document.getElementById('meetTextInput')?.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); document.getElementById('btnMeetSend').click(); }});
+document.getElementById('btnMicStart').onclick=startMic;
+document.getElementById('btnMicStop').onclick=stopMic;
+document.getElementById('btnMeetSpeak').onclick=speakMeetAnswer;
+document.getElementById('btnMeetPause').onclick=()=>{ try{speechSynthesis.pause();}catch(e){} };
+document.getElementById('btnMeetResume').onclick=()=>{ try{speechSynthesis.resume();}catch(e){} };
+document.getElementById('btnMeetEnd').onclick=endMeetingFlow;
+document.getElementById('btnBackMeet').onclick=()=>showPanel('meeting');
+document.getElementById('btnConfirmEnd').onclick=confirmMeetingEnd;
+document.getElementById('btnMeetObject').onclick=()=>{ document.getElementById('meetTextInput').value='我提出異議：'; document.getElementById('meetTextInput').focus(); };
+document.getElementById('btnMeetRevise').onclick=()=>{ document.getElementById('meetTextInput').value='我要求修改：'; document.getElementById('meetTextInput').focus(); };
+document.getElementById('btnMeetResearch').onclick=()=>meetSend('請針對目前討論進行 Research，並區分企劃書內容與外部資料。');
+document.getElementById('btnMeetMakeVer').onclick=()=>{
+  if(!state.meeting||state.meeting.mode!=='proposal'){ showToast('僅企劃案模式可產生新版'); return; }
+  document.querySelector('input[name=endAction][value=from_meeting]').checked=true;
+  endMeetingFlow();
+};
+document.getElementById('meetSecList')?.addEventListener('click',e=>{
+  const b=e.target.closest('[data-sec]'); if(!b||!state.meeting) return;
+  state.meeting.section_id=b.getAttribute('data-sec');
+  state.meeting.section_title=b.textContent;
+  saveMeetings(); renderMeetingRoom();
+  showToast('已鎖定討論章節：'+b.textContent);
+});
+document.querySelectorAll('input[name=endAction]').forEach(r=>r.addEventListener('change',()=>{
+  const v=[...document.querySelectorAll('input[name=endAction]')].find(x=>x.checked)?.value;
+  document.getElementById('impactBlock').style.display = (v && v!=='none') ? 'block':'none';
+}));
 document.getElementById('btnNew').onclick=()=>{ showPanel('create'); document.getElementById('analysisBlock').style.display='none'; };
 document.getElementById('btnTrashView').onclick=()=>{ showPanel('trash'); renderTrash(); };
 document.getElementById('btnAnalyze').onclick=analyzeNeed;
@@ -862,8 +1342,9 @@ if('speechSynthesis' in window){
 }
 
 loadDB();
+loadMeetings();
 renderLibrary();
-console.log('AIVAULT Proposal Workspace ready. Gateway client-only.');
+console.log('AIVAULT Proposal Workspace + Meeting Room ready. Gateway client-only.');
 </script>
 </body>
 </html>
