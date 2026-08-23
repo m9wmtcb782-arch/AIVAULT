@@ -195,6 +195,18 @@ button{
   align-items:center;
   justify-content:center;
   overflow:hidden;
+  transition:.2s;
+}
+
+.agent-card.not-selected{
+  opacity:.28;
+  filter:grayscale(.65);
+}
+
+.agent-card.selected{
+  border-color:rgba(56,189,248,.7);
+  box-shadow:
+    0 0 14px rgba(56,189,248,.12);
 }
 
 .agent-card.thinking{
@@ -239,6 +251,11 @@ button{
   border-radius:50%;
   background:var(--green);
   box-shadow:0 0 7px rgba(34,197,94,.9);
+}
+
+.online.off{
+  background:#475569;
+  box-shadow:none;
 }
 
 .agent-state{
@@ -288,6 +305,10 @@ button{
   flex-direction:row-reverse;
 }
 
+.message-content{
+  max-width:min(86%,680px);
+}
+
 .message-avatar{
   flex:0 0 31px;
   width:31px;
@@ -298,10 +319,6 @@ button{
   background:#111827;
   border:1px solid #334155;
   font-size:16px;
-}
-
-.message-content{
-  max-width:min(86%,680px);
 }
 
 .message-head{
@@ -491,6 +508,149 @@ button{
   border-color:#0369a1;
 }
 
+/* =========================================================
+   AGENT SELECTOR
+========================================================= */
+
+.agent-selector-modal{
+  width:min(94vw,620px);
+}
+
+.selection-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:14px;
+}
+
+.selection-counter{
+  flex:0 0 auto;
+  padding:6px 9px;
+  border-radius:8px;
+  border:1px solid #164e63;
+  background:#082f49;
+  color:#bae6fd;
+  font-size:11px;
+  font-weight:700;
+}
+
+.selection-counter.warning{
+  border-color:#713f12;
+  background:#422006;
+  color:#fde68a;
+}
+
+.selection-help{
+  color:#94a3b8;
+  font-size:12px;
+  line-height:1.6;
+  margin-bottom:13px;
+}
+
+.agent-select-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:9px;
+}
+
+.agent-select-card{
+  position:relative;
+  min-height:82px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:11px;
+  border-radius:12px;
+  border:1px solid var(--line);
+  background:#080d16;
+  color:#e2e8f0;
+  text-align:left;
+  transition:.18s;
+}
+
+.agent-select-card:hover{
+  border-color:#334155;
+}
+
+.agent-select-card.selected{
+  border-color:#0284c7;
+  background:
+    radial-gradient(
+      circle at 0 0,
+      rgba(56,189,248,.12),
+      transparent 60%
+    ),
+    #0b1724;
+}
+
+.agent-select-card.disabled{
+  opacity:.35;
+}
+
+.agent-select-avatar{
+  width:42px;
+  height:42px;
+  flex:0 0 42px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:#111827;
+  border:1px solid #334155;
+  font-size:21px;
+}
+
+.agent-select-info{
+  min-width:0;
+}
+
+.agent-select-name{
+  font-size:13px;
+  font-weight:800;
+}
+
+.agent-select-role{
+  margin-top:2px;
+  color:#8b99ad;
+  font-size:10px;
+}
+
+.agent-select-check{
+  position:absolute;
+  top:8px;
+  right:8px;
+  width:20px;
+  height:20px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  border:1px solid #334155;
+  color:#64748b;
+  font-size:11px;
+}
+
+.agent-select-card.selected
+.agent-select-check{
+  border-color:#0284c7;
+  background:#0284c7;
+  color:white;
+}
+
+.selected-summary{
+  margin-top:12px;
+  padding:10px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:#070b12;
+  color:#94a3b8;
+  font-size:11px;
+  line-height:1.6;
+}
+
+.selected-summary strong{
+  color:#dbeafe;
+}
+
 .history-item{
   padding:12px;
   border:1px solid var(--line);
@@ -541,6 +701,7 @@ button{
 ========================================================= */
 
 @media(max-width:520px){
+
   .agent-grid{
     gap:4px;
     padding:6px;
@@ -568,9 +729,18 @@ button{
   .message-content{
     max-width:84%;
   }
+
+  .agent-select-grid{
+    grid-template-columns:1fr;
+  }
+
+  .agent-select-card{
+    min-height:70px;
+  }
 }
 
 @media(max-width:380px){
+
   .agent-card{
     height:72px;
   }
@@ -599,9 +769,15 @@ button{
 <header class="header">
   <div class="brand">
     <div class="brand-mark">AI</div>
+
     <div>
-      <div class="room-title">AIVAULT WAR ROOM</div>
-      <div class="room-sub">五 Agent 獨立思考協作室</div>
+      <div class="room-title">
+        AIVAULT WAR ROOM
+      </div>
+
+      <div class="room-sub">
+        最多 3 Agent 協作會議
+      </div>
     </div>
   </div>
 
@@ -614,213 +790,449 @@ button{
 <main class="room">
 
   <div class="status-bar">
+
     <div class="status-left">
-      <span class="live-dot" id="roomLive"></span>
-      <span id="roomStatus">5 Agents 在線</span>
+
+      <span
+        class="live-dot"
+        id="roomLive">
+      </span>
+
+      <span id="roomStatus">
+        尚未進入會議
+      </span>
+
     </div>
-    <div class="status-right" id="roundText">Round 0</div>
+
+    <div
+      class="status-right"
+      id="roundText">
+      Round 0
+    </div>
+
   </div>
 
   <section class="agent-grid">
 
-    <div class="agent-card" id="agentCard-strategy">
-      <span class="online"></span>
-      <div class="agent-avatar">🧠</div>
-      <div class="agent-name">凌策</div>
-      <div class="agent-role">戰略官</div>
-      <div class="agent-state" id="state-strategy">待命</div>
+    <div
+      class="agent-card not-selected"
+      id="agentCard-strategy">
+
+      <span class="online off"></span>
+
+      <div class="agent-avatar">
+        🧠
+      </div>
+
+      <div class="agent-name">
+        凌策
+      </div>
+
+      <div class="agent-role">
+        戰略官
+      </div>
+
+      <div
+        class="agent-state"
+        id="state-strategy">
+        未參會
+      </div>
+
     </div>
 
-    <div class="agent-card" id="agentCard-tech">
-      <span class="online"></span>
-      <div class="agent-avatar">⚙️</div>
-      <div class="agent-name">岳衡</div>
-      <div class="agent-role">技術官</div>
-      <div class="agent-state" id="state-tech">待命</div>
+    <div
+      class="agent-card not-selected"
+      id="agentCard-tech">
+
+      <span class="online off"></span>
+
+      <div class="agent-avatar">
+        ⚙️
+      </div>
+
+      <div class="agent-name">
+        岳衡
+      </div>
+
+      <div class="agent-role">
+        技術官
+      </div>
+
+      <div
+        class="agent-state"
+        id="state-tech">
+        未參會
+      </div>
+
     </div>
 
-    <div class="agent-card" id="agentCard-risk">
-      <span class="online"></span>
-      <div class="agent-avatar">🛡️</div>
-      <div class="agent-name">沈岳</div>
-      <div class="agent-role">風險官</div>
-      <div class="agent-state" id="state-risk">待命</div>
+    <div
+      class="agent-card not-selected"
+      id="agentCard-risk">
+
+      <span class="online off"></span>
+
+      <div class="agent-avatar">
+        🛡️
+      </div>
+
+      <div class="agent-name">
+        沈岳
+      </div>
+
+      <div class="agent-role">
+        風險官
+      </div>
+
+      <div
+        class="agent-state"
+        id="state-risk">
+        未參會
+      </div>
+
     </div>
 
-    <div class="agent-card" id="agentCard-research">
-      <span class="online"></span>
-      <div class="agent-avatar">🔬</div>
-      <div class="agent-name">若曦</div>
-      <div class="agent-role">研究官</div>
-      <div class="agent-state" id="state-research">待命</div>
+    <div
+      class="agent-card not-selected"
+      id="agentCard-research">
+
+      <span class="online off"></span>
+
+      <div class="agent-avatar">
+        🔬
+      </div>
+
+      <div class="agent-name">
+        若曦
+      </div>
+
+      <div class="agent-role">
+        研究官
+      </div>
+
+      <div
+        class="agent-state"
+        id="state-research">
+        未參會
+      </div>
+
     </div>
 
-    <div class="agent-card" id="agentCard-review">
-      <span class="online"></span>
-      <div class="agent-avatar">⚖️</div>
-      <div class="agent-name">知衡</div>
-      <div class="agent-role">審查官</div>
-      <div class="agent-state" id="state-review">待命</div>
+    <div
+      class="agent-card not-selected"
+      id="agentCard-review">
+
+      <span class="online off"></span>
+
+      <div class="agent-avatar">
+        ⚖️
+      </div>
+
+      <div class="agent-name">
+        知衡
+      </div>
+
+      <div class="agent-role">
+        審查官
+      </div>
+
+      <div
+        class="agent-state"
+        id="state-review">
+        未參會
+      </div>
+
     </div>
 
   </section>
 
   <section class="dialogue-wrap">
-    <div class="dialogue" id="dialogue"></div>
+
+    <div
+      class="dialogue"
+      id="dialogue">
+    </div>
 
     <div class="owner-panel">
 
       <div class="input-row">
+
         <textarea
           id="ownerInput"
           class="owner-input"
           rows="1"
-          placeholder="輸入問題、想法或要求……"></textarea>
+          placeholder="輸入問題、想法或要求……">
+        </textarea>
 
-        <button class="send-btn" id="btnSend">➤</button>
+        <button
+          class="send-btn"
+          id="btnSend">
+          ➤
+        </button>
+
       </div>
 
       <div class="control-row">
 
-        <button class="control-btn voice-btn" id="btnMic">
+        <button
+          class="control-btn voice-btn"
+          id="btnMic">
           🎙️ 語音
         </button>
 
-        <button class="control-btn" id="btnPause">
+        <button
+          class="control-btn"
+          id="btnPause">
           暫停
         </button>
 
-        <button class="control-btn primary" id="btnNextRound">
+        <button
+          class="control-btn primary"
+          id="btnNextRound">
           下一輪
         </button>
 
-        <button class="control-btn" id="btnTranscript">
+        <button
+          class="control-btn"
+          id="btnTranscript">
           討論紀錄
         </button>
 
-        <button class="control-btn" id="btnHistory">
+        <button
+          class="control-btn"
+          id="btnHistory">
           歷史
         </button>
 
-        <button class="control-btn" id="btnApprove">
+        <button
+          class="control-btn"
+          id="btnApprove">
           ✓ 批准
         </button>
 
-        <button class="control-btn danger" id="btnStop">
+        <button
+          class="control-btn danger"
+          id="btnStop">
           結束
         </button>
 
       </div>
+
     </div>
+
   </section>
 
 </main>
 </div>
 
+
 <!-- =======================================================
-     START
+     AGENT SELECT
 ======================================================= -->
 
-<div class="overlay" id="overlayStart">
-  <div class="modal">
-    <h2>AIVAULT War Room</h2>
-    <p>
-      這裡不是劇本式 AI 表演。
-      五個 Agent 會依照各自角色獨立判斷 Owner 的輸入，
-      先判斷問題性質，再決定是否需要進入 Project Flow。
-    </p>
+<div
+  class="overlay visible"
+  id="overlayAgentSelect">
+
+  <div class="modal agent-selector-modal">
+
+    <div class="selection-header">
+
+      <div>
+        <h2>
+          選擇本次參會 AI
+        </h2>
+
+        <p style="margin:0;">
+          進入會議室前先決定由哪些 Agent 參與。
+        </p>
+      </div>
+
+      <div
+        class="selection-counter"
+        id="selectionCounter">
+        0 / 3
+      </div>
+
+    </div>
+
+    <div class="selection-help">
+      每場會議最多 3 個 Agent。
+      你可以依照問題選擇最適合的 AI。
+      未被選中的 Agent 不會進入本次會議，
+      也不會呼叫後端模型。
+    </div>
+
+    <div
+      class="agent-select-grid"
+      id="agentSelectGrid">
+    </div>
+
+    <div
+      class="selected-summary"
+      id="selectedSummary">
+      尚未選擇參會 AI。
+    </div>
 
     <div class="modal-actions">
-      <button class="modal-btn primary" id="btnStartNew">
-        開始會議
+
+      <button
+        class="modal-btn"
+        id="btnCancelAgentSelect">
+        返回
       </button>
+
+      <button
+        class="modal-btn primary"
+        id="btnEnterWarRoom">
+        進入會議室
+      </button>
+
     </div>
+
   </div>
+
 </div>
+
 
 <!-- =======================================================
      DECISION
 ======================================================= -->
 
-<div class="overlay" id="overlayDecision">
+<div
+  class="overlay"
+  id="overlayDecision">
+
   <div class="modal">
-    <h2>Owner 最終批准</h2>
+
+    <h2>
+      Owner 最終批准
+    </h2>
+
     <p>
       批准後，本次 War Room 會議將進入完成狀態。
-      若後端已接 Governance Engine，應在此同步寫入正式決策紀錄。
+      若後端已接 Governance Engine，
+      應在此同步寫入正式決策紀錄。
     </p>
 
     <div class="modal-actions">
-      <button class="modal-btn" id="btnReject">
+
+      <button
+        class="modal-btn"
+        id="btnReject">
         返回
       </button>
 
-      <button class="modal-btn primary" id="btnConfirmApprove">
+      <button
+        class="modal-btn primary"
+        id="btnConfirmApprove">
         確認批准
       </button>
+
     </div>
+
   </div>
+
 </div>
+
 
 <!-- =======================================================
      HISTORY
 ======================================================= -->
 
-<div class="overlay" id="overlayHistory">
-  <div class="modal">
-    <h2>會議歷史</h2>
+<div
+  class="overlay"
+  id="overlayHistory">
 
-    <div id="historyList"></div>
+  <div class="modal">
+
+    <h2>
+      會議歷史
+    </h2>
+
+    <div id="historyList">
+    </div>
 
     <div class="modal-actions">
-      <button class="modal-btn" id="btnCloseHistory">
+
+      <button
+        class="modal-btn"
+        id="btnCloseHistory">
         關閉
       </button>
+
     </div>
+
   </div>
+
 </div>
+
 
 <!-- =======================================================
      TRANSCRIPT
 ======================================================= -->
 
-<div class="overlay" id="transcript">
-  <div class="modal">
-    <h2>完整討論紀錄</h2>
+<div
+  class="overlay"
+  id="transcript">
 
-    <div id="transcriptBody"
-         style="
-         white-space:pre-wrap;
-         line-height:1.7;
-         font-size:12px;
-         color:#cbd5e1;
-         "></div>
+  <div class="modal">
+
+    <h2>
+      完整討論紀錄
+    </h2>
+
+    <div
+      id="transcriptBody"
+      style="
+      white-space:pre-wrap;
+      line-height:1.7;
+      font-size:12px;
+      color:#cbd5e1;
+      ">
+    </div>
 
     <div class="modal-actions">
-      <button class="modal-btn" id="btnCloseTranscript">
+
+      <button
+        class="modal-btn"
+        id="btnCloseTranscript">
         關閉
       </button>
+
     </div>
+
   </div>
+
 </div>
 
-<div class="toast" id="toast"></div>
+
+<div
+  class="toast"
+  id="toast">
+</div>
+
 
 <script>
 "use strict";
 
 /* =========================================================
    AIVAULT WAR ROOM
-   核心原則：
+   =========================================================
 
-   1. 五個 Agent 必須是五個獨立角色。
-   2. 不使用五份固定劇本。
-   3. Owner 輸入先做分類。
-   4. QUESTION / DISCUSSION / TEST 不直接建立 Project。
-   5. 只有具備交付成果的需求才可能進 Project Flow。
-   6. 第二輪開始加入其他 Agent 意見作為辯論上下文。
-   7. 每個 Agent 使用不同 voice profile。
+   核心架構：
+
+   1. 五個 Agent 保留在 Registry。
+   2. 進入 War Room 前由 Owner 選擇參會 Agent。
+   3. 每場會議最多 3 個 Agent。
+   4. 至少選擇 1 個 Agent。
+   5. 未選中的 Agent 不進入會議。
+   6. 未選中的 Agent 不呼叫 Governance Engine。
+   7. Round 1 / Round 2 / Final Decision
+      都只使用 selectedAgents。
+   8. 不改變原本五個 Agent 的角色。
 ========================================================= */
+
 
 /* =========================================================
    Supabase 設定
@@ -840,13 +1252,24 @@ const GOVERNANCE_FUNCTION =
   window.AIVAULT_CONFIG?.GOVERNANCE_FUNCTION ||
   "governance-engine";
 
+
+/* =========================================================
+   常數
+========================================================= */
+
+const MAX_MEETING_AGENTS = 3;
+
+
 /* =========================================================
    Utility
 ========================================================= */
 
-const $ = id => document.getElementById(id);
+const $ = id =>
+  document.getElementById(id);
+
 
 function escapeHTML(value){
+
   return String(value ?? "")
     .replaceAll("&","&amp;")
     .replaceAll("<","&lt;")
@@ -855,16 +1278,33 @@ function escapeHTML(value){
     .replaceAll("'","&#039;");
 }
 
-function toast(message){
-  const el = $("toast");
-  el.textContent = message;
-  el.classList.add("show");
 
-  clearTimeout(window.__toastTimer);
+function toast(message){
+
+  const el =
+    $("toast");
+
+  el.textContent =
+    message;
+
+  el.classList.add(
+    "show"
+  );
+
+  clearTimeout(
+    window.__toastTimer
+  );
 
   window.__toastTimer =
-    setTimeout(() => el.classList.remove("show"),2200);
+    setTimeout(
+      () =>
+        el.classList.remove(
+          "show"
+        ),
+      2200
+    );
 }
+
 
 /* =========================================================
    Agent Registry
@@ -877,12 +1317,14 @@ const AGENTS = {
     name:"凌策",
     role:"戰略官",
     avatar:"🧠",
+
     voiceKeywords:[
       "male",
       "Microsoft Yunyang",
       "Yunyang",
       "Google Mandarin"
     ],
+
     system:`
 你是 AIVAULT 的戰略官「凌策」。
 
@@ -891,6 +1333,7 @@ const AGENTS = {
 你必須獨立分析 Owner 的原始問題。
 
 優先判斷：
+
 1. Owner 到底在問什麼？
 2. 這是不是問題？
 3. 是一般問題、討論、測試、需求、專案、決策，還是其他類型？
@@ -898,6 +1341,7 @@ const AGENTS = {
 5. 是否真的需要啟動 Project Flow？
 
 禁止：
+
 - 把每句話都當成專案。
 - 沒有交付成果就建立 Project。
 - 重複其他 Agent 的說法。
@@ -908,17 +1352,20 @@ const AGENTS = {
 `
   },
 
+
   tech:{
     id:"tech",
     name:"岳衡",
     role:"技術官",
     avatar:"⚙️",
+
     voiceKeywords:[
       "male",
       "Microsoft Yunxi",
       "Yunxi",
       "Google Mandarin"
     ],
+
     system:`
 你是 AIVAULT 的技術官「岳衡」。
 
@@ -927,6 +1374,7 @@ const AGENTS = {
 你不能因為其他 Agent 說「這是需求」就接受。
 
 你必須自己判斷：
+
 - 有沒有技術問題？
 - 是否需要實作？
 - 有沒有明確輸入與輸出？
@@ -938,21 +1386,25 @@ const AGENTS = {
 `
   },
 
+
   risk:{
     id:"risk",
     name:"沈岳",
     role:"風險官",
     avatar:"🛡️",
+
     voiceKeywords:[
       "male",
       "Microsoft HsiaoChen",
       "HsiaoChen",
       "Google Mandarin"
     ],
+
     system:`
 你是 AIVAULT 的風險官「沈岳」。
 
 你必須獨立尋找：
+
 - 語意誤判
 - 安全問題
 - 法律／治理問題
@@ -968,23 +1420,27 @@ const AGENTS = {
 `
   },
 
+
   research:{
     id:"research",
     name:"若曦",
     role:"研究官",
     avatar:"🔬",
+
     voiceKeywords:[
       "female",
       "Microsoft HsiaoYu",
       "HsiaoYu",
       "Google Mandarin"
     ],
+
     system:`
 你是 AIVAULT 的研究官「若曦」。
 
 你的任務是分析 Owner 問題的語意、背景、可能需要的證據與知識。
 
 先判斷：
+
 - 這是不是一個需要研究的問題？
 - Owner 是要答案、測試、討論，還是要求產出？
 - 現有資訊是否足夠？
@@ -997,17 +1453,20 @@ const AGENTS = {
 `
   },
 
+
   review:{
     id:"review",
     name:"知衡",
     role:"審查官",
     avatar:"⚖️",
+
     voiceKeywords:[
       "female",
       "Microsoft Hanhan",
       "Hanhan",
       "Google Mandarin"
     ],
+
     system:`
 你是 AIVAULT 的審查官「知衡」。
 
@@ -1017,6 +1476,7 @@ const AGENTS = {
 再比較其他 Agent 的分析。
 
 你尤其要檢查：
+
 1. 是否誤把問題當成專案？
 2. 是否誤把測試當成需求？
 3. 是否有 Agent 只是重複別人？
@@ -1031,7 +1491,21 @@ const AGENTS = {
 
 };
 
-const AGENT_IDS = Object.keys(AGENTS);
+
+/*
+   所有可選 Agent。
+   注意：
+   這裡仍然是 5 個。
+
+   但它不是「本場參會名單」。
+
+   本場真正參會名單是：
+   state.selectedAgents
+*/
+
+const AGENT_IDS =
+  Object.keys(AGENTS);
+
 
 /* =========================================================
    State
@@ -1057,12 +1531,22 @@ const state = {
 
   agentAnalyses:{},
 
+  /*
+    本場真正參會的 Agent。
+    最多 3 個。
+  */
+  selectedAgents:[],
+
+  /*
+    五個 Agent 的 UI 狀態。
+    但只有 selectedAgents 才會被設為在線。
+  */
   agentOnline:{
-    strategy:true,
-    tech:true,
-    risk:true,
-    research:true,
-    review:true
+    strategy:false,
+    tech:false,
+    risk:false,
+    research:false,
+    review:false
   },
 
   agentSpeaking:null,
@@ -1075,6 +1559,339 @@ const state = {
 
   history:[]
 };
+
+
+/* =========================================================
+   Agent Selection
+========================================================= */
+
+function renderAgentSelector(){
+
+  const grid =
+    $("agentSelectGrid");
+
+  if (!grid) return;
+
+  grid.innerHTML = "";
+
+  AGENT_IDS.forEach(
+    agentId => {
+
+      const agent =
+        AGENTS[agentId];
+
+      const selected =
+        state.selectedAgents
+          .includes(agentId);
+
+      const card =
+        document.createElement("button");
+
+      card.type =
+        "button";
+
+      card.className =
+        "agent-select-card" +
+        (selected
+          ? " selected"
+          : "");
+
+      card.dataset.agent =
+        agentId;
+
+      card.innerHTML = `
+
+        <div class="agent-select-avatar">
+          ${escapeHTML(agent.avatar)}
+        </div>
+
+        <div class="agent-select-info">
+
+          <div class="agent-select-name">
+            ${escapeHTML(agent.name)}
+          </div>
+
+          <div class="agent-select-role">
+            ${escapeHTML(agent.role)}
+          </div>
+
+        </div>
+
+        <div class="agent-select-check">
+          ${selected ? "✓" : ""}
+        </div>
+      `;
+
+      card.addEventListener(
+        "click",
+        () =>
+          toggleAgentSelection(
+            agentId
+          )
+      );
+
+      grid.appendChild(
+        card
+      );
+    }
+  );
+
+  updateSelectionUI();
+}
+
+
+function toggleAgentSelection(agentId){
+
+  const exists =
+    state.selectedAgents
+      .includes(agentId);
+
+  if (exists){
+
+    state.selectedAgents =
+      state.selectedAgents
+        .filter(
+          id => id !== agentId
+        );
+
+    renderAgentSelector();
+
+    return;
+  }
+
+  if (
+    state.selectedAgents.length >=
+    MAX_MEETING_AGENTS
+  ){
+
+    toast(
+      "每場會議最多只能選 3 個 Agent"
+    );
+
+    return;
+  }
+
+  state.selectedAgents.push(
+    agentId
+  );
+
+  renderAgentSelector();
+}
+
+
+function updateSelectionUI(){
+
+  const count =
+    state.selectedAgents.length;
+
+  const counter =
+    $("selectionCounter");
+
+  const summary =
+    $("selectedSummary");
+
+  const enterButton =
+    $("btnEnterWarRoom");
+
+  if (counter){
+
+    counter.textContent =
+      `${count} / ${MAX_MEETING_AGENTS}`;
+
+    counter.classList.toggle(
+      "warning",
+      count >= MAX_MEETING_AGENTS
+    );
+  }
+
+  if (summary){
+
+    if (!count){
+
+      summary.innerHTML =
+        "尚未選擇參會 AI。";
+
+    }else{
+
+      const names =
+        state.selectedAgents
+          .map(
+            id =>
+              `${AGENTS[id].name}（${AGENTS[id].role}）`
+          )
+          .join("、");
+
+      summary.innerHTML =
+        `<strong>本次參會：</strong> ${escapeHTML(names)}`;
+    }
+  }
+
+  if (enterButton){
+
+    enterButton.disabled =
+      count < 1;
+
+    enterButton.style.opacity =
+      count < 1
+        ? ".45"
+        : "1";
+
+    enterButton.style.cursor =
+      count < 1
+        ? "not-allowed"
+        : "pointer";
+  }
+
+  /*
+    已經達到 3 人時，
+    其他尚未選擇的卡片降低透明度。
+  */
+
+  document
+    .querySelectorAll(
+      ".agent-select-card"
+    )
+    .forEach(card => {
+
+      const id =
+        card.dataset.agent;
+
+      const isSelected =
+        state.selectedAgents
+          .includes(id);
+
+      const shouldDisable =
+        count >= MAX_MEETING_AGENTS &&
+        !isSelected;
+
+      card.classList.toggle(
+        "disabled",
+        shouldDisable
+      );
+    });
+}
+
+
+/* =========================================================
+   進入 War Room
+========================================================= */
+
+function enterWarRoom(){
+
+  if (
+    state.selectedAgents.length < 1
+  ){
+
+    toast(
+      "請至少選擇 1 個 Agent"
+    );
+
+    return;
+  }
+
+  if (
+    state.selectedAgents.length >
+    MAX_MEETING_AGENTS
+  ){
+
+    toast(
+      "最多只能選擇 3 個 Agent"
+    );
+
+    return;
+  }
+
+  /*
+    只有這裡才正式讓 Agent 上線。
+  */
+
+  AGENT_IDS.forEach(
+    id => {
+
+      const selected =
+        state.selectedAgents
+          .includes(id);
+
+      state.agentOnline[id] =
+        selected;
+
+      const card =
+        $("agentCard-" + id);
+
+      const online =
+        card?.querySelector(
+          ".online"
+        );
+
+      if (online){
+
+        online.classList.toggle(
+          "off",
+          !selected
+        );
+      }
+
+      if (card){
+
+        card.classList.toggle(
+          "selected",
+          selected
+        );
+
+        card.classList.toggle(
+          "not-selected",
+          !selected
+        );
+      }
+
+      const stateEl =
+        $("state-" + id);
+
+      if (stateEl){
+
+        stateEl.textContent =
+          selected
+            ? "在線"
+            : "未參會";
+      }
+    }
+  );
+
+  $("overlayAgentSelect")
+    .classList.remove(
+      "visible"
+    );
+
+  $("roomLive")
+    .classList.remove(
+      "off"
+    );
+
+  $("roomStatus").textContent =
+    `${state.selectedAgents.length} Agents 參會`;
+
+  addMessage({
+    role:"SYSTEM",
+    content:
+      `War Room 已建立。\n\n` +
+      `本次參會 Agent：\n` +
+      state.selectedAgents
+        .map(
+          id =>
+            `• ${AGENTS[id].name}｜${AGENTS[id].role}`
+        )
+        .join("\n") +
+      `\n\n未選擇的 Agent 不會參與本次會議。`
+  });
+
+  toast(
+    `已進入會議室：${state.selectedAgents.length} Agents`
+  );
+
+  $("ownerInput")
+    .focus();
+}
+
 
 /* =========================================================
    語音
@@ -1092,14 +1909,6 @@ let speaking = false;
 
 let voiceInitialized = false;
 
-/*
-   重要：
-   不再指定全部 Agent 同一個聲音。
-
-   這裡採用「角色偏好」。
-   不同瀏覽器實際可用的中文聲音不同，
-   因此會動態尋找最接近的 voice。
-*/
 
 function loadVoices(){
 
@@ -1111,7 +1920,10 @@ function loadVoices(){
   voiceInitialized = true;
 }
 
-if ("speechSynthesis" in window){
+
+if (
+  "speechSynthesis" in window
+){
 
   loadVoices();
 
@@ -1120,15 +1932,18 @@ if ("speechSynthesis" in window){
 
       loadVoices();
 
-      /*
-        iOS / Safari 有時候第一次頁面載入時
-        voices 還沒準備好。
-      */
-      if (state.voiceUnlocked){
-        setTimeout(loadVoices,200);
+      if (
+        state.voiceUnlocked
+      ){
+
+        setTimeout(
+          loadVoices,
+          200
+        );
       }
     };
 }
+
 
 function normalizeVoiceName(name){
 
@@ -1138,53 +1953,70 @@ function normalizeVoiceName(name){
     .replaceAll("-","");
 }
 
+
 function findVoice(agent){
 
-  if (!voices.length) return null;
+  if (!voices.length)
+    return null;
 
   const chinese =
-    voices.filter(v =>
-      /^zh/i.test(v.lang) ||
-      /chinese|mandarin|中文|國語|普通話/i.test(v.name)
+    voices.filter(
+      v =>
+        /^zh/i.test(v.lang) ||
+        /chinese|mandarin|中文|國語|普通話/i
+          .test(v.name)
     );
 
   const pool =
-    chinese.length ? chinese : voices;
+    chinese.length
+      ? chinese
+      : voices;
 
   const keywords =
-    AGENTS[agent].voiceKeywords || [];
+    AGENTS[agent]
+      .voiceKeywords || [];
 
-  /*
-    優先找角色指定聲音。
-  */
-
-  for (const keyword of keywords){
+  for (
+    const keyword of keywords
+  ){
 
     const k =
-      normalizeVoiceName(keyword);
-
-    const found =
-      pool.find(v =>
-        normalizeVoiceName(v.name)
-          .includes(k)
+      normalizeVoiceName(
+        keyword
       );
 
-    if (found) return found;
+    const found =
+      pool.find(
+        v =>
+          normalizeVoiceName(
+            v.name
+          ).includes(k)
+      );
+
+    if (found)
+      return found;
   }
 
-  /*
-    不再讓五個 Agent 永遠拿同一個 voice。
-    建立穩定的角色索引。
-  */
+  const index =
+    state.selectedAgents
+      .indexOf(agent);
 
-  const index = AGENT_IDS.indexOf(agent);
+  if (index >= 0){
 
-  return pool[index % pool.length] || pool[0];
+    return (
+      pool[index % pool.length] ||
+      pool[0]
+    );
+  }
+
+  return pool[0];
 }
+
 
 function unlockAudio(){
 
-  state.voiceUnlocked = true;
+  state.voiceUnlocked =
+    true;
 
   try{
 
@@ -1195,20 +2027,41 @@ function unlockAudio(){
 
     u.volume = 0;
 
-    u.lang = "zh-TW";
+    u.lang =
+      "zh-TW";
 
-    window.speechSynthesis.speak(u);
+    window.speechSynthesis.speak(
+      u
+    );
 
   }catch(e){}
 
   loadVoices();
 }
 
-function speakAgent(agent,text){
 
-  if (!state.voiceUnlocked) return;
+function speakAgent(
+  agent,
+  text
+){
 
-  if (!text || state.paused) return;
+  if (!state.voiceUnlocked)
+    return;
+
+  if (!text || state.paused)
+    return;
+
+  /*
+    未參會 Agent 絕對不能進語音佇列。
+  */
+
+  if (
+    !state.selectedAgents
+      .includes(agent)
+  ){
+
+    return;
+  }
 
   speechQueue.push({
     agent,
@@ -1218,18 +2071,36 @@ function speakAgent(agent,text){
   processSpeechQueue();
 }
 
+
 function processSpeechQueue(){
 
-  if (speaking) return;
+  if (speaking)
+    return;
 
-  if (state.paused) return;
+  if (state.paused)
+    return;
 
   const item =
     speechQueue.shift();
 
-  if (!item) return;
+  if (!item)
+    return;
 
-  speaking = true;
+  if (
+    !state.selectedAgents
+      .includes(item.agent)
+  ){
+
+    setTimeout(
+      processSpeechQueue,
+      0
+    );
+
+    return;
+  }
+
+  speaking =
+    true;
 
   state.agentSpeaking =
     item.agent;
@@ -1246,74 +2117,94 @@ function processSpeechQueue(){
         item.text
       );
 
-    utterance.lang = "zh-TW";
+    utterance.lang =
+      "zh-TW";
 
-    utterance.rate = 0.94;
+    utterance.rate =
+      0.94;
 
     utterance.pitch =
-      item.agent === "strategy" ? 0.82 :
-      item.agent === "tech" ? 0.92 :
-      item.agent === "risk" ? 0.76 :
-      item.agent === "research" ? 1.05 :
-      1.12;
+      item.agent === "strategy"
+        ? 0.82
+        : item.agent === "tech"
+          ? 0.92
+          : item.agent === "risk"
+            ? 0.76
+            : item.agent === "research"
+              ? 1.05
+              : 1.12;
 
-    utterance.volume = 1;
+    utterance.volume =
+      1;
 
     const voice =
-      findVoice(item.agent);
+      findVoice(
+        item.agent
+      );
 
     if (voice){
-      utterance.voice = voice;
+
+      utterance.voice =
+        voice;
     }
 
-    utterance.onend = () => {
+    utterance.onend =
+      () => {
 
-      speaking = false;
+        speaking =
+          false;
 
-      setAgentStatus(
-        item.agent,
-        "listening"
+        setAgentStatus(
+          item.agent,
+          "listening"
+        );
+
+        state.agentSpeaking =
+          null;
+
+        setTimeout(
+          processSpeechQueue,
+          70
+        );
+      };
+
+    utterance.onerror =
+      () => {
+
+        speaking =
+          false;
+
+        setAgentStatus(
+          item.agent,
+          "listening"
+        );
+
+        state.agentSpeaking =
+          null;
+
+        setTimeout(
+          processSpeechQueue,
+          70
+        );
+      };
+
+    window.speechSynthesis
+      .speak(
+        utterance
       );
-
-      state.agentSpeaking = null;
-
-      setTimeout(
-        processSpeechQueue,
-        70
-      );
-    };
-
-    utterance.onerror = () => {
-
-      speaking = false;
-
-      setAgentStatus(
-        item.agent,
-        "listening"
-      );
-
-      state.agentSpeaking = null;
-
-      setTimeout(
-        processSpeechQueue,
-        70
-      );
-    };
-
-    window.speechSynthesis.speak(
-      utterance
-    );
 
   }catch(e){
 
-    speaking = false;
+    speaking =
+      false;
 
     setAgentStatus(
       item.agent,
       "listening"
     );
 
-    state.agentSpeaking = null;
+    state.agentSpeaking =
+      null;
 
     setTimeout(
       processSpeechQueue,
@@ -1322,28 +2213,68 @@ function processSpeechQueue(){
   }
 }
 
+
 function stopSpeech(){
 
   speechQueue = [];
 
-  speaking = false;
+  speaking =
+    false;
 
-  if ("speechSynthesis" in window){
-    window.speechSynthesis.cancel();
+  if (
+    "speechSynthesis" in window
+  ){
+
+    window.speechSynthesis
+      .cancel();
   }
 
-  state.agentSpeaking = null;
+  state.agentSpeaking =
+    null;
 
-  AGENT_IDS.forEach(
-    id => setAgentStatus(id,"listening")
-  );
+  /*
+    只有參會 Agent 才恢復在線狀態。
+  */
+
+  state.selectedAgents
+    .forEach(
+      id =>
+        setAgentStatus(
+          id,
+          "listening"
+        )
+    );
 }
+
 
 /* =========================================================
    Agent UI
 ========================================================= */
 
-function setAgentStatus(agent,status){
+function setAgentStatus(
+  agent,
+  status
+){
+
+  /*
+    未參會 Agent 永遠不能被設定成
+    thinking / speaking / listening。
+  */
+
+  if (
+    !state.selectedAgents
+      .includes(agent)
+  ){
+
+    const stateEl =
+      $("state-" + agent);
+
+    if (stateEl)
+      stateEl.textContent =
+        "未參會";
+
+    return;
+  }
 
   const card =
     $("agentCard-" + agent);
@@ -1351,56 +2282,81 @@ function setAgentStatus(agent,status){
   const stateEl =
     $("state-" + agent);
 
-  if (!card || !stateEl) return;
+  if (!card || !stateEl)
+    return;
 
   card.classList.remove(
     "thinking",
     "speaking"
   );
 
-  if (status === "thinking"){
+  if (
+    status === "thinking"
+  ){
 
-    card.classList.add("thinking");
+    card.classList.add(
+      "thinking"
+    );
 
-    stateEl.textContent = "思考中";
+    stateEl.textContent =
+      "思考中";
 
-  }else if(status === "speaking"){
+  }else if(
+    status === "speaking"
+  ){
 
-    card.classList.add("speaking");
+    card.classList.add(
+      "speaking"
+    );
 
-    stateEl.textContent = "發言中";
+    stateEl.textContent =
+      "發言中";
 
   }else{
 
-    stateEl.textContent = "在線";
-
+    stateEl.textContent =
+      "在線";
   }
 }
 
-function setAllOnline(){
 
-  AGENT_IDS.forEach(id => {
+function updateRoomParticipants(){
 
-    const card =
-      $("agentCard-" + id);
+  const count =
+    state.selectedAgents.length;
 
-    if (!card) return;
+  if (
+    state.status === "paused"
+  ){
 
-    const online =
-      card.querySelector(".online");
+    $("roomStatus").textContent =
+      "會議已暫停";
 
-    if (online){
-      online.classList.remove("off");
-    }
+    return;
+  }
 
-    setAgentStatus(id,"listening");
-  });
+  if (
+    state.status === "completed"
+  ){
 
-  $("roomLive").classList.remove("off");
+    $("roomStatus").textContent =
+      "會議已結束";
+
+    return;
+  }
+
+  if (!count){
+
+    $("roomStatus").textContent =
+      "尚未進入會議";
+
+    return;
+  }
 
   $("roomStatus").textContent =
-    "5 Agents 在線";
+    `${count} Agents 參會`;
 }
+
 
 /* =========================================================
    Transcript
@@ -1417,38 +2373,65 @@ function addMessage({
     $("dialogue");
 
   const item = {
-    id:cryptoRandomId(),
+
+    id:
+      cryptoRandomId(),
+
     agent,
+
     role,
+
     content,
+
     owner,
-    timestamp:new Date().toISOString()
+
+    timestamp:
+      new Date().toISOString()
   };
 
-  state.messages.push(item);
+  state.messages.push(
+    item
+  );
 
   const message =
-    document.createElement("div");
+    document.createElement(
+      "div"
+    );
 
   message.className =
-    "message" + (owner ? " owner" : "");
+    "message" +
+    (
+      owner
+        ? " owner"
+        : ""
+    );
 
   const avatar =
     owner
       ? "👤"
-      : (AGENTS[agent]?.avatar || "🤖");
+      : (
+          AGENTS[agent]?.avatar ||
+          "🤖"
+        );
 
   const name =
     owner
       ? "OWNER"
-      : AGENTS[agent]?.name || role;
+      : (
+          AGENTS[agent]?.name ||
+          role
+        );
 
   const roleText =
     owner
       ? "Decision Maker"
-      : AGENTS[agent]?.role || role;
+      : (
+          AGENTS[agent]?.role ||
+          role
+        );
 
   message.innerHTML = `
+
     <div class="message-avatar">
       ${avatar}
     </div>
@@ -1456,6 +2439,7 @@ function addMessage({
     <div class="message-content">
 
       <div class="message-head">
+
         <span class="message-name">
           ${escapeHTML(name)}
         </span>
@@ -1463,6 +2447,7 @@ function addMessage({
         <span>
           ${escapeHTML(roleText)}
         </span>
+
       </div>
 
       <div class="message-body">
@@ -1472,47 +2457,68 @@ function addMessage({
     </div>
   `;
 
-  dialogue.appendChild(message);
+  dialogue.appendChild(
+    message
+  );
 
   dialogue.scrollTo({
-    top:dialogue.scrollHeight,
-    behavior:"smooth"
+    top:
+      dialogue.scrollHeight,
+    behavior:
+      "smooth"
   });
 
   renderTranscript();
 }
 
+
 function cryptoRandomId(){
 
-  if (window.crypto?.randomUUID){
+  if (
+    window.crypto?.randomUUID
+  ){
+
     return crypto.randomUUID();
   }
 
   return (
     Date.now().toString(36) +
-    Math.random().toString(36).slice(2)
+    Math.random()
+      .toString(36)
+      .slice(2)
   );
 }
+
 
 function renderTranscript(){
 
   const body =
     $("transcriptBody");
 
-  if (!body) return;
+  if (!body)
+    return;
 
   body.textContent =
-    state.messages.map(m => {
+    state.messages
+      .map(m => {
 
-      const name =
-        m.owner
-          ? "OWNER"
-          : AGENTS[m.agent]?.name || m.role;
+        const name =
+          m.owner
+            ? "OWNER"
+            : (
+                AGENTS[m.agent]?.name ||
+                m.role
+              );
 
-      return `[${name}]\n${m.content}`;
+        return (
+          `[${name}]\n` +
+          `${m.content}`
+        );
 
-    }).join("\n\n");
+      })
+      .join("\n\n");
 }
+
 
 /* =========================================================
    問題分類
@@ -1523,44 +2529,49 @@ function classifyLocally(text){
   const t =
     text.trim();
 
-  /*
-    明確測試語句
-  */
-
   if (
     /測試|試一下|測試你|測試ai|test ai|testing/i
       .test(t)
   ){
 
     return {
-      type:"TEST",
-      confidence:0.96,
-      project:false,
-      reason:"Owner 明確表示正在測試 AI。"
+
+      type:
+        "TEST",
+
+      confidence:
+        0.96,
+
+      project:
+        false,
+
+      reason:
+        "Owner 明確表示正在測試 AI。"
     };
   }
-
-  /*
-    純問題
-  */
 
   if (
     /^(為什麼|怎麼|如何|是不是|是否|可以嗎|多少|哪裡|什麼是|請問)/
       .test(t) &&
-    !/幫我做|建立|製作|開發|設計|實作|完成/.test(t)
+    !/幫我做|建立|製作|開發|設計|實作|完成/
+      .test(t)
   ){
 
     return {
-      type:"GENERAL_QUESTION",
-      confidence:0.91,
-      project:false,
-      reason:"目前語意主要是詢問資訊，尚未形成明確交付成果。"
+
+      type:
+        "GENERAL_QUESTION",
+
+      confidence:
+        0.91,
+
+      project:
+        false,
+
+      reason:
+        "目前語意主要是詢問資訊，尚未形成明確交付成果。"
     };
   }
-
-  /*
-    討論
-  */
 
   if (
     /討論|想法|覺得|你認為|怎麼看|分析一下|比較一下/
@@ -1568,16 +2579,20 @@ function classifyLocally(text){
   ){
 
     return {
-      type:"DISCUSSION",
-      confidence:0.88,
-      project:false,
-      reason:"目前屬於討論或意見分析，不代表已要求建立專案。"
+
+      type:
+        "DISCUSSION",
+
+      confidence:
+        0.88,
+
+      project:
+        false,
+
+      reason:
+        "目前屬於討論或意見分析，不代表已要求建立專案。"
     };
   }
-
-  /*
-    明確交付需求
-  */
 
   if (
     /幫我做|建立|製作|開發|設計|實作|完成|寫一個|建立一個/
@@ -1585,26 +2600,45 @@ function classifyLocally(text){
   ){
 
     return {
-      type:"DELIVERABLE_REQUEST",
-      confidence:0.82,
-      project:true,
-      reason:"Owner 使用明確的產出／實作語句，但仍需 Agent 確認具體成果。"
+
+      type:
+        "DELIVERABLE_REQUEST",
+
+      confidence:
+        0.82,
+
+      project:
+        true,
+
+      reason:
+        "Owner 使用明確的產出／實作語句，但仍需 Agent 確認具體成果。"
     };
   }
 
   return {
-    type:"UNCLASSIFIED",
-    confidence:0.55,
-    project:false,
-    reason:"目前資訊不足，不應強行建立 Project。"
+
+    type:
+      "UNCLASSIFIED",
+
+    confidence:
+      0.55,
+
+    project:
+      false,
+
+    reason:
+      "目前資訊不足，不應強行建立 Project。"
   };
 }
+
 
 /* =========================================================
    Governance Engine
 ========================================================= */
 
-async function callGovernanceEngine(payload){
+async function callGovernanceEngine(
+  payload
+){
 
   if (
     !SUPABASE_URL ||
@@ -1615,31 +2649,42 @@ async function callGovernanceEngine(payload){
   }
 
   const url =
-    SUPABASE_URL.replace(/\/$/,"") +
+    SUPABASE_URL.replace(
+      /\/$/,
+      ""
+    ) +
     "/functions/v1/" +
     GOVERNANCE_FUNCTION;
 
   try{
 
     const response =
-      await fetch(url,{
-        method:"POST",
+      await fetch(
+        url,
+        {
 
-        headers:{
-          "Content-Type":
-            "application/json",
+          method:
+            "POST",
 
-          "apikey":
-            SUPABASE_ANON_KEY,
+          headers:{
 
-          "Authorization":
-            "Bearer " +
-            SUPABASE_ANON_KEY
-        },
+            "Content-Type":
+              "application/json",
 
-        body:
-          JSON.stringify(payload)
-      });
+            "apikey":
+              SUPABASE_ANON_KEY,
+
+            "Authorization":
+              "Bearer " +
+              SUPABASE_ANON_KEY
+          },
+
+          body:
+            JSON.stringify(
+              payload
+            )
+        }
+      );
 
     if (!response.ok){
 
@@ -1664,35 +2709,54 @@ async function callGovernanceEngine(payload){
   }
 }
 
+
 /* =========================================================
    Agent Context
 ========================================================= */
 
-function buildAgentContext(agent){
+function buildAgentContext(
+  agent
+){
 
   const classification =
-    state.classification || {};
+    state.classification ||
+    {};
 
   const otherAgents =
-    AGENT_IDS
-      .filter(id => id !== agent)
-      .map(id => {
+    state.selectedAgents
+      .filter(
+        id =>
+          id !== agent
+      )
+      .map(
+        id => {
 
-        const result =
-          state.agentAnalyses[id];
+          const result =
+            state.agentAnalyses[id];
 
-        if (!result) return "";
+          if (!result)
+            return "";
 
-        return `
+          return `
 ${AGENTS[id].name}（${AGENTS[id].role}）：
 ${result.analysis}
 `;
-      })
+        }
+      )
       .filter(Boolean)
       .join("\n");
 
   return `
+
 AIVAULT WAR ROOM
+
+本次參會 Agent：
+${state.selectedAgents
+  .map(
+    id =>
+      `${AGENTS[id].name}（${AGENTS[id].role}）`
+  )
+  .join("、")}
 
 Owner 原始輸入：
 ${state.ownerInput}
@@ -1703,8 +2767,8 @@ ${classification.type || "尚未分類"}
 分類理由：
 ${classification.reason || ""}
 
-其他 Agent 已提出的意見：
-${otherAgents || "目前尚無其他 Agent 意見。"}
+其他參會 Agent 已提出的意見：
+${otherAgents || "目前尚無其他參會 Agent 意見。"}
 
 你的角色：
 ${AGENTS[agent].role}
@@ -1714,12 +2778,14 @@ ${AGENTS[agent].system}
 請獨立回答。
 
 你必須避免：
+
 1. 重複其他 Agent。
 2. 把 Owner 每句話視為 Project。
 3. 沒有交付成果就宣布進入 Project。
 4. 使用會議固定台詞。
 
 你的回答必須包含：
+
 - 你的獨立判斷
 - 你的理由
 - 如果不同意其他 Agent，明確指出不同意哪一點
@@ -1730,24 +2796,46 @@ ${AGENTS[agent].system}
 `;
 }
 
+
 /* =========================================================
    後端 Agent 呼叫
 ========================================================= */
 
-async function askAgent(agent){
+async function askAgent(
+  agent
+){
 
   /*
-    真正接上 Governance Engine 時，
-    將由後端負責選擇 Provider / Model。
+    安全檢查：
+    未參會 Agent 不得呼叫 Gateway。
   */
 
+  if (
+    !state.selectedAgents
+      .includes(agent)
+  ){
+
+    return {
+
+      analysis:
+        "此 Agent 未參加本次會議。",
+
+      provider:null,
+
+      model:null
+    };
+  }
+
   const context =
-    buildAgentContext(agent);
+    buildAgentContext(
+      agent
+    );
 
   const result =
     await callGovernanceEngine({
 
-      action:"war_room_agent",
+      action:
+        "war_room_agent",
 
       meeting_id:
         state.meetingId,
@@ -1755,10 +2843,32 @@ async function askAgent(agent){
       round:
         state.round,
 
+      /*
+        明確把本場參會名單送給後端。
+      */
+      selected_agents:
+        state.selectedAgents.map(
+          id => ({
+            id:
+              AGENTS[id].id,
+
+            name:
+              AGENTS[id].name,
+
+            role:
+              AGENTS[id].role
+          })
+        ),
+
       agent:{
-        id:AGENTS[agent].id,
-        name:AGENTS[agent].name,
-        role:AGENTS[agent].role
+        id:
+          AGENTS[agent].id,
+
+        name:
+          AGENTS[agent].name,
+
+        role:
+          AGENTS[agent].role
       },
 
       owner_input:
@@ -1780,39 +2890,46 @@ async function askAgent(agent){
     if (content){
 
       return {
-        analysis:String(content),
+
+        analysis:
+          String(content),
+
         provider:
-          result.provider || null,
+          result.provider ||
+          null,
+
         model:
-          result.model || null
+          result.model ||
+          null
       };
     }
   }
 
-  /*
-    沒接後端時的安全降級。
-    注意：這裡不是五個人念劇本。
-    每個 Agent 的 fallback 都依照自己的角色，
-    並且只做最基本的判斷。
-  */
-
   return {
+
     analysis:
-      localAgentFallback(agent),
+      localAgentFallback(
+        agent
+      ),
 
     provider:null,
+
     model:null
   };
 }
+
 
 /* =========================================================
    Local fallback
 ========================================================= */
 
-function localAgentFallback(agent){
+function localAgentFallback(
+  agent
+){
 
   const c =
-    state.classification || {};
+    state.classification ||
+    {};
 
   switch(agent){
 
@@ -1828,6 +2945,7 @@ Owner 的輸入需要先被理解成一個議題。只有當 Owner 明確要求�
 如果 Owner 後續提出明確交付成果，我才會建議進一步建立 Project。
 `.trim();
 
+
     case "tech":
 
       return `
@@ -1839,6 +2957,7 @@ Owner 的輸入需要先被理解成一個議題。只有當 Owner 明確要求�
 
 所以目前應保持在分析階段。
 `.trim();
+
 
     case "risk":
 
@@ -1852,6 +2971,7 @@ Owner 的輸入需要先被理解成一個議題。只有當 Owner 明確要求�
 應先確認 Owner 真正意圖。
 `.trim();
 
+
     case "research":
 
       return `
@@ -1861,6 +2981,7 @@ Owner 的輸入需要先被理解成一個議題。只有當 Owner 明確要求�
 
 因此我會先處理問題本身；只有當問題進一步形成研究目標與成果要求，才需要建立 Research Task 或 Project。
 `.trim();
+
 
     case "review":
 
@@ -1874,50 +2995,69 @@ Owner 的輸入需要先被理解成一個議題。只有當 Owner 明確要求�
 目前應先回答 Owner，然後等待是否形成明確交付需求。
 `.trim();
 
+
     default:
+
       return "目前無法完成分析。";
   }
 }
 
+
 /* =========================================================
-   第一輪：五 Agent 真正獨立分析
+   第一輪
 ========================================================= */
 
 async function runIndependentRound(){
 
-  state.status = "active";
+  state.status =
+    "active";
 
   updateRoundUI();
 
   /*
-    五個 Agent 同時進入思考。
-    不再一個 Agent 完成後把答案複製給下一個。
+    只讓選中的 Agent 思考。
   */
 
-  AGENT_IDS.forEach(
-    id => setAgentStatus(id,"thinking")
-  );
+  state.selectedAgents
+    .forEach(
+      id =>
+        setAgentStatus(
+          id,
+          "thinking"
+        )
+    );
 
   const results =
     await Promise.all(
-      AGENT_IDS.map(async agent => {
 
-        const result =
-          await askAgent(agent);
+      state.selectedAgents
+        .map(
+          async agent => {
 
-        return {
-          agent,
-          result
-        };
+            const result =
+              await askAgent(
+                agent
+              );
 
-      })
+            return {
+
+              agent,
+
+              result
+            };
+          }
+        )
     );
 
-  if (state.paused) return;
+  if (state.paused)
+    return;
 
-  for (const item of results){
+  for (
+    const item of results
+  ){
 
-    if (state.paused) break;
+    if (state.paused)
+      break;
 
     const agent =
       item.agent;
@@ -1934,9 +3074,14 @@ async function runIndependentRound(){
     );
 
     addMessage({
+
       agent,
-      role:AGENTS[agent].role,
-      content:result.analysis
+
+      role:
+        AGENTS[agent].role,
+
+      content:
+        result.analysis
     });
 
     speakAgent(
@@ -1944,12 +3089,8 @@ async function runIndependentRound(){
       result.analysis
     );
 
-    /*
-      等待一點時間，讓 UI 呈現每個 Agent
-      是獨立發言者，而不是同一個角色。
-    */
-
     await wait(
+
       Math.min(
         5000,
         Math.max(
@@ -1959,7 +3100,10 @@ async function runIndependentRound(){
       )
     );
 
-    if (!state.paused){
+    if (
+      !state.paused
+    ){
+
       setAgentStatus(
         agent,
         "listening"
@@ -1967,48 +3111,70 @@ async function runIndependentRound(){
     }
   }
 
-  if (!state.paused){
+  if (
+    !state.paused
+  ){
 
     addMessage({
-      role:"SYSTEM",
+
+      role:
+        "SYSTEM",
+
       content:
-        "本輪五個 Agent 已完成獨立分析。下一輪將根據彼此意見進行交叉辯論，而不是重複上一輪答案。"
+        "本輪參會 Agent 已完成獨立分析。下一輪將根據彼此意見進行交叉辯論，而不是重複上一輪答案。"
     });
 
     updateRoundUI();
   }
 }
 
+
 /* =========================================================
-   第二輪：交叉辯論
+   第二輪
 ========================================================= */
 
 async function runDebateRound(){
 
-  state.status = "active";
+  state.status =
+    "active";
 
-  AGENT_IDS.forEach(
-    id => setAgentStatus(id,"thinking")
-  );
+  state.selectedAgents
+    .forEach(
+      id =>
+        setAgentStatus(
+          id,
+          "thinking"
+        )
+    );
 
   const results =
     await Promise.all(
-      AGENT_IDS.map(async agent => {
 
-        const result =
-          await askAgent(agent);
+      state.selectedAgents
+        .map(
+          async agent => {
 
-        return {
-          agent,
-          result
-        };
+            const result =
+              await askAgent(
+                agent
+              );
 
-      })
+            return {
+
+              agent,
+
+              result
+            };
+          }
+        )
     );
 
-  for (const item of results){
+  for (
+    const item of results
+  ){
 
-    if (state.paused) break;
+    if (state.paused)
+      break;
 
     const agent =
       item.agent;
@@ -2025,9 +3191,14 @@ async function runDebateRound(){
     );
 
     addMessage({
+
       agent,
-      role:AGENTS[agent].role,
-      content:result.analysis
+
+      role:
+        AGENTS[agent].role,
+
+      content:
+        result.analysis
     });
 
     speakAgent(
@@ -2036,6 +3207,7 @@ async function runDebateRound(){
     );
 
     await wait(
+
       Math.min(
         5000,
         Math.max(
@@ -2046,57 +3218,87 @@ async function runDebateRound(){
     );
   }
 
-  if (!state.paused){
+  if (
+    !state.paused
+  ){
 
     const final =
       await buildFinalDecision();
 
+    /*
+      Final Decision 不強制新增一個 Agent。
+
+      優先使用本場已參會的審查官。
+      如果知衡沒有參會，
+      就由第一個參會 Agent 承擔最終摘要。
+    */
+
+    const finalAgent =
+      state.selectedAgents
+        .includes("review")
+        ? "review"
+        : state.selectedAgents[0];
+
     addMessage({
-      agent:"review",
-      role:"審查官",
+
+      agent:
+        finalAgent,
+
+      role:
+        AGENTS[finalAgent].role,
+
       content:
         "本輪交叉審查結果：\n\n" +
         final
     });
 
     speakAgent(
-      "review",
+      finalAgent,
       final
     );
 
-    state.status = "active";
+    state.status =
+      "active";
   }
 }
 
+
 /* =========================================================
-   Final decision
+   Final Decision
 ========================================================= */
 
 async function buildFinalDecision(){
 
   const opinions =
-    AGENT_IDS.map(id => {
+    state.selectedAgents
+      .map(
+        id => {
 
-      const r =
-        state.agentAnalyses[id];
+          const r =
+            state.agentAnalyses[id];
 
-      return `
+          return `
 ${AGENTS[id].name}：
 ${r?.analysis || ""}
 `;
-
-    }).join("\n");
+        }
+      )
+      .join("\n");
 
   const result =
     await callGovernanceEngine({
 
-      action:"war_room_decision",
+      action:
+        "war_room_decision",
 
       meeting_id:
         state.meetingId,
 
       round:
         state.round,
+
+      selected_agents:
+        state.selectedAgents,
 
       owner_input:
         state.ownerInput,
@@ -2110,6 +3312,7 @@ ${r?.analysis || ""}
   if (result){
 
     return (
+
       result.content ||
       result.message ||
       result.output ||
@@ -2117,14 +3320,17 @@ ${r?.analysis || ""}
     );
   }
 
-  if (state.classification?.project){
+  if (
+    state.classification?.project
+  ){
 
     return `
-目前五個 Agent 的共同審查仍不足以自動建立 Project。
+目前參會 Agent 的共同審查仍不足以自動建立 Project。
 
 Owner 的輸入看起來具有產出意圖，但在正式進入 Project Flow 前，還需要確認具體交付成果。
 
 因此目前建議：
+
 「進一步確認需求 → 定義交付成果 → 再建立 Project」。
 `.trim();
   }
@@ -2133,25 +3339,64 @@ Owner 的輸入看起來具有產出意圖，但在正式進入 Project Flow 前
 目前不應建立 Project。
 
 Owner 的輸入主要屬於：
+
 ${state.classification?.type || "一般議題"}
 
 目前沒有足夠的明確交付成果。
 
 因此正確流程是：
+
 先回答 Owner 的問題 → 確認是否產生後續需求 → 若形成明確成果，再進入 Project Flow。
 `.trim();
 }
+
 
 /* =========================================================
    Meeting
 ========================================================= */
 
-async function startMeeting(text){
+async function startMeeting(
+  text
+){
 
   const raw =
-    String(text || "").trim();
+    String(text || "")
+      .trim();
 
-  if (!raw) return;
+  if (!raw)
+    return;
+
+  /*
+    防止尚未選擇 Agent 就直接啟動。
+  */
+
+  if (
+    state.selectedAgents.length < 1
+  ){
+
+    toast(
+      "請先選擇參會 AI"
+    );
+
+    $("overlayAgentSelect")
+      .classList.add(
+        "visible"
+      );
+
+    return;
+  }
+
+  if (
+    state.selectedAgents.length >
+    MAX_MEETING_AGENTS
+  ){
+
+    toast(
+      "本場最多 3 個 Agent"
+    );
+
+    return;
+  }
 
   unlockAudio();
 
@@ -2161,42 +3406,71 @@ async function startMeeting(text){
     "meeting_" +
     Date.now();
 
-  state.status = "active";
+  state.status =
+    "active";
 
-  state.round = 1;
+  state.round =
+    1;
 
-  state.ownerInput = raw;
+  state.ownerInput =
+    raw;
 
-  state.messages = [];
+  state.messages =
+    [];
 
-  state.agentAnalyses = {};
+  state.agentAnalyses =
+    {};
 
-  state.classification =
-    classifyLocally(raw);
-
-  $("dialogue").innerHTML = "";
+  $("dialogue").innerHTML =
+    "";
 
   addMessage({
-    role:"Owner",
-    content:raw,
-    owner:true
+
+    role:
+      "Owner",
+
+    content:
+      raw,
+
+    owner:
+      true
   });
 
+  state.classification =
+    classifyLocally(
+      raw
+    );
+
   addMessage({
-    role:"SYSTEM",
+
+    role:
+      "SYSTEM",
+
     content:
+      `本次參會：${state.selectedAgents
+        .map(
+          id =>
+            `${AGENTS[id].name}（${AGENTS[id].role}）`
+        )
+        .join("、")}\n\n` +
+
       `初步分類：${state.classification.type}\n` +
+
       `信心度：${Math.round(
-        state.classification.confidence * 100
+        state.classification.confidence *
+        100
       )}%\n` +
+
       `${state.classification.reason}\n\n` +
-      `五個 Agent 現在獨立分析。`
+
+      `參會 Agent 現在開始獨立分析。`
   });
 
   updateRoundUI();
 
   await runIndependentRound();
 }
+
 
 /* =========================================================
    Next Round
@@ -2206,14 +3480,20 @@ async function runNextRound(){
 
   if (!state.meetingId){
 
-    toast("請先輸入問題開始會議");
+    toast(
+      "請先輸入問題開始會議"
+    );
 
     return;
   }
 
-  if (state.status === "paused"){
+  if (
+    state.status === "paused"
+  ){
 
-    toast("目前會議已暫停");
+    toast(
+      "目前會議已暫停"
+    );
 
     return;
   }
@@ -2223,14 +3503,18 @@ async function runNextRound(){
   updateRoundUI();
 
   addMessage({
-    role:"SYSTEM",
+
+    role:
+      "SYSTEM",
+
     content:
       `進入 Round ${state.round}。\n` +
-      `五個 Agent 將重新檢視 Owner 問題與其他 Agent 的觀點。`
+      `本輪仍由 ${state.selectedAgents.length} 個參會 Agent 進行交叉分析。`
   });
 
   await runDebateRound();
 }
+
 
 /* =========================================================
    UI
@@ -2241,29 +3525,21 @@ function updateRoundUI(){
   $("roundText").textContent =
     `Round ${state.round}`;
 
-  if (state.status === "paused"){
-
-    $("roomStatus").textContent =
-      "會議已暫停";
-
-  }else if(state.status === "completed"){
-
-    $("roomStatus").textContent =
-      "會議已結束";
-
-  }else{
-
-    $("roomStatus").textContent =
-      "5 Agents 在線";
-  }
+  updateRoomParticipants();
 }
+
 
 function wait(ms){
 
   return new Promise(
-    resolve => setTimeout(resolve,ms)
+    resolve =>
+      setTimeout(
+        resolve,
+        ms
+      )
   );
 }
+
 
 /* =========================================================
    Event Binding
@@ -2275,10 +3551,12 @@ function bindEvents(){
     .addEventListener(
       "click",
       () => {
+
         location.href =
           "aivault-home.html";
       }
     );
+
 
   $("btnSend")
     .addEventListener(
@@ -2291,9 +3569,11 @@ function bindEvents(){
         const text =
           input.value.trim();
 
-        if (!text) return;
+        if (!text)
+          return;
 
-        input.value = "";
+        input.value =
+          "";
 
         input.style.height =
           "auto";
@@ -2303,34 +3583,50 @@ function bindEvents(){
           state.status === "completed"
         ){
 
-          startMeeting(text);
+          startMeeting(
+            text
+          );
 
           return;
         }
 
         /*
-          Owner 中途發言：
-          不自動當成 Project。
+          Owner 中途發言。
+
+          不自動建立 Project。
+          不自動重新啟動所有 Agent。
         */
 
-        state.ownerInput = text;
+        state.ownerInput =
+          text;
 
         addMessage({
-          role:"Owner",
-          content:text,
-          owner:true
+
+          role:
+            "Owner",
+
+          content:
+            text,
+
+          owner:
+            true
         });
 
         state.classification =
-          classifyLocally(text);
+          classifyLocally(
+            text
+          );
 
         addMessage({
-          role:"SYSTEM",
+
+          role:
+            "SYSTEM",
+
           content:
             `Owner 提供新資訊。\n` +
             `目前分類：${state.classification.type}\n` +
             `系統不會因為新訊息自動建立 Project。\n` +
-            `請按「下一輪」讓五個 Agent 重新評估。`
+            `請按「下一輪」讓本次參會 Agent 重新評估。`
         });
 
         toast(
@@ -2338,6 +3634,7 @@ function bindEvents(){
         );
       }
     );
+
 
   $("ownerInput")
     .addEventListener(
@@ -2356,6 +3653,7 @@ function bindEvents(){
       }
     );
 
+
   $("ownerInput")
     .addEventListener(
       "input",
@@ -2372,53 +3670,68 @@ function bindEvents(){
       }
     );
 
+
   $("btnNextRound")
     .addEventListener(
       "click",
       runNextRound
     );
 
+
   $("btnPause")
     .addEventListener(
       "click",
       () => {
 
-        if (state.status === "paused"){
+        if (
+          state.status ===
+          "paused"
+        ){
 
-          state.status = "active";
+          state.status =
+            "active";
 
-          $("btnPause").textContent =
+          $("btnPause")
+            .textContent =
             "暫停";
 
-          toast("會議已恢復");
+          toast(
+            "會議已恢復"
+          );
 
           processSpeechQueue();
 
-          AGENT_IDS.forEach(
-            id =>
-              setAgentStatus(
-                id,
-                "listening"
-              )
-          );
+          state.selectedAgents
+            .forEach(
+              id =>
+                setAgentStatus(
+                  id,
+                  "listening"
+                )
+            );
 
           updateRoundUI();
 
           return;
         }
 
-        state.status = "paused";
+        state.status =
+          "paused";
 
         stopSpeech();
 
-        $("btnPause").textContent =
+        $("btnPause")
+          .textContent =
           "繼續";
 
-        toast("會議已暫停");
+        toast(
+          "會議已暫停"
+        );
 
         updateRoundUI();
       }
     );
+
 
   $("btnApprove")
     .addEventListener(
@@ -2427,15 +3740,20 @@ function bindEvents(){
 
         if (!state.meetingId){
 
-          toast("目前沒有會議");
+          toast(
+            "目前沒有會議"
+          );
 
           return;
         }
 
         $("overlayDecision")
-          .classList.add("visible");
+          .classList.add(
+            "visible"
+          );
       }
     );
+
 
   $("btnConfirmApprove")
     .addEventListener(
@@ -2453,9 +3771,15 @@ function bindEvents(){
         stopSpeech();
 
         addMessage({
-          role:"Owner",
-          content:"✅ Owner 批准最終決策",
-          owner:true
+
+          role:
+            "Owner",
+
+          content:
+            "✅ Owner 批准最終決策",
+
+          owner:
+            true
         });
 
         toast(
@@ -2465,6 +3789,7 @@ function bindEvents(){
         updateRoundUI();
       }
     );
+
 
   $("btnReject")
     .addEventListener(
@@ -2478,6 +3803,7 @@ function bindEvents(){
       }
     );
 
+
   $("btnStop")
     .addEventListener(
       "click",
@@ -2487,7 +3813,8 @@ function bindEvents(){
           !confirm(
             "確定結束目前會議？"
           )
-        ) return;
+        )
+          return;
 
         state.status =
           "completed";
@@ -2495,13 +3822,18 @@ function bindEvents(){
         stopSpeech();
 
         addMessage({
-          role:"SYSTEM",
-          content:"會議已結束。"
+
+          role:
+            "SYSTEM",
+
+          content:
+            "會議已結束。"
         });
 
         updateRoundUI();
       }
     );
+
 
   $("btnTranscript")
     .addEventListener(
@@ -2517,6 +3849,7 @@ function bindEvents(){
       }
     );
 
+
   $("btnCloseTranscript")
     .addEventListener(
       "click",
@@ -2528,6 +3861,7 @@ function bindEvents(){
           );
       }
     );
+
 
   $("btnHistory")
     .addEventListener(
@@ -2543,6 +3877,7 @@ function bindEvents(){
       }
     );
 
+
   $("btnCloseHistory")
     .addEventListener(
       "click",
@@ -2555,28 +3890,44 @@ function bindEvents(){
       }
     );
 
-  $("btnStartNew")
+
+  $("btnEnterWarRoom")
+    .addEventListener(
+      "click",
+      enterWarRoom
+    );
+
+
+  $("btnCancelAgentSelect")
     .addEventListener(
       "click",
       () => {
 
-        $("overlayStart")
-          .classList.remove(
-            "visible"
+        if (
+          state.meetingId
+        ){
+
+          $("overlayAgentSelect")
+            .classList.remove(
+              "visible"
+            );
+
+        }else{
+
+          toast(
+            "尚未選擇 AI，無法進入會議"
           );
-
-        unlockAudio();
-
-        $("ownerInput")
-          .focus();
+        }
       }
     );
+
 
   $("btnMic")
     .addEventListener(
       "click",
       startListen
     );
+
 
   $("btnLang")
     .addEventListener(
@@ -2602,6 +3953,7 @@ function bindEvents(){
     );
 }
 
+
 /* =========================================================
    History
 ========================================================= */
@@ -2614,6 +3966,7 @@ function renderHistory(){
   if (!state.meetingId){
 
     list.innerHTML = `
+
       <div style="
         color:#94a3b8;
         font-size:12px;
@@ -2628,25 +3981,62 @@ function renderHistory(){
   }
 
   list.innerHTML = `
+
     <div class="history-item">
+
       <div class="history-title">
+
         ${escapeHTML(
           state.ownerInput ||
           "AIVAULT War Room"
         )}
+
       </div>
 
       <div class="history-meta">
-        ${new Date().toLocaleString(
-          "zh-TW"
-        )}
-        · 5 Agents
-        · ${state.round} rounds
-        · ${state.classification?.type || "未分類"}
+
+        ${new Date()
+          .toLocaleString(
+            "zh-TW"
+          )}
+
+        ·
+
+        ${state.selectedAgents.length}
+        Agents
+
+        ·
+
+        ${state.round}
+        rounds
+
+        ·
+
+        ${state.classification?.type ||
+          "未分類"}
+
       </div>
+
+      <div
+        class="history-meta"
+        style="margin-top:6px;">
+
+        參會：
+        ${escapeHTML(
+          state.selectedAgents
+            .map(
+              id =>
+                AGENTS[id].name
+            )
+            .join("、")
+        )}
+
+      </div>
+
     </div>
   `;
 }
+
 
 /* =========================================================
    Speech Recognition
@@ -2658,9 +4048,11 @@ function getRecognition(){
     window.SpeechRecognition ||
     window.webkitSpeechRecognition;
 
-  if (!SR) return null;
+  if (!SR)
+    return null;
 
-  if (recognition) return recognition;
+  if (recognition)
+    return recognition;
 
   recognition =
     new SR();
@@ -2680,19 +4072,24 @@ function getRecognition(){
   recognition.onstart =
     () => {
 
-      recognizing = true;
+      recognizing =
+        true;
 
       $("btnMic")
-        .classList.add("active");
+        .classList.add(
+          "active"
+        );
 
       $("btnMic").textContent =
         "🔴 收音中";
     };
 
+
   recognition.onend =
     () => {
 
-      recognizing = false;
+      recognizing =
+        false;
 
       $("btnMic")
         .classList.remove(
@@ -2702,6 +4099,7 @@ function getRecognition(){
       $("btnMic").textContent =
         "🎙️ 語音";
     };
+
 
   recognition.onerror =
     error => {
@@ -2711,7 +4109,8 @@ function getRecognition(){
         error
       );
 
-      recognizing = false;
+      recognizing =
+        false;
 
       $("btnMic")
         .classList.remove(
@@ -2722,31 +4121,42 @@ function getRecognition(){
         "🎙️ 語音";
     };
 
+
   recognition.onresult =
     event => {
 
-      let finalText = "";
+      let finalText =
+        "";
 
-      let interim = "";
+      let interim =
+        "";
 
       for (
-        let i = event.resultIndex;
-        i < event.results.length;
+        let i =
+          event.resultIndex;
+
+        i <
+          event.results.length;
+
         i++
       ){
 
         const result =
           event.results[i];
 
-        if (result.isFinal){
+        if (
+          result.isFinal
+        ){
 
           finalText +=
-            result[0].transcript;
+            result[0]
+              .transcript;
 
         }else{
 
           interim +=
-            result[0].transcript;
+            result[0]
+              .transcript;
         }
       }
 
@@ -2759,7 +4169,9 @@ function getRecognition(){
           interim;
       }
 
-      if (finalText.trim()){
+      if (
+        finalText.trim()
+      ){
 
         input.value =
           finalText.trim();
@@ -2770,6 +4182,7 @@ function getRecognition(){
 
   return recognition;
 }
+
 
 function startListen(){
 
@@ -2807,6 +4220,7 @@ function startListen(){
   }
 }
 
+
 /* =========================================================
    防止整個頁面亂捲
 ========================================================= */
@@ -2832,7 +4246,8 @@ document.addEventListener(
           el.classList.contains(
             "modal"
           ) ||
-          el.tagName === "TEXTAREA"
+          el.tagName ===
+            "TEXTAREA"
         )
       ){
 
@@ -2846,8 +4261,11 @@ document.addEventListener(
     e.preventDefault();
 
   },
-  {passive:false}
+  {
+    passive:false
+  }
 );
+
 
 /* =========================================================
    INIT
@@ -2857,37 +4275,82 @@ function init(){
 
   bindEvents();
 
-  setAllOnline();
+  /*
+    一開始五個 Agent 都不是在線狀態。
+    必須先選擇。
+  */
+
+  AGENT_IDS.forEach(
+    id => {
+
+      state.agentOnline[id] =
+        false;
+
+      const card =
+        $("agentCard-" + id);
+
+      const online =
+        card?.querySelector(
+          ".online"
+        );
+
+      if (online){
+
+        online.classList.add(
+          "off"
+        );
+      }
+
+      if (card){
+
+        card.classList.add(
+          "not-selected"
+        );
+
+        card.classList.remove(
+          "selected"
+        );
+      }
+
+      const stateEl =
+        $("state-" + id);
+
+      if (stateEl){
+
+        stateEl.textContent =
+          "未參會";
+      }
+    }
+  );
 
   updateRoundUI();
 
   loadVoices();
 
   /*
-    不自動播放。
-    必須由 Owner 點擊／輸入後 unlockAudio，
-    避免 Safari / iOS 自動播放政策阻擋。
+    建立 Agent 選擇畫面。
   */
 
-  $("overlayStart")
-    .classList.add(
-      "visible"
-    );
+  renderAgentSelector();
 
   /*
-    先顯示真正的系統狀態。
+    初始狀態。
   */
 
   addMessage({
-    role:"SYSTEM",
+
+    role:
+      "SYSTEM",
+
     content:
-      "AIVAULT War Room 已啟動。\n\n" +
-      "5 個獨立 Agent 已在線。\n" +
-      "等待 Owner 輸入問題。"
+      "AIVAULT War Room 已準備。\n\n" +
+      "請先在進入會議室前選擇參會 AI。\n" +
+      `每場會議最多 ${MAX_MEETING_AGENTS} 個 Agent。`
   });
 }
 
 init();
+
 
 /* =========================================================
    Debug / Integration API
@@ -2900,6 +4363,10 @@ window.AIVAULT_WAR_ROOM = {
   AGENTS,
 
   startMeeting,
+
+  enterWarRoom,
+
+  toggleAgentSelection,
 
   runNextRound,
 
