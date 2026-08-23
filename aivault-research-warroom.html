@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<meta name="theme-color" content="#070b14"/>
+<title>AIVAULT — 研究論文研究室</title>
+<style>
+:root{--bg:#070b14;--card:#0f172a;--line:#1e293b;--text:#e8eef8;--muted:#8b9bb0;--blue:#3b82f6;--green:#22c55e;--red:#ef4444;--purple:#a78bfa;--yellow:#f59e0b}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;line-height:1.5}
+button,input,textarea,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.45}
+.top{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(7,11,20,.97);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#0ea5e9,#8b5cf6);display:grid;place-items:center;font-size:10px;font-weight:900}
+.brand h1{font-size:14px}.brand .sub{font-size:10px;color:var(--muted)}
+.top-actions{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.btn{border:none;border-radius:9px;padding:7px 10px;font-size:11px;font-weight:700;background:#1e293b;color:#fff}
+.btn.primary{background:linear-gradient(135deg,#0ea5e9,#6366f1)}
+.btn.success{background:var(--green);color:#04120a}
+.btn.danger{background:transparent;border:1px solid var(--red);color:#fca5a5}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--muted)}
+.btn.purple{background:#5b21b6}
+.wrap{max-width:1280px;margin:0 auto;padding:12px;padding-bottom:96px}
+.panel{display:none}.panel.active{display:block}
+.section{font-size:11px;color:var(--muted);font-weight:700;margin:4px 0 8px;letter-spacing:.3px}
+.grid{display:grid;gap:8px}
+@media(min-width:800px){.grid.two{grid-template-columns:1fr 1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+.card h3{font-size:14px;margin-bottom:4px}
+.meta{font-size:11px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px}
+.badge{display:inline-block;padding:2px 7px;border-radius:999px;font-size:10px;font-weight:700;background:#1e293b;color:#93c5fd}
+.badge.v{background:rgba(34,197,94,.15);color:#86efac}
+.badge.u{background:rgba(245,158,11,.12);color:#fcd34d}
+.badge.r{background:rgba(239,68,68,.12);color:#fca5a5}
+.badge.w{background:rgba(167,139,250,.2);color:#c4b5fd}
+.form label{display:block;font-size:11px;color:var(--muted);margin:6px 0 3px}
+.form input,.form select,.form textarea{width:100%;background:#020617;border:1px solid var(--line);border-radius:9px;padding:9px;color:var(--text)}
+.form textarea{min-height:64px;resize:vertical}
+.room{display:grid;gap:8px}
+@media(min-width:1100px){.room{grid-template-columns:220px 1fr 260px}}
+.col{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;min-height:480px;display:flex;flex-direction:column}
+.col h4{font-size:12px;margin-bottom:6px;color:#cbd5e1}
+.statusbar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.pill{background:#020617;border:1px solid var(--line);border-radius:999px;padding:3px 9px;font-size:10px;color:var(--muted)}
+.work{flex:1;overflow:auto;background:#020617;border:1px solid var(--line);border-radius:10px;padding:10px;white-space:pre-wrap;font-size:13px;line-height:1.65;max-height:42vh}
+.chat{flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px;max-height:28vh;margin-bottom:6px}
+.msg{padding:8px 10px;border-radius:10px;font-size:12px;white-space:pre-wrap}
+.msg.user{background:rgba(14,165,233,.18);align-self:flex-end;max-width:92%}
+.msg.ai{background:#020617;border:1px solid var(--line);align-self:flex-start;max-width:94%}
+.row{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+.row input,.row select{flex:1;min-width:100px;background:#020617;border:1px solid var(--line);border-radius:9px;padding:8px;color:var(--text);font-size:12px}
+.src-item,.q-item,.team-item{border:1px solid var(--line);border-radius:9px;padding:7px;margin-bottom:5px;background:#020617;font-size:11px}
+.toc button,.tabbtn{display:block;width:100%;text-align:left;background:#020617;border:1px solid var(--line);border-radius:8px;padding:6px 8px;color:#cbd5e1;font-size:11px;margin-bottom:3px}
+.toc button.active,.tabbtn.active{border-color:var(--blue);color:#93c5fd}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}
+.tabs .tabbtn{width:auto;display:inline-block}
+.bottombar{position:sticky;bottom:0;z-index:40;display:flex;flex-wrap:wrap;gap:5px;padding:8px 12px;background:rgba(7,11,20,.97);border-top:1px solid var(--line)}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(120px);background:#1e293b;border:1px solid var(--line);padding:10px 14px;border-radius:11px;z-index:120;transition:.25s;max-width:92%;text-align:center;font-size:12px}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.empty{text-align:center;color:var(--muted);padding:28px 10px;font-size:13px}
+.warn{font-size:10px;color:#fcd34d;margin-top:4px}
+.team-item .name{font-weight:700;color:#93c5fd}
+.team-item.working{border-color:#3b82f6}
+.lit-grid{display:grid;gap:6px;font-size:12px}
+.lit-grid .box{background:#020617;border:1px solid var(--line);border-radius:8px;padding:8px;white-space:pre-wrap;max-height:120px;overflow:auto}
+.modal-mask{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:90;align-items:center;justify-content:center;padding:12px}
+.modal-mask.show{display:flex}
+.modal{background:#0f172a;border:1px solid var(--line);border-radius:12px;padding:14px;width:min(520px,100%);max-height:85vh;overflow:auto}
+.light .work,.light .col{background:#f8fafc;color:#0f172a}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="logo">RS</div>
+  <div class="brand">
+    <h1>研究論文研究室</h1>
+    <div class="sub">research_id · 五 Agent · 文獻／口試 · Gateway only</div>
+  </div>
+  <div class="top-actions">
+    <button class="btn ghost" type="button" id="btnHome">Home</button>
+    <button class="btn ghost" type="button" id="btnTrash">垃圾桶</button>
+    <button class="btn primary" type="button" id="btnNew">＋ 新增研究</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="panel active" id="panel-list">
+    <div class="section">研究專案（research_id）</div>
+    <div class="grid two" id="projectGrid"></div>
+  </section>
+
+  <section class="panel" id="panel-create">
+    <div class="section">新增研究專案</div>
+    <div class="card form">
+      <label>論文題目 *</label><input id="fTitle"/>
+      <div class="grid two">
+        <div><label>研究領域</label>
+          <select id="fField">
+            <option>法律</option><option>政治</option><option>公共行政</option><option>經濟</option><option>商業</option><option>管理</option>
+            <option>教育</option><option>心理</option><option>社會學</option><option>醫學</option><option>護理</option><option>公共衛生</option>
+            <option>工程</option><option>資訊</option><option>AI</option><option>自然科學</option><option>人文</option><option>歷史</option>
+            <option>哲學</option><option>文學</option><option>跨領域</option><option>其他</option>
+          </select>
+        </div>
+        <div><label>自訂領域</label><input id="fFieldCustom"/></div>
+      </div>
+      <label>學科／子領域</label><input id="fDiscipline"/>
+      <label>研究問題 *</label><textarea id="fQuestion"></textarea>
+      <label>研究目的</label><textarea id="fPurpose"></textarea>
+      <div class="grid two">
+        <div><label>指導老師</label><input id="fAdvisor"/></div>
+        <div><label>學校／系所</label><input id="fSchool"/></div>
+      </div>
+      <div class="grid two">
+        <div><label>類型</label><select id="fType"><option>碩士論文</option><option>博士論文</option><option>期刊論文</option><option>研討會論文</option><option>研究報告</option><option>其他</option></select></div>
+        <div><label>引用格式</label><select id="fCite"><option>APA</option><option>MLA</option><option>Chicago</option><option>Bluebook</option><option>其他</option></select></div>
+      </div>
+      <p class="warn">建立時向 research-engine 取得 research_id。不使用 project_id。不 DROP 任何表。</p>
+      <div class="row"><button class="btn primary" type="button" id="btnCreate">建立</button><button class="btn ghost" type="button" id="btnCancelCreate">取消</button></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-room">
+    <div class="statusbar" id="statusBar"></div>
+    <div class="tabs" id="roomTabs">
+      <button type="button" class="tabbtn active" data-rtab="write">寫作／對話</button>
+      <button type="button" class="tabbtn" data-rtab="lit">文獻／研究方向</button>
+      <button type="button" class="tabbtn" data-rtab="team">團隊狀態</button>
+      <button type="button" class="tabbtn" data-rtab="defense">口試模擬</button>
+      <button type="button" class="tabbtn" data-rtab="versions">版本</button>
+    </div>
+
+    <div id="rtab-write" class="rtab">
+      <div class="room">
+        <div class="col">
+          <h4>專案／章節</h4>
+          <div id="projInfo" style="font-size:11px;color:var(--muted);line-height:1.55;margin-bottom:8px"></div>
+          <div class="toc" id="toc"></div>
+          <div class="row">
+            <button class="btn" type="button" id="btnArch">架構分析</button>
+            <button class="btn" type="button" id="btnPlan">章節規劃</button>
+          </div>
+        </div>
+        <div class="col">
+          <h4>工作區 · <span id="agentTag">—</span></h4>
+          <div class="chat" id="roomChat"></div>
+          <div class="work" id="workView">請先架構分析或選擇章節。</div>
+          <div class="row">
+            <select id="discussAgent">
+              <option value="ALL">全部研究團隊</option>
+              <option value="RESEARCH-ARCHITECT">RESEARCH-ARCHITECT</option>
+              <option value="LITERATURE-ANALYST">LITERATURE-ANALYST</option>
+              <option value="ACADEMIC-WRITER">ACADEMIC-WRITER</option>
+              <option value="RESEARCH-VERIFIER">RESEARCH-VERIFIER</option>
+              <option value="RESEARCH-REVIEWER">RESEARCH-REVIEWER</option>
+              <option value="AI-PROFESSOR">AI 教授</option>
+              <option value="AI-DISCUSSANT">AI 與談人</option>
+            </select>
+          </div>
+          <div class="row">
+            <input id="roomInput" placeholder="與研究團隊對話…"/>
+            <button class="btn primary" type="button" id="btnRoomSend">送出</button>
+            <button class="btn" type="button" id="btnMic">🎤</button>
+          </div>
+          <div class="row">
+            <button class="btn" type="button" id="btnWrite">撰寫本章</button>
+            <button class="btn" type="button" id="btnLit">文獻分析</button>
+            <button class="btn" type="button" id="btnVerify">來源驗證</button>
+            <button class="btn" type="button" id="btnReview">研究審查</button>
+            <button class="btn success" type="button" id="btnApprove">Owner 批准</button>
+            <button class="btn ghost" type="button" id="btnArchive">存檔</button>
+          </div>
+        </div>
+        <div class="col">
+          <h4>來源 research_sources</h4>
+          <div style="font-size:10px;color:var(--muted);margin-bottom:4px">僅 VERIFIED 可正式引用 · research_id 關聯</div>
+          <div id="sourceList" style="flex:1;overflow:auto;max-height:38vh"></div>
+          <div class="row"><button class="btn" type="button" id="btnAddSource">＋ 來源</button></div>
+          <h4 style="margin-top:8px">審查</h4>
+          <div class="work" id="reviewBox" style="max-height:14vh;font-size:11px">—</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="rtab-lit" class="rtab" style="display:none">
+      <div class="card">
+        <div class="row" style="margin-bottom:8px">
+          <button class="btn primary" type="button" id="btnBuildLitMap">AI 整理文獻／研究方向</button>
+          <button class="btn" type="button" id="btnSpeakLit">▶ 朗讀研究方向</button>
+        </div>
+        <div class="lit-grid" id="litMap">
+          <div class="empty">尚未整理。點上方按鈕由 LITERATURE-ANALYST 產生（禁止虛構文獻）。</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="rtab-team" class="rtab" style="display:none">
+      <div class="card">
+        <div class="section">研究團隊即時狀態</div>
+        <div id="teamBoard"></div>
+      </div>
+    </div>
+
+    <div id="rtab-defense" class="rtab" style="display:none">
+      <div class="card">
+        <div class="row" style="margin-bottom:8px">
+          <button class="btn purple" type="button" id="btnGenQuestions">預測教授問題</button>
+          <button class="btn primary" type="button" id="btnStartOral">開始口試</button>
+          <button class="btn" type="button" id="btnNextQ">下一題</button>
+          <select id="profStyle">
+            <option value="嚴格型">嚴格型教授</option>
+            <option value="方法論型">方法論型教授</option>
+            <option value="文獻型">文獻型教授</option>
+            <option value="反方質疑型">反方質疑型教授</option>
+            <option value="跨領域">跨領域教授</option>
+          </select>
+        </div>
+        <div id="oralStatus" class="meta" style="margin-bottom:8px">尚未開始口試</div>
+        <div class="work" id="oralQuestion" style="max-height:20vh">—</div>
+        <div class="row">
+          <textarea id="oralAnswer" placeholder="你的回答…" style="flex:1;min-height:70px;background:#020617;border:1px solid var(--line);border-radius:9px;padding:8px;color:var(--text)"></textarea>
+        </div>
+        <div class="row">
+          <button class="btn primary" type="button" id="btnSubmitOral">送出回答並評分</button>
+          <button class="btn" type="button" id="btnMicOral">🎤 語音回答</button>
+          <button class="btn" type="button" id="btnSpeakQ">▶ 朗讀題目</button>
+        </div>
+        <div class="work" id="oralFeedback" style="max-height:24vh;margin-top:8px;font-size:12px">—</div>
+        <div class="section" style="margin-top:10px">問題庫</div>
+        <div id="qList"></div>
+      </div>
+    </div>
+
+    <div id="rtab-versions" class="rtab" style="display:none">
+      <div class="card">
+        <div class="section">版本（不覆蓋歷史）</div>
+        <div id="verList"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-trash">
+    <div class="section">垃圾桶（本機軟刪除；19 張表無 trash 表故不直接 DELETE DB）</div>
+    <div class="grid two" id="trashGrid"></div>
+    <button class="btn ghost" type="button" id="btnBackList2" style="margin-top:10px">返回</button>
+  </section>
+</main>
+
+<div class="bottombar" id="bottomBar" style="display:none">
+  <button class="btn" type="button" id="btnPlay">▶ 本章</button>
+  <button class="btn" type="button" id="btnPlayAll">▶ 整篇</button>
+  <button class="btn" type="button" id="btnPause">⏸</button>
+  <button class="btn" type="button" id="btnStop">⏹</button>
+  <select id="rate" class="btn" style="padding:5px 7px">
+    <option value="0.5">0.5x</option><option value="0.75">0.75x</option>
+    <option value="1" selected>1.0x</option><option value="1.25">1.25x</option>
+    <option value="1.5">1.5x</option><option value="1.75">1.75x</option><option value="2">2.0x</option>
+  </select>
+  <button class="btn" type="button" id="btnTheme">深/淺</button>
+  <button class="btn" type="button" id="btnExportWord">Word</button>
+  <button class="btn" type="button" id="btnExportPdf">PDF</button>
+  <button class="btn" type="button" id="btnExportPpt">PPT 預覽</button>
+  <button class="btn ghost" type="button" id="btnBackList">← 列表</button>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL='https://clcddygkaaqqtsbswgdf.supabase.co';
+const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE';
+const AI_GATEWAY_URL=SUPABASE_URL+'/functions/v1/ai-gateway';
+const RESEARCH_ENGINE_URL=SUPABASE_URL+'/functions/v1/research-engine';
+const INDEX_KEY='AIVAULT_RESEARCH_INDEX_V2';
+const DEFAULT_SECTIONS=['摘要','第一章 緒論','第二章 文獻回顧','第三章 理論／概念架構','第四章 研究方法','第五章 分析與討論','第六章 結論與建議','參考文獻'];
+const TEAM_ROLES=[
+  {id:'RESEARCH-ARCHITECT',label:'研究架構'},
+  {id:'LITERATURE-ANALYST',label:'文獻分析'},
+  {id:'ACADEMIC-WRITER',label:'論文寫作'},
+  {id:'RESEARCH-VERIFIER',label:'來源驗證'},
+  {id:'RESEARCH-REVIEWER',label:'學術審查'}
+];
+const ANTI=`硬性規則：禁止虛構作者/書籍/期刊/DOI/判決/法規/教授觀點。無法確認→PENDING 或 UNVERIFIED。不得自動 VERIFIED。區分【有資料支持】【尚未找到可靠來源】【研究假設】【需使用者確認】。`;
+const state={index:[],current:null,sectionIndex:0,light:false,oralIdx:0,recog:null,teamStatus:{}};
+
+function uid(p){return p+'-'+Date.now().toString(36)+Math.random().toString(36).slice(2,5)}
+function now(){return new Date().toISOString()}
+function nowL(){return new Date().toLocaleString('zh-TW')}
+function esc(v){return String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')}
+function toast(t){const el=document.getElementById('toast');el.textContent=t;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2800)}
+function show(n){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.getElementById('panel-'+n)?.classList.add('active');document.getElementById('bottomBar').style.display=n==='room'?'flex':'none'}
+function loadIndex(){try{const r=localStorage.getItem(INDEX_KEY);state.index=r?JSON.parse(r):[];state.index=(state.index||[]).filter(x=>x&&x.research_id)}catch(e){state.index=[]}}
+function saveIndex(){try{localStorage.setItem(INDEX_KEY,JSON.stringify(state.index))}catch(e){}}
+function wsKey(id){return 'AIVAULT_RESEARCH_WS_'+id}
+function loadWS(id){try{const r=localStorage.getItem(wsKey(id));return r?JSON.parse(r):null}catch(e){return null}}
+function saveWS(ws){
+  if(!ws?.research_id)return;
+  try{localStorage.setItem(wsKey(ws.research_id),JSON.stringify(ws))}catch(e){}
+  const i=state.index.findIndex(x=>x.research_id===ws.research_id);
+  const meta={research_id:ws.research_id,title:ws.title,field:ws.field,status:ws.status,current_version:ws.current_version,progress:ws.progress,updated_at_local:ws.updated_at_local,deleted_at:ws.deleted_at||null,deleted_at_local:ws.deleted_at_local||null};
+  if(i>=0)state.index[i]={...state.index[i],...meta};else state.index.unshift(meta);saveIndex();
+}
+function cur(){return state.current}
+function assertMsg(m){const t=String(m??'').trim();if(!t)throw new Error('MESSAGE_REQUIRED');return t}
+function setTeam(id,text){state.teamStatus[id]=text;renderTeam()}
+function clearTeam(){TEAM_ROLES.forEach(r=>state.teamStatus[r.id]='待命');renderTeam()}
+
+async function callAIGateway({message,system,agent}){
+  const userMsg=assertMsg(message);
+  const sys=String(system||'').trim()||'AIVAULT research assistant.';
+  const res=await fetch(AI_GATEWAY_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_ANON_KEY},body:JSON.stringify({provider:'gemini3',model:'gemini-2.5-flash',agent:agent||'Research',message:userMsg,systemPrompt:sys,messages:[{role:'system',content:sys},{role:'user',content:userMsg}]})});
+  let data;try{data=await res.json()}catch{throw new Error('AI Gateway 非 JSON')}
+  if(!res.ok){const err=data?.error||data?.message||('HTTP '+res.status);throw new Error(err)}
+  const c=data?.content||data?.response||data?.text||data?.message||data?.choices?.[0]?.message?.content;
+  if(!c)throw new Error('AI Gateway 無內容');return String(c);
+}
+async function createViaEngine(q){
+  const message=assertMsg(q);
+  const res=await fetch(RESEARCH_ENGINE_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_ANON_KEY},body:JSON.stringify({message})});
+  let data;try{data=await res.json()}catch{throw new Error('research-engine 非 JSON')}
+  if(!data?.research_id)throw new Error(data?.error||'未回傳 research_id');return data;
+}
+async function tryFetchSources(research_id){
+  const res=await fetch(SUPABASE_URL+'/rest/v1/research_sources?research_id=eq.'+encodeURIComponent(research_id)+'&select=*',{headers:{'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+SUPABASE_ANON_KEY}});
+  if(res.status===401||res.status===403)return{ok:false,reason:'PERMISSION_DENIED'};
+  if(!res.ok)return{ok:false,reason:'HTTP_'+res.status,detail:await res.text()};
+  return{ok:true,rows:await res.json()};
+}
+
+function renderList(){
+  const g=document.getElementById('projectGrid');
+  const list=state.index.filter(p=>!p.deleted_at);
+  if(!list.length){g.innerHTML='<div class="empty">尚無研究。識別：research_id</div>';return}
+  g.innerHTML=list.map(p=>`<div class="card"><h3>${esc(p.title)}</h3><div class="meta"><span class="badge">${esc(p.status||'')}</span><span>${esc(p.field||'')}</span><span>${esc(p.current_version||'')}</span></div><div style="font-size:10px;color:var(--muted);margin-top:4px;word-break:break-all">${esc(p.research_id)}</div><div class="row" style="margin-top:8px"><button class="btn primary" data-open="${esc(p.research_id)}">進入</button><button class="btn danger" data-del="${esc(p.research_id)}">垃圾桶</button></div></div>`).join('');
+}
+function renderTrash(){
+  const g=document.getElementById('trashGrid');
+  const list=state.index.filter(p=>p.deleted_at);
+  if(!list.length){g.innerHTML='<div class="empty">空</div>';return}
+  g.innerHTML=list.map(p=>`<div class="card"><h3>${esc(p.title)}</h3><div class="meta"><span class="badge r">已刪</span></div><div class="row" style="margin-top:8px"><button class="btn success" data-restore="${esc(p.research_id)}">還原</button><button class="btn danger" data-purge="${esc(p.research_id)}">永久刪除</button></div></div>`).join('');
+}
+function renderTeam(){
+  const el=document.getElementById('teamBoard');
+  el.innerHTML=TEAM_ROLES.map(r=>{
+    const st=state.teamStatus[r.id]||'待命';
+    const working=st!=='待命';
+    return `<div class="team-item ${working?'working':''}"><div class="name">${r.id}</div><div>${esc(r.label)} · ${esc(st)}</div></div>`;
+  }).join('');
+}
+function renderLit(p){
+  const m=p.lit_map||{};
+  const keys=[['研究主題','theme'],['核心研究問題','core_q'],['次研究問題','sub_q'],['研究目的','purpose'],['研究方法','method'],['研究範圍','scope'],['關鍵概念','concepts'],['理論基礎','theory'],['文獻回顧方向','lit_dir'],['國內研究','domestic'],['國外研究','foreign'],['不同學派','schools'],['正反觀點','pros_cons'],['研究爭議','debates'],['研究缺口','gaps'],['可能創新','innovation'],['需要補充的資料','needs']];
+  if(!Object.keys(m).length){document.getElementById('litMap').innerHTML='<div class="empty">尚未整理</div>';return}
+  document.getElementById('litMap').innerHTML=keys.map(([lab,k])=>`<div><b>${lab}</b><div class="box">${esc(m[k]||'—')}</div></div>`).join('');
+}
+function renderVersions(p){
+  const el=document.getElementById('verList');
+  const vs=p.versions||[];
+  if(!vs.length){el.innerHTML='<div class="empty">無版本</div>';return}
+  el.innerHTML=vs.slice().reverse().map((v,i)=>`<div class="src-item"><b>${esc(v.version_label)}</b> · ${esc(v.at)} · ${esc(v.reason||'')}<div class="row"><button class="btn" data-loadver="${vs.length-1-i}">載入此版章節快照</button></div></div>`).join('');
+}
+function renderQs(p){
+  const el=document.getElementById('qList');
+  const qs=p.oral_questions||[];
+  if(!qs.length){el.innerHTML='<div class="empty">尚未產生問題</div>';return}
+  el.innerHTML=qs.map((q,i)=>`<div class="q-item"><span class="badge ${q.level==='高壓'||q.level==='困難'?'r':(q.level==='進階'?'u':'')}">${esc(q.level||'基礎')}</span> Q${i+1}. ${esc(q.q)}</div>`).join('');
+}
+
+function renderRoom(){
+  const p=cur();if(!p)return;
+  document.getElementById('statusBar').innerHTML=`<span class="pill">${esc(p.status)}</span><span class="pill">${esc(p.current_version)}</span><span class="pill">${esc(p.field)}</span><span class="pill">sources ${(p.sources||[]).length}</span><span class="pill" style="word-break:break-all">${esc(p.research_id)}</span>`;
+  document.getElementById('projInfo').innerHTML=`<b>${esc(p.title)}</b><br>問題：${esc(p.research_question)}`;
+  document.getElementById('toc').innerHTML=p.sections.map((s,i)=>`<button type="button" data-si="${i}" class="${i===state.sectionIndex?'active':''}">${esc(s.title)}</button>`).join('');
+  const sec=p.sections[state.sectionIndex];
+  document.getElementById('workView').textContent=sec?.content||'（空）';
+  document.getElementById('roomChat').innerHTML=(p.messages||[]).slice(-40).map(m=>`<div class="msg ${m.role}">${esc(m.text)}</div>`).join('');
+  renderSources(p);renderLit(p);renderTeam();renderVersions(p);renderQs(p);
+  document.getElementById('reviewBox').textContent=(p.reviews||[]).slice(-1)[0]?.report||'—';
+}
+function renderSources(p){
+  const el=document.getElementById('sourceList');const list=p.sources||[];
+  if(!list.length){el.innerHTML='<div class="empty" style="padding:8px">無來源</div>';return}
+  el.innerHTML=list.map(s=>{const st=s.verification_status||'PENDING';const cls=st==='VERIFIED'?'v':st==='REJECTED'?'r':'u';return `<div class="src-item"><span class="badge ${cls}">${esc(st)}</span> ${esc(s.title||'')}<div style="color:var(--muted)">${esc(s.author||'')} ${esc(s.publication_date||'')}</div>${s.url?`<div style="word-break:break-all">${esc(s.url)}</div>`:''}</div>`}).join('');
+}
+function addMsg(role,text){const p=cur();if(!p)return;p.messages=p.messages||[];p.messages.push({role,text,at:nowL()});p.updated_at=now();p.updated_at_local=nowL();saveWS(p);renderRoom()}
+function snapshot(p,reason){p.versions=p.versions||[];const label='Draft v'+(p.versions.length+1);p.versions.push({version_label:label,at:nowL(),reason,sections:JSON.parse(JSON.stringify(p.sections))});p.current_version=label;saveWS(p)}
+
+async function createProject(){
+  const title=document.getElementById('fTitle').value.trim();
+  const question=document.getElementById('fQuestion').value.trim();
+  if(!title||!question){toast('題目與研究問題必填');return}
+  const field=document.getElementById('fFieldCustom').value.trim()||document.getElementById('fField').value;
+  toast('取得 research_id…');
+  let eng;try{eng=await createViaEngine(question)}catch(e){toast(e.message);return}
+  const research_id=eng.research_id;
+  const ws={research_id,title,field,discipline:document.getElementById('fDiscipline').value.trim(),research_question:question,purpose:document.getElementById('fPurpose').value.trim(),advisor:document.getElementById('fAdvisor').value.trim(),school:document.getElementById('fSchool').value.trim(),thesis_type:document.getElementById('fType').value,citation_style:document.getElementById('fCite').value,status:eng.research_status||'INITIALIZED',current_version:'Draft v1',progress:5,sections:DEFAULT_SECTIONS.map((t,i)=>({id:uid('sec'),ord:i,title:t,content:''})),sources:[],claims:[],reviews:[],versions:[{version_label:'Draft v1',at:nowL(),reason:'建立'}],messages:[],architecture:'',lit_map:{},oral_questions:[],oral_log:[],engine_snapshot:eng,created_at:now(),updated_at_local:nowL(),deleted_at:null};
+  saveWS(ws);openRoom(research_id);toast('research_id: '+research_id);
+}
+function openRoom(research_id){
+  const ws=loadWS(research_id);if(!ws){toast('找不到');return}
+  state.current=ws;state.sectionIndex=0;clearTeam();show('room');renderRoom();
+  tryFetchSources(research_id).then(r=>{
+    if(r.ok&&r.rows?.length){const map=new Map((ws.sources||[]).map(s=>[s.id,s]));r.rows.forEach(row=>map.set(row.id,{id:row.id,research_id:row.research_id,source_type:row.source_type,title:row.title,author:row.author,publisher:row.publisher,publication_date:row.publication_date,url:row.url,content:row.content,citation:row.citation,verification_status:row.verification_status||'PENDING'}));ws.sources=[...map.values()];saveWS(ws);renderSources(ws)}
+  }).catch(()=>{});
+}
+
+async function runArchitect(){
+  const p=cur();if(!p)return;setTeam('RESEARCH-ARCHITECT','正在分析研究架構');document.getElementById('agentTag').textContent='RESEARCH-ARCHITECT';
+  try{const text=await callAIGateway({agent:'RESEARCH-ARCHITECT',system:`RESEARCH-ARCHITECT。學科不限。${ANTI}`,message:`research_id=${p.research_id}\n題目：${p.title}\n領域：${p.field}\n問題：${p.research_question}\n目的：${p.purpose}\n請做研究架構分析。`});p.architecture=text;p.status='RESEARCH_PLANNING';p.progress=Math.max(p.progress||0,15);if(p.sections[0])p.sections[0].content=(p.sections[0].content?p.sections[0].content+'\n\n':'')+'【架構分析】\n'+text;snapshot(p,'架構分析');addMsg('ai',text);setTeam('RESEARCH-ARCHITECT','架構分析完成');toast('完成')}catch(e){setTeam('RESEARCH-ARCHITECT','失敗');toast(e.message);addMsg('ai',e.message)}
+}
+async function planSections(){
+  const p=cur();if(!p)return;setTeam('RESEARCH-ARCHITECT','規劃章節');
+  try{const text=await callAIGateway({agent:'RESEARCH-ARCHITECT',system:`輸出6-12章節標題，每行一個。${ANTI}`,message:`research_id=${p.research_id}\n題目：${p.title}\n問題：${p.research_question}\n架構：\n${(p.architecture||'').slice(0,2500)}`});const lines=text.split(/\n+/).map(s=>s.replace(/^\s*[-*\d.、)）]+\s*/,'').trim()).filter(s=>s.length>2&&s.length<80).slice(0,12);if(lines.length>=4){p.sections=lines.map((t,i)=>({id:uid('sec'),ord:i,title:t,content:p.sections[i]?.content||''}));snapshot(p,'章節規劃');saveWS(p);renderRoom()}addMsg('ai',text);setTeam('RESEARCH-ARCHITECT','待命')}catch(e){toast(e.message)}
+}
+async function writeSection(){
+  const p=cur();if(!p)return;const sec=p.sections[state.sectionIndex];if(!sec)return;setTeam('ACADEMIC-WRITER','正在撰寫：'+sec.title);document.getElementById('agentTag').textContent='ACADEMIC-WRITER';
+  const verified=(p.sources||[]).filter(s=>s.verification_status==='VERIFIED');
+  const src=verified.length?verified.map(s=>`[VERIFIED] ${s.title} | ${s.author||''}`).join('\n'):'（無 VERIFIED 來源）';
+  try{const text=await callAIGateway({agent:'ACADEMIC-WRITER',system:`ACADEMIC-WRITER。只能引用 VERIFIED。${ANTI}`,message:`research_id=${p.research_id}\n章節：${sec.title}\n題目：${p.title}\n問題：${p.research_question}\n\nVERIFIED：\n${src}\n\n撰寫本章。`});sec.content=text;p.status='WRITING';p.progress=Math.max(p.progress||0,40);snapshot(p,'撰寫 '+sec.title);addMsg('ai','已寫：'+sec.title);setTeam('ACADEMIC-WRITER','本章完成');toast('已寫入')}catch(e){setTeam('ACADEMIC-WRITER','失敗');toast(e.message)}
+}
+async function literature(){
+  const p=cur();if(!p)return;setTeam('LITERATURE-ANALYST','整理文獻方向');
+  try{const text=await callAIGateway({agent:'LITERATURE-ANALYST',system:`LITERATURE-ANALYST。只提搜尋方向，不虛構書目。候選標 UNVERIFIED。${ANTI}`,message:`research_id=${p.research_id}\n題目：${p.title}\n領域：${p.field}\n問題：${p.research_question}`});p.sources=p.sources||[];p.sources.push({id:uid('src'),research_id:p.research_id,source_type:'search_plan',title:'文獻搜尋方向',author:'',verification_status:'UNVERIFIED',verify_note:'非正式引用',content:text.slice(0,1500),retrieved_at:now()});p.status='LITERATURE';saveWS(p);addMsg('ai',text);setTeam('LITERATURE-ANALYST','待命');renderRoom();toast('UNVERIFIED 方向已記')}catch(e){toast(e.message)}
+}
+async function buildLitMap(){
+  const p=cur();if(!p)return;setTeam('LITERATURE-ANALYST','產生研究方向地圖');
+  try{const text=await callAIGateway({agent:'LITERATURE-ANALYST',system:`用繁中輸出固定標籤區塊，每塊以【標籤】開頭：研究主題、核心研究問題、次研究問題、研究目的、研究方法、研究範圍、關鍵概念、理論基礎、文獻回顧方向、國內研究、國外研究、不同學派、正反觀點、研究爭議、研究缺口、可能創新、需要補充的資料。禁止虛構具體文獻書目。${ANTI}`,message:`research_id=${p.research_id}\n題目：${p.title}\n領域：${p.field}\n問題：${p.research_question}\n架構：\n${(p.architecture||'').slice(0,2000)}`});
+    const map={};const labels={theme:'研究主題',core_q:'核心研究問題',sub_q:'次研究問題',purpose:'研究目的',method:'研究方法',scope:'研究範圍',concepts:'關鍵概念',theory:'理論基礎',lit_dir:'文獻回顧方向',domestic:'國內研究',foreign:'國外研究',schools:'不同學派',pros_cons:'正反觀點',debates:'研究爭議',gaps:'研究缺口',innovation:'可能創新',needs:'需要補充的資料'};
+    Object.entries(labels).forEach(([k,lab])=>{const re=new RegExp('【'+lab+'】([\\s\\S]*?)(?=【|$)');const m=text.match(re);map[k]=m?m[1].trim():''});
+    if(!Object.values(map).some(Boolean))map.theme=text.slice(0,800);
+    p.lit_map=map;saveWS(p);renderLit(p);setTeam('LITERATURE-ANALYST','研究方向完成');toast('文獻／研究方向已整理')}catch(e){toast(e.message)}
+}
+async function verifySources(){
+  const p=cur();if(!p)return;setTeam('RESEARCH-VERIFIER','驗證來源中');
+  const pending=(p.sources||[]).filter(s=>['PENDING','UNVERIFIED','PARTIALLY_VERIFIED'].includes(s.verification_status||'PENDING'));
+  if(!pending.length){toast('無待驗證');setTeam('RESEARCH-VERIFIER','待命');return}
+  try{const text=await callAIGateway({agent:'RESEARCH-VERIFIER',system:`RESEARCH-VERIFIER。無外網不得 VERIFIED。只能 UNVERIFIED/REJECTED/PARTIALLY_VERIFIED。${ANTI}`,message:`research_id=${p.research_id}\n${JSON.stringify(pending.slice(0,8).map(s=>({id:s.id,title:s.title,url:s.url})),null,2)}`});pending.forEach(s=>{s.verification_status='UNVERIFIED';s.verify_note=(s.verify_note||'')+'｜未達 VERIFIED 門檻'});saveWS(p);renderRoom();addMsg('ai',text.slice(0,1200));setTeam('RESEARCH-VERIFIER','完成（未自動 VERIFIED）');toast('保持未查證策略')}catch(e){toast(e.message)}
+}
+function addSourceManual(){
+  const p=cur();if(!p)return;const title=prompt('標題');if(!title)return;const url=prompt('URL')||'';const human=confirm('已親自查證存在？確定=VERIFIED');
+  p.sources=p.sources||[];p.sources.push({id:uid('src'),research_id:p.research_id,source_type:'manual',title,author:prompt('作者')||'',url:url.startsWith('http')?url:'',verification_status:human?'VERIFIED':'UNVERIFIED',verify_note:human?'Owner 確認':'未確認',retrieved_at:now()});saveWS(p);renderRoom();
+}
+async function reviewPaper(){
+  const p=cur();if(!p)return;setTeam('RESEARCH-REVIEWER','學術審查中');
+  const body=p.sections.map(s=>`## ${s.title}\n${s.content||''}`).join('\n').slice(0,10000);
+  const src=(p.sources||[]).map(s=>`${s.verification_status} | ${s.title}`).join('\n');
+  try{const text=await callAIGateway({agent:'RESEARCH-REVIEWER',system:`RESEARCH-REVIEWER。查漏洞、引用、方法、缺口。${ANTI}`,message:`research_id=${p.research_id}\n來源：\n${src}\n\n正文：\n${body}`});p.reviews=p.reviews||[];p.reviews.push({id:uid('rev'),version_label:p.current_version,agent:'RESEARCH-REVIEWER',report:text,created_at:nowL()});p.status='REVIEW';p.progress=Math.max(p.progress||0,70);saveWS(p);addMsg('ai',text);setTeam('RESEARCH-REVIEWER','審查完成');toast('審查完成')}catch(e){toast(e.message)}
+}
+function approveOfficial(){
+  const p=cur();if(!p)return;if(!confirm('Owner 批准正式版？'))return;
+  p.status='OWNER_APPROVED';p.current_version='Final';p.progress=100;p.versions=p.versions||[];p.versions.push({version_label:'Final',at:nowL(),reason:'Owner Approval',sections:JSON.parse(JSON.stringify(p.sections))});saveWS(p);renderRoom();toast('Final（Owner）');
+}
+function archiveProject(){const p=cur();if(!p)return;p.status='ARCHIVED';saveWS(p);renderRoom();toast('已存檔（非刪除）')}
+async function roomChatSend(){
+  const p=cur();if(!p)return;const q=document.getElementById('roomInput').value.trim();if(!q){toast('message 不可空');return}
+  document.getElementById('roomInput').value='';const agent=document.getElementById('discussAgent').value;addMsg('user','['+agent+'] '+q);
+  const agentName=agent==='ALL'?'RESEARCH-ARCHITECT':agent;
+  setTeam(agentName.includes('PROFESSOR')||agentName.includes('DISCUSSANT')?'RESEARCH-REVIEWER':(TEAM_ROLES.find(t=>t.id===agentName)?agentName:'RESEARCH-ARCHITECT'),'對話中');
+  const sec=p.sections[state.sectionIndex];
+  try{const ans=await callAIGateway({agent:agentName,system:`你是 ${agentName}。研究領域：${p.field}。掌握題目與目前章節。${ANTI}`,message:`research_id=${p.research_id}\n版本：${p.current_version}\n題目：${p.title}\n問題：${p.research_question}\n章節：${sec?.title}\n內容摘錄：\n${(sec?.content||'').slice(0,3000)}\n\nOwner：${q}`});addMsg('ai',ans);clearTeam()}catch(e){addMsg('ai',e.message)}
+}
+
+async function genQuestions(){
+  const p=cur();if(!p)return;const style=document.getElementById('profStyle').value;
+  toast('預測教授問題…');
+  try{const text=await callAIGateway({agent:'AI-PROFESSOR',system:`依論文內容預測 8-12 個口試問題。每行格式：【難度】問題。難度=基礎|進階|困難|高壓|教授追問。依領域「${p.field}」調整，不限法律。禁止虛構文獻。${ANTI}`,message:`research_id=${p.research_id}\n題目：${p.title}\n問題：${p.research_question}\n架構：\n${(p.architecture||'').slice(0,1500)}\n正文摘錄：\n${p.sections.map(s=>s.title+'\n'+(s.content||'').slice(0,200)).join('\n').slice(0,4000)}\n教授風格：${style}`});
+    const qs=[];text.split(/\n+/).forEach(line=>{const m=line.match(/【(基礎|進階|困難|高壓|教授追問)】\s*(.+)/);if(m)qs.push({level:m[1],q:m[2].trim(),style})});
+    if(!qs.length)qs.push({level:'基礎',q:text.slice(0,200),style});
+    p.oral_questions=qs;saveWS(p);renderQs(p);toast('已產生 '+qs.length+' 題')}catch(e){toast(e.message)}
+}
+function startOral(){
+  const p=cur();if(!p)return;if(!(p.oral_questions||[]).length){toast('請先預測問題');return}
+  state.oralIdx=0;showOralQ();document.getElementById('oralStatus').textContent='口試進行中 · 第 1 / '+p.oral_questions.length+' 題';
+}
+function showOralQ(){
+  const p=cur();if(!p)return;const q=p.oral_questions[state.oralIdx];if(!q){document.getElementById('oralQuestion').textContent='口試結束';return}
+  document.getElementById('oralQuestion').textContent=`【${q.level}】\n${q.q}`;
+  document.getElementById('oralStatus').textContent=`口試進行中 · 第 ${state.oralIdx+1} / ${p.oral_questions.length} 題 · ${q.style||''}`;
+  document.getElementById('oralAnswer').value='';
+}
+function nextOralQ(){const p=cur();if(!p)return;state.oralIdx=Math.min(state.oralIdx+1,(p.oral_questions||[]).length);showOralQ()}
+async function submitOral(){
+  const p=cur();if(!p)return;const q=p.oral_questions?.[state.oralIdx];const ans=document.getElementById('oralAnswer').value.trim();
+  if(!q||!ans){toast('請回答');return}
+  toast('評分中…');
+  try{const text=await callAIGateway({agent:'AI-PROFESSOR',system:`評估口試回答：是否切題、邏輯、證據、與論文一致、反方觀點、學術表達。給總分0-100、優點、問題、追問、建議改哪一章。若證據不足必須明說。${ANTI}`,message:`research_id=${p.research_id}\n題目：${p.title}\n問題：${q.q}\n難度：${q.level}\nOwner 回答：${ans}\n章節摘錄：\n${p.sections.map(s=>s.title).join('、')}`});
+    p.oral_log=p.oral_log||[];p.oral_log.push({q:q.q,level:q.level,answer:ans,feedback:text,at:nowL(),version:p.current_version});saveWS(p);
+    document.getElementById('oralFeedback').textContent=text;toast('已評分')}catch(e){toast(e.message)}
+}
+
+function speak(text){if(!('speechSynthesis' in window)){toast('不支援語音');return}speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(String(text).slice(0,8000));u.rate=parseFloat(document.getElementById('rate').value||'1');u.lang='zh-TW';speechSynthesis.speak(u)}
+function startMic(targetInput){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){toast('不支援語音輸入');return}
+  try{state.recog?.stop()}catch(e){}
+  const r=new SR();r.lang='zh-TW';r.interimResults=false;r.onresult=ev=>{targetInput.value=(targetInput.value?targetInput.value+' ':'')+ev.results[0][0].transcript;toast('語音已轉文字')};r.onerror=()=>toast('語音辨識失敗');state.recog=r;r.start();toast('請說話…');
+}
+function fullText(p){return p.sections.map(s=>`${s.title}\n\n${s.content||''}`).join('\n\n──\n\n')}
+function exportWord(){const p=cur();if(!p)return;const html=`<html><head><meta charset="utf-8"><title>${esc(p.title)}</title></head><body><h1>${esc(p.title)}</h1><p>research_id: ${esc(p.research_id)} · ${esc(p.current_version)}</p><pre style="white-space:pre-wrap">${esc(fullText(p))}</pre></body></html>`;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+html],{type:'application/msword'}));a.download=`AIVAULT_${(p.title||'paper').slice(0,24)}.doc`;a.click();toast('已下載 Word 相容 .doc（非正式伺服器 docx）')}
+function exportPdf(){const p=cur();if(!p)return;const w=window.open('','_blank');if(!w)return;w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(p.title)}</title></head><body style="font-family:serif;white-space:pre-wrap;padding:24px"><h1>${esc(p.title)}</h1><p>${esc(p.research_id)}</p>${esc(fullText(p))}<script>setTimeout(()=>print(),300)<\/script></body></html>`);w.document.close()}
+function exportPpt(){const p=cur();if(!p)return;toast('HTML 簡報預覽，非正式 .pptx');const slides=[p.title,p.research_question,...p.sections.slice(0,6).map(s=>s.title+'\n'+(s.content||'').slice(0,300))];const w=window.open('','_blank');if(!w)return;w.document.write(`<!DOCTYPE html><html><body style="font-family:sans-serif;background:#0f172a;color:#e2e8f0">${slides.map(t=>`<div style="min-height:90vh;padding:40px;page-break-after:always"><h2 style="white-space:pre-wrap">${esc(t)}</h2></div>`).join('')}<script>setTimeout(()=>print(),400)<\/script></body></html>`);w.document.close()}
+
+function softDelete(id){const ws=loadWS(id);if(ws){ws.deleted_at=now();ws.deleted_at_local=nowL();saveWS(ws)}const i=state.index.find(x=>x.research_id===id);if(i){i.deleted_at=now();i.deleted_at_local=nowL();saveIndex()}renderList();toast('已進垃圾桶')}
+function restore(id){const ws=loadWS(id);if(ws){ws.deleted_at=null;saveWS(ws)}const i=state.index.find(x=>x.research_id===id);if(i){i.deleted_at=null;saveIndex()}renderTrash();toast('已還原')}
+function purge(id){if(!confirm('永久刪除本機工作區？'))return;try{localStorage.removeItem(wsKey(id))}catch(e){}state.index=state.index.filter(x=>x.research_id!==id);saveIndex();renderTrash()}
+
+document.getElementById('btnHome').onclick=()=>location.href='aivault-home.html';
+document.getElementById('btnNew').onclick=()=>show('create');
+document.getElementById('btnCancelCreate').onclick=()=>show('list');
+document.getElementById('btnCreate').onclick=createProject;
+document.getElementById('btnTrash').onclick=()=>{show('trash');renderTrash()};
+document.getElementById('btnBackList').onclick=document.getElementById('btnBackList2').onclick=()=>{show('list');renderList()};
+document.getElementById('projectGrid').onclick=e=>{const o=e.target.getAttribute('data-open');if(o)openRoom(o);const d=e.target.getAttribute('data-del');if(d)softDelete(d)};
+document.getElementById('trashGrid').onclick=e=>{const r=e.target.getAttribute('data-restore');if(r)restore(r);const g=e.target.getAttribute('data-purge');if(g)purge(g)};
+document.getElementById('toc').onclick=e=>{const b=e.target.closest('[data-si]');if(!b)return;state.sectionIndex=+b.getAttribute('data-si');renderRoom()};
+document.getElementById('roomTabs').onclick=e=>{const b=e.target.closest('[data-rtab]');if(!b)return;document.querySelectorAll('#roomTabs .tabbtn').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.rtab').forEach(x=>x.style.display='none');document.getElementById('rtab-'+b.dataset.rtab).style.display='block'};
+document.getElementById('btnArch').onclick=runArchitect;
+document.getElementById('btnPlan').onclick=planSections;
+document.getElementById('btnWrite').onclick=writeSection;
+document.getElementById('btnLit').onclick=literature;
+document.getElementById('btnVerify').onclick=verifySources;
+document.getElementById('btnReview').onclick=reviewPaper;
+document.getElementById('btnApprove').onclick=approveOfficial;
+document.getElementById('btnArchive').onclick=archiveProject;
+document.getElementById('btnAddSource').onclick=addSourceManual;
+document.getElementById('btnRoomSend').onclick=roomChatSend;
+document.getElementById('roomInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();roomChatSend()}});
+document.getElementById('btnMic').onclick=()=>startMic(document.getElementById('roomInput'));
+document.getElementById('btnBuildLitMap').onclick=buildLitMap;
+document.getElementById('btnSpeakLit').onclick=()=>{const p=cur();if(!p?.lit_map)return;speak(Object.values(p.lit_map).join('\n'))};
+document.getElementById('btnGenQuestions').onclick=genQuestions;
+document.getElementById('btnStartOral').onclick=startOral;
+document.getElementById('btnNextQ').onclick=nextOralQ;
+document.getElementById('btnSubmitOral').onclick=submitOral;
+document.getElementById('btnMicOral').onclick=()=>startMic(document.getElementById('oralAnswer'));
+document.getElementById('btnSpeakQ').onclick=()=>speak(document.getElementById('oralQuestion').textContent);
+document.getElementById('verList').onclick=e=>{const i=e.target.getAttribute('data-loadver');if(i==null)return;const p=cur();const v=p.versions[+i];if(v?.sections){p.sections=JSON.parse(JSON.stringify(v.sections));renderRoom();toast('已載入 '+v.version_label)}};
+document.getElementById('btnPlay').onclick=()=>{const p=cur();const s=p?.sections[state.sectionIndex];if(s)speak(s.title+'\n'+s.content)};
+document.getElementById('btnPlayAll').onclick=()=>{const p=cur();if(p)speak(fullText(p))};
+document.getElementById('btnPause').onclick=()=>{try{speechSynthesis.pause()}catch(e){}};
+document.getElementById('btnStop').onclick=()=>{try{speechSynthesis.cancel()}catch(e){}};
+document.getElementById('btnTheme').onclick=()=>{state.light=!state.light;document.body.classList.toggle('light',state.light)};
+document.getElementById('btnExportWord').onclick=exportWord;
+document.getElementById('btnExportPdf').onclick=exportPdf;
+document.getElementById('btnExportPpt').onclick=exportPpt;
+loadIndex();renderList();clearTeam();
+console.log('Research War Room expanded — research_id only, no DROP, Gateway only');
+</script>
+</body>
+</html>
