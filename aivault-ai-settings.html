@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<meta name="theme-color" content="#070b14"/>
+<title>AIVAULT — 我的 AI 設定（BYOK）</title>
+<style>
+:root{--bg:#070b14;--card:#0f172a;--line:#1e293b;--text:#e8eef8;--muted:#8b9bb0;--blue:#3b82f6;--green:#22c55e;--red:#ef4444}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;line-height:1.5}
+button,input,select{font:inherit}button{cursor:pointer}
+.top{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);background:rgba(7,11,20,.96);flex-wrap:wrap}
+.logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#0ea5e9,#8b5cf6);display:grid;place-items:center;font-size:10px;font-weight:900}
+.brand h1{font-size:15px}.brand .sub{font-size:11px;color:var(--muted)}
+.btn{border:none;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;background:#1e293b;color:#fff}
+.btn.primary{background:linear-gradient(135deg,#0ea5e9,#6366f1)}
+.btn.danger{background:transparent;border:1px solid var(--red);color:#fca5a5}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--muted)}
+.wrap{max-width:720px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
+input,select{width:100%;background:#020617;border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--text)}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.item{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;background:#020617;font-size:13px}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:#1e293b;color:#93c5fd}
+.badge.on{background:rgba(34,197,94,.15);color:#86efac}
+.badge.off{background:rgba(239,68,68,.12);color:#fca5a5}
+.warn{font-size:12px;color:#fcd34d;margin-top:8px;line-height:1.5}
+.meta{font-size:12px;color:var(--muted)}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);background:#1e293b;border:1px solid var(--line);padding:10px 14px;border-radius:12px;z-index:50;transition:.25s;font-size:13px}
+.toast.show{transform:translateX(-50%) translateY(0)}
+a{color:#93c5fd}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="logo">AI</div>
+  <div class="brand">
+    <h1>我的 AI 設定</h1>
+    <div class="sub">BYOK · Key 僅後端加密保存 · 不經 localStorage</div>
+  </div>
+  <div style="margin-left:auto;display:flex;gap:8px">
+    <button class="btn ghost" type="button" id="btnHome">Home</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="card">
+    <p class="meta">登入後可新增自己的 Provider API Key。AIVAULT <b>不會</b>在瀏覽器永久保存完整 Key。</p>
+    <p class="warn">安全：Key 只在送出當下透過 HTTPS 傳給 <code>user-credentials</code> Edge Function；回應只含遮罩（••••7X92）。Research／War Room 仍只走既有 AI Gateway，不直連 Provider。</p>
+    <label>Supabase Access Token（登入後的 JWT，僅存記憶體）</label>
+    <input id="jwtInput" type="password" autocomplete="off" placeholder="貼上目前 session access_token"/>
+    <p class="meta" style="margin-top:6px">正式版應由 Supabase Auth session 自動帶入，不需手動貼。此頁為 BYOK 安全設定 PoC。</p>
+  </div>
+
+  <div class="card">
+    <h3 style="font-size:14px;margin-bottom:8px">新增 Provider Key</h3>
+    <label>Provider</label>
+    <select id="provider">
+      <option value="groq">Groq</option>
+      <option value="gemini">Gemini</option>
+      <option value="openai">OpenAI</option>
+      <option value="anthropic">Anthropic</option>
+      <option value="other">其他</option>
+    </select>
+    <label>Key 名稱</label>
+    <input id="keyName" value="default" placeholder="default"/>
+    <label>API Key（僅送後端，不寫 localStorage）</label>
+    <input id="apiKey" type="password" autocomplete="off" placeholder="貼上後測試／儲存"/>
+    <div class="row">
+      <button class="btn" type="button" id="btnTest">測試 Key</button>
+      <button class="btn primary" type="button" id="btnSave">測試並啟用</button>
+    </div>
+    <p class="meta" style="margin-top:8px">Groq Key 申請：<a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a></p>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <h3 style="font-size:14px">已儲存的 Credentials（遮罩）</h3>
+      <button class="btn ghost" type="button" id="btnRefresh">重新整理</button>
+    </div>
+    <div id="list" class="meta">請先提供 JWT 並重新整理。</div>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+/**
+ * BYOK Settings UI
+ * - NEVER writes api key to localStorage / sessionStorage
+ * - api_key only in memory input; cleared after successful save
+ * - All AI still via existing Gateway (this page only manages credentials)
+ */
+const SUPABASE_URL = 'https://clcddygkaaqqtsbswgdf.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE';
+const CRED_URL = SUPABASE_URL + '/functions/v1/user-credentials';
+
+// In-memory only — not persisted
+let memJwt = '';
+
+function toast(t) {
+  const el = document.getElementById('toast');
+  el.textContent = t;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2800);
+}
+function getJwt() {
+  memJwt = document.getElementById('jwtInput').value.trim() || memJwt;
+  return memJwt;
+}
+async function callCred(body) {
+  const jwt = getJwt();
+  if (!jwt) throw new Error('請先提供登入 JWT（access_token）');
+  const res = await fetch(CRED_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + jwt,
+      'apikey': SUPABASE_ANON_KEY
+    },
+    body: JSON.stringify(body)
+  });
+  let data;
+  try { data = await res.json(); } catch { throw new Error('非 JSON 回應（可能尚未部署 user-credentials）'); }
+  if (!res.ok || data.success === false) {
+    throw new Error(data.error || data.message || ('HTTP ' + res.status));
+  }
+  return data;
+}
+
+function renderList(credentials) {
+  const el = document.getElementById('list');
+  if (!credentials || !credentials.length) {
+    el.innerHTML = '尚無 Key。新增後只會顯示遮罩與狀態。';
+    return;
+  }
+  el.innerHTML = credentials.map(c => {
+    const on = c.status === 'ACTIVE';
+    return `<div class="item">
+      <div><b>${c.provider}</b> · ${c.key_name || 'default'}
+        <span class="badge ${on ? 'on' : 'off'}">${c.status}</span>
+      </div>
+      <div class="meta">${c.key_mask || '••••'} · 建立 ${c.created_at || '—'} · 最後使用 ${c.last_used_at || '—'}</div>
+      <div class="row">
+        <button class="btn" type="button" data-dis="${c.id}">停用</button>
+        <button class="btn danger" type="button" data-del="${c.id}">刪除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function refresh() {
+  try {
+    const data = await callCred({ action: 'list' });
+    renderList(data.credentials);
+  } catch (e) {
+    document.getElementById('list').textContent = e.message;
+    toast(e.message);
+  }
+}
+
+document.getElementById('btnHome').onclick = () => location.href = 'aivault-home.html';
+document.getElementById('btnRefresh').onclick = refresh;
+document.getElementById('btnTest').onclick = async () => {
+  const api_key = document.getElementById('apiKey').value;
+  try {
+    const data = await callCred({
+      action: 'test',
+      provider: document.getElementById('provider').value,
+      api_key
+    });
+    toast('測試成功 · ' + (data.key_mask || ''));
+  } catch (e) {
+    toast(e.message === 'INVALID_CREDENTIAL' ? 'Key 無效' : e.message);
+  }
+};
+document.getElementById('btnSave').onclick = async () => {
+  const api_key = document.getElementById('apiKey').value;
+  try {
+    await callCred({
+      action: 'upsert',
+      provider: document.getElementById('provider').value,
+      key_name: document.getElementById('keyName').value || 'default',
+      api_key
+    });
+    // Clear plaintext from input immediately — never persist
+    document.getElementById('apiKey').value = '';
+    toast('已加密保存並啟用');
+    await refresh();
+  } catch (e) {
+    toast(e.message === 'INVALID_CREDENTIAL' ? 'Key 無效，未保存' : e.message);
+  }
+};
+document.getElementById('list').onclick = async (e) => {
+  const dis = e.target.getAttribute('data-dis');
+  const del = e.target.getAttribute('data-del');
+  try {
+    if (dis) {
+      await callCred({ action: 'disable', id: dis });
+      toast('已停用');
+      await refresh();
+    }
+    if (del) {
+      if (!confirm('確定刪除此 Key？')) return;
+      await callCred({ action: 'delete', id: del });
+      toast('已刪除');
+      await refresh();
+    }
+  } catch (err) {
+    toast(err.message);
+  }
+};
+
+console.log('BYOK settings: keys never written to localStorage');
+</script>
+</body>
+</html>
