@@ -1,1664 +1,215 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
-
 <head>
   <meta charset="UTF-8" />
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-  />
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#0f172a" />
-
   <title>AIVAULT — AI Agent 協作工作平台</title>
-
-  <!-- iPhone 主畫面圖示 -->
   <link rel="apple-touch-icon" href="icon.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="icon.png" />
-
   <meta name="apple-mobile-web-app-title" content="AIVAULT" />
-  <meta
-    name="apple-mobile-web-app-status-bar-style"
-    content="black-translucent"
-  />
-
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <style>
-
-    /* =========================================================
-       AIVAULT
-       UI 設計
-       ========================================================= */
-
     :root {
-      --bg: #0b1120;
-      --card: #1e293b;
-      --card-hover: #334155;
-      --border: #334155;
-
-      --text: #f1f5f9;
-      --text-muted: #94a3b8;
-
-      --primary: #3b82f6;
-      --primary-dim: #1d4ed8;
-
-      --success: #22c55e;
-      --warning: #f59e0b;
-      --danger: #ef4444;
-
-      --agent-gpt: #10b981;
-      --agent-grok: #8b5cf6;
-      --agent-coding: #06b6d4;
-      --agent-research: #f97316;
-      --agent-design: #ec4899;
-      --agent-teacher: #84cc16;
-      --agent-doctor: #14b8a6;
-      --agent-lawyer: #a855f7;
+      --bg: #0b1120; --card: #1e293b; --card-hover: #334155; --border: #334155;
+      --text: #f1f5f9; --text-muted: #94a3b8; --primary: #3b82f6; --primary-dim: #1d4ed8;
+      --success: #22c55e; --warning: #f59e0b; --danger: #ef4444;
+      --agent-gpt: #10b981; --agent-grok: #8b5cf6; --agent-coding: #06b6d4;
+      --agent-research: #f97316; --agent-design: #ec4899; --agent-teacher: #84cc16;
+      --agent-doctor: #14b8a6; --agent-lawyer: #a855f7;
     }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family:
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        "Noto Sans TC",
-        Roboto,
-        sans-serif;
-
-      background: var(--bg);
-      color: var(--text);
-
-      min-height: 100dvh;
-      line-height: 1.5;
-      overflow-x: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", Roboto, sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100dvh; line-height: 1.5; overflow-x: hidden;
     }
-
-    /* =========================================================
-       Header
-       ========================================================= */
-
     .header {
-      position: sticky;
-      top: 0;
-      z-index: 100;
-
-      background: rgba(15, 23, 42, 0.92);
-      backdrop-filter: blur(12px);
-
-      border-bottom: 1px solid var(--border);
-
-      padding: 12px 16px;
-
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
+      position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,.92); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border); padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 8px;
     }
-
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      min-width: 0;
-    }
-
+    .logo { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 auto; overflow: hidden; }
     .logo-icon {
-      width: 36px;
-      height: 36px;
-
-      background:
-        linear-gradient(
-          135deg,
-          #3b82f6,
-          #8b5cf6
-        );
-
-      border-radius: 10px;
-
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      font-weight: 800;
-      font-size: 16px;
-
-      flex-shrink: 0;
+      width: 36px; height: 36px; background: linear-gradient(135deg,#3b82f6,#8b5cf6); border-radius: 10px;
+      display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; flex-shrink: 0;
     }
-
-    .logo {
-      flex: 1 1 auto;
-      min-width: 0;
-      overflow: hidden;
-    }
-
-    .logo-text {
-      min-width: 0;
-      overflow: hidden;
-    }
-
-    .logo-text h1 {
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .logo-text p {
-      font-size: 11px;
-      color: var(--text-muted);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
+    .logo-text { min-width: 0; overflow: hidden; }
+    .logo-text h1 { font-size: 18px; font-weight: 700; letter-spacing: .5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .logo-text p { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .gear-btn {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: #1e293b;
-      color: #e2e8f0;
-      font-size: 14px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      flex-shrink: 0;
-      margin-left: 4px;
+      width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); background: #1e293b; color: #e2e8f0;
+      font-size: 14px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; margin-left: 4px;
     }
-
     @media (max-width: 420px) {
       .logo-text p { display: none; }
       .logo-text h1 { font-size: 16px; }
       .owner-badge { padding: 5px 8px; font-size: 10px; }
       .room-btn { padding: 6px 8px; font-size: 11px; }
-      .header { padding: 10px 10px; gap: 6px; }
+      .header { padding: 10px; gap: 6px; }
       .header-right { gap: 5px; }
     }
-    .account-mask {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,.55);
-      z-index: 200;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-    }
+    .account-mask { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 200; align-items: center; justify-content: center; padding: 16px; }
     .account-mask.show { display: flex; }
-    .account-panel {
-      width: min(400px, 100%);
-      background: #0f172a;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 16px;
-      max-height: 90vh;
-      overflow: auto;
-    }
+    .account-panel { width: min(400px,100%); background: #0f172a; border: 1px solid var(--border); border-radius: 14px; padding: 16px; max-height: 90vh; overflow: auto; }
     .account-panel h3 { font-size: 16px; margin-bottom: 10px; }
-    .account-panel label {
-      display: block;
-      font-size: 12px;
-      color: var(--text-muted);
-      margin: 10px 0 4px;
-    }
-    .account-panel input {
-      width: 100%;
-      background: #020617;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px;
-      color: var(--text);
-      font: inherit;
-    }
-    .account-panel .row {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 14px;
-    }
-    .account-panel .meta {
-      font-size: 12px;
-      color: var(--text-muted);
-      word-break: break-all;
-    }
-
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      flex: 0 0 auto;
-      max-width: 58%;
-      flex-wrap: nowrap;
-      overflow: visible;
-    }
-
-    .owner-badge {
-      background:
-        linear-gradient(
-          135deg,
-          #f59e0b,
-          #d97706
-        );
-
-      color: #000;
-
-      font-size: 11px;
-      font-weight: 700;
-
-      padding: 6px 10px;
-      border-radius: 20px;
-
-      border: none;
-      cursor: pointer;
-    }
-
-    .room-btn {
-      background:
-        linear-gradient(
-          135deg,
-          #3b82f6,
-          #6366f1
-        );
-
-      color: #fff;
-
-      font-size: 11px;
-      font-weight: 700;
-
-      padding: 6px 12px;
-      border-radius: 20px;
-
-      border: none;
-      cursor: pointer;
-    }
-
-    /* =========================================================
-       Tabs
-       ========================================================= */
-
-    .tabs {
-      display: flex;
-      gap: 4px;
-
-      padding: 10px 12px;
-
-      overflow-x: auto;
-      scrollbar-width: none;
-
-      border-bottom: 1px solid var(--border);
-      background: #0f172a;
-    }
-
-    .tabs::-webkit-scrollbar {
-      display: none;
-    }
-
-    .tab {
-      flex-shrink: 0;
-
-      padding: 8px 14px;
-
-      border-radius: 20px;
-
-      font-size: 13px;
-      font-weight: 500;
-
-      background: transparent;
-      color: var(--text-muted);
-
-      border: 1px solid transparent;
-
-      cursor: pointer;
-    }
-
-    .tab.active {
-      background: var(--primary);
-      color: white;
-      border-color: var(--primary);
-    }
-
-    /* =========================================================
-       Main
-       ========================================================= */
-
-    .content {
-      padding: 16px;
-      padding-bottom: 100px;
-
-      max-width: 640px;
-      margin: 0 auto;
-    }
-
-    .section-title {
-      font-size: 13px;
-      font-weight: 600;
-
-      color: var(--text-muted);
-
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-
-      margin-bottom: 12px;
-
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    /* =========================================================
-       Agent Cards
-       ========================================================= */
-
-    .agents-grid {
-      display: grid;
-
-      grid-template-columns:
-        repeat(2, 1fr);
-
-      gap: 10px;
-
-      margin-bottom: 24px;
-    }
-
-    @media (min-width: 480px) {
-      .agents-grid {
-        grid-template-columns:
-          repeat(3, 1fr);
-      }
-    }
-
-    .agent-card {
-      background: var(--card);
-
-      border: 1px solid var(--border);
-      border-radius: 14px;
-
-      padding: 14px;
-
-      cursor: pointer;
-    }
-
-    .agent-card:hover {
-      background: var(--card-hover);
-    }
-
-    .agent-avatar {
-      width: 42px;
-      height: 42px;
-
-      border-radius: 12px;
-
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      font-size: 22px;
-
-      margin-bottom: 8px;
-    }
-
-    .agent-name {
-      font-size: 14px;
-      font-weight: 600;
-      margin-bottom: 2px;
-    }
-
-    .agent-role {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-bottom: 8px;
-    }
-
-    .agent-status {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-
-      font-size: 11px;
-    }
-
-    /*
-      狀態燈（依忙碌程度）
-      紅 = 很忙／開會議中
-      黃 = 有點忙
-      藍 = 正在做事
-      綠 = 空閒
-      灰黑 = 未連線
-    */
-    .status-dot {
-      width: 9px;
-      height: 9px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      background: #1a1a1a;
-      box-shadow: inset 0 0 2px rgba(255,255,255,.12);
-    }
-
-    /* 灰黑 = 未連線 */
-    .status-dot.standby,
-    .status-dot.offline {
-      background: #1a1a1a;
-      box-shadow: 0 0 0 1px rgba(255,255,255,.14);
-      animation: none;
-    }
-
-    /* 綠 = 空閒（持續慢閃） */
-    .status-dot.idle,
-    .status-dot.free {
-      background: #22c55e;
-      box-shadow: 0 0 10px #22c55e, 0 0 18px rgba(34, 197, 94, 0.35);
-      animation: blink-green 1.4s ease-in-out infinite;
-    }
-
-    /* 藍 = 正在做事 */
-    .status-dot.working,
-    .status-dot.thinking {
-      background: #3b82f6;
-      box-shadow: 0 0 10px #3b82f6;
-      animation: blink-blue 0.85s ease-in-out infinite;
-    }
-
-    /* 黃 = 有點忙 */
-    .status-dot.busy {
-      background: #eab308;
-      box-shadow: 0 0 10px #eab308;
-      animation: blink-yellow 0.75s ease-in-out infinite;
-    }
-
-    /* 紅 = 很忙／開會議中 */
-    .status-dot.meeting,
-    .status-dot.critical {
-      background: #ef4444;
-      box-shadow: 0 0 12px #ef4444;
-      animation: blink-red 0.55s ease-in-out infinite;
-    }
-
-    @keyframes blink-green {
-      0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 10px #22c55e, 0 0 18px rgba(34,197,94,.35); }
-      50% { opacity: 0.55; transform: scale(0.9); box-shadow: 0 0 4px #22c55e; }
-    }
-    @keyframes blink-blue {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.35; transform: scale(0.8); }
-    }
-    @keyframes blink-yellow {
-      0%, 100% { opacity: 1; transform: scale(1.05); }
-      50% { opacity: 0.4; transform: scale(0.75); }
-    }
-    @keyframes blink-red {
-      0%, 100% { opacity: 1; transform: scale(1.08); }
-      50% { opacity: 0.3; transform: scale(0.72); }
-    }
-
-    /* =========================================================
-       Tasks
-       ========================================================= */
-
-    .task-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-
-      margin-bottom: 24px;
-    }
-
-    .task-item {
-      background: var(--card);
-
-      border: 1px solid var(--border);
-      border-radius: 12px;
-
-      padding: 12px 14px;
-
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-    }
-
-    .task-check {
-      width: 20px;
-      height: 20px;
-
-      border-radius: 6px;
-
-      border: 2px solid var(--border);
-
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      flex-shrink: 0;
-
-      margin-top: 2px;
-
-      font-size: 12px;
-    }
-
-    .task-item.done .task-check {
-      background: var(--success);
-      border-color: var(--success);
-      color: white;
-    }
-
-    .task-item.active .task-check {
-      border-color: var(--primary);
-      background: rgba(59, 130, 246, 0.15);
-    }
-
-    .task-title {
-      font-size: 14px;
-      font-weight: 500;
-    }
-
-    .task-meta {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-top: 2px;
-    }
-
-    /* =========================================================
-       Chat
-       ========================================================= */
-
-    .chat-container {
-      background: var(--card);
-
-      border: 1px solid var(--border);
-      border-radius: 16px;
-
-      overflow: hidden;
-
-      margin-bottom: 24px;
-
-      display: flex;
-      flex-direction: column;
-
-      height: 420px;
-    }
-
-    .chat-header {
-      padding: 12px 16px;
-
-      border-bottom: 1px solid var(--border);
-
-      font-size: 13px;
-      font-weight: 600;
-
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .chat-messages {
-      flex: 1;
-
-      overflow-y: auto;
-
-      padding: 16px;
-
-      display: flex;
-      flex-direction: column;
-
-      gap: 12px;
-    }
-
-    .msg {
-      max-width: 88%;
-
-      display: flex;
-      flex-direction: column;
-
-      gap: 4px;
-    }
-
-    .msg.owner {
-      align-self: flex-end;
-    }
-
-    .msg.agent {
-      align-self: flex-start;
-    }
-
-    .msg-bubble {
-      padding: 10px 14px;
-
-      border-radius: 16px;
-
-      font-size: 14px;
-      line-height: 1.45;
-
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-
-    .msg.owner .msg-bubble {
-      background: var(--primary);
-      border-bottom-right-radius: 4px;
-    }
-
-    .msg.agent .msg-bubble {
-      background: #334155;
-      border-bottom-left-radius: 4px;
-    }
-
-    .msg-meta {
-      font-size: 11px;
-      color: var(--text-muted);
-
-      padding: 0 4px;
-
-      display: flex;
-      align-items: center;
-
-      gap: 6px;
-    }
-
-    .msg.owner .msg-meta {
-      justify-content: flex-end;
-    }
-
-    .msg-sender {
-      font-weight: 600;
-      font-size: 12px;
-    }
-
-    .chat-input-area {
-      border-top: 1px solid var(--border);
-
-      padding: 10px 12px;
-
-      display: flex;
-      gap: 8px;
-
-      align-items: center;
-    }
-
-    .chat-input {
-      flex: 1;
-
-      background: #0f172a;
-
-      border: 1px solid var(--border);
-
-      border-radius: 24px;
-
-      padding: 10px 16px;
-
-      color: var(--text);
-
-      font-size: 14px;
-
-      outline: none;
-    }
-
-    .chat-input:focus {
-      border-color: var(--primary);
-    }
-
-    .send-btn {
-      width: 40px;
-      height: 40px;
-
-      border-radius: 50%;
-
-      background: var(--primary);
-
-      border: none;
-
-      color: white;
-
-      font-size: 18px;
-
-      cursor: pointer;
-
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .send-btn:disabled {
-      opacity: 0.4;
-    }
-
-    /* Agent 選擇（可單選／多選） */
-    .agent-pick-bar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      padding: 8px 12px;
-      border-bottom: 1px solid var(--border);
-      background: #0f172a;
-      align-items: center;
-    }
-
-    .agent-pick-label {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-right: 2px;
-      flex-shrink: 0;
-    }
-
-    .agent-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 4px 10px;
-      border-radius: 16px;
-      border: 1px solid var(--border);
-      background: #1e293b;
-      color: var(--text-muted);
-      font-size: 11px;
-      font-weight: 600;
-      cursor: pointer;
-      user-select: none;
-      -webkit-user-select: none;
-      transition: .15s;
-    }
-
-    .agent-chip:hover {
-      border-color: #475569;
-      color: var(--text);
-    }
-
-    .agent-chip.selected {
-      background: rgba(59, 130, 246, 0.2);
-      border-color: var(--primary);
-      color: #93c5fd;
-    }
-
-    .agent-chip.offline {
-      opacity: 0.4;
-      pointer-events: none;
-    }
-
-    .agent-chip .chip-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: #475569;
-    }
-
-    .agent-chip.selected .chip-dot {
-      background: #3b82f6;
-      box-shadow: 0 0 6px #3b82f6;
-    }
-
-    /* =========================================================
-       Workflow
-       ========================================================= */
-
-    .workflow {
-      background: var(--card);
-
-      border: 1px solid var(--border);
-      border-radius: 14px;
-
-      padding: 16px;
-
-      margin-bottom: 24px;
-    }
-
-    .workflow-step {
-      display: flex;
-
-      align-items: flex-start;
-
-      gap: 12px;
-
-      padding: 10px 0;
-
-      position: relative;
-    }
-
-    .workflow-step:not(:last-child)::after {
-      content: '';
-
-      position: absolute;
-
-      left: 15px;
-      top: 40px;
-      bottom: -10px;
-
-      width: 2px;
-
-      background: var(--border);
-    }
-
-    .step-num {
-      width: 32px;
-      height: 32px;
-
-      border-radius: 50%;
-
-      background: #334155;
-
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      font-size: 13px;
-      font-weight: 700;
-
-      flex-shrink: 0;
-
-      z-index: 1;
-    }
-
-    .workflow-step.done .step-num {
-      background: var(--success);
-      color: #000;
-    }
-
-    .workflow-step.active .step-num {
-      background: var(--primary);
-    }
-
-    .step-content {
-      flex: 1;
-    }
-
-    .step-title {
-      font-size: 14px;
-      font-weight: 500;
-    }
-
-    .step-agent {
-      font-size: 12px;
-      color: var(--text-muted);
-    }
-
-    /* =========================================================
-       Registry
-       ========================================================= */
-
-    .registry-list {
-      display: flex;
-      flex-direction: column;
-
-      gap: 8px;
-    }
-
-    .registry-item {
-      background: var(--card);
-
-      border: 1px solid var(--border);
-      border-radius: 12px;
-
-      padding: 12px 14px;
-
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .registry-info {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .registry-icon {
-      width: 36px;
-      height: 36px;
-
-      border-radius: 10px;
-
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      font-size: 18px;
-    }
-
-    /* =========================================================
-       Toggle
-       ========================================================= */
-
-    .toggle {
-      width: 44px;
-      height: 24px;
-
-      border-radius: 12px;
-
-      background: #475569;
-
-      position: relative;
-
-      cursor: pointer;
-    }
-
-    .toggle.on {
-      background: var(--success);
-    }
-
-    .toggle::after {
-      content: '';
-
-      position: absolute;
-
-      width: 18px;
-      height: 18px;
-
-      border-radius: 50%;
-
-      background: white;
-
-      top: 3px;
-      left: 3px;
-
-      transition: transform 0.2s;
-    }
-
-    .toggle.on::after {
-      transform: translateX(20px);
-    }
-
-    /* =========================================================
-       Approval
-       ========================================================= */
-
-    .approval-card {
-      background:
-        linear-gradient(
-          135deg,
-          #1e293b,
-          #1e1b4b
-        );
-
-      border: 1px solid #4c1d95;
-
-      border-radius: 14px;
-
-      padding: 16px;
-
-      margin-bottom: 24px;
-    }
-
-    .approval-header {
-      display: flex;
-
-      align-items: center;
-
-      gap: 8px;
-
-      margin-bottom: 10px;
-
-      font-size: 13px;
-      font-weight: 600;
-
-      color: #c4b5fd;
-    }
-
-    .approval-body {
-      font-size: 14px;
-
-      margin-bottom: 14px;
-
-      line-height: 1.5;
-    }
-
-    .approval-actions {
-      display: flex;
-      gap: 10px;
-    }
-
-    .btn {
-      flex: 1;
-
-      padding: 10px;
-
-      border-radius: 10px;
-
-      font-size: 14px;
-      font-weight: 600;
-
-      border: none;
-
-      cursor: pointer;
-    }
-
-    .btn-approve {
-      background: var(--success);
-      color: #000;
-    }
-
-    .btn-reject {
-      background: transparent;
-
-      border: 1px solid var(--danger);
-
-      color: var(--danger);
-    }
-
-    /* =========================================================
-       Demo Note
-       ========================================================= */
-
-    .demo-note {
-      text-align: center;
-
-      font-size: 12px;
-
-      color: var(--text-muted);
-
-      padding: 20px 16px;
-
-      border-top: 1px solid var(--border);
-
-      margin-top: 10px;
-    }
-
-    .demo-note strong {
-      color: var(--primary);
-    }
-
-    /* =========================================================
-       Toast
-       ========================================================= */
-
-    .toast {
-      position: fixed;
-
-      bottom: 24px;
-      left: 50%;
-
-      transform:
-        translateX(-50%)
-        translateY(100px);
-
-      background: #1e293b;
-
-      border: 1px solid var(--border);
-
-      color: white;
-
-      padding: 12px 20px;
-
-      border-radius: 12px;
-
-      font-size: 14px;
-
-      z-index: 400;
-
-      transition:
-        transform 0.3s ease;
-
-      max-width: 90%;
-
-      text-align: center;
-    }
-
-    .toast.show {
-      transform:
-        translateX(-50%)
-        translateY(0);
-    }
-
-    /* =========================================================
-       Panel
-       ========================================================= */
-
-    .panel {
-      display: none;
-    }
-
-    .panel.active {
-      display: block;
-    }
-
-    /* =========================================================
-       Typing
-       ========================================================= */
-
-    .typing {
-      display: flex;
-
-      gap: 4px;
-
-      padding: 8px 0;
-    }
-
-    .typing span {
-      width: 6px;
-      height: 6px;
-
-      background: #94a3b8;
-
-      border-radius: 50%;
-
-      animation: typing 1.2s infinite;
-    }
-
-    .typing span:nth-child(2) {
-      animation-delay: 0.2s;
-    }
-
-    .typing span:nth-child(3) {
-      animation-delay: 0.4s;
-    }
-
-    @keyframes typing {
-      0%, 60%, 100% {
-        transform: translateY(0);
-        opacity: 0.4;
-      }
-
-      30% {
-        transform: translateY(-4px);
-        opacity: 1;
-      }
-    }
-
-    /* =========================================================
-       Proposal Library + Book Reader
-       ========================================================= */
-
-    #proposalLibraryOverlay,
-    #proposalOverlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      z-index: 320;
-      background: var(--bg);
-      overflow-y: auto;
-    }
-
-    #proposalLibraryOverlay.show,
-    #proposalOverlay.show {
-      display: block;
-    }
-
-    .proposal-bar {
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px 16px;
-      background: rgba(15, 23, 42, 0.96);
-      border-bottom: 1px solid var(--border);
-      flex-wrap: wrap;
-    }
-
-    .proposal-bar button {
-      background: #334155;
-      color: #fff;
-      border: none;
-      border-radius: 10px;
-      padding: 8px 12px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-
-    .proposal-bar button.primary {
-      background: linear-gradient(135deg, #3b82f6, #6366f1);
-    }
-
-    .proposal-bar button.success {
-      background: var(--success);
-      color: #000;
-    }
-
-    .proposal-bar button.voice-on {
-      background: #7c3aed;
-    }
-
-    .proposal-wrap {
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 16px;
-      padding-bottom: 100px;
-    }
-
-    .proposal-status {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-bottom: 10px;
-    }
-
-    .proposal-stats {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 8px;
-      margin-bottom: 14px;
-    }
-
-    @media (min-width: 520px) {
-      .proposal-stats {
-        grid-template-columns: repeat(4, 1fr);
-      }
-    }
-
-    .stat-card {
-      background: #0f172a;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 12px;
-    }
-
-    .stat-card .n {
-      font-size: 22px;
-      font-weight: 800;
-      color: #93c5fd;
-    }
-
-    .stat-card .l {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-top: 2px;
-    }
-
-    .chart-grid {
-      display: grid;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-
-    .chart-card {
-      background: #0f172a;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 12px;
-    }
-
-    .chart-card h3 {
-      font-size: 13px;
-      margin-bottom: 8px;
-      color: #cbd5e1;
-    }
-
-    .chart-card canvas {
-      width: 100%;
-      height: 180px;
-      display: block;
-      background: #020617;
-      border-radius: 8px;
-    }
-
-    .book-nav {
-      display: flex;
-      gap: 6px;
-      overflow-x: auto;
-      padding-bottom: 8px;
-      margin-bottom: 10px;
-      scrollbar-width: none;
-    }
-
+    .account-panel label { display: block; font-size: 12px; color: var(--text-muted); margin: 10px 0 4px; }
+    .account-panel input { width: 100%; background: #020617; border: 1px solid var(--border); border-radius: 10px; padding: 10px; color: var(--text); font: inherit; }
+    .account-panel .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+    .account-panel .meta { font-size: 12px; color: var(--text-muted); word-break: break-all; }
+    .header-right { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; max-width: 58%; flex-wrap: nowrap; overflow: visible; }
+    .owner-badge { background: linear-gradient(135deg,#f59e0b,#d97706); color: #000; font-size: 11px; font-weight: 700; padding: 6px 10px; border-radius: 20px; border: none; cursor: pointer; }
+    .room-btn { background: linear-gradient(135deg,#3b82f6,#6366f1); color: #fff; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 20px; border: none; cursor: pointer; }
+    .tabs { display: flex; gap: 4px; padding: 10px 12px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--border); background: #0f172a; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab { flex-shrink: 0; padding: 8px 14px; border-radius: 20px; font-size: 13px; font-weight: 500; background: transparent; color: var(--text-muted); border: 1px solid transparent; cursor: pointer; }
+    .tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+    .content { padding: 16px; padding-bottom: 100px; max-width: 640px; margin: 0 auto; }
+    .section-title { font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .agents-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-bottom: 24px; }
+    @media (min-width: 480px) { .agents-grid { grid-template-columns: repeat(3,1fr); } }
+    .agent-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px; cursor: pointer; }
+    .agent-card:hover { background: var(--card-hover); }
+    .agent-avatar { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 8px; }
+    .agent-name { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+    .agent-role { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+    .agent-status { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+    .status-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; background: #1a1a1a; box-shadow: inset 0 0 2px rgba(255,255,255,.12); }
+    .status-dot.standby, .status-dot.offline { background: #1a1a1a; box-shadow: 0 0 0 1px rgba(255,255,255,.14); animation: none; }
+    .status-dot.idle, .status-dot.free { background: #22c55e; box-shadow: 0 0 10px #22c55e, 0 0 18px rgba(34,197,94,.35); animation: blink-green 1.4s ease-in-out infinite; }
+    .status-dot.working, .status-dot.thinking { background: #3b82f6; box-shadow: 0 0 10px #3b82f6; animation: blink-blue .85s ease-in-out infinite; }
+    .status-dot.busy { background: #eab308; box-shadow: 0 0 10px #eab308; animation: blink-yellow .75s ease-in-out infinite; }
+    .status-dot.meeting, .status-dot.critical { background: #ef4444; box-shadow: 0 0 12px #ef4444; animation: blink-red .55s ease-in-out infinite; }
+    @keyframes blink-green { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .55; transform: scale(.9); } }
+    @keyframes blink-blue { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.8); } }
+    @keyframes blink-yellow { 0%,100% { opacity: 1; transform: scale(1.05); } 50% { opacity: .4; transform: scale(.75); } }
+    @keyframes blink-red { 0%,100% { opacity: 1; transform: scale(1.08); } 50% { opacity: .3; transform: scale(.72); } }
+    .task-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
+    .task-item { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; display: flex; align-items: flex-start; gap: 12px; }
+    .task-check { width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; font-size: 12px; }
+    .task-item.done .task-check { background: var(--success); border-color: var(--success); color: white; }
+    .task-item.active .task-check { border-color: var(--primary); background: rgba(59,130,246,.15); }
+    .task-title { font-size: 14px; font-weight: 500; }
+    .task-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .chat-container { background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin-bottom: 24px; display: flex; flex-direction: column; height: 420px; }
+    .chat-header { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .msg { max-width: 88%; display: flex; flex-direction: column; gap: 4px; }
+    .msg.owner { align-self: flex-end; }
+    .msg.agent { align-self: flex-start; }
+    .msg-bubble { padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+    .msg.owner .msg-bubble { background: var(--primary); border-bottom-right-radius: 4px; }
+    .msg.agent .msg-bubble { background: #334155; border-bottom-left-radius: 4px; }
+    .msg-meta { font-size: 11px; color: var(--text-muted); padding: 0 4px; display: flex; align-items: center; gap: 6px; }
+    .msg.owner .msg-meta { justify-content: flex-end; }
+    .msg-sender { font-weight: 600; font-size: 12px; }
+    .chat-input-area { border-top: 1px solid var(--border); padding: 10px 12px; display: flex; gap: 8px; align-items: center; }
+    .chat-input { flex: 1; background: #0f172a; border: 1px solid var(--border); border-radius: 24px; padding: 10px 16px; color: var(--text); font-size: 14px; outline: none; }
+    .chat-input:focus { border-color: var(--primary); }
+    .send-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--primary); border: none; color: white; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .send-btn:disabled { opacity: .4; }
+    .agent-pick-bar { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--border); background: #0f172a; align-items: center; }
+    .agent-pick-label { font-size: 11px; color: var(--text-muted); margin-right: 2px; flex-shrink: 0; }
+    .agent-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 16px; border: 1px solid var(--border); background: #1e293b; color: var(--text-muted); font-size: 11px; font-weight: 600; cursor: pointer; user-select: none; }
+    .agent-chip.selected { background: rgba(59,130,246,.2); border-color: var(--primary); color: #93c5fd; }
+    .agent-chip.offline { opacity: .4; pointer-events: none; }
+    .agent-chip .chip-dot { width: 6px; height: 6px; border-radius: 50%; background: #475569; }
+    .agent-chip.selected .chip-dot { background: #3b82f6; box-shadow: 0 0 6px #3b82f6; }
+    .workflow { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 24px; }
+    .workflow-step { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; position: relative; }
+    .workflow-step:not(:last-child)::after { content: ''; position: absolute; left: 15px; top: 40px; bottom: -10px; width: 2px; background: var(--border); }
+    .step-num { width: 32px; height: 32px; border-radius: 50%; background: #334155; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; z-index: 1; }
+    .workflow-step.done .step-num { background: var(--success); color: #000; }
+    .workflow-step.active .step-num { background: var(--primary); }
+    .step-content { flex: 1; }
+    .step-title { font-size: 14px; font-weight: 500; }
+    .step-agent { font-size: 12px; color: var(--text-muted); }
+    .registry-list { display: flex; flex-direction: column; gap: 8px; }
+    .registry-item { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; }
+    .registry-info { display: flex; align-items: center; gap: 12px; }
+    .registry-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .toggle { width: 44px; height: 24px; border-radius: 12px; background: #475569; position: relative; cursor: pointer; }
+    .toggle.on { background: var(--success); }
+    .toggle::after { content: ''; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: white; top: 3px; left: 3px; transition: transform .2s; }
+    .toggle.on::after { transform: translateX(20px); }
+    .approval-card { background: linear-gradient(135deg,#1e293b,#1e1b4b); border: 1px solid #4c1d95; border-radius: 14px; padding: 16px; margin-bottom: 24px; }
+    .approval-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 13px; font-weight: 600; color: #c4b5fd; }
+    .approval-body { font-size: 14px; margin-bottom: 14px; line-height: 1.5; }
+    .approval-actions { display: flex; gap: 10px; }
+    .btn { flex: 1; padding: 10px; border-radius: 10px; font-size: 14px; font-weight: 600; border: none; cursor: pointer; }
+    .btn-approve { background: var(--success); color: #000; }
+    .btn-reject { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
+    .demo-note { text-align: center; font-size: 12px; color: var(--text-muted); padding: 20px 16px; border-top: 1px solid var(--border); margin-top: 10px; }
+    .demo-note strong { color: var(--primary); }
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px); background: #1e293b; border: 1px solid var(--border); color: white; padding: 12px 20px; border-radius: 12px; font-size: 14px; z-index: 400; transition: transform .3s ease; max-width: 90%; text-align: center; }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .typing { display: flex; gap: 4px; padding: 8px 0; }
+    .typing span { width: 6px; height: 6px; background: #94a3b8; border-radius: 50%; animation: typing 1.2s infinite; }
+    .typing span:nth-child(2) { animation-delay: .2s; }
+    .typing span:nth-child(3) { animation-delay: .4s; }
+    @keyframes typing { 0%,60%,100% { transform: translateY(0); opacity: .4; } 30% { transform: translateY(-4px); opacity: 1; } }
+    #proposalLibraryOverlay, #proposalOverlay { display: none; position: fixed; inset: 0; z-index: 320; background: var(--bg); overflow-y: auto; }
+    #proposalLibraryOverlay.show, #proposalOverlay.show { display: block; }
+    .proposal-bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: rgba(15,23,42,.96); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+    .proposal-bar button { background: #334155; color: #fff; border: none; border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .proposal-bar button.primary { background: linear-gradient(135deg,#3b82f6,#6366f1); }
+    .proposal-bar button.success { background: var(--success); color: #000; }
+    .proposal-bar button.voice-on { background: #7c3aed; }
+    .proposal-wrap { max-width: 800px; margin: 0 auto; padding: 16px; padding-bottom: 100px; }
+    .proposal-status { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; }
+    .proposal-stats { display: grid; grid-template-columns: repeat(2,1fr); gap: 8px; margin-bottom: 14px; }
+    @media (min-width: 520px) { .proposal-stats { grid-template-columns: repeat(4,1fr); } }
+    .stat-card { background: #0f172a; border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+    .stat-card .n { font-size: 22px; font-weight: 800; color: #93c5fd; }
+    .stat-card .l { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .chart-grid { display: grid; gap: 12px; margin-bottom: 16px; }
+    .chart-card { background: #0f172a; border: 1px solid var(--border); border-radius: 14px; padding: 12px; }
+    .chart-card h3 { font-size: 13px; margin-bottom: 8px; color: #cbd5e1; }
+    .chart-card canvas { width: 100%; height: 180px; display: block; background: #020617; border-radius: 8px; }
+    .book-nav { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 10px; scrollbar-width: none; }
     .book-nav::-webkit-scrollbar { display: none; }
-
-    .book-chip {
-      flex: 0 0 auto;
-      padding: 6px 12px;
-      border-radius: 16px;
-      border: 1px solid var(--border);
-      background: #1e293b;
-      color: #94a3b8;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-
-    .book-chip.active {
-      background: rgba(59,130,246,.25);
-      border-color: #3b82f6;
-      color: #93c5fd;
-    }
-
-    .proposal-doc {
-      background: #0f172a;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 20px 18px;
-      line-height: 1.75;
-      font-size: 14px;
-      white-space: pre-wrap;
-      word-break: break-word;
-      min-height: 280px;
-    }
-
-    .library-list {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .library-item {
-      background: #0f172a;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 14px;
-      cursor: pointer;
-    }
-
-    .library-item:hover {
-      border-color: #3b82f6;
-    }
-
-    .library-item h3 {
-      font-size: 15px;
-      margin-bottom: 4px;
-    }
-
-    .library-item .meta {
-      font-size: 12px;
-      color: var(--text-muted);
-    }
-
-    .library-empty {
-      text-align: center;
-      color: var(--text-muted);
-      padding: 40px 16px;
-    }
-
-    @media print {
-      body * { visibility: hidden !important; }
-      #proposalOverlay, #proposalOverlay * { visibility: visible !important; }
-      #proposalOverlay {
-        position: static !important;
-        display: block !important;
-        background: white !important;
-        color: black !important;
-      }
-      .proposal-bar, .book-nav { display: none !important; }
-      .proposal-doc, .chart-card, .stat-card {
-        border-color: #ccc !important;
-        background: white !important;
-        color: black !important;
-      }
-    }
-
-    /* =========================================================
-       Digital Human Room
-       ========================================================= */
-
-    #roomOverlay {
-      display: none;
-
-      position: fixed;
-
-      inset: 0;
-
-      z-index: 300;
-
-      background: var(--bg);
-
-      overflow-y: auto;
-    }
-
-    #roomOverlay.show {
-      display: block;
-    }
-
-    .room-bar {
-      position: sticky;
-
-      top: 0;
-
-      z-index: 10;
-
-      display: flex;
-
-      align-items: center;
-
-      gap: 10px;
-
-      padding: 12px 16px;
-
-      background:
-        rgba(15, 23, 42, 0.95);
-
-      border-bottom: 1px solid var(--border);
-    }
-
-    .room-bar button {
-      background: #334155;
-
-      color: #fff;
-
-      border: none;
-
-      border-radius: 10px;
-
-      padding: 8px 12px;
-
-      font-size: 13px;
-
-      font-weight: 600;
-    }
-
-    .room-bar .live {
-      margin-left: auto;
-
-      color: #fca5a5;
-
-      font-size: 12px;
-
-      font-weight: 700;
-    }
-
-    .studio {
-      margin: 16px;
-
-      border-radius: 16px;
-
-      border: 1px solid var(--border);
-
-      background:
-        radial-gradient(
-          circle at 15% 20%,
-          #1e3a5f 0%,
-          transparent 40%
-        ),
-        radial-gradient(
-          circle at 90% 10%,
-          #14532d 0%,
-          transparent 35%
-        ),
-        #0f172a;
-
-      padding: 16px;
-    }
-
-    .anchors {
-      display: grid;
-
-      grid-template-columns:
-        1fr 1fr;
-
-      gap: 10px;
-
-      margin-top: 12px;
-    }
-
-    .anchor {
-      background:
-        rgba(30,41,59,.9);
-
-      border: 1px solid var(--border);
-
-      border-radius: 14px;
-
-      padding: 16px 10px;
-
-      text-align: center;
-    }
-
-    .anchor .av {
-      width: 52px;
-      height: 52px;
-
-      border-radius: 50%;
-
-      margin: 0 auto 8px;
-
-      display: grid;
-
-      place-items: center;
-
-      font-size: 22px;
-
-      background:
-        linear-gradient(
-          135deg,
-          #3b82f6,
-          #22c55e
-        );
-    }
-
-    .ticker {
-      margin-top: 12px;
-
-      border-top: 1px solid var(--border);
-
-      padding-top: 10px;
-
-      font-size: 13px;
-
-      color: var(--text-muted);
-
-      max-height: 160px;
-
-      overflow-y: auto;
-
-      display: flex;
-
-      flex-direction: column;
-
-      gap: 6px;
-    }
-
-    .room-ask {
-      margin: 0 16px 24px;
-
-      background: var(--card);
-
-      border: 1px solid var(--border);
-
-      border-radius: 14px;
-
-      padding: 14px;
-    }
-
-    .room-ask textarea {
-      width: 100%;
-
-      min-height: 70px;
-
-      background: #0f172a;
-
-      border: 1px solid var(--border);
-
-      border-radius: 10px;
-
-      color: var(--text);
-
-      padding: 10px 12px;
-
-      font-size: 14px;
-    }
-
-    .room-ask .go {
-      margin-top: 10px;
-
-      width: 100%;
-
-      background: var(--primary);
-
-      color: #fff;
-
-      border: none;
-
-      border-radius: 10px;
-
-      padding: 10px;
-
-      font-weight: 600;
-    }
-
+    .book-chip { flex: 0 0 auto; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--border); background: #1e293b; color: #94a3b8; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .book-chip.active { background: rgba(59,130,246,.25); border-color: #3b82f6; color: #93c5fd; }
+    .proposal-doc { background: #0f172a; border: 1px solid var(--border); border-radius: 14px; padding: 20px 18px; line-height: 1.75; font-size: 14px; white-space: pre-wrap; word-break: break-word; min-height: 280px; }
+    .library-list { display: flex; flex-direction: column; gap: 10px; }
+    .library-item { background: #0f172a; border: 1px solid var(--border); border-radius: 14px; padding: 14px; cursor: pointer; }
+    .library-item h3 { font-size: 15px; margin-bottom: 4px; }
+    .library-item .meta { font-size: 12px; color: var(--text-muted); }
+    .library-empty { text-align: center; color: var(--text-muted); padding: 40px 16px; }
+    #roomOverlay { display: none; position: fixed; inset: 0; z-index: 300; background: var(--bg); overflow-y: auto; }
+    #roomOverlay.show { display: block; }
+    .room-bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: rgba(15,23,42,.95); border-bottom: 1px solid var(--border); }
+    .room-bar button { background: #334155; color: #fff; border: none; border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 600; }
+    .room-bar .live { margin-left: auto; color: #fca5a5; font-size: 12px; font-weight: 700; }
+    .studio { margin: 16px; border-radius: 16px; border: 1px solid var(--border); background: radial-gradient(circle at 15% 20%, #1e3a5f 0%, transparent 40%), radial-gradient(circle at 90% 10%, #14532d 0%, transparent 35%), #0f172a; padding: 16px; }
+    .anchors { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    .anchor { background: rgba(30,41,59,.9); border: 1px solid var(--border); border-radius: 14px; padding: 16px 10px; text-align: center; }
+    .anchor .av { width: 52px; height: 52px; border-radius: 50%; margin: 0 auto 8px; display: grid; place-items: center; font-size: 22px; background: linear-gradient(135deg,#3b82f6,#22c55e); }
+    .ticker { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; font-size: 13px; color: var(--text-muted); max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+    .room-ask { margin: 0 16px 24px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px; }
+    .room-ask textarea { width: 100%; min-height: 70px; background: #0f172a; border: 1px solid var(--border); border-radius: 10px; color: var(--text); padding: 10px 12px; font-size: 14px; }
+    .room-ask .go { margin-top: 10px; width: 100%; background: var(--primary); color: #fff; border: none; border-radius: 10px; padding: 10px; font-weight: 600; }
   </style>
 </head>
-
 <body>
-
-  <!-- =========================================================
-       Header
-       ========================================================= -->
-
   <header class="header">
-
     <div class="logo">
-
-      <div class="logo-icon">
-        AI
-      </div>
-
+      <div class="logo-icon">AI</div>
       <div class="logo-text">
-
         <h1>AIVAULT</h1>
-
-        <p>
-          AI Agent 協作工作平台
-        </p>
-
+        <p>AI Agent 協作工作平台</p>
       </div>
-
     </div>
-
     <div class="header-right">
-
-      <button
-        type="button"
-        class="gear-btn"
-        id="btnAccountGear"
-        title="帳號設定"
-        aria-label="帳號設定"
-      >⚙</button>
-
-      <button
-        type="button"
-        class="owner-badge"
-        id="btnOwner"
-      >
-        OWNER
-      </button>
-
-      <button
-        type="button"
-        class="room-btn"
-        id="btnEnterRoom"
-      >
-        專案研討會議
-      </button>
-
-      <button
-        type="button"
-        class="room-btn"
-        id="btnLogout"
-        style="background:#334155;"
-      >
-        登出
-      </button>
-
+      <button type="button" class="gear-btn" id="btnAccountGear" title="帳號設定" aria-label="帳號設定">⚙</button>
+      <button type="button" class="owner-badge" id="btnOwner">OWNER</button>
+      <button type="button" class="room-btn" id="btnEnterRoom">專案研討會議</button>
+      <button type="button" class="room-btn" id="btnLogout" style="background:#334155;">登出</button>
     </div>
-
   </header>
 
-
-
-  <!-- Account settings -->
   <div class="account-mask" id="accountMask">
     <div class="account-panel" role="dialog" aria-label="帳號設定">
       <h3>帳號設定</h3>
@@ -1679,574 +230,157 @@
     </div>
   </div>
 
-  <!-- =========================================================
-       Navigation
-       ========================================================= -->
-
   <nav class="tabs" id="tabs">
-
-    <button
-      class="tab active"
-      data-panel="home"
-    >
-      工作中心
-    </button>
-
-    <button
-      class="tab"
-      data-panel="chat"
-    >
-      AI 協作
-    </button>
-
-    <button
-      class="tab"
-      data-panel="task"
-    >
-      任務流程
-    </button>
-
-    <button
-      class="tab"
-      data-panel="agents"
-    >
-      Agent
-    </button>
-
-    <button
-      class="tab"
-      data-panel="providers"
-    >
-      Providers
-    </button>
-
-    <button
-      class="tab"
-      data-panel="approval"
-    >
-      審批
-    </button>
-
-    <button
-      class="tab"
-      type="button"
-      id="tabProposalLibrary"
-    >
-      企劃書庫
-    </button>
-
+    <button class="tab active" data-panel="home">工作中心</button>
+    <button class="tab" data-panel="chat">AI 協作</button>
+    <button class="tab" data-panel="task">任務流程</button>
+    <button class="tab" data-panel="agents">Agent</button>
+    <button class="tab" data-panel="providers">Providers</button>
+    <button class="tab" data-panel="approval">審批</button>
+    <button class="tab" type="button" id="tabProposalLibrary">企劃書庫</button>
   </nav>
 
-
-  <!-- =========================================================
-       Main
-       ========================================================= -->
-
   <main class="content">
-
-    <!-- =======================================================
-         工作中心
-         ======================================================= -->
-
-    <div
-      class="panel active"
-      id="panel-home"
-    >
-
-      <!-- AI 短視頻企劃中心 -->
+    <div class="panel active" id="panel-home">
       <div id="videoStudioEntry" class="agent-card" style="margin-bottom:12px; grid-column:1/-1; display:block; border-color:rgba(244,63,94,.45); background:linear-gradient(135deg,#4c0519,#1e293b);">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
           <div>
             <div class="agent-name" style="font-size:15px;">🎬 AI 短視頻企劃中心</div>
-            <div class="agent-role" style="margin-bottom:0;">
-              題材 · 大綱 · 分集 · 文案 · 事實查核 · 分鏡 · 與談 · 審查（第一階段不產成片）
-            </div>
+            <div class="agent-role" style="margin-bottom:0;">題材 · 大綱 · 分集 · 文案 · 事實查核 · 分鏡 · 與談 · 審查（第一階段不產成片）</div>
           </div>
-          <div style="flex-shrink:0; padding:8px 12px; border-radius:20px; background:linear-gradient(135deg,#f43f5e,#a855f7); color:#fff; font-size:12px; font-weight:700;">
-            進入企劃
-          </div>
+          <div style="flex-shrink:0; padding:8px 12px; border-radius:20px; background:linear-gradient(135deg,#f43f5e,#a855f7); color:#fff; font-size:12px; font-weight:700;">進入企劃</div>
         </div>
       </div>
-
-      <!-- 研究論文研究室入口（獨立模組） -->
       <div id="researchWsEntry" class="agent-card" style="margin-bottom:12px; grid-column:1/-1; display:block; border-color:rgba(14,165,233,.45); background:linear-gradient(135deg,#0c4a6e,#1e293b);">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
           <div>
             <div class="agent-name" style="font-size:15px;">研究論文研究室</div>
-            <div class="agent-role" style="margin-bottom:0;">
-              架構分析 · 來源驗證 · 寫作審查 · 語音 · Word/PDF/PPT · 版本／垃圾桶
-            </div>
+            <div class="agent-role" style="margin-bottom:0;">架構分析 · 來源驗證 · 寫作審查 · 語音 · Word/PDF/PPT · 版本／垃圾桶</div>
           </div>
-          <div style="flex-shrink:0; padding:8px 12px; border-radius:20px; background:linear-gradient(135deg,#0ea5e9,#6366f1); color:#fff; font-size:12px; font-weight:700;">
-            進入研究室
-          </div>
+          <div style="flex-shrink:0; padding:8px 12px; border-radius:20px; background:linear-gradient(135deg,#0ea5e9,#6366f1); color:#fff; font-size:12px; font-weight:700;">進入研究室</div>
         </div>
       </div>
-
-      <!-- AI 企劃書工作台入口（獨立模組） -->
       <div id="proposalWsEntry" class="agent-card" style="margin-bottom:12px; grid-column:1/-1; display:block; border-color:rgba(167,139,250,.45); background:linear-gradient(135deg,#1e1b4b,#1e293b);">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
           <div>
             <div class="agent-name" style="font-size:15px;">AI 企劃書工作台</div>
-            <div class="agent-role" style="margin-bottom:0;">
-              需求分析 · 章節架構 · 翻書閱覽 · 語音 · 版本修訂 · 垃圾桶 · 下載
-            </div>
+            <div class="agent-role" style="margin-bottom:0;">需求分析 · 章節架構 · 翻書閱覽 · 語音 · 版本修訂 · 垃圾桶 · 下載</div>
           </div>
-          <div style="flex-shrink:0; padding:8px 12px; border-radius:20px; background:linear-gradient(135deg,#8b5cf6,#6366f1); color:#fff; font-size:12px; font-weight:700;">
-            進入工作台
-          </div>
+          <div style="flex-shrink:0; padding:8px 12px; border-radius:20px; background:linear-gradient(135deg,#8b5cf6,#6366f1); color:#fff; font-size:12px; font-weight:700;">進入工作台</div>
         </div>
       </div>
-
-      <!-- 專案研討會議入口 -->
       <div id="warroomEntry" class="agent-card" style="margin-bottom:16px; grid-column:1/-1; display:block; border-color:rgba(59,130,246,.4); background:linear-gradient(135deg,#1e293b,#1e3a5f);">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
           <div>
             <div class="agent-name" style="font-size:15px;">專案研討會議</div>
-            <div class="agent-role" style="margin-bottom:0;">
-              6 位 AI 技術協作 · Chief / Engineer / Auditor / Strategist / Creator / Coordinator
-            </div>
+            <div class="agent-role" style="margin-bottom:0;">6 位 AI 技術協作 · Chief / Engineer / Auditor / Strategist / Creator / Coordinator</div>
           </div>
-          <div style="flex-shrink:0; padding:8px 12px; border-radius:20px; background:linear-gradient(135deg,#3b82f6,#6366f1); color:#fff; font-size:12px; font-weight:700;">
-            進入會議
-          </div>
+          <div style="flex-shrink:0; padding:8px 12px; border-radius:20px; background:linear-gradient(135deg,#3b82f6,#6366f1); color:#fff; font-size:12px; font-weight:700;">進入會議</div>
         </div>
       </div>
-
-      <div class="section-title">
-        在線 Agent
+      <div id="digitalHumanEntry" class="agent-card" style="margin-bottom:16px; grid-column:1/-1; display:block; border-color:rgba(168,85,247,.45); background:linear-gradient(135deg,#2e1065,#1e293b);">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+          <div>
+            <div class="agent-name" style="font-size:15px;">Digital Human｜數字人</div>
+            <div class="agent-role" style="margin-bottom:2px;">建立你的專屬 AI 數字人</div>
+            <div class="agent-role" style="margin-bottom:0;">自訂外觀、聲音與 AI 大腦，讓不同 AI Provider 都可以成為數字人的智慧核心。</div>
+          </div>
+          <div style="flex-shrink:0; padding:8px 12px; border-radius:20px; background:linear-gradient(135deg,#a855f7,#6366f1); color:#fff; font-size:12px; font-weight:700;">進入數字人</div>
+        </div>
       </div>
-
-      <div
-        class="agents-grid"
-        id="agentsGrid"
-      ></div>
-
-
-      <div class="section-title">
-        今日任務
-      </div>
-
-      <div
-        class="task-list"
-        id="taskList"
-      ></div>
-
-
-      <div class="section-title">
-        AI 連線測試對話
-      </div>
-
-      <div
-        class="chat-container"
-        style="height:380px;"
-      >
-
+      <div class="section-title">在線 Agent</div>
+      <div class="agents-grid" id="agentsGrid"></div>
+      <div class="section-title">今日任務</div>
+      <div class="task-list" id="taskList"></div>
+      <div class="section-title">AI 連線測試對話</div>
+      <div class="chat-container" style="height:380px;">
         <div class="chat-header">
           <span>測試 AI 是否聯線說話</span>
           <span style="font-size:11px;color:var(--success)">● Gateway</span>
         </div>
-
         <div class="agent-pick-bar" id="homeAgentPick"></div>
-
-        <div
-          class="chat-messages"
-          id="homeChatPreview"
-          style="overflow-y:auto;-webkit-overflow-scrolling:touch;"
-        ></div>
-
+        <div class="chat-messages" id="homeChatPreview" style="overflow-y:auto;-webkit-overflow-scrolling:touch;"></div>
         <div class="chat-input-area">
-          <input
-            class="chat-input"
-            id="homeChatInput"
-            placeholder="輸入問題，測試 AI 連線…"
-            autocomplete="off"
-          />
+          <input class="chat-input" id="homeChatInput" placeholder="輸入問題，測試 AI 連線…" autocomplete="off" />
           <button class="send-btn" id="homeSendBtn" type="button">↑</button>
         </div>
-
       </div>
-
     </div>
 
-
-    <!-- =======================================================
-         AI 協作
-         ======================================================= -->
-
-    <div
-      class="panel"
-      id="panel-chat"
-    >
-
-      <div class="section-title">
-        多 Agent 協作聊天室
-      </div>
-
+    <div class="panel" id="panel-chat">
+      <div class="section-title">多 Agent 協作聊天室</div>
       <div class="chat-container">
-
         <div class="chat-header">
-
-          <span>
-            AIVAULT 架構討論
-          </span>
-
-          <span
-            style="
-              font-size:11px;
-              color:var(--success)
-            "
-          >
-            ● Real AI
-          </span>
-
+          <span>AIVAULT 架構討論</span>
+          <span style="font-size:11px;color:var(--success)">● Real AI</span>
         </div>
-
         <div class="agent-pick-bar" id="chatAgentPick"></div>
-
-        <div
-          class="chat-messages"
-          id="chatMessages"
-        ></div>
-
-
+        <div class="chat-messages" id="chatMessages"></div>
         <div class="chat-input-area">
-
-          <input
-            class="chat-input"
-            id="chatInput"
-            placeholder="以 Owner 身份輸入指令..."
-            autocomplete="off"
-          />
-
-          <button
-            class="send-btn"
-            id="sendBtn"
-          >
-            ↑
-          </button>
-
+          <input class="chat-input" id="chatInput" placeholder="以 Owner 身份輸入指令..." autocomplete="off" />
+          <button class="send-btn" id="sendBtn">↑</button>
         </div>
-
       </div>
-
-      <p
-        style="
-          font-size:12px;
-          color:var(--text-muted);
-          text-align:center;
-        "
-      >
-        已連接 AIVAULT AI Gateway · Groq / Gemini
-      </p>
-
+      <p style="font-size:12px;color:var(--text-muted);text-align:center;">已連接 AIVAULT AI Gateway · Groq / Gemini</p>
     </div>
 
-
-    <!-- =======================================================
-         任務流程
-         ======================================================= -->
-
-    <div
-      class="panel"
-      id="panel-task"
-    >
-
-      <div class="section-title">
-        任務工作流
-      </div>
-
-      <div
-        class="workflow"
-        id="workflow"
-      ></div>
-
-
-      <div class="section-title">
-        任務清單
-      </div>
-
-      <div
-        class="task-list"
-        id="taskListFull"
-      ></div>
-
+    <div class="panel" id="panel-task">
+      <div class="section-title">任務工作流</div>
+      <div class="workflow" id="workflow"></div>
+      <div class="section-title">任務清單</div>
+      <div class="task-list" id="taskListFull"></div>
     </div>
 
-
-    <!-- =======================================================
-         Agent Registry
-         ======================================================= -->
-
-    <div
-      class="panel"
-      id="panel-agents"
-    >
-
-      <div class="section-title">
-        Agent Registry
-      </div>
-
-      <div
-        class="registry-list"
-        id="agentRegistry"
-      ></div>
-
-      <p
-        style="
-          font-size:12px;
-          color:var(--text-muted);
-          margin-top:16px;
-          text-align:center;
-        "
-      >
-        Agent 目前由前端 Registry 顯示，
-        後續可改由 Supabase DB 動態載入。
-      </p>
-
+    <div class="panel" id="panel-agents">
+      <div class="section-title">Agent Registry</div>
+      <div class="registry-list" id="agentRegistry"></div>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:16px;text-align:center;">Agent 目前由前端 Registry 顯示，後續可改由 Supabase DB 動態載入。</p>
     </div>
 
-
-    <!-- =======================================================
-         Providers
-         ======================================================= -->
-
-    <div
-      class="panel"
-      id="panel-providers"
-    >
-
-      <div class="section-title">
-        AI Providers
-      </div>
-
-      <div
-        class="registry-list"
-        id="providerRegistry"
-      ></div>
-
-      <p
-        style="
-          font-size:12px;
-          color:var(--text-muted);
-          margin-top:16px;
-          text-align:center;
-        "
-      >
-        AI Gateway 負責 Provider Adapter。
-        API Key 不放在前端。
-      </p>
-
+    <div class="panel" id="panel-providers">
+      <div class="section-title">AI Providers</div>
+      <div class="registry-list" id="providerRegistry"></div>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:16px;text-align:center;">AI Gateway 負責 Provider Adapter。API Key 不放在前端。</p>
     </div>
 
-
-    <!-- =======================================================
-         Owner Approval
-         ======================================================= -->
-
-    <div
-      class="panel"
-      id="panel-approval"
-    >
-
-      <div class="section-title">
-        Owner Approval 佇列
-      </div>
-
+    <div class="panel" id="panel-approval">
+      <div class="section-title">Owner Approval 佇列</div>
       <div id="approvalList"></div>
-
-      <p
-        style="
-          font-size:12px;
-          color:var(--text-muted);
-          margin-top:16px;
-          text-align:center;
-        "
-      >
-        高風險操作必須經過 Owner 批准。
-      </p>
-
+      <p style="font-size:12px;color:var(--text-muted);margin-top:16px;text-align:center;">高風險操作必須經過 Owner 批准。</p>
     </div>
-
   </main>
 
-
-  <!-- =========================================================
-       Footer
-       ========================================================= -->
-
   <div class="demo-note">
-
-    <strong>
-      AIVAULT v0.4
-    </strong>
-
-    <br>
-
-    Real AI Gateway · Supabase Edge Function
-
-    <br>
-
+    <strong>AIVAULT v0.4</strong><br>
+    Real AI Gateway · Supabase Edge Function<br>
     Owner 按鈕可進入後台管理治理中心 · Agent Collaboration · Approval
-
   </div>
-
-
-  <!-- =========================================================
-       Digital Human Room
-       ========================================================= -->
 
   <div id="roomOverlay">
-
     <div class="room-bar">
-
-      <button
-        type="button"
-        id="btnLeaveRoom"
-      >
-        ← 回工作區
-      </button>
-
-      <strong>
-        數字人會議室
-      </strong>
-
-      <span class="live">
-        ● LIVE
-      </span>
-
+      <button type="button" id="btnLeaveRoom">← 回工作區</button>
+      <strong>數字人會議室</strong>
+      <span class="live">● LIVE</span>
     </div>
-
-
     <div class="studio">
-
-      <div
-        style="
-          display:flex;
-          justify-content:space-between;
-          align-items:center;
-          gap:8px;
-        "
-      >
-
-        <strong>
-          AIVAULT 播報台
-        </strong>
-
-        <span
-          style="
-            font-size:11px;
-            color:var(--text-muted)
-          "
-        >
-          2 人在場 · 可換班
-        </span>
-
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <strong>AIVAULT 播報台</strong>
+        <span style="font-size:11px;color:var(--text-muted)">2 人在場 · 可換班</span>
       </div>
-
-
       <div class="anchors">
-
-        <div class="anchor">
-
-          <div class="av">
-            🎙️
-          </div>
-
-          <div style="font-weight:600">
-            主播
-          </div>
-
-          <div
-            style="
-              font-size:12px;
-              color:var(--text-muted)
-            "
-          >
-            說明案件與進度
-          </div>
-
-        </div>
-
-
-        <div class="anchor">
-
-          <div class="av">
-            🎧
-          </div>
-
-          <div style="font-weight:600">
-            助理主播
-          </div>
-
-          <div
-            style="
-              font-size:12px;
-              color:var(--text-muted)
-            "
-          >
-            補充與接力
-          </div>
-
-        </div>
-
+        <div class="anchor"><div class="av">🎙️</div><div style="font-weight:600">主播</div><div style="font-size:12px;color:var(--text-muted)">說明案件與進度</div></div>
+        <div class="anchor"><div class="av">🎧</div><div style="font-weight:600">助理主播</div><div style="font-size:12px;color:var(--text-muted)">補充與接力</div></div>
       </div>
-
-
-      <div
-        style="
-          margin-top:10px;
-          font-size:12px;
-          color:var(--text-muted)
-        "
-      >
-        待命：工程師｜審核員｜研究員
-      </div>
-
-
-      <div
-        class="ticker"
-        id="roomTicker"
-      >
-
-        <div>
-          系統：播報進行中。
-          中途進入不重播，只從當下繼續。
-        </div>
-
-      </div>
-
+      <div style="margin-top:10px;font-size:12px;color:var(--text-muted)">待命：工程師｜審核員｜研究員</div>
+      <div class="ticker" id="roomTicker"><div>系統：播報進行中。中途進入不重播，只從當下繼續。</div></div>
     </div>
-
-
     <div class="room-ask">
-
-      <div
-        class="section-title"
-        style="margin-bottom:8px;"
-      >
-        在房間發問
-      </div>
-
-      <textarea
-        id="roomInput"
-        placeholder="打字發問（之後可接語音／數字人）"
-      ></textarea>
-
-      <button
-        type="button"
-        class="go"
-        id="btnRoomSend"
-      >
-        送出給播報台
-      </button>
-
+      <div class="section-title" style="margin-bottom:8px;">在房間發問</div>
+      <textarea id="roomInput" placeholder="打字發問（之後可接語音／數字人）"></textarea>
+      <button type="button" class="go" id="btnRoomSend">送出給播報台</button>
     </div>
-
   </div>
 
-
-  <!-- Proposal Library：所有企劃專案 -->
   <div id="proposalLibraryOverlay">
     <div class="proposal-bar">
       <button type="button" id="btnCloseLibrary">← 返回</button>
@@ -2259,7 +393,6 @@
     </div>
   </div>
 
-  <!-- Proposal Reader：書籍式閱覽 + 圖表 + 語音 -->
   <div id="proposalOverlay">
     <div class="proposal-bar">
       <button type="button" id="btnCloseProposal">← 書庫</button>
@@ -2270,87 +403,29 @@
     </div>
     <div class="proposal-wrap">
       <div class="proposal-status" id="proposalStatus">準備中…</div>
-
       <div class="proposal-stats" id="proposalStats"></div>
-
       <div class="chart-grid">
-        <div class="chart-card">
-          <h3>任務完成度</h3>
-          <canvas id="chartTaskStatus" width="640" height="180"></canvas>
-        </div>
-        <div class="chart-card">
-          <h3>工作流進度走勢</h3>
-          <canvas id="chartWorkflowTrend" width="640" height="180"></canvas>
-        </div>
-        <div class="chart-card">
-          <h3>Agent 連線與負載</h3>
-          <canvas id="chartAgentLoad" width="640" height="180"></canvas>
-        </div>
+        <div class="chart-card"><h3>任務完成度</h3><canvas id="chartTaskStatus" width="640" height="180"></canvas></div>
+        <div class="chart-card"><h3>工作流進度走勢</h3><canvas id="chartWorkflowTrend" width="640" height="180"></canvas></div>
+        <div class="chart-card"><h3>Agent 連線與負載</h3><canvas id="chartAgentLoad" width="640" height="180"></canvas></div>
       </div>
-
       <div class="book-nav" id="bookNav"></div>
       <div class="proposal-doc" id="proposalDoc">正在彙整最終企劃方案…</div>
     </div>
   </div>
 
-  <!-- Toast -->
-
-  <div
-    class="toast"
-    id="toast"
-  ></div>
-
-
-  <!-- =========================================================
-       JavaScript
-       ========================================================= -->
-
+  <div class="toast" id="toast"></div>
   <script>
 
-    /* ============================================================
-       ① Supabase 設定
-       ============================================================ */
-
-    const SUPABASE_URL =
-      'https://clcddygkaaqqtsbswgdf.supabase.co';
-
-    /*
-     * 這裡放你原本的 Supabase ANON KEY。
-     *
-     * 注意：
-     * Supabase ANON KEY 可以出現在前端。
-     *
-     * Groq / Gemini API Key 絕對不能放在這裡。
-     *
-     * Groq / Gemini Secret 應該留在：
-     *
-     * Supabase
-     * → Edge Functions
-     * → ai-gateway
-     * → Environment Variables
-     */
-
-    const SUPABASE_ANON_KEY =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE';
-
-
-    /*
-     * 真正的 AI Gateway。
-     */
-
-
-    const AI_GATEWAY_URL =
-      `${SUPABASE_URL}/functions/v1/ai-gateway`;
-
-    /* Auth：判斷是否管理員（user_metadata.role 或 app_metadata.role） */
+    const SUPABASE_URL = 'https://clcddygkaaqqtsbswgdf.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE';
+    const AI_GATEWAY_URL = `${SUPABASE_URL}/functions/v1/ai-gateway`;
     let currentUser = null;
     let isAdmin = false;
-
     function readRole(user) {
       if (!user) return '';
       return user.app_metadata?.role || user.user_metadata?.role || '';
     }
-
     async function bootstrapAuth() {
       try {
         const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
@@ -2363,93 +438,19 @@
         const email = (currentUser?.email || '').toLowerCase();
         const ADMIN_EMAILS = ['n_950143@hotmail.com'];
         isAdmin = role === 'admin' || role === 'owner' || ADMIN_EMAILS.includes(email);
-
         const btnOwner = document.getElementById('btnOwner');
-        if (btnOwner) {
-          if (!isAdmin) {
-            btnOwner.style.display = 'none';
-          } else {
-            btnOwner.style.display = '';
-          }
-        }
-
-        // 未登入可選擇導回 login（可依需求開啟）
-        // if (!session) location.replace('aivault-login.html');
+        if (btnOwner) btnOwner.style.display = isAdmin ? '' : 'none';
       } catch (e) {
         console.warn('Auth bootstrap failed', e);
       }
     }
     bootstrapAuth();
 
-
-
-    /* ============================================================
-       ② Provider
-       ============================================================ */
-
-    /*
-     * 這裡只寫「代號」。
-     *
-     * 真正 API Key：
-     * 不在前端。
-     *
-     * 由 Supabase Edge Function 控制。
-     */
-
     const PROVIDERS = [
-
-      {
-        id: 'p1',
-        code: 'gemini3',
-        name: 'Gemini 3',
-        status: 'active',
-        models: ['gemini-2.5-flash']
-      },
-
-      {
-        id: 'p2',
-        code: 'gemini2',
-        name: 'Gemini 2',
-        status: 'active',
-        models: ['gemini-2.5-flash']
-      },
-
-      {
-        id: 'p3',
-        code: 'groq',
-        name: 'Groq',
-        status: 'active',
-        models: ['llama-3.3-70b-versatile']
-      }
-
+      { id: 'p1', code: 'gemini3', name: 'Gemini 3', status: 'active', models: ['gemini-2.5-flash'] },
+      { id: 'p2', code: 'gemini2', name: 'Gemini 2', status: 'active', models: ['gemini-2.5-flash'] },
+      { id: 'p3', code: 'groq', name: 'Groq', status: 'active', models: ['llama-3.3-70b-versatile'] }
     ];
-
-
-    /* ============================================================
-       ③ Agent Registry
-       ============================================================ */
-
-    /*
-     * 注意：
-     *
-     * Agent 是「角色」。
-     *
-     * Provider 是「AI 供應商」。
-     *
-     * Agent 不等於 Provider。
-     *
-     * 例如：
-     *
-     * GPT Agent
-     *      ↓
-     * Groq
-     *
-     * Lawyer Agent
-     *      ↓
-     * Gemini
-     */
-
-    /* 只存設定，狀態不寫死，一律由 runtime 更新 */
     const AGENTS = [
       { id: 'a1', name: 'Chief', role: '首席分析師', avatar: '🧠', color: 'var(--agent-gpt)', provider: 'gemini3', model: 'gemini-2.5-flash' },
       { id: 'a2', name: 'Engineer', role: '技術架構師', avatar: '🧠', color: 'var(--agent-coding)', provider: 'gemini2', model: 'gemini-2.5-flash' },
@@ -2458,2616 +459,462 @@
       { id: 'a5', name: 'Creator', role: '解決方案設計師', avatar: '🧠', color: 'var(--agent-design)', provider: 'gemini3', model: 'gemini-2.5-flash' },
       { id: 'a6', name: 'Coordinator', role: '整合協調官', avatar: '🧠', color: 'var(--agent-teacher)', provider: 'gemini2', model: 'gemini-2.5-flash' }
     ];
-
-    /* agentId -> { status, statusText, lastError, connected } */
     const agentRuntime = {};
     AGENTS.forEach(a => {
-      agentRuntime[a.id] = {
-        status: 'thinking',
-        statusText: '檢查連線…',
-        connected: false,
-        lastError: ''
-      };
+      agentRuntime[a.id] = { status: 'thinking', statusText: '檢查連線…', connected: false, lastError: '' };
     });
-
     function getAgentView(agent) {
       const rt = agentRuntime[agent.id] || {};
-      return {
-        ...agent,
-        status: rt.status || 'offline',
-        statusText: rt.statusText || '未知',
-        connected: !!rt.connected
-      };
+      return { ...agent, status: rt.status || 'offline', statusText: rt.statusText || '未知', connected: !!rt.connected };
     }
-
     function setAgentRuntime(agentId, patch) {
       agentRuntime[agentId] = { ...(agentRuntime[agentId] || {}), ...patch };
     }
-
-    /* 聊天室可指定要回覆的 Agent（可單選／多選） */
     let selectedChatAgents = [];
-
+    function escapeHTML(value) {
+      return String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
+    }
+    function nowTime() {
+      const t = new Date();
+      return t.getHours().toString().padStart(2,'0') + ':' + t.getMinutes().toString().padStart(2,'0');
+    }
+    function nowHMS() {
+      const t = new Date();
+      return nowTime() + ':' + t.getSeconds().toString().padStart(2,'0');
+    }
+    function showToast(text) {
+      const toast = document.getElementById('toast');
+      toast.textContent = text;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2500);
+    }
     function renderAgentPickBars() {
       ['homeAgentPick', 'chatAgentPick'].forEach(containerId => {
         const bar = document.getElementById(containerId);
         if (!bar) return;
-
         bar.innerHTML =
           `<span class="agent-pick-label">指定 AI：</span>` +
           AGENTS.map(agent => {
             const view = getAgentView(agent);
             const selected = selectedChatAgents.includes(agent.id);
             const offline = !view.connected;
-            return `
-              <button
-                type="button"
-                class="agent-chip ${selected ? 'selected' : ''} ${offline ? 'offline' : ''}"
-                data-agent-id="${agent.id}"
-                title="${offline ? '未連線' : (selected ? '已選（點擊取消）' : '點擊選取')}"
-              >
-                <span class="chip-dot"></span>
-                ${escapeHTML(agent.name)}
-              </button>
-            `;
+            return `<button type="button" class="agent-chip ${selected ? 'selected' : ''} ${offline ? 'offline' : ''}" data-agent-id="${agent.id}"><span class="chip-dot"></span>${escapeHTML(agent.name)}</button>`;
           }).join('') +
-          `<button type="button" class="agent-chip" id="${containerId}-all" style="border-style:dashed;">
-            全選在線
-          </button>`;
+          `<button type="button" class="agent-chip" id="${containerId}-all" style="border-style:dashed;">全選在線</button>`;
       });
     }
-
     function toggleChatAgent(agentId) {
       const view = getAgentView(AGENTS.find(a => a.id === agentId) || {});
-      if (!view.connected) {
-        showToast('此 Agent 尚未連線');
-        return;
-      }
-      if (selectedChatAgents.includes(agentId)) {
-        selectedChatAgents = selectedChatAgents.filter(id => id !== agentId);
-      } else {
-        selectedChatAgents.push(agentId);
-      }
+      if (!view.connected) { showToast('此 Agent 尚未連線'); return; }
+      if (selectedChatAgents.includes(agentId)) selectedChatAgents = selectedChatAgents.filter(id => id !== agentId);
+      else selectedChatAgents.push(agentId);
       renderAgentPickBars();
     }
-
     function selectAllOnlineAgents() {
-      selectedChatAgents = AGENTS
-        .filter(a => getAgentView(a).connected)
-        .map(a => a.id);
-      if (!selectedChatAgents.length) {
-        showToast('目前沒有已連線的 Agent');
-      }
+      selectedChatAgents = AGENTS.filter(a => getAgentView(a).connected).map(a => a.id);
+      if (!selectedChatAgents.length) showToast('目前沒有已連線的 Agent');
       renderAgentPickBars();
     }
-
-
-    /* ============================================================
-       ④ Tasks
-       ============================================================ */
-
     const TASKS = [
-
-      {
-        id: 't1',
-        title: '分析產品架構',
-        status: 'done',
-        agent: 'Chief'
-      },
-
-      {
-        id: 't2',
-        title: 'AI 協作討論',
-        status: 'active',
-        agent: 'Chief + Engineer'
-      },
-
-      {
-        id: 't3',
-        title: '建立 Demo 介面',
-        status: 'pending',
-        agent: 'Creator'
-      },
-
-      {
-        id: 't4',
-        title: '設計 Permission Engine',
-        status: 'pending',
-        agent: 'Engineer'
-      },
-
-      {
-        id: 't5',
-        title: 'Owner 最終審批（產出企劃 PDF）',
-        status: 'pending',
-        agent: 'Owner'
-      }
-
+      { id: 't1', title: '分析產品架構', status: 'done', agent: 'Chief' },
+      { id: 't2', title: 'AI 協作討論', status: 'active', agent: 'Chief + Engineer' },
+      { id: 't3', title: '建立 Demo 介面', status: 'pending', agent: 'Creator' },
+      { id: 't4', title: '設計 Permission Engine', status: 'pending', agent: 'Engineer' },
+      { id: 't5', title: 'Owner 最終審批（產出企劃 PDF）', status: 'pending', agent: 'Owner' }
     ];
-
-
-    /* ============================================================
-       ⑤ Workflow
-       ============================================================ */
-
     const WORKFLOW = [
-
-      {
-        step: 1,
-        title: '架構分析',
-        agent: 'Chief',
-        status: 'done'
-      },
-
-      {
-        step: 2,
-        title: '批判與補強',
-        agent: 'Auditor',
-        status: 'active'
-      },
-
-      {
-        step: 3,
-        title: '前端設計建議',
-        agent: 'Creator',
-        status: 'pending'
-      },
-
-      {
-        step: 4,
-        title: '程式實作規劃',
-        agent: 'Engineer',
-        status: 'pending'
-      },
-
-      {
-        step: 5,
-        title: '法律合規檢查',
-        agent: 'Strategist',
-        status: 'pending'
-      },
-
-      {
-        step: 6,
-        title: 'Owner 批准',
-        agent: 'Owner',
-        status: 'pending'
-      }
-
+      { step: 1, title: '架構分析', agent: 'Chief', status: 'done' },
+      { step: 2, title: '批判與補強', agent: 'Auditor', status: 'active' },
+      { step: 3, title: '前端設計建議', agent: 'Creator', status: 'pending' },
+      { step: 4, title: '程式實作規劃', agent: 'Engineer', status: 'pending' },
+      { step: 5, title: '法律合規檢查', agent: 'Strategist', status: 'pending' },
+      { step: 6, title: 'Owner 批准', agent: 'Owner', status: 'pending' }
     ];
-
-
-    /* ============================================================
-       ⑥ Approval
-       ============================================================ */
-
-    /*
-     * 目前仍是前端展示資料。
-     *
-     * 下一階段可以直接搬到 Supabase：
-     *
-     * approval_requests
-     *
-     * 然後真正記錄：
-     *
-     * pending
-     * approved
-     * rejected
-     */
-
     let approvals = [
-
-      {
-        id: 'ap1',
-
-        agent: 'Auditor',
-
-        action:
-          '修改資料庫 Schema：新增 agent_capabilities 關聯表',
-
-        risk: 'medium',
-
-        time: '剛剛'
-      },
-
-
-      {
-        id: 'ap2',
-
-        agent: 'Engineer',
-
-        action:
-          '請求執行 Terminal 指令：建立專案目錄結構',
-
-        risk: 'high',
-
-        time: '2 分鐘前'
-      }
-
+      { id: 'ap1', agent: 'Auditor', action: '修改資料庫 Schema：新增 agent_capabilities 關聯表', risk: 'medium', time: '剛剛' },
+      { id: 'ap2', agent: 'Engineer', action: '請求執行 Terminal 指令：建立專案目錄結構', risk: 'high', time: '2 分鐘前' }
     ];
-
-
-    /* ============================================================
-       ⑦ 初始聊天內容
-       ============================================================ */
-
     let messages = [
-
-      {
-        sender: 'Chief', role: '首席分析師',
-        type: 'agent',
-
-        text:
-          '我已分析目前需求。建議採用 Provider Adapter + Agent Registry 架構，確保未來可自由新增 AI。',
-
-        time: '14:32'
-      },
-
-
-      {
-        sender: 'Auditor', role: '風險審查官',
-        type: 'agent',
-
-        text:
-          '我不同意把第一版做得太複雜。應該先用 Mock 快速驗證協作流程，再逐步替換真實 Provider。',
-
-        time: '14:33'
-      },
-
-
-      {
-        sender: 'Chief', role: '首席分析師',
-        type: 'agent',
-
-        text:
-          '重新評估後，我同意 Grok 的觀點。先建立可展示的協作原型，架構保持可擴充即可。',
-
-        time: '14:34'
-      },
-
-
-      {
-        sender: 'Owner',
-        type: 'owner',
-
-        text:
-          '採用第二方案。先做可操作 Demo，架構不能寫死。',
-
-        time: '14:35'
-      }
-
+      { sender: 'Chief', role: '首席分析師', type: 'agent', text: '我已分析目前需求。建議採用 Provider Adapter + Agent Registry 架構，確保未來可自由新增 AI。', time: '14:32' },
+      { sender: 'Auditor', role: '風險審查官', type: 'agent', text: '我不同意把第一版做得太複雜。應該先用 Mock 快速驗證協作流程，再逐步替換真實 Provider。', time: '14:33' },
+      { sender: 'Chief', role: '首席分析師', type: 'agent', text: '重新評估後，我同意 Grok 的觀點。先建立可展示的協作原型，架構保持可擴充即可。', time: '14:34' },
+      { sender: 'Owner', type: 'owner', text: '採用第二方案。先做可操作 Demo，架構不能寫死。', time: '14:35' }
     ];
-
-
-    /* ============================================================
-       ⑧ 時間
-       ============================================================ */
-
-    function nowTime() {
-
-      const t = new Date();
-
-      return (
-        t.getHours()
-          .toString()
-          .padStart(2, '0')
-        +
-        ':'
-        +
-        t.getMinutes()
-          .toString()
-          .padStart(2, '0')
-      );
-
-    }
-
-
-    function nowHMS() {
-
-      const t = new Date();
-
-      return (
-        t.getHours()
-          .toString()
-          .padStart(2, '0')
-        +
-        ':'
-        +
-        t.getMinutes()
-          .toString()
-          .padStart(2, '0')
-        +
-        ':'
-        +
-        t.getSeconds()
-          .toString()
-          .padStart(2, '0')
-      );
-
-    }
-
-
-    /* ============================================================
-       ⑨ Toast
-       ============================================================ */
-
-    function showToast(text) {
-
-      const toast =
-        document.getElementById('toast');
-
-      toast.textContent = text;
-
-      toast.classList.add('show');
-
-      setTimeout(() => {
-
-        toast.classList.remove('show');
-
-      }, 2500);
-
-    }
-
-
-    /* ============================================================
-       ⑩ 真正 AI Gateway
-       ============================================================ */
-
-    /*
-     * 這裡就是這次最重要的修改。
-     *
-     * 舊版：
-     *
-     * MockAIGateway
-     * MockProviderAdapter
-     *
-     * 現在：
-     *
-     * Browser
-     *    ↓
-     * Supabase Edge Function
-     *    ↓
-     * Groq / Gemini
-     *
-     * API Key 不經過 Browser。
-     */
-
-    async function callAIGateway({
-      provider,
-      model,
-      agentName,
-      userMessage
-    }) {
-
-      /*
-       * 每一個 Agent 都有自己的角色。
-       */
-
-      const systemPrompt = `
-
-你是 AIVAULT 平台中的「${agentName}」。
-
-你的角色是：
-${agentName}
-
-你正在與 Owner 以及其他 AI Agent 協作。
-
-請使用繁體中文。
-
-回答要求：
-1. 專業
-2. 直接
-3. 清楚
-4. 不要虛構已經完成的操作
-5. 不可以自行宣稱已修改資料庫
-6. 不可以自行宣稱已修改前端程式
-7. 不可以自行執行高風險操作
-
-如果 Owner 要求執行需要權限的操作，
-請提出建議並交由 Owner Approval。
-
-你是 AIVAULT 的 Agent，
-不是 Owner。
-
-Owner 擁有最終決策權。
-
-`;
-
-
-      /*
-       * 呼叫 Supabase Edge Function。
-       */
-
-      const response =
-        await fetch(
-          AI_GATEWAY_URL,
-          {
-            method: 'POST',
-
-            headers: {
-
-              'Content-Type':
-                'application/json',
-
-              'Authorization':
-                `Bearer ${SUPABASE_ANON_KEY}`
-
-            },
-
-            body: JSON.stringify({
-
-              provider,
-
-              model,
-
-              agent:
-                agentName,
-
-              systemPrompt,
-
-              messages: [
-
-                {
-                  role: 'system',
-
-                  content:
-                    systemPrompt
-                },
-
-                {
-                  role: 'user',
-
-                  content:
-                    userMessage
-                }
-
-              ]
-
-            })
-
-          }
-        );
-
-
-      /*
-       * 嘗試解析 JSON。
-       */
-
+    async function callAIGateway({ provider, model, agentName, userMessage }) {
+      const systemPrompt = `你是 AIVAULT 平台中的「${agentName}」。請使用繁體中文。專業、直接、清楚。不要虛構已完成的操作。`;
+      const response = await fetch(AI_GATEWAY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+        body: JSON.stringify({
+          provider, model, agent: agentName, systemPrompt,
+          messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }]
+        })
+      });
       let data;
-
-      try {
-
-        data =
-          await response.json();
-
-      } catch {
-
-        throw new Error(
-          'AI Gateway 回傳格式錯誤'
-        );
-
-      }
-
-
-      /*
-       * HTTP 錯誤。
-       */
-
-      if (!response.ok) {
-
-        throw new Error(
-
-          data?.error
-          ||
-          data?.message
-          ||
-          `AI Gateway HTTP ${response.status}`
-
-        );
-
-      }
-
-
-      /*
-       * 相容你原本 ai-gateway 的：
-       *
-       * data.content
-       *
-       * 同時增加幾種常見格式。
-       */
-
-      const content =
-
-        data?.content
-
-        ||
-
-        data?.response
-
-        ||
-
-        data?.text
-
-        ||
-
-        data?.message
-
-        ||
-
-        data?.choices?.[0]?.message?.content;
-
-
-      if (!content) {
-
-        throw new Error(
-          'AI Gateway 沒有回傳 AI 內容'
-        );
-
-      }
-
-
+      try { data = await response.json(); } catch { throw new Error('AI Gateway 回傳格式錯誤'); }
+      if (!response.ok) throw new Error(data?.error || data?.message || `AI Gateway HTTP ${response.status}`);
+      const content = data?.content || data?.response || data?.text || data?.message || data?.choices?.[0]?.message?.content;
+      if (!content) throw new Error('AI Gateway 沒有回傳 AI 內容');
       return content;
-
     }
-
-
-    /* ============================================================
-       ⑪ Agent → Model
-       ============================================================ */
-
     function getAgentModel(agent) {
-
-      if (agent.model) {
-
-        return agent.model;
-
-      }
-
-
-      if (agent.provider === 'gemini' || agent.provider === 'gemini2' || agent.provider === 'gemini3') {
-        return 'gemini-2.5-flash';
-      }
-
-
+      if (agent.model) return agent.model;
+      if (agent.provider === 'gemini' || agent.provider === 'gemini2' || agent.provider === 'gemini3') return 'gemini-2.5-flash';
       return 'llama-3.3-70b-versatile';
-
     }
-
-
-    /* ============================================================
-       ⑫ Render Agent
-       ============================================================ */
-
-
-    /* 依 provider 即時探測，不寫死狀態 */
     async function probeProvider(provider, model) {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 10000);
       try {
         const res = await fetch(AI_GATEWAY_URL, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-          },
-          body: JSON.stringify({
-            provider,
-            model,
-            agent: 'healthcheck',
-            systemPrompt: 'Reply with the single word OK.',
-            messages: [{ role: 'user', content: 'healthcheck' }]
-          }),
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+          body: JSON.stringify({ provider, model, agent: 'healthcheck', systemPrompt: 'Reply with the single word OK.', messages: [{ role: 'user', content: 'healthcheck' }] }),
           signal: controller.signal
         });
         clearTimeout(timer);
-        // 只有真的打不到服務才算未連線；4xx/5xx 仍視為通道有通 → 空閒綠燈
-        if (res.status === 404) {
-          return { ok: false, text: '未連線' };
-        }
+        if (res.status === 404) return { ok: false, text: '未連線' };
         return { ok: true, text: '空閒' };
       } catch (e) {
         clearTimeout(timer);
         return { ok: false, text: '未連線' };
       }
     }
-
     async function checkGatewayConnections() {
-      AGENTS.forEach(a => setAgentRuntime(a.id, {
-        status: 'working',
-        statusText: '檢查連線…',
-        connected: false
-      }));
-      renderAgents();
-      renderAgentRegistry();
-
+      AGENTS.forEach(a => setAgentRuntime(a.id, { status: 'working', statusText: '檢查連線…', connected: false }));
+      renderAgents(); renderAgentRegistry();
       const providers = [...new Set(AGENTS.map(a => a.provider))];
       const results = {};
       await Promise.all(providers.map(async (provider) => {
         const sample = AGENTS.find(a => a.provider === provider);
         results[provider] = await probeProvider(provider, sample.model);
       }));
-
       AGENTS.forEach(agent => {
         const r = results[agent.provider] || { ok: false, text: '未知' };
-        setAgentRuntime(agent.id, {
-          status: r.ok ? 'idle' : 'offline',
-          statusText: r.ok ? (`空閒 · ${agent.provider}`) : '未連線',
-          connected: !!r.ok,
-          lastError: r.ok ? '' : r.text
-        });
+        setAgentRuntime(agent.id, { status: r.ok ? 'idle' : 'offline', statusText: r.ok ? (`空閒 · ${agent.provider}`) : '未連線', connected: !!r.ok, lastError: r.ok ? '' : r.text });
       });
-      renderAgents();
-      renderAgentRegistry();
-
-      // 預設選前兩個在線 Agent
-      if (!selectedChatAgents.length) {
-        selectedChatAgents = AGENTS
-          .filter(a => getAgentView(a).connected)
-          .slice(0, 2)
-          .map(a => a.id);
-      } else {
-        // 移除已離線的選取
-        selectedChatAgents = selectedChatAgents.filter(id => {
-          const a = AGENTS.find(x => x.id === id);
-          return a && getAgentView(a).connected;
-        });
-      }
+      renderAgents(); renderAgentRegistry();
+      if (!selectedChatAgents.length) selectedChatAgents = AGENTS.filter(a => getAgentView(a).connected).slice(0, 2).map(a => a.id);
+      else selectedChatAgents = selectedChatAgents.filter(id => { const a = AGENTS.find(x => x.id === id); return a && getAgentView(a).connected; });
       renderAgentPickBars();
     }
-
     function renderAgents() {
-
-      const container =
-        document.getElementById(
-          'agentsGrid'
-        );
-
-
-      container.innerHTML =
-
-        AGENTS
-          .slice(0, 6)
-          .map(raw => {
-            const agent = getAgentView(raw);
-            return `
-
-            <div
-              class="agent-card"
-              data-id="${agent.id}"
-            >
-
-              <div
-                class="agent-avatar"
-                style="
-                  background:
-                  ${agent.color}22
-                "
-              >
-                ${agent.avatar}
-              </div>
-
-              <div class="agent-name">
-                ${agent.name}
-              </div>
-
-              <div class="agent-role">
-                ${agent.role} · ${agent.provider}
-              </div>
-
-              <div class="agent-status">
-
-                <span
-                  class="status-dot
-                  ${agent.status}"
-                ></span>
-
-                <span>
-                  ${agent.statusText}
-                </span>
-
-              </div>
-
-            </div>
-
-          `;
-          })
-          .join('');
-
+      const container = document.getElementById('agentsGrid');
+      container.innerHTML = AGENTS.slice(0, 6).map(raw => {
+        const agent = getAgentView(raw);
+        return `<div class="agent-card" data-id="${agent.id}"><div class="agent-avatar" style="background:${agent.color}22">${agent.avatar}</div><div class="agent-name">${agent.name}</div><div class="agent-role">${agent.role} · ${agent.provider}</div><div class="agent-status"><span class="status-dot ${agent.status}"></span><span>${agent.statusText}</span></div></div>`;
+      }).join('');
     }
-
-
-    /* ============================================================
-       ⑬ Render Tasks
-       ============================================================ */
-
     function renderTasks(containerId) {
-
-      const container =
-        document.getElementById(
-          containerId
-        );
-
+      const container = document.getElementById(containerId);
       if (!container) return;
-
-      container.innerHTML =
-
-        TASKS
-          .map(task => `
-
-            <div
-              class="task-item
-              ${task.status}"
-              data-task-id="${task.id}"
-              style="cursor:pointer;"
-              title="點擊切換狀態：待辦 → 進行中 → 完成"
-            >
-
-              <div class="task-check">
-
-                ${
-                  task.status === 'done'
-                    ? '✓'
-                    : task.status === 'active'
-                      ? '●'
-                      : '○'
-                }
-
-              </div>
-
-              <div>
-
-                <div class="task-title">
-                  ${task.title}
-                </div>
-
-                <div class="task-meta">
-                  ${task.agent}
-                  ·
-                  ${
-                    task.status === 'done'
-                      ? '已完成'
-                      : task.status === 'active'
-                        ? '進行中'
-                        : '待辦'
-                  }
-                </div>
-
-              </div>
-
-            </div>
-
-          `)
-          .join('');
-
+      container.innerHTML = TASKS.map(task => `
+        <div class="task-item ${task.status}" data-task-id="${task.id}" style="cursor:pointer;">
+          <div class="task-check">${task.status === 'done' ? '✓' : task.status === 'active' ? '●' : '○'}</div>
+          <div><div class="task-title">${task.title}</div><div class="task-meta">${task.agent} · ${task.status === 'done' ? '已完成' : task.status === 'active' ? '進行中' : '待辦'}</div></div>
+        </div>`).join('');
     }
-
     function cycleTaskStatus(taskId) {
       const task = TASKS.find(t => t.id === taskId);
       if (!task) return;
-
-      if (task.status === 'pending') {
-        task.status = 'active';
-        renderTasks('taskList');
-        renderTasks('taskListFull');
-        syncWorkflowWithTasks();
-        executeTaskAction(task);
-        return;
-      }
-
-      if (task.status === 'active') {
-        // 進行中再點一次 = 標記完成
-        task.status = 'done';
-        renderTasks('taskList');
-        renderTasks('taskListFull');
-        syncWorkflowWithTasks();
-        showToast(`任務完成：${task.title}`);
-        return;
-      }
-
-      task.status = 'pending';
-      showToast(`任務重置：${task.title}`);
-      renderTasks('taskList');
-      renderTasks('taskListFull');
-      syncWorkflowWithTasks();
+      if (task.status === 'pending') { task.status = 'active'; renderTasks('taskList'); renderTasks('taskListFull'); syncWorkflowWithTasks(); executeTaskAction(task); return; }
+      if (task.status === 'active') { task.status = 'done'; renderTasks('taskList'); renderTasks('taskListFull'); syncWorkflowWithTasks(); showToast(`任務完成：${task.title}`); return; }
+      task.status = 'pending'; showToast(`任務重置：${task.title}`); renderTasks('taskList'); renderTasks('taskListFull'); syncWorkflowWithTasks();
     }
-
     function switchTab(panelName) {
-      document.querySelectorAll('.tab').forEach(tab => {
-        tab.classList.toggle('active', tab.dataset.panel === panelName);
-      });
-      document.querySelectorAll('.panel').forEach(panel => {
-        panel.classList.toggle('active', panel.id === `panel-${panelName}`);
-      });
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.toggle('active', tab.dataset.panel === panelName));
+      document.querySelectorAll('.panel').forEach(panel => panel.classList.toggle('active', panel.id === `panel-${panelName}`));
     }
-
-    /* 每個任務真正啟動的流程 */
     async function executeTaskAction(task) {
       showToast(`啟動：${task.title}`);
-
-      if (task.id === 't1') {
-        selectedChatAgents = ['a1'];
-        renderAgentPickBars();
-        switchTab('chat');
-        await runTaskAI(task, '請以首席分析師身份，針對 AIVAULT 產品架構做精簡分析：核心模組、風險、下一版優先順序。條列輸出。');
-        return;
-      }
-
-      if (task.id === 't2') {
-        selectedChatAgents = ['a1', 'a2'];
-        renderAgentPickBars();
-        switchTab('chat');
-        await runTaskAI(task, '請針對「AIVAULT 多 Agent 協作流程」提出可執行討論重點與分工建議。');
-        return;
-      }
-
-      if (task.id === 't3') {
-        // 建立 Demo 介面
-        selectedChatAgents = ['a5'];
-        renderAgentPickBars();
-        switchTab('chat');
-        await runTaskAI(task, '你是解決方案設計師 Creator。請為 AIVAULT Demo 介面產出：1) 必要畫面清單 2) 每畫面核心元件 3) 最小可展示流程。不要空談。');
-        return;
-      }
-
-      if (task.id === 't4') {
-        // 設計 Permission Engine
-        selectedChatAgents = ['a2', 'a3'];
-        renderAgentPickBars();
-        switchTab('chat');
-        await runTaskAI(task, '請設計 AIVAULT Permission Engine 最小可行方案：角色、權限點、Owner Approval 觸發條件、Agent 呼叫檢查時機。用條列。');
-        return;
-      }
-
-      if (task.id === 't5') {
-        // Owner 最終審批 = 產出最終企劃方案頁 + 可下載 PDF
-        await openFinalProposalPage(task);
-        return;
-      }
-
-      switchTab('chat');
-      await runTaskAI(task, `請執行任務：${task.title}`);
+      if (task.id === 't5') { await openFinalProposalPage(task); return; }
+      const map = { t1: ['a1', '請以首席分析師身份，針對 AIVAULT 產品架構做精簡分析。'], t2: ['a1,a2', '請針對多 Agent 協作流程提出可執行討論重點。'], t3: ['a5', '請為 AIVAULT Demo 介面產出畫面清單與最小流程。'], t4: ['a2,a3', '請設計 Permission Engine 最小可行方案。'] };
+      const spec = map[task.id];
+      if (spec) selectedChatAgents = spec[0].split(',');
+      renderAgentPickBars(); switchTab('chat');
+      await runTaskAI(task, spec ? spec[1] : `請執行任務：${task.title}`);
     }
-
     async function runTaskAI(task, prompt) {
       const targets = selectedChatAgents.length
         ? AGENTS.filter(a => selectedChatAgents.includes(a.id) && getAgentView(a).connected)
         : AGENTS.filter(a => getAgentView(a).connected).slice(0, 1);
-
-      if (!targets.length) {
-        showToast('沒有可用的連線 Agent，無法執行任務');
-        return;
-      }
-
-      messages.push({
-        sender: 'Owner',
-        type: 'owner',
-        text: `[任務] ${task.title}\n${prompt}`,
-        time: nowTime()
-      });
-      renderMessages('chatMessages');
-      renderMessages('homeChatPreview', 6);
-
+      if (!targets.length) { showToast('沒有可用的連線 Agent，無法執行任務'); return; }
+      messages.push({ sender: 'Owner', type: 'owner', text: `[任務] ${task.title}\n${prompt}`, time: nowTime() });
+      renderMessages('chatMessages'); renderMessages('homeChatPreview', 6);
       for (const agent of targets) {
-        setAgentRuntime(agent.id, {
-          status: 'working',
-          statusText: `執行：${task.title}`,
-          connected: true
-        });
-        renderAgents();
-
+        setAgentRuntime(agent.id, { status: 'working', statusText: `執行：${task.title}`, connected: true }); renderAgents();
         try {
-          const reply = await callAIGateway({
-            provider: agent.provider,
-            model: getAgentModel(agent),
-            agentName: agent.name,
-            userMessage: prompt
-          });
-          messages.push({
-            sender: agent.name,
-            role: agent.role,
-            type: 'agent',
-            text: reply,
-            time: nowTime()
-          });
+          const reply = await callAIGateway({ provider: agent.provider, model: getAgentModel(agent), agentName: agent.name, userMessage: prompt });
+          messages.push({ sender: agent.name, role: agent.role, type: 'agent', text: reply, time: nowTime() });
         } catch (err) {
-          messages.push({
-            sender: agent.name,
-            role: agent.role,
-            type: 'agent',
-            text: `任務執行失敗：${err.message || err}`,
-            time: nowTime()
-          });
+          messages.push({ sender: agent.name, role: agent.role, type: 'agent', text: `任務執行失敗：${err.message || err}`, time: nowTime() });
         }
-
-        setAgentRuntime(agent.id, {
-          status: 'idle',
-          statusText: '空閒 · ' + agent.provider,
-          connected: true
-        });
-        renderAgents();
-        renderMessages('chatMessages');
-        renderMessages('homeChatPreview', 6);
+        setAgentRuntime(agent.id, { status: 'idle', statusText: '空閒 · ' + agent.provider, connected: true });
+        renderAgents(); renderMessages('chatMessages'); renderMessages('homeChatPreview', 6);
       }
     }
-
-    /* ============================================================
-       企劃書庫 + 書籍閱覽 + 圖表 + 語音 + PDF
-       ============================================================ */
-
-    let finalProposalText = '';
-    let currentProposalId = null;
-    let proposalSections = [];
-    let proposalSpeaking = false;
-    let proposalUtterance = null;
-
-    /* 正式企劃案 24 章（模組化；不修改 Gateway / Governance） */
-    const PROPOSAL_CHAPTERS = [
-      { no: '01', title: '計畫摘要' },
-      { no: '02', title: '產業與市場背景' },
-      { no: '03', title: '現有問題與需求' },
-      { no: '04', title: 'AIVAULT 核心理念與定位' },
-      { no: '05', title: 'AIVAULT 整體產品架構' },
-      { no: '06', title: 'AI Agent 協作架構' },
-      { no: '07', title: 'Cognitive Engine' },
-      { no: '08', title: 'Governance Engine' },
-      { no: '09', title: 'AI Gateway' },
-      { no: '10', title: 'Multi-Agent / Cross-Agent Review' },
-      { no: '11', title: 'Security & Governance' },
-      { no: '12', title: '資料庫與 Memory System' },
-      { no: '13', title: '前端與使用者體驗' },
-      { no: '14', title: '產品服務與商業流程' },
-      { no: '15', title: '商業模式與營收模式' },
-      { no: '16', title: '市場競爭與差異化' },
-      { no: '17', title: '法律、個資與合規' },
-      { no: '18', title: '開發與部署計畫' },
-      { no: '19', title: '成本與財務規劃' },
-      { no: '20', title: '風險管理' },
-      { no: '21', title: 'KPI 與效益評估' },
-      { no: '22', title: '未來發展藍圖' },
-      { no: '23', title: '結論' },
-      { no: '24', title: '附件' }
-    ];
-
-    function loadProposalLibrary() {
-      try {
-        const raw = localStorage.getItem('AIVAULT_PROPOSAL_LIBRARY');
-        const list = raw ? JSON.parse(raw) : [];
-        return Array.isArray(list) ? list : [];
-      } catch (e) {
-        return [];
-      }
-    }
-
-    function saveProposalLibrary(list) {
-      try {
-        localStorage.setItem('AIVAULT_PROPOSAL_LIBRARY', JSON.stringify(list.slice(0, 30)));
-      } catch (e) {}
-    }
-
+    let finalProposalText = '', currentProposalId = null, proposalSections = [], proposalSpeaking = false, proposalUtterance = null;
+    const PROPOSAL_CHAPTERS = Array.from({length: 24}, (_, i) => ({ no: String(i+1).padStart(2,'0'), title: '章節 ' + (i+1) }));
+    function loadProposalLibrary() { try { const list = JSON.parse(localStorage.getItem('AIVAULT_PROPOSAL_LIBRARY') || '[]'); return Array.isArray(list) ? list : []; } catch { return []; } }
+    function saveProposalLibrary(list) { try { localStorage.setItem('AIVAULT_PROPOSAL_LIBRARY', JSON.stringify(list.slice(0,30))); } catch(e) {} }
     function collectSystemStats() {
       const done = TASKS.filter(t => t.status === 'done').length;
       const active = TASKS.filter(t => t.status === 'active').length;
       const pending = TASKS.filter(t => t.status === 'pending').length;
       const total = TASKS.length || 1;
-      const completionRate = Math.round((done / total) * 100);
-
-      const wfDone = WORKFLOW.filter(s => s.status === 'done').length;
-      const wfActive = WORKFLOW.filter(s => s.status === 'active').length;
-      const wfPending = WORKFLOW.filter(s => s.status === 'pending').length;
-
-      const online = AGENTS.filter(a => getAgentView(a).connected).length;
-      const offline = AGENTS.length - online;
-      const agentMsgs = messages.filter(m => m.type === 'agent').length;
-      const ownerMsgs = messages.filter(m => m.type === 'owner').length;
-      const approvalCount = approvals.length;
-
-      return {
-        done, active, pending, total, completionRate,
-        wfDone, wfActive, wfPending,
-        online, offline, agentMsgs, ownerMsgs, approvalCount
-      };
+      return { done, active, pending, total, completionRate: Math.round((done/total)*100), wfDone: WORKFLOW.filter(s => s.status==='done').length, wfActive: WORKFLOW.filter(s => s.status==='active').length, wfPending: WORKFLOW.filter(s => s.status==='pending').length, online: AGENTS.filter(a => getAgentView(a).connected).length, offline: AGENTS.filter(a => !getAgentView(a).connected).length, agentMsgs: messages.filter(m => m.type==='agent').length, ownerMsgs: messages.filter(m => m.type==='owner').length, approvalCount: approvals.length };
     }
-
-    function buildProposalContext() {
-      const stats = collectSystemStats();
-      const taskLines = TASKS.map(t =>
-        `- [${t.status}] ${t.title}（${t.agent}）`
-      ).join('\n');
-
-      const recent = messages
-        .slice(-16)
-        .map(m => `${m.sender}: ${String(m.text).slice(0, 400)}`)
-        .join('\n\n');
-
-      const workflowLines = WORKFLOW.map(s =>
-        `- [${s.status}] ${s.step}. ${s.title}（${s.agent}）`
-      ).join('\n');
-
-      const statsBlock = `
-任務完成率：${stats.completionRate}%（完成 ${stats.done} / 進行中 ${stats.active} / 待辦 ${stats.pending}）
-工作流：完成 ${stats.wfDone} · 進行中 ${stats.wfActive} · 待辦 ${stats.wfPending}
-Agent 連線：在線 ${stats.online} / 離線 ${stats.offline}
-對話量：Owner ${stats.ownerMsgs} · Agent ${stats.agentMsgs}
-待審批：${stats.approvalCount}`;
-
-      return { taskLines, recent, workflowLines, stats, statsBlock };
-    }
-
-    function splitProposalSections(text) {
-      const raw = String(text || '').trim();
-      if (!raw) return [{ id: 'all', title: '全文', body: '（無內容）' }];
-
-      // 優先依 01｜ / 01| / 第01章 切割
-      let parts = raw.split(/\n(?=\s*0?[1-9]\d?\s*[｜|、.．]\s*)/);
-      if (parts.length <= 1) {
-        parts = raw.split(/\n(?=[一二三四五六七八九十]+[、．.]\s*)/);
-      }
-      if (parts.length <= 1) {
-        // 依正式章節標題強制分章（若 AI 未編號）
-        return PROPOSAL_CHAPTERS.map((ch, i) => ({
-          id: 'ch' + ch.no,
-          title: ch.no + '｜' + ch.title,
-          body: i === 0 ? raw : `（本章內容併於全文，請見章節導覽「全文」）`
-        })).concat([{ id: 'all', title: '全文', body: raw }]);
-      }
-
-      return parts.map((p, i) => {
-        const line = p.trim().split('\n')[0] || `章節 ${i + 1}`;
-        const title = line.replace(/^\s+/, '').slice(0, 36);
-        return { id: 's' + i, title, body: p.trim() };
-      });
-    }
-
-    function renderBookNav(sections) {
-      const nav = document.getElementById('bookNav');
-      if (!nav) return;
-      nav.innerHTML = sections.map((s, i) =>
-        `<button type="button" class="book-chip ${i === 0 ? 'active' : ''}" data-section="${s.id}">${escapeHTML(s.title)}</button>`
-      ).join('');
-    }
-
-    function showProposalSection(sectionId) {
-      const sec = proposalSections.find(s => s.id === sectionId) || proposalSections[0];
-      if (!sec) return;
-      const doc = document.getElementById('proposalDoc');
-      if (doc) doc.textContent = sec.body;
-      document.querySelectorAll('.book-chip').forEach(chip => {
-        chip.classList.toggle('active', chip.dataset.section === sec.id);
-      });
-    }
-
     function renderProposalStats(stats) {
-      const el = document.getElementById('proposalStats');
-      if (!el) return;
-      el.innerHTML = `
-        <div class="stat-card"><div class="n">${stats.completionRate}%</div><div class="l">任務完成率</div></div>
-        <div class="stat-card"><div class="n">${stats.done}/${stats.total}</div><div class="l">任務完成數</div></div>
-        <div class="stat-card"><div class="n">${stats.online}</div><div class="l">在線 Agent</div></div>
-        <div class="stat-card"><div class="n">${stats.agentMsgs}</div><div class="l">Agent 回覆數</div></div>
-      `;
+      const el = document.getElementById('proposalStats'); if (!el) return;
+      el.innerHTML = `<div class="stat-card"><div class="n">${stats.completionRate}%</div><div class="l">任務完成率</div></div><div class="stat-card"><div class="n">${stats.done}/${stats.total}</div><div class="l">任務完成數</div></div><div class="stat-card"><div class="n">${stats.online}</div><div class="l">在線 Agent</div></div><div class="stat-card"><div class="n">${stats.agentMsgs}</div><div class="l">Agent 回覆數</div></div>`;
     }
-
     function drawBarChart(canvasId, labels, values, colors) {
-      const canvas = document.getElementById(canvasId);
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-      const w = canvas.width;
-      const h = canvas.height;
-      ctx.clearRect(0, 0, w, h);
-      ctx.fillStyle = '#020617';
-      ctx.fillRect(0, 0, w, h);
-
-      const max = Math.max(...values, 1);
-      const gap = 16;
-      const barW = (w - gap * (values.length + 1)) / values.length;
-
-      values.forEach((v, i) => {
-        const bh = (v / max) * (h - 50);
-        const x = gap + i * (barW + gap);
-        const y = h - 28 - bh;
-        ctx.fillStyle = colors[i % colors.length];
-        ctx.fillRect(x, y, barW, bh);
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = '12px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(String(v), x + barW / 2, y - 6);
-        ctx.fillText(labels[i], x + barW / 2, h - 10);
-      });
+      const canvas = document.getElementById(canvasId); if (!canvas) return;
+      const ctx = canvas.getContext('2d'); const w = canvas.width, h = canvas.height;
+      ctx.fillStyle = '#020617'; ctx.fillRect(0,0,w,h);
+      const max = Math.max(...values, 1); const gap = 16; const barW = (w - gap * (values.length + 1)) / values.length;
+      values.forEach((v,i) => { const bh = (v/max)*(h-50); const x = gap + i*(barW+gap); const y = h-28-bh; ctx.fillStyle = colors[i%colors.length]; ctx.fillRect(x,y,barW,bh); ctx.fillStyle='#94a3b8'; ctx.font='12px sans-serif'; ctx.textAlign='center'; ctx.fillText(String(v), x+barW/2, y-6); ctx.fillText(labels[i], x+barW/2, h-10); });
     }
-
     function drawLineChart(canvasId, labels, values) {
-      const canvas = document.getElementById(canvasId);
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-      const w = canvas.width;
-      const h = canvas.height;
-      ctx.clearRect(0, 0, w, h);
-      ctx.fillStyle = '#020617';
-      ctx.fillRect(0, 0, w, h);
-
-      const max = Math.max(...values, 1);
-      const pad = 30;
-      const stepX = (w - pad * 2) / Math.max(values.length - 1, 1);
-
-      ctx.strokeStyle = '#334155';
-      ctx.beginPath();
-      ctx.moveTo(pad, h - pad);
-      ctx.lineTo(w - pad, h - pad);
-      ctx.stroke();
-
-      ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      values.forEach((v, i) => {
-        const x = pad + i * stepX;
-        const y = h - pad - (v / max) * (h - pad * 2);
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      });
-      ctx.stroke();
-
-      values.forEach((v, i) => {
-        const x = pad + i * stepX;
-        const y = h - pad - (v / max) * (h - pad * 2);
-        ctx.fillStyle = '#7dd3fc';
-        ctx.beginPath();
-        ctx.arc(x, y, 4, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = '11px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(labels[i], x, h - 8);
-      });
+      const canvas = document.getElementById(canvasId); if (!canvas) return;
+      const ctx = canvas.getContext('2d'); const w = canvas.width, h = canvas.height;
+      ctx.fillStyle='#020617'; ctx.fillRect(0,0,w,h);
+      const max = Math.max(...values,1); const pad=30; const stepX=(w-pad*2)/Math.max(values.length-1,1);
+      ctx.strokeStyle='#38bdf8'; ctx.lineWidth=2; ctx.beginPath();
+      values.forEach((v,i)=>{ const x=pad+i*stepX; const y=h-pad-(v/max)*(h-pad*2); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke();
     }
-
     function renderProposalCharts(stats) {
-      drawBarChart(
-        'chartTaskStatus',
-        ['完成', '進行中', '待辦'],
-        [stats.done, stats.active, stats.pending],
-        ['#22c55e', '#3b82f6', '#64748b']
-      );
-
-      // 工作流走勢：每一步完成=1, 進行中=0.5, 待辦=0 累積
-      let acc = 0;
-      const trend = WORKFLOW.map(s => {
-        if (s.status === 'done') acc += 1;
-        else if (s.status === 'active') acc += 0.5;
-        return acc;
-      });
-      drawLineChart(
-        'chartWorkflowTrend',
-        WORKFLOW.map(s => 'S' + s.step),
-        trend
-      );
-
-      drawBarChart(
-        'chartAgentLoad',
-        ['在線', '離線', 'Agent訊息', 'Owner訊息'],
-        [stats.online, stats.offline, stats.agentMsgs, stats.ownerMsgs],
-        ['#22c55e', '#ef4444', '#a78bfa', '#f59e0b']
-      );
+      drawBarChart('chartTaskStatus', ['完成','進行中','待辦'], [stats.done, stats.active, stats.pending], ['#22c55e','#3b82f6','#64748b']);
+      let acc=0; const trend = WORKFLOW.map(s => { if (s.status==='done') acc+=1; else if (s.status==='active') acc+=0.5; return acc; });
+      drawLineChart('chartWorkflowTrend', WORKFLOW.map(s=>'S'+s.step), trend);
+      drawBarChart('chartAgentLoad', ['在線','離線','Agent訊息','Owner訊息'], [stats.online, stats.offline, stats.agentMsgs, stats.ownerMsgs], ['#22c55e','#ef4444','#a78bfa','#f59e0b']);
     }
-
-    function openProposalLibrary() {
-      stopProposalVoice();
-      document.getElementById('proposalOverlay')?.classList.remove('show');
-      document.getElementById('proposalLibraryOverlay')?.classList.add('show');
-      renderProposalLibrary();
+    function splitProposalSections(text) {
+      const raw = String(text||'').trim();
+      if (!raw) return [{ id:'all', title:'全文', body:'（無內容）' }];
+      return [{ id:'all', title:'全文', body: raw }];
     }
-
-    function closeProposalLibrary() {
-      document.getElementById('proposalLibraryOverlay')?.classList.remove('show');
+    function renderBookNav(sections) {
+      const nav = document.getElementById('bookNav'); if (!nav) return;
+      nav.innerHTML = sections.map((s,i)=>`<button type="button" class="book-chip ${i===0?'active':''}" data-section="${s.id}">${escapeHTML(s.title)}</button>`).join('');
     }
-
+    function showProposalSection(sectionId) {
+      const sec = proposalSections.find(s => s.id === sectionId) || proposalSections[0]; if (!sec) return;
+      const doc = document.getElementById('proposalDoc'); if (doc) doc.textContent = sec.body;
+      document.querySelectorAll('.book-chip').forEach(chip => chip.classList.toggle('active', chip.dataset.section === sec.id));
+    }
+    function openProposalLibrary() { stopProposalVoice(); document.getElementById('proposalOverlay')?.classList.remove('show'); document.getElementById('proposalLibraryOverlay')?.classList.add('show'); renderProposalLibrary(); }
+    function closeProposalLibrary() { document.getElementById('proposalLibraryOverlay')?.classList.remove('show'); }
     function renderProposalLibrary() {
-      const list = loadProposalLibrary();
-      const el = document.getElementById('proposalLibraryList');
-      if (!el) return;
-
-      if (!list.length) {
-        el.innerHTML = `<div class="library-empty">尚無企劃案。<br>請到任務「Owner 最終審批」產出，或點上方「產出最新企劃」。</div>`;
-        return;
-      }
-
-      el.innerHTML = list.map(item => `
-        <div class="library-item" data-id="${escapeHTML(item.id)}">
-          <h3>${escapeHTML(item.title || '未命名企劃')}</h3>
-          <div class="meta">
-            ${escapeHTML(item.createdAt || '')}
-            · 完成率 ${item.stats?.completionRate ?? '-'}%
-            · ${item.approved ? '已批准' : '草稿'}
-          </div>
-        </div>
-      `).join('');
+      const list = loadProposalLibrary(); const el = document.getElementById('proposalLibraryList'); if (!el) return;
+      if (!list.length) { el.innerHTML = `<div class="library-empty">尚無企劃案。</div>`; return; }
+      el.innerHTML = list.map(item => `<div class="library-item" data-id="${escapeHTML(item.id)}"><h3>${escapeHTML(item.title||'未命名企劃')}</h3><div class="meta">${escapeHTML(item.createdAt||'')} · ${item.approved?'已批准':'草稿'}</div></div>`).join('');
     }
-
-    function openProposalById(id) {
-      const list = loadProposalLibrary();
-      const item = list.find(x => x.id === id);
-      if (!item) {
-        showToast('找不到此企劃案');
-        return;
-      }
-      currentProposalId = item.id;
-      finalProposalText = item.text || '';
-      proposalSections = splitProposalSections(finalProposalText);
-      const stats = item.stats || collectSystemStats();
-
-      document.getElementById('proposalLibraryOverlay')?.classList.remove('show');
-      document.getElementById('proposalOverlay')?.classList.add('show');
-      document.getElementById('proposalTitle').textContent = item.title || '企劃方案';
-      document.getElementById('proposalStatus').textContent =
-        `${item.createdAt || ''} · ${item.author || 'AIVAULT'} · ${item.approved ? '已批准' : '草稿'}`;
-
-      renderProposalStats(stats);
-      setTimeout(() => renderProposalCharts(stats), 50);
-      renderBookNav(proposalSections);
-      showProposalSection(proposalSections[0]?.id);
-    }
-
     function persistCurrentProposal(meta) {
       if (!finalProposalText) return null;
-      const stats = collectSystemStats();
-      const id = currentProposalId || ('prop-' + Date.now().toString(36));
-      currentProposalId = id;
-      const item = {
-        id,
-        title: meta?.title || 'AIVAULT 最終企劃方案',
-        text: finalProposalText,
-        stats,
-        author: meta?.author || 'Coordinator',
-        createdAt: meta?.createdAt || new Date().toLocaleString('zh-TW'),
-        approved: !!meta?.approved
-      };
-      const list = loadProposalLibrary().filter(x => x.id !== id);
-      list.unshift(item);
-      saveProposalLibrary(list);
-      return item;
+      const id = currentProposalId || ('prop-' + Date.now().toString(36)); currentProposalId = id;
+      const item = { id, title: meta?.title || 'AIVAULT 最終企劃方案', text: finalProposalText, stats: collectSystemStats(), author: meta?.author || 'Coordinator', createdAt: meta?.createdAt || new Date().toLocaleString('zh-TW'), approved: !!meta?.approved };
+      const list = loadProposalLibrary().filter(x => x.id !== id); list.unshift(item); saveProposalLibrary(list); return item;
     }
-
-    async function openFinalProposalPage(task) {
+    async function openFinalProposalPage() {
       stopProposalVoice();
       document.getElementById('proposalLibraryOverlay')?.classList.remove('show');
-      const overlay = document.getElementById('proposalOverlay');
-      const statusEl = document.getElementById('proposalStatus');
-      const docEl = document.getElementById('proposalDoc');
-
-      if (overlay) overlay.classList.add('show');
-      if (statusEl) statusEl.textContent = '正在彙整任務、工作流、統計數據與討論，產出完整企劃…';
-      if (docEl) docEl.textContent = '請稍候，正在撰寫最終企劃方案並產生圖表…';
-
-      const stats = collectSystemStats();
-      renderProposalStats(stats);
-      setTimeout(() => renderProposalCharts(stats), 30);
-
-      const { taskLines, recent, workflowLines, statsBlock } = buildProposalContext();
-
-      const chapterList = PROPOSAL_CHAPTERS
-        .map(c => `${c.no}｜${c.title}`)
-        .join('\n');
-
-      const prompt = `你是 AIVAULT 的 Coordinator（整合協調官）。
-請撰寫「AIVAULT 正式產品／平台企劃案」（繁體中文）。
-
-【定位（必須遵守）】
-AIVAULT 是「AI Agent 協作工作平台／AI 作業系統」，不是單一聊天機器人。
-核心閉環：
-Owner → Front-End → Cognitive Engine → Governance Engine → AI Gateway
-→ Multi-Provider AI → Multi-Agent → Cross-Agent Review → Final Synthesis
-→ Governance Validation → Owner Approval → Deliverable → Version/Audit/Memory
-
-【系統即時統計（必須引用）】
-${statsBlock}
-
-【任務清單】
-${taskLines}
-
-【工作流】
-${workflowLines}
-
-【近期討論摘要】
-${recent || '（尚無足夠討論紀錄）'}
-
-【開發狀態標示規則】
-- AI Gateway（Groq/Gemini、internal_auth、Key rotation）：Completed / Tested
-- Governance Engine（可呼叫、MESSAGE 傳遞已修正）：Completed / Tested（治理規則本體不重寫）
-- War Room 多 Agent + 語音：Completed / Tested（前台閉環）
-- Home 工作中心／任務啟動／企劃書庫：Completed / In Progress
-- Cognitive Engine 完整後端閉環：In Progress / 需與現況對齊
-- Agent Marketplace、Enterprise 營收：Future（不得寫成已存在營收）
-
-請嚴格輸出以下 24 章，每章以「01｜標題」開頭，章節齊全：
-${chapterList}
-
-寫作要求：
-1. 不得把 AIVAULT 寫成單純 Chatbot。
-2. 保留 Cognitive / Governance / AI Gateway / Multi-Agent / Cross-Agent Review / Owner Approval。
-3. 區分「目前產品能力」與「未來商業規劃」。
-4. 合規章節寫「法遵風險分析與後續措施」，不要宣稱完全合法。
-5. 引用上方統計數字做數據洞察。
-6. 專業、可執行、條列清楚。`;
-
-      let agent = AGENTS.find(a => a.id === 'a6' && getAgentView(a).connected)
-        || AGENTS.find(a => getAgentView(a).connected)
-        || AGENTS[0];
-
+      document.getElementById('proposalOverlay')?.classList.add('show');
+      const stats = collectSystemStats(); renderProposalStats(stats); setTimeout(()=>renderProposalCharts(stats),30);
+      const agent = AGENTS.find(a => a.id==='a6' && getAgentView(a).connected) || AGENTS.find(a => getAgentView(a).connected) || AGENTS[0];
       try {
-        setAgentRuntime(agent.id, {
-          status: 'working',
-          statusText: '撰寫最終企劃…',
-          connected: true
-        });
-        renderAgents();
-
-        const reply = await callAIGateway({
-          provider: agent.provider,
-          model: getAgentModel(agent),
-          agentName: agent.name,
-          userMessage: prompt
-        });
-
-        finalProposalText = String(reply || '').trim() || buildFallbackProposal(taskLines, workflowLines, statsBlock);
+        finalProposalText = await callAIGateway({ provider: agent.provider, model: getAgentModel(agent), agentName: agent.name, userMessage: '請撰寫 AIVAULT 正式產品企劃案，繁體中文，條列清楚。' });
       } catch (err) {
-        finalProposalText = buildFallbackProposal(taskLines, workflowLines, statsBlock)
-          + `\n\n（AI Gateway 暫時失敗，以上為本機彙整）\n錯誤：${err.message || err}`;
-        showToast('AI 失敗，已改用本機彙整底稿');
+        finalProposalText = 'AIVAULT 最終企劃方案（本機彙整）\n\n' + err.message;
       }
-
       proposalSections = splitProposalSections(finalProposalText);
-      renderBookNav(proposalSections);
-      showProposalSection(proposalSections[0]?.id);
-
-      if (statusEl) {
-        statusEl.textContent = `最終企劃已產出 · ${nowTime()} · by ${agent.name} · 完成率 ${stats.completionRate}%`;
-      }
-      document.getElementById('proposalTitle').textContent = 'AIVAULT 最終企劃方案';
-
-      persistCurrentProposal({
-        title: 'AIVAULT 最終企劃方案',
-        author: agent.name,
-        createdAt: new Date().toLocaleString('zh-TW'),
-        approved: false
-      });
-
-      messages.push({
-        sender: agent.name,
-        role: agent.role,
-        type: 'agent',
-        text: '【最終企劃方案已產出】可在企劃書庫閱覽、語音播放、下載含圖表 PDF。',
-        time: nowTime()
-      });
-      renderMessages('chatMessages');
-      renderMessages('homeChatPreview', 4);
-
-      approvals = [{
-        id: 'ap-final-' + Date.now().toString(36),
-        agent: agent.name,
-        action: 'Owner 最終審批：批准 AIVAULT 最終企劃方案並結案',
-        risk: 'high',
-        time: '剛剛'
-      }].concat(approvals.filter(a => !String(a.id).startsWith('ap-final-')));
-      renderApprovals();
-
-      setAgentRuntime(agent.id, {
-        status: 'idle',
-        statusText: '空閒 · ' + agent.provider,
-        connected: true
-      });
-      renderAgents();
-      showToast('企劃已就緒：可語音、閱覽章節、下載 PDF');
+      renderBookNav(proposalSections); showProposalSection(proposalSections[0]?.id);
+      persistCurrentProposal({ title: 'AIVAULT 最終企劃方案', author: agent.name });
+      showToast('企劃已就緒');
     }
-
-    function buildFallbackProposal(taskLines, workflowLines, statsBlock) {
-      return `AIVAULT 最終企劃方案（本機彙整）
-
-一、專案名稱與目標
-AIVAULT — AI Agent 協作工作平台
-目標：建立可擴充的多 Agent 協作、治理與 Owner 審批閉環。
-
-二、產品定位
-「AI 公司正在工作」的任務舞台與共同記憶中心，而非單純聊天室。
-
-三、核心架構
-1. AI Gateway（Provider Adapter）
-2. Agent Registry
-3. Governance / Cognitive
-4. Owner Approval
-5. War Room
-
-四、數據洞察
-${statsBlock || ''}
-
-五、任務現況
-${taskLines}
-
-六、工作流現況
-${workflowLines}
-
-七、風險與合規
-- API Key 不可放前端
-- 高風險操作必須 Owner 批准
-
-八、下一階段 30 天計畫
-1. 穩定 AI Gateway
-2. 任務與審批入庫
-3. War Room / Home 閉環
-4. 企劃 PDF 歸檔
-
-九、Owner 決策建議
-請於本頁批准結案或提出修改點。`;
-    }
-
-    function closeProposalPage() {
-      stopProposalVoice();
-      document.getElementById('proposalOverlay')?.classList.remove('show');
-      openProposalLibrary();
-    }
-
-    function stopProposalVoice() {
-      proposalSpeaking = false;
-      try { window.speechSynthesis?.cancel(); } catch (e) {}
-      const btn = document.getElementById('btnProposalVoice');
-      if (btn) {
-        btn.textContent = '▶ 語音';
-        btn.classList.remove('voice-on');
-      }
-    }
-
+    function closeProposalPage() { stopProposalVoice(); document.getElementById('proposalOverlay')?.classList.remove('show'); openProposalLibrary(); }
+    function stopProposalVoice() { proposalSpeaking=false; try{ window.speechSynthesis?.cancel(); }catch(e){}; const btn=document.getElementById('btnProposalVoice'); if(btn){ btn.textContent='▶ 語音'; btn.classList.remove('voice-on'); } }
     function toggleProposalVoice() {
-      if (!('speechSynthesis' in window)) {
-        showToast('此裝置不支援語音播放');
-        return;
-      }
-      if (proposalSpeaking) {
-        stopProposalVoice();
-        return;
-      }
+      if (!('speechSynthesis' in window)) { showToast('此裝置不支援語音播放'); return; }
+      if (proposalSpeaking) { stopProposalVoice(); return; }
       const text = document.getElementById('proposalDoc')?.textContent || finalProposalText;
-      if (!text?.trim()) {
-        showToast('沒有可播放的內容');
-        return;
-      }
-      stopProposalVoice();
-      proposalUtterance = new SpeechSynthesisUtterance(text);
-      proposalUtterance.lang = 'zh-TW';
-      proposalUtterance.rate = 1.1;
+      if (!text?.trim()) { showToast('沒有可播放的內容'); return; }
+      proposalUtterance = new SpeechSynthesisUtterance(text); proposalUtterance.lang='zh-TW'; proposalUtterance.rate=1.1;
       proposalUtterance.onend = () => stopProposalVoice();
-      proposalUtterance.onerror = () => stopProposalVoice();
       proposalSpeaking = true;
-      const btn = document.getElementById('btnProposalVoice');
-      if (btn) {
-        btn.textContent = '■ 停止';
-        btn.classList.add('voice-on');
-      }
+      const btn=document.getElementById('btnProposalVoice'); if(btn){ btn.textContent='■ 停止'; btn.classList.add('voice-on'); }
       window.speechSynthesis.speak(proposalUtterance);
     }
-
     function downloadProposalPdf() {
       const text = finalProposalText || document.getElementById('proposalDoc')?.textContent || '';
-      if (!text.trim()) {
-        showToast('尚無企劃內容可下載');
-        return;
-      }
-
-      const stats = collectSystemStats();
-      const c1 = document.getElementById('chartTaskStatus')?.toDataURL('image/png') || '';
-      const c2 = document.getElementById('chartWorkflowTrend')?.toDataURL('image/png') || '';
-      const c3 = document.getElementById('chartAgentLoad')?.toDataURL('image/png') || '';
-
-      const w = window.open('', '_blank');
-      if (!w) {
-        showToast('請允許彈出視窗以下載 PDF');
-        return;
-      }
-
-      const safe = String(text)
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;');
-
-      w.document.write(`<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"/>
-<title>AIVAULT 最終企劃方案</title>
-<style>
-  @page { margin: 16mm; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Noto Sans TC", "Microsoft JhengHei", sans-serif; color:#111; line-height:1.7; font-size:11.5pt; }
-  h1 { font-size:18pt; margin:0 0 6px; }
-  h2 { font-size:13pt; margin:18px 0 8px; border-bottom:1px solid #ddd; padding-bottom:4px; }
-  .meta { color:#555; font-size:10pt; margin-bottom:14px; }
-  .stats { display:flex; gap:10px; flex-wrap:wrap; margin:12px 0; }
-  .stat { border:1px solid #ddd; border-radius:8px; padding:8px 12px; min-width:110px; }
-  .stat b { display:block; font-size:16pt; }
-  .charts img { width:100%; max-width:640px; margin:8px 0 14px; border:1px solid #eee; }
-  .doc { white-space:pre-wrap; word-break:break-word; }
-</style></head><body>
-<h1>AIVAULT 最終企劃方案</h1>
-<div class="meta">產出時間：${new Date().toLocaleString('zh-TW')} · 含統計數據與圖表分析</div>
-<div class="stats">
-  <div class="stat"><b>${stats.completionRate}%</b>任務完成率</div>
-  <div class="stat"><b>${stats.done}/${stats.total}</b>任務完成數</div>
-  <div class="stat"><b>${stats.online}</b>在線 Agent</div>
-  <div class="stat"><b>${stats.agentMsgs}</b>Agent 回覆</div>
-</div>
-<h2>圖表分析</h2>
-<div class="charts">
-  ${c1 ? `<div>任務完成度</div><img src="${c1}"/>` : ''}
-  ${c2 ? `<div>工作流進度走勢</div><img src="${c2}"/>` : ''}
-  ${c3 ? `<div>Agent 連線與負載</div><img src="${c3}"/>` : ''}
-</div>
-<h2>企劃正文</h2>
-<div class="doc">${safe}</div>
-<script>setTimeout(function(){ window.print(); }, 400);<\/script>
-</body></html>`);
+      if (!text.trim()) { showToast('尚無企劃內容可下載'); return; }
+      const w = window.open('', '_blank'); if (!w) { showToast('請允許彈出視窗以下載 PDF'); return; }
+      const safe = String(text).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+      w.document.write(`<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"/><title>AIVAULT 最終企劃方案</title></head><body><pre>${safe}</pre><script>setTimeout(function(){window.print();},400);<\/script></body></html>`);
       w.document.close();
-      showToast('已開啟列印視窗，請選擇「儲存為 PDF」');
     }
-
     function approveFinalProposal() {
-      if (!finalProposalText) {
-        showToast('請先產出企劃方案');
-        return;
-      }
-
-      const task = TASKS.find(t => t.id === 't5');
-      if (task) task.status = 'done';
-
-      persistCurrentProposal({
-        title: 'AIVAULT 最終企劃方案',
-        author: 'Owner',
-        createdAt: new Date().toLocaleString('zh-TW'),
-        approved: true
-      });
-
-      approvals = approvals.filter(a => !String(a.action || '').includes('最終企劃方案'));
-      renderApprovals();
-      renderTasks('taskList');
-      renderTasks('taskListFull');
-      syncWorkflowWithTasks();
-
-      messages.push({
-        sender: 'Owner',
-        type: 'owner',
-        text: '【Owner 批准】最終企劃方案已批准結案，已歸檔至企劃書庫。',
-        time: nowTime()
-      });
-      renderMessages('chatMessages');
-      renderMessages('homeChatPreview', 4);
-
-      stopProposalVoice();
-      showToast('最終企劃已批准並歸檔');
-      document.getElementById('proposalOverlay')?.classList.remove('show');
-      openProposalLibrary();
+      if (!finalProposalText) { showToast('請先產出企劃方案'); return; }
+      const task = TASKS.find(t => t.id === 't5'); if (task) task.status = 'done';
+      persistCurrentProposal({ title: 'AIVAULT 最終企劃方案', author: 'Owner', approved: true });
+      renderTasks('taskList'); renderTasks('taskListFull'); syncWorkflowWithTasks();
+      showToast('最終企劃已批准並歸檔'); document.getElementById('proposalOverlay')?.classList.remove('show'); openProposalLibrary();
     }
-
     function syncWorkflowWithTasks() {
-      // 依任務完成度粗略同步工作流步驟
       const doneCount = TASKS.filter(t => t.status === 'done').length;
       const activeCount = TASKS.filter(t => t.status === 'active').length;
-
       WORKFLOW.forEach((step, idx) => {
-        if (idx < doneCount) {
-          step.status = 'done';
-        } else if (idx === doneCount && activeCount > 0) {
-          step.status = 'active';
-        } else if (idx === doneCount && activeCount === 0 && doneCount < WORKFLOW.length) {
-          step.status = 'active';
-        } else {
-          step.status = 'pending';
-        }
+        if (idx < doneCount) step.status = 'done';
+        else if (idx === doneCount && (activeCount > 0 || doneCount < WORKFLOW.length)) step.status = 'active';
+        else step.status = 'pending';
       });
       renderWorkflow();
     }
-
-
-    /* ============================================================
-       ⑭ Render Workflow
-       ============================================================ */
-
     function renderWorkflow() {
-
-      const container =
-        document.getElementById(
-          'workflow'
-        );
-
-
-      container.innerHTML =
-
-        WORKFLOW
-          .map(step => `
-
-            <div
-              class="workflow-step
-              ${step.status}"
-              data-step="${step.step}"
-              style="cursor:pointer;"
-              title="點擊：標記此步驟為進行中；長按邏輯簡化為點擊切換"
-            >
-
-              <div class="step-num">
-
-                ${
-                  step.status === 'done'
-                    ? '✓'
-                    : step.step
-                }
-
-              </div>
-
-              <div class="step-content">
-
-                <div class="step-title">
-                  ${step.title}
-                </div>
-
-                <div class="step-agent">
-                  ${step.agent}
-                  ·
-                  ${
-                    step.status === 'done'
-                      ? '已完成'
-                      : step.status === 'active'
-                        ? '進行中'
-                        : '待辦'
-                  }
-                </div>
-
-              </div>
-
-            </div>
-
-          `)
-          .join('');
-
+      const container = document.getElementById('workflow');
+      container.innerHTML = WORKFLOW.map(step => `
+        <div class="workflow-step ${step.status}" data-step="${step.step}" style="cursor:pointer;">
+          <div class="step-num">${step.status==='done'?'✓':step.step}</div>
+          <div class="step-content"><div class="step-title">${step.title}</div><div class="step-agent">${step.agent} · ${step.status==='done'?'已完成':step.status==='active'?'進行中':'待辦'}</div></div>
+        </div>`).join('');
     }
-
     function setWorkflowStep(stepNum) {
-      const idx = WORKFLOW.findIndex(s => s.step === stepNum);
-      if (idx < 0) return;
-
-      WORKFLOW.forEach((s, i) => {
-        if (i < idx) s.status = 'done';
-        else if (i === idx) s.status = 'active';
-        else s.status = 'pending';
-      });
-
-      // 同步對應任務（若有）
-      if (TASKS[idx]) {
-        TASKS.forEach((t, i) => {
-          if (i < idx) t.status = 'done';
-          else if (i === idx) t.status = 'active';
-          else if (t.status === 'active') t.status = 'pending';
-        });
-        renderTasks('taskList');
-        renderTasks('taskListFull');
-      }
-
-      renderWorkflow();
-      showToast(`工作流進行到：${WORKFLOW[idx].title}`);
+      const idx = WORKFLOW.findIndex(s => s.step === stepNum); if (idx < 0) return;
+      WORKFLOW.forEach((s,i)=>{ s.status = i<idx?'done':i===idx?'active':'pending'; });
+      renderWorkflow(); showToast(`工作流進行到：${WORKFLOW[idx].title}`);
     }
-
-
-    /* ============================================================
-       ⑮ Render Chat
-       ============================================================ */
-
-    function renderMessages(
-      containerId,
-      limit = null
-    ) {
-
-      const container =
-        document.getElementById(
-          containerId
-        );
-
-
-      if (!container) {
-        return;
-      }
-
-
-      const list =
-        limit
-          ? messages.slice(-limit)
-          : messages;
-
-
-      container.innerHTML =
-
-        list
-          .map(message => `
-
-            <div
-              class="msg
-              ${message.type}"
-            >
-
-              <div class="msg-meta">
-
-                <span class="msg-sender">
-                  ${message.type === 'agent' ? '🤖 ' : ''}${escapeHTML(message.sender)}${message.role ? ' · ' + escapeHTML(message.role) : ''}
-                </span>
-
-                <span>
-                  ${escapeHTML(message.time)}
-                </span>
-
-              </div>
-
-              <div class="msg-bubble">
-                ${escapeHTML(message.text)}
-              </div>
-
-            </div>
-
-          `)
-          .join('');
-
-
-      container.scrollTop =
-        container.scrollHeight;
-
+    function renderMessages(containerId, limit=null) {
+      const container = document.getElementById(containerId); if (!container) return;
+      const list = limit ? messages.slice(-limit) : messages;
+      container.innerHTML = list.map(message => `
+        <div class="msg ${message.type}"><div class="msg-meta"><span class="msg-sender">${message.type==='agent'?'🤖 ':''}${escapeHTML(message.sender)}${message.role?' · '+escapeHTML(message.role):''}</span><span>${escapeHTML(message.time)}</span></div><div class="msg-bubble">${escapeHTML(message.text)}</div></div>`).join('');
+      container.scrollTop = container.scrollHeight;
     }
-
-
-    /* ============================================================
-       ⑯ HTML 安全處理
-       ============================================================ */
-
-    /*
-     * AI 回覆不能直接 innerHTML。
-     *
-     * 否則 AI 如果回傳 script 標籤內容，
-     * 可能造成 XSS。
-     *
-     * 因此一律使用 escapeHTML 後再輸出。
-     */
-
-    function escapeHTML(value) {
-
-      return String(value)
-
-        .replaceAll('&', '&amp;')
-
-        .replaceAll('<', '&lt;')
-
-        .replaceAll('>', '&gt;')
-
-        .replaceAll('"', '&quot;')
-
-        .replaceAll("'", '&#039;');
-
-    }
-
-
-    /* ============================================================
-       ⑰ Agent Registry
-       ============================================================ */
-
     function renderAgentRegistry() {
-
-      const container =
-        document.getElementById(
-          'agentRegistry'
-        );
-
-
-      container.innerHTML =
-
-        AGENTS
-          .map(agent => `
-
-            <div class="registry-item">
-
-              <div class="registry-info">
-
-                <div
-                  class="registry-icon"
-                  style="
-                    background:
-                    ${agent.color}33
-                  "
-                >
-                  ${agent.avatar}
-                </div>
-
-                <div>
-
-                  <div
-                    style="
-                      font-weight:600;
-                      font-size:14px
-                    "
-                  >
-                    ${agent.name}
-                  </div>
-
-                  <div
-                    style="
-                      font-size:12px;
-                      color:var(--text-muted)
-                    "
-                  >
-                    ${agent.role}
-                    ·
-                    ${agent.provider}
-                  </div>
-
-                </div>
-
-              </div>
-
-              <div
-                class="toggle
-                ${getAgentView(agent).connected
-                  ? 'on'
-                  : ''}"
-                data-id="${agent.id}"
-              ></div>
-
-            </div>
-
-          `)
-          .join('');
-
+      const container = document.getElementById('agentRegistry');
+      container.innerHTML = AGENTS.map(agent => `
+        <div class="registry-item"><div class="registry-info"><div class="registry-icon" style="background:${agent.color}33">${agent.avatar}</div><div><div style="font-weight:600;font-size:14px">${agent.name}</div><div style="font-size:12px;color:var(--text-muted)">${agent.role} · ${agent.provider}</div></div></div><div class="toggle ${getAgentView(agent).connected?'on':''}" data-id="${agent.id}"></div></div>`).join('');
     }
-
-
-    /* ============================================================
-       ⑱ Provider Registry
-       ============================================================ */
-
     function renderProviders() {
-
-      const container =
-        document.getElementById(
-          'providerRegistry'
-        );
-
-
-      container.innerHTML =
-
-        PROVIDERS
-          .map(provider => `
-
-            <div class="registry-item">
-
-              <div class="registry-info">
-
-                <div
-                  class="registry-icon"
-                  style="
-                    background:#334155
-                  "
-                >
-                  🔌
-                </div>
-
-                <div>
-
-                  <div
-                    style="
-                      font-weight:600;
-                      font-size:14px
-                    "
-                  >
-                    ${provider.name}
-                  </div>
-
-                  <div
-                    style="
-                      font-size:12px;
-                      color:var(--text-muted)
-                    "
-                  >
-                    ${provider.models.join(', ')}
-                  </div>
-
-                </div>
-
-              </div>
-
-              <div
-                class="toggle
-                ${provider.status === 'active'
-                  ? 'on'
-                  : ''}"
-                data-code="${provider.code}"
-              ></div>
-
-            </div>
-
-          `)
-          .join('');
-
+      const container = document.getElementById('providerRegistry');
+      container.innerHTML = PROVIDERS.map(provider => `
+        <div class="registry-item"><div class="registry-info"><div class="registry-icon" style="background:#334155">🔌</div><div><div style="font-weight:600;font-size:14px">${provider.name}</div><div style="font-size:12px;color:var(--text-muted)">${provider.models.join(', ')}</div></div></div><div class="toggle ${provider.status==='active'?'on':''}" data-code="${provider.code}"></div></div>`).join('');
     }
-
-
-    /* ============================================================
-       ⑲ Approval
-       ============================================================ */
-
     function renderApprovals() {
-
-      const container =
-        document.getElementById(
-          'approvalList'
-        );
-
-
-      if (!approvals.length) {
-
-        container.innerHTML = `
-
-          <div
-            style="
-              text-align:center;
-              padding:40px;
-              color:var(--text-muted)
-            "
-          >
-            目前沒有待審批項目
+      const container = document.getElementById('approvalList');
+      if (!approvals.length) { container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-muted)">目前沒有待審批項目</div>`; return; }
+      container.innerHTML = approvals.map(approval => `
+        <div class="approval-card" data-id="${approval.id}">
+          <div class="approval-header">⚠️ Owner Approval 請求 · ${approval.time}</div>
+          <div class="approval-body"><strong>${approval.agent}</strong> 想執行：<br>「${approval.action}」</div>
+          <div class="approval-actions">
+            <button class="btn btn-approve" onclick="handleApproval('${approval.id}', true)">批准</button>
+            <button class="btn btn-reject" onclick="handleApproval('${approval.id}', false)">拒絕</button>
           </div>
-
-        `;
-
-        return;
-      }
-
-
-      container.innerHTML =
-
-        approvals
-          .map(approval => `
-
-            <div
-              class="approval-card"
-              data-id="${approval.id}"
-            >
-
-              <div class="approval-header">
-
-                ⚠️ Owner Approval 請求
-                ·
-                ${approval.time}
-
-              </div>
-
-
-              <div class="approval-body">
-
-                <strong>
-                  ${approval.agent}
-                </strong>
-
-                想執行：
-
-                <br>
-
-                「${approval.action}」
-
-                <div
-                  style="
-                    margin-top:6px;
-                    font-size:12px;
-                    color:var(--text-muted)
-                  "
-                >
-
-                  風險等級：
-                  ${
-                    approval.risk === 'high'
-                      ? '高'
-                      : '中'
-                  }
-
-                </div>
-
-              </div>
-
-
-              <div class="approval-actions">
-
-                <button
-                  class="btn btn-approve"
-                  onclick="
-                    handleApproval(
-                      '${approval.id}',
-                      true
-                    )
-                  "
-                >
-                  批准
-                </button>
-
-
-                <button
-                  class="btn btn-reject"
-                  onclick="
-                    handleApproval(
-                      '${approval.id}',
-                      false
-                    )
-                  "
-                >
-                  拒絕
-                </button>
-
-              </div>
-
-            </div>
-
-          `)
-          .join('');
-
+        </div>`).join('');
     }
-
-
-    /* ============================================================
-       ⑳ Approval 處理
-       ============================================================ */
-
-    function handleApproval(
-      id,
-      approved
-    ) {
-
+    function handleApproval(id, approved) {
       const item = approvals.find(a => a.id === id);
-
-      approvals =
-        approvals.filter(
-          approval =>
-            approval.id !== id
-        );
-
+      approvals = approvals.filter(a => a.id !== id);
       renderApprovals();
-
-      if (item) {
-        // 批准後寫入任務清單
-        if (approved) {
-          const newId = 't' + Date.now().toString(36);
-          TASKS.push({
-            id: newId,
-            title: `[已批准] ${item.action}`,
-            status: 'active',
-            agent: item.agent
-          });
-          renderTasks('taskList');
-          renderTasks('taskListFull');
-          showToast(`已批准：${item.agent}`);
-        } else {
-          showToast(`已拒絕：${item.agent}`);
-        }
-      } else {
-        showToast(approved ? '已批准操作' : '已拒絕操作');
-      }
+      if (item && approved) {
+        TASKS.push({ id: 't'+Date.now().toString(36), title: `[已批准] ${item.action}`, status: 'active', agent: item.agent });
+        renderTasks('taskList'); renderTasks('taskListFull');
+        showToast(`已批准：${item.agent}`);
+      } else showToast(approved ? '已批准操作' : `已拒絕：${item ? item.agent : ''}`);
     }
-
-
-    /* ============================================================
-       ㉑ 真正送出 Owner 指令
-       ============================================================ */
-
+    window.handleApproval = handleApproval;
     async function sendMessage(fromHome) {
-
-      const input =
-        document.getElementById(
-          fromHome ? 'homeChatInput' : 'chatInput'
-        ) || document.getElementById('chatInput');
-
-      const sendButton =
-        document.getElementById(
-          fromHome ? 'homeSendBtn' : 'sendBtn'
-        ) || document.getElementById('sendBtn');
-
+      const input = document.getElementById(fromHome ? 'homeChatInput' : 'chatInput') || document.getElementById('chatInput');
       const homeInput = document.getElementById('homeChatInput');
       const chatInput = document.getElementById('chatInput');
       const homeBtn = document.getElementById('homeSendBtn');
       const chatBtn = document.getElementById('sendBtn');
-
       const text = (input && input.value.trim()) || '';
-
-      if (!text) {
-        return;
-      }
-
+      if (!text) return;
       if (homeInput) homeInput.value = '';
       if (chatInput) chatInput.value = '';
       if (homeBtn) homeBtn.disabled = true;
       if (chatBtn) chatBtn.disabled = true;
-
-
-      /*
-       * Owner 訊息
-       */
-
-      messages.push({
-
-        sender: 'Owner',
-
-        type: 'owner',
-
-        text,
-
-        time: nowTime()
-
-      });
-
-
-      renderMessages(
-        'chatMessages'
-      );
-
-
-      renderMessages(
-        'homeChatPreview'
-      );
-
-
-      /*
-       * 使用使用者指定的 Agent（可單選／多選）。
-       * 若未指定，預設用前兩個已連線的 Agent。
-       */
-
-      let activeAgents =
-        selectedChatAgents.length
-          ? AGENTS.filter(agent =>
-              selectedChatAgents.includes(agent.id) &&
-              getAgentView(agent).connected
-            )
-          : AGENTS
-              .filter(agent => getAgentView(agent).connected)
-              .slice(0, 2);
-
+      messages.push({ sender: 'Owner', type: 'owner', text, time: nowTime() });
+      renderMessages('chatMessages'); renderMessages('homeChatPreview');
+      let activeAgents = selectedChatAgents.length
+        ? AGENTS.filter(agent => selectedChatAgents.includes(agent.id) && getAgentView(agent).connected)
+        : AGENTS.filter(agent => getAgentView(agent).connected).slice(0, 2);
       if (!activeAgents.length) {
-        showToast(
-          selectedChatAgents.length
-            ? '所選 Agent 目前未連線，請重新選擇'
-            : '沒有已連線的 Agent，請檢查 AI Gateway'
-        );
-        if (homeBtn) homeBtn.disabled = false;
-        if (chatBtn) chatBtn.disabled = false;
-        return;
+        showToast('沒有已連線的 Agent，請檢查 AI Gateway');
+        if (homeBtn) homeBtn.disabled = false; if (chatBtn) chatBtn.disabled = false; return;
       }
-
-
-      /*
-       * 逐一讓 Agent 回覆。
-       */
-
-      for (
-        const agent
-        of activeAgents
-      ) {
-
-        const chat =
-          document.getElementById(
-            'chatMessages'
-          );
-
-
-        /*
-         * 顯示「思考中」
-         */
-
-        const typing =
-          document.createElement(
-            'div'
-          );
-
-
-        typing.className =
-          'msg agent';
-
-
-        typing.innerHTML = `
-
-          <div class="msg-meta">
-
-            <span class="msg-sender">
-              ${escapeHTML(agent.name)}
-            </span>
-
-          </div>
-
-          <div class="msg-bubble">
-
-            <div class="typing">
-
-              <span></span>
-              <span></span>
-              <span></span>
-
-            </div>
-
-          </div>
-
-        `;
-
-
-        chat.appendChild(
-          typing
-        );
-
-
-        chat.scrollTop =
-          chat.scrollHeight;
-
-
+      for (const agent of activeAgents) {
         try {
-
-          /*
-           * 真正呼叫 Supabase AI Gateway
-           */
-
-          // 藍：正在做事
-          setAgentRuntime(agent.id, {
-            status: 'working',
-            statusText: '正在做事…',
-            connected: true
-          });
-          renderAgents();
-
-          const replyPromise = callAIGateway({
-            provider: agent.provider,
-            model: getAgentModel(agent),
-            agentName: agent.name,
-            userMessage: text
-          });
-
-          // 超過 2.5 秒仍未回 → 黃：有點忙
-          const busyTimer = setTimeout(() => {
-            setAgentRuntime(agent.id, {
-              status: 'busy',
-              statusText: '有點忙…',
-              connected: true
-            });
-            renderAgents();
-          }, 2500);
-
-          let reply;
-          try {
-            reply = await replyPromise;
-          } finally {
-            clearTimeout(busyTimer);
-          }
-
-          // 綠：空閒
-          setAgentRuntime(agent.id, {
-            status: 'idle',
-            statusText: '空閒 · ' + agent.provider,
-            connected: true
-          });
-          renderAgents();
-
-
-          /*
-           * 移除思考動畫
-           */
-
-          typing.remove();
-
-
-          /*
-           * 加入真正 AI 回覆
-           */
-
-          messages.push({
-            sender: agent.name,
-            role: agent.role,
-            type: 'agent',
-            text: reply,
-            time: nowTime()
-          });
-
-
+          setAgentRuntime(agent.id, { status: 'working', statusText: '正在做事…', connected: true }); renderAgents();
+          const reply = await callAIGateway({ provider: agent.provider, model: getAgentModel(agent), agentName: agent.name, userMessage: text });
+          setAgentRuntime(agent.id, { status: 'idle', statusText: '空閒 · ' + agent.provider, connected: true }); renderAgents();
+          messages.push({ sender: agent.name, role: agent.role, type: 'agent', text: reply, time: nowTime() });
         } catch (error) {
-
-          /*
-           * Gateway 錯誤
-           */
-
-          typing.remove();
-
-
-          messages.push({
-            sender: agent.name,
-            role: agent.role,
-            type: 'agent',
-            text: `AI Gateway 錯誤：${error.message}`,
-            time: nowTime()
-          });
-
+          messages.push({ sender: agent.name, role: agent.role, type: 'agent', text: `AI Gateway 錯誤：${error.message}`, time: nowTime() });
         }
-
-
-        renderMessages(
-          'chatMessages'
-        );
-
-
-        renderMessages(
-          'homeChatPreview',
-          4
-        );
-
+        renderMessages('chatMessages'); renderMessages('homeChatPreview', 4);
       }
-
-
-      if (homeBtn) homeBtn.disabled = false;
-      if (chatBtn) chatBtn.disabled = false;
-
+      if (homeBtn) homeBtn.disabled = false; if (chatBtn) chatBtn.disabled = false;
     }
-
-
-    /* ============================================================
-       ㉒ Room Ticker
-       ============================================================ */
-
     function addTicker(text) {
-
-      const element =
-        document.createElement(
-          'div'
-        );
-
-
-      element.textContent =
-        `${nowHMS()}｜${text}`;
-
-
-      const ticker =
-        document.getElementById(
-          'roomTicker'
-        );
-
-
-      ticker.appendChild(
-        element
-      );
-
-
-      ticker.scrollTop =
-        ticker.scrollHeight;
-
+      const element = document.createElement('div');
+      element.textContent = `${nowHMS()}｜${text}`;
+      const ticker = document.getElementById('roomTicker');
+      ticker.appendChild(element); ticker.scrollTop = ticker.scrollHeight;
     }
-
-
-    /* ============================================================
-       ㉓ Tabs
-       ============================================================ */
-
-    document
-      .getElementById('tabs')
-      .addEventListener(
-        'click',
-        event => {
-
-          if (
-            !event.target.classList
-              .contains('tab')
-          ) {
-
-            return;
-
-          }
-
-
-          /*
-           * 移除舊 Tab
-           */
-
-          document
-            .querySelectorAll('.tab')
-            .forEach(tab => {
-
-              tab.classList
-                .remove('active');
-
-            });
-
-
-          /*
-           * 啟用目前 Tab
-           */
-
-          event.target
-            .classList
-            .add('active');
-
-
-          /*
-           * 隱藏所有 Panel
-           */
-
-          document
-            .querySelectorAll('.panel')
-            .forEach(panel => {
-
-              panel.classList
-                .remove('active');
-
-            });
-
-
-          /*
-           * 顯示對應 Panel
-           */
-
-          const panel =
-            document.getElementById(
-              `panel-${event.target.dataset.panel}`
-            );
-
-
-          if (panel) {
-
-            panel.classList
-              .add('active');
-
-          }
-
-        }
-      );
-
-
-    /* ============================================================
-       ㉔ Chat Button
-       ============================================================ */
-
-    document
-      .getElementById('sendBtn')
-      .addEventListener(
-        'click',
-        () => sendMessage(false)
-      );
-
-    const homeSendBtn = document.getElementById('homeSendBtn');
-    if (homeSendBtn) {
-      homeSendBtn.addEventListener('click', () => sendMessage(true));
-    }
-    const homeChatInput = document.getElementById('homeChatInput');
-    if (homeChatInput) {
-      homeChatInput.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') {
-          event.preventDefault();
-          sendMessage(true);
-        }
-      });
-    }
-
-
-    /* ============================================================
-       ㉕ Enter 發送
-       ============================================================ */
-
-    document
-      .getElementById('chatInput')
-      .addEventListener(
-        'keydown',
-        event => {
-
-          if (
-            event.key === 'Enter'
-          ) {
-
-            event.preventDefault();
-
-            sendMessage();
-
-          }
-
-        }
-      );
-
-
-    /* ============================================================
-       ㉖ 進入數字人房間
-       ============================================================ */
-
-    // 進入五人 AI 視訊會議（War Room）
     function markAgentsInMeeting() {
-      AGENTS.forEach(a => {
-        if (getAgentView(a).connected) {
-          setAgentRuntime(a.id, {
-            status: 'meeting',
-            statusText: '開會議中',
-            connected: true
-          });
-        }
-      });
+      AGENTS.forEach(a => { if (getAgentView(a).connected) setAgentRuntime(a.id, { status: 'meeting', statusText: '開會議中', connected: true }); });
       renderAgents();
     }
-
-    document
-      .getElementById('btnEnterRoom')
-      .addEventListener(
-        'click',
-        () => {
-          markAgentsInMeeting();
-          location.href = 'aivault-warroom.html';
-        }
-      );
-
-    const warroomEntry = document.getElementById('warroomEntry');
-    if (warroomEntry) {
-      warroomEntry.addEventListener('click', () => {
-        markAgentsInMeeting();
-        location.href = 'aivault-warroom.html';
-      });
-    }
-    document.getElementById('proposalWsEntry')?.addEventListener('click', () => {
-      location.href = 'aivault-proposal-workspace.html';
+    document.getElementById('tabs').addEventListener('click', event => {
+      if (!event.target.classList.contains('tab')) return;
+      if (event.target.id === 'tabProposalLibrary') return;
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      event.target.classList.add('active');
+      document.querySelectorAll('.panel').forEach(panel => panel.classList.remove('active'));
+      const panel = document.getElementById(`panel-${event.target.dataset.panel}`);
+      if (panel) panel.classList.add('active');
     });
-    document.getElementById('researchWsEntry')?.addEventListener('click', () => {
-      location.href = 'aivault-research-warroom.html';
-    });
-    document.getElementById('videoStudioEntry')?.addEventListener('click', () => {
-      location.href = 'aivault-video-studio.html';
-    });
-
-
-    /* ============================================================
-       ㉗ 離開數字人房間
-       ============================================================ */
-
-    document
-      .getElementById('btnLeaveRoom')
-      .addEventListener(
-        'click',
-        () => {
-
-          document
-            .getElementById(
-              'roomOverlay'
-            )
-            .classList
-            .remove('show');
-
-        }
-      );
-
-    // 企劃書庫 + 閱覽頁
+    document.getElementById('sendBtn').addEventListener('click', () => sendMessage(false));
+    document.getElementById('homeSendBtn')?.addEventListener('click', () => sendMessage(true));
+    document.getElementById('homeChatInput')?.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); sendMessage(true); } });
+    document.getElementById('chatInput').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); sendMessage(); } });
+    document.getElementById('btnEnterRoom').addEventListener('click', () => { markAgentsInMeeting(); location.href = 'aivault-warroom.html'; });
+    document.getElementById('warroomEntry')?.addEventListener('click', () => { markAgentsInMeeting(); location.href = 'aivault-warroom.html'; });
+    document.getElementById('proposalWsEntry')?.addEventListener('click', () => { location.href = 'aivault-proposal-workspace.html'; });
+    document.getElementById('researchWsEntry')?.addEventListener('click', () => { location.href = 'aivault-research-warroom.html'; });
+    document.getElementById('videoStudioEntry')?.addEventListener('click', () => { location.href = 'aivault-video-studio.html'; });
+    document.getElementById('digitalHumanEntry')?.addEventListener('click', () => { location.href = 'aivault-digital-human.html'; });
+    document.getElementById('btnLeaveRoom').addEventListener('click', () => document.getElementById('roomOverlay').classList.remove('show'));
     document.getElementById('btnCloseProposal')?.addEventListener('click', closeProposalPage);
     document.getElementById('btnDownloadPdf')?.addEventListener('click', downloadProposalPdf);
     document.getElementById('btnApproveProposal')?.addEventListener('click', approveFinalProposal);
     document.getElementById('btnProposalVoice')?.addEventListener('click', toggleProposalVoice);
     document.getElementById('btnCloseLibrary')?.addEventListener('click', closeProposalLibrary);
-    document.getElementById('btnNewProposalFromLib')?.addEventListener('click', () => {
-      const t = TASKS.find(x => x.id === 't5') || { id: 't5', title: 'Owner 最終審批' };
-      openFinalProposalPage(t);
-    });
-    document.getElementById('tabProposalLibrary')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      // 正式 AI 企劃書工作台（獨立模組，不改 Gateway）
-      location.href = 'aivault-proposal-workspace.html';
-    });
-
+    document.getElementById('btnNewProposalFromLib')?.addEventListener('click', () => openFinalProposalPage());
+    document.getElementById('tabProposalLibrary')?.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); location.href = 'aivault-proposal-workspace.html'; });
     document.getElementById('proposalLibraryList')?.addEventListener('click', (e) => {
       const item = e.target.closest('.library-item');
-      if (item?.dataset.id) openProposalById(item.dataset.id);
+      if (!item?.dataset.id) return;
+      const found = loadProposalLibrary().find(x => x.id === item.dataset.id);
+      if (!found) return;
+      currentProposalId = found.id; finalProposalText = found.text || '';
+      proposalSections = splitProposalSections(finalProposalText);
+      document.getElementById('proposalLibraryOverlay')?.classList.remove('show');
+      document.getElementById('proposalOverlay')?.classList.add('show');
+      renderBookNav(proposalSections); showProposalSection(proposalSections[0]?.id);
     });
-
     document.getElementById('bookNav')?.addEventListener('click', (e) => {
       const chip = e.target.closest('.book-chip');
       if (chip?.dataset.section) showProposalSection(chip.dataset.section);
     });
-
-
-
-    /* ============================================================
-       Account gear (nickname / password / admin link)
-       ============================================================ */
     const ADMIN_EMAILS = ['n_950143@hotmail.com'];
-
     async function getSb() {
       const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
-      return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-        auth: { persistSession: true, autoRefreshToken: true, storage: window.localStorage }
-      });
+      return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true, storage: window.localStorage } });
     }
-
     async function openAccountPanel() {
       const mask = document.getElementById('accountMask');
       const sb = await getSb();
@@ -5075,298 +922,78 @@ ${workflowLines}
       const user = session?.user || currentUser;
       const email = (user?.email || '').toLowerCase();
       const role = readRole(user);
-      const nick = user?.user_metadata?.nickname || user?.user_metadata?.full_name || '';
       document.getElementById('acctEmail').textContent = user?.email || '未登入';
-      document.getElementById('acctRole').textContent =
-        '角色：' + (role || (ADMIN_EMAILS.includes(email) ? 'admin' : 'user'));
-      document.getElementById('acctNickname').value = nick;
-      document.getElementById('acctNewPass').value = '';
-      document.getElementById('acctNewPass2').value = '';
-      document.getElementById('acctMsg').textContent = '';
-      const adminBtn = document.getElementById('btnOpenAdmin');
-      const canAdmin = role === 'admin' || role === 'owner' || ADMIN_EMAILS.includes(email);
-      adminBtn.style.display = canAdmin ? '' : 'none';
+      document.getElementById('acctRole').textContent = '角色：' + (role || (ADMIN_EMAILS.includes(email) ? 'admin' : 'user'));
+      document.getElementById('acctNickname').value = user?.user_metadata?.nickname || user?.user_metadata?.full_name || '';
+      document.getElementById('acctNewPass').value = ''; document.getElementById('acctNewPass2').value = ''; document.getElementById('acctMsg').textContent = '';
+      document.getElementById('btnOpenAdmin').style.display = (role === 'admin' || role === 'owner' || ADMIN_EMAILS.includes(email)) ? '' : 'none';
       mask.classList.add('show');
     }
-
-    document.getElementById('btnAccountGear')?.addEventListener('click', () => {
-      openAccountPanel().catch(e => showToast(e.message || '無法開啟帳號設定'));
-    });
-    document.getElementById('btnCloseAccount')?.addEventListener('click', () => {
-      document.getElementById('accountMask')?.classList.remove('show');
-    });
-    document.getElementById('accountMask')?.addEventListener('click', (e) => {
-      if (e.target.id === 'accountMask') e.currentTarget.classList.remove('show');
-    });
-    document.getElementById('btnOpenAdmin')?.addEventListener('click', () => {
-      location.href = 'aivault-admin.html';
-    });
+    document.getElementById('btnAccountGear')?.addEventListener('click', () => openAccountPanel().catch(e => showToast(e.message || '無法開啟帳號設定')));
+    document.getElementById('btnCloseAccount')?.addEventListener('click', () => document.getElementById('accountMask')?.classList.remove('show'));
+    document.getElementById('accountMask')?.addEventListener('click', (e) => { if (e.target.id === 'accountMask') e.currentTarget.classList.remove('show'); });
+    document.getElementById('btnOpenAdmin')?.addEventListener('click', () => { location.href = 'aivault-admin.html'; });
     document.getElementById('btnSaveAccount')?.addEventListener('click', async () => {
-      const msg = document.getElementById('acctMsg');
-      msg.textContent = '儲存中…';
+      const msg = document.getElementById('acctMsg'); msg.textContent = '儲存中…';
       try {
         const sb = await getSb();
         const nick = document.getElementById('acctNickname').value.trim();
-        const p1 = document.getElementById('acctNewPass').value;
-        const p2 = document.getElementById('acctNewPass2').value;
-        const updates = { data: { nickname: nick } };
-        const { error: e1 } = await sb.auth.updateUser(updates);
-        if (e1) throw e1;
-        if (p1 || p2) {
-          if (p1.length < 6) throw new Error('密碼至少 6 碼');
-          if (p1 !== p2) throw new Error('兩次密碼不一致');
-          const { error: e2 } = await sb.auth.updateUser({ password: p1 });
-          if (e2) throw e2;
+        const p1 = document.getElementById('acctNewPass').value; const p2 = document.getElementById('acctNewPass2').value;
+        const { error: e1 } = await sb.auth.updateUser({ data: { nickname: nick } }); if (e1) throw e1;
+        if (p1 || p2) { if (p1.length < 6) throw new Error('密碼至少 6 碼'); if (p1 !== p2) throw new Error('兩次密碼不一致'); const { error: e2 } = await sb.auth.updateUser({ password: p1 }); if (e2) throw e2; }
+        msg.textContent = '已更新暱稱' + (p1 ? '與密碼' : ''); showToast('帳號設定已儲存');
+      } catch (err) { msg.textContent = err.message || '儲存失敗'; }
+    });
+    document.getElementById('btnOwner').addEventListener('click', () => { if (!isAdmin) { showToast('需要管理員權限'); return; } window.location.href = 'aivault-admin.html'; });
+    document.getElementById('btnLogout').addEventListener('click', async () => {
+      try { const sb = await getSb(); await sb.auth.signOut(); } catch (e) {}
+      try { localStorage.removeItem('aivault_remember_email'); } catch (_) {}
+      location.replace('aivault-logout.html');
+    });
+    document.getElementById('btnRoomSend').addEventListener('click', async () => {
+      const input = document.getElementById('roomInput'); const question = input.value.trim(); if (!question) return;
+      addTicker(`Owner：${question}`); input.value = ''; addTicker('系統：送入 AI Gateway…');
+      const agent = AGENTS.find(a => getAgentView(a).connected) || AGENTS[0];
+      try { const reply = await callAIGateway({ provider: agent.provider, model: getAgentModel(agent), agentName: agent.name, userMessage: question }); addTicker(`${agent.name}：${String(reply).slice(0,120)}`); }
+      catch (err) { addTicker(`系統錯誤：${err.message || err}`); }
+    });
+    document.addEventListener('click', event => {
+      const toggleEl = event.target.closest('.toggle');
+      if (toggleEl) {
+        const agentId = toggleEl.dataset.id; const providerCode = toggleEl.dataset.code;
+        if (agentId) {
+          toggleEl.classList.toggle('on'); const nowOn = toggleEl.classList.contains('on');
+          setAgentRuntime(agentId, { connected: nowOn, status: nowOn ? 'idle' : 'offline', statusText: nowOn ? '空閒（手動啟用）' : '已停用' });
+          if (!nowOn) selectedChatAgents = selectedChatAgents.filter(id => id !== agentId);
+          renderAgents(); renderAgentPickBars(); showToast(nowOn ? 'Agent 已啟用' : 'Agent 已停用'); return;
         }
-        msg.textContent = '已更新暱稱' + (p1 ? '與密碼' : '');
-        showToast('帳號設定已儲存');
-        const { data: { session } } = await sb.auth.getSession();
-        currentUser = session?.user || currentUser;
-      } catch (err) {
-        msg.textContent = err.message || '儲存失敗';
+        if (providerCode) {
+          const provider = PROVIDERS.find(p => p.code === providerCode);
+          if (provider) {
+            const nowOn = !toggleEl.classList.contains('on'); toggleEl.classList.toggle('on'); provider.status = nowOn ? 'active' : 'inactive';
+            AGENTS.forEach(a => { if (a.provider === providerCode) setAgentRuntime(a.id, { connected: nowOn, status: nowOn ? 'idle' : 'offline', statusText: nowOn ? (`空閒 · ${providerCode}`) : 'Provider 已關閉' }); });
+            renderAgents(); renderAgentRegistry(); renderAgentPickBars();
+          }
+          return;
+        }
+      }
+      const taskItem = event.target.closest('.task-item');
+      if (taskItem && taskItem.dataset.taskId) { cycleTaskStatus(taskItem.dataset.taskId); return; }
+      const stepItem = event.target.closest('.workflow-step');
+      if (stepItem && stepItem.dataset.step) { setWorkflowStep(Number(stepItem.dataset.step)); return; }
+      const chip = event.target.closest('.agent-chip');
+      if (chip) {
+        if (chip.id && chip.id.endsWith('-all')) { selectAllOnlineAgents(); return; }
+        if (chip.dataset.agentId) toggleChatAgent(chip.dataset.agentId);
       }
     });
-
-    /* ============================================================
-       ㉘ Owner
-       ============================================================ */
-
-    document
-      .getElementById('btnOwner')
-      .addEventListener(
-        'click',
-        () => {
-          if (!isAdmin) {
-            showToast('需要管理員權限');
-            return;
-          }
-          window.location.href = 'aivault-admin.html';
-        }
-      );
-
-    // 登出
-    document
-      .getElementById('btnLogout')
-      .addEventListener(
-        'click',
-        async () => {
-          try {
-            const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
-            const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-              auth: { persistSession: true, autoRefreshToken: true, storage: window.localStorage }
-            });
-            await sb.auth.signOut();
-          } catch (e) {
-            console.warn(e);
-          }
-          try {
-            localStorage.removeItem('aivault_remember_email');
-          } catch (_) {}
-          location.replace('aivault-logout.html');
-        }
-      );
-
-
-    /* ============================================================
-       ㉙ 房間提問
-       ============================================================ */
-
-    document
-      .getElementById('btnRoomSend')
-      .addEventListener(
-        'click',
-        async () => {
-
-          const input =
-            document.getElementById(
-              'roomInput'
-            );
-
-
-          const question =
-            input.value.trim();
-
-
-          if (!question) {
-            return;
-          }
-
-
-          addTicker(
-            `Owner：${question}`
-          );
-
-          input.value = '';
-          addTicker('系統：送入 AI Gateway…');
-
-          const agent =
-            AGENTS.find(a => getAgentView(a).connected) || AGENTS[0];
-
-          try {
-            const reply = await callAIGateway({
-              provider: agent.provider,
-              model: getAgentModel(agent),
-              agentName: agent.name,
-              userMessage: question
-            });
-            addTicker(`${agent.name}：${String(reply).slice(0, 120)}${String(reply).length > 120 ? '…' : ''}`);
-          } catch (err) {
-            addTicker(`系統錯誤：${err.message || err}`);
-          }
-
-        }
-      );
-
-
-    /* ============================================================
-       ㉚ Agent / Provider Toggle
-       ============================================================ */
-
-    document.addEventListener(
-      'click',
-      event => {
-
-        // Agent / Provider Toggle（真正啟用／停用）
-        const toggleEl = event.target.closest('.toggle');
-        if (toggleEl) {
-          const agentId = toggleEl.dataset.id;
-          const providerCode = toggleEl.dataset.code;
-
-          if (agentId) {
-            const wasOn = toggleEl.classList.contains('on');
-            toggleEl.classList.toggle('on');
-            const nowOn = toggleEl.classList.contains('on');
-
-            setAgentRuntime(agentId, {
-              connected: nowOn,
-              status: nowOn ? 'idle' : 'offline',
-              statusText: nowOn ? '空閒（手動啟用）' : '已停用'
-            });
-
-            if (!nowOn) {
-              selectedChatAgents = selectedChatAgents.filter(id => id !== agentId);
-            }
-
-            renderAgents();
-            renderAgentPickBars();
-            showToast(nowOn ? 'Agent 已啟用' : 'Agent 已停用');
-            return;
-          }
-
-          if (providerCode) {
-            const provider = PROVIDERS.find(p => p.code === providerCode);
-            if (provider) {
-              const nowOn = !toggleEl.classList.contains('on');
-              toggleEl.classList.toggle('on');
-              provider.status = nowOn ? 'active' : 'inactive';
-
-              // 同 provider 的 Agent 一併更新
-              AGENTS.forEach(a => {
-                if (a.provider === providerCode) {
-                  setAgentRuntime(a.id, {
-                    connected: nowOn,
-                    status: nowOn ? 'idle' : 'offline',
-                    statusText: nowOn ? (`空閒 · ${providerCode}`) : 'Provider 已關閉'
-                  });
-                  if (!nowOn) {
-                    selectedChatAgents = selectedChatAgents.filter(id => id !== a.id);
-                  }
-                }
-              });
-
-              renderAgents();
-              renderAgentRegistry();
-              renderAgentPickBars();
-              showToast(
-                nowOn
-                  ? `Provider ${provider.name} 已啟用`
-                  : `Provider ${provider.name} 已關閉`
-              );
-            }
-            return;
-          }
-
-          toggleEl.classList.toggle('on');
-          showToast('狀態已更新');
-          return;
-        }
-
-        // 任務點擊
-        const taskItem = event.target.closest('.task-item');
-        if (taskItem && taskItem.dataset.taskId) {
-          cycleTaskStatus(taskItem.dataset.taskId);
-          return;
-        }
-
-        // 工作流步驟點擊
-        const stepItem = event.target.closest('.workflow-step');
-        if (stepItem && stepItem.dataset.step) {
-          setWorkflowStep(Number(stepItem.dataset.step));
-          return;
-        }
-
-        // Agent 選擇 chip
-        const chip = event.target.closest('.agent-chip');
-        if (chip) {
-          if (chip.id && chip.id.endsWith('-all')) {
-            selectAllOnlineAgents();
-            return;
-          }
-          const agentId = chip.dataset.agentId;
-          if (agentId) toggleChatAgent(agentId);
-        }
-
-      }
-    );
-
-
-    /* ============================================================
-       ㉛ 初始化
-       ============================================================ */
-
-    renderAgents();
-    renderAgentPickBars();
-    checkGatewayConnections();
-
-    renderTasks(
-      'taskList'
-    );
-
-    renderTasks(
-      'taskListFull'
-    );
-
-    renderWorkflow();
-
-    renderMessages(
-      'chatMessages'
-    );
-
-    renderMessages(
-      'homeChatPreview'
-    );
-
-    renderAgentRegistry();
-
-    renderProviders();
-
-    renderApprovals();
-
-
-    /* ============================================================
-       AIVAULT 啟動完成
-       ============================================================ */
-
-    console.log(
-      'AIVAULT UI initialized.'
-    );
-
-    console.log(
-      'AI Gateway:',
-      AI_GATEWAY_URL
-    );
+    renderAgents(); renderAgentPickBars(); checkGatewayConnections();
+    renderTasks('taskList'); renderTasks('taskListFull'); renderWorkflow();
+    renderMessages('chatMessages'); renderMessages('homeChatPreview');
+    renderAgentRegistry(); renderProviders(); renderApprovals();
+    console.log('AIVAULT UI initialized.');
+    console.log('AI Gateway:', AI_GATEWAY_URL);
 
   </script>
-
 </body>
 </html>

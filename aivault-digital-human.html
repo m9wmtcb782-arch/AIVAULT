@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>AIVAULT Digital Human</title>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --card: #1e293b;
+      --card-hover: #334155;
+      --border: #334155;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --primary: #3b82f6;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --violet: #a855f7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { overflow-x: hidden; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      line-height: 1.5;
+    }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    img, video, audio { max-width: 100%; }
+    .header {
+      position: sticky; top: 0; z-index: 40;
+      background: rgba(15,23,42,.94);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .header h1 { font-size: 16px; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .header p { font-size: 11px; color: var(--text-muted); }
+    .header .grow { flex: 1; min-width: 0; }
+    .icon-btn, .pill {
+      border: none; cursor: pointer; flex-shrink: 0;
+      border-radius: 10px; font-weight: 700;
+    }
+    .icon-btn {
+      width: 36px; height: 36px; background: #1e293b; border: 1px solid var(--border); color: #e2e8f0;
+    }
+    .pill {
+      padding: 8px 12px; font-size: 12px;
+      background: linear-gradient(135deg, #a855f7, #6366f1); color: #fff;
+    }
+    .pill.ghost { background: #334155; }
+    .pill.danger { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
+    .wrap { max-width: 640px; margin: 0 auto; padding: 14px 14px 110px; }
+    .hero {
+      border: 1px solid rgba(168,85,247,.35);
+      background:
+        radial-gradient(circle at 12% 20%, #4c1d95 0%, transparent 42%),
+        radial-gradient(circle at 88% 0%, #1e3a8a 0%, transparent 40%),
+        #0f172a;
+      border-radius: 16px; padding: 16px; margin-bottom: 14px;
+    }
+    .preview {
+      width: 100%; aspect-ratio: 3/4; max-height: 420px;
+      object-fit: cover; border-radius: 16px; background: #020617;
+      border: 1px solid var(--border); display: block;
+    }
+    .preview-ph {
+      width: 100%; min-height: 220px; border-radius: 16px;
+      border: 1px dashed #475569; display: grid; place-items: center;
+      color: var(--text-muted); text-align: center; padding: 24px; background: #0f172a;
+    }
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 14px; margin-bottom: 10px;
+    }
+    .card h3 { font-size: 15px; margin-bottom: 4px; }
+    .muted { color: var(--text-muted); font-size: 12px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .row > .pill, .row > .icon-btn { flex: 1 1 auto; min-height: 44px; display: flex; align-items: center; justify-content: center; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    @media (min-width: 520px) { .grid.two { grid-template-columns: 1fr 1fr; } }
+    label { display: block; font-size: 12px; color: var(--text-muted); margin: 10px 0 6px; }
+    input, select, textarea {
+      width: 100%; background: #020617; border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px; color: var(--text);
+    }
+    textarea { min-height: 140px; resize: vertical; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 10px; border-radius: 999px; font-size: 11px; font-weight: 700;
+      background: #0f172a; border: 1px solid var(--border); color: #cbd5e1;
+    }
+    .chip.on { border-color: #22c55e; color: #86efac; }
+    .asset {
+      background: #0f172a; border: 1px solid var(--border); border-radius: 14px; padding: 10px;
+    }
+    .asset.selected { border-color: #22c55e; box-shadow: 0 0 0 1px #22c55e inset; }
+    .thumb { width: 100%; height: 160px; object-fit: cover; border-radius: 10px; background: #020617; }
+    .toast {
+      position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%) translateY(80px);
+      background: #1e293b; border: 1px solid var(--border); color: #fff;
+      padding: 12px 16px; border-radius: 12px; z-index: 80; max-width: 90%; text-align: center;
+      transition: transform .25s ease; font-size: 13px;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .steps { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 10px; }
+    .steps span {
+      flex: 0 0 auto; font-size: 11px; padding: 6px 10px; border-radius: 999px;
+      border: 1px solid var(--border); color: var(--text-muted);
+    }
+    .steps span.on { background: rgba(168,85,247,.2); border-color: #a855f7; color: #e9d5ff; }
+    .chat-box {
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+      display: flex; flex-direction: column; height: min(62vh, 520px); overflow: hidden;
+    }
+    .msgs { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+    .bubble { max-width: 88%; padding: 10px 12px; border-radius: 14px; font-size: 14px; white-space: pre-wrap; word-break: break-word; }
+    .me { align-self: flex-end; background: var(--primary); }
+    .bot { align-self: flex-start; background: #334155; }
+    .composer { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--border); align-items: center; }
+    .composer input { flex: 1; border-radius: 999px; }
+    .empty { text-align: center; padding: 36px 10px; color: var(--text-muted); }
+    .danger-zone { border-color: rgba(239,68,68,.4); }
+    video { width: 100%; border-radius: 12px; background: #000; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <button class="icon-btn" id="btnBack" type="button">←</button>
+    <div class="grow">
+      <h1 id="hdrTitle">AIVAULT Digital Human</h1>
+      <p id="hdrSub">建立、管理與使用你的 AI 數字人。</p>
+    </div>
+    <button class="pill" id="btnPrimary" type="button">＋ 建立數字人</button>
+  </header>
+
+  <main class="wrap" id="app"></main>
+  <div class="toast" id="toast"></div>
+
+  <script type="module">
+    const SUPABASE_URL = 'https://clcddygkaaqqtsbswgdf.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE';
+    const FN = (name) => `${SUPABASE_URL}/functions/v1/${name}`;
+
+    const FALLBACK_PROVIDERS = [
+      { code: 'groq', name: 'Groq', models: ['openai/gpt-oss-120b', 'llama-3.3-70b-versatile'] },
+      { code: 'gemini', name: 'Gemini', models: ['gemini-2.5-flash'] },
+      { code: 'openai', name: 'OpenAI', models: ['gpt-4o-mini'] }
+    ];
+    const TONES = ['自然', '專業', '親切', '正式', '活潑'];
+    const LANGS = [
+      { v: 'zh-Hant', l: '繁體中文' },
+      { v: 'zh-Hans', l: '簡體中文' },
+      { v: 'en', l: 'English' },
+      { v: 'auto', l: '自動' }
+    ];
+    const VIDEO_PROVIDERS = [
+      { code: 'magic-hour', name: 'Magic Hour', test: 'magic-hour-test', result: 'magic-hour-result' }
+    ];
+
+    const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: true, autoRefreshToken: true, storage: window.localStorage }
+    });
+
+    let session = null;
+    let humans = [];
+    let current = null;
+    let assets = { image: [], voice: [], video: [] };
+    let providers = FALLBACK_PROVIDERS.slice();
+    let draft = blankDraft();
+    let chatLog = [];
+
+    function blankDraft() {
+      return {
+        name: '',
+        description: '',
+        selected_image_id: null,
+        selected_voice_id: null,
+        brain_provider: 'groq',
+        brain_model: 'openai/gpt-oss-120b',
+        video_provider: 'magic-hour',
+        persona_role: 'AIVAULT AI Assistant',
+        persona_tone: '自然',
+        persona_lang: 'zh-Hant',
+        video_enabled: true,
+        voice_enabled: true
+      };
+    }
+
+    function toast(text) {
+      const el = document.getElementById('toast');
+      el.textContent = text;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 2400);
+    }
+    function esc(v) {
+      return String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+    }
+    function route() {
+      const hash = (location.hash || '#/').replace(/^#/, '');
+      const parts = hash.split('/').filter(Boolean);
+      if (parts[0] !== 'digital-human' && parts[0] !== 'dh') {
+        if (!parts.length) return { name: 'list' };
+      }
+      const segs = parts[0] === 'digital-human' || parts[0] === 'dh' ? parts.slice(1) : parts;
+      if (!segs.length) return { name: 'list' };
+      if (segs[0] === 'create') return { name: 'create', step: Number(new URLSearchParams(location.search).get('step') || 1) };
+      const id = segs[0];
+      const sub = segs[1] || 'dash';
+      return { name: sub, id };
+    }
+    function go(path) {
+      location.hash = path.startsWith('#') ? path : '#' + path;
+    }
+
+    async function authHeader() {
+      const { data } = await sb.auth.getSession();
+      session = data.session;
+      const token = session?.access_token || SUPABASE_ANON_KEY;
+      return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'apikey': SUPABASE_ANON_KEY
+      };
+    }
+
+    async function callFn(name, body) {
+      const res = await fetch(FN(name), {
+        method: 'POST',
+        headers: await authHeader(),
+        body: JSON.stringify(body || {})
+      });
+      let data = {};
+      try { data = await res.json(); } catch {}
+      if (!res.ok) throw new Error(data.error || data.message || `${name} HTTP ${res.status}`);
+      return data;
+    }
+
+    function unwrapList(data, keys = ['items', 'data', 'records', 'humans', 'assets', 'videos', 'images', 'voices']) {
+      if (Array.isArray(data)) return data;
+      for (const k of keys) if (Array.isArray(data?.[k])) return data[k];
+      if (Array.isArray(data?.result)) return data.result;
+      return [];
+    }
+    function unwrapOne(data) {
+      return data?.human || data?.item || data?.record || data?.data || data?.digital_human || data;
+    }
+
+    async function saveHuman(payload) {
+      const attempts = [
+        payload,
+        { action: payload.action || (payload.id ? 'update' : 'create'), ...payload },
+        { op: payload.action || (payload.id ? 'update' : 'create'), ...payload }
+      ];
+      let lastErr;
+      for (const body of attempts) {
+        try { return unwrapOne(await callFn('digital-human-save', body)); }
+        catch (e) { lastErr = e; }
+      }
+      throw lastErr;
+    }
+
+    async function listHumans() {
+      const attempts = [{ action: 'list' }, { op: 'list' }, { type: 'list' }];
+      for (const body of attempts) {
+        try {
+          const data = await callFn('digital-human-save', body);
+          const list = unwrapList(data);
+          if (list.length || data?.ok || data?.success || Array.isArray(data)) return list;
+        } catch {}
+      }
+      return [];
+    }
+
+    async function getHuman(id) {
+      const attempts = [
+        { action: 'get', id },
+        { action: 'read', id },
+        { id },
+        { digital_human_id: id, action: 'get' }
+      ];
+      for (const body of attempts) {
+        try {
+          const one = unwrapOne(await callFn('digital-human-save', body));
+          if (one && (one.id || one.name)) return one;
+        } catch {}
+      }
+      return humans.find(h => String(h.id) === String(id)) || { id };
+    }
+
+    async function listAssets(kind, humanId) {
+      const attempts = [
+        { action: 'list', kind, digital_human_id: humanId },
+        { action: 'list', type: kind, id: humanId },
+        { op: 'list', asset_type: kind, digital_human_id: humanId }
+      ];
+      for (const body of attempts) {
+        try {
+          const data = await callFn('digital-human-asset', body);
+          const list = unwrapList(data);
+          if (list.length || data?.ok || Array.isArray(data)) return list;
+        } catch {}
+      }
+      return [];
+    }
+
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const s = String(reader.result || '');
+          resolve(s.includes(',') ? s.split(',')[1] : s);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function uploadAsset(kind, file, humanId) {
+      const b64 = await fileToBase64(file);
+      const common = {
+        kind,
+        type: kind,
+        asset_type: kind,
+        digital_human_id: humanId || null,
+        filename: file.name,
+        name: file.name,
+        mime: file.type,
+        content_type: file.type
+      };
+      const attempts = [
+        { action: 'upload', ...common, file_base64: b64, content: b64 },
+        { op: 'upload', ...common, data: b64 }
+      ];
+      let lastErr;
+      for (const body of attempts) {
+        try { return unwrapOne(await callFn('digital-human-asset', body)); }
+        catch (e) { lastErr = e; }
+      }
+      throw lastErr || new Error('資產上傳失敗');
+    }
+
+    async function deleteAsset(id, kind) {
+      return callFn('digital-human-asset', { action: 'delete', id, kind });
+    }
+
+    async function startVideo(human, prompt, settings) {
+      const provider = VIDEO_PROVIDERS.find(p => p.code === (human.video_provider || draft.video_provider)) || VIDEO_PROVIDERS[0];
+      const body = {
+        prompt,
+        digital_human_id: human.id,
+        selected_image_id: human.selected_image_id,
+        selected_voice_id: human.selected_voice_id,
+        duration: settings.duration,
+        aspect_ratio: settings.ratio,
+        resolution: settings.resolution,
+        voice_enabled: !!human.voice_enabled,
+        provider: provider.code
+      };
+      return callFn(provider.test, body);
+    }
+
+    async function pollVideo(job) {
+      const provider = VIDEO_PROVIDERS[0];
+      const id = job.job_id || job.id || job.request_id || job.video_id;
+      return callFn(provider.result, { job_id: id, id, request_id: id });
+    }
+
+    async function loadProviders() {
+      try {
+        const data = await callFn('ai-gateway', { action: 'providers' });
+        const list = unwrapList(data, ['providers', 'items', 'data']);
+        if (list.length) {
+          providers = list.map(p => ({
+            code: p.code || p.id || p.provider,
+            name: p.name || p.code || p.provider,
+            models: p.models || p.model_list || []
+          })).filter(p => p.code);
+        }
+      } catch {}
+    }
+
+    function imageUrl(item) {
+      return item?.public_url || item?.url || item?.signed_url || item?.preview_url || item?.image_url || '';
+    }
+    function voiceUrl(item) {
+      return item?.public_url || item?.url || item?.signed_url || item?.audio_url || '';
+    }
+    function videoUrl(item) {
+      return item?.mp4_url || item?.video_url || item?.public_url || item?.url || item?.download_url || '';
+    }
+    function statusLabel(h) {
+      return h.status || (h.selected_image_id ? '就緒' : '草稿');
+    }
+
+    function setHeader(title, sub, primaryLabel, onPrimary) {
+      document.getElementById('hdrTitle').textContent = title;
+      document.getElementById('hdrSub').textContent = sub || '';
+      const btn = document.getElementById('btnPrimary');
+      if (!primaryLabel) { btn.classList.add('hidden'); btn.onclick = null; return; }
+      btn.classList.remove('hidden');
+      btn.textContent = primaryLabel;
+      btn.onclick = onPrimary;
+    }
+
+    function renderList() {
+      setHeader('AIVAULT Digital Human', '建立、管理與使用你的 AI 數字人。', '＋ 建立數字人', () => go('/create'));
+      if (!humans.length) {
+        document.getElementById('app').innerHTML = `
+          <div class="hero">
+            <div class="empty">
+              <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px;">還沒有建立數字人</div>
+              <p class="muted">自訂外觀、聲音與 AI 大腦，讓不同 Provider 成為智慧核心。</p>
+              <div class="row" style="margin-top:16px;">
+                <button class="pill" id="btnFirst">建立我的第一個數字人</button>
+              </div>
+            </div>
+          </div>`;
+        document.getElementById('btnFirst').onclick = () => go('/create');
+        return;
+      }
+      document.getElementById('app').innerHTML = humans.map(h => `
+        <article class="card">
+          ${imageUrl(h) || h.preview_url ? `<img class="thumb" alt="" src="${esc(imageUrl(h) || h.preview_url)}"/>` : `<div class="preview-ph">尚未設定外觀</div>`}
+          <h3 style="margin-top:10px;">${esc(h.name || '未命名數字人')}</h3>
+          <div class="row" style="margin:8px 0;">
+            <span class="chip on">${esc(statusLabel(h))}</span>
+            <span class="chip">${esc(h.brain_provider || h.provider || '—')}</span>
+            <span class="chip">${esc(h.brain_model || h.model || '—')}</span>
+            <span class="chip">${h.selected_voice_id ? '聲音已設定' : '尚無聲音'}</span>
+            <span class="chip">${h.video_enabled === false ? '影片關閉' : '影片開啟'}</span>
+          </div>
+          <div class="row">
+            <button class="pill ghost" data-go="/${esc(h.id)}">管理</button>
+            <button class="pill" data-go="/${esc(h.id)}/chat">開始 AI 對話</button>
+            <button class="pill ghost" data-go="/${esc(h.id)}/video">產生影片</button>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    function renderCreate() {
+      const step = Number(sessionStorage.getItem('dh_step') || '1');
+      setHeader('建立數字人', `步驟 ${step} / 4`, step === 4 ? '建立數字人' : '下一步', onCreatePrimary);
+      const stepHtml = [1,2,3,4].map(n => `<span class="${n===step?'on':''}">${n===1?'基本資料':n===2?'外觀':n===3?'聲音':'AI 大腦'}</span>`).join('');
+      let body = '';
+      if (step === 1) {
+        body = `
+          <label>數字人名稱</label>
+          <input id="fName" value="${esc(draft.name)}" placeholder="例如：AIVAULT AI" />
+          <label>描述</label>
+          <textarea id="fDesc" placeholder="這位數字人的用途與風格">${esc(draft.description)}</textarea>`;
+      } else if (step === 2) {
+        body = `
+          <h3>選擇你的數字人外觀</h3>
+          <div class="row" style="margin:12px 0;">
+            <button class="pill" id="btnUpImg" type="button">＋ 上傳圖片</button>
+            <input id="fileImg" class="hidden" type="file" accept="image/png,image/jpeg,image/jpg,image/webp" />
+          </div>
+          <div class="grid two" id="imgGrid"></div>`;
+      } else if (step === 3) {
+        body = `
+          <h3>選擇你的數字人聲音</h3>
+          <div class="row" style="margin:12px 0;">
+            <button class="pill" id="btnUpVoice" type="button">＋ 上傳聲音</button>
+            <input id="fileVoice" class="hidden" type="file" accept="audio/mpeg,audio/wav,audio/mp4,audio/ogg,audio/webm,.mp3,.wav,.m4a,.ogg,.webm" />
+          </div>
+          <div class="grid" id="voiceGrid"></div>`;
+      } else {
+        body = brainForm(draft) + personaForm(draft);
+      }
+      document.getElementById('app').innerHTML = `<div class="steps">${stepHtml}</div><div class="card">${body}</div>`;
+      bindCreate(step);
+    }
+
+    function brainForm(src) {
+      const pOpts = providers.map(p => `<option value="${esc(p.code)}" ${p.code===src.brain_provider?'selected':''}>${esc(p.name)}</option>`).join('');
+      const cur = providers.find(p => p.code === src.brain_provider) || providers[0];
+      const models = (cur?.models?.length ? cur.models : [src.brain_model || '']).filter(Boolean);
+      const mOpts = models.map(m => `<option value="${esc(m)}" ${m===src.brain_model?'selected':''}>${esc(m)}</option>`).join('');
+      return `
+        <label>AI 大腦 Provider</label>
+        <select id="fProvider">${pOpts}</select>
+        <label>AI Model</label>
+        <select id="fModel">${mOpts}</select>
+        <p class="muted" style="margin-top:8px;">Provider / Model 由後端可用清單載入，未綁死單一供應商。</p>`;
+    }
+    function personaForm(src) {
+      return `
+        <h3 style="margin-top:16px;">人格設定</h3>
+        <label>角色</label>
+        <input id="fRole" value="${esc(src.persona_role || 'AIVAULT AI Assistant')}" />
+        <label>語氣</label>
+        <select id="fTone">${TONES.map(t => `<option ${t===(src.persona_tone||'自然')?'selected':''}>${t}</option>`).join('')}</select>
+        <label>語言</label>
+        <select id="fLang">${LANGS.map(l => `<option value="${l.v}" ${l.v===(src.persona_lang||'zh-Hant')?'selected':''}>${l.l}</option>`).join('')}</select>`;
+    }
+
+    function bindCreate(step) {
+      if (step === 1) {
+        document.getElementById('fName').oninput = e => draft.name = e.target.value;
+        document.getElementById('fDesc').oninput = e => draft.description = e.target.value;
+      }
+      if (step === 2) {
+        document.getElementById('btnUpImg').onclick = () => document.getElementById('fileImg').click();
+        document.getElementById('fileImg').onchange = async (e) => {
+          const file = e.target.files?.[0]; if (!file) return;
+          toast('上傳圖片中…');
+          try {
+            const item = await uploadAsset('image', file, current?.id);
+            assets.image.unshift(item);
+            if (item.id) draft.selected_image_id = item.id;
+            renderCreate();
+            toast('圖片已儲存');
+          } catch (err) { toast(err.message); }
+        };
+        renderImgCards();
+      }
+      if (step === 3) {
+        document.getElementById('btnUpVoice').onclick = () => document.getElementById('fileVoice').click();
+        document.getElementById('fileVoice').onchange = async (e) => {
+          const file = e.target.files?.[0]; if (!file) return;
+          toast('上傳聲音中…');
+          try {
+            const item = await uploadAsset('voice', file, current?.id);
+            assets.voice.unshift(item);
+            if (item.id) draft.selected_voice_id = item.id;
+            renderCreate();
+            toast('聲音已儲存');
+          } catch (err) { toast(err.message); }
+        };
+        renderVoiceCards();
+      }
+      if (step === 4) {
+        document.getElementById('fProvider').onchange = (e) => {
+          draft.brain_provider = e.target.value;
+          const p = providers.find(x => x.code === draft.brain_provider);
+          draft.brain_model = p?.models?.[0] || draft.brain_model;
+          renderCreate();
+        };
+        document.getElementById('fModel').onchange = e => draft.brain_model = e.target.value;
+        document.getElementById('fRole').oninput = e => draft.persona_role = e.target.value;
+        document.getElementById('fTone').onchange = e => draft.persona_tone = e.target.value;
+        document.getElementById('fLang').onchange = e => draft.persona_lang = e.target.value;
+      }
+    }
+
+    function renderImgCards() {
+      const grid = document.getElementById('imgGrid');
+      if (!grid) return;
+      if (!assets.image.length) {
+        grid.innerHTML = `<div class="empty">尚未上傳圖片</div>`;
+        return;
+      }
+      grid.innerHTML = assets.image.map(img => `
+        <div class="asset ${String(img.id)===String(draft.selected_image_id)?'selected':''}">
+          <img class="thumb" alt="" src="${esc(imageUrl(img))}"/>
+          <div style="margin-top:8px;font-weight:700;">${esc(img.name || img.filename || '圖片')}</div>
+          <div class="muted">${esc(img.created_at || '')}</div>
+          <div class="row" style="margin-top:8px;">
+            <button class="pill ${String(img.id)===String(draft.selected_image_id)?'':'ghost'}" data-pick-img="${esc(img.id)}">
+              ${String(img.id)===String(draft.selected_image_id)?'✓ 已選擇':'選擇'}
+            </button>
+          </div>
+        </div>`).join('');
+    }
+    function renderVoiceCards() {
+      const grid = document.getElementById('voiceGrid');
+      if (!grid) return;
+      if (!assets.voice.length) {
+        grid.innerHTML = `<div class="empty">尚未上傳聲音</div>`;
+        return;
+      }
+      grid.innerHTML = assets.voice.map(v => `
+        <div class="asset ${String(v.id)===String(draft.selected_voice_id)?'selected':''}">
+          <div style="font-weight:700;">${esc(v.name || v.filename || '聲音')}</div>
+          <div class="muted">${esc(v.created_at || '')}</div>
+          ${voiceUrl(v) ? `<audio controls src="${esc(voiceUrl(v))}" style="width:100%;margin-top:8px;"></audio>` : ''}
+          <div class="row" style="margin-top:8px;">
+            <button class="pill ${String(v.id)===String(draft.selected_voice_id)?'':'ghost'}" data-pick-voice="${esc(v.id)}">
+              ${String(v.id)===String(draft.selected_voice_id)?'✓ 已選擇':'選擇'}
+            </button>
+          </div>
+        </div>`).join('');
+    }
+
+    async function onCreatePrimary() {
+      const step = Number(sessionStorage.getItem('dh_step') || '1');
+      if (step === 1) {
+        if (!draft.name.trim()) return toast('請輸入數字人名稱');
+        sessionStorage.setItem('dh_step', '2');
+        return renderCreate();
+      }
+      if (step < 4) {
+        sessionStorage.setItem('dh_step', String(step + 1));
+        return renderCreate();
+      }
+      toast('建立中…');
+      try {
+        const saved = await saveHuman({
+          action: 'create',
+          name: draft.name,
+          description: draft.description,
+          selected_image_id: draft.selected_image_id,
+          selected_voice_id: draft.selected_voice_id,
+          brain_provider: draft.brain_provider,
+          provider: draft.brain_provider,
+          brain_model: draft.brain_model,
+          model: draft.brain_model,
+          video_provider: draft.video_provider,
+          persona_role: draft.persona_role,
+          persona_tone: draft.persona_tone,
+          persona_lang: draft.persona_lang,
+          video_enabled: draft.video_enabled,
+          voice_enabled: draft.voice_enabled,
+          status: 'ready'
+        });
+        sessionStorage.removeItem('dh_step');
+        toast('數字人建立成功');
+        go('/' + (saved.id || saved.uuid));
+      } catch (err) { toast(err.message); }
+    }
+
+    function dashButtons(id) {
+      return `
+        <div class="row">
+          <button class="pill" data-go="/${id}/chat">開始 AI 對話</button>
+          <button class="pill ghost" data-go-warroom="${id}">開始數字人會議</button>
+          <button class="pill ghost" data-go="/${id}/video">產生影片</button>
+          <button class="pill ghost" data-go="/${id}/settings">管理設定</button>
+        </div>`;
+    }
+
+    function renderDash() {
+      const h = current || {};
+      const img = assets.image.find(x => String(x.id) === String(h.selected_image_id));
+      setHeader(h.name || '數字人', statusLabel(h), '管理設定', () => go(`/${h.id}/settings`));
+      document.getElementById('app').innerHTML = `
+        <div class="hero">
+          ${img || imageUrl(h) ? `<img class="preview" alt="" src="${esc(imageUrl(img||h))}"/>` : `<div class="preview-ph">尚未設定數字人外觀<br><button class="pill" style="margin-top:12px;" data-go="/${esc(h.id)}/images">選擇圖片</button></div>`}
+          <div class="row" style="margin-top:12px;">
+            <span class="chip on">${esc(statusLabel(h))}</span>
+            <span class="chip">${esc(h.brain_provider || h.provider || '—')}</span>
+            <span class="chip">${esc(h.brain_model || h.model || '—')}</span>
+          </div>
+        </div>
+        ${dashButtons(esc(h.id))}
+        <div class="card">
+          <h3>AI 大腦</h3>
+          <p class="muted">Provider：${esc(h.brain_provider || h.provider || '未設定')}</p>
+          <p class="muted">Model：${esc(h.brain_model || h.model || '未設定')}</p>
+        </div>
+        <div class="card">
+          <h3>聲音</h3>
+          <p class="muted">目前聲音：${h.selected_voice_id ? '已選擇' : '尚未設定'}</p>
+          <button class="pill ghost" data-go="/${esc(h.id)}/voices">選擇聲音</button>
+        </div>
+        <div class="card">
+          <h3>外觀</h3>
+          <p class="muted">目前圖片：${h.selected_image_id ? '已選擇' : '尚未設定'}</p>
+          <button class="pill ghost" data-go="/${esc(h.id)}/images">選擇圖片</button>
+        </div>
+        <div class="card">
+          <h3>我的資產</h3>
+          <div class="row">
+            <button class="pill ghost" data-go="/${esc(h.id)}/images">圖片</button>
+            <button class="pill ghost" data-go="/${esc(h.id)}/voices">聲音</button>
+            <button class="pill ghost" data-go="/${esc(h.id)}/videos">影片</button>
+          </div>
+        </div>`;
+    }
+
+    function renderChat() {
+      const h = current || {};
+      setHeader(h.name || 'AI 對話', `${h.brain_provider || ''} · ${h.brain_model || ''}`, null);
+      const img = assets.image.find(x => String(x.id) === String(h.selected_image_id));
+      document.getElementById('app').innerHTML = `
+        ${img || imageUrl(h) ? `<img class="preview" style="max-height:220px;aspect-ratio:16/10;object-fit:cover;margin-bottom:10px;" alt="" src="${esc(imageUrl(img||h))}"/>` : ''}
+        <div class="chat-box">
+          <div class="msgs" id="msgs">${chatLog.map(m => `<div class="bubble ${m.role==='user'?'me':'bot'}">${esc(m.text)}</div>`).join('') || '<div class="muted">開始與數字人對話。訊息會經由 AIVAULT AI Gateway。</div>'}</div>
+          <div class="composer">
+            <button class="icon-btn" id="btnMic" type="button">🎤</button>
+            <input id="chatIn" placeholder="輸入訊息…" />
+            <button class="pill" id="btnSend" type="button">送出</button>
+          </div>
+        </div>`;
+      const box = document.getElementById('msgs');
+      box.scrollTop = box.scrollHeight;
+      document.getElementById('btnSend').onclick = sendChat;
+      document.getElementById('chatIn').onkeydown = e => { if (e.key === 'Enter') sendChat(); };
+      document.getElementById('btnMic').onclick = () => {
+        const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!Rec) return toast('此裝置不支援語音輸入');
+        const r = new Rec(); r.lang = current?.persona_lang === 'en' ? 'en-US' : 'zh-TW';
+        r.onresult = ev => { document.getElementById('chatIn').value = ev.results[0][0].transcript; };
+        r.start();
+      };
+    }
+
+    async function sendChat() {
+      const input = document.getElementById('chatIn');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+      chatLog.push({ role: 'user', text });
+      renderChat();
+      const h = current || {};
+      const lang = h.persona_lang === 'en' ? 'English' : h.persona_lang === 'zh-Hans' ? '简体中文' : '繁體中文';
+      const systemPrompt = `你是數字人「${h.name || 'AIVAULT'}」。角色：${h.persona_role || 'AIVAULT AI Assistant'}。語氣：${h.persona_tone || '自然'}。請使用${lang}。你透過 AIVAULT AI Gateway 回應，不是瀏覽器直連模型商。`;
+      try {
+        const data = await callFn('ai-gateway', {
+          provider: h.brain_provider || h.provider || 'groq',
+          model: h.brain_model || h.model || 'openai/gpt-oss-120b',
+          agent: h.name || 'Digital Human',
+          systemPrompt,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: text }
+          ]
+        });
+        const content = data.content || data.response || data.text || data.message || data.choices?.[0]?.message?.content || '（無內容）';
+        chatLog.push({ role: 'assistant', text: content });
+      } catch (err) {
+        chatLog.push({ role: 'assistant', text: 'AI Gateway 錯誤：' + err.message });
+      }
+      renderChat();
+    }
+
+    function renderVideo() {
+      const h = current || {};
+      setHeader('AI Video', h.name || '', null);
+      document.getElementById('app').innerHTML = `
+        <div class="card">
+          <h3>你想讓數字人做什麼？</h3>
+          <label>提示詞</label>
+          <textarea id="vPrompt" placeholder="例如：我的數字人在台北街頭介紹 AIVAULT，使用自然的語氣向使用者說明平台功能。"></textarea>
+          <label>時長</label>
+          <select id="vDur"><option>5</option><option selected>10</option><option>15</option><option>30</option></select>
+          <label>比例</label>
+          <select id="vRatio"><option>9:16</option><option>16:9</option><option>1:1</option></select>
+          <label>解析度</label>
+          <select id="vRes"><option>720p</option><option selected>1080p</option></select>
+          <label>影片 Provider</label>
+          <select id="vProv">${VIDEO_PROVIDERS.map(p => `<option value="${p.code}">${p.name}</option>`).join('')}</select>
+          <p class="muted" style="margin-top:8px;">目前可走 Magic Hour（magic-hour-test / magic-hour-result），架構可換其他 Video Provider。</p>
+          <div class="row" style="margin-top:12px;"><button class="pill" id="btnGen">產生影片</button></div>
+        </div>
+        <div class="card hidden" id="vResult"></div>`;
+      document.getElementById('btnGen').onclick = generateVideo;
+    }
+
+    async function generateVideo() {
+      const prompt = document.getElementById('vPrompt').value.trim();
+      if (!prompt) return toast('請先輸入提示詞');
+      const settings = {
+        duration: document.getElementById('vDur').value,
+        ratio: document.getElementById('vRatio').value,
+        resolution: document.getElementById('vRes').value
+      };
+      current.video_provider = document.getElementById('vProv').value;
+      toast('開始產生影片…');
+      try {
+        const job = await startVideo(current, prompt, settings);
+        const box = document.getElementById('vResult');
+        box.classList.remove('hidden');
+        box.innerHTML = `<p class="muted">生成中… job=${esc(job.job_id || job.id || '')}</p>`;
+        let result = job;
+        for (let i = 0; i < 20; i++) {
+          if (result.status === 'complete' || result.status === 'completed' || result.mp4_url || result.video_url) break;
+          await new Promise(r => setTimeout(r, 3000));
+          try { result = await pollVideo(job); } catch {}
+        }
+        const url = videoUrl(result);
+        if (!url) {
+          box.innerHTML = `<p>狀態：${esc(result.status || '未知')}</p><p class="muted">${esc(JSON.stringify(result).slice(0, 240))}</p>`;
+          return;
+        }
+        try {
+          await callFn('digital-human-save', {
+            action: 'save_video',
+            digital_human_id: current.id,
+            name: prompt.slice(0, 40),
+            storage_path: result.storage_path,
+            video_url: url,
+            status: 'complete'
+          });
+        } catch {}
+        box.innerHTML = `
+          <video id="player" controls src="${esc(url)}" playsinline></video>
+          <div class="row" style="margin-top:10px;">
+            <button class="pill" id="btnPlay">▶ 播放</button>
+            <a class="pill ghost" href="${esc(url)}" download="aivault-digital-human.mp4">⬇ 下載影片</a>
+            <button class="pill ghost" id="btnSaveVid">儲存至我的影片</button>
+          </div>`;
+        document.getElementById('btnPlay').onclick = () => document.getElementById('player').play();
+        document.getElementById('btnSaveVid').onclick = () => toast('已嘗試寫入後端影片資料');
+      } catch (err) { toast(err.message); }
+    }
+
+    function renderImages() {
+      const h = current || {};
+      setHeader('圖片管理', h.name || '', '＋ 上傳圖片', () => document.getElementById('fileImg').click());
+      document.getElementById('app').innerHTML = `
+        <input id="fileImg" class="hidden" type="file" accept="image/png,image/jpeg,image/jpg,image/webp" />
+        <div class="grid two" id="imgGrid"></div>`;
+      document.getElementById('fileImg').onchange = async (e) => {
+        const file = e.target.files?.[0]; if (!file) return;
+        try {
+          const item = await uploadAsset('image', file, h.id);
+          assets.image.unshift(item);
+          renderImages();
+          toast('圖片已儲存');
+        } catch (err) { toast(err.message); }
+      };
+      const grid = document.getElementById('imgGrid');
+      grid.innerHTML = assets.image.length ? assets.image.map(img => `
+        <div class="asset ${String(img.id)===String(h.selected_image_id)?'selected':''}">
+          <img class="thumb" alt="" src="${esc(imageUrl(img))}"/>
+          <div style="margin-top:8px;font-weight:700;">${esc(img.name || '圖片')}</div>
+          <div class="muted">${esc(img.created_at || '')} ${String(img.id)===String(h.selected_image_id)?'· 目前使用中':''}</div>
+          <div class="row" style="margin-top:8px;">
+            <button class="pill ghost" data-pick-img="${esc(img.id)}">選擇</button>
+            <button class="pill danger" data-del-img="${esc(img.id)}">刪除</button>
+          </div>
+        </div>`).join('') : `<div class="empty">尚無圖片</div>`;
+    }
+
+    function renderVoices() {
+      const h = current || {};
+      setHeader('聲音管理', h.name || '', '＋ 上傳聲音', () => document.getElementById('fileVoice').click());
+      document.getElementById('app').innerHTML = `
+        <input id="fileVoice" class="hidden" type="file" accept="audio/mpeg,audio/wav,audio/mp4,audio/ogg,audio/webm,.mp3,.wav,.m4a,.ogg,.webm" />
+        <div class="grid" id="voiceGrid"></div>`;
+      document.getElementById('fileVoice').onchange = async (e) => {
+        const file = e.target.files?.[0]; if (!file) return;
+        try {
+          const item = await uploadAsset('voice', file, h.id);
+          assets.voice.unshift(item);
+          renderVoices();
+          toast('聲音已儲存');
+        } catch (err) { toast(err.message); }
+      };
+      document.getElementById('voiceGrid').innerHTML = assets.voice.map(v => `
+        <div class="asset ${String(v.id)===String(h.selected_voice_id)?'selected':''}">
+          <div style="font-weight:700;">${esc(v.name || '聲音')}</div>
+          <div class="muted">${esc(v.created_at || '')} ${String(v.id)===String(h.selected_voice_id)?'· 目前使用中':''}</div>
+          ${voiceUrl(v) ? `<audio controls src="${esc(voiceUrl(v))}" style="width:100%;margin-top:8px;"></audio>` : ''}
+          <div class="row" style="margin-top:8px;">
+            <button class="pill ghost" data-pick-voice="${esc(v.id)}">選擇</button>
+            <button class="pill danger" data-del-voice="${esc(v.id)}">刪除</button>
+          </div>
+        </div>`).join('') || `<div class="empty">尚無聲音</div>`;
+    }
+
+    function renderVideos() {
+      const h = current || {};
+      setHeader('影片管理', h.name || '', '產生影片', () => go(`/${h.id}/video`));
+      document.getElementById('app').innerHTML = assets.video.map(v => {
+        const st = v.status || 'complete';
+        const url = videoUrl(v);
+        return `<div class="card">
+          ${url ? `<video controls src="${esc(url)}" playsinline></video>` : `<div class="preview-ph">${esc(st)}</div>`}
+          <h3 style="margin-top:8px;">${esc(v.name || '影片')}</h3>
+          <p class="muted">${esc(v.created_at || '')} · ${st==='complete'||st==='completed'?'完成':st==='failed'?'失敗':'生成中'}</p>
+          <div class="row">
+            ${url ? `<a class="pill" href="${esc(url)}" download="aivault-video.mp4">⬇ 下載</a>` : ''}
+            <button class="pill danger" data-del-vid="${esc(v.id)}">刪除</button>
+          </div>
+        </div>`;
+      }).join('') || `<div class="empty">尚無影片</div>`;
+    }
+
+    function renderSettings() {
+      const h = current || {};
+      Object.assign(draft, {
+        name: h.name || '',
+        description: h.description || '',
+        brain_provider: h.brain_provider || h.provider || draft.brain_provider,
+        brain_model: h.brain_model || h.model || draft.brain_model,
+        persona_role: h.persona_role || 'AIVAULT AI Assistant',
+        persona_tone: h.persona_tone || '自然',
+        persona_lang: h.persona_lang || 'zh-Hant',
+        video_enabled: h.video_enabled !== false,
+        voice_enabled: h.voice_enabled !== false
+      });
+      setHeader('設定', h.name || '', '儲存設定', saveSettings);
+      document.getElementById('app').innerHTML = `
+        <div class="card">
+          <h3>基本資料</h3>
+          <label>名稱</label><input id="fName" value="${esc(draft.name)}" />
+          <label>描述</label><textarea id="fDesc">${esc(draft.description)}</textarea>
+        </div>
+        <div class="card">
+          <h3>AI 大腦</h3>
+          ${brainForm(draft)}
+        </div>
+        <div class="card">
+          ${personaForm(draft)}
+        </div>
+        <div class="card">
+          <h3>功能</h3>
+          <label>影片功能</label>
+          <select id="fVidOn"><option value="1" ${draft.video_enabled?'selected':''}>ON</option><option value="0" ${!draft.video_enabled?'selected':''}>OFF</option></select>
+          <label>聲音功能</label>
+          <select id="fVoiceOn"><option value="1" ${draft.voice_enabled?'selected':''}>ON</option><option value="0" ${!draft.voice_enabled?'selected':''}>OFF</option></select>
+        </div>
+        <div class="card danger-zone">
+          <h3>危險操作</h3>
+          <button class="pill danger" id="btnDelHuman">刪除數字人</button>
+        </div>`;
+      document.getElementById('fProvider').onchange = (e) => {
+        draft.brain_provider = e.target.value;
+        const p = providers.find(x => x.code === draft.brain_provider);
+        draft.brain_model = p?.models?.[0] || draft.brain_model;
+        renderSettings();
+      };
+      document.getElementById('btnDelHuman').onclick = async () => {
+        if (!confirm('確定刪除這個數字人？此操作需二次確認。')) return;
+        if (!confirm('再次確認：刪除後無法從這個畫面復原。')) return;
+        try {
+          await saveHuman({ action: 'delete', id: h.id });
+          toast('已刪除');
+          go('/');
+        } catch (err) { toast(err.message); }
+      };
+    }
+
+    async function saveSettings() {
+      const h = current;
+      try {
+        const saved = await saveHuman({
+          action: 'update',
+          id: h.id,
+          name: document.getElementById('fName').value.trim(),
+          description: document.getElementById('fDesc').value.trim(),
+          brain_provider: document.getElementById('fProvider').value,
+          provider: document.getElementById('fProvider').value,
+          brain_model: document.getElementById('fModel').value,
+          model: document.getElementById('fModel').value,
+          persona_role: document.getElementById('fRole').value,
+          persona_tone: document.getElementById('fTone').value,
+          persona_lang: document.getElementById('fLang').value,
+          video_enabled: document.getElementById('fVidOn').value === '1',
+          voice_enabled: document.getElementById('fVoiceOn').value === '1'
+        });
+        current = { ...h, ...saved };
+        toast('設定已儲存');
+        go(`/${h.id}`);
+      } catch (err) { toast(err.message); }
+    }
+
+    async function pickImage(id) {
+      draft.selected_image_id = id;
+      if (current?.id) {
+        try {
+          current = { ...current, ...(await saveHuman({ action: 'update', id: current.id, selected_image_id: id })) };
+          current.selected_image_id = id;
+          toast('已更新 selected_image_id');
+        } catch (err) { toast(err.message); }
+      }
+      await render();
+    }
+    async function pickVoice(id) {
+      draft.selected_voice_id = id;
+      if (current?.id) {
+        try {
+          current = { ...current, ...(await saveHuman({ action: 'update', id: current.id, selected_voice_id: id })) };
+          current.selected_voice_id = id;
+          toast('已更新 selected_voice_id');
+        } catch (err) { toast(err.message); }
+      }
+      await render();
+    }
+
+    document.getElementById('btnBack').onclick = () => {
+      const r = route();
+      if (r.name === 'list') {
+        if (document.referrer) { location.href = document.referrer; return; }
+        location.href = 'aivault.html';
+        return;
+      }
+      if (r.name === 'create') {
+        const step = Number(sessionStorage.getItem('dh_step') || '1');
+        if (step > 1) { sessionStorage.setItem('dh_step', String(step - 1)); renderCreate(); return; }
+        go('/'); return;
+      }
+      if (r.name === 'dash') { go('/'); return; }
+      go('/' + r.id);
+    };
+
+    document.getElementById('app').addEventListener('click', async (e) => {
+      const goBtn = e.target.closest('[data-go]');
+      if (goBtn) { go(goBtn.getAttribute('data-go')); return; }
+      const wr = e.target.closest('[data-go-warroom]');
+      if (wr) {
+        sessionStorage.setItem('AIVAULT_DH_ID', wr.getAttribute('data-go-warroom'));
+        location.href = 'aivault-warroom.html';
+        return;
+      }
+      const pi = e.target.closest('[data-pick-img]');
+      if (pi) { await pickImage(pi.getAttribute('data-pick-img')); return; }
+      const pv = e.target.closest('[data-pick-voice]');
+      if (pv) { await pickVoice(pv.getAttribute('data-pick-voice')); return; }
+      const di = e.target.closest('[data-del-img]');
+      if (di) {
+        if (!confirm('確定刪除這張圖片？')) return;
+        try { await deleteAsset(di.getAttribute('data-del-img'), 'image'); assets.image = assets.image.filter(x => String(x.id) !== di.getAttribute('data-del-img')); toast('已刪除'); render(); }
+        catch (err) { toast(err.message); }
+      }
+      const dv = e.target.closest('[data-del-voice]');
+      if (dv) {
+        if (!confirm('確定刪除這個聲音？')) return;
+        try { await deleteAsset(dv.getAttribute('data-del-voice'), 'voice'); assets.voice = assets.voice.filter(x => String(x.id) !== dv.getAttribute('data-del-voice')); toast('已刪除'); render(); }
+        catch (err) { toast(err.message); }
+      }
+      const dvid = e.target.closest('[data-del-vid]');
+      if (dvid) {
+        if (!confirm('確定刪除這部影片？')) return;
+        try {
+          await callFn('digital-human-save', { action: 'delete_video', id: dvid.getAttribute('data-del-vid') });
+          assets.video = assets.video.filter(x => String(x.id) !== dvid.getAttribute('data-del-vid'));
+          toast('已刪除'); render();
+        } catch (err) { toast(err.message); }
+      }
+    });
+
+    async function render() {
+      const r = route();
+      if (r.name === 'list') {
+        current = null;
+        humans = await listHumans();
+        return renderList();
+      }
+      if (r.name === 'create') {
+        if (!sessionStorage.getItem('dh_step')) sessionStorage.setItem('dh_step', '1');
+        assets.image = await listAssets('image');
+        assets.voice = await listAssets('voice');
+        return renderCreate();
+      }
+      current = await getHuman(r.id);
+      assets.image = await listAssets('image', r.id);
+      assets.voice = await listAssets('voice', r.id);
+      assets.video = await listAssets('video', r.id);
+      if (r.name === 'chat') return renderChat();
+      if (r.name === 'video') return renderVideo();
+      if (r.name === 'images') return renderImages();
+      if (r.name === 'voices') return renderVoices();
+      if (r.name === 'videos') return renderVideos();
+      if (r.name === 'settings') return renderSettings();
+      return renderDash();
+    }
+
+    window.addEventListener('hashchange', render);
+    await loadProviders();
+    if (!location.hash) location.hash = '#/';
+    else await render();
+  </script>
+</body>
+</html>
