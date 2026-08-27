@@ -290,6 +290,8 @@
       </div>
       <div class="section-title">在線 Agent</div>
       <div class="agents-grid" id="agentsGrid"></div>
+      <div class="section-title">任務工作流｜大腦</div>
+      <div class="workflow" id="workflowHome"></div>
       <div class="section-title">今日任務</div>
       <div class="task-list" id="taskList"></div>
       <div class="section-title">AI 連線測試對話</div>
@@ -771,12 +773,15 @@
       renderWorkflow();
     }
     function renderWorkflow() {
-      const container = document.getElementById('workflow');
-      container.innerHTML = WORKFLOW.map(step => `
+      const html = WORKFLOW.map(step => `
         <div class="workflow-step ${step.status}" data-step="${step.step}" style="cursor:pointer;">
           <div class="step-num">${step.status==='done'?'✓':step.step}</div>
           <div class="step-content"><div class="step-title">${step.title}</div><div class="step-agent">${step.agent} · ${step.status==='done'?'已完成':step.status==='active'?'進行中':'待辦'}</div></div>
         </div>`).join('');
+      const container = document.getElementById('workflow');
+      const homeWf = document.getElementById('workflowHome');
+      if (container) container.innerHTML = html;
+      if (homeWf) homeWf.innerHTML = html;
     }
     function setWorkflowStep(stepNum) {
       const idx = WORKFLOW.findIndex(s => s.step === stepNum); if (idx < 0) return;
