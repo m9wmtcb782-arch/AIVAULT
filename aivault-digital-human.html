@@ -215,6 +215,17 @@
     let voiceChatOn = true;
     let currentEmotion = 'calm';
     let singing = false;
+    let scriptDraft = '';
+    let chatClip = null;
+    let recordingVideo = false;
+    const SCRIPT_PRESETS = [
+      { t: '打招呼', s: '你好，我是你的數字人，今天過得怎麼樣？' },
+      { t: '自我介紹', s: '我是你專屬的 AI 數字人。我可以陪你聊天、回答問題，也可以唱歌給你聽。' },
+      { t: '安慰', s: '沒關係，慢慢來。我在這裡陪你，你想說什麼都可以。' },
+      { t: '鼓勵', s: '你已經做得很好了。先休息一下，我們再一起想下一步。' },
+      { t: '道晚安', s: '今天也辛苦了。好好睡覺，明天再繼續。晚安。' },
+      { t: '唱歌', s: '唱一首溫柔的短歌給我聽' }
+    ];
 
     function blankDraft() {
       return {
@@ -453,7 +464,15 @@
     }
 
     async function deleteAsset(id, kind) {
-      return callFn('digital-human-asset', { action: 'delete', id, kind });
+      const hid = current?.id || draft.human_id || sessionStorage.getItem('dh_human_id');
+      const action = kind === 'voice' ? 'delete_voice' : 'delete_image';
+      const key = kind === 'voice' ? 'voice_id' : 'image_id';
+      return callFn('digital-human-asset', {
+        action,
+        digital_human_id: hid,
+        [key]: id,
+        id
+      });
     }
 
     async function startVideo(human, prompt, settings) {
@@ -706,6 +725,7 @@
             <button class="pill ${String(img.id)===String(draft.selected_image_id)?'':'ghost'}" data-pick-img="${esc(img.id)}">
               ${String(img.id)===String(draft.selected_image_id)?'✓ 已選擇':'選擇'}
             </button>
+            <button class="pill danger" data-del-img="${esc(img.id)}">刪除</button>
           </div>
         </div>`).join('');
     }
@@ -725,6 +745,7 @@
             <button class="pill ${String(v.id)===String(draft.selected_voice_id)?'':'ghost'}" data-pick-voice="${esc(v.id)}">
               ${String(v.id)===String(draft.selected_voice_id)?'✓ 已選擇':'選擇'}
             </button>
+            <button class="pill danger" data-del-voice="${esc(v.id)}">刪除</button>
           </div>
         </div>`).join('');
     }
@@ -968,7 +989,27 @@
           <div class="face-layer">${faceSVG(currentEmotion, talking)}</div>
           <div class="emo-tag">${singing ? '演唱中' : emotionLabel(currentEmotion)} · ${talking ? (singing ? '唱歌' : '說話中') : '待機'}</div>
         </div>
-        <p class="muted" style="margin-bottom:8px;">用講的問、用講的答。表情會依回答內容變化，不是只對嘴。</p>
+        <p class="muted" style="margin-bottom:8px;">用講的問、用講的答。下面可貼文案讓她說，也可以下載儲存。</p>
+        <div class="card">
+          <h3>讓她說</h3>
+          <div class="row" id="scriptChips">
+            ${SCRIPT_PRESETS.map((p,i)=>`<button class="pill ghost" type="button" data-script="${i}">${p.t}</button>`).join('')}
+          </div>
+          <textarea id="scriptBox" rows="3" placeholder="輸入或選擇文案，她會照這段說…">${esc(scriptDraft)}</textarea>
+          <div class="row" style="margin-top:8px;">
+            <button class="pill" type="button" id="btnSpeakScript">讓她說</button>
+            <button class="pill ghost" type="button" id="btnDlScript">下載文案</button>
+            <button class="pill ghost" type="button" id="btnDlReply">下載回覆</button>
+            <button class="pill ghost" type="button" id="btnDlVoice">下載聲音</button>
+            <button class="pill" type="button" id="btnRecVideo">${recordingVideo ? '錄製中…' : '錄製 AI 影片'}</button>
+          </div>
+          ${chatClip?.url ? `
+            <video controls playsinline src="${esc(chatClip.url)}" style="width:100%;margin-top:10px;border-radius:12px;background:#000;"></video>
+            <div class="row" style="margin-top:8px;">
+              <button class="pill" type="button" id="btnDlClip">下載影片</button>
+            </div>
+          ` : '<p class="muted" style="margin-top:8px;">語音聊天後可按「錄製 AI 影片」，用她剛說的話產短片並下載存檔。</p>'}
+        </div>
         <div class="chat-box">
           <div class="msgs" id="msgs">${chatLog.map(m => `<div class="bubble ${m.role==='user'?'me':'bot'}">${esc(m.text)}</div>`).join('') || '<div class="muted">按麥克風開始說話，數字人會用聲音回答。</div>'}</div>
           <div class="composer">
@@ -982,10 +1023,154 @@
       document.getElementById('btnSend').onclick = sendChat;
       document.getElementById('chatIn').onkeydown = e => { if (e.key === 'Enter') sendChat(); };
       document.getElementById('btnMic').onclick = startListen;
+      const boxEl = document.getElementById('scriptBox');
+      boxEl.oninput = e => { scriptDraft = e.target.value; };
+      document.getElementById('scriptChips').onclick = (e) => {
+        const b = e.target.closest('[data-script]');
+        if (!b) return;
+        const item = SCRIPT_PRESETS[Number(b.dataset.script)];
+        if (!item) return;
+        scriptDraft = item.s;
+        boxEl.value = item.s;
+        if (item.t === '唱歌') {
+          document.getElementById('chatIn').value = item.s;
+          sendChat();
+          return;
+        }
+        speakScript(item.s);
+      };
+      document.getElementById('btnSpeakScript').onclick = () => speakScript(boxEl.value);
+      document.getElementById('btnDlScript').onclick = () => downloadText(boxEl.value || scriptDraft, (current?.name || '數字人') + '-文案.txt');
+      document.getElementById('btnDlReply').onclick = () => {
+        const last = [...chatLog].reverse().find(m => m.role === 'assistant');
+        if (!last) return toast('還沒有回覆可下載');
+        downloadText(last.text, (current?.name || '數字人') + '-回覆.txt');
+      };
+      document.getElementById('btnDlVoice').onclick = downloadSelectedVoice;
+      document.getElementById('btnRecVideo').onclick = recordChatVideo;
+      document.getElementById('btnDlClip')?.addEventListener('click', downloadChatClip);
       const last = chatLog[chatLog.length - 1];
       if (last && last.role === 'assistant' && chatLog.length - 1 !== lastSpoken) {
         lastSpoken = chatLog.length - 1;
         talk(last.text, current?.persona_lang);
+      }
+    }
+
+    function speakScript(text) {
+      const line = String(text || '').trim();
+      if (!line) return toast('請先輸入或選擇文案');
+      scriptDraft = line;
+      singing = /唱/.test(line);
+      currentEmotion = singing ? 'happy' : detectEmotion(line);
+      chatLog.push({ role: 'user', text: '請唸：' + line });
+      chatLog.push({ role: 'assistant', text: line });
+      lastSpoken = chatLog.length - 1;
+      renderChat();
+      talk(line, current?.persona_lang);
+    }
+
+    function downloadText(text, filename) {
+      const line = String(text || '').trim();
+      if (!line) return toast('沒有可下載的文字');
+      const blob = new Blob([line], { type: 'text/plain;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename || 'script.txt';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast('已開始下載');
+    }
+
+    async function downloadSelectedVoice() {
+      const h = current || {};
+      const v = assets.voice.find(x => String(x.id) === String(h.selected_voice_id)) || assets.voice[0];
+      const url = voiceUrl(v);
+      if (!url) return toast('還沒有可下載的聲音檔');
+      try {
+        const res = await fetch(url);
+        const blob = await res.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = (v.name || 'digital-human-voice') + (/\.\w+$/.test(v.name || '') ? '' : '.wav');
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        toast('聲音檔下載中');
+      } catch {
+        location.href = url;
+      }
+    }
+
+    function clipLine() {
+      const script = (document.getElementById('scriptBox')?.value || scriptDraft || '').trim();
+      const last = [...chatLog].reverse().find(m => m.role === 'assistant');
+      return script || last?.text || '';
+    }
+
+    async function recordChatVideo() {
+      if (recordingVideo) return toast('正在錄製，請稍候');
+      const h = current || {};
+      if (!h.id) return toast('找不到數字人');
+      if (!h.selected_image_id && !assets.image[0]) return toast('請先選擇一張照片再錄影片');
+      const line = clipLine();
+      if (!line) return toast('請先語音聊天，或在文案框輸入她要說的話');
+      recordingVideo = true;
+      renderChat();
+      toast('開始錄製 AI 影片…');
+      try {
+        const human = {
+          ...h,
+          selected_image_id: h.selected_image_id || assets.image[0]?.id,
+          selected_voice_id: h.selected_voice_id || assets.voice[0]?.id,
+          voice_enabled: true
+        };
+        const prompt = `一位女性數字人面向鏡頭，自然微笑，口語說出以下內容，不要加字幕標題：${line}`;
+        const job = unwrapOne(await startVideo(human, prompt, { duration: '5', ratio: '9:16', resolution: '720p' }));
+        let result = job;
+        for (let i = 0; i < 24; i++) {
+          const url = videoUrl(result);
+          const st = String(result.status || result.state || '').toLowerCase();
+          if (url && /done|complete|success|ready/.test(st || 'ready')) break;
+          if (url && i > 2) break;
+          await new Promise(r => setTimeout(r, 4000));
+          result = unwrapOne(await pollVideo(result));
+        }
+        const url = videoUrl(result);
+        if (!url) throw new Error('影片還沒好，請稍後再按一次');
+        chatClip = { url, raw: result, prompt: line };
+        try {
+          await callFn('digital-human-save', {
+            action: 'save_video',
+            digital_human_id: human.id,
+            prompt: line,
+            video_url: url,
+            mp4_url: url
+          });
+        } catch {}
+        toast('影片已可播放與下載');
+      } catch (err) {
+        toast(err.message || '錄製失敗');
+      } finally {
+        recordingVideo = false;
+        renderChat();
+      }
+    }
+
+    async function downloadChatClip() {
+      if (!chatClip?.url) return toast('還沒有影片');
+      try {
+        const res = await fetch(chatClip.url);
+        const blob = await res.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = (current?.name || 'digital-human') + '.mp4';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        toast('影片下載中');
+      } catch {
+        location.href = chatClip.url;
       }
     }
 
