@@ -191,6 +191,7 @@
       return {
         name: '',
         description: '',
+        human_id: null,
         selected_image_id: null,
         selected_voice_id: null,
         brain_provider: 'groq',
@@ -284,7 +285,7 @@
       return [];
     }
     function unwrapOne(data) {
-      return data?.human || data?.item || data?.record || data?.data || data?.digital_human || data;
+      return data?.asset || data?.result || data?.human || data?.item || data?.record || data?.data || data?.digital_human || data;
     }
 
     async function saveHuman(payload) {
@@ -314,11 +315,15 @@
     }
 
     async function getHuman(id) {
+      try {
+        const data = await callFn('digital-human-asset', { action: 'get_human', digital_human_id: id, id });
+        const one = unwrapOne(data);
+        if (one && (one.id || one.name)) return one;
+      } catch {}
       const attempts = [
         { action: 'get', id },
-        { action: 'read', id },
-        { id },
-        { digital_human_id: id, action: 'get' }
+        { action: 'get_human', digital_human_id: id },
+        { id }
       ];
       for (const body of attempts) {
         try {
@@ -330,89 +335,54 @@
     }
 
     async function listAssets(kind, humanId) {
-      const attempts = [
-        { action: 'list', kind, digital_human_id: humanId },
-        { action: 'list_assets', kind, digital_human_id: humanId },
-        { action: 'get', kind, digital_human_id: humanId },
-        { action: kind, op: 'list', digital_human_id: humanId },
-        { action: 'list', type: kind, id: humanId },
-        { op: 'list', asset_type: kind, digital_human_id: humanId }
-      ];
-      for (const body of attempts) {
-        try {
-          const data = await callFn('digital-human-asset', body);
-          const list = unwrapList(data);
-          if (list.length || data?.ok || Array.isArray(data)) return list;
-        } catch {}
-      }
+      if (!humanId) return [];
+      try {
+        const data = await callFn('digital-human-asset', { action: 'list_assets', digital_human_id: humanId });
+        const pack = data.result || data;
+        if (kind === 'image') return pack.images || unwrapList(data, ['images']);
+        if (kind === 'voice') return pack.voices || unwrapList(data, ['voices']);
+        if (kind === 'video') return pack.videos || unwrapList(data, ['videos']);
+      } catch {}
       return [];
     }
 
-    function fileToBase64(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const s = String(reader.result || '');
-          resolve(s.includes(',') ? s.split(',')[1] : s);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+    async function ensureHumanId() {
+      if (current?.id) return current.id;
+      if (draft.human_id) return draft.human_id;
+      if (!draft.name?.trim()) throw new Error('請先填寫數字人名稱');
+      const created = unwrapOne(await callFn('digital-human-asset', {
+        action: 'create_human',
+        name: draft.name.trim(),
+        description: draft.description || 'AIVAULT 數字人',
+        brain_provider: draft.brain_provider,
+        brain_model: draft.brain_model,
+        personality: {
+          role: draft.persona_role || 'AIVAULT AI Assistant',
+          style: draft.persona_tone || '自然',
+          language: draft.persona_lang || 'zh-Hant'
+        },
+        settings: { video_enabled: true, voice_enabled: true }
+      }));
+      const id = created?.id;
+      if (!id) throw new Error('無法建立數字人，缺少 id');
+      draft.human_id = id;
+      current = { ...(current || {}), ...created, id };
+      return id;
     }
 
     async function uploadAsset(kind, file, humanId) {
-      const b64 = await fileToBase64(file);
-      const common = {
-        kind,
-        type: kind,
-        asset_type: kind,
-        digital_human_id: humanId || null,
-        human_id: humanId || null,
-        filename: file.name,
-        name: file.name,
-        mime: file.type,
-        content_type: file.type
-      };
-      const actions = [
-        'create', 'save', 'add', 'put', 'insert', 'store',
-        'upload', 'create_asset', 'save_asset', 'upload_asset',
-        kind, `upload_${kind}`, `create_${kind}`, `save_${kind}`
-      ];
-      let lastErr;
-      for (const action of actions) {
-        const bodies = [
-          { action, ...common, file_base64: b64 },
-          { action, ...common, content: b64 },
-          { action, ...common, data: b64 },
-          { op: action, ...common, file_base64: b64 }
-        ];
-        for (const body of bodies) {
-          try {
-            const one = unwrapOne(await callFn('digital-human-asset', body));
-            if (one && (one.id || one.public_url || one.url || one.ok !== false)) return one;
-          } catch (e) { lastErr = e; }
-        }
-      }
-      for (const action of ['create', 'save', 'upload', kind, `upload_${kind}`]) {
-        try {
-          const form = new FormData();
-          form.append('action', action);
-          form.append('kind', kind);
-          form.append('type', kind);
-          form.append('asset_type', kind);
-          if (humanId) {
-            form.append('digital_human_id', humanId);
-            form.append('human_id', humanId);
-          }
-          form.append('filename', file.name);
-          form.append('name', file.name);
-          form.append('file', file, file.name);
-          form.append('asset', file, file.name);
-          const one = unwrapOne(await callFnForm('digital-human-asset', form));
-          if (one) return one;
-        } catch (e) { lastErr = e; }
-      }
-      throw lastErr || new Error('資產上傳失敗');
+      const id = humanId || await ensureHumanId();
+      const action = kind === 'voice' ? 'upload_voice' : 'upload_image';
+      const form = new FormData();
+      form.append('action', action);
+      form.append('digital_human_id', id);
+      form.append('name', file.name || (kind === 'voice' ? 'Digital Human Voice' : 'Digital Human Image'));
+      form.append('description', draft.description || '');
+      form.append('file', file, file.name);
+      const data = await callFnForm('digital-human-asset', form);
+      const one = unwrapOne(data);
+      if (!one || (!one.id && !one.storage_path)) throw new Error('上傳成功但沒有回傳資產');
+      return one;
     }
 
     async function deleteAsset(id, kind) {
@@ -477,10 +447,10 @@
     }
 
     function imageUrl(item) {
-      return item?.public_url || item?.url || item?.signed_url || item?.preview_url || item?.image_url || '';
+      return item?.preview_url || item?.public_url || item?.url || item?.signed_url || item?.image_url || '';
     }
     function voiceUrl(item) {
-      return item?.public_url || item?.url || item?.signed_url || item?.audio_url || '';
+      return item?.preview_url || item?.public_url || item?.url || item?.signed_url || item?.audio_url || '';
     }
     function videoUrl(item) {
       return item?.mp4_url || item?.video_url || item?.public_url || item?.url || item?.download_url || '';
@@ -691,6 +661,10 @@
       const step = Number(sessionStorage.getItem('dh_step') || '1');
       if (step === 1) {
         if (!draft.name.trim()) return toast('請輸入數字人名稱');
+        try {
+          toast('建立數字人檔案…');
+          await ensureHumanId();
+        } catch (err) { return toast(err.message); }
         sessionStorage.setItem('dh_step', '2');
         return renderCreate();
       }
@@ -1058,10 +1032,11 @@
 
     async function pickImage(id) {
       draft.selected_image_id = id;
-      if (current?.id) {
+      const hid = current?.id || draft.human_id;
+      if (hid) {
         try {
-          current = { ...current, ...(await saveHuman({ action: 'update', id: current.id, selected_image_id: id })) };
-          current.selected_image_id = id;
+          await callFn('digital-human-asset', { action: 'select_image', digital_human_id: hid, image_id: id });
+          current = { ...(current || {}), id: hid, selected_image_id: id };
           toast('已更新 selected_image_id');
         } catch (err) { toast(err.message); }
       }
@@ -1069,10 +1044,11 @@
     }
     async function pickVoice(id) {
       draft.selected_voice_id = id;
-      if (current?.id) {
+      const hid = current?.id || draft.human_id;
+      if (hid) {
         try {
-          current = { ...current, ...(await saveHuman({ action: 'update', id: current.id, selected_voice_id: id })) };
-          current.selected_voice_id = id;
+          await callFn('digital-human-asset', { action: 'select_voice', digital_human_id: hid, voice_id: id });
+          current = { ...(current || {}), id: hid, selected_voice_id: id };
           toast('已更新 selected_voice_id');
         } catch (err) { toast(err.message); }
       }
@@ -1140,8 +1116,9 @@
       }
       if (r.name === 'create') {
         if (!sessionStorage.getItem('dh_step')) sessionStorage.setItem('dh_step', '1');
-        assets.image = await listAssets('image');
-        assets.voice = await listAssets('voice');
+        const hid = current?.id || draft.human_id;
+        assets.image = hid ? await listAssets('image', hid) : [];
+        assets.voice = hid ? await listAssets('voice', hid) : [];
         return renderCreate();
       }
       current = await getHuman(r.id);
