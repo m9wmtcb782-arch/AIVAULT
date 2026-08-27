@@ -686,7 +686,19 @@
           </div>
           <div class="grid" id="voiceGrid"></div>`;
       } else {
-        body = brainForm(draft) + personaForm(draft);
+        const img = assets.image.find(x => String(x.id) === String(draft.selected_image_id)) || assets.image[0];
+        const voice = assets.voice.find(x => String(x.id) === String(draft.selected_voice_id)) || assets.voice[0];
+        const imgSrc = imageUrl(img);
+        const vSrc = voiceUrl(voice);
+        body = `
+          <div class="card" style="margin:0 0 12px;padding:12px;">
+            <h3>已選外觀與聲音</h3>
+            ${imgSrc ? `<img class="preview" style="max-height:220px;aspect-ratio:3/4;margin:8px 0;" alt="" src="${esc(imgSrc)}" onerror="this.style.display='none'"/>` : '<p class="muted">尚未帶入照片，可回「外觀」再選一次。</p>'}
+            <p class="muted">${esc((img && (img.name || img.filename)) || '未選照片')}</p>
+            ${vSrc ? `<audio controls preload="none" src="${esc(vSrc)}" style="width:100%;margin:8px 0;"></audio>` : '<p class="muted">尚未帶入聲音，可回「聲音」再選一次。</p>'}
+            <p class="muted">${esc((voice && (voice.name || voice.filename)) || '未選聲音')}</p>
+          </div>
+        ` + brainForm(draft) + personaForm(draft);
       }
       document.getElementById('app').innerHTML = `<div class="steps">${stepHtml}</div><div class="card">${body}</div>`;
       bindCreate(step);
@@ -834,6 +846,21 @@
       }
       if (step < 4) {
         sessionStorage.setItem('dh_step', String(step + 1));
+        const hid = current?.id || draft.human_id;
+        if (hid) {
+          assets.image = await listAssets('image', hid);
+          assets.voice = await listAssets('voice', hid);
+        }
+        if (Number(sessionStorage.getItem('dh_step')) === 4) {
+          if (!draft.selected_image_id && assets.image[0]?.id) draft.selected_image_id = assets.image[0].id;
+          if (!draft.selected_voice_id && assets.voice[0]?.id) draft.selected_voice_id = assets.voice[0].id;
+          if (hid && draft.selected_image_id) {
+            try { await callFn('digital-human-asset', { action: 'select_image', digital_human_id: hid, image_id: draft.selected_image_id }); } catch {}
+          }
+          if (hid && draft.selected_voice_id) {
+            try { await callFn('digital-human-asset', { action: 'select_voice', digital_human_id: hid, voice_id: draft.selected_voice_id }); } catch {}
+          }
+        }
         return renderCreate();
       }
       toast('儲存 AI 大腦…');
