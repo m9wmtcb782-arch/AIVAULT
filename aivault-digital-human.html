@@ -379,9 +379,10 @@
       try {
         const data = await callFn('digital-human-asset', { action: 'list_assets', digital_human_id: humanId });
         const pack = data.result || data;
-        if (kind === 'image') return pack.images || unwrapList(data, ['images']);
-        if (kind === 'voice') return pack.voices || unwrapList(data, ['voices']);
-        if (kind === 'video') return pack.videos || unwrapList(data, ['videos']);
+        const mark = (arr) => (arr || []).map(x => ({ ...x, preview_url: pickUrl(x) }));
+        if (kind === 'image') return mark(pack.images || unwrapList(data, ['images']));
+        if (kind === 'voice') return mark(pack.voices || unwrapList(data, ['voices']));
+        if (kind === 'video') return mark(pack.videos || unwrapList(data, ['videos']));
       } catch {}
       return [];
     }
@@ -460,19 +461,26 @@
       const data = await callFnForm('digital-human-asset', form);
       const one = unwrapOne(data);
       if (!one || (!one.id && !one.storage_path)) throw new Error('上傳成功但沒有回傳資產');
-      return one;
+      return { ...one, preview_url: pickUrl(one) || pickUrl(data) };
     }
 
     async function deleteAsset(id, kind) {
       const hid = current?.id || draft.human_id || sessionStorage.getItem('dh_human_id');
-      const action = kind === 'voice' ? 'delete_voice' : 'delete_image';
-      const key = kind === 'voice' ? 'voice_id' : 'image_id';
-      return callFn('digital-human-asset', {
-        action,
-        digital_human_id: hid,
-        [key]: id,
-        id
-      });
+      const actions = kind === 'voice'
+        ? ['delete_voice', 'remove_voice', 'delete']
+        : ['delete_image', 'remove_image', 'delete'];
+      let lastErr;
+      for (const action of actions) {
+        const body = { action, digital_human_id: hid, id, kind, type: kind };
+        if (kind === 'voice') body.voice_id = id;
+        else body.image_id = id;
+        try { return await callFn('digital-human-asset', body); }
+        catch (e) {
+          lastErr = e;
+          if (!/INVALID_ACTION/i.test(String(e.message || e))) throw e;
+        }
+      }
+      throw lastErr || new Error('線上 Function 還沒有刪除 action，請部署 v1.3');
     }
 
     async function startVideo(human, prompt, settings) {
@@ -532,12 +540,14 @@
       providers = FALLBACK_PROVIDERS.slice();
     }
 
-    function imageUrl(item) {
-      return item?.preview_url || item?.public_url || item?.url || item?.signed_url || item?.image_url || '';
+    function pickUrl(item) {
+      if (!item || typeof item !== 'object') return '';
+      const meta = item.metadata && typeof item.metadata === 'object' ? item.metadata : {};
+      return item.preview_url || item.public_url || item.signed_url || item.url || item.image_url || item.audio_url
+        || meta.preview_url || meta.public_url || meta.signed_url || meta.url || '';
     }
-    function voiceUrl(item) {
-      return item?.preview_url || item?.public_url || item?.url || item?.signed_url || item?.audio_url || '';
-    }
+    function imageUrl(item) { return pickUrl(item); }
+    function voiceUrl(item) { return pickUrl(item); }
     function videoUrl(item) {
       return item?.mp4_url || item?.video_url || item?.public_url || item?.url || item?.download_url || '';
     }
@@ -811,7 +821,9 @@
 
     function renderDash() {
       const h = current || {};
-      const img = assets.image.find(x => String(x.id) === String(h.selected_image_id));
+      const img = assets.image.find(x => String(x.id) === String(h.selected_image_id))
+        || assets.image.find(x => x.is_selected)
+        || assets.image[0];
       setHeader(h.name || '數字人', statusLabel(h), '管理設定', () => go(`/${h.id}/settings`));
       document.getElementById('app').innerHTML = `
         <div class="hero">
@@ -980,7 +992,9 @@
         if (!voiceChatOn) stopTalk();
         renderChat();
       });
-      const img = assets.image.find(x => String(x.id) === String(h.selected_image_id));
+      const img = assets.image.find(x => String(x.id) === String(h.selected_image_id))
+        || assets.image.find(x => x.is_selected)
+        || assets.image[0];
       const src = imageUrl(img || h);
       const talking = voiceChatOn && chatLog[chatLog.length-1]?.role === 'assistant';
       document.getElementById('app').innerHTML = `
