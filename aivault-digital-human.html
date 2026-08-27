@@ -129,6 +129,31 @@
     .danger-zone { border-color: rgba(239,68,68,.4); }
     video { width: 100%; border-radius: 12px; background: #000; }
     .hidden { display: none !important; }
+    .face-stage {
+      position: relative; overflow: hidden; border-radius: 16px;
+      border: 1px solid var(--border); background: #020617; margin-bottom: 10px;
+    }
+    .face-stage img { width: 100%; aspect-ratio: 3/4; max-height: 360px; object-fit: cover; display: block; }
+    .face-layer {
+      position: absolute; left: 0; right: 0; bottom: 0; top: 42%;
+      pointer-events: none;
+      background: linear-gradient(to top, rgba(2,6,23,.35), transparent);
+    }
+    .face-svg { position: absolute; left: 50%; top: 38%; width: 58%; transform: translate(-50%,-20%); }
+    .emo-tag {
+      position: absolute; left: 10px; bottom: 10px;
+      padding: 6px 10px; border-radius: 999px; font-size: 11px; font-weight: 800;
+      background: rgba(15,23,42,.82); border: 1px solid #334155;
+    }
+    .face-stage.emo-happy .face-svg { filter: saturate(1.2); }
+    .face-stage.emo-angry { box-shadow: inset 0 0 40px rgba(239,68,68,.25); }
+    .face-stage.emo-sad { box-shadow: inset 0 0 40px rgba(59,130,246,.2); }
+    .face-stage.emo-think { box-shadow: inset 0 0 40px rgba(168,85,247,.2); }
+    .face-stage.emo-wow { box-shadow: inset 0 0 40px rgba(245,158,11,.25); }
+    @keyframes blink { 0%, 88%, 100% { transform: scaleY(1); } 92% { transform: scaleY(.12); } }
+    @keyframes talk { 0%,100% { transform: scaleY(.35); } 50% { transform: scaleY(1); } }
+    .eye { transform-origin: center; animation: blink 3.4s infinite; }
+    .mouth.talking { transform-origin: center; animation: talk .28s infinite; }
   </style>
 </head>
 <body>
@@ -186,6 +211,10 @@
     let providers = FALLBACK_PROVIDERS.slice();
     let draft = blankDraft();
     let chatLog = [];
+    let lastSpoken = -1;
+    let voiceChatOn = true;
+    let currentEmotion = 'calm';
+    let singing = false;
 
     function blankDraft() {
       return {
@@ -747,17 +776,153 @@
         </div>`;
     }
 
+    function stopTalk() {
+      try { window.speechSynthesis?.cancel(); } catch {}
+      try { stopHum(); } catch {}
+    }
+
+    function pickTalkVoice(langHint) {
+      const voices = window.speechSynthesis?.getVoices?.() || [];
+      const want = (langHint || 'zh-TW').toLowerCase();
+      const zh = voices.filter(v => /zh|cmn|yue/i.test(v.lang));
+      const female = zh.find(v => /female|woman|girl|ting|mei|xia|han|yating|hanhan|meijia|sinji/i.test(v.name + v.lang));
+      return female || zh.find(v => v.lang.toLowerCase().startsWith(want)) || zh[0] || voices.find(v => v.lang.toLowerCase().startsWith('en')) || voices[0] || null;
+    }
+
+    function talk(text, langHint) {
+      if (!voiceChatOn || !text || !('speechSynthesis' in window)) return;
+      stopTalk();
+      if (singing) return sing(text, langHint);
+      const u = new SpeechSynthesisUtterance(String(text).replace(/[#*_`]/g, ''));
+      u.lang = (langHint === 'en') ? 'en-US' : (langHint === 'zh-Hans' ? 'zh-CN' : 'zh-TW');
+      u.rate = 1.02;
+      u.pitch = 1.06;
+      const v = pickTalkVoice(u.lang);
+      if (v) u.voice = v;
+      window.speechSynthesis.speak(u);
+    }
+
+    function isSingAsk(text) {
+      return /唱|唱歌|唱一[首曲]|哼歌|演唱|來首歌/.test(String(text || ''));
+    }
+
+    function startHum() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = 'sine';
+        o.frequency.value = 220;
+        g.gain.value = 0.03;
+        o.connect(g); g.connect(ctx.destination);
+        o.start();
+        const notes = [220, 247, 262, 294, 330, 294, 262, 247];
+        let i = 0;
+        const timer = setInterval(() => {
+          o.frequency.setTargetAtTime(notes[i % notes.length], ctx.currentTime, 0.05);
+          i += 1;
+        }, 420);
+        startHum._stop = () => { try { clearInterval(timer); o.stop(); ctx.close(); } catch {} };
+      } catch {}
+    }
+
+    function stopHum() {
+      try { startHum._stop?.(); } catch {}
+      startHum._stop = null;
+    }
+
+    function sing(text, langHint) {
+      stopTalk();
+      stopHum();
+      startHum();
+      const lines = String(text).replace(/[#*_`]/g, '').split(/\n+/).map(s => s.trim()).filter(Boolean);
+      const parts = lines.length > 1 ? lines : String(text).split(/[，。！？,.!?]/).map(s => s.trim()).filter(Boolean);
+      const queue = parts.length ? parts : [text];
+      const lang = (langHint === 'en') ? 'en-US' : (langHint === 'zh-Hans' ? 'zh-CN' : 'zh-TW');
+      const voice = pickTalkVoice(lang);
+      queue.forEach((line, idx) => {
+        const u = new SpeechSynthesisUtterance(line);
+        u.lang = lang;
+        u.rate = 0.78;
+        u.pitch = 1.35 + (idx % 3) * 0.08;
+        if (voice) u.voice = voice;
+        if (idx === queue.length - 1) u.onend = () => { stopHum(); singing = false; };
+        window.speechSynthesis.speak(u);
+      });
+    }
+
+    function detectEmotion(text) {
+      const t = String(text || '');
+      const m = t.match(/\[表情[:：]\s*(喜|怒|哀|樂|驚|思|平)\]/);
+      if (m) {
+        return { 喜:'happy', 樂:'happy', 怒:'angry', 哀:'sad', 驚:'wow', 思:'think', 平:'calm' }[m[1]] || 'calm';
+      }
+      if (/開心|高興|哈哈|太好|喜歡|恭喜|棒|愛你|謝謝/.test(t)) return 'happy';
+      if (/生氣|憤怒|討厭|不行|禁止|氣|怒/.test(t)) return 'angry';
+      if (/難過|抱歉|可惜|傷心|遺憾|哭/.test(t)) return 'sad';
+      if (/驚|哇|真的嗎|不會吧|意外/.test(t)) return 'wow';
+      if (/想想|分析|可能|建議|因為|所以/.test(t)) return 'think';
+      return 'calm';
+    }
+
+    function stripEmotionTag(text) {
+      return String(text || '')
+        .replace(/\[表情[:：]\s*(喜|怒|哀|樂|驚|思|平)\]\s*/g, '')
+        .replace(/^\s*(首先|再來|接著|總結|第一[，,]|第二[，,])[:：]?\s*/gm, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+    }
+
+    function faceSVG(emotion, talking) {
+      const faces = {
+        happy: { brow: -8, eye: 10, mouth: 'M30 62 Q50 78 70 62', blush: true },
+        angry: { brow: 10, eye: 8, mouth: 'M32 70 Q50 60 68 70', blush: false },
+        sad: { brow: -4, eye: 7, mouth: 'M32 72 Q50 62 68 72', blush: false },
+        wow: { brow: -10, eye: 13, mouth: 'M50 68 m-7 0 a7 9 0 1 0 14 0 a7 9 0 1 0 -14 0', blush: true },
+        think: { brow: 2, eye: 8, mouth: 'M38 68 Q50 66 62 68', blush: false },
+        calm: { brow: 0, eye: 9, mouth: 'M34 66 Q50 72 66 66', blush: false }
+      };
+      const f = faces[emotion] || faces.calm;
+      const mouthClass = talking ? 'mouth talking' : 'mouth';
+      return `
+        <svg class="face-svg" viewBox="0 0 100 100" aria-hidden="true">
+          ${f.blush ? '<ellipse cx="22" cy="58" rx="8" ry="5" fill="rgba(244,114,182,.35)"/><ellipse cx="78" cy="58" rx="8" ry="5" fill="rgba(244,114,182,.35)"/>' : ''}
+          <path d="M22 32 q14 ${f.brow} 22 0" stroke="#e2e8f0" stroke-width="3" fill="none" stroke-linecap="round"/>
+          <path d="M56 32 q14 ${f.brow} 22 0" stroke="#e2e8f0" stroke-width="3" fill="none" stroke-linecap="round"/>
+          <ellipse class="eye" cx="34" cy="46" rx="6" ry="${f.eye}" fill="#e2e8f0"/>
+          <ellipse class="eye" cx="66" cy="46" rx="6" ry="${f.eye}" fill="#e2e8f0"/>
+          <circle cx="34" cy="47" r="2.2" fill="#0f172a"/>
+          <circle cx="66" cy="47" r="2.2" fill="#0f172a"/>
+          <path class="${mouthClass}" d="${f.mouth}" stroke="#fda4af" stroke-width="4" fill="${emotion==='wow'?'#7f1d1d':'none'}" stroke-linecap="round"/>
+        </svg>`;
+    }
+
+    function emotionLabel(e) {
+      return { happy:'樂', angry:'怒', sad:'哀', wow:'驚', think:'思', calm:'平' }[e] || '平';
+    }
+
     function renderChat() {
       const h = current || {};
-      setHeader(h.name || 'AI 對話', `${h.brain_provider || ''} · ${h.brain_model || ''}`, null);
+      setHeader(h.name || 'AI 對話', `${h.brain_provider || ''} · ${h.brain_model || ''}`, voiceChatOn ? '語音開' : '語音關', () => {
+        voiceChatOn = !voiceChatOn;
+        if (!voiceChatOn) stopTalk();
+        renderChat();
+      });
       const img = assets.image.find(x => String(x.id) === String(h.selected_image_id));
+      const src = imageUrl(img || h);
+      const talking = voiceChatOn && chatLog[chatLog.length-1]?.role === 'assistant';
       document.getElementById('app').innerHTML = `
-        ${img || imageUrl(h) ? `<img class="preview" style="max-height:220px;aspect-ratio:16/10;object-fit:cover;margin-bottom:10px;" alt="" src="${esc(imageUrl(img||h))}"/>` : ''}
+        <div class="face-stage emo-${currentEmotion}">
+          ${src ? `<img alt="" src="${esc(src)}"/>` : `<div class="preview-ph" style="min-height:280px;margin:0;border:0;">數字人表情舞台</div>`}
+          <div class="face-layer">${faceSVG(currentEmotion, talking)}</div>
+          <div class="emo-tag">${singing ? '演唱中' : emotionLabel(currentEmotion)} · ${talking ? (singing ? '唱歌' : '說話中') : '待機'}</div>
+        </div>
+        <p class="muted" style="margin-bottom:8px;">用講的問、用講的答。表情會依回答內容變化，不是只對嘴。</p>
         <div class="chat-box">
-          <div class="msgs" id="msgs">${chatLog.map(m => `<div class="bubble ${m.role==='user'?'me':'bot'}">${esc(m.text)}</div>`).join('') || '<div class="muted">開始與數字人對話。訊息會經由 AIVAULT AI Gateway。</div>'}</div>
+          <div class="msgs" id="msgs">${chatLog.map(m => `<div class="bubble ${m.role==='user'?'me':'bot'}">${esc(m.text)}</div>`).join('') || '<div class="muted">按麥克風開始說話，數字人會用聲音回答。</div>'}</div>
           <div class="composer">
             <button class="icon-btn" id="btnMic" type="button">🎤</button>
-            <input id="chatIn" placeholder="輸入訊息…" />
+            <input id="chatIn" placeholder="說話或打字…" />
             <button class="pill" id="btnSend" type="button">送出</button>
           </div>
         </div>`;
@@ -765,13 +930,30 @@
       box.scrollTop = box.scrollHeight;
       document.getElementById('btnSend').onclick = sendChat;
       document.getElementById('chatIn').onkeydown = e => { if (e.key === 'Enter') sendChat(); };
-      document.getElementById('btnMic').onclick = () => {
-        const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!Rec) return toast('此裝置不支援語音輸入');
-        const r = new Rec(); r.lang = current?.persona_lang === 'en' ? 'en-US' : 'zh-TW';
-        r.onresult = ev => { document.getElementById('chatIn').value = ev.results[0][0].transcript; };
-        r.start();
+      document.getElementById('btnMic').onclick = startListen;
+      const last = chatLog[chatLog.length - 1];
+      if (last && last.role === 'assistant' && chatLog.length - 1 !== lastSpoken) {
+        lastSpoken = chatLog.length - 1;
+        talk(last.text, current?.persona_lang);
+      }
+    }
+
+    function startListen() {
+      const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!Rec) return toast('此裝置不支援語音輸入，請改打字');
+      stopTalk();
+      const r = new Rec();
+      r.lang = current?.persona_lang === 'en' ? 'en-US' : 'zh-TW';
+      r.interimResults = false;
+      toast('請開始說話…');
+      r.onresult = ev => {
+        const said = ev.results[0][0].transcript;
+        const input = document.getElementById('chatIn');
+        if (input) input.value = said;
+        sendChat();
       };
+      r.onerror = () => toast('沒聽到，請再按一次麥克風');
+      r.start();
     }
 
     async function sendChat() {
@@ -779,25 +961,43 @@
       const text = input.value.trim();
       if (!text) return;
       input.value = '';
+      stopTalk();
+      stopHum();
+      singing = isSingAsk(text);
       chatLog.push({ role: 'user', text });
       renderChat();
       const h = current || {};
       const lang = h.persona_lang === 'en' ? 'English' : h.persona_lang === 'zh-Hans' ? '简体中文' : '繁體中文';
-      const systemPrompt = `你是數字人「${h.name || 'AIVAULT'}」。角色：${h.persona_role || 'AIVAULT AI Assistant'}。語氣：${h.persona_tone || '自然'}。請使用${lang}。你透過 AIVAULT AI Gateway 回應，不是瀏覽器直連模型商。`;
+      const systemPrompt = singing
+        ? `你是數字人「${h.name || 'AIVAULT'}」，現在要唱歌給使用者聽。請使用${lang}。第一行只寫 [表情:樂]。
+從第二行開始只輸出歌詞，每行一句，4到8句，像隨口哼給朋友聽。不要解釋、不要標題、不要寫「歌詞如下」。`
+        : `你是數字人「${h.name || 'AIVAULT'}」。用${lang}跟對方聊天。
+說話要像真人：口語、順暢、自然，一次把話說完。
+規則：
+- 第一行只寫一個標籤：[表情:喜] [表情:怒] [表情:哀] [表情:樂] [表情:驚] [表情:思] [表情:平] 其中一個
+- 標籤下一行開始才是對使用者說的話
+- 不要條列、不要標題、不要「首先／再來／總結」
+- 不要重複對方的整句話
+- 2到5句就好，像當面講，不要書面報告
+角色：${h.persona_role || 'AIVAULT AI Assistant'}。語氣：${h.persona_tone || '自然'}。`;
       try {
+        const history = chatLog.slice(-8).map(m => ({
+          role: m.role === 'assistant' ? 'assistant' : 'user',
+          content: m.text
+        }));
         const data = await callFn('ai-gateway', {
           provider: h.brain_provider || h.provider || 'groq',
           model: h.brain_model || h.model || 'openai/gpt-oss-120b',
           agent: h.name || 'Digital Human',
           systemPrompt,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: text }
-          ]
+          messages: [{ role: 'system', content: systemPrompt }, ...history]
         });
-        const content = data.content || data.response || data.text || data.message || data.choices?.[0]?.message?.content || '（無內容）';
+        const raw = data.content || data.response || data.text || data.message || data.choices?.[0]?.message?.content || '（無內容）';
+        currentEmotion = singing ? 'happy' : detectEmotion(raw);
+        const content = stripEmotionTag(raw);
         chatLog.push({ role: 'assistant', text: content });
       } catch (err) {
+        currentEmotion = 'sad';
         chatLog.push({ role: 'assistant', text: 'AI Gateway 錯誤：' + err.message });
       }
       renderChat();
