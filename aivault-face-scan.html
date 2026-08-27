@@ -68,7 +68,8 @@
 
     const STEPS = ['正臉','微左轉','微右轉','微抬頭','微低頭'];
     let facing = 'user', stream=null, running=false, tick=0, captured=[];
-    let lastFrame=null, scanStart=0, scanMs=5600, ringLit=0;
+    let lastFrame=null, scanStart=0, scanMs=5600, ringLit=0, noseHit=false, pct=0, allYellow=false, saving=false;
+    const probe = document.createElement('canvas');
 
     async function openCam() {
       stream?.getTracks().forEach(t=>t.stop());
@@ -84,11 +85,35 @@
     }
     addEventListener('resize', resize); resize();
 
+    function sampleNose(cx, cy, r, w, h) {
+      if (!cam.videoWidth) return { x:cx, y:cy, hit:false };
+      probe.width = 64; probe.height = 64;
+      const pg = probe.getContext('2d', { willReadFrequently:true });
+      pg.save(); pg.translate(64,0); pg.scale(-1,1); pg.drawImage(cam,0,0,64,64); pg.restore();
+      const d = pg.getImageData(0,0,64,64).data;
+      let sx=0,sy=0,n=0;
+      for (let y=16;y<48;y++){
+        for (let x=20;x<44;x++){
+          const i=(y*64+x)*4, R=d[i], G=d[i+1], B=d[i+2];
+          const skin = R>80 && G>40 && B>30 && R>G && R>B && (R-G)>12;
+          if (skin){ sx+=x; sy+=y; n++; }
+        }
+      }
+      if (!n) return { x:cx, y:cy, hit:false };
+      const fx = sx/n/64, fy = sy/n/64 + 0.07;
+      const nx = fx * w, ny = fy * h;
+      const dist = Math.hypot(nx-cx, ny-cy);
+      const inner = r-28;
+      return { x:nx, y:ny, hit: Math.abs(dist-inner) < inner*0.14 };
+    }
+
     function draw() {
       requestAnimationFrame(draw);
       const w=hud.width, h=hud.height, g=hud.getContext('2d'), m=mesh.getContext('2d');
       g.clearRect(0,0,w,h); m.clearRect(0,0,w,h);
       const cx=w/2, cy=h*0.42, r=Math.min(w,h)*0.28;
+      const nose = sampleNose(cx,cy,r,w,h);
+      noseHit = nose.hit;
       const vg = g.createRadialGradient(cx,cy,r*0.85,cx,cy,r*2.2);
       vg.addColorStop(0,'rgba(0,0,0,0)');
       vg.addColorStop(1,'rgba(2,6,23,.45)');
@@ -96,13 +121,16 @@
       const n=48;
       if (running) ringLit = Math.min(n, Math.floor(((Date.now()-scanStart)/scanMs)*n));
       else if (captured.length) ringLit = Math.round((captured.length/STEPS.length)*n);
-      const done = ringLit/n;
+      const done = allYellow ? 1 : ringLit/n;
+      pct = Math.round(done*100);
+      if (hint && running) hint.textContent = `掃描中 ${pct}% · 請轉頭`;
       for (let i=0;i<n;i++){
         const a = (i/n)*Math.PI*2 - Math.PI/2;
-        const on = i < ringLit;
-        const cur = running && i === (ringLit % n);
-        g.strokeStyle = cur ? '#bbf7d0' : on ? '#22c55e' : '#1e293b';
-        g.shadowColor = cur || on ? '#22c55e' : 'transparent';
+        const on = allYellow || i < ringLit;
+        const cur = !allYellow && running && i === (ringLit % n);
+        const live = allYellow || noseHit ? '#facc15' : (cur ? '#bbf7d0' : on ? '#22c55e' : '#1e293b');
+        g.strokeStyle = live;
+        g.shadowColor = allYellow || noseHit ? '#facc15' : (cur || on ? '#22c55e' : 'transparent');
         g.shadowBlur = cur ? 18 : on ? 8 : 0;
         g.lineWidth = cur ? 10 : on ? 7 : 3;
         g.beginPath();
@@ -111,7 +139,11 @@
         g.stroke();
         g.shadowBlur = 0;
       }
-      g.strokeStyle='rgba(56,189,248,.55)'; g.lineWidth=2; g.beginPath(); g.arc(cx,cy,r-28,0,Math.PI*2); g.stroke();
+      g.strokeStyle = noseHit ? '#facc15' : 'rgba(56,189,248,.7)';
+      g.lineWidth = noseHit ? 5 : 2;
+      g.beginPath(); g.arc(cx,cy,r-28,0,Math.PI*2); g.stroke();
+      g.fillStyle = noseHit ? '#facc15' : '#38bdf8';
+      g.beginPath(); g.arc(nose.x, nose.y, 7, 0, Math.PI*2); g.fill();
       // mesh on user's live face area (no stock photo)
       m.save(); m.translate(cx,cy); m.scale(-1,1);
       m.strokeStyle='rgba(56,189,248,.75)'; m.fillStyle='rgba(34,197,94,.18)'; m.lineWidth=1.4;
@@ -130,9 +162,12 @@
         m.beginPath(); m.moveTo(pts[i][0],pts[i][1]); m.lineTo(pts[i+1][0],pts[i+1][1]); m.stroke();
       }
       m.restore();
-      g.fillStyle='#22c55e'; g.font=`${13*devicePixelRatio}px sans-serif`;
+      g.fillStyle = allYellow ? '#facc15' : '#22c55e';
+      g.font=`bold ${28*devicePixelRatio}px sans-serif`;
       g.textAlign='center';
-      g.fillText(`${Math.round(done*100)}% 五官鎖定`, cx, cy+r+48);
+      g.fillText(`${pct}%`, cx, cy+r+56);
+      g.font=`${12*devicePixelRatio}px sans-serif`;
+      g.fillText(allYellow ? '掃描完畢，自動存檔' : '五官鎖定', cx, cy+r+84);
       tick++;
     }
 
@@ -157,8 +192,9 @@
         toast(`${STEPS[i]} 已採集`);
       }
       running=false;
-      hint.textContent='掃描完成，可存成數字人外觀';
-      toast('五官資料已鎖定在你的臉上');
+      allYellow=true; ringLit=48; prog.style.width='100%';
+      hint.textContent='全部黃線完成，自動存檔';
+      if (!saving) { saving=true; save().catch(e=>{ saving=false; toast(e.message); }); }
     }
 
     async function authHeader(){
