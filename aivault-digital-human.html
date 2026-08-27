@@ -251,6 +251,25 @@
         voice_enabled: true
       };
     }
+    function persistDraft() {
+      try {
+        localStorage.setItem('dh_draft', JSON.stringify(draft));
+        if (draft.human_id) localStorage.setItem('dh_human_id', draft.human_id);
+        const step = sessionStorage.getItem('dh_step');
+        if (step) localStorage.setItem('dh_step', step);
+      } catch {}
+    }
+    function restoreDraft() {
+      try {
+        const raw = localStorage.getItem('dh_draft');
+        if (raw) draft = { ...blankDraft(), ...JSON.parse(raw) };
+        const hid = localStorage.getItem('dh_human_id') || sessionStorage.getItem('dh_human_id');
+        if (hid) { draft.human_id = hid; sessionStorage.setItem('dh_human_id', hid); }
+        const step = localStorage.getItem('dh_step') || sessionStorage.getItem('dh_step');
+        if (step) sessionStorage.setItem('dh_step', step);
+      } catch {}
+    }
+    restoreDraft();
 
     function toast(text) {
       const el = document.getElementById('toast');
@@ -684,7 +703,14 @@
           <div class="row" style="margin:12px 0;">
             <button class="pill" id="btnUpImg" type="button">＋ 上傳圖片</button>
             <input id="fileImg" class="hidden" type="file" accept="image/png,image/jpeg,image/jpg,image/webp" />
+            <button class="pill ghost" id="btnScan" type="button">臉部掃描台</button>
+            <button class="pill ghost" id="btnCam" type="button">拍照</button>
+            <button class="pill ghost" id="btnClip" type="button">短視訊驗證</button>
+            <input id="fileCam" class="hidden" type="file" accept="image/*" capture="user" />
+            <input id="fileClip" class="hidden" type="file" accept="video/*" capture="user" />
           </div>
+          <video id="camPrev" playsinline muted style="display:none;width:100%;border-radius:12px;background:#000;"></video>
+          <canvas id="camShot" class="hidden"></canvas>
           <div class="grid two" id="imgGrid"></div>`;
       } else if (step === 3) {
         body = `
@@ -757,6 +783,41 @@
           } catch (err) { toast(err.message); }
         };
         renderImgCards();
+        const upFile = async (file) => {
+          if (!file) return;
+          toast('上傳中…');
+          try {
+            const item = await uploadAsset('image', file, current?.id || draft.human_id);
+            assets.image.unshift(item);
+            if (item.id) draft.selected_image_id = item.id;
+            persistDraft();
+            await lockFace(current?.id || draft.human_id, imageUrl(item));
+            renderCreate();
+            toast('已存檔');
+          } catch (err) { toast(err.message); }
+        };
+        document.getElementById('btnScan').onclick = () => { persistDraft(); location.href = 'aivault-face-scan.html'; };
+        document.getElementById('btnCam').onclick = () => document.getElementById('fileCam').click();
+        document.getElementById('fileCam').onchange = e => upFile(e.target.files?.[0]);
+        document.getElementById('btnClip').onclick = () => document.getElementById('fileClip').click();
+        document.getElementById('fileClip').onchange = async (e) => {
+          const file = e.target.files?.[0]; if (!file) return;
+          toast('擷取驗證畫面…');
+          try {
+            const url = URL.createObjectURL(file);
+            const v = document.getElementById('camPrev');
+            v.style.display='block'; v.src=url; v.muted=true;
+            await v.play().catch(()=>{});
+            await new Promise(r => setTimeout(r, 800));
+            const c = document.getElementById('camShot');
+            c.width = v.videoWidth || 720; c.height = v.videoHeight || 1280;
+            c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+            c.toBlob(async (blob) => {
+              if (!blob) return toast('無法擷取畫面');
+              await upFile(new File([blob], 'verify-face.jpg', { type:'image/jpeg' }));
+            }, 'image/jpeg', 0.9);
+          } catch (err) { toast(err.message); }
+        };
       }
       if (step === 3) {
         document.getElementById('btnUpVoice').onclick = () => document.getElementById('fileVoice').click();
@@ -850,11 +911,11 @@
           toast('建立數字人檔案…');
           await ensureHumanId();
         } catch (err) { return toast(err.message); }
-        sessionStorage.setItem('dh_step', '2');
+        sessionStorage.setItem('dh_step', '2'); persistDraft();
         return renderCreate();
       }
       if (step < 4) {
-        sessionStorage.setItem('dh_step', String(step + 1));
+        sessionStorage.setItem('dh_step', String(step + 1)); persistDraft();
         const hid = current?.id || draft.human_id;
         if (hid) {
           assets.image = await listAssets('image', hid);
@@ -990,15 +1051,7 @@
       return true;
     }
 
-    function talk(text, langHint) {
-      if (!voiceChatOn || !text) return;
-      stopTalk();
-      try { mineAudio?.pause(); } catch {}
-      if (voiceMode === 'mine') {
-        playMyVoice();
-        return;
-      }
-      if (singing) return sing(text, langHint);
+    function speakBrowser(text, langHint) {
       if (!('speechSynthesis' in window)) return;
       const u = new SpeechSynthesisUtterance(String(text).replace(/[#*_`]/g, ''));
       u.lang = (langHint === 'en') ? 'en-US' : (langHint === 'zh-Hans' ? 'zh-CN' : 'zh-TW');
@@ -1007,6 +1060,37 @@
       const v = pickTalkVoice(u.lang);
       if (v) u.voice = v;
       window.speechSynthesis.speak(u);
+    }
+
+    async function talk(text, langHint) {
+      if (!voiceChatOn || !text) return;
+      stopTalk();
+      try { mineAudio?.pause(); } catch {}
+      if (singing) return sing(text, langHint);
+      try {
+        const data = await callFn('aivault-tts', {
+          action: 'tts',
+          text: String(text).replace(/[#*_`]/g, ''),
+          provider: 'auto',
+          language: langHint === 'en' ? 'en-US' : (langHint === 'zh-Hans' ? 'zh-CN' : 'zh-TW'),
+          digital_human_id: current?.id || draft.human_id,
+          voice_id: current?.selected_voice_id || draft.selected_voice_id || null
+        });
+        const pack = data.result || data;
+        const url = pack.audio_url;
+        if (url) {
+          mineAudio = new Audio(url);
+          mineAudio.play().catch(() => speakBrowser(text, langHint));
+          return;
+        }
+        if (pack.audio_base64) {
+          mineAudio = new Audio('data:' + (pack.mime || 'audio/mpeg') + ';base64,' + pack.audio_base64);
+          mineAudio.play().catch(() => speakBrowser(text, langHint));
+          return;
+        }
+      } catch {}
+      if (voiceMode === 'mine') { playMyVoice(); return; }
+      speakBrowser(text, langHint);
     }
 
     function isSingAsk(text) {
@@ -1201,27 +1285,12 @@
           <button class="pill ${voiceMode==='mine'?'':'ghost'}" type="button" id="btnVoiceMine">我的聲音</button>
           <button class="pill ghost" type="button" id="btnVoiceStudio">去錄音</button>
         </div>
-        <p class="muted" style="margin-bottom:8px;">手機語音＝裝置唸出 AI 文字。我的聲音＝播放你錄的聲音樣本，臉會跟著動。</p>
-        <div class="card">
-          <h3>讓她說</h3>
-          <div class="row" id="scriptChips">
-            ${SCRIPT_PRESETS.map((p,i)=>`<button class="pill ghost" type="button" data-script="${i}">${p.t}</button>`).join('')}
-          </div>
-          <textarea id="scriptBox" rows="3" placeholder="輸入或選擇文案，她會照這段說…">${esc(scriptDraft)}</textarea>
-          <div class="row" style="margin-top:8px;">
-            <button class="pill" type="button" id="btnSpeakScript">讓她說</button>
-            <button class="pill ghost" type="button" id="btnDlScript">下載文案</button>
-            <button class="pill ghost" type="button" id="btnDlReply">下載回覆</button>
-            <button class="pill ghost" type="button" id="btnDlVoice">下載聲音</button>
-            <button class="pill" type="button" id="btnRecVideo">${recordingVideo ? '錄製中…' : '錄製 AI 影片'}</button>
-          </div>
-          ${chatClip?.url ? `
-            <video controls playsinline src="${esc(chatClip.url)}" style="width:100%;margin-top:10px;border-radius:12px;background:#000;"></video>
-            <div class="row" style="margin-top:8px;">
-              <button class="pill" type="button" id="btnDlClip">下載影片</button>
-            </div>
-          ` : '<p class="muted" style="margin-top:8px;">語音聊天後可按「錄製 AI 影片」，用她剛說的話產短片並下載存檔。</p>'}
+        <p class="muted" style="margin-bottom:8px;">沒有固定台詞。你問什麼，AI 就答什麼，並用語音唸出來。</p>
+        <div class="row" style="margin-bottom:8px;">
+          <button class="pill ghost" type="button" id="btnRecVideo">${recordingVideo ? '錄製中…' : '錄製這句成影片'}</button>
         </div>
+        ${chatClip?.url ? `<video controls playsinline src="${esc(chatClip.url)}" style="width:100%;margin-bottom:10px;border-radius:12px;background:#000;"></video>
+          <button class="pill" type="button" id="btnDlClip">下載影片</button>` : ''}
         <div class="chat-box">
           <div class="msgs" id="msgs">${chatLog.map(m => `<div class="bubble ${m.role==='user'?'me':'bot'}">${esc(m.text)}</div>`).join('') || '<div class="muted">按麥克風開始說話，數字人會用聲音回答。</div>'}</div>
           <div class="composer">
@@ -1238,30 +1307,6 @@
       document.getElementById('btnVoiceDevice').onclick = () => { voiceMode='device'; sessionStorage.setItem('dh_voice_mode','device'); toast('已切換手機語音'); renderChat(); };
       document.getElementById('btnVoiceMine').onclick = () => { voiceMode='mine'; sessionStorage.setItem('dh_voice_mode','mine'); toast(selectedVoiceItem()?'已切換我的聲音':'先去錄音'); renderChat(); };
       document.getElementById('btnVoiceStudio').onclick = () => { location.href = 'aivault-voice-studio.html'; };
-      const boxEl = document.getElementById('scriptBox');
-      boxEl.oninput = e => { scriptDraft = e.target.value; };
-      document.getElementById('scriptChips').onclick = (e) => {
-        const b = e.target.closest('[data-script]');
-        if (!b) return;
-        const item = SCRIPT_PRESETS[Number(b.dataset.script)];
-        if (!item) return;
-        scriptDraft = item.s;
-        boxEl.value = item.s;
-        if (item.t === '唱歌') {
-          document.getElementById('chatIn').value = item.s;
-          sendChat();
-          return;
-        }
-        speakScript(item.s);
-      };
-      document.getElementById('btnSpeakScript').onclick = () => speakScript(boxEl.value);
-      document.getElementById('btnDlScript').onclick = () => downloadText(boxEl.value || scriptDraft, (current?.name || '數字人') + '-文案.txt');
-      document.getElementById('btnDlReply').onclick = () => {
-        const last = [...chatLog].reverse().find(m => m.role === 'assistant');
-        if (!last) return toast('還沒有回覆可下載');
-        downloadText(last.text, (current?.name || '數字人') + '-回覆.txt');
-      };
-      document.getElementById('btnDlVoice').onclick = downloadSelectedVoice;
       document.getElementById('btnRecVideo').onclick = recordChatVideo;
       document.getElementById('btnDlClip')?.addEventListener('click', downloadChatClip);
       const last = chatLog[chatLog.length - 1];
@@ -1318,9 +1363,8 @@
     }
 
     function clipLine() {
-      const script = (document.getElementById('scriptBox')?.value || scriptDraft || '').trim();
       const last = [...chatLog].reverse().find(m => m.role === 'assistant');
-      return script || last?.text || '';
+      return (last?.text || '').trim();
     }
 
     async function recordChatVideo() {
@@ -1715,8 +1759,14 @@
         return;
       }
       if (r.name === 'create') {
+        persistDraft();
         const step = Number(sessionStorage.getItem('dh_step') || '1');
-        if (step > 1) { sessionStorage.setItem('dh_step', String(step - 1)); renderCreate(); return; }
+        if (step > 1) {
+          sessionStorage.setItem('dh_step', String(step - 1));
+          localStorage.setItem('dh_step', String(step - 1));
+          renderCreate();
+          return;
+        }
         go('/'); return;
       }
       if (r.name === 'dash') { go('/'); return; }
@@ -1770,8 +1820,12 @@
     async function render() {
       const r = route();
       if (r.name === 'list') {
-        current = null;
         humans = await listHumans();
+        const hid = draft.human_id || localStorage.getItem('dh_human_id');
+        if (!humans.length && hid) {
+          const one = await getHuman(hid);
+          if (one?.id) humans = [one];
+        }
         return renderList();
       }
       if (r.name === 'create') {

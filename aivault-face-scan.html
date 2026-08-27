@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="theme-color" content="#020617" />
+  <title>AIVAULT 臉部掃描</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;background:#020617;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif;overflow:hidden}
+    #stage{position:fixed;inset:0;background:#000}
+    video,#hud,#mesh{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+    video{transform:scaleX(-1)}
+    #hud,#mesh{pointer-events:none}
+    .top,.bot{position:fixed;left:0;right:0;z-index:5;padding:14px 16px}
+    .top{top:env(safe-area-inset-top);display:flex;justify-content:space-between;align-items:center;
+      background:linear-gradient(#020617ee,transparent)}
+    .bot{bottom:0;padding-bottom:calc(env(safe-area-inset-bottom) + 16px);
+      background:linear-gradient(transparent,#020617f2)}
+    .brand{font-weight:800}.brand small{display:block;opacity:.5;font-size:11px;font-weight:600}
+    .pill{border:0;border-radius:999px;padding:12px 18px;font-weight:800;background:#22c55e;color:#052e16}
+    .pill.ghost{background:#0f172acc;color:#fff;border:1px solid #334155}
+    .hint{text-align:center;font-size:14px;margin-bottom:10px;letter-spacing:.04em}
+    .bar{height:6px;border-radius:99px;background:#1e293b;overflow:hidden;margin:8px 0 12px}
+    .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#22c55e,#38bdf8);transition:width .25s}
+    .toast{position:fixed;left:50%;top:46%;transform:translate(-50%,-50%);background:#0f172add;border:1px solid #22c55e55;
+      padding:10px 14px;border-radius:12px;display:none;z-index:8;font-size:13px}
+    .scanline{position:absolute;left:12%;right:12%;height:2px;background:linear-gradient(90deg,transparent,#22d3ee,transparent);
+      box-shadow:0 0 16px #22d3ee;animation:scan 2.4s linear infinite;z-index:3;pointer-events:none}
+    @keyframes scan{from{top:18%}to{top:78%}}
+  </style>
+</head>
+<body>
+  <div id="stage">
+    <video id="cam" autoplay playsinline muted webkit-playsinline></video>
+    <canvas id="hud"></canvas>
+    <canvas id="mesh"></canvas>
+    <div class="scanline" id="scanline"></div>
+  </div>
+  <div class="top">
+    <button class="pill ghost" id="back" type="button">←</button>
+    <div class="brand">臉部掃描<small>用你的臉 · 不套用別人的照片</small></div>
+    <button class="pill ghost" id="flip" type="button">翻轉</button>
+  </div>
+  <div class="bot">
+    <div class="hint" id="hint">將臉放進圓圈，緩慢轉頭</div>
+    <div class="bar"><i id="prog"></i></div>
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button class="pill" id="start" type="button">開始掃描</button>
+      <button class="pill ghost" id="save" type="button">存成數字人</button>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script type="module">
+    const SUPABASE_URL = 'https://clcddygkaaqqtsbswgdf.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE';
+    const FN = `${SUPABASE_URL}/functions/v1/digital-human-asset`;
+    const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth:{ persistSession:true, autoRefreshToken:true, storage:localStorage } });
+
+    const cam = document.getElementById('cam');
+    const hud = document.getElementById('hud');
+    const mesh = document.getElementById('mesh');
+    const hint = document.getElementById('hint');
+    const prog = document.getElementById('prog');
+    const toastEl = document.getElementById('toast');
+    const toast = (m)=>{ toastEl.textContent=m; toastEl.style.display='block'; setTimeout(()=>toastEl.style.display='none',1800); };
+
+    const STEPS = ['正臉','微左轉','微右轉','微抬頭','微低頭'];
+    let facing = 'user', stream=null, running=false, tick=0, captured=[];
+    let lastFrame=null, scanStart=0, scanMs=5600, ringLit=0;
+
+    async function openCam() {
+      stream?.getTracks().forEach(t=>t.stop());
+      stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode: { ideal: facing } }, audio:false });
+      cam.srcObject = stream;
+      cam.setAttribute('playsinline','true');
+      cam.muted = true;
+      await cam.play();
+    }
+
+    function resize() {
+      [hud, mesh].forEach(c => { c.width = innerWidth * devicePixelRatio; c.height = innerHeight * devicePixelRatio; });
+    }
+    addEventListener('resize', resize); resize();
+
+    function draw() {
+      requestAnimationFrame(draw);
+      const w=hud.width, h=hud.height, g=hud.getContext('2d'), m=mesh.getContext('2d');
+      g.clearRect(0,0,w,h); m.clearRect(0,0,w,h);
+      const cx=w/2, cy=h*0.42, r=Math.min(w,h)*0.28;
+      const vg = g.createRadialGradient(cx,cy,r*0.85,cx,cy,r*2.2);
+      vg.addColorStop(0,'rgba(0,0,0,0)');
+      vg.addColorStop(1,'rgba(2,6,23,.45)');
+      g.fillStyle=vg; g.fillRect(0,0,w,h);
+      const n=48;
+      if (running) ringLit = Math.min(n, Math.floor(((Date.now()-scanStart)/scanMs)*n));
+      else if (captured.length) ringLit = Math.round((captured.length/STEPS.length)*n);
+      const done = ringLit/n;
+      for (let i=0;i<n;i++){
+        const a = (i/n)*Math.PI*2 - Math.PI/2;
+        const on = i < ringLit;
+        const cur = running && i === (ringLit % n);
+        g.strokeStyle = cur ? '#bbf7d0' : on ? '#22c55e' : '#1e293b';
+        g.shadowColor = cur || on ? '#22c55e' : 'transparent';
+        g.shadowBlur = cur ? 18 : on ? 8 : 0;
+        g.lineWidth = cur ? 10 : on ? 7 : 3;
+        g.beginPath();
+        g.moveTo(cx+Math.cos(a)*(r-10), cy+Math.sin(a)*(r-10));
+        g.lineTo(cx+Math.cos(a)*(r+18), cy+Math.sin(a)*(r+18));
+        g.stroke();
+        g.shadowBlur = 0;
+      }
+      g.strokeStyle='rgba(56,189,248,.55)'; g.lineWidth=2; g.beginPath(); g.arc(cx,cy,r-28,0,Math.PI*2); g.stroke();
+      // mesh on user's live face area (no stock photo)
+      m.save(); m.translate(cx,cy); m.scale(-1,1);
+      m.strokeStyle='rgba(56,189,248,.75)'; m.fillStyle='rgba(34,197,94,.18)'; m.lineWidth=1.4;
+      const pts=[];
+      for(let y=-4;y<=4;y++){
+        for(let x=-3;x<=3;x++){
+          const px=x*22 + Math.sin((tick+y)/8)*3;
+          const py=y*20 + Math.cos((tick+x)/10)*2;
+          if (px*px+py*py < r*r*0.42) pts.push([px,py]);
+        }
+      }
+      pts.forEach(([x,y])=>{ m.beginPath(); m.arc(x,y,2.2,0,Math.PI*2); m.fill(); });
+      m.strokeStyle='rgba(165,243,252,.35)';
+      for(let i=0;i<pts.length-1;i++){
+        if(i%3) continue;
+        m.beginPath(); m.moveTo(pts[i][0],pts[i][1]); m.lineTo(pts[i+1][0],pts[i+1][1]); m.stroke();
+      }
+      m.restore();
+      g.fillStyle='#22c55e'; g.font=`${13*devicePixelRatio}px sans-serif`;
+      g.textAlign='center';
+      g.fillText(`${Math.round(done*100)}% 五官鎖定`, cx, cy+r+48);
+      tick++;
+    }
+
+    function snap() {
+      const c=document.createElement('canvas');
+      c.width=cam.videoWidth||720; c.height=cam.videoHeight||960;
+      const x=c.getContext('2d');
+      x.save(); x.translate(c.width,0); x.scale(-1,1); x.drawImage(cam,0,0,c.width,c.height); x.restore();
+      lastFrame=c;
+      return new Promise(res=>c.toBlob(b=>res(b),'image/jpeg',0.92));
+    }
+
+    async function startScan() {
+      if (running) return;
+      running=true; captured=[]; ringLit=0; scanStart=Date.now(); scanMs=STEPS.length*1100;
+      for (let i=0;i<STEPS.length;i++){
+        hint.textContent = `請保持 ${STEPS[i]} · ${i+1}/${STEPS.length}`;
+        await new Promise(r=>setTimeout(r, 1100));
+        const blob = await snap();
+        captured.push({ step:STEPS[i], blob });
+        prog.style.width = `${((i+1)/STEPS.length)*100}%`;
+        toast(`${STEPS[i]} 已採集`);
+      }
+      running=false;
+      hint.textContent='掃描完成，可存成數字人外觀';
+      toast('五官資料已鎖定在你的臉上');
+    }
+
+    async function authHeader(){
+      const { data } = await sb.auth.getSession();
+      const token = data.session?.access_token || SUPABASE_ANON_KEY;
+      return { Authorization:`Bearer ${token}`, apikey: SUPABASE_ANON_KEY };
+    }
+    async function humanId(){
+      let id = localStorage.getItem('dh_human_id') || sessionStorage.getItem('dh_human_id');
+      if (id) return id;
+      const res = await fetch(FN,{ method:'POST', headers:{...(await authHeader()),'Content-Type':'application/json'},
+        body: JSON.stringify({ action:'create_human', name:'AIVAULT AI', description:'臉部掃描' }) });
+      const j = await res.json();
+      id = j.result?.id || j.id;
+      if (!id) throw new Error('沒有數字人可存臉');
+      localStorage.setItem('dh_human_id', id); sessionStorage.setItem('dh_human_id', id);
+      return id;
+    }
+    async function save() {
+      if (!captured.length && !lastFrame) return toast('請先開始掃描');
+      toast('上傳正臉…');
+      const blob = captured[0]?.blob || await snap();
+      const id = await humanId();
+      const form = new FormData();
+      form.append('action','upload_image');
+      form.append('digital_human_id', id);
+      form.append('name','face-scan-front');
+      form.append('file', new File([blob],'face-scan.jpg',{type:'image/jpeg'}));
+      const res = await fetch(FN,{ method:'POST', headers: await authHeader(), body: form });
+      const j = await res.json();
+      if (!res.ok || j.success===false) throw new Error(j.message||j.error||'存檔失敗');
+      const imgId = j.asset?.id || j.result?.id || j.id;
+      if (imgId) {
+        await fetch(FN,{ method:'POST', headers:{...(await authHeader()),'Content-Type':'application/json'},
+          body: JSON.stringify({ action:'select_image', digital_human_id:id, image_id: imgId }) });
+      }
+      try { await fetch(`${SUPABASE_URL}/functions/v1/ai-human-face`,{ method:'POST', headers:{...(await authHeader()),'Content-Type':'application/json'},
+        body: JSON.stringify({ action:'analyze', digital_human_id:id, view:'FRONT' }) }); } catch {}
+      toast('已存成你的數字人臉');
+      setTimeout(()=> location.href='aivault-digital-human.html', 700);
+    }
+
+    document.getElementById('back').onclick = ()=> location.href='aivault-digital-human.html#/create';
+    document.getElementById('flip').onclick = async ()=>{ facing = facing==='user'?'environment':'user'; await openCam(); };
+    document.getElementById('start').onclick = ()=> startScan().catch(e=>toast(e.message));
+    document.getElementById('save').onclick = ()=> save().catch(e=>toast(e.message));
+    openCam().catch(()=> hint.textContent='請允許相機權限');
+    draw();
+  </script>
+</body>
+</html>
