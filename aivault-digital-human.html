@@ -375,9 +375,47 @@
       return [];
     }
 
+    function rememberHumanId(id) {
+      if (!id) return;
+      draft.human_id = id;
+      try { sessionStorage.setItem('dh_human_id', id); } catch {}
+    }
+
+    async function updateBrain(id) {
+      const payload = {
+        action: 'update',
+        id,
+        digital_human_id: id,
+        brain_provider: draft.brain_provider,
+        provider: draft.brain_provider,
+        brain_model: draft.brain_model,
+        model: draft.brain_model,
+        personality: {
+          role: draft.persona_role || 'AIVAULT AI Assistant',
+          style: draft.persona_tone || '自然',
+          language: draft.persona_lang || 'zh-Hant'
+        }
+      };
+      try {
+        return unwrapOne(await callFn('digital-human-save', payload));
+      } catch {
+        return unwrapOne(await callFn('digital-human-save', { ...payload, action: 'update_human' }));
+      }
+    }
+
     async function ensureHumanId() {
-      if (current?.id) return current.id;
+      if (current?.id) { rememberHumanId(current.id); return current.id; }
       if (draft.human_id) return draft.human_id;
+      try {
+        const sid = sessionStorage.getItem('dh_human_id');
+        if (sid) { draft.human_id = sid; return sid; }
+      } catch {}
+      const existing = await listHumans();
+      if (existing[0]?.id) {
+        rememberHumanId(existing[0].id);
+        current = existing[0];
+        return existing[0].id;
+      }
       if (!draft.name?.trim()) throw new Error('請先填寫數字人名稱');
       const created = unwrapOne(await callFn('digital-human-asset', {
         action: 'create_human',
@@ -394,7 +432,7 @@
       }));
       const id = created?.id;
       if (!id) throw new Error('無法建立數字人，缺少 id');
-      draft.human_id = id;
+      rememberHumanId(id);
       current = { ...(current || {}), ...created, id };
       return id;
     }
@@ -528,6 +566,7 @@
           <div class="row">
             <button class="pill ghost" data-go="/${esc(h.id)}">管理</button>
             <button class="pill" data-go="/${esc(h.id)}/chat">開始 AI 對話</button>
+            <button class="pill ghost" data-go-stage="${esc(h.id)}">3D 舞台</button>
             <button class="pill ghost" data-go="/${esc(h.id)}/video">產生影片</button>
           </div>
         </article>
@@ -629,15 +668,19 @@
       }
       if (step === 4) {
         const bindBrain = (rerender) => {
-          document.getElementById('fProvider').onchange = (e) => {
+          document.getElementById('fProvider').onchange = async (e) => {
             draft.brain_provider = e.target.value;
             draft.brain_model = modelsOf(draft.brain_provider)[0] || draft.brain_model;
             toast('已選擇 AI：' + draft.brain_provider);
+            const hid = current?.id || draft.human_id;
+            if (hid) { try { await updateBrain(hid); } catch {} }
             rerender();
           };
-          document.getElementById('fModel').onchange = e => {
+          document.getElementById('fModel').onchange = async (e) => {
             draft.brain_model = e.target.value;
             toast('已選擇 Model：' + draft.brain_model);
+            const hid = current?.id || draft.human_id;
+            if (hid) { try { await updateBrain(hid); } catch {} }
           };
         };
         bindBrain(renderCreate);
@@ -701,29 +744,36 @@
         sessionStorage.setItem('dh_step', String(step + 1));
         return renderCreate();
       }
-      toast('建立中…');
+      toast('儲存 AI 大腦…');
       try {
-        const saved = await saveHuman({
-          action: 'create',
-          name: draft.name,
-          description: draft.description,
-          selected_image_id: draft.selected_image_id,
-          selected_voice_id: draft.selected_voice_id,
-          brain_provider: draft.brain_provider,
-          provider: draft.brain_provider,
-          brain_model: draft.brain_model,
-          model: draft.brain_model,
-          video_provider: draft.video_provider,
-          persona_role: draft.persona_role,
-          persona_tone: draft.persona_tone,
-          persona_lang: draft.persona_lang,
-          video_enabled: draft.video_enabled,
-          voice_enabled: draft.voice_enabled,
-          status: 'ready'
-        });
+        const id = await ensureHumanId();
+        let saved = null;
+        try { saved = await updateBrain(id); } catch {}
+        try {
+          saved = await saveHuman({
+            action: 'update',
+            id,
+            digital_human_id: id,
+            name: draft.name,
+            description: draft.description,
+            selected_image_id: draft.selected_image_id,
+            selected_voice_id: draft.selected_voice_id,
+            brain_provider: draft.brain_provider,
+            provider: draft.brain_provider,
+            brain_model: draft.brain_model,
+            model: draft.brain_model,
+            video_provider: draft.video_provider,
+            persona_role: draft.persona_role,
+            persona_tone: draft.persona_tone,
+            persona_lang: draft.persona_lang,
+            video_enabled: draft.video_enabled,
+            voice_enabled: draft.voice_enabled,
+            status: 'ready'
+          });
+        } catch {}
         sessionStorage.removeItem('dh_step');
-        toast('數字人建立成功');
-        go('/' + (saved.id || saved.uuid));
+        toast('AI 大腦已設定');
+        go('/' + id);
       } catch (err) { toast(err.message); }
     }
 
@@ -731,6 +781,7 @@
       return `
         <div class="row">
           <button class="pill" data-go="/${id}/chat">開始 AI 對話</button>
+          <button class="pill ghost" data-go-stage="${id}">進入 3D 舞台</button>
           <button class="pill ghost" data-go-warroom="${id}">開始數字人會議</button>
           <button class="pill ghost" data-go="/${id}/video">產生影片</button>
           <button class="pill ghost" data-go="/${id}/settings">管理設定</button>
@@ -1274,6 +1325,12 @@
     document.getElementById('app').addEventListener('click', async (e) => {
       const goBtn = e.target.closest('[data-go]');
       if (goBtn) { go(goBtn.getAttribute('data-go')); return; }
+      const stg = e.target.closest('[data-go-stage]');
+      if (stg) {
+        sessionStorage.setItem('AIVAULT_DH_ID', stg.getAttribute('data-go-stage'));
+        location.href = 'aivault-3d-stage.html';
+        return;
+      }
       const wr = e.target.closest('[data-go-warroom]');
       if (wr) {
         sessionStorage.setItem('AIVAULT_DH_ID', wr.getAttribute('data-go-warroom'));
