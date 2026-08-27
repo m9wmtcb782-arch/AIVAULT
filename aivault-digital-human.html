@@ -674,6 +674,7 @@
             const item = await uploadAsset('image', file, current?.id);
             assets.image.unshift(item);
             if (item.id) draft.selected_image_id = item.id;
+            await lockFace(current?.id || draft.human_id, imageUrl(item));
             renderCreate();
             toast('圖片已儲存');
           } catch (err) { toast(err.message); }
@@ -689,6 +690,7 @@
             const item = await uploadAsset('voice', file, current?.id);
             assets.voice.unshift(item);
             if (item.id) draft.selected_voice_id = item.id;
+            await lockVoice(current?.id || draft.human_id, voiceUrl(item));
             renderCreate();
             toast('聲音已儲存');
           } catch (err) { toast(err.message); }
@@ -934,6 +936,75 @@
         window.speechSynthesis.speak(u);
       });
     }
+
+    function mapEngineEmotion(raw) {
+      const e = String(raw || '').toUpperCase();
+      if (/JOY|HAPP|GLAD|EXCIT|AMUSE|LOVE|樂|喜/.test(e)) return 'happy';
+      if (/ANG|RAGE|ANNOY|怒/.test(e)) return 'angry';
+      if (/SAD|SORROW|GRIEF|哀/.test(e)) return 'sad';
+      if (/SURPR|SHOCK|AMAZE|WONDER|驚/.test(e)) return 'wow';
+      if (/THINK|CURIO|CONFUS|思/.test(e)) return 'think';
+      return 'calm';
+    }
+
+    async function readEmotion(text) {
+      try {
+        const data = await callFn('ai-human-emotion', { action: 'analyze', text, language: 'ZH_TW', source: 'TEXT' });
+        const pack = data.result || data;
+        const primary = pack.primary_emotion || pack.emotion || pack.facial_expression?.emotion;
+        if (primary) return mapEngineEmotion(primary);
+      } catch {}
+      return detectEmotion(text);
+    }
+
+    async function accountId() {
+      const { data } = await sb.auth.getSession();
+      session = data.session;
+      return session?.user?.id || null;
+    }
+
+    async function lockFace(humanId, url) {
+      if (!humanId) return;
+      try {
+        await callFn('ai-human-face', {
+          action: 'analyze',
+          digital_human_id: humanId,
+          image_url: url || '',
+          view: 'FRONT'
+        });
+      } catch {}
+    }
+
+    async function lockVoice(humanId, url) {
+      if (!humanId) return;
+      try {
+        await callFn('ai-human-voice', {
+          action: 'analyze',
+          digital_human_id: humanId,
+          voice_url: url || '',
+          language: 'ZH_TW'
+        });
+      } catch {}
+    }
+
+    async function thinkBrain(text, mode) {
+      const aid = await accountId();
+      if (!aid) return null;
+      try {
+        const data = await callFn('ai-human-brain', {
+          action: 'analyze',
+          account_id: aid,
+          user_id: aid,
+          digital_human_id: current?.id || draft.human_id,
+          text,
+          mode: mode || 'CONVERSATION'
+        });
+        return data.result || data.brain_decision || data;
+      } catch {
+        return null;
+      }
+    }
+
 
     function detectEmotion(text) {
       const t = String(text || '');
@@ -1235,6 +1306,7 @@
           role: m.role === 'assistant' ? 'assistant' : 'user',
           content: m.text
         }));
+        await thinkBrain(text, singing ? 'CREATIVE' : 'CONVERSATION');
         const data = await callFn('ai-gateway', {
           provider: h.brain_provider || h.provider || 'groq',
           model: h.brain_model || h.model || 'openai/gpt-oss-120b',
@@ -1243,8 +1315,8 @@
           messages: [{ role: 'system', content: systemPrompt }, ...history]
         });
         const raw = data.content || data.response || data.text || data.message || data.choices?.[0]?.message?.content || '（無內容）';
-        currentEmotion = singing ? 'happy' : detectEmotion(raw);
         const content = stripEmotionTag(raw);
+        currentEmotion = singing ? 'happy' : await readEmotion(content);
         chatLog.push({ role: 'assistant', text: content });
       } catch (err) {
         currentEmotion = 'sad';
