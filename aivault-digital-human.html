@@ -152,8 +152,17 @@
     const FALLBACK_PROVIDERS = [
       { code: 'groq', name: 'Groq', models: ['openai/gpt-oss-120b', 'llama-3.3-70b-versatile'] },
       { code: 'gemini', name: 'Gemini', models: ['gemini-2.5-flash'] },
+      { code: 'gemini3', name: 'Gemini 3', models: ['gemini-2.5-flash'] },
+      { code: 'gemini2', name: 'Gemini 2', models: ['gemini-2.5-flash'] },
       { code: 'openai', name: 'OpenAI', models: ['gpt-4o-mini'] }
     ];
+    const DEFAULT_MODELS = {
+      groq: ['openai/gpt-oss-120b', 'llama-3.3-70b-versatile'],
+      gemini: ['gemini-2.5-flash'],
+      gemini2: ['gemini-2.5-flash'],
+      gemini3: ['gemini-2.5-flash'],
+      openai: ['gpt-4o-mini']
+    };
     const TONES = ['自然', '專業', '親切', '正式', '活潑'];
     const LANGS = [
       { v: 'zh-Hant', l: '繁體中文' },
@@ -232,6 +241,10 @@
       };
     }
 
+    function errText(data, fallback) {
+      return data?.error || data?.message || data?.msg || data?.code || data?.detail || fallback;
+    }
+
     async function callFn(name, body) {
       const res = await fetch(FN(name), {
         method: 'POST',
@@ -240,8 +253,28 @@
       });
       let data = {};
       try { data = await res.json(); } catch {}
-      if (!res.ok) throw new Error(data.error || data.message || `${name} HTTP ${res.status}`);
+      if (!res.ok) throw new Error(errText(data, `${name} HTTP ${res.status}`));
+      if (data && data.ok === false && (data.error || data.code)) throw new Error(errText(data, 'request failed'));
       return data;
+    }
+
+    async function callFnForm(name, form) {
+      const { data } = await sb.auth.getSession();
+      session = data.session;
+      const token = session?.access_token || SUPABASE_ANON_KEY;
+      const res = await fetch(FN(name), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'apikey': SUPABASE_ANON_KEY
+        },
+        body: form
+      });
+      let data2 = {};
+      try { data2 = await res.json(); } catch {}
+      if (!res.ok) throw new Error(errText(data2, `${name} HTTP ${res.status}`));
+      if (data2 && data2.ok === false && (data2.error || data2.code)) throw new Error(errText(data2, 'request failed'));
+      return data2;
     }
 
     function unwrapList(data, keys = ['items', 'data', 'records', 'humans', 'assets', 'videos', 'images', 'voices']) {
@@ -299,6 +332,9 @@
     async function listAssets(kind, humanId) {
       const attempts = [
         { action: 'list', kind, digital_human_id: humanId },
+        { action: 'list_assets', kind, digital_human_id: humanId },
+        { action: 'get', kind, digital_human_id: humanId },
+        { action: kind, op: 'list', digital_human_id: humanId },
         { action: 'list', type: kind, id: humanId },
         { op: 'list', asset_type: kind, digital_human_id: humanId }
       ];
@@ -331,19 +367,50 @@
         type: kind,
         asset_type: kind,
         digital_human_id: humanId || null,
+        human_id: humanId || null,
         filename: file.name,
         name: file.name,
         mime: file.type,
         content_type: file.type
       };
-      const attempts = [
-        { action: 'upload', ...common, file_base64: b64, content: b64 },
-        { op: 'upload', ...common, data: b64 }
+      const actions = [
+        'create', 'save', 'add', 'put', 'insert', 'store',
+        'upload', 'create_asset', 'save_asset', 'upload_asset',
+        kind, `upload_${kind}`, `create_${kind}`, `save_${kind}`
       ];
       let lastErr;
-      for (const body of attempts) {
-        try { return unwrapOne(await callFn('digital-human-asset', body)); }
-        catch (e) { lastErr = e; }
+      for (const action of actions) {
+        const bodies = [
+          { action, ...common, file_base64: b64 },
+          { action, ...common, content: b64 },
+          { action, ...common, data: b64 },
+          { op: action, ...common, file_base64: b64 }
+        ];
+        for (const body of bodies) {
+          try {
+            const one = unwrapOne(await callFn('digital-human-asset', body));
+            if (one && (one.id || one.public_url || one.url || one.ok !== false)) return one;
+          } catch (e) { lastErr = e; }
+        }
+      }
+      for (const action of ['create', 'save', 'upload', kind, `upload_${kind}`]) {
+        try {
+          const form = new FormData();
+          form.append('action', action);
+          form.append('kind', kind);
+          form.append('type', kind);
+          form.append('asset_type', kind);
+          if (humanId) {
+            form.append('digital_human_id', humanId);
+            form.append('human_id', humanId);
+          }
+          form.append('filename', file.name);
+          form.append('name', file.name);
+          form.append('file', file, file.name);
+          form.append('asset', file, file.name);
+          const one = unwrapOne(await callFnForm('digital-human-asset', form));
+          if (one) return one;
+        } catch (e) { lastErr = e; }
       }
       throw lastErr || new Error('資產上傳失敗');
     }
@@ -374,18 +441,39 @@
       return callFn(provider.result, { job_id: id, id, request_id: id });
     }
 
+    function modelsOf(code) {
+      const p = providers.find(x => x.code === code);
+      const list = (p?.models && p.models.length) ? p.models : (DEFAULT_MODELS[code] || DEFAULT_MODELS.groq);
+      return list.filter(Boolean);
+    }
+
     async function loadProviders() {
-      try {
-        const data = await callFn('ai-gateway', { action: 'providers' });
-        const list = unwrapList(data, ['providers', 'items', 'data']);
-        if (list.length) {
-          providers = list.map(p => ({
+      const attempts = [
+        { action: 'providers' },
+        { action: 'list_providers' },
+        { op: 'providers' },
+        { type: 'providers' }
+      ];
+      for (const body of attempts) {
+        try {
+          const data = await callFn('ai-gateway', body);
+          const list = unwrapList(data, ['providers', 'items', 'data']);
+          if (!list.length) continue;
+          const mapped = list.map(p => ({
             code: p.code || p.id || p.provider,
             name: p.name || p.code || p.provider,
-            models: p.models || p.model_list || []
+            models: p.models || p.model_list || DEFAULT_MODELS[p.code || p.id || p.provider] || []
           })).filter(p => p.code);
-        }
-      } catch {}
+          if (mapped.length) {
+            providers = mapped.map(p => ({
+              ...p,
+              models: (p.models && p.models.length) ? p.models : (DEFAULT_MODELS[p.code] || [])
+            }));
+            return;
+          }
+        } catch {}
+      }
+      providers = FALLBACK_PROVIDERS.slice();
     }
 
     function imageUrl(item) {
@@ -482,9 +570,10 @@
     }
 
     function brainForm(src) {
+      if (!providers.find(p => p.code === src.brain_provider) && providers[0]) src.brain_provider = providers[0].code;
+      const models = modelsOf(src.brain_provider);
+      if (!models.includes(src.brain_model)) src.brain_model = models[0] || src.brain_model;
       const pOpts = providers.map(p => `<option value="${esc(p.code)}" ${p.code===src.brain_provider?'selected':''}>${esc(p.name)}</option>`).join('');
-      const cur = providers.find(p => p.code === src.brain_provider) || providers[0];
-      const models = (cur?.models?.length ? cur.models : [src.brain_model || '']).filter(Boolean);
       const mOpts = models.map(m => `<option value="${esc(m)}" ${m===src.brain_model?'selected':''}>${esc(m)}</option>`).join('');
       return `
         <label>AI 大腦 Provider</label>
@@ -540,13 +629,19 @@
         renderVoiceCards();
       }
       if (step === 4) {
-        document.getElementById('fProvider').onchange = (e) => {
-          draft.brain_provider = e.target.value;
-          const p = providers.find(x => x.code === draft.brain_provider);
-          draft.brain_model = p?.models?.[0] || draft.brain_model;
-          renderCreate();
+        const bindBrain = (rerender) => {
+          document.getElementById('fProvider').onchange = (e) => {
+            draft.brain_provider = e.target.value;
+            draft.brain_model = modelsOf(draft.brain_provider)[0] || draft.brain_model;
+            toast('已選擇 AI：' + draft.brain_provider);
+            rerender();
+          };
+          document.getElementById('fModel').onchange = e => {
+            draft.brain_model = e.target.value;
+            toast('已選擇 Model：' + draft.brain_model);
+          };
         };
-        document.getElementById('fModel').onchange = e => draft.brain_model = e.target.value;
+        bindBrain(renderCreate);
         document.getElementById('fRole').oninput = e => draft.persona_role = e.target.value;
         document.getElementById('fTone').onchange = e => draft.persona_tone = e.target.value;
         document.getElementById('fLang').onchange = e => draft.persona_lang = e.target.value;
@@ -918,9 +1013,13 @@
         </div>`;
       document.getElementById('fProvider').onchange = (e) => {
         draft.brain_provider = e.target.value;
-        const p = providers.find(x => x.code === draft.brain_provider);
-        draft.brain_model = p?.models?.[0] || draft.brain_model;
+        draft.brain_model = modelsOf(draft.brain_provider)[0] || draft.brain_model;
+        toast('已選擇 AI：' + draft.brain_provider);
         renderSettings();
+      };
+      document.getElementById('fModel').onchange = (e) => {
+        draft.brain_model = e.target.value;
+        toast('已選擇 Model：' + draft.brain_model);
       };
       document.getElementById('btnDelHuman').onclick = async () => {
         if (!confirm('確定刪除這個數字人？此操作需二次確認。')) return;
@@ -984,7 +1083,7 @@
       const r = route();
       if (r.name === 'list') {
         if (document.referrer) { location.href = document.referrer; return; }
-        location.href = 'aivault.html';
+        location.href = 'aivault-home.html';
         return;
       }
       if (r.name === 'create') {
