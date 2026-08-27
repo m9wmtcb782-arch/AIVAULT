@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>AIVAULT 聲音克隆室</title>
+  <style>
+    :root {
+      --bg:#0b1120; --card:#1e293b; --border:#334155; --text:#f1f5f9;
+      --muted:#94a3b8; --primary:#8b5cf6; --danger:#ef4444; --ok:#22c55e;
+    }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif; background:var(--bg); color:var(--text); min-height:100dvh; }
+    .top { position:sticky; top:0; z-index:5; display:flex; align-items:center; justify-content:space-between; gap:8px;
+      padding:calc(env(safe-area-inset-top) + 12px) 14px 12px; background:linear-gradient(#0b1120,#0b1120ee); border-bottom:1px solid var(--border); }
+    .brand { font-weight:800; } .brand small { display:block; color:var(--muted); font-size:11px; font-weight:600; }
+    .icon { width:40px; height:40px; border-radius:12px; border:1px solid var(--border); background:#0f172a; color:#fff; }
+    .wrap { padding:14px 14px calc(env(safe-area-inset-bottom) + 24px); max-width:640px; margin:0 auto; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:14px; margin-bottom:12px; }
+    h3 { font-size:15px; margin-bottom:8px; }
+    .muted { color:var(--muted); font-size:12px; line-height:1.5; }
+    .script { font-size:18px; line-height:1.7; font-weight:600; min-height:96px; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .pill { border:0; border-radius:999px; padding:10px 14px; font-weight:800; background:var(--primary); color:#fff; }
+    .pill.ghost { background:#0f172a; color:#e2e8f0; border:1px solid var(--border); }
+    .pill.danger { background:transparent; color:#fca5a5; border:1px solid #7f1d1d; }
+    .pill.on { background:#7c3aed; }
+    .timer { font-variant-numeric:tabular-nums; font-size:42px; font-weight:800; text-align:center; letter-spacing:1px; }
+    .timer.hot { color:#fb7185; }
+    canvas { width:100%; height:88px; background:#020617; border-radius:12px; display:block; }
+    .rec-dot { width:10px; height:10px; border-radius:50%; background:#ef4444; box-shadow:0 0 10px #ef4444; display:inline-block; margin-right:6px; animation:blink 1s infinite; }
+    @keyframes blink { 50%{opacity:.3} }
+    label { display:block; font-size:12px; color:var(--muted); margin:10px 0 6px; }
+    input, select { width:100%; background:#0f172a; color:#fff; border:1px solid var(--border); border-radius:12px; padding:10px 12px; font-size:15px; }
+    .item { border:1px solid var(--border); border-radius:14px; padding:12px; margin-top:8px; }
+    .item.mine { border-color:#7c3aed; }
+    .item.other { border-color:#334155; }
+    audio { width:100%; margin-top:8px; }
+    .toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#111827; border:1px solid #334155; padding:10px 14px; border-radius:12px; display:none; z-index:9; font-size:13px; }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <button class="icon" id="back" type="button">←</button>
+    <div class="brand">聲音克隆室<small>錄 30 秒 · 10 套台詞 · 自己／別人</small></div>
+    <button class="icon" id="toDH" type="button">人</button>
+  </div>
+  <div class="wrap">
+    <div class="card">
+      <div class="row">
+        <span class="pill ghost" id="whoMine">我的聲音</span>
+        <span class="pill ghost" id="whoOther">別人的聲音</span>
+      </div>
+      <label>聲音名稱</label>
+      <input id="vName" placeholder="例如：逸豪主聲 / 媽媽的聲音" />
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;margin-bottom:8px;">
+        <h3 style="margin:0;">台詞 <span id="scriptNo">1</span> / 10</h3>
+        <button class="pill ghost" id="nextScript" type="button">下一套</button>
+      </div>
+      <p class="muted" id="scriptHint">請用抑揚頓挫讀完，目標約 30 秒。</p>
+      <p class="script" id="scriptText"></p>
+    </div>
+
+    <div class="card">
+      <div class="timer" id="timer">00:00</div>
+      <canvas id="wave"></canvas>
+      <p class="muted" id="recState" style="margin:8px 0;">尚未錄音</p>
+      <div class="row">
+        <button class="pill" id="btnRec" type="button">開始錄音</button>
+        <button class="pill ghost" id="btnStop" type="button">停止</button>
+        <button class="pill" id="btnSave" type="button">儲存這段</button>
+      </div>
+      <audio id="preview" controls style="width:100%;margin-top:10px;display:none;"></audio>
+    </div>
+
+    <div class="card">
+      <h3>已存聲音</h3>
+      <p class="muted">可存自己的，也可以存別人的。刪除會從列表移除。</p>
+      <div id="list"></div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <script type="module">
+    const SUPABASE_URL = 'https://clcddygkaaqqtsbswgdf.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE';
+    const FN = `${SUPABASE_URL}/functions/v1/digital-human-asset`;
+    const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true, storage: localStorage } });
+
+    const SCRIPTS = [
+      '早安。今天天氣很好，我先慢慢說話，再把音調抬高一點：真的很開心見到你。然後低下來，像靠近你耳邊說：我們慢慢聊就好。',
+      '我先數一次，請跟著氣音走：一、二、三。接著稍快：四、五、六。再放慢、拉長：七——八——九。最後輕輕收：十。',
+      '有時候我會笑出來，哈哈。有時候會認真問你：你今天累不累？如果累了，就把肩膀放下，深吸一口氣，再說一次：沒關係。',
+      '這段請有起伏。先平述：我住在台灣。再提高：我超想把這件事做好！然後轉柔：可是也不必一次完美。最後堅定：我們可以再試一次。',
+      '請用說故事的語氣。從前有一個人站在海邊，風有點大。他喊了一聲：嘿！又小聲說：其實我有點緊張。然後笑著補一句：但還是來了。',
+      '請先用疑問：你在聽嗎？再用肯定：我知道你在。接著加快：我們把名字、日期、心情都說清楚。最後放慢：這樣以後的我，才聽得出這是我。',
+      '這段請帶一點情緒。委屈：我等很久了。轉怒：不是不能等，是不想被忘記。再轉暖：好啦，過來一下。收尾輕聲：我在這裡。',
+      '請朗讀數字與句子交錯。25、26、27。今天我想把聲音留給自己。28、29、30。高低要分明，像走階梯一樣，一步一個音。',
+      '請用介紹自己的方式。我是誰不重要，重要的是這把聲音。請把「我」字唸清楚，把「聲音」兩字拉長一點。然後停半秒，再說：記住我。',
+      '結尾這套請完整演一遍：打招呼、提問、感嘆、輕聲。你好啊。你吃飽了沒？哇，真的假的？……嗯，那就這樣，晚安。'
+    ];
+
+    let who = 'mine';
+    let idx = 0;
+    let humanId = sessionStorage.getItem('dh_human_id') || '';
+    let rec = null, chunks = [], blob = null, localUrl = '';
+    let timer = 0, tick = null, stream = null, raf = 0, analyser = null, ctxA = null;
+
+    const $ = (id) => document.getElementById(id);
+    const toast = (m) => { const el=$('toast'); el.textContent=m; el.style.display='block'; setTimeout(()=>el.style.display='none', 2200); };
+
+    function setWho(v) {
+      who = v;
+      $('whoMine').classList.toggle('on', v==='mine');
+      $('whoOther').classList.toggle('on', v==='other');
+      if (!$('vName').value) $('vName').placeholder = v==='mine' ? '例如：我的主聲' : '例如：朋友的聲音';
+    }
+    function showScript() {
+      $('scriptNo').textContent = String(idx+1);
+      $('scriptText').textContent = SCRIPTS[idx];
+    }
+    function fmt(s) { return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0'); }
+
+    function drawWave() {
+      const c = $('wave'), g = c.getContext('2d');
+      const w = c.width = c.clientWidth * devicePixelRatio, h = c.height = 88 * devicePixelRatio;
+      const loop = () => {
+        raf = requestAnimationFrame(loop);
+        g.fillStyle = '#020617'; g.fillRect(0,0,w,h);
+        g.strokeStyle = '#64748b'; g.beginPath(); g.moveTo(0,h/2); g.lineTo(w,h/2); g.stroke();
+        if (!analyser) return;
+        const n = analyser.fftSize; const data = new Uint8Array(n);
+        analyser.getByteTimeDomainData(data);
+        g.strokeStyle = '#a78bfa'; g.lineWidth = 2 * devicePixelRatio; g.beginPath();
+        for (let i=0;i<n;i++) {
+          const x = (i/(n-1))*w; const y = (data[i]/255)*h;
+          i? g.lineTo(x,y) : g.moveTo(x,y);
+        }
+        g.stroke();
+      };
+      cancelAnimationFrame(raf); loop();
+    }
+
+    async function startRec() {
+      if (rec) return;
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      ctxA = new (window.AudioContext||window.webkitAudioContext)();
+      const src = ctxA.createMediaStreamSource(stream);
+      analyser = ctxA.createAnalyser(); analyser.fftSize = 2048; src.connect(analyser);
+      drawWave();
+      chunks = []; blob = null;
+      const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '';
+      rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+      rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+      rec.onstop = () => {
+        blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
+        if (localUrl) URL.revokeObjectURL(localUrl);
+        localUrl = URL.createObjectURL(blob);
+        const a = $('preview'); a.src = localUrl; a.style.display='block';
+        $('recState').textContent = '已錄 ' + fmt(timer) + '，可預聽後儲存';
+      };
+      rec.start(200);
+      timer = 0; $('timer').textContent='00:00'; $('timer').classList.remove('hot');
+      $('recState').innerHTML = '<span class="rec-dot"></span>錄音中，請照台詞念，目標 30 秒';
+      tick = setInterval(() => {
+        timer += 1; $('timer').textContent = fmt(timer);
+        if (timer >= 30) $('timer').classList.add('hot');
+        if (timer >= 45) stopRec();
+      }, 1000);
+    }
+
+    function stopRec() {
+      if (tick) { clearInterval(tick); tick = null; }
+      try { rec?.stop(); } catch {}
+      rec = null;
+      stream?.getTracks().forEach(t => t.stop()); stream = null;
+      cancelAnimationFrame(raf);
+    }
+
+    async function authHeader() {
+      const { data } = await sb.auth.getSession();
+      const token = data.session?.access_token || SUPABASE_ANON_KEY;
+      return { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY };
+    }
+
+    async function ensureHuman() {
+      if (humanId) return humanId;
+      const { data } = await sb.from('digital_humans').select('id').order('created_at', { ascending:false }).limit(1);
+      if (data?.[0]?.id) { humanId = data[0].id; sessionStorage.setItem('dh_human_id', humanId); return humanId; }
+      const headers = { ...(await authHeader()), 'Content-Type':'application/json' };
+      const res = await fetch(FN, { method:'POST', headers, body: JSON.stringify({ action:'create_human', name:'AIVAULT AI', description:'聲音克隆室' }) });
+      const j = await res.json();
+      const id = j.result?.id || j.digital_human?.id || j.id;
+      if (!id) throw new Error('沒有數字人可掛聲音');
+      humanId = id; sessionStorage.setItem('dh_human_id', id); return id;
+    }
+
+    async function saveClip() {
+      if (!blob) return toast('請先錄音');
+      if (timer < 8) return toast('請至少錄約 8 秒，建議 30 秒');
+      toast('儲存中…');
+      const id = await ensureHuman();
+      const ext = (blob.type||'').includes('mp4') ? 'm4a' : (blob.type||'').includes('webm') ? 'webm' : 'wav';
+      const file = new File([blob], `${who}-${Date.now()}.${ext}`, { type: blob.type || 'audio/webm' });
+      const form = new FormData();
+      form.append('action','upload_voice');
+      form.append('digital_human_id', id);
+      form.append('name', $('vName').value.trim() || (who==='mine'?'我的聲音':'別人的聲音'));
+      form.append('description', JSON.stringify({ owner: who, script: idx+1, seconds: timer }));
+      form.append('file', file, file.name);
+      const res = await fetch(FN, { method:'POST', headers: await authHeader(), body: form });
+      const j = await res.json();
+      if (!res.ok || j.success === false) throw new Error(j.message || j.error || '儲存失敗');
+      const row = j.asset || j.result || j;
+      try {
+        await sb.from('digital_human_voices').update({
+          metadata: { owner: who, script: idx+1, seconds: timer, local_preview: true }
+        }).eq('id', row.id);
+      } catch {}
+      try {
+        await fetch(FN, { method:'POST', headers: { ...(await authHeader()), 'Content-Type':'application/json' },
+          body: JSON.stringify({ action:'select_voice', digital_human_id:id, voice_id: row.id }) });
+      } catch {}
+      toast('已儲存');
+      blob = null; $('preview').style.display='none';
+      await renderList();
+    }
+
+    async function renderList() {
+      const box = $('list'); box.innerHTML = '<p class="muted">讀取中…</p>';
+      let rows = [];
+      try {
+        const hid = await ensureHuman();
+        const q = await sb.from('digital_human_voices').select('*').eq('digital_human_id', hid).order('created_at', { ascending:false });
+        if (!q.error) rows = q.data || [];
+        if (!rows.length) {
+          const all = await sb.from('digital_human_voices').select('*').order('created_at', { ascending:false });
+          if (!all.error) rows = all.data || [];
+        }
+      } catch {}
+      if (!rows.length) { box.innerHTML = '<p class="muted">還沒有存檔。先錄一段 30 秒。</p>'; return; }
+      box.innerHTML = rows.map(v => {
+        const owner = v.metadata?.owner || 'mine';
+        const url = v.preview_url || v.metadata?.preview_url || '';
+        return `<div class="item ${owner==='other'?'other':'mine'}">
+          <div style="font-weight:800">${esc(v.name||'未命名')}</div>
+          <div class="muted">${owner==='other'?'別人的聲音':'我的聲音'} · ${esc(v.created_at||'')}</div>
+          ${url?`<audio controls preload="none" src="${esc(url)}"></audio>`:''}
+          <div class="row" style="margin-top:8px;">
+            <button class="pill ghost" data-use="${esc(v.id)}">用作數字人聲音</button>
+            <button class="pill danger" data-del="${esc(v.id)}">刪除</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function esc(s){ return String(s||'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+
+    $('back').onclick = () => { location.href = 'aivault-digital-human.html'; };
+    $('toDH').onclick = () => { location.href = 'aivault-digital-human.html'; };
+    $('whoMine').onclick = () => setWho('mine');
+    $('whoOther').onclick = () => setWho('other');
+    $('nextScript').onclick = () => { idx = (idx+1)%SCRIPTS.length; showScript(); };
+    $('btnRec').onclick = () => startRec().catch(e => toast(e.message || '無法開麥克風'));
+    $('btnStop').onclick = stopRec;
+    $('btnSave').onclick = () => saveClip().catch(e => toast(e.message));
+    $('list').onclick = async (e) => {
+      const del = e.target.closest('[data-del]');
+      const use = e.target.closest('[data-use]');
+      if (del) {
+        if (!confirm('確定刪除這段聲音？')) return;
+        const id = del.dataset.del;
+        const { error } = await sb.from('digital_human_voices').delete().eq('id', id);
+        if (error) return toast('刪除被資料庫擋住，請先開 DELETE 權限');
+        toast('已刪除'); renderList();
+      }
+      if (use) {
+        try {
+          const hid = await ensureHuman();
+          await fetch(FN, { method:'POST', headers:{ ...(await authHeader()), 'Content-Type':'application/json' },
+            body: JSON.stringify({ action:'select_voice', digital_human_id: hid, voice_id: use.dataset.use }) });
+          sessionStorage.setItem('dh_voice_mode', 'mine');
+          toast('已設成數字人聲音，對話可切到「我的聲音」');
+        } catch { toast('已記下，回數字人對話切換即可'); }
+      }
+    };
+
+    setWho('mine'); showScript(); renderList().catch(()=>{});
+  </script>
+</body>
+</html>

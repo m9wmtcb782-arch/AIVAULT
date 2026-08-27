@@ -150,6 +150,11 @@
     .face-stage.emo-sad { box-shadow: inset 0 0 40px rgba(59,130,246,.2); }
     .face-stage.emo-think { box-shadow: inset 0 0 40px rgba(168,85,247,.2); }
     .face-stage.emo-wow { box-shadow: inset 0 0 40px rgba(245,158,11,.25); }
+    .face-stage.talking img { animation: faceTalk 0.28s infinite; }
+    @keyframes faceTalk {
+      0%,100% { transform: scale(1) translateY(0); filter: brightness(1); }
+      50% { transform: scale(1.015) translateY(1px); filter: brightness(1.08); }
+    }
     @keyframes blink { 0%, 88%, 100% { transform: scaleY(1); } 92% { transform: scaleY(.12); } }
     @keyframes talk { 0%,100% { transform: scaleY(.35); } 50% { transform: scaleY(1); } }
     .eye { transform-origin: center; animation: blink 3.4s infinite; }
@@ -213,6 +218,8 @@
     let chatLog = [];
     let lastSpoken = -1;
     let voiceChatOn = true;
+    let voiceMode = sessionStorage.getItem('dh_voice_mode') || 'device';
+    let mineAudio = null;
     let currentEmotion = 'calm';
     let singing = false;
     let scriptDraft = '';
@@ -499,14 +506,16 @@
       if (path) {
         try { await sb.storage.from(bucket).remove([path]); } catch {}
       }
-      if (error) {
+      if (!error) return { success: true, deleted: true };
+      try {
         const hid = current?.id || draft.human_id || sessionStorage.getItem('dh_human_id');
         const action = kind === 'voice' ? 'delete_voice' : 'delete_image';
         const body = { action, digital_human_id: hid, id };
         if (kind === 'voice') body.voice_id = id; else body.image_id = id;
-        return callFn('digital-human-asset', body);
+        return await callFn('digital-human-asset', body);
+      } catch (e) {
+        throw new Error('還不能刪。請在 Supabase SQL Editor 執行 DELETE 權限後再試。');
       }
-      return { success: true, deleted: true };
     }
 
     async function startVideo(human, prompt, settings) {
@@ -900,6 +909,7 @@
       return `
         <div class="row">
           <button class="pill" data-go="/${id}/chat">開始 AI 對話</button>
+          <button class="pill ghost" data-go-voice="1">聲音克隆室</button>
           <button class="pill ghost" data-go-stage="${id}">進入 3D 舞台</button>
           <button class="pill ghost" data-go-warroom="${id}">開始數字人會議</button>
           <button class="pill ghost" data-go="/${id}/video">產生影片</button>
@@ -950,6 +960,7 @@
 
     function stopTalk() {
       try { window.speechSynthesis?.cancel(); } catch {}
+      try { mineAudio?.pause(); } catch {}
       try { stopHum(); } catch {}
     }
 
@@ -961,10 +972,34 @@
       return female || zh.find(v => v.lang.toLowerCase().startsWith(want)) || zh[0] || voices.find(v => v.lang.toLowerCase().startsWith('en')) || voices[0] || null;
     }
 
+    function selectedVoiceItem() {
+      const h = current || {};
+      return assets.voice.find(x => String(x.id) === String(h.selected_voice_id))
+        || assets.voice.find(x => x.is_selected)
+        || assets.voice[0];
+    }
+
+    function playMyVoice() {
+      const v = selectedVoiceItem();
+      const url = voiceUrl(v);
+      if (!url) { toast('還沒有我的聲音，請先去聲音克隆室錄音'); return false; }
+      try { mineAudio?.pause(); } catch {}
+      mineAudio = new Audio(url);
+      mineAudio.play().catch(() => toast('我的聲音檔暫時無法播放，可改切「手機語音」'));
+      mineAudio.onended = () => { mineAudio = null; };
+      return true;
+    }
+
     function talk(text, langHint) {
-      if (!voiceChatOn || !text || !('speechSynthesis' in window)) return;
+      if (!voiceChatOn || !text) return;
       stopTalk();
+      try { mineAudio?.pause(); } catch {}
+      if (voiceMode === 'mine') {
+        playMyVoice();
+        return;
+      }
       if (singing) return sing(text, langHint);
+      if (!('speechSynthesis' in window)) return;
       const u = new SpeechSynthesisUtterance(String(text).replace(/[#*_`]/g, ''));
       u.lang = (langHint === 'en') ? 'en-US' : (langHint === 'zh-Hans' ? 'zh-CN' : 'zh-TW');
       u.rate = 1.02;
@@ -1154,13 +1189,19 @@
         || assets.image[0];
       const src = imageUrl(img || h);
       const talking = voiceChatOn && chatLog[chatLog.length-1]?.role === 'assistant';
+      const vItem = selectedVoiceItem();
       document.getElementById('app').innerHTML = `
-        <div class="face-stage emo-${currentEmotion}">
-          ${src ? `<img alt="" src="${esc(src)}"/>` : `<div class="preview-ph" style="min-height:280px;margin:0;border:0;">數字人表情舞台</div>`}
+        <div class="face-stage emo-${currentEmotion} ${talking ? 'talking' : ''}">
+          ${src ? `<img alt="" src="${esc(src)}" onerror="this.style.display='none'"/>` : `<div class="preview-ph" style="min-height:280px;margin:0;border:0;">還沒帶到臉，請回外觀選照片或去聲音克隆室前先上傳。</div>`}
           <div class="face-layer">${faceSVG(currentEmotion, talking)}</div>
-          <div class="emo-tag">${singing ? '演唱中' : emotionLabel(currentEmotion)} · ${talking ? (singing ? '唱歌' : '說話中') : '待機'}</div>
+          <div class="emo-tag">${singing ? '演唱中' : emotionLabel(currentEmotion)} · ${talking ? (singing ? '唱歌' : '說話中') : '待機'} · ${voiceMode==='mine'?'我的聲音':'手機語音'}</div>
         </div>
-        <p class="muted" style="margin-bottom:8px;">用講的問、用講的答。下面可貼文案讓她說，也可以下載儲存。</p>
+        <div class="row" style="margin:8px 0 12px;">
+          <button class="pill ${voiceMode==='device'?'':'ghost'}" type="button" id="btnVoiceDevice">手機語音</button>
+          <button class="pill ${voiceMode==='mine'?'':'ghost'}" type="button" id="btnVoiceMine">我的聲音</button>
+          <button class="pill ghost" type="button" id="btnVoiceStudio">去錄音</button>
+        </div>
+        <p class="muted" style="margin-bottom:8px;">手機語音＝裝置唸出 AI 文字。我的聲音＝播放你錄的聲音樣本，臉會跟著動。</p>
         <div class="card">
           <h3>讓她說</h3>
           <div class="row" id="scriptChips">
@@ -1194,6 +1235,9 @@
       document.getElementById('btnSend').onclick = sendChat;
       document.getElementById('chatIn').onkeydown = e => { if (e.key === 'Enter') sendChat(); };
       document.getElementById('btnMic').onclick = startListen;
+      document.getElementById('btnVoiceDevice').onclick = () => { voiceMode='device'; sessionStorage.setItem('dh_voice_mode','device'); toast('已切換手機語音'); renderChat(); };
+      document.getElementById('btnVoiceMine').onclick = () => { voiceMode='mine'; sessionStorage.setItem('dh_voice_mode','mine'); toast(selectedVoiceItem()?'已切換我的聲音':'先去錄音'); renderChat(); };
+      document.getElementById('btnVoiceStudio').onclick = () => { location.href = 'aivault-voice-studio.html'; };
       const boxEl = document.getElementById('scriptBox');
       boxEl.oninput = e => { scriptDraft = e.target.value; };
       document.getElementById('scriptChips').onclick = (e) => {
@@ -1682,6 +1726,8 @@
     document.getElementById('app').addEventListener('click', async (e) => {
       const goBtn = e.target.closest('[data-go]');
       if (goBtn) { go(goBtn.getAttribute('data-go')); return; }
+      const vs = e.target.closest('[data-go-voice]');
+      if (vs) { location.href = 'aivault-voice-studio.html'; return; }
       const stg = e.target.closest('[data-go-stage]');
       if (stg) {
         sessionStorage.setItem('AIVAULT_DH_ID', stg.getAttribute('data-go-stage'));
