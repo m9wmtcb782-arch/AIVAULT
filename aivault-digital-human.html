@@ -375,14 +375,29 @@
     }
 
     async function listAssets(kind, humanId) {
-      if (!humanId) return [];
+      const table = kind === 'voice' ? 'digital_human_voices' : kind === 'video' ? 'ai_videos' : 'digital_human_images';
+      let rows = [];
       try {
-        const data = await callFn('digital-human-asset', { action: 'list_assets', digital_human_id: humanId });
-        const pack = data.result || data;
-        const mark = (arr) => (arr || []).map(x => ({ ...x, preview_url: pickUrl(x) }));
-        if (kind === 'image') return mark(pack.images || unwrapList(data, ['images']));
-        if (kind === 'voice') return mark(pack.voices || unwrapList(data, ['voices']));
-        if (kind === 'video') return mark(pack.videos || unwrapList(data, ['videos']));
+        let q = sb.from(table).select('*').order('created_at', { ascending: false });
+        if (humanId) q = q.eq('digital_human_id', humanId);
+        const { data, error } = await q;
+        if (!error && Array.isArray(data)) rows = data;
+        if (!rows.length && humanId) {
+          const all = await sb.from(table).select('*').order('created_at', { ascending: false });
+          if (!all.error && Array.isArray(all.data)) rows = all.data;
+        }
+      } catch {}
+      if (!rows.length) {
+        try {
+          const data = await callFn('digital-human-asset', { action: 'list_assets', digital_human_id: humanId });
+          const pack = data.result || data;
+          rows = kind === 'voice' ? (pack.voices || []) : kind === 'video' ? (pack.videos || []) : (pack.images || []);
+        } catch {}
+      }
+      if (rows.length) return await hydrateAssets(kind === 'voice' ? 'voice' : 'image', rows);
+      try {
+        const key = kind === 'voice' ? 'dh_last_voices' : kind === 'image' ? 'dh_last_images' : '';
+        if (key) return JSON.parse(sessionStorage.getItem(key) || '[]');
       } catch {}
       return [];
     }
@@ -461,26 +476,37 @@
       const data = await callFnForm('digital-human-asset', form);
       const one = unwrapOne(data);
       if (!one || (!one.id && !one.storage_path)) throw new Error('上傳成功但沒有回傳資產');
-      return { ...one, preview_url: pickUrl(one) || pickUrl(data) };
+      const local = URL.createObjectURL(file);
+      const item = { ...one, preview_url: pickUrl(one) || pickUrl(data) || local, local_url: local };
+      try {
+        const key = kind === 'voice' ? 'dh_last_voices' : 'dh_last_images';
+        const prev = JSON.parse(sessionStorage.getItem(key) || '[]');
+        prev.unshift({ id: item.id, name: item.name, preview_url: item.preview_url, digital_human_id: id });
+        sessionStorage.setItem(key, JSON.stringify(prev.slice(0, 12)));
+      } catch {}
+      return item;
     }
 
     async function deleteAsset(id, kind) {
-      const hid = current?.id || draft.human_id || sessionStorage.getItem('dh_human_id');
-      const actions = kind === 'voice'
-        ? ['delete_voice', 'remove_voice', 'delete']
-        : ['delete_image', 'remove_image', 'delete'];
-      let lastErr;
-      for (const action of actions) {
-        const body = { action, digital_human_id: hid, id, kind, type: kind };
-        if (kind === 'voice') body.voice_id = id;
-        else body.image_id = id;
-        try { return await callFn('digital-human-asset', body); }
-        catch (e) {
-          lastErr = e;
-          if (!/INVALID_ACTION/i.test(String(e.message || e))) throw e;
-        }
+      const table = kind === 'voice' ? 'digital_human_voices' : 'digital_human_images';
+      const bucket = kind === 'voice' ? 'aivault-digital-human-voices' : 'aivault-digital-human-images';
+      let path = '';
+      try {
+        const { data } = await sb.from(table).select('storage_path').eq('id', id).maybeSingle();
+        path = data?.storage_path || '';
+      } catch {}
+      const { error } = await sb.from(table).delete().eq('id', id);
+      if (path) {
+        try { await sb.storage.from(bucket).remove([path]); } catch {}
       }
-      throw lastErr || new Error('線上 Function 還沒有刪除 action，請部署 v1.3');
+      if (error) {
+        const hid = current?.id || draft.human_id || sessionStorage.getItem('dh_human_id');
+        const action = kind === 'voice' ? 'delete_voice' : 'delete_image';
+        const body = { action, digital_human_id: hid, id };
+        if (kind === 'voice') body.voice_id = id; else body.image_id = id;
+        return callFn('digital-human-asset', body);
+      }
+      return { success: true, deleted: true };
     }
 
     async function startVideo(human, prompt, settings) {
@@ -543,8 +569,38 @@
     function pickUrl(item) {
       if (!item || typeof item !== 'object') return '';
       const meta = item.metadata && typeof item.metadata === 'object' ? item.metadata : {};
-      return item.preview_url || item.public_url || item.signed_url || item.url || item.image_url || item.audio_url
+      const raw = item.local_url || item.preview_url || item.public_url || item.signed_url || item.url || item.image_url || item.audio_url
         || meta.preview_url || meta.public_url || meta.signed_url || meta.url || '';
+      return normalizeMediaUrl(raw);
+    }
+    function normalizeMediaUrl(u) {
+      if (!u || typeof u !== 'string') return '';
+      let s = u.trim();
+      s = s.replace(SUPABASE_URL + '/storage/v1' + SUPABASE_URL, SUPABASE_URL);
+      s = s.replace('/storage/v1https://', 'https://');
+      if (s.startsWith('/storage/v1')) s = SUPABASE_URL + s;
+      else if (s.startsWith('/object/')) s = SUPABASE_URL + '/storage/v1' + s;
+      if (!/^https?:\/\//i.test(s) && !s.startsWith('blob:')) return '';
+      return s;
+    }
+    async function signPath(kind, path) {
+      if (!path) return '';
+      const bucket = kind === 'voice' ? 'aivault-digital-human-voices' : 'aivault-digital-human-images';
+      try {
+        const { data } = await sb.storage.from(bucket).createSignedUrl(path, 3600);
+        return data?.signedUrl || '';
+      } catch { return ''; }
+    }
+    async function hydrateAssets(kind, list) {
+      const out = [];
+      for (const x of list || []) {
+        const item = { ...x, preview_url: pickUrl(x) };
+        if (!item.preview_url && x.storage_path) {
+          item.preview_url = await signPath(kind, x.storage_path);
+        }
+        out.push(item);
+      }
+      return out;
     }
     function imageUrl(item) { return pickUrl(item); }
     function voiceUrl(item) { return pickUrl(item); }
@@ -748,18 +804,21 @@
         grid.innerHTML = `<div class="empty">尚未上傳聲音</div>`;
         return;
       }
-      grid.innerHTML = assets.voice.map(v => `
+      grid.innerHTML = assets.voice.map(v => {
+        const url = voiceUrl(v);
+        return `
         <div class="asset ${String(v.id)===String(draft.selected_voice_id)?'selected':''}">
           <div style="font-weight:700;">${esc(v.name || v.filename || '聲音')}</div>
-          <div class="muted">${esc(v.created_at || '')}</div>
-          ${voiceUrl(v) ? `<audio controls src="${esc(voiceUrl(v))}" style="width:100%;margin-top:8px;"></audio>` : ''}
+          <div class="muted">${esc(v.mime_type || v.storage_path || '')}</div>
+          ${url ? `<audio controls preload="none" src="${esc(url)}" style="width:100%;margin-top:8px;" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'muted',textContent:'聲音已存檔，預覽連結失效，仍可選擇使用'}))"></audio>` : `<div class="muted" style="margin-top:8px;">聲音已存檔，預覽稍後再試</div>`}
           <div class="row" style="margin-top:8px;">
             <button class="pill ${String(v.id)===String(draft.selected_voice_id)?'':'ghost'}" data-pick-voice="${esc(v.id)}">
               ${String(v.id)===String(draft.selected_voice_id)?'✓ 已選擇':'選擇'}
             </button>
             <button class="pill danger" data-del-voice="${esc(v.id)}">刪除</button>
           </div>
-        </div>`).join('');
+        </div>`;
+      }).join('');
     }
 
     async function onCreatePrimary() {
@@ -829,7 +888,7 @@
       setHeader(h.name || '數字人', statusLabel(h), '管理設定', () => go(`/${h.id}/settings`));
       document.getElementById('app').innerHTML = `
         <div class="hero">
-          ${img || imageUrl(h) ? `<img class="preview" alt="" src="${esc(imageUrl(img||h))}"/>` : `<div class="preview-ph">尚未設定數字人外觀<br><button class="pill" style="margin-top:12px;" data-go="/${esc(h.id)}/images">選擇圖片</button></div>`}
+          ${imageUrl(img||h) ? `<img class="preview" alt="" src="${esc(imageUrl(img||h))}" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';"/><div class="preview-ph" style="display:none">照片已上傳，預覽連結失效<br><button class="pill" style="margin-top:12px;" data-go="/${esc(h.id)}/images">重新選擇圖片</button></div>` : `<div class="preview-ph">尚未設定數字人外觀<br><button class="pill" style="margin-top:12px;" data-go="/${esc(h.id)}/images">選擇圖片</button></div>`}
           <div class="row" style="margin-top:12px;">
             <span class="chip on">${esc(statusLabel(h))}</span>
             <span class="chip">${esc(h.brain_provider || h.provider || '—')}</span>
