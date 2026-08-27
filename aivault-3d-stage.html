@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1" />
+  <meta name="theme-color" content="#050711" />
+  <title>AIVAULT 3D 舞台</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #050711; color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Noto Sans TC", sans-serif; }
+    canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .top {
+      position: absolute; z-index: 3; top: 0; left: 0; right: 0;
+      padding: calc(env(safe-area-inset-top) + 12px) 14px 10px;
+      display: flex; justify-content: space-between; align-items: center; gap: 8px;
+      background: linear-gradient(#050711ee, transparent);
+    }
+    .brand { font-weight: 800; font-size: 15px; }
+    .brand small { display: block; font-size: 10px; opacity: .45; margin-top: 2px; }
+    .icon {
+      width: 40px; height: 40px; border-radius: 12px; border: 1px solid #ffffff22;
+      background: #ffffff10; color: #fff; font-size: 16px;
+    }
+    .chip {
+      font-size: 11px; border: 1px solid #ffffff22; background: #ffffff10;
+      padding: 7px 10px; border-radius: 999px; white-space: nowrap;
+    }
+    .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #49e08a;
+      box-shadow: 0 0 9px #49e08a; margin-right: 6px; }
+    .hint { position: absolute; z-index: 2; top: calc(env(safe-area-inset-top) + 64px);
+      width: 100%; text-align: center; font-size: 11px; opacity: .38; }
+    .panel {
+      position: absolute; z-index: 4; left: 12px; right: 12px;
+      bottom: calc(env(safe-area-inset-bottom) + 12px);
+    }
+    .acts { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 8px; scrollbar-width: none; }
+    .acts button {
+      flex: 0 0 auto; border: 1px solid #ffffff18; background: #0b1020cc; color: #e2e8f0;
+      border-radius: 999px; padding: 8px 12px; font-size: 12px; font-weight: 700;
+    }
+    .acts button.on { background: #6078ff; border-color: transparent; color: #fff; }
+    .chat { max-height: 24vh; overflow: auto; display: flex; flex-direction: column; gap: 7px; margin-bottom: 8px; }
+    .bubble {
+      max-width: 84%; padding: 9px 12px; border-radius: 15px;
+      background: #ffffff12; border: 1px solid #ffffff14; backdrop-filter: blur(16px);
+      font-size: 13px; line-height: 1.45;
+    }
+    .ai { align-self: flex-start; border-bottom-left-radius: 5px; }
+    .me { align-self: flex-end; background: #637cff28; border-bottom-right-radius: 5px; }
+    .bar {
+      display: flex; gap: 7px; padding: 7px; border-radius: 23px;
+      background: #090d18dd; border: 1px solid #ffffff18; backdrop-filter: blur(20px);
+    }
+    input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: #fff; padding: 8px; font-size: 14px; }
+    .bar button {
+      width: 40px; height: 40px; border-radius: 50%; border: 1px solid #ffffff18;
+      background: #ffffff10; color: #fff; font-size: 16px;
+    }
+    .bar button.send { background: #6078ff; border: 0; }
+    #loading { position: absolute; z-index: 9; inset: 0; display: grid; place-items: center; background: #050711; transition: .45s; }
+    .hide { opacity: 0; pointer-events: none; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <div id="loading"><div><b>AIVAULT</b><div style="opacity:.45;font-size:12px;margin-top:6px;">3D 舞台載入中</div></div></div>
+  <div class="top">
+    <button class="icon" id="btnBack" type="button">←</button>
+    <div class="brand">3D 舞台<small>舊照可貼臉 · 手勢 · 對話</small></div>
+    <div class="chip"><span class="dot"></span><span id="st">舞台就緒</span></div>
+  </div>
+  <div class="hint">拖曳旋轉 · 雙指縮放 · 上傳照片貼到臉上</div>
+  <div class="panel">
+    <div class="acts">
+      <button type="button" id="btnPhoto">上傳舊照</button>
+      <button type="button" data-emo="smile">微笑</button>
+      <button type="button" data-emo="talk">說話</button>
+      <button type="button" data-emo="wave">揮手</button>
+      <button type="button" data-emo="think">思考</button>
+      <button type="button" data-emo="idle">待機</button>
+    </div>
+    <input id="photo" class="hidden" type="file" accept="image/png,image/jpeg,image/jpg,image/webp" />
+    <div id="chat" class="chat"><div class="bubble ai">這是 3D 舞台。先上傳一張正臉舊照，我可以把照片貼到臉上，再用語音跟你聊天。</div></div>
+    <div class="bar">
+      <button type="button" id="mic">🎙</button>
+      <input id="input" placeholder="說話或打字…" />
+      <button class="send" id="send" type="button">➤</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
+    import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/controls/OrbitControls.js';
+
+    const SUPABASE_URL = 'https://clcddygkaaqqtsbswgdf.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE';
+    const GATEWAY = `${SUPABASE_URL}/functions/v1/ai-gateway`;
+
+    const canvas = document.querySelector('#c');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.shadowMap.enabled = true;
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0x050711, 6, 16);
+    const cam = new THREE.PerspectiveCamera(36, innerWidth / innerHeight, 0.1, 80);
+    cam.position.set(0, 1.45, 5.4);
+
+    const ctl = new OrbitControls(cam, canvas);
+    ctl.enableDamping = true;
+    ctl.enablePan = false;
+    ctl.minDistance = 3.2;
+    ctl.maxDistance = 8;
+    ctl.minPolarAngle = 0.7;
+    ctl.maxPolarAngle = 1.45;
+    ctl.target.set(0, 1.2, 0);
+
+    scene.add(new THREE.AmbientLight(0x9eb5ff, 1.4));
+    const key = new THREE.DirectionalLight(0xfff1e0, 2.4);
+    key.position.set(2.4, 4.2, 3.2);
+    key.castShadow = true;
+    scene.add(key);
+    const fill = new THREE.PointLight(0x627bff, 14, 10);
+    fill.position.set(-2.2, 2.1, 2.2);
+    scene.add(fill);
+    const rim = new THREE.PointLight(0xff9ad5, 8, 8);
+    rim.position.set(0.4, 2.8, -2.2);
+    scene.add(rim);
+
+    const floor = new THREE.Mesh(
+      new THREE.CircleGeometry(3.4, 64),
+      new THREE.MeshStandardMaterial({ color: 0x0b1020, roughness: 0.85, metalness: 0.2 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -0.92;
+    floor.receiveShadow = true;
+    scene.add(floor);
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(1.15, 1.22, 64),
+      new THREE.MeshBasicMaterial({ color: 0x627bff, transparent: true, opacity: 0.55, side: THREE.DoubleSide })
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = -0.9;
+    scene.add(ring);
+
+    const root = new THREE.Group();
+    scene.add(root);
+
+    const skin = new THREE.MeshStandardMaterial({ color: 0xc98f78, roughness: 0.62 });
+    const cloth = new THREE.MeshStandardMaterial({ color: 0x202b49, roughness: 0.4, metalness: 0.18 });
+    const hairMat = new THREE.MeshStandardMaterial({ color: 0x151821, roughness: 0.32 });
+
+    const hips = new THREE.Group(); hips.position.y = 0.05; root.add(hips);
+    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 0.7, 8, 16), cloth);
+    torso.position.y = 0.55; hips.add(torso);
+
+    const chest = new THREE.Group(); chest.position.y = 1.05; root.add(chest);
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 0.22, 16), skin);
+    neck.position.y = 0.18; chest.add(neck);
+
+    const headG = new THREE.Group(); headG.position.y = 0.58; chest.add(headG);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.36, 48, 32), skin);
+    head.scale.set(0.92, 1.08, 0.86); headG.add(head);
+    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.38, 48, 24, 0, Math.PI * 2, 0, Math.PI * 0.58), hairMat);
+    hair.scale.set(1.02, 1.14, 0.98); hair.position.set(0, 0.1, -0.02); headG.add(hair);
+
+    const faceTex = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 });
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.52), faceTex);
+    face.position.set(0, 0.02, 0.33); headG.add(face);
+
+    function makeArm(side) {
+      const arm = new THREE.Group();
+      arm.position.set(side * 0.48, 0.12, 0);
+      chest.add(arm);
+      const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.38, 6, 10), skin);
+      upper.position.y = -0.28; arm.add(upper);
+      const fore = new THREE.Group(); fore.position.y = -0.52; arm.add(fore);
+      const lower = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.34, 6, 10), skin);
+      lower.position.y = -0.22; fore.add(lower);
+      const hand = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 10), skin);
+      hand.position.y = -0.44; fore.add(hand);
+      return { arm, fore, hand, side };
+    }
+    const L = makeArm(-1);
+    const R = makeArm(1);
+
+    let mode = 'idle';
+    let t = 0;
+    let photoOn = false;
+
+    function setStatus(x) { document.getElementById('st').textContent = x; }
+
+    function applyPhoto(file) {
+      const url = URL.createObjectURL(file);
+      const loader = new THREE.TextureLoader();
+      loader.load(url, (tex) => {
+        tex.colorSpace = THREE.SRGBColorSpace;
+        faceTex.map = tex;
+        faceTex.opacity = 1;
+        faceTex.needsUpdate = true;
+        photoOn = true;
+        setStatus('已貼上舊照');
+        add('舊照已貼到臉上。側面仍是推估，正面微笑會比較自然。', false);
+      });
+    }
+
+    function pose(dt) {
+      const s = Math.sin(t);
+      root.position.y = Math.sin(t * 1.4) * 0.03;
+      ring.rotation.z += dt * 0.15;
+      if (mode === 'idle') {
+        headG.rotation.y = Math.sin(t * 0.6) * 0.18;
+        headG.rotation.x = Math.sin(t * 0.5) * 0.04;
+        L.arm.rotation.z = 0.18; R.arm.rotation.z = -0.18;
+        L.arm.rotation.x = Math.sin(t) * 0.06; R.arm.rotation.x = Math.sin(t + 1) * 0.06;
+      } else if (mode === 'smile') {
+        headG.rotation.z = Math.sin(t * 2) * 0.04;
+        headG.rotation.x = -0.06;
+        face.scale.set(1.02, 0.96, 1);
+      } else if (mode === 'talk') {
+        headG.rotation.y = Math.sin(t * 1.2) * 0.12;
+        face.scale.set(1, 1 + Math.abs(Math.sin(t * 8)) * 0.06, 1);
+        R.fore.rotation.x = -0.4 + Math.sin(t * 6) * 0.08;
+      } else if (mode === 'wave') {
+        R.arm.rotation.z = -1.15;
+        R.fore.rotation.z = Math.sin(t * 8) * 0.45;
+        headG.rotation.y = 0.25;
+      } else if (mode === 'think') {
+        R.arm.rotation.z = -0.7; R.fore.rotation.x = -1.4;
+        R.hand.position.z = 0.12;
+        headG.rotation.z = -0.12; headG.rotation.x = 0.08;
+      }
+    }
+
+    function loop() {
+      requestAnimationFrame(loop);
+      const dt = 0.016; t += dt;
+      pose(dt); ctl.update(); renderer.render(scene, cam);
+    }
+    loop();
+    addEventListener('resize', () => {
+      cam.aspect = innerWidth / innerHeight;
+      cam.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    });
+    setTimeout(() => document.getElementById('loading').classList.add('hide'), 400);
+
+    const chat = document.getElementById('chat');
+    const input = document.getElementById('input');
+    function add(text, me) {
+      const b = document.createElement('div');
+      b.className = 'bubble ' + (me ? 'me' : 'ai');
+      b.textContent = text;
+      chat.appendChild(b);
+      chat.scrollTop = chat.scrollHeight;
+    }
+    function speak(text) {
+      if (!('speechSynthesis' in window)) return;
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'zh-TW'; u.rate = 1.02; u.pitch = 1.08;
+      const v = (speechSynthesis.getVoices() || []).find(x => /zh|cmn/i.test(x.lang) && /female|ting|mei|han|yating|meijia/i.test(x.name))
+        || (speechSynthesis.getVoices() || []).find(x => /zh/i.test(x.lang));
+      if (v) u.voice = v;
+      mode = 'talk';
+      u.onend = () => { mode = 'smile'; };
+      speechSynthesis.speak(u);
+    }
+
+    async function ask(text) {
+      add(text, true);
+      mode = 'think';
+      setStatus('思考中');
+      try {
+        const res = await fetch(GATEWAY, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'apikey': SUPABASE_ANON_KEY
+          },
+          body: JSON.stringify({
+            provider: 'groq',
+            model: 'openai/gpt-oss-120b',
+            agent: '3D Companion',
+            systemPrompt: '你是舞台上的女孩數字人。用繁體中文口語回答，2到4句，自然會笑，像當面聊天。不要條列。',
+            messages: [
+              { role: 'system', content: '你是舞台上的女孩數字人。用繁體中文口語回答，2到4句，自然會笑。' },
+              { role: 'user', content: text }
+            ]
+          })
+        });
+        const data = await res.json();
+        const reply = data.content || data.response || data.text || data.message || data.choices?.[0]?.message?.content || '我在。';
+        add(reply, false);
+        setStatus('說話中');
+        speak(reply);
+      } catch (e) {
+        add('AI Gateway 暫時沒回應：' + (e.message || e), false);
+        mode = 'idle';
+      }
+    }
+
+    document.getElementById('btnBack').onclick = () => {
+      if (document.referrer) location.href = document.referrer;
+      else location.href = 'aivault-digital-human.html';
+    };
+    document.getElementById('btnPhoto').onclick = () => document.getElementById('photo').click();
+    document.getElementById('photo').onchange = (e) => {
+      const f = e.target.files?.[0]; if (f) applyPhoto(f);
+    };
+    document.querySelector('.acts').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-emo]');
+      if (!b) return;
+      mode = b.dataset.emo;
+      document.querySelectorAll('[data-emo]').forEach(x => x.classList.toggle('on', x === b));
+    });
+    document.getElementById('send').onclick = () => {
+      const v = input.value.trim(); if (!v) return;
+      input.value = ''; ask(v);
+    };
+    input.onkeydown = (e) => { if (e.key === 'Enter') document.getElementById('send').click(); };
+    document.getElementById('mic').onclick = () => {
+      const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!Rec) return add('此裝置不支援語音輸入', false);
+      const r = new Rec(); r.lang = 'zh-TW';
+      r.onresult = ev => ask(ev.results[0][0].transcript);
+      r.start();
+    };
+  </script>
+</body>
+</html>
