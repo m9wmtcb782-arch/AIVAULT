@@ -43,7 +43,8 @@
 <body>
   <div class="top">
     <button class="icon" id="back" type="button">←</button>
-    <div class="brand">聲音克隆室<small>錄 30 秒 · 10 套台詞 · 自己／別人</small></div>
+    <button class="pill ghost" id="home" type="button">Home</button>
+    <div class="brand">聲音克隆室<small>只為採集聲線，不是 AI 對話劇本</small></div>
     <button class="icon" id="toDH" type="button">人</button>
   </div>
   <div class="wrap">
@@ -61,7 +62,7 @@
         <h3 style="margin:0;">台詞 <span id="scriptNo">1</span> / 10</h3>
         <button class="pill ghost" id="nextScript" type="button">下一套</button>
       </div>
-      <p class="muted" id="scriptHint">請用抑揚頓挫讀完，目標約 30 秒。</p>
+      <p class="muted" id="scriptHint">下面只是錄音練習句，用來採集高低起伏。AI 對話不會照這些句子回答。</p>
       <p class="script" id="scriptText"></p>
     </div>
 
@@ -216,7 +217,13 @@
       form.append('file', file, file.name);
       const res = await fetch(FN, { method:'POST', headers: await authHeader(), body: form });
       const j = await res.json();
-      if (!res.ok || j.success === false) throw new Error(j.message || j.error || '儲存失敗');
+      if (!res.ok || j.success === false) {
+        const local = { id: 'local-'+Date.now(), name: file.name, owner: who, preview_url: localUrl, created_at: new Date().toISOString() };
+        const prev = JSON.parse(localStorage.getItem('dh_local_voices')||'[]');
+        prev.unshift(local);
+        localStorage.setItem('dh_local_voices', JSON.stringify(prev.slice(0,20)));
+        throw new Error(j.message || j.error || '雲端存檔失敗，已先留在本機');
+      }
       const row = j.asset || j.result || j;
       try {
         await sb.from('digital_human_voices').update({
@@ -243,6 +250,7 @@
           const all = await sb.from('digital_human_voices').select('*').order('created_at', { ascending:false });
           if (!all.error) rows = all.data || [];
         }
+        try { rows = rows.concat(JSON.parse(localStorage.getItem('dh_local_voices')||'[]')); } catch {}
       } catch {}
       if (!rows.length) { box.innerHTML = '<p class="muted">還沒有存檔。先錄一段 30 秒。</p>'; return; }
       box.innerHTML = rows.map(v => {
@@ -262,8 +270,9 @@
 
     function esc(s){ return String(s||'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
 
-    $('back').onclick = () => { location.href = 'aivault-digital-human.html'; };
-    $('toDH').onclick = () => { location.href = 'aivault-digital-human.html'; };
+    $('back').onclick = () => { location.href = 'aivault-digital-human.html#/'; };
+    $('home').onclick = () => { location.href = 'aivault-home.html'; };
+    $('toDH').onclick = () => { location.href = 'aivault-digital-human.html#/'; };
     $('whoMine').onclick = () => setWho('mine');
     $('whoOther').onclick = () => setWho('other');
     $('nextScript').onclick = () => { idx = (idx+1)%SCRIPTS.length; showScript(); };

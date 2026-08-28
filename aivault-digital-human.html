@@ -164,6 +164,7 @@
 <body>
   <header class="header">
     <button class="icon-btn" id="btnBack" type="button">←</button>
+    <button class="pill ghost" id="btnHome" type="button">Home</button>
     <div class="grow">
       <h1 id="hdrTitle">AIVAULT Digital Human</h1>
       <p id="hdrSub">建立、管理與使用你的 AI 數字人。</p>
@@ -385,12 +386,32 @@
         }
       }
       const imgs = await listAssets('image');
-      return list.map(h => {
+      const voices = await listAssets('voice');
+      assets.image = imgs;
+      assets.voice = voices;
+      const out = [];
+      for (const h of list) {
         const img = imgs.find(x => String(x.id) === String(h.selected_image_id))
           || imgs.find(x => String(x.digital_human_id) === String(h.id))
-          || (h.id === list[0]?.id ? imgs[0] : null);
-        return { ...h, preview_url: imageUrl(img) || h.preview_url || '' };
-      });
+          || imgs[0];
+        const voice = voices.find(x => String(x.id) === String(h.selected_voice_id))
+          || voices.find(x => String(x.digital_human_id) === String(h.id))
+          || voices[0];
+        const row = {
+          ...h,
+          preview_url: imageUrl(img) || h.preview_url || '',
+          selected_image_id: h.selected_image_id || img?.id || null,
+          selected_voice_id: h.selected_voice_id || voice?.id || null
+        };
+        if (row.id && img?.id && !h.selected_image_id) {
+          try { await callFn('digital-human-asset', { action:'select_image', digital_human_id: row.id, image_id: img.id }); } catch {}
+        }
+        if (row.id && voice?.id && !h.selected_voice_id) {
+          try { await callFn('digital-human-asset', { action:'select_voice', digital_human_id: row.id, voice_id: voice.id }); } catch {}
+        }
+        out.push(row);
+      }
+      return out;
     }
 
     async function getHuman(id) {
@@ -527,28 +548,13 @@
     }
 
     async function deleteAsset(id, kind) {
-      const table = kind === 'voice' ? 'digital_human_voices' : 'digital_human_images';
-      const bucket = kind === 'voice' ? 'aivault-digital-human-voices' : 'aivault-digital-human-images';
-      let path = '';
-      try {
-        const { data } = await sb.from(table).select('storage_path').eq('id', id).maybeSingle();
-        path = data?.storage_path || '';
-      } catch {}
-      const { error } = await sb.from(table).delete().eq('id', id);
-      if (path) {
-        try { await sb.storage.from(bucket).remove([path]); } catch {}
-      }
-      if (!error) return { success: true, deleted: true };
-      try {
-        const hid = current?.id || draft.human_id || sessionStorage.getItem('dh_human_id');
-        const action = kind === 'voice' ? 'delete_voice' : 'delete_image';
-        const body = { action, digital_human_id: hid, id };
-        if (kind === 'voice') body.voice_id = id; else body.image_id = id;
-        return await callFn('digital-human-asset', body);
-      } catch (e) {
-        throw new Error('還不能刪。請在 Supabase SQL Editor 執行 DELETE 權限後再試。');
-      }
+      const hid = current?.id || draft.human_id;
+      const action = kind === 'voice' ? 'delete_voice' : 'delete_image';
+      const body = { action, digital_human_id: hid, id };
+      if (kind === 'voice') body.voice_id = id; else body.image_id = id;
+      return await callFn('digital-human-delete', body);
     }
+
 
     async function startVideo(human, prompt, settings) {
       const provider = VIDEO_PROVIDERS.find(p => p.code === (human.video_provider || draft.video_provider)) || VIDEO_PROVIDERS[0];
@@ -671,27 +677,41 @@
 
     async function deleteHuman(id) {
       if (!id) return;
-      const imgs = await sb.from('digital_human_images').select('id,storage_path').eq('digital_human_id', id);
-      const voices = await sb.from('digital_human_voices').select('id,storage_path').eq('digital_human_id', id);
-      for (const row of imgs.data || []) {
-        try { await sb.storage.from('aivault-digital-human-images').remove([row.storage_path]); } catch {}
-        try { await sb.from('digital_human_images').delete().eq('id', row.id); } catch {}
+      try {
+        await callFn('digital-human-delete', { action: 'delete_human', digital_human_id: id, id });
+      } catch (e) {
+        const msg = String(e.message || e);
+        if (/404|NOT_FOUND/i.test(msg)) throw new Error('刪除服務尚未部署。請在 Supabase 新增 Function：digital-human-delete');
+        throw e;
       }
-      for (const row of voices.data || []) {
-        try { await sb.storage.from('aivault-digital-human-voices').remove([row.storage_path]); } catch {}
-        try { await sb.from('digital_human_voices').delete().eq('id', row.id); } catch {}
+      if (draft.human_id === id) {
+        draft.human_id = null;
+        localStorage.removeItem('dh_human_id');
+        sessionStorage.removeItem('dh_human_id');
       }
-      const { error } = await sb.from('digital_humans').delete().eq('id', id);
-      if (error) {
-        try { await callFn('digital-human-asset', { action: 'delete_human', digital_human_id: id, id }); }
-        catch { throw new Error('刪不掉。請在 SQL 開 digital_humans 的 DELETE 權限。'); }
-      }
-      if (draft.human_id === id) { draft.human_id = null; localStorage.removeItem('dh_human_id'); sessionStorage.removeItem('dh_human_id'); }
       humans = humans.filter(h => String(h.id) !== String(id));
     }
 
+    function homeBar(id) {
+      const hid = id || humans[0]?.id || '';
+      return `
+        <div class="card" style="margin-bottom:12px;">
+          <h3 style="margin:0 0 8px;">數字人首頁</h3>
+          <div class="row">
+            <button class="pill" type="button" onclick="location.href='aivault-home.html'">工作中心</button>
+            <button class="pill ghost" type="button" onclick="location.href='aivault-3d-stage.html'">3D 舞台</button>
+            <button class="pill ghost" type="button" onclick="location.href='aivault-voice-studio.html'">聲音克隆室</button>
+            <button class="pill ghost" type="button" onclick="location.href='aivault-home.html'">Home</button>
+            ${hid ? `<button class="pill" data-go="/${hid}/chat">對話</button>
+            <button class="pill ghost" data-go="/${hid}/video">影片</button>
+            <button class="pill ghost" data-go="/${hid}/images">照片</button>
+            <button class="pill ghost" data-go="/${hid}/voices">聲音</button>` : ''}
+          </div>
+        </div>`;
+    }
+
     function renderList() {
-      setHeader('AIVAULT Digital Human', `已上傳 ${humans.length} 位數字人`, '＋ 建立數字人', () => go('/create'));
+      setHeader('AIVAULT 數字人首頁', `已上傳 ${humans.length} 位`, '＋ 建立數字人', () => go('/create'));
       if (!humans.length) {
         document.getElementById('app').innerHTML = `
           <div class="hero">
@@ -704,9 +724,10 @@
             </div>
           </div>`;
         document.getElementById('btnFirst').onclick = () => go('/create');
+        document.getElementById('app').insertAdjacentHTML('afterbegin', homeBar(''));
         return;
       }
-      document.getElementById('app').innerHTML = humans.map(h => `
+      document.getElementById('app').innerHTML = homeBar(humans[0].id) + humans.map(h => `
         <article class="card">
           ${imageUrl(h) || h.preview_url ? `<img class="thumb" alt="" src="${esc(imageUrl(h) || h.preview_url)}"/>` : `<div class="preview-ph">尚未設定外觀</div>`}
           <h3 style="margin-top:10px;">${esc(h.name || '未命名數字人')}</h3>
@@ -718,6 +739,8 @@
             <span class="chip">${h.video_enabled === false ? '影片關閉' : '影片開啟'}</span>
           </div>
           <div class="row">
+            <button class="pill ghost" data-go="/${esc(h.id)}/images">補照片</button>
+            <button class="pill ghost" data-go="/${esc(h.id)}/voices">補聲音</button>
             <button class="pill ghost" data-go="/${esc(h.id)}">管理</button>
             <button class="pill" data-go="/${esc(h.id)}/chat">開始 AI 對話</button>
             <button class="pill ghost" data-go-stage="${esc(h.id)}">3D 舞台</button>
@@ -731,7 +754,7 @@
 
     function renderCreate() {
       const step = Number(sessionStorage.getItem('dh_step') || '1');
-      setHeader('建立數字人', `步驟 ${step} / 4`, step === 4 ? '建立數字人' : '下一步', onCreatePrimary);
+      setHeader('建立數字人', `步驟 ${step} / 4 · 已有 ${humans.length} 位`, step === 4 ? '建立數字人' : '下一步', onCreatePrimary);
       const stepHtml = [1,2,3,4].map(n => `<span class="${n===step?'on':''}">${n===1?'基本資料':n===2?'外觀':n===3?'聲音':'AI 大腦'}</span>`).join('');
       let body = '';
       if (step === 1) {
@@ -1794,10 +1817,10 @@
       await render();
     }
 
+    document.getElementById('btnHome').onclick = () => { location.href = 'aivault-home.html'; };
     document.getElementById('btnBack').onclick = () => {
       const r = route();
       if (r.name === 'list') {
-        if (document.referrer) { location.href = document.referrer; return; }
         location.href = 'aivault-home.html';
         return;
       }
