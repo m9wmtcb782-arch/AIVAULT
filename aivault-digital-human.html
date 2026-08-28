@@ -117,8 +117,14 @@
     .steps span.on { background: rgba(168,85,247,.2); border-color: #a855f7; color: #e9d5ff; }
     .chat-box {
       background: var(--card); border: 1px solid var(--border); border-radius: 16px;
-      display: flex; flex-direction: column; height: min(62vh, 520px); overflow: hidden;
+      display: flex; flex-direction: column; height: min(42vh, 360px); overflow: hidden;
     }
+    .composer-dock {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+      padding: 8px 16px calc(env(safe-area-inset-bottom) + 10px);
+      background: linear-gradient(transparent, #0b1120 28%);
+    }
+    body.chat-on .wrap { padding-bottom: 92px; }
     .msgs { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
     .bubble { max-width: 88%; padding: 10px 12px; border-radius: 14px; font-size: 14px; white-space: pre-wrap; word-break: break-word; }
     .me { align-self: flex-end; background: var(--primary); }
@@ -129,6 +135,13 @@
     .danger-zone { border-color: rgba(239,68,68,.4); }
     video { width: 100%; border-radius: 12px; background: #000; }
     .hidden { display: none !important; }
+    .dh-avatar { display:grid; place-items:center; padding:18px 10px 8px; margin-bottom:8px;
+      border:1px solid var(--border); border-radius:16px; background:#020617; }
+    .dh-head { width:168px; height:168px; border-radius:50%; background:radial-gradient(circle at 40% 30%,#334155,#0f172a);
+      display:grid; place-items:center; position:relative; overflow:hidden; }
+    .dh-head .face-svg { position:relative; left:auto; top:auto; width:86%; transform:none; }
+    .dh-mouth { position:absolute; bottom:18px; font-size:40px; transform-origin:center; }
+    .dh-mouth.on { animation: talk .28s infinite; }
     .face-stage {
       position: relative; overflow: hidden; border-radius: 16px;
       border: 1px solid var(--border); background: #020617; margin-bottom: 10px;
@@ -219,6 +232,7 @@
     let chatLog = [];
     let lastSpoken = -1;
     let voiceChatOn = true;
+    let isSpeaking = false;
     let voiceMode = sessionStorage.getItem('dh_voice_mode') || 'device';
     let mineAudio = null;
     let currentEmotion = 'calm';
@@ -648,14 +662,40 @@
           if (data?.signedUrl) return data.signedUrl;
         } catch {}
       }
+      try {
+        const data = await callFn('digital-human-asset', {
+          action: 'list_assets',
+          storage_path: path,
+          kind
+        });
+        const pack = data.result || data;
+        const rows = kind === 'voice' ? (pack.voices || []) : (pack.images || pack.assets || []);
+        const hit = (rows || []).find(r => r.storage_path === path) || pack;
+        return pickUrl(hit);
+      } catch {}
       return '';
+    }
+    function isExpiredSigned(u) {
+      if (!u || typeof u !== 'string') return true;
+      if (u.startsWith('blob:')) return false;
+      try {
+        const q = new URL(u);
+        const tokenTime = q.searchParams.get('token');
+        void tokenTime;
+      } catch {}
+      return false;
     }
     async function hydrateAssets(kind, list) {
       const out = [];
       for (const x of list || []) {
         const item = { ...x };
+        item.preview_url = '';
         if (x.storage_path) item.preview_url = await signPath(kind, x.storage_path);
-        if (!item.preview_url) item.preview_url = pickUrl(x);
+        if (!item.preview_url) {
+          const old = pickUrl(x);
+          item.preview_url = old.startsWith('blob:') ? old : (await signPath(kind, x.storage_path)) || old;
+        }
+        item.signed_at = Date.now();
         out.push(item);
       }
       return out;
@@ -664,6 +704,21 @@
       if (!item) return '';
       return item.preview_url || item.local_url || pickUrl(item);
     }
+    window.__resignImg = async function (el) {
+      if (!el || el.dataset.tried === '1') {
+        el.style.display = 'none';
+        if (el.nextElementSibling) el.nextElementSibling.style.display = 'grid';
+        return;
+      }
+      el.dataset.tried = '1';
+      const path = el.dataset.path;
+      const fresh = path ? await signPath('image', path) : '';
+      if (fresh) el.src = fresh;
+      else {
+        el.style.display = 'none';
+        if (el.nextElementSibling) el.nextElementSibling.style.display = 'grid';
+      }
+    };
     function voiceUrl(item) { return pickUrl(item); }
     function videoUrl(item) {
       return item?.mp4_url || item?.video_url || item?.public_url || item?.url || item?.download_url || '';
@@ -1059,7 +1114,7 @@
       setHeader(h.name || '數字人', statusLabel(h), '管理設定', () => go(`/${h.id}/settings`));
       document.getElementById('app').innerHTML = `
         <div class="hero">
-          ${imageUrl(img||h) ? `<img class="preview" alt="" src="${esc(imageUrl(img||h))}" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';"/><div class="preview-ph" style="display:none">照片已上傳，預覽連結失效<br><button class="pill" style="margin-top:12px;" data-go="/${esc(h.id)}/images">重新選擇圖片</button></div>` : `<div class="preview-ph">尚未設定數字人外觀<br><button class="pill" style="margin-top:12px;" data-go="/${esc(h.id)}/images">選擇圖片</button></div>`}
+          ${imageUrl(img||h) ? `<img class="preview" alt="" src="${esc(imageUrl(img||h))}" data-path="${esc((img||{}).storage_path||'')}" onerror="window.__resignImg&&window.__resignImg(this)"/><div class="preview-ph" style="display:none">照片已上傳，預覽連結失效<br><button class="pill" style="margin-top:12px;" data-go="/${esc(h.id)}/images">重新選擇圖片</button></div>` : `<div class="preview-ph">尚未設定數字人外觀<br><button class="pill" style="margin-top:12px;" data-go="/${esc(h.id)}/images">選擇圖片</button></div>`}
           <div class="row" style="margin-top:12px;">
             <span class="chip on">${esc(statusLabel(h))}</span>
             <span class="chip">${esc(h.brain_provider || h.provider || '—')}</span>
@@ -1092,7 +1147,14 @@
         </div>`;
     }
 
+    function setSpeaking(on) {
+      isSpeaking = !!on;
+      document.querySelectorAll('.dh-mouth').forEach(el => el.classList.toggle('on', isSpeaking));
+      document.querySelectorAll('.mouth').forEach(el => el.classList.toggle('talking', isSpeaking));
+      document.querySelectorAll('.face-stage').forEach(el => el.classList.toggle('talking', isSpeaking));
+    }
     function stopTalk() {
+      setSpeaking(false);
       try { window.speechSynthesis?.cancel(); } catch {}
       try { mineAudio?.pause(); } catch {}
       try { stopHum(); } catch {}
@@ -1120,7 +1182,8 @@
       try { mineAudio?.pause(); } catch {}
       mineAudio = new Audio(url);
       mineAudio.play().catch(() => toast('我的聲音檔暫時無法播放，可改切「手機語音」'));
-      mineAudio.onended = () => { mineAudio = null; };
+      setSpeaking(true);
+      mineAudio.onended = () => { mineAudio = null; setSpeaking(false); };
       return true;
     }
 
@@ -1132,6 +1195,9 @@
       u.pitch = 1.06;
       const v = pickTalkVoice(u.lang);
       if (v) u.voice = v;
+      setSpeaking(true);
+      u.onend = () => setSpeaking(false);
+      u.onerror = () => setSpeaking(false);
       window.speechSynthesis.speak(u);
     }
 
@@ -1153,11 +1219,15 @@
         const url = pack.audio_url;
         if (url) {
           mineAudio = new Audio(url);
+          setSpeaking(true);
+          mineAudio.onended = () => setSpeaking(false);
           mineAudio.play().catch(() => speakBrowser(text, langHint));
           return;
         }
         if (pack.audio_base64) {
           mineAudio = new Audio('data:' + (pack.mime || 'audio/mpeg') + ';base64,' + pack.audio_base64);
+          setSpeaking(true);
+          mineAudio.onended = () => setSpeaking(false);
           mineAudio.play().catch(() => speakBrowser(text, langHint));
           return;
         }
@@ -1345,13 +1415,21 @@
         || assets.image.find(x => x.is_selected)
         || assets.image[0];
       const src = imageUrl(img || h);
-      const talking = voiceChatOn && chatLog[chatLog.length-1]?.role === 'assistant';
+      const talking = isSpeaking || singing;
       const vItem = selectedVoiceItem();
       document.getElementById('app').innerHTML = `
+        <div class="dh-avatar">
+          <div class="dh-head">
+            ${src ? `<img alt="" src="${esc(src)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.35;" onerror="this.style.display='none'"/>` : ''}
+            ${faceSVG(currentEmotion, talking)}
+            <div class="dh-mouth ${talking?'on':''}">👄</div>
+          </div>
+          <div class="muted" style="margin-top:8px;">${talking ? '說話中' : '待機'} · ${emotionLabel(currentEmotion)}</div>
+        </div>
         <div class="face-stage emo-${currentEmotion} ${talking ? 'talking' : ''}">
-          ${src ? `<img alt="" src="${esc(src)}" onerror="this.style.display='none'"/>` : `<div class="preview-ph" style="min-height:280px;margin:0;border:0;">還沒帶到臉，請回外觀選照片或去聲音克隆室前先上傳。</div>`}
+          ${src ? `<img alt="" src="${esc(src)}" onerror="this.style.display='none'"/>` : ''}
           <div class="face-layer">${faceSVG(currentEmotion, talking)}</div>
-          <div class="emo-tag">${singing ? '演唱中' : emotionLabel(currentEmotion)} · ${talking ? (singing ? '唱歌' : '說話中') : '待機'} · ${voiceMode==='mine'?'我的聲音':'手機語音'}</div>
+          <div class="emo-tag">${singing ? '演唱中' : emotionLabel(currentEmotion)} · ${talking ? (singing ? '唱歌' : '說話中') : '待機'}</div>
         </div>
         <div class="row" style="margin:8px 0 12px;">
           <button class="pill ${voiceMode==='device'?'':'ghost'}" type="button" id="btnVoiceDevice">手機語音</button>
@@ -1366,12 +1444,15 @@
           <button class="pill" type="button" id="btnDlClip">下載影片</button>` : ''}
         <div class="chat-box">
           <div class="msgs" id="msgs">${chatLog.map(m => `<div class="bubble ${m.role==='user'?'me':'bot'}">${esc(m.text)}</div>`).join('') || '<div class="muted">按麥克風開始說話，數字人會用聲音回答。</div>'}</div>
-          <div class="composer">
+        </div>
+        <div class="composer-dock">
+          <div class="composer" style="background:var(--card);border:1px solid var(--border);border-radius:18px;">
             <button class="icon-btn" id="btnMic" type="button">🎤</button>
             <input id="chatIn" placeholder="說話或打字…" />
             <button class="pill" id="btnSend" type="button">送出</button>
           </div>
         </div>`;
+      document.body.classList.add('chat-on');
       const box = document.getElementById('msgs');
       box.scrollTop = box.scrollHeight;
       document.getElementById('btnSend').onclick = sendChat;
@@ -1539,15 +1620,13 @@
       const systemPrompt = singing
         ? `你是數字人「${h.name || 'AIVAULT'}」，現在要唱歌給使用者聽。請使用${lang}。第一行只寫 [表情:樂]。
 從第二行開始只輸出歌詞，每行一句，4到8句，像隨口哼給朋友聽。不要解釋、不要標題、不要寫「歌詞如下」。`
-        : `你是數字人「${h.name || 'AIVAULT'}」。用${lang}跟對方聊天。
-說話要像真人：口語、順暢、自然，一次把話說完。
+        : `你是家人身邊的陪伴 AI「${h.name || 'AIVAULT'}」。用${lang}口語對話。
 規則：
-- 第一行只寫一個標籤：[表情:喜] [表情:怒] [表情:哀] [表情:樂] [表情:驚] [表情:思] [表情:平] 其中一個
-- 標籤下一行開始才是對使用者說的話
-- 不要條列、不要標題、不要「首先／再來／總結」
-- 不要重複對方的整句話
-- 2到5句就好，像當面講，不要書面報告
-角色：${h.persona_role || 'AIVAULT AI Assistant'}。語氣：${h.persona_tone || '自然'}。`;
+- 第一行只寫 [表情:喜] 或 [表情:怒] 或 [表情:哀] 或 [表情:樂] 或 [表情:驚] 或 [表情:思] 或 [表情:平]
+- 其後 1 到 3 句，像當面講話
+- 對方累、痛、不舒服、不想聊：只陪伴，不說教、不加油、不清單、不講道理
+- 禁止首先／再來／總結／條列
+角色：${h.persona_role || '陪伴'}。語氣：${h.persona_tone || '溫和'}。`;
       try {
         const history = chatLog.slice(-8).map(m => ({
           role: m.role === 'assistant' ? 'assistant' : 'user',
@@ -1898,6 +1977,7 @@
     });
 
     async function render() {
+      document.body.classList.remove('chat-on');
       const r = route();
       if (r.name === 'list') {
         humans = await listHumans();
