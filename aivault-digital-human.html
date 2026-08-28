@@ -669,8 +669,29 @@
       btn.onclick = onPrimary;
     }
 
+    async function deleteHuman(id) {
+      if (!id) return;
+      const imgs = await sb.from('digital_human_images').select('id,storage_path').eq('digital_human_id', id);
+      const voices = await sb.from('digital_human_voices').select('id,storage_path').eq('digital_human_id', id);
+      for (const row of imgs.data || []) {
+        try { await sb.storage.from('aivault-digital-human-images').remove([row.storage_path]); } catch {}
+        try { await sb.from('digital_human_images').delete().eq('id', row.id); } catch {}
+      }
+      for (const row of voices.data || []) {
+        try { await sb.storage.from('aivault-digital-human-voices').remove([row.storage_path]); } catch {}
+        try { await sb.from('digital_human_voices').delete().eq('id', row.id); } catch {}
+      }
+      const { error } = await sb.from('digital_humans').delete().eq('id', id);
+      if (error) {
+        try { await callFn('digital-human-asset', { action: 'delete_human', digital_human_id: id, id }); }
+        catch { throw new Error('刪不掉。請在 SQL 開 digital_humans 的 DELETE 權限。'); }
+      }
+      if (draft.human_id === id) { draft.human_id = null; localStorage.removeItem('dh_human_id'); sessionStorage.removeItem('dh_human_id'); }
+      humans = humans.filter(h => String(h.id) !== String(id));
+    }
+
     function renderList() {
-      setHeader('AIVAULT Digital Human', '建立、管理與使用你的 AI 數字人。', '＋ 建立數字人', () => go('/create'));
+      setHeader('AIVAULT Digital Human', `已上傳 ${humans.length} 位數字人`, '＋ 建立數字人', () => go('/create'));
       if (!humans.length) {
         document.getElementById('app').innerHTML = `
           <div class="hero">
@@ -701,9 +722,11 @@
             <button class="pill" data-go="/${esc(h.id)}/chat">開始 AI 對話</button>
             <button class="pill ghost" data-go-stage="${esc(h.id)}">3D 舞台</button>
             <button class="pill ghost" data-go="/${esc(h.id)}/video">產生影片</button>
+            <button class="pill danger" data-del-human="${esc(h.id)}">刪除</button>
           </div>
         </article>
       `).join('');
+      document.getElementById('app').insertAdjacentHTML('afterbegin', `<p class="muted">管理：目前 ${humans.length} 位數字人。刪除會連同該筆圖片與聲音。</p>`);
     }
 
     function renderCreate() {
@@ -1814,6 +1837,13 @@
       if (pi) { await pickImage(pi.getAttribute('data-pick-img')); return; }
       const pv = e.target.closest('[data-pick-voice]');
       if (pv) { await pickVoice(pv.getAttribute('data-pick-voice')); return; }
+      const dh = e.target.closest('[data-del-human]');
+      if (dh) {
+        if (!confirm('確定刪除這位數字人？圖片與聲音會一併刪。')) return;
+        try { await deleteHuman(dh.getAttribute('data-del-human')); toast('已刪除'); go('/'); }
+        catch (err) { toast(err.message); }
+        return;
+      }
       const di = e.target.closest('[data-del-img]');
       if (di) {
         if (!confirm('確定刪除這張圖片？')) return;
