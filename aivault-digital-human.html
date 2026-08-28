@@ -369,15 +369,28 @@
     }
 
     async function listHumans() {
-      const attempts = [{ action: 'list' }, { op: 'list' }, { type: 'list' }];
-      for (const body of attempts) {
-        try {
-          const data = await callFn('digital-human-save', body);
-          const list = unwrapList(data);
-          if (list.length || data?.ok || data?.success || Array.isArray(data)) return list;
-        } catch {}
+      let list = [];
+      try {
+        const { data, error } = await sb.from('digital_humans').select('*').order('created_at', { ascending: false });
+        if (!error && Array.isArray(data)) list = data;
+      } catch {}
+      if (!list.length) {
+        const attempts = [{ action: 'list' }, { op: 'list' }, { type: 'list' }];
+        for (const body of attempts) {
+          try {
+            const data = await callFn('digital-human-save', body);
+            const rows = unwrapList(data);
+            if (rows.length) { list = rows; break; }
+          } catch {}
+        }
       }
-      return [];
+      const imgs = await listAssets('image');
+      return list.map(h => {
+        const img = imgs.find(x => String(x.id) === String(h.selected_image_id))
+          || imgs.find(x => String(x.digital_human_id) === String(h.id))
+          || (h.id === list[0]?.id ? imgs[0] : null);
+        return { ...h, preview_url: imageUrl(img) || h.preview_url || '' };
+      });
     }
 
     async function getHuman(id) {
@@ -613,24 +626,31 @@
     }
     async function signPath(kind, path) {
       if (!path) return '';
-      const bucket = kind === 'voice' ? 'aivault-digital-human-voices' : 'aivault-digital-human-images';
-      try {
-        const { data } = await sb.storage.from(bucket).createSignedUrl(path, 3600);
-        return data?.signedUrl || '';
-      } catch { return ''; }
+      const buckets = kind === 'voice'
+        ? ['aivault-digital-human-voices', 'digital-human-voices']
+        : ['aivault-digital-human-images', 'digital-human-images'];
+      for (const bucket of buckets) {
+        try {
+          const { data } = await sb.storage.from(bucket).createSignedUrl(path, 60 * 60 * 24);
+          if (data?.signedUrl) return data.signedUrl;
+        } catch {}
+      }
+      return '';
     }
     async function hydrateAssets(kind, list) {
       const out = [];
       for (const x of list || []) {
-        const item = { ...x, preview_url: pickUrl(x) };
-        if (!item.preview_url && x.storage_path) {
-          item.preview_url = await signPath(kind, x.storage_path);
-        }
+        const item = { ...x };
+        if (x.storage_path) item.preview_url = await signPath(kind, x.storage_path);
+        if (!item.preview_url) item.preview_url = pickUrl(x);
         out.push(item);
       }
       return out;
     }
-    function imageUrl(item) { return pickUrl(item); }
+    function imageUrl(item) {
+      if (!item) return '';
+      return item.preview_url || item.local_url || pickUrl(item);
+    }
     function voiceUrl(item) { return pickUrl(item); }
     function videoUrl(item) {
       return item?.mp4_url || item?.video_url || item?.public_url || item?.url || item?.download_url || '';
