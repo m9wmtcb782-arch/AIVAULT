@@ -68,24 +68,17 @@
   <div id="loading"><div><b>AIVAULT</b><div style="opacity:.45;font-size:12px;margin-top:6px;">3D 舞台載入中</div></div></div>
   <div class="top">
     <button class="icon" id="btnBack" type="button">←</button>
-    <div class="brand">3D 舞台<small>舊照可貼臉 · 手勢 · 對話</small></div>
-    <div class="chip"><span class="dot"></span><span id="st">舞台就緒</span></div>
+    <div class="brand"></div>
+    <div class="chip" style="opacity:0"><span id="st"></span></div>
   </div>
-  <div class="hint">拖曳旋轉 · 雙指縮放 · 上傳照片貼到臉上</div>
+  
   <div class="panel">
-    <div class="acts">
-      <button type="button" id="btnPhoto">上傳舊照</button>
-      <button type="button" data-emo="smile">微笑</button>
-      <button type="button" data-emo="talk">說話</button>
-      <button type="button" data-emo="wave">揮手</button>
-      <button type="button" data-emo="think">思考</button>
-      <button type="button" data-emo="idle">待機</button>
-    </div>
+    <div class="acts hidden"></div>
     <input id="photo" class="hidden" type="file" accept="image/png,image/jpeg,image/jpg,image/webp" />
-    <div id="chat" class="chat"><div class="bubble ai">這是 3D 舞台。先上傳一張正臉舊照，我可以把照片貼到臉上，再用語音跟你聊天。</div></div>
+    <div id="chat" class="chat"></div>
     <div class="bar">
       <button type="button" id="mic">🎙</button>
-      <input id="input" placeholder="說話或打字…" />
+      <input id="input" placeholder="" />
       <button class="send" id="send" type="button">➤</button>
     </div>
   </div>
@@ -149,6 +142,20 @@
 
     const root = new THREE.Group();
     scene.add(root);
+    root.visible = false;
+
+    const bearG = new THREE.Group();
+    scene.add(bearG);
+    const bearMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, transparent: true });
+    const bear = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 2.35), bearMat);
+    bear.position.y = 0.72;
+    bearG.add(bear);
+    new THREE.TextureLoader().load('aivault-judge-bear.jpg', (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      bearMat.map = tex;
+      bearMat.needsUpdate = true;
+      setStatus('法官熊人偶就緒');
+    });
 
     const skin = new THREE.MeshStandardMaterial({ color: 0xc98f78, roughness: 0.62 });
     const cloth = new THREE.MeshStandardMaterial({ color: 0x202b49, roughness: 0.4, metalness: 0.18 });
@@ -163,14 +170,56 @@
     neck.position.y = 0.18; chest.add(neck);
 
     const headG = new THREE.Group(); headG.position.y = 0.58; chest.add(headG);
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.36, 48, 32), skin);
-    head.scale.set(0.92, 1.08, 0.86); headG.add(head);
-    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.38, 48, 24, 0, Math.PI * 2, 0, Math.PI * 0.58), hairMat);
-    hair.scale.set(1.02, 1.14, 0.98); hair.position.set(0, 0.1, -0.02); headG.add(hair);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.36, 64, 48), skin);
+    head.scale.set(0.9, 1.12, 0.88); headG.add(head);
+    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.39, 48, 24, 0, Math.PI * 2, 0, Math.PI * 0.62), hairMat);
+    hair.scale.set(1.04, 1.16, 1.0); hair.position.set(0, 0.12, -0.04); headG.add(hair);
 
-    const faceTex = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 });
-    const face = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.52), faceTex);
-    face.position.set(0, 0.02, 0.33); headG.add(face);
+    const faceTex = new THREE.MeshStandardMaterial({
+      color: 0xffffff, roughness: 0.45, metalness: 0, transparent: true, opacity: 0
+    });
+    const face = new THREE.Mesh(new THREE.SphereGeometry(0.355, 48, 32, -0.7, 1.4, 0.55, 1.5), faceTex);
+    face.scale.set(0.92, 1.08, 0.9);
+    face.position.set(0, 0.01, 0.01);
+    headG.add(face);
+
+    const white = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.25 });
+    const irisM = new THREE.MeshStandardMaterial({ color: 0x3b2a1a, roughness: 0.2 });
+    const pupilM = new THREE.MeshStandardMaterial({ color: 0x0b0b0b });
+    const lipM = new THREE.MeshStandardMaterial({ color: 0xb45a5a, roughness: 0.35 });
+    const browM = new THREE.MeshStandardMaterial({ color: 0x1c1917, roughness: 0.5 });
+
+    function makeEye(sx) {
+      const g = new THREE.Group();
+      g.position.set(sx * 0.13, 0.06, 0.30);
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.055, 20, 16), white);
+      ball.scale.set(1.15, 0.85, 0.7); g.add(ball);
+      const iris = new THREE.Mesh(new THREE.SphereGeometry(0.028, 16, 12), irisM);
+      iris.position.z = 0.032; g.add(iris);
+      const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.014, 12, 10), pupilM);
+      pupil.position.z = 0.048; g.add(pupil);
+      const lid = new THREE.Mesh(new THREE.SphereGeometry(0.058, 16, 10, 0, Math.PI * 2, 0, 0.8), skin);
+      lid.rotation.x = 0.35; lid.position.y = 0.02; g.add(lid);
+      const brow = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.018, 0.02), browM);
+      brow.position.set(0, 0.09, 0.01); brow.rotation.z = sx * -0.12; g.add(brow);
+      headG.add(g);
+      return g;
+    }
+    const eyeL = makeEye(-1);
+    const eyeR = makeEye(1);
+
+    const nose = new THREE.Mesh(new THREE.SphereGeometry(0.045, 16, 12), skin);
+    nose.scale.set(0.7, 1.05, 0.9);
+    nose.position.set(0, -0.02, 0.34);
+    headG.add(nose);
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.028, 12, 10), skin);
+    tip.position.set(0, -0.05, 0.355); headG.add(tip);
+
+    const mouth = new THREE.Group(); mouth.position.set(0, -0.14, 0.31); headG.add(mouth);
+    const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.018, 0.09, 6, 10), lipM);
+    upper.rotation.z = Math.PI / 2; upper.scale.set(1, 0.7, 0.55); mouth.add(upper);
+    const lower = new THREE.Mesh(new THREE.CapsuleGeometry(0.016, 0.08, 6, 10), lipM);
+    lower.rotation.z = Math.PI / 2; lower.position.y = -0.028; lower.scale.set(1, 0.65, 0.5); mouth.add(lower);
 
     function makeArm(side) {
       const arm = new THREE.Group();
@@ -194,23 +243,32 @@
 
     function setStatus(x) { document.getElementById('st').textContent = x; }
 
-    function applyPhoto(file) {
-      const url = URL.createObjectURL(file);
+    function applyPhotoUrl(url, label) {
       const loader = new THREE.TextureLoader();
+      loader.setCrossOrigin('anonymous');
       loader.load(url, (tex) => {
         tex.colorSpace = THREE.SRGBColorSpace;
+        tex.wrapS = THREE.ClampToEdgeWrapping;
+        tex.wrapT = THREE.ClampToEdgeWrapping;
         faceTex.map = tex;
         faceTex.opacity = 1;
         faceTex.needsUpdate = true;
         photoOn = true;
-        setStatus('已貼上舊照');
-        add('舊照已貼到臉上。側面仍是推估，正面微笑會比較自然。', false);
-      });
+        setStatus(label || '已貼上你的臉');
+        add('已用你的照片做臉。眼睛、鼻子、嘴巴是立體五官，側面仍是推估。', false);
+      }, undefined, () => setStatus('照片載入失敗'));
     }
+    function applyPhoto(file) {
+      applyPhotoUrl(URL.createObjectURL(file), '已貼上舊照');
+    }
+
+    setStatus('固定人偶：法官熊');
 
     function pose(dt) {
       const s = Math.sin(t);
       root.position.y = Math.sin(t * 1.4) * 0.03;
+      bearG.position.y = Math.sin(t * 1.4) * 0.03;
+      bearG.rotation.y = Math.sin(t * 0.35) * 0.12;
       ring.rotation.z += dt * 0.15;
       if (mode === 'idle') {
         headG.rotation.y = Math.sin(t * 0.6) * 0.18;
@@ -223,7 +281,8 @@
         face.scale.set(1.02, 0.96, 1);
       } else if (mode === 'talk') {
         headG.rotation.y = Math.sin(t * 1.2) * 0.12;
-        face.scale.set(1, 1 + Math.abs(Math.sin(t * 8)) * 0.06, 1);
+        lower.position.y = -0.028 - Math.abs(Math.sin(t * 10)) * 0.02;
+        upper.position.y = Math.abs(Math.sin(t * 10)) * 0.006;
         R.fore.rotation.x = -0.4 + Math.sin(t * 6) * 0.08;
       } else if (mode === 'wave') {
         R.arm.rotation.z = -1.15;
