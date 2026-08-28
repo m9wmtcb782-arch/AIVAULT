@@ -550,9 +550,16 @@
     async function deleteAsset(id, kind) {
       const hid = current?.id || draft.human_id;
       const action = kind === 'voice' ? 'delete_voice' : 'delete_image';
+      const table = kind === 'voice' ? 'digital_human_voices' : 'digital_human_images';
       const body = { action, digital_human_id: hid, id };
       if (kind === 'voice') body.voice_id = id; else body.image_id = id;
-      return await callFn('digital-human-delete', body);
+      try {
+        return await callFn('digital-human-delete', body);
+      } catch (e) {
+        const { error } = await sb.from(table).delete().eq('id', id);
+        if (!error) return { success: true, deleted: true };
+        throw new Error('刪除服務還沒部署：Supabase 建立 Function 名稱 digital-human-delete');
+      }
     }
 
 
