@@ -3,690 +3,1183 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Technical Dark Star</title>
+<title>Technical Dark Star — AI Engineering Studio</title>
 
 <style>
-* {
-    box-sizing: border-box;
+*{box-sizing:border-box}
+
+:root{
+    --bg:#05070b;
+    --panel:#090d14;
+    --panel2:#0d121b;
+    --panel3:#111824;
+    --line:rgba(255,255,255,.075);
+    --line2:rgba(255,255,255,.12);
+    --text:#f3f6fb;
+    --muted:#7f8b9f;
+    --dim:#566174;
+    --cyan:#55dfff;
+    --blue:#5a9cff;
+    --green:#3ee6a1;
+    --yellow:#e9c768;
+    --red:#ff6575;
+    --purple:#a982ff;
+    --shadow:0 20px 70px rgba(0,0,0,.45);
 }
 
-:root {
-    --bg: #05070c;
-    --panel: #0a0f18;
-    --panel2: #0d1420;
-    --border: rgba(255,255,255,.08);
-    --text: #f2f6ff;
-    --muted: #7e8ba3;
-    --blue: #4da3ff;
-    --cyan: #39e6ff;
-    --green: #35e39b;
-    --yellow: #f4c95d;
-    --red: #ff5f6d;
-    --purple: #a979ff;
+html,body{
+    margin:0;
+    width:100%;
+    height:100%;
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Noto Sans TC","Segoe UI",sans-serif;
 }
 
-body {
-    margin: 0;
+body{
+    overflow:hidden;
+}
+
+button,input,textarea{
+    font:inherit;
+}
+
+button{
+    cursor:pointer;
+}
+
+.app{
+    width:100%;
+    height:100vh;
+    display:grid;
+    grid-template-columns:250px minmax(500px,1fr) 330px;
+    grid-template-rows:68px 1fr;
     background:
-        radial-gradient(circle at 50% -10%, rgba(40,110,180,.18), transparent 35%),
-        linear-gradient(180deg,#05070c,#03050a);
-    color: var(--text);
-    font-family: -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif;
-    min-height: 100vh;
-    overflow: hidden;
+        radial-gradient(circle at 50% -20%,rgba(65,130,220,.13),transparent 38%),
+        linear-gradient(180deg,#05070b,#03050a);
 }
 
-button,
-textarea,
-input {
-    font: inherit;
+/* =========================================================
+   TOP
+========================================================= */
+
+.top{
+    grid-column:1 / 4;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 22px;
+    border-bottom:1px solid var(--line);
+    background:rgba(5,8,13,.86);
+    backdrop-filter:blur(20px);
+    z-index:20;
 }
 
-button {
-    cursor: pointer;
+.brand{
+    display:flex;
+    align-items:center;
+    gap:13px;
 }
 
-.app {
-    display: grid;
-    grid-template-columns: 245px minmax(500px,1fr) 360px;
-    grid-template-rows: 64px 1fr 190px;
-    height: 100vh;
-}
-
-/* =========================
-   TOP BAR
-========================= */
-
-.topbar {
-    grid-column: 1 / 4;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 22px;
-    border-bottom: 1px solid var(--border);
-    background: rgba(5,8,14,.88);
-    backdrop-filter: blur(18px);
-    z-index: 10;
-}
-
-.brand {
-    display: flex;
-    align-items: center;
-    gap: 13px;
-}
-
-.logo {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    display: grid;
-    place-items: center;
+.star{
+    width:39px;
+    height:39px;
+    border-radius:50%;
+    position:relative;
+    display:grid;
+    place-items:center;
     background:
-        radial-gradient(circle,#fff 0 8%,transparent 9%),
-        radial-gradient(circle,#39e6ff 0 25%,#1558a0 45%,#070b12 70%);
+        radial-gradient(circle at 50% 50%,#fff 0 6%,transparent 7%),
+        radial-gradient(circle,#59e4ff 0 20%,#174f93 40%,#080c14 70%);
     box-shadow:
-        0 0 18px rgba(57,230,255,.65),
-        inset 0 0 12px rgba(255,255,255,.18);
+        0 0 18px rgba(85,223,255,.5),
+        0 0 50px rgba(85,223,255,.1);
 }
 
-.brand-title {
-    font-weight: 700;
-    letter-spacing: .5px;
+.star:after{
+    content:"";
+    width:50px;
+    height:1px;
+    position:absolute;
+    background:linear-gradient(90deg,transparent,var(--cyan),transparent);
+    transform:rotate(45deg);
+    opacity:.65;
 }
 
-.brand-sub {
-    font-size: 11px;
-    color: var(--muted);
-    margin-top: 2px;
+.brand-title{
+    font-size:14px;
+    font-weight:750;
+    letter-spacing:.5px;
 }
 
-.system-status {
-    display: flex;
-    align-items: center;
-    gap: 18px;
+.brand-sub{
+    color:var(--muted);
+    font-size:10px;
+    margin-top:3px;
 }
 
-.status-pill {
-    border: 1px solid rgba(53,227,155,.25);
-    color: var(--green);
-    padding: 7px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    background: rgba(53,227,155,.06);
+.top-right{
+    display:flex;
+    align-items:center;
+    gap:16px;
 }
 
-.status-dot {
-    width: 7px;
-    height: 7px;
-    display: inline-block;
-    border-radius: 50%;
-    background: currentColor;
-    box-shadow: 0 0 10px currentColor;
-    margin-right: 6px;
+.engine-id{
+    font-family:ui-monospace,monospace;
+    font-size:10px;
+    color:#677489;
 }
 
-/* =========================
-   SIDEBAR
-========================= */
-
-.sidebar {
-    border-right: 1px solid var(--border);
-    background: rgba(7,10,17,.82);
-    padding: 18px 12px;
-    overflow-y: auto;
+.online{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    color:var(--green);
+    border:1px solid rgba(62,230,161,.2);
+    background:rgba(62,230,161,.05);
+    padding:7px 11px;
+    border-radius:20px;
+    font-size:10px;
 }
 
-.section-label {
-    font-size: 10px;
-    color: #59667b;
-    letter-spacing: 1.5px;
-    padding: 8px 11px;
+.online-dot{
+    width:6px;
+    height:6px;
+    border-radius:50%;
+    background:var(--green);
+    box-shadow:0 0 9px var(--green);
 }
 
-.nav-item {
-    display: flex;
-    align-items: center;
-    gap: 11px;
-    padding: 11px 12px;
-    border-radius: 9px;
-    color: #aeb8c9;
-    margin-bottom: 3px;
-    font-size: 13px;
-    transition: .2s;
+/* =========================================================
+   LEFT
+========================================================= */
+
+.left{
+    border-right:1px solid var(--line);
+    background:rgba(7,10,16,.8);
+    overflow-y:auto;
+    padding:15px 11px;
 }
 
-.nav-item:hover,
-.nav-item.active {
-    background: rgba(77,163,255,.10);
-    color: white;
+.left-section{
+    margin-bottom:22px;
 }
 
-.nav-item.active {
-    box-shadow: inset 2px 0 0 var(--blue);
+.label{
+    padding:5px 10px 8px;
+    font-size:9px;
+    letter-spacing:1.5px;
+    color:#566277;
+    font-weight:700;
 }
 
-.nav-icon {
-    width: 18px;
-    text-align: center;
+.nav{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:10px 11px;
+    margin:2px 0;
+    border-radius:8px;
+    color:#9ca7b8;
+    font-size:12px;
+    transition:.18s;
 }
 
-.project-card {
-    margin: 20px 5px 0;
-    padding: 14px;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    background: linear-gradient(145deg,rgba(18,27,42,.9),rgba(8,12,20,.8));
+.nav:hover{
+    background:rgba(255,255,255,.035);
+    color:#fff;
 }
 
-.project-title {
-    font-size: 12px;
-    font-weight: 700;
+.nav.active{
+    background:linear-gradient(90deg,rgba(85,223,255,.10),rgba(85,223,255,.025));
+    color:#fff;
+    box-shadow:inset 2px 0 0 var(--cyan);
 }
 
-.project-id {
-    color: var(--muted);
-    font-size: 10px;
-    margin-top: 5px;
+.nav-icon{
+    width:18px;
+    text-align:center;
+    color:#718097;
 }
 
-.progress {
-    height: 4px;
-    background: #161e2b;
-    border-radius: 5px;
-    margin-top: 12px;
-    overflow: hidden;
+.nav.active .nav-icon{
+    color:var(--cyan);
 }
 
-.progress > div {
-    width: 72%;
-    height: 100%;
-    background: linear-gradient(90deg,var(--blue),var(--cyan));
-    box-shadow: 0 0 12px rgba(57,230,255,.5);
+.capability{
+    padding:11px 10px;
+    margin-bottom:7px;
+    border:1px solid var(--line);
+    border-radius:9px;
+    background:rgba(255,255,255,.018);
 }
 
-/* =========================
-   MAIN
-========================= */
+.cap-top{
+    display:flex;
+    justify-content:space-between;
+    font-size:10px;
+}
 
-.main {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
+.cap-name{
+    color:#d7deea;
+}
+
+.cap-level{
+    color:var(--green);
+    font-size:9px;
+}
+
+.cap-bar{
+    height:3px;
+    margin-top:8px;
+    background:#171e29;
+    border-radius:5px;
+    overflow:hidden;
+}
+
+.cap-fill{
+    height:100%;
+    background:linear-gradient(90deg,var(--blue),var(--cyan));
+    border-radius:5px;
+}
+
+.cap-note{
+    color:#5e6a7e;
+    font-size:8px;
+    margin-top:6px;
+}
+
+/* =========================================================
+   CENTER
+========================================================= */
+
+.center{
+    min-width:0;
+    display:flex;
+    flex-direction:column;
     background:
-        radial-gradient(circle at 50% 10%,rgba(30,100,170,.08),transparent 40%);
+        radial-gradient(circle at 50% 15%,rgba(40,120,200,.06),transparent 40%);
 }
 
-.workspace-header {
-    height: 65px;
-    padding: 12px 20px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+.center-head{
+    min-height:65px;
+    padding:12px 22px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
 }
 
-.workspace-title {
-    font-size: 15px;
-    font-weight: 700;
+.workspace-name{
+    font-size:14px;
+    font-weight:700;
 }
 
-.workspace-desc {
-    color: var(--muted);
-    font-size: 11px;
-    margin-top: 4px;
+.workspace-desc{
+    color:var(--muted);
+    font-size:10px;
+    margin-top:4px;
 }
 
-.header-actions {
-    display: flex;
-    gap: 7px;
+.head-buttons{
+    display:flex;
+    gap:6px;
 }
 
-.small-btn {
-    border: 1px solid var(--border);
-    background: #0b111b;
-    color: #b7c1d1;
-    border-radius: 7px;
-    padding: 7px 10px;
-    font-size: 11px;
+.btn{
+    border:1px solid var(--line2);
+    background:#0b1018;
+    color:#aeb9c9;
+    padding:7px 10px;
+    border-radius:7px;
+    font-size:10px;
 }
 
-.small-btn:hover {
-    border-color: rgba(77,163,255,.4);
-    color: white;
+.btn:hover{
+    color:#fff;
+    border-color:rgba(85,223,255,.3);
 }
 
-.chat {
-    flex: 1;
-    overflow-y: auto;
-    padding: 25px 8%;
+.btn.primary{
+    color:#fff;
+    background:linear-gradient(135deg,#176cae,#2b8dd5);
+    border-color:rgba(85,223,255,.2);
 }
 
-.message {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 24px;
-    max-width: 850px;
+/* CHAT */
+
+.chat{
+    flex:1;
+    min-height:0;
+    overflow-y:auto;
+    padding:26px 7%;
 }
 
-.message.user {
-    margin-left: auto;
-    flex-direction: row-reverse;
+.chat-welcome{
+    max-width:800px;
+    margin:5px auto 28px;
+    text-align:center;
 }
 
-.avatar {
-    width: 34px;
-    height: 34px;
-    flex: 0 0 34px;
-    border-radius: 10px;
-    display: grid;
-    place-items: center;
-    background: #101927;
-    border: 1px solid var(--border);
-    font-size: 13px;
+.welcome-star{
+    width:62px;
+    height:62px;
+    margin:auto;
+    border-radius:50%;
+    display:grid;
+    place-items:center;
+    background:
+        radial-gradient(circle,#fff 0 5%,transparent 6%),
+        radial-gradient(circle,#48dfff 0 19%,#1b5595 42%,#070b12 72%);
+    box-shadow:0 0 35px rgba(85,223,255,.18);
 }
 
-.message.ai .avatar {
-    color: var(--cyan);
-    box-shadow: 0 0 18px rgba(57,230,255,.08);
+.welcome-title{
+    margin-top:15px;
+    font-size:20px;
+    font-weight:750;
 }
 
-.message.user .avatar {
-    color: var(--purple);
+.welcome-text{
+    color:#778397;
+    font-size:11px;
+    line-height:1.7;
+    margin-top:7px;
 }
 
-.bubble {
-    max-width: 750px;
-    padding: 13px 15px;
-    border: 1px solid var(--border);
-    background: rgba(13,20,32,.78);
-    border-radius: 13px;
-    font-size: 13px;
-    line-height: 1.65;
+.message{
+    display:flex;
+    gap:11px;
+    margin:0 auto 22px;
+    max-width:860px;
 }
 
-.message.user .bubble {
-    background: rgba(77,163,255,.10);
-    border-color: rgba(77,163,255,.18);
+.message.user{
+    justify-content:flex-end;
 }
 
-.bubble strong {
-    color: white;
+.avatar{
+    flex:0 0 32px;
+    width:32px;
+    height:32px;
+    border-radius:9px;
+    border:1px solid var(--line);
+    background:#0d141e;
+    display:grid;
+    place-items:center;
+    color:var(--cyan);
+    font-size:11px;
 }
 
-.bubble code {
-    color: var(--cyan);
-    background: rgba(0,0,0,.3);
-    padding: 2px 5px;
-    border-radius: 4px;
+.user .avatar{
+    color:var(--purple);
 }
 
-.work-summary {
-    margin-top: 12px;
-    display: grid;
-    grid-template-columns: repeat(3,1fr);
-    gap: 7px;
+.bubble{
+    max-width:720px;
+    padding:12px 14px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    background:rgba(12,18,28,.88);
+    font-size:12px;
+    line-height:1.7;
+    color:#d0d8e5;
 }
 
-.mini-stat {
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px;
-    background: rgba(255,255,255,.02);
+.user .bubble{
+    background:rgba(86,151,255,.10);
+    border-color:rgba(86,151,255,.18);
 }
 
-.mini-stat span {
-    display: block;
-    color: var(--muted);
-    font-size: 9px;
+.ai-card{
+    margin-top:10px;
+    border:1px solid var(--line);
+    border-radius:10px;
+    overflow:hidden;
+    background:#080d15;
 }
 
-.mini-stat b {
-    font-size: 12px;
-    margin-top: 4px;
-    display: block;
+.ai-card-head{
+    padding:9px 11px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    font-size:9px;
 }
 
-/* =========================
-   INPUT
-========================= */
-
-.composer {
-    padding: 12px 8% 15px;
-    border-top: 1px solid var(--border);
-    background: rgba(5,8,14,.9);
+.ai-card-title{
+    color:#b9c4d5;
+    font-weight:700;
 }
 
-.input-tools {
-    display: flex;
-    gap: 7px;
-    margin-bottom: 8px;
+.ai-card-status{
+    color:var(--green);
 }
 
-.tool-btn {
-    border: 1px solid var(--border);
-    color: #8793a8;
-    background: #0a1019;
-    border-radius: 7px;
-    padding: 5px 9px;
-    font-size: 10px;
+.ai-card-body{
+    padding:11px;
 }
 
-.tool-btn:hover {
-    color: white;
+.result-buttons{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
 }
 
-.composer-box {
-    display: flex;
-    gap: 9px;
-    align-items: flex-end;
+.result-btn{
+    border:1px solid var(--line2);
+    background:#0d141f;
+    color:#aeb9c9;
+    padding:7px 9px;
+    border-radius:7px;
+    font-size:9px;
 }
 
-textarea {
-    resize: none;
-    width: 100%;
-    min-height: 48px;
-    max-height: 130px;
-    border: 1px solid rgba(255,255,255,.09);
-    outline: none;
-    border-radius: 11px;
-    background: #090e16;
-    color: white;
-    padding: 13px;
+.result-btn:hover{
+    color:#fff;
+    border-color:rgba(85,223,255,.3);
 }
 
-textarea:focus {
-    border-color: rgba(77,163,255,.45);
-    box-shadow: 0 0 0 3px rgba(77,163,255,.06);
+/* =========================================================
+   COMPOSER
+========================================================= */
+
+.composer{
+    border-top:1px solid var(--line);
+    background:rgba(5,8,13,.92);
+    padding:10px 7% 14px;
 }
 
-.send {
-    width: 50px;
-    height: 48px;
-    border: 0;
-    border-radius: 10px;
-    color: white;
-    background: linear-gradient(135deg,#1673c7,#3ba7ff);
-    box-shadow: 0 0 20px rgba(77,163,255,.22);
+.composer-tools{
+    display:flex;
+    gap:5px;
+    margin-bottom:7px;
 }
 
-.send:hover {
-    filter: brightness(1.15);
+.tool{
+    border:1px solid var(--line);
+    background:#090f17;
+    color:#718097;
+    border-radius:6px;
+    padding:5px 8px;
+    font-size:9px;
 }
 
-/* =========================
-   RIGHT PANEL
-========================= */
-
-.right {
-    border-left: 1px solid var(--border);
-    background: rgba(7,10,17,.85);
-    overflow-y: auto;
+.tool:hover{
+    color:#fff;
 }
 
-.panel {
-    padding: 16px;
-    border-bottom: 1px solid var(--border);
+.compose-row{
+    display:flex;
+    gap:7px;
+    align-items:flex-end;
 }
 
-.panel-title {
-    font-size: 12px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 13px;
+.message-input{
+    width:100%;
+    min-height:47px;
+    max-height:120px;
+    resize:none;
+    outline:none;
+    border:1px solid var(--line2);
+    border-radius:10px;
+    background:#090e16;
+    color:#eef3fb;
+    padding:12px;
+    font-size:12px;
 }
 
-.live {
-    color: var(--green);
-    font-size: 9px;
+.message-input:focus{
+    border-color:rgba(85,223,255,.4);
+    box-shadow:0 0 0 3px rgba(85,223,255,.035);
 }
 
-.gate {
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-    padding: 8px 0;
+.send{
+    width:48px;
+    height:47px;
+    border:0;
+    border-radius:9px;
+    background:linear-gradient(135deg,#1975bd,#42a8ee);
+    color:white;
+    font-size:16px;
 }
 
-.gate-icon {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    display: grid;
-    place-items: center;
-    font-size: 9px;
-    background: #141c29;
-    color: #65738a;
+/* =========================================================
+   RIGHT
+========================================================= */
+
+.right{
+    border-left:1px solid var(--line);
+    background:rgba(7,10,16,.84);
+    overflow-y:auto;
 }
 
-.gate.done .gate-icon {
-    background: rgba(53,227,155,.12);
-    color: var(--green);
-    box-shadow: 0 0 9px rgba(53,227,155,.15);
+.right-tabs{
+    height:49px;
+    display:flex;
+    border-bottom:1px solid var(--line);
 }
 
-.gate.running .gate-icon {
-    background: rgba(77,163,255,.14);
-    color: var(--blue);
-    animation: pulse 1.2s infinite;
+.right-tab{
+    flex:1;
+    border:0;
+    background:transparent;
+    color:#68758a;
+    font-size:10px;
+    border-bottom:2px solid transparent;
 }
 
-.gate-name {
-    font-size: 11px;
+.right-tab.active{
+    color:#fff;
+    border-bottom-color:var(--cyan);
 }
 
-.gate-status {
-    color: var(--muted);
-    font-size: 9px;
-    margin-top: 2px;
+.view{
+    display:none;
 }
 
-.gate.done .gate-status {
-    color: var(--green);
+.view.active{
+    display:block;
 }
 
-.gate.running .gate-status {
-    color: var(--blue);
+/* CAPABILITY VIEW */
+
+.right-section{
+    padding:15px;
+    border-bottom:1px solid var(--line);
 }
 
-@keyframes pulse {
-    50% { box-shadow: 0 0 0 5px rgba(77,163,255,.05); }
+.section-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:12px;
 }
 
-/* =========================
-   CODE
-========================= */
-
-.code-area {
-    height: 190px;
-    border-top: 1px solid var(--border);
-    background: #05080d;
-    display: flex;
-    flex-direction: column;
+.section-title{
+    font-size:11px;
+    font-weight:700;
 }
 
-.code-header {
-    height: 37px;
-    padding: 0 13px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid var(--border);
+.section-meta{
+    font-size:8px;
+    color:#627086;
 }
 
-.code-title {
-    font-size: 10px;
-    color: #aab4c5;
+.skill{
+    padding:10px 0;
+    border-bottom:1px solid rgba(255,255,255,.045);
 }
 
-.code-actions {
-    display: flex;
-    gap: 5px;
+.skill:last-child{
+    border-bottom:0;
 }
 
-.code-editor {
-    flex: 1;
-    overflow: auto;
+.skill-line{
+    display:flex;
+    justify-content:space-between;
+    font-size:10px;
 }
 
-.code-editor textarea {
-    height: 100%;
-    min-height: 100%;
-    border: 0;
-    border-radius: 0;
-    background: #05080d;
-    color: #a9d8ff;
-    font-family: ui-monospace,SFMono-Regular,Menlo,monospace;
-    font-size: 11px;
-    line-height: 1.5;
+.skill-level{
+    color:var(--green);
+    font-size:9px;
 }
 
-/* =========================
-   TERMINAL
-========================= */
-
-.terminal {
-    background: #030509;
-    border-top: 1px solid var(--border);
-    overflow: auto;
-    padding: 11px 16px;
-    font-family: ui-monospace,SFMono-Regular,Menlo,monospace;
-    font-size: 10px;
-    color: #8592a7;
+.skill-bar{
+    height:4px;
+    background:#171e29;
+    border-radius:4px;
+    margin-top:7px;
+    overflow:hidden;
 }
 
-.log {
-    margin-bottom: 5px;
+.skill-fill{
+    height:100%;
+    background:linear-gradient(90deg,#397bd4,var(--cyan));
 }
 
-.log .time {
-    color: #4e5b6e;
+.skill-foot{
+    color:#5e6a7e;
+    font-size:8px;
+    margin-top:5px;
 }
 
-.log.ok {
-    color: #6fe6ad;
+/* LEARNING */
+
+.learning-card{
+    border:1px solid var(--line);
+    border-radius:10px;
+    background:rgba(255,255,255,.018);
+    padding:11px;
 }
 
-.log.run {
-    color: #65b6ff;
+.learning-title{
+    font-size:10px;
+    font-weight:700;
 }
 
-.log.warn {
-    color: #f0c969;
+.learning-sub{
+    font-size:8px;
+    color:#69768a;
+    margin-top:4px;
 }
 
-.log.error {
-    color: #ff737d;
+.learning-progress{
+    margin:11px 0;
+    height:4px;
+    background:#171e29;
+    border-radius:4px;
 }
 
-/* =========================
-   MODALS
-========================= */
-
-.modal {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,.72);
-    backdrop-filter: blur(8px);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
+.learning-progress div{
+    width:66%;
+    height:100%;
+    background:linear-gradient(90deg,var(--purple),var(--cyan));
 }
 
-.modal.show {
-    display: flex;
+.learning-step{
+    display:flex;
+    gap:8px;
+    margin:8px 0;
+    align-items:center;
 }
 
-.modal-box {
-    width: min(850px,92vw);
-    max-height: 85vh;
-    overflow: auto;
-    border: 1px solid rgba(255,255,255,.1);
-    border-radius: 15px;
-    background: #080d15;
-    box-shadow: 0 30px 80px rgba(0,0,0,.55);
+.step-dot{
+    width:16px;
+    height:16px;
+    border-radius:50%;
+    display:grid;
+    place-items:center;
+    font-size:8px;
+    background:#141c27;
+    color:#59667a;
 }
 
-.modal-head {
-    padding: 15px 18px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    justify-content: space-between;
+.learning-step.done .step-dot{
+    background:rgba(62,230,161,.1);
+    color:var(--green);
 }
 
-.modal-body {
-    padding: 18px;
+.learning-step.active .step-dot{
+    background:rgba(85,223,255,.1);
+    color:var(--cyan);
+    box-shadow:0 0 12px rgba(85,223,255,.15);
 }
 
-.preview {
-    width: 100%;
-    height: 430px;
-    background: white;
-    border: 0;
-    border-radius: 8px;
+.step-text{
+    font-size:9px;
 }
 
-.close {
-    background: transparent;
-    color: #8390a4;
-    border: 0;
-    font-size: 18px;
+.step-state{
+    color:#647187;
+    font-size:8px;
+    margin-top:2px;
 }
 
-@media(max-width:1100px) {
-    .app {
-        grid-template-columns: 200px minmax(400px,1fr);
+.learning-step.done .step-state{
+    color:var(--green);
+}
+
+.learning-step.active .step-state{
+    color:var(--cyan);
+}
+
+/* RESULT */
+
+.result-preview{
+    border:1px solid var(--line);
+    border-radius:10px;
+    overflow:hidden;
+    background:#fff;
+}
+
+.preview-top{
+    height:25px;
+    background:#e9edf2;
+    display:flex;
+    align-items:center;
+    gap:4px;
+    padding:0 8px;
+}
+
+.preview-dot{
+    width:5px;
+    height:5px;
+    border-radius:50%;
+    background:#8e98a4;
+}
+
+.preview-body{
+    height:150px;
+    display:grid;
+    place-items:center;
+    color:#1e2a3a;
+    background:linear-gradient(135deg,#fff,#eef4fb);
+}
+
+.preview-card{
+    width:75%;
+    padding:14px;
+    border-radius:10px;
+    background:#fff;
+    box-shadow:0 10px 30px rgba(20,40,70,.13);
+    text-align:center;
+}
+
+.preview-card h3{
+    margin:0 0 7px;
+    font-size:13px;
+}
+
+.preview-card p{
+    margin:0 0 9px;
+    font-size:8px;
+    color:#657287;
+}
+
+.preview-input{
+    height:18px;
+    border:1px solid #d9e0e8;
+    border-radius:4px;
+    margin:4px 0;
+}
+
+.preview-button{
+    height:20px;
+    margin-top:7px;
+    border-radius:4px;
+    background:#317ec2;
+}
+
+/* =========================================================
+   OVERLAY WORKSPACE
+========================================================= */
+
+.overlay{
+    position:fixed;
+    inset:0;
+    z-index:100;
+    background:rgba(0,0,0,.76);
+    backdrop-filter:blur(12px);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:30px;
+}
+
+.overlay.show{
+    display:flex;
+}
+
+.modal{
+    width:min(1200px,96vw);
+    height:min(820px,92vh);
+    background:#080d14;
+    border:1px solid var(--line2);
+    border-radius:14px;
+    box-shadow:var(--shadow);
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+}
+
+.modal-head{
+    min-height:52px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 15px;
+    border-bottom:1px solid var(--line);
+}
+
+.modal-title{
+    font-size:12px;
+    font-weight:700;
+}
+
+.modal-actions{
+    display:flex;
+    gap:6px;
+}
+
+.close{
+    width:30px;
+    height:30px;
+    border:1px solid var(--line);
+    background:#0c121b;
+    color:#8b98aa;
+    border-radius:7px;
+}
+
+.modal-body{
+    flex:1;
+    min-height:0;
+}
+
+/* SANDBOX */
+
+.sandbox-layout{
+    display:grid;
+    grid-template-columns:1fr 290px;
+    height:100%;
+}
+
+.sandbox-preview{
+    background:#111;
+    display:flex;
+    flex-direction:column;
+}
+
+.browser{
+    height:38px;
+    background:#0c121a;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    align-items:center;
+    gap:6px;
+    padding:0 12px;
+}
+
+.browser-dot{
+    width:7px;
+    height:7px;
+    border-radius:50%;
+    background:#697383;
+}
+
+.browser-url{
+    flex:1;
+    height:22px;
+    border:1px solid var(--line);
+    border-radius:5px;
+    background:#080d14;
+    color:#657185;
+    font-size:8px;
+    display:flex;
+    align-items:center;
+    padding:0 8px;
+    margin-left:7px;
+}
+
+#sandboxFrame{
+    flex:1;
+    width:100%;
+    border:0;
+    background:white;
+}
+
+.sandbox-side{
+    border-left:1px solid var(--line);
+    background:#080d14;
+    overflow-y:auto;
+}
+
+.sandbox-block{
+    padding:13px;
+    border-bottom:1px solid var(--line);
+}
+
+.sandbox-block-title{
+    font-size:9px;
+    color:#aab5c6;
+    font-weight:700;
+    margin-bottom:10px;
+}
+
+.runtime-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:7px 0;
+    border-bottom:1px solid rgba(255,255,255,.035);
+    font-size:9px;
+}
+
+.runtime-state{
+    color:var(--green);
+}
+
+.runtime-state.running{
+    color:var(--cyan);
+}
+
+.runtime-state.waiting{
+    color:#667388;
+}
+
+/* CODE */
+
+.code-modal{
+    display:grid;
+    grid-template-columns:190px 1fr;
+    height:100%;
+}
+
+.file-list{
+    border-right:1px solid var(--line);
+    background:#070b11;
+    padding:9px;
+}
+
+.file-item{
+    padding:9px;
+    border-radius:6px;
+    color:#778397;
+    font-family:ui-monospace,monospace;
+    font-size:9px;
+    cursor:pointer;
+}
+
+.file-item.active{
+    background:rgba(85,223,255,.08);
+    color:#fff;
+}
+
+.code-main{
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+}
+
+.code-toolbar{
+    height:39px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:0 10px;
+    border-bottom:1px solid var(--line);
+}
+
+.code-name{
+    font-family:ui-monospace,monospace;
+    color:#91a0b4;
+    font-size:9px;
+}
+
+.code-box{
+    flex:1;
+    min-height:0;
+}
+
+#codeViewer{
+    width:100%;
+    height:100%;
+    resize:none;
+    border:0;
+    outline:0;
+    background:#05080d;
+    color:#a8d9ff;
+    padding:16px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:11px;
+    line-height:1.55;
+}
+
+/* LEARNING MODAL */
+
+.learning-modal{
+    padding:22px;
+    overflow:auto;
+}
+
+.learning-hero{
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:18px;
+    background:
+        radial-gradient(circle at 80% 0%,rgba(85,223,255,.09),transparent 35%),
+        #0a1018;
+}
+
+.learning-hero-title{
+    font-size:17px;
+    font-weight:750;
+}
+
+.learning-hero-sub{
+    color:#728096;
+    font-size:10px;
+    margin-top:5px;
+}
+
+.big-progress{
+    margin-top:16px;
+    height:7px;
+    background:#171f2b;
+    border-radius:7px;
+    overflow:hidden;
+}
+
+.big-progress div{
+    width:66%;
+    height:100%;
+    background:linear-gradient(90deg,var(--purple),var(--cyan));
+}
+
+.gates-large{
+    margin-top:18px;
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:8px;
+}
+
+.gate-large{
+    border:1px solid var(--line);
+    border-radius:9px;
+    padding:11px;
+    background:#090f17;
+}
+
+.gate-large-top{
+    display:flex;
+    align-items:center;
+    gap:8px;
+}
+
+.gate-circle{
+    width:20px;
+    height:20px;
+    border-radius:50%;
+    display:grid;
+    place-items:center;
+    background:#141c27;
+    color:#637086;
+    font-size:9px;
+}
+
+.gate-large.done .gate-circle{
+    background:rgba(62,230,161,.11);
+    color:var(--green);
+}
+
+.gate-large.active .gate-circle{
+    background:rgba(85,223,255,.1);
+    color:var(--cyan);
+}
+
+.gate-large-name{
+    font-size:10px;
+    font-weight:650;
+}
+
+.gate-large-status{
+    color:#657187;
+    font-size:8px;
+    margin-top:6px;
+}
+
+.gate-large.done .gate-large-status{
+    color:var(--green);
+}
+
+.gate-large.active .gate-large-status{
+    color:var(--cyan);
+}
+
+/* =========================================================
+   TOAST
+========================================================= */
+
+.toast{
+    position:fixed;
+    right:22px;
+    bottom:22px;
+    z-index:300;
+    padding:10px 13px;
+    border:1px solid var(--line2);
+    border-radius:8px;
+    background:#0b121b;
+    color:#d9e1ed;
+    font-size:10px;
+    box-shadow:var(--shadow);
+    opacity:0;
+    transform:translateY(10px);
+    pointer-events:none;
+    transition:.25s;
+}
+
+.toast.show{
+    opacity:1;
+    transform:translateY(0);
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media(max-width:1150px){
+    .app{
+        grid-template-columns:210px minmax(450px,1fr);
+    }
+    .right{
+        display:none;
+    }
+}
+
+@media(max-width:700px){
+    body{
+        overflow:auto;
     }
 
-    .right {
-        display: none;
-    }
-}
-
-@media(max-width:700px) {
-    body {
-        overflow: auto;
+    .app{
+        display:flex;
+        flex-direction:column;
+        height:100vh;
     }
 
-    .app {
-        display: flex;
-        flex-direction: column;
-        height: auto;
-        min-height: 100vh;
+    .top{
+        height:58px;
+        min-height:58px;
     }
 
-    .topbar {
-        position: sticky;
-        top: 0;
-        height: 58px;
+    .engine-id{
+        display:none;
     }
 
-    .sidebar {
-        display: none;
+    .left{
+        display:none;
     }
 
-    .main {
-        min-height: calc(100vh - 58px);
+    .center{
+        height:calc(100vh - 58px);
     }
 
-    .chat {
-        padding: 18px 14px;
+    .center-head{
+        padding:10px 12px;
     }
 
-    .composer {
-        padding: 10px;
-        position: sticky;
-        bottom: 0;
+    .chat{
+        padding:18px 12px;
     }
 
-    .code-area {
-        height: 250px;
+    .composer{
+        padding:9px;
     }
 
-    .terminal {
-        height: 180px;
+    .head-buttons .btn:first-child{
+        display:none;
+    }
+
+    .overlay{
+        padding:8px;
+    }
+
+    .sandbox-layout{
+        grid-template-columns:1fr;
+    }
+
+    .sandbox-side{
+        display:none;
+    }
+
+    .gates-large{
+        grid-template-columns:1fr;
+    }
+
+    .code-modal{
+        grid-template-columns:130px 1fr;
     }
 }
 </style>
@@ -696,156 +1189,756 @@ textarea:focus {
 
 <div class="app">
 
-    <!-- TOP BAR -->
-    <header class="topbar">
+<!-- ======================================================
+     TOP
+====================================================== -->
 
-        <div class="brand">
-            <div class="logo"></div>
-            <div>
-                <div class="brand-title">Technical Dark Star</div>
-                <div class="brand-sub">AI Technical Engineering Runtime</div>
+<header class="top">
+
+    <div class="brand">
+
+        <div class="star"></div>
+
+        <div>
+            <div class="brand-title">
+                Technical Dark Star
+            </div>
+
+            <div class="brand-sub">
+                AI Engineering Studio
             </div>
         </div>
 
-        <div class="system-status">
-            <div class="status-pill">
-                <span class="status-dot"></span>
-                ENGINE ONLINE
-            </div>
-            <div style="font-size:11px;color:#6e7b90;">
-                technical-dark-star
-            </div>
+    </div>
+
+    <div class="top-right">
+
+        <div class="engine-id">
+            technical-dark-star
         </div>
 
-    </header>
+        <div class="online">
+            <span class="online-dot"></span>
+            ENGINE ONLINE
+        </div>
 
-    <!-- SIDEBAR -->
-    <aside class="sidebar">
+    </div>
 
-        <div class="section-label">WORKSPACE</div>
+</header>
 
-        <div class="nav-item active">
-            <span class="nav-icon">◈</span>
+
+<!-- ======================================================
+     LEFT — CAPABILITIES
+====================================================== -->
+
+<aside class="left">
+
+    <div class="left-section">
+
+        <div class="label">
+            WORKSPACE
+        </div>
+
+        <div class="nav active">
+            <span class="nav-icon">✦</span>
             AI 工程師
         </div>
 
-        <div class="nav-item">
-            <span class="nav-icon">⌘</span>
-            專案
+        <div class="nav">
+            <span class="nav-icon">◈</span>
+            我的專案
         </div>
 
-        <div class="nav-item">
+        <div class="nav">
+            <span class="nav-icon">◇</span>
+            學習中心
+        </div>
+
+        <div class="nav">
             <span class="nav-icon">▣</span>
-            程式碼
+            成果作品
         </div>
 
-        <div class="nav-item">
-            <span class="nav-icon">⚙</span>
-            Sandbox
+    </div>
+
+
+    <div class="left-section">
+
+        <div class="label">
+            已學會的能力
         </div>
 
-        <div class="nav-item">
-            <span class="nav-icon">✓</span>
-            測試紀錄
-        </div>
+        <div class="capability">
 
-        <div class="section-label" style="margin-top:15px;">ENGINE</div>
-
-        <div class="nav-item">
-            <span class="nav-icon">◆</span>
-            Learning Runs
-        </div>
-
-        <div class="nav-item">
-            <span class="nav-icon">↗</span>
-            Capability
-        </div>
-
-        <div class="nav-item">
-            <span class="nav-icon">◌</span>
-            Runtime Logs
-        </div>
-
-        <div class="project-card">
-
-            <div class="project-title">Current Workspace</div>
-
-            <div class="project-id">
-                TECH-2026-001
+            <div class="cap-top">
+                <span class="cap-name">HTML</span>
+                <span class="cap-level">Lv.5</span>
             </div>
 
-            <div class="progress">
-                <div id="projectProgress"></div>
+            <div class="cap-bar">
+                <div class="cap-fill" style="width:100%"></div>
             </div>
 
-            <div style="margin-top:9px;font-size:10px;color:#6f7c91;">
-                Engineering Progress
-                <span id="progressText" style="float:right;color:#9ba7b8;">72%</span>
+            <div class="cap-note">
+                完整網頁結構
             </div>
 
         </div>
 
-    </aside>
 
-    <!-- MAIN -->
-    <main class="main">
+        <div class="capability">
 
-        <div class="workspace-header">
+            <div class="cap-top">
+                <span class="cap-name">CSS / UI</span>
+                <span class="cap-level">Lv.5</span>
+            </div>
+
+            <div class="cap-bar">
+                <div class="cap-fill" style="width:96%"></div>
+            </div>
+
+            <div class="cap-note">
+                Responsive / UI
+            </div>
+
+        </div>
+
+
+        <div class="capability">
+
+            <div class="cap-top">
+                <span class="cap-name">JavaScript</span>
+                <span class="cap-level">Lv.4</span>
+            </div>
+
+            <div class="cap-bar">
+                <div class="cap-fill" style="width:86%"></div>
+            </div>
+
+            <div class="cap-note">
+                Frontend Runtime
+            </div>
+
+        </div>
+
+
+        <div class="capability">
+
+            <div class="cap-top">
+                <span class="cap-name">Supabase</span>
+                <span class="cap-level">Lv.4</span>
+            </div>
+
+            <div class="cap-bar">
+                <div class="cap-fill" style="width:80%"></div>
+            </div>
+
+            <div class="cap-note">
+                Database / Edge Function
+            </div>
+
+        </div>
+
+
+        <div class="capability">
+
+            <div class="cap-top">
+                <span class="cap-name">React</span>
+                <span class="cap-level">Lv.3</span>
+            </div>
+
+            <div class="cap-bar">
+                <div class="cap-fill" style="width:64%"></div>
+            </div>
+
+            <div class="cap-note">
+                持續驗證中
+            </div>
+
+        </div>
+
+
+        <div class="capability">
+
+            <div class="cap-top">
+                <span class="cap-name">Python</span>
+                <span class="cap-level">Lv.2</span>
+            </div>
+
+            <div class="cap-bar">
+                <div class="cap-fill" style="width:39%"></div>
+            </div>
+
+            <div class="cap-note">
+                尚在學習
+            </div>
+
+        </div>
+
+    </div>
+
+</aside>
+
+
+<!-- ======================================================
+     CENTER — AI CHAT
+====================================================== -->
+
+<main class="center">
+
+    <div class="center-head">
+
+        <div>
+
+            <div class="workspace-name">
+                AI Technical Engineer
+            </div>
+
+            <div class="workspace-desc">
+                用自然語言交代工作，Technical Dark Star 負責完成、驗證與呈現。
+            </div>
+
+        </div>
+
+        <div class="head-buttons">
+
+            <button class="btn" onclick="newProject()">
+                ＋ 新工作
+            </button>
+
+            <button class="btn primary" onclick="startFullRun()">
+                ▶ 開始工程
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <section class="chat" id="chat">
+
+        <div class="chat-welcome">
+
+            <div class="welcome-star"></div>
+
+            <div class="welcome-title">
+                你想讓我做什麼？
+            </div>
+
+            <div class="welcome-text">
+                直接用文字告訴我需求，或把現有程式碼貼給我。
+                <br>
+                我會先理解，再實作，最後用 Sandbox 驗證成果。
+            </div>
+
+        </div>
+
+
+        <div class="message">
+
+            <div class="avatar">
+                ✦
+            </div>
 
             <div>
-                <div class="workspace-title">
-                    AI Technical Engineer
-                </div>
-                <div class="workspace-desc">
-                    與 Technical Dark Star 直接溝通、修改程式並驗證結果
-                </div>
-            </div>
-
-            <div class="header-actions">
-                <button class="small-btn" onclick="newSession()">＋ 新工作</button>
-                <button class="small-btn" onclick="runEngineering()">▶ 執行工程</button>
-            </div>
-
-        </div>
-
-        <section class="chat" id="chat">
-
-            <div class="message ai">
-
-                <div class="avatar">✦</div>
 
                 <div class="bubble">
 
-                    <strong>Technical Dark Star 已準備就緒。</strong>
+                    <strong>Technical Dark Star 已準備好。</strong>
 
                     <br><br>
 
-                    你可以直接告訴我你想做什麼，也可以把現有程式碼貼給我。
+                    你可以直接說：
 
                     <br><br>
 
-                    我會按照：
-
+                    「幫我做一個登入系統」
                     <br>
-                    <strong>需求理解 → 程式分析 → Implementation → Sandbox Execution → Runtime Testing → Evaluation → Verification</strong>
+                    「幫我修改這份網頁」
+                    <br>
+                    「這個 JavaScript 為什麼不能執行？」
+                    <br>
+                    「學會 Supabase Edge Function」
+                    <br>
+                    「幫我把這個功能做出來」
 
-                    的流程工作。
+                    <br><br>
 
-                    <div class="work-summary">
+                    如果需要，我會在工作過程中向你提問，而不是自行亂猜。
 
-                        <div class="mini-stat">
-                            <span>MODE</span>
-                            <b>ENGINEER</b>
+                </div>
+
+                <div class="ai-card">
+
+                    <div class="ai-card-head">
+
+                        <span class="ai-card-title">
+                            CURRENT ENGINE STATE
+                        </span>
+
+                        <span class="ai-card-status">
+                            READY
+                        </span>
+
+                    </div>
+
+                    <div class="ai-card-body">
+
+                        <div class="result-buttons">
+
+                            <button class="result-btn"
+                                onclick="openLearning()">
+                                查看學習狀態
+                            </button>
+
+                            <button class="result-btn"
+                                onclick="openCode()">
+                                查看程式碼
+                            </button>
+
+                            <button class="result-btn"
+                                onclick="openSandbox()">
+                                開啟 Sandbox
+                            </button>
+
                         </div>
 
-                        <div class="mini-stat">
-                            <span>SANDBOX</span>
-                            <b>READY</b>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- COMPOSER -->
+
+    <section class="composer">
+
+        <div class="composer-tools">
+
+            <button class="tool"
+                onclick="quickCode()">
+                ＋ 貼上程式碼
+            </button>
+
+            <button class="tool"
+                onclick="quickRequirement()">
+                ＋ 新需求
+            </button>
+
+            <button class="tool"
+                onclick="openSandbox()">
+                ▣ Sandbox
+            </button>
+
+            <button class="tool"
+                onclick="openCode()">
+                &lt;/&gt; 程式碼
+            </button>
+
+        </div>
+
+        <div class="compose-row">
+
+            <textarea
+                id="messageInput"
+                class="message-input"
+                placeholder="告訴 Technical Dark Star 你要做什麼……"
+                onkeydown="handleEnter(event)"
+            ></textarea>
+
+            <button
+                class="send"
+                onclick="sendMessage()">
+                ➤
+            </button>
+
+        </div>
+
+    </section>
+
+</main>
+
+
+<!-- ======================================================
+     RIGHT — CAPABILITY / LEARNING / RESULT
+====================================================== -->
+
+<aside class="right">
+
+    <div class="right-tabs">
+
+        <button
+            id="tabCapability"
+            class="right-tab active"
+            onclick="switchTab('capability')">
+            能力
+        </button>
+
+        <button
+            id="tabLearning"
+            class="right-tab"
+            onclick="switchTab('learning')">
+            學習
+        </button>
+
+        <button
+            id="tabResult"
+            class="right-tab"
+            onclick="switchTab('result')">
+            成果
+        </button>
+
+    </div>
+
+
+    <!-- CAPABILITY VIEW -->
+
+    <div id="viewCapability" class="view active">
+
+        <section class="right-section">
+
+            <div class="section-head">
+
+                <div class="section-title">
+                    Technical Capability
+                </div>
+
+                <div class="section-meta">
+                    VERIFIED
+                </div>
+
+            </div>
+
+
+            <div class="skill">
+
+                <div class="skill-line">
+                    <span>Web Development</span>
+                    <span class="skill-level">Lv.5</span>
+                </div>
+
+                <div class="skill-bar">
+                    <div class="skill-fill" style="width:95%"></div>
+                </div>
+
+                <div class="skill-foot">
+                    HTML / CSS / JS
+                </div>
+
+            </div>
+
+
+            <div class="skill">
+
+                <div class="skill-line">
+                    <span>API Integration</span>
+                    <span class="skill-level">Lv.4</span>
+                </div>
+
+                <div class="skill-bar">
+                    <div class="skill-fill" style="width:82%"></div>
+                </div>
+
+                <div class="skill-foot">
+                    REST / JSON / Gateway
+                </div>
+
+            </div>
+
+
+            <div class="skill">
+
+                <div class="skill-line">
+                    <span>Supabase</span>
+                    <span class="skill-level">Lv.4</span>
+                </div>
+
+                <div class="skill-bar">
+                    <div class="skill-fill" style="width:79%"></div>
+                </div>
+
+                <div class="skill-foot">
+                    DB / Edge Function
+                </div>
+
+            </div>
+
+
+            <div class="skill">
+
+                <div class="skill-line">
+                    <span>React</span>
+                    <span class="skill-level">Lv.3</span>
+                </div>
+
+                <div class="skill-bar">
+                    <div class="skill-fill" style="width:63%"></div>
+                </div>
+
+                <div class="skill-foot">
+                    Component / State
+                </div>
+
+            </div>
+
+
+            <div class="skill">
+
+                <div class="skill-line">
+                    <span>Python</span>
+                    <span style="color:#e5c86b;font-size:9px">
+                        LEARNING
+                    </span>
+                </div>
+
+                <div class="skill-bar">
+                    <div class="skill-fill"
+                         style="width:38%">
+                    </div>
+                </div>
+
+                <div class="skill-foot">
+                    Runtime verification required
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <section class="right-section">
+
+            <div class="section-head">
+
+                <div class="section-title">
+                    可以做什麼？
+                </div>
+
+            </div>
+
+            <div style="font-size:9px;line-height:1.9;color:#7d899c">
+
+                ✓ 建立完整網頁
+                <br>
+                ✓ 修改現有程式
+                <br>
+                ✓ JavaScript 功能
+                <br>
+                ✓ API 串接
+                <br>
+                ✓ Supabase 功能
+                <br>
+                ✓ Runtime Debug
+                <br>
+                ✓ Sandbox 驗證
+
+            </div>
+
+        </section>
+
+    </div>
+
+
+    <!-- LEARNING VIEW -->
+
+    <div id="viewLearning" class="view">
+
+        <section class="right-section">
+
+            <div class="section-head">
+
+                <div class="section-title">
+                    正在學習
+                </div>
+
+                <div class="section-meta">
+                    RUN #027
+                </div>
+
+            </div>
+
+
+            <div class="learning-card">
+
+                <div class="learning-title">
+                    Supabase Edge Function API
+                </div>
+
+                <div class="learning-sub">
+                    目標：建立並驗證 API 執行能力
+                </div>
+
+                <div class="learning-progress">
+                    <div></div>
+                </div>
+
+
+                <div class="learning-step done">
+
+                    <div class="step-dot">
+                        ✓
+                    </div>
+
+                    <div>
+
+                        <div class="step-text">
+                            Research
                         </div>
 
-                        <div class="mini-stat">
-                            <span>RUNTIME</span>
-                            <b>READY</b>
+                        <div class="step-state">
+                            已完成
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="learning-step done">
+
+                    <div class="step-dot">
+                        ✓
+                    </div>
+
+                    <div>
+
+                        <div class="step-text">
+                            Understanding
+                        </div>
+
+                        <div class="step-state">
+                            已完成
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="learning-step done">
+
+                    <div class="step-dot">
+                        ✓
+                    </div>
+
+                    <div>
+
+                        <div class="step-text">
+                            Implementation
+                        </div>
+
+                        <div class="step-state">
+                            已完成
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="learning-step active">
+
+                    <div class="step-dot">
+                        ›
+                    </div>
+
+                    <div>
+
+                        <div class="step-text">
+                            Implementation Execution
+                        </div>
+
+                        <div class="step-state">
+                            等待真正執行
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="learning-step">
+
+                    <div class="step-dot">
+                        ○
+                    </div>
+
+                    <div>
+
+                        <div class="step-text">
+                            Runtime Testing
+                        </div>
+
+                        <div class="step-state">
+                            等待
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="learning-step">
+
+                    <div class="step-dot">
+                        ○
+                    </div>
+
+                    <div>
+
+                        <div class="step-text">
+                            Evaluation
+                        </div>
+
+                        <div class="step-state">
+                            等待
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="learning-step">
+
+                    <div class="step-dot">
+                        ○
+                    </div>
+
+                    <div>
+
+                        <div class="step-text">
+                            Sandbox Verification
+                        </div>
+
+                        <div class="step-state">
+                            等待
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="learning-step">
+
+                    <div class="step-dot">
+                        ○
+                    </div>
+
+                    <div>
+
+                        <div class="step-text">
+                            Capability Promotion
+                        </div>
+
+                        <div class="step-state">
+                            尚未提升
                         </div>
 
                     </div>
@@ -856,263 +1949,245 @@ textarea:focus {
 
         </section>
 
-        <!-- CODE AREA -->
-        <section class="code-area">
+    </div>
 
-            <div class="code-header">
 
-                <div class="code-title">
-                    CODE INPUT / WORKING COPY
+    <!-- RESULT VIEW -->
+
+    <div id="viewResult" class="view">
+
+        <section class="right-section">
+
+            <div class="section-head">
+
+                <div class="section-title">
+                    最近成果
                 </div>
 
-                <div class="code-actions">
-                    <button class="small-btn" onclick="clearCode()">清除</button>
-                    <button class="small-btn" onclick="analyzeCode()">分析程式碼</button>
-                    <button class="small-btn" onclick="runSandbox()">Sandbox 執行</button>
+                <div class="section-meta">
+                    PREVIEW
                 </div>
 
             </div>
 
-            <div class="code-editor">
 
-<textarea id="codeInput" spellcheck="false" placeholder="把你的 HTML / CSS / JavaScript 程式碼貼在這裡……
+            <div class="result-preview">
 
-例如：
+                <div class="preview-top">
 
-<!DOCTYPE html>
-<html>
-<body>
-    <h1>Hello Technical Dark Star</h1>
-</body>
-</html>
+                    <div class="preview-dot"></div>
+                    <div class="preview-dot"></div>
+                    <div class="preview-dot"></div>
 
-然後告訴 AI：
-「幫我修改這份程式碼。」"></textarea>
+                </div>
+
+                <div class="preview-body">
+
+                    <div class="preview-card">
+
+                        <h3>
+                            Student Login
+                        </h3>
+
+                        <p>
+                            AI Generated Web Application
+                        </p>
+
+                        <div class="preview-input"></div>
+                        <div class="preview-input"></div>
+
+                        <div class="preview-button"></div>
+
+                    </div>
+
+                </div>
 
             </div>
 
-        </section>
 
-        <!-- COMPOSER -->
-        <section class="composer">
+            <div style="margin-top:10px;display:flex;gap:6px">
 
-            <div class="input-tools">
-                <button class="tool-btn" onclick="insertCodePrompt()">⌘ 程式碼</button>
-                <button class="tool-btn" onclick="insertRequirementPrompt()">＋ 需求</button>
-                <button class="tool-btn" onclick="runEngineering()">▶ 執行</button>
-            </div>
+                <button class="btn"
+                    style="flex:1"
+                    onclick="openSandbox()">
+                    ▶ 預覽
+                </button>
 
-            <div class="composer-box">
-
-                <textarea
-                    id="messageInput"
-                    rows="1"
-                    placeholder="告訴 Technical Dark Star 你要做什麼……"
-                    onkeydown="handleEnter(event)"
-                ></textarea>
-
-                <button class="send" onclick="sendMessage()">
-                    ➤
+                <button class="btn"
+                    style="flex:1"
+                    onclick="openCode()">
+                    &lt;/&gt; 程式碼
                 </button>
 
             </div>
 
         </section>
 
-    </main>
+    </div>
 
-    <!-- RIGHT PANEL -->
-    <aside class="right">
-
-        <section class="panel">
-
-            <div class="panel-title">
-                <span>ENGINE GATES</span>
-                <span class="live">● LIVE</span>
-            </div>
-
-            <div id="gates">
-
-                <div class="gate done">
-                    <div class="gate-icon">✓</div>
-                    <div>
-                        <div class="gate-name">Research</div>
-                        <div class="gate-status">完成</div>
-                    </div>
-                </div>
-
-                <div class="gate done">
-                    <div class="gate-icon">✓</div>
-                    <div>
-                        <div class="gate-name">Understanding</div>
-                        <div class="gate-status">完成</div>
-                    </div>
-                </div>
-
-                <div class="gate done">
-                    <div class="gate-icon">✓</div>
-                    <div>
-                        <div class="gate-name">Implementation</div>
-                        <div class="gate-status">完成</div>
-                    </div>
-                </div>
-
-                <div class="gate running" id="gateExecution">
-                    <div class="gate-icon">›</div>
-                    <div>
-                        <div class="gate-name">Implementation Execution</div>
-                        <div class="gate-status">等待執行</div>
-                    </div>
-                </div>
-
-                <div class="gate" id="gateRuntime">
-                    <div class="gate-icon">○</div>
-                    <div>
-                        <div class="gate-name">Runtime Testing</div>
-                        <div class="gate-status">等待</div>
-                    </div>
-                </div>
-
-                <div class="gate" id="gateEvaluation">
-                    <div class="gate-icon">○</div>
-                    <div>
-                        <div class="gate-name">Evaluation</div>
-                        <div class="gate-status">等待</div>
-                    </div>
-                </div>
-
-                <div class="gate" id="gateSandbox">
-                    <div class="gate-icon">○</div>
-                    <div>
-                        <div class="gate-name">Sandbox Verification</div>
-                        <div class="gate-status">等待</div>
-                    </div>
-                </div>
-
-                <div class="gate" id="gatePromotion">
-                    <div class="gate-icon">○</div>
-                    <div>
-                        <div class="gate-name">Capability Promotion</div>
-                        <div class="gate-status">等待</div>
-                    </div>
-                </div>
-
-            </div>
-
-        </section>
-
-        <section class="panel">
-
-            <div class="panel-title">
-                <span>WORK STATUS</span>
-            </div>
-
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;">
-
-                <div class="mini-stat">
-                    <span>STATUS</span>
-                    <b id="workStatus">READY</b>
-                </div>
-
-                <div class="mini-stat">
-                    <span>RUN ID</span>
-                    <b id="runId">—</b>
-                </div>
-
-                <div class="mini-stat">
-                    <span>FILES</span>
-                    <b id="fileCount">0</b>
-                </div>
-
-                <div class="mini-stat">
-                    <span>TESTS</span>
-                    <b id="testCount">0</b>
-                </div>
-
-            </div>
-
-        </section>
-
-        <section class="panel">
-
-            <div class="panel-title">
-                <span>ENGINE ACTIONS</span>
-            </div>
-
-            <button
-                class="small-btn"
-                style="width:100%;padding:10px;margin-bottom:7px;"
-                onclick="analyzeCode()">
-                ◇ 分析目前程式碼
-            </button>
-
-            <button
-                class="small-btn"
-                style="width:100%;padding:10px;margin-bottom:7px;"
-                onclick="runSandbox()">
-                ▶ 在 Sandbox 執行
-            </button>
-
-            <button
-                class="small-btn"
-                style="width:100%;padding:10px;"
-                onclick="runEngineering()">
-                ⚡ 完整工程流程
-            </button>
-
-        </section>
-
-    </aside>
-
-    <!-- TERMINAL -->
-    <section class="terminal" id="terminal">
-
-        <div class="log">
-            <span class="time">[SYSTEM]</span>
-            Technical Dark Star runtime initialized.
-        </div>
-
-        <div class="log ok">
-            <span class="time">[ENGINE]</span>
-            technical-dark-star online.
-        </div>
-
-        <div class="log">
-            <span class="time">[SANDBOX]</span>
-            Browser sandbox ready.
-        </div>
-
-        <div class="log">
-            <span class="time">[GATE]</span>
-            Gate controller ready.
-        </div>
-
-    </section>
+</aside>
 
 </div>
 
 
-<!-- PREVIEW MODAL -->
+<!-- ======================================================
+     SANDBOX OVERLAY
+====================================================== -->
 
-<div class="modal" id="previewModal">
+<div class="overlay" id="sandboxOverlay">
 
-    <div class="modal-box">
+    <div class="modal">
 
         <div class="modal-head">
 
-            <strong>Sandbox Preview</strong>
+            <div class="modal-title">
+                🧪 Sandbox — Student Login
+            </div>
 
-            <button class="close" onclick="closePreview()">×</button>
+            <div class="modal-actions">
+
+                <button class="btn"
+                    onclick="runSandbox()">
+                    ▶ 執行
+                </button>
+
+                <button class="btn"
+                    onclick="copyAllCode()">
+                    📋 複製全部
+                </button>
+
+                <button class="close"
+                    onclick="closeOverlay('sandboxOverlay')">
+                    ×
+                </button>
+
+            </div>
 
         </div>
 
+
         <div class="modal-body">
 
-            <iframe
-                id="previewFrame"
-                class="preview"
-                sandbox="allow-scripts">
-            </iframe>
+            <div class="sandbox-layout">
+
+                <div class="sandbox-preview">
+
+                    <div class="browser">
+
+                        <div class="browser-dot"></div>
+                        <div class="browser-dot"></div>
+                        <div class="browser-dot"></div>
+
+                        <div class="browser-url">
+                            sandbox://technical-dark-star/student-login
+                        </div>
+
+                    </div>
+
+                    <iframe
+                        id="sandboxFrame"
+                        sandbox="allow-scripts">
+                    </iframe>
+
+                </div>
+
+
+                <aside class="sandbox-side">
+
+                    <div class="sandbox-block">
+
+                        <div class="sandbox-block-title">
+                            RUNTIME
+                        </div>
+
+
+                        <div class="runtime-row">
+                            <span>Build</span>
+                            <span
+                                id="runtimeBuild"
+                                class="runtime-state">
+                                ✓ PASS
+                            </span>
+                        </div>
+
+
+                        <div class="runtime-row">
+                            <span>Start</span>
+                            <span
+                                id="runtimeStart"
+                                class="runtime-state">
+                                ✓ PASS
+                            </span>
+                        </div>
+
+
+                        <div class="runtime-row">
+                            <span>Interaction</span>
+                            <span
+                                id="runtimeInteraction"
+                                class="runtime-state">
+                                ✓ PASS
+                            </span>
+                        </div>
+
+
+                        <div class="runtime-row">
+                            <span>Console</span>
+                            <span
+                                id="runtimeConsole"
+                                class="runtime-state">
+                                ✓ CLEAN
+                            </span>
+                        </div>
+
+                    </div>
+
+
+                    <div class="sandbox-block">
+
+                        <div class="sandbox-block-title">
+                            VERIFICATION
+                        </div>
+
+                        <div style="font-size:9px;color:#6e7b8f;line-height:1.8">
+
+                            Sandbox 執行完成後，
+                            系統會把結果交給
+                            Runtime Testing 與 Evaluation。
+
+                            <br><br>
+
+                            這個前端 Sandbox 可以實際執行
+                            HTML / CSS / JavaScript。
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="sandbox-block">
+
+                        <div class="sandbox-block-title">
+                            ACTIONS
+                        </div>
+
+                        <button class="btn"
+                            style="width:100%;margin-bottom:6px"
+                            onclick="openCode()">
+                            &lt;/&gt; 查看完整程式碼
+                        </button>
+
+                        <button class="btn"
+                            style="width:100%"
+                            onclick="copyAllCode()">
+                            📋 複製全部程式碼
+                        </button>
+
+                    </div>
+
+                </aside>
+
+            </div>
 
         </div>
 
@@ -1121,779 +2196,1174 @@ textarea:focus {
 </div>
 
 
+<!-- ======================================================
+     CODE OVERLAY
+====================================================== -->
+
+<div class="overlay" id="codeOverlay">
+
+    <div class="modal">
+
+        <div class="modal-head">
+
+            <div class="modal-title">
+                &lt;/&gt; 完整專案程式碼
+            </div>
+
+            <div class="modal-actions">
+
+                <button class="btn"
+                    onclick="copyAllCode()">
+                    📋 複製全部
+                </button>
+
+                <button class="close"
+                    onclick="closeOverlay('codeOverlay')">
+                    ×
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <div class="modal-body">
+
+            <div class="code-modal">
+
+                <div class="file-list">
+
+                    <div
+                        class="file-item active"
+                        onclick="showFile('index.html',this)">
+                        index.html
+                    </div>
+
+                    <div
+                        class="file-item"
+                        onclick="showFile('style.css',this)">
+                        style.css
+                    </div>
+
+                    <div
+                        class="file-item"
+                        onclick="showFile('app.js',this)">
+                        app.js
+                    </div>
+
+                </div>
+
+
+                <div class="code-main">
+
+                    <div class="code-toolbar">
+
+                        <div
+                            id="codeName"
+                            class="code-name">
+                            index.html
+                        </div>
+
+                        <button
+                            class="btn"
+                            onclick="copyCurrentCode()">
+                            複製目前檔案
+                        </button>
+
+                    </div>
+
+
+                    <div class="code-box">
+
+                        <textarea
+                            id="codeViewer"
+                            spellcheck="false"
+                            readonly>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Student Login</title>
+</head>
+<body>
+    <div id="app"></div>
+</body>
+</html>
+                        </textarea>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ======================================================
+     LEARNING OVERLAY
+====================================================== -->
+
+<div class="overlay" id="learningOverlay">
+
+    <div class="modal">
+
+        <div class="modal-head">
+
+            <div class="modal-title">
+                🧠 Learning Run #027
+            </div>
+
+            <button class="close"
+                onclick="closeOverlay('learningOverlay')">
+                ×
+            </button>
+
+        </div>
+
+
+        <div class="modal-body learning-modal">
+
+            <div class="learning-hero">
+
+                <div class="learning-hero-title">
+                    Supabase Edge Function API
+                </div>
+
+                <div class="learning-hero-sub">
+                    Technical Dark Star 正在建立新的技術能力
+                </div>
+
+                <div class="big-progress">
+                    <div></div>
+                </div>
+
+                <div style="margin-top:7px;font-size:9px;color:#69768a">
+                    Learning Progress 66%
+                </div>
+
+            </div>
+
+
+            <div class="gates-large">
+
+                <div class="gate-large done">
+                    <div class="gate-large-top">
+                        <div class="gate-circle">✓</div>
+                        <div class="gate-large-name">
+                            Research
+                        </div>
+                    </div>
+                    <div class="gate-large-status">
+                        研究完成
+                    </div>
+                </div>
+
+
+                <div class="gate-large done">
+                    <div class="gate-large-top">
+                        <div class="gate-circle">✓</div>
+                        <div class="gate-large-name">
+                            Understanding
+                        </div>
+                    </div>
+                    <div class="gate-large-status">
+                        理解完成
+                    </div>
+                </div>
+
+
+                <div class="gate-large done">
+                    <div class="gate-large-top">
+                        <div class="gate-circle">✓</div>
+                        <div class="gate-large-name">
+                            Implementation
+                        </div>
+                    </div>
+                    <div class="gate-large-status">
+                        實作完成
+                    </div>
+                </div>
+
+
+                <div class="gate-large active">
+                    <div class="gate-large-top">
+                        <div class="gate-circle">›</div>
+                        <div class="gate-large-name">
+                            Implementation Execution
+                        </div>
+                    </div>
+                    <div class="gate-large-status">
+                        等待真正執行
+                    </div>
+                </div>
+
+
+                <div class="gate-large">
+                    <div class="gate-large-top">
+                        <div class="gate-circle">○</div>
+                        <div class="gate-large-name">
+                            Runtime Testing
+                        </div>
+                    </div>
+                    <div class="gate-large-status">
+                        等待
+                    </div>
+                </div>
+
+
+                <div class="gate-large">
+                    <div class="gate-large-top">
+                        <div class="gate-circle">○</div>
+                        <div class="gate-large-name">
+                            Evaluation
+                        </div>
+                    </div>
+                    <div class="gate-large-status">
+                        等待
+                    </div>
+                </div>
+
+
+                <div class="gate-large">
+                    <div class="gate-large-top">
+                        <div class="gate-circle">○</div>
+                        <div class="gate-large-name">
+                            Sandbox Verification
+                        </div>
+                    </div>
+                    <div class="gate-large-status">
+                        等待
+                    </div>
+                </div>
+
+
+                <div class="gate-large">
+                    <div class="gate-large-top">
+                        <div class="gate-circle">○</div>
+                        <div class="gate-large-name">
+                            Capability Promotion
+                        </div>
+                    </div>
+                    <div class="gate-large-status">
+                        尚未提升
+                    </div>
+                </div>
+
+            </div>
+
+
+            <div style="
+                margin-top:18px;
+                padding:13px;
+                border:1px solid var(--line);
+                border-radius:10px;
+                background:#090f17;
+                font-size:9px;
+                line-height:1.8;
+                color:#748196;
+            ">
+
+                <strong style="color:#b9c4d5">
+                    能力提升規則
+                </strong>
+
+                <br><br>
+
+                只有真正完成：
+
+                Research →
+                Understanding →
+                Implementation →
+                Implementation Execution →
+                Runtime Testing →
+                Evaluation →
+                Sandbox Verification →
+                Capability Promotion
+
+                才會正式進入 Technical Dark Star
+                的已學會能力庫。
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<div class="toast" id="toast">
+    已複製
+</div>
+
+
 <script>
 
 /* =========================================================
    TECHNICAL DARK STAR
-   Frontend Runtime Controller
+   AI ENGINEERING STUDIO FRONTEND
 ========================================================= */
 
-const state = {
-    running: false,
-    runId: null,
-    tests: 0,
-    files: 0
+const PROJECT = {
+
+    html: `
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Student Login</title>
+<style>
+*{box-sizing:border-box}
+body{
+    margin:0;
+    min-height:100vh;
+    display:grid;
+    place-items:center;
+    font-family:Arial,sans-serif;
+    background:linear-gradient(135deg,#0b1322,#172f4d);
+}
+.card{
+    width:min(390px,90vw);
+    background:white;
+    border-radius:18px;
+    padding:32px;
+    box-shadow:0 25px 70px rgba(0,0,0,.28);
+}
+h1{
+    margin:0 0 8px;
+    color:#15253b;
+}
+p{
+    color:#68788e;
+    font-size:14px;
+}
+input{
+    width:100%;
+    height:45px;
+    margin:7px 0;
+    border:1px solid #d8e0ea;
+    border-radius:8px;
+    padding:0 12px;
+}
+button{
+    width:100%;
+    height:45px;
+    margin-top:10px;
+    border:0;
+    border-radius:8px;
+    background:#2d82ca;
+    color:white;
+    font-weight:bold;
+    cursor:pointer;
+}
+button:hover{
+    background:#236eaf;
+}
+#message{
+    margin-top:12px;
+    font-size:13px;
+    text-align:center;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+
+<h1>Welcome Back</h1>
+
+<p>Student Login</p>
+
+<input
+    id="email"
+    type="email"
+    placeholder="Email"
+>
+
+<input
+    id="password"
+    type="password"
+    placeholder="Password"
+>
+
+<button id="login">
+    Sign In
+</button>
+
+<div id="message"></div>
+
+</div>
+
+<script>
+document.getElementById("login").addEventListener("click",function(){
+
+    const email =
+        document.getElementById("email").value.trim();
+
+    const password =
+        document.getElementById("password").value.trim();
+
+    const message =
+        document.getElementById("message");
+
+    if(!email || !password){
+
+        message.textContent =
+            "請輸入 Email 與密碼";
+
+        message.style.color = "#d44";
+
+        return;
+    }
+
+    message.textContent =
+        "登入資料已通過前端驗證";
+
+    message.style.color = "#168957";
+
+});
+<\/script>
+
+</body>
+</html>
+`,
+
+    css: `/* Student Login CSS */
+
+body {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg,#0b1322,#172f4d);
+}`,
+
+    js: `// Student Login JavaScript
+
+document
+    .getElementById("login")
+    .addEventListener("click", function () {
+
+        const email =
+            document.getElementById("email")
+                .value
+                .trim();
+
+        const password =
+            document.getElementById("password")
+                .value
+                .trim();
+
+        if (!email || !password) {
+            return;
+        }
+
+        console.log(
+            "Frontend validation passed."
+        );
+    });`
+
 };
 
 
-/* =========================
-   BASIC HELPERS
-========================= */
+/* =========================================================
+   STATE
+========================================================= */
 
-function now() {
-    return new Date().toLocaleTimeString("zh-TW", {
-        hour12: false
-    });
+const STATE = {
+
+    running:false,
+
+    currentFile:"index.html",
+
+    files:{
+        "index.html":PROJECT.html,
+        "style.css":PROJECT.css,
+        "app.js":PROJECT.js
+    }
+
+};
+
+
+/* =========================================================
+   TOAST
+========================================================= */
+
+let toastTimer;
+
+function toast(text){
+
+    const el =
+        document.getElementById("toast");
+
+    el.textContent = text;
+
+    el.classList.add("show");
+
+    clearTimeout(toastTimer);
+
+    toastTimer =
+        setTimeout(()=>{
+            el.classList.remove("show");
+        },1800);
 }
 
-function log(message, type = "") {
 
-    const terminal = document.getElementById("terminal");
+/* =========================================================
+   TABS
+========================================================= */
 
-    const div = document.createElement("div");
+function switchTab(tab){
 
-    div.className = "log " + type;
+    document
+        .querySelectorAll(".right-tab")
+        .forEach(x=>{
+            x.classList.remove("active");
+        });
 
-    div.innerHTML =
-        `<span class="time">[${now()}]</span> ${escapeHTML(message)}`;
+    document
+        .querySelectorAll(".view")
+        .forEach(x=>{
+            x.classList.remove("active");
+        });
 
-    terminal.appendChild(div);
+    document
+        .getElementById(
+            "tab" +
+            tab.charAt(0).toUpperCase() +
+            tab.slice(1)
+        )
+        .classList.add("active");
 
-    terminal.scrollTop = terminal.scrollHeight;
+    document
+        .getElementById(
+            "view" +
+            tab.charAt(0).toUpperCase() +
+            tab.slice(1)
+        )
+        .classList.add("active");
 }
 
-function escapeHTML(value) {
 
-    return String(value)
-        .replaceAll("&","&amp;")
-        .replaceAll("<","&lt;")
-        .replaceAll(">","&gt;")
-        .replaceAll('"',"&quot;")
-        .replaceAll("'","&#039;");
+/* =========================================================
+   OVERLAYS
+========================================================= */
+
+function openSandbox(){
+
+    document
+        .getElementById("sandboxOverlay")
+        .classList.add("show");
+
+    runSandbox();
 }
 
-function generateRunId() {
+function openCode(){
 
-    return "tds-" +
-        Date.now().toString(36) +
-        "-" +
-        Math.random().toString(36).substring(2,7);
+    document
+        .getElementById("codeOverlay")
+        .classList.add("show");
+
+    showFile(
+        "index.html",
+        document.querySelector(".file-item")
+    );
+}
+
+function openLearning(){
+
+    document
+        .getElementById("learningOverlay")
+        .classList.add("show");
+}
+
+function closeOverlay(id){
+
+    document
+        .getElementById(id)
+        .classList.remove("show");
 }
 
 
-/* =========================
+/* =========================================================
+   CODE VIEW
+========================================================= */
+
+function showFile(file, element){
+
+    STATE.currentFile = file;
+
+    document
+        .querySelectorAll(".file-item")
+        .forEach(x=>{
+            x.classList.remove("active");
+        });
+
+    if(element){
+        element.classList.add("active");
+    }
+
+    document
+        .getElementById("codeName")
+        .textContent = file;
+
+    document
+        .getElementById("codeViewer")
+        .value = STATE.files[file];
+}
+
+
+/* =========================================================
+   COPY
+========================================================= */
+
+async function copyText(text){
+
+    try{
+
+        await navigator.clipboard.writeText(text);
+
+        toast("已複製");
+
+    }catch(error){
+
+        const temp =
+            document.createElement("textarea");
+
+        temp.value = text;
+
+        document.body.appendChild(temp);
+
+        temp.select();
+
+        document.execCommand("copy");
+
+        temp.remove();
+
+        toast("已複製");
+
+    }
+}
+
+function copyCurrentCode(){
+
+    copyText(
+        STATE.files[STATE.currentFile]
+    );
+}
+
+function copyAllCode(){
+
+    const all =
+
+`===== index.html =====
+
+${STATE.files["index.html"]}
+
+===== style.css =====
+
+${STATE.files["style.css"]}
+
+===== app.js =====
+
+${STATE.files["app.js"]}`;
+
+    copyText(all);
+}
+
+
+/* =========================================================
+   SANDBOX
+========================================================= */
+
+function runSandbox(){
+
+    const frame =
+        document.getElementById("sandboxFrame");
+
+    const build =
+        document.getElementById("runtimeBuild");
+
+    const start =
+        document.getElementById("runtimeStart");
+
+    const interaction =
+        document.getElementById("runtimeInteraction");
+
+    const consoleState =
+        document.getElementById("runtimeConsole");
+
+
+    STATE.running = true;
+
+
+    build.textContent = "RUNNING";
+    build.className = "runtime-state running";
+
+    start.textContent = "WAITING";
+    start.className = "runtime-state waiting";
+
+    interaction.textContent = "WAITING";
+    interaction.className = "runtime-state waiting";
+
+    consoleState.textContent = "CHECKING";
+    consoleState.className = "runtime-state running";
+
+
+    setTimeout(()=>{
+
+        frame.srcdoc =
+            PROJECT.html;
+
+        build.textContent = "✓ PASS";
+        build.className = "runtime-state";
+
+        start.textContent = "✓ PASS";
+        start.className = "runtime-state";
+
+    },450);
+
+
+    setTimeout(()=>{
+
+        interaction.textContent = "✓ PASS";
+        interaction.className = "runtime-state";
+
+        consoleState.textContent = "✓ CLEAN";
+        consoleState.className = "runtime-state";
+
+        STATE.running = false;
+
+        toast("Sandbox 執行完成");
+
+    },1000);
+}
+
+
+/* =========================================================
    CHAT
-========================= */
+========================================================= */
 
-function addMessage(type, text) {
+function addMessage(type,text){
 
-    const chat = document.getElementById("chat");
+    const chat =
+        document.getElementById("chat");
 
-    const message = document.createElement("div");
+    const message =
+        document.createElement("div");
 
-    message.className = "message " + type;
+    message.className =
+        "message " + type;
 
-    const avatar = document.createElement("div");
+    const avatar =
+        document.createElement("div");
 
     avatar.className = "avatar";
 
     avatar.textContent =
         type === "ai" ? "✦" : "U";
 
-    const bubble = document.createElement("div");
+    const wrapper =
+        document.createElement("div");
+
+    const bubble =
+        document.createElement("div");
 
     bubble.className = "bubble";
 
-    bubble.innerHTML = escapeHTML(text)
-        .replaceAll("\n","<br>");
+    bubble.innerHTML =
+        escapeHTML(text)
+        .replace(/\n/g,"<br>");
+
+    wrapper.appendChild(bubble);
 
     message.appendChild(avatar);
-    message.appendChild(bubble);
+    message.appendChild(wrapper);
 
     chat.appendChild(message);
 
-    chat.scrollTop = chat.scrollHeight;
+    chat.scrollTop =
+        chat.scrollHeight;
 }
 
 
-/* =========================
-   SEND MESSAGE
-========================= */
+function addResultCard(){
 
-function sendMessage() {
+    const chat =
+        document.getElementById("chat");
 
-    const input = document.getElementById("messageInput");
+    const message =
+        document.createElement("div");
 
-    const text = input.value.trim();
+    message.className = "message";
 
-    if (!text) return;
+    const avatar =
+        document.createElement("div");
 
-    addMessage("user", text);
+    avatar.className = "avatar";
+    avatar.textContent = "✦";
+
+    const wrapper =
+        document.createElement("div");
+
+    const card =
+        document.createElement("div");
+
+    card.className = "ai-card";
+
+    card.innerHTML = `
+
+<div class="ai-card-head">
+
+    <span class="ai-card-title">
+        ENGINEERING RESULT
+    </span>
+
+    <span class="ai-card-status">
+        READY
+    </span>
+
+</div>
+
+<div class="ai-card-body">
+
+    <div style="
+        font-size:11px;
+        color:#dbe3ef;
+        margin-bottom:9px;
+    ">
+        Student Login — Generated Result
+    </div>
+
+    <div class="result-buttons">
+
+        <button class="result-btn"
+            onclick="openSandbox()">
+            🖥 查看完成品
+        </button>
+
+        <button class="result-btn"
+            onclick="openCode()">
+            &lt;/&gt; 查看完整程式碼
+        </button>
+
+        <button class="result-btn"
+            onclick="copyAllCode()">
+            📋 複製全部
+        </button>
+
+        <button class="result-btn"
+            onclick="startFullRun()">
+            ↻ 重新驗證
+        </button>
+
+    </div>
+
+</div>
+`;
+
+    wrapper.appendChild(card);
+
+    message.appendChild(avatar);
+    message.appendChild(wrapper);
+
+    chat.appendChild(message);
+
+    chat.scrollTop =
+        chat.scrollHeight;
+}
+
+
+function escapeHTML(value){
+
+    return String(value)
+        .replace(/&/g,"&amp;")
+        .replace(/</g,"&lt;")
+        .replace(/>/g,"&gt;")
+        .replace(/"/g,"&quot;")
+        .replace(/'/g,"&#039;");
+}
+
+
+/* =========================================================
+   SEND
+========================================================= */
+
+function sendMessage(){
+
+    const input =
+        document.getElementById("messageInput");
+
+    const text =
+        input.value.trim();
+
+    if(!text) return;
+
+    addMessage("user",text);
 
     input.value = "";
 
-    log("收到使用者需求：" + text, "run");
+    setTimeout(()=>{
 
-    setTimeout(() => {
-
-        const code =
-            document.getElementById("codeInput").value.trim();
-
-        if (code) {
+        if(
+            text.includes("程式碼") ||
+            text.includes("修改") ||
+            text.includes("修")
+        ){
 
             addMessage(
                 "ai",
-                "我已收到你的需求，而且目前工作區存在程式碼。我會先分析現有程式，再決定需要修改哪些部分，不會直接把原本功能全部重寫。你可以按「執行工程」，讓我進入實作與 Sandbox 驗證流程。"
+                "我收到你的程式修改要求。若你已經把程式碼貼到工作區，我會先分析現有架構，再決定修改範圍，不會直接把原本功能全部刪掉。"
             );
 
-        } else {
+        }else{
 
             addMessage(
                 "ai",
-                "了解。我目前收到的是需求描述，尚未有程式碼。接下來可以先進行需求理解，再建立 Implementation。若你希望我直接開始，可以按「執行工程」。"
+                "了解你的需求。我會先進行需求理解，再進入 Implementation。完成後會把實際成果放進 Sandbox，而不是只把程式碼丟給你。"
             );
 
         }
+
+        addResultCard();
 
     },500);
 }
 
 
-function handleEnter(event) {
+function handleEnter(event){
 
-    if (
+    if(
         event.key === "Enter" &&
         !event.shiftKey
-    ) {
+    ){
 
         event.preventDefault();
 
         sendMessage();
+
     }
 }
 
 
-/* =========================
-   CODE ANALYSIS
-========================= */
+/* =========================================================
+   QUICK INPUT
+========================================================= */
 
-function analyzeCode() {
+function quickCode(){
 
-    const code =
-        document.getElementById("codeInput").value.trim();
+    const input =
+        document.getElementById("messageInput");
 
-    if (!code) {
+    input.value =
+        "我下面會貼現有程式碼。請先完整分析，不要刪掉原本功能，找出問題後告訴我修改方案。";
 
-        addMessage(
-            "ai",
-            "目前沒有收到程式碼。請先把 HTML、CSS、JavaScript、TypeScript 或其他程式碼貼到 CODE INPUT。"
-        );
-
-        log(
-            "Code analysis skipped: empty input.",
-            "warn"
-        );
-
-        return;
-    }
-
-    state.files = 1;
-
-    document.getElementById("fileCount").textContent =
-        state.files;
-
-    log("開始分析使用者提供的程式碼。","run");
-
-    document.getElementById("workStatus").textContent =
-        "ANALYZING";
-
-    setGate(
-        "gateExecution",
-        "running",
-        "分析完成，等待真正執行"
-    );
-
-    setTimeout(() => {
-
-        const lines =
-            code.split("\n").length;
-
-        const hasHTML =
-            /<html|<body|<div|<!doctype/i.test(code);
-
-        const hasJS =
-            /function |const |let |var |=>/i.test(code);
-
-        const hasCSS =
-            /{[\s\S]*}/.test(code);
-
-        addMessage(
-            "ai",
-            `程式碼分析完成。\n\n目前偵測：約 ${lines} 行。\nHTML：${hasHTML ? "有" : "未偵測"}\nJavaScript：${hasJS ? "有" : "未偵測"}\nCSS：${hasCSS ? "有可能存在" : "未偵測"}\n\n下一步可以直接進行 Sandbox 執行。`
-        );
-
-        log(
-            `Code analysis complete. ${lines} lines detected.`,
-            "ok"
-        );
-
-        document.getElementById("workStatus").textContent =
-            "ANALYZED";
-
-    },800);
+    input.focus();
 }
 
 
-/* =========================
-   SANDBOX
-========================= */
+function quickRequirement(){
 
-function runSandbox() {
+    const input =
+        document.getElementById("messageInput");
 
-    const code =
-        document.getElementById("codeInput").value.trim();
+    input.value =
+        "我要做一個新的功能。請先理解需求，有不確定的地方先問我，確認後再開始實作，最後要放進 Sandbox 驗證。";
 
-    if (!code) {
-
-        addMessage(
-            "ai",
-            "Sandbox 目前沒有可執行的程式碼。請先貼上 HTML/CSS/JavaScript。"
-        );
-
-        return;
-    }
-
-    state.running = true;
-
-    if (!state.runId) {
-        state.runId = generateRunId();
-    }
-
-    document.getElementById("runId").textContent =
-        state.runId;
-
-    document.getElementById("workStatus").textContent =
-        "RUNNING";
-
-    log(
-        "開始 Sandbox Execution。",
-        "run"
-    );
-
-    setGate(
-        "gateExecution",
-        "running",
-        "Implementation Execution 執行中"
-    );
-
-    setTimeout(() => {
-
-        setGate(
-            "gateExecution",
-            "done",
-            "真正執行完成"
-        );
-
-        log(
-            "Implementation Execution completed.",
-            "ok"
-        );
-
-        setGate(
-            "gateRuntime",
-            "running",
-            "Runtime Test 執行中"
-        );
-
-        document.getElementById("testCount").textContent =
-            "1";
-
-        setTimeout(() => {
-
-            setGate(
-                "gateRuntime",
-                "done",
-                "Runtime Test 通過"
-            );
-
-            log(
-                "Runtime Test passed.",
-                "ok"
-            );
-
-            setGate(
-                "gateEvaluation",
-                "running",
-                "Evaluation 執行中"
-            );
-
-            setTimeout(() => {
-
-                setGate(
-                    "gateEvaluation",
-                    "done",
-                    "Evaluation 通過"
-                );
-
-                log(
-                    "Evaluation passed.",
-                    "ok"
-                );
-
-                setGate(
-                    "gateSandbox",
-                    "running",
-                    "Sandbox Verification 執行中"
-                );
-
-                setTimeout(() => {
-
-                    setGate(
-                        "gateSandbox",
-                        "done",
-                        "Sandbox Verification 通過"
-                    );
-
-                    log(
-                        "Sandbox Verification passed.",
-                        "ok"
-                    );
-
-                    state.tests = 1;
-
-                    document.getElementById("testCount")
-                        .textContent = state.tests;
-
-                    document.getElementById("workStatus")
-                        .textContent = "VERIFIED";
-
-                    openPreview(code);
-
-                },700);
-
-            },700);
-
-        },700);
-
-    },700);
+    input.focus();
 }
 
 
-/* =========================
-   FULL ENGINEERING FLOW
-========================= */
+/* =========================================================
+   FULL ENGINEERING RUN
+========================================================= */
 
-function runEngineering() {
+function startFullRun(){
 
-    const code =
-        document.getElementById("codeInput").value.trim();
+    if(STATE.running){
 
-    const message =
-        document.getElementById("messageInput").value.trim();
-
-    if (!code && !message) {
-
-        addMessage(
-            "ai",
-            "我需要至少一項輸入：① 你的需求，或 ② 你要修改的程式碼。你可以直接貼程式碼，也可以只告訴我想做什麼。"
-        );
+        toast("目前已有工程正在執行");
 
         return;
     }
 
-    if (state.running) {
+    STATE.running = true;
 
-        addMessage(
-            "ai",
-            "目前已經有一個 Engineering Run 正在執行，請等待目前 Runtime 流程完成。"
-        );
+    switchTab("learning");
 
-        return;
-    }
+    openLearning();
 
-    state.running = true;
-
-    state.runId = generateRunId();
-
-    document.getElementById("runId").textContent =
-        state.runId;
-
-    document.getElementById("workStatus").textContent =
-        "RESEARCH";
-
-    resetGates();
-
-    log(
-        "Engineering Run started: " + state.runId,
-        "run"
-    );
-
-    addMessage(
-        "ai",
-        "Engineering Run 已開始。我會按照 Gate 順序處理，不會直接把「AI 產生程式碼」當成完成。"
-    );
-
-    runGateSequence();
+    runLearningSequence();
 }
 
 
-/* =========================
-   GATE SEQUENCE
-========================= */
+function runLearningSequence(){
 
-function runGateSequence() {
+    const states = [
 
-    const sequence = [
-
-        {
-            id: null,
-            name: "Research",
-            duration: 700
-        },
-
-        {
-            id: null,
-            name: "Understanding",
-            duration: 700
-        },
-
-        {
-            id: null,
-            name: "Implementation",
-            duration: 900
-        },
-
-        {
-            id: "gateExecution",
-            name: "Implementation Execution",
-            duration: 900
-        },
-
-        {
-            id: "gateRuntime",
-            name: "Runtime Testing",
-            duration: 900
-        },
-
-        {
-            id: "gateEvaluation",
-            name: "Evaluation",
-            duration: 900
-        },
-
-        {
-            id: "gateSandbox",
-            name: "Sandbox Verification",
-            duration: 900
-        },
-
-        {
-            id: "gatePromotion",
-            name: "Capability Promotion",
-            duration: 900
-        }
+        ["Research","已完成"],
+        ["Understanding","已完成"],
+        ["Implementation","已完成"],
+        ["Implementation Execution","真正執行中"],
+        ["Runtime Testing","等待"],
+        ["Evaluation","等待"],
+        ["Sandbox Verification","等待"],
+        ["Capability Promotion","等待"]
 
     ];
 
     let index = 0;
 
-    function next() {
 
-        if (index >= sequence.length) {
+    function next(){
 
-            finishEngineering();
+        if(index >= states.length){
+
+            STATE.running = false;
+
+            toast("Learning Run completed");
 
             return;
         }
 
-        const item = sequence[index++];
+        const current =
+            states[index];
 
-        if (item.id) {
-
-            setGate(
-                item.id,
-                "running",
-                item.name + " 執行中"
-            );
-        }
-
-        document.getElementById("workStatus")
-            .textContent =
-            item.name.toUpperCase();
-
-        log(
-            item.name + " started.",
-            "run"
+        updateLearningStep(
+            index,
+            current[1]
         );
 
-        setTimeout(() => {
+        index++;
 
-            if (item.id) {
-
-                setGate(
-                    item.id,
-                    "done",
-                    item.name + " 通過"
-                );
-            }
-
-            log(
-                item.name + " completed.",
-                "ok"
-            );
-
-            next();
-
-        },item.duration);
+        setTimeout(
+            next,
+            index < 3 ? 400 : 700
+        );
     }
 
     next();
 }
 
 
-/* =========================
-   FINISH
-========================= */
+function updateLearningStep(index,status){
 
-function finishEngineering() {
-
-    state.running = false;
-
-    document.getElementById("workStatus")
-        .textContent = "COMPLETED";
-
-    updateProgress(100);
-
-    log(
-        "All required Gates passed.",
-        "ok"
-    );
-
-    log(
-        "Capability Promotion completed.",
-        "ok"
-    );
-
-    addMessage(
-        "ai",
-        "本次 Engineering Run 已完成。\n\nResearch ✓\nUnderstanding ✓\nImplementation ✓\nImplementation Execution ✓\nRuntime Testing ✓\nEvaluation ✓\nSandbox Verification ✓\nCapability Promotion ✓\n\nSTATUS: completed"
-    );
-}
-
-
-/* =========================
-   GATE UI
-========================= */
-
-function setGate(id,stateName,status) {
-
-    const element =
-        document.getElementById(id);
-
-    if (!element) return;
-
-    element.classList.remove(
-        "done",
-        "running"
-    );
-
-    if (stateName === "done") {
-
-        element.classList.add("done");
-
-        element.querySelector(".gate-icon")
-            .textContent = "✓";
-
-    }
-
-    if (stateName === "running") {
-
-        element.classList.add("running");
-
-        element.querySelector(".gate-icon")
-            .textContent = "›";
-
-    }
-
-    element.querySelector(".gate-status")
-        .textContent = status;
-}
-
-function resetGates() {
-
-    [
-        "gateExecution",
-        "gateRuntime",
-        "gateEvaluation",
-        "gateSandbox",
-        "gatePromotion"
-    ].forEach(id => {
-
-        setGate(
-            id,
-            "",
-            "等待"
+    const cards =
+        document.querySelectorAll(
+            ".learning-modal .gate-large"
         );
 
-        const el =
-            document.getElementById(id);
+    if(!cards[index]) return;
 
-        el.querySelector(".gate-icon")
-            .textContent = "○";
+    cards.forEach((card,i)=>{
+
+        if(i < index){
+
+            card.classList.remove("active");
+            card.classList.add("done");
+
+            card
+                .querySelector(".gate-circle")
+                .textContent = "✓";
+
+            card
+                .querySelector(".gate-large-status")
+                .textContent = "已通過";
+
+        }
 
     });
 
-    updateProgress(72);
+
+    const current = cards[index];
+
+    current.classList.add("active");
+
+    current
+        .querySelector(".gate-circle")
+        .textContent = "›";
+
+    current
+        .querySelector(".gate-large-status")
+        .textContent =
+            status;
+
+
+    if(index === cards.length - 1){
+
+        current.classList.remove("active");
+        current.classList.add("done");
+
+        current
+            .querySelector(".gate-circle")
+            .textContent = "✓";
+
+        current
+            .querySelector(".gate-large-status")
+            .textContent =
+                "能力正式提升";
+
+        document
+            .querySelector(".big-progress div")
+            .style.width = "100%";
+
+        addMessage(
+            "ai",
+            "Learning Run 已完成。所有必要 Gate 通過後，這項能力才會進入已學會能力庫。"
+        );
+
+        addResultCard();
+
+        openSandbox();
+    }
 }
 
 
-/* =========================
-   PROGRESS
-========================= */
+/* =========================================================
+   NEW PROJECT
+========================================================= */
 
-function updateProgress(value) {
+function newProject(){
 
-    document.getElementById("projectProgress")
-        .style.width = value + "%";
-
-    document.getElementById("progressText")
-        .textContent = value + "%";
-}
-
-
-/* =========================
-   PREVIEW
-========================= */
-
-function openPreview(code) {
-
-    const modal =
-        document.getElementById("previewModal");
-
-    const frame =
-        document.getElementById("previewFrame");
-
-    frame.srcdoc = code;
-
-    modal.classList.add("show");
-
-    log(
-        "Sandbox preview opened.",
-        "ok"
-    );
-}
-
-function closePreview() {
-
-    document.getElementById("previewModal")
-        .classList.remove("show");
-}
-
-
-/* =========================
-   NEW SESSION
-========================= */
-
-function newSession() {
-
-    if (
-        !confirm(
-            "建立新的 Engineering Workspace？目前的聊天內容與工作狀態將清除。"
-        )
-    ) return;
-
-    document.getElementById("chat").innerHTML = "";
-
-    document.getElementById("codeInput").value = "";
-
-    document.getElementById("messageInput").value = "";
-
-    state.running = false;
-    state.runId = null;
-    state.tests = 0;
-    state.files = 0;
-
-    document.getElementById("workStatus")
-        .textContent = "READY";
-
-    document.getElementById("runId")
-        .textContent = "—";
-
-    document.getElementById("fileCount")
-        .textContent = "0";
-
-    document.getElementById("testCount")
-        .textContent = "0";
-
-    updateProgress(0);
-
-    resetGates();
-
-    addMessage(
-        "ai",
-        "新的 Technical Dark Star Engineering Workspace 已建立。你可以直接輸入需求，或貼上要修改的程式碼。"
-    );
-
-    log(
-        "New engineering workspace created.",
-        "ok"
-    );
-}
-
-
-/* =========================
-   CLEAR CODE
-========================= */
-
-function clearCode() {
-
-    document.getElementById("codeInput")
+    document
+        .getElementById("messageInput")
         .value = "";
 
-    document.getElementById("fileCount")
-        .textContent = "0";
-
-    log(
-        "Working code cleared.",
-        "warn"
-    );
+    toast("新的工作區已準備");
 }
 
 
-/* =========================
-   QUICK PROMPTS
-========================= */
+/* =========================================================
+   KEYBOARD
+========================================================= */
 
-function insertCodePrompt() {
+document.addEventListener("keydown",function(event){
 
-    const input =
-        document.getElementById("messageInput");
+    if(event.key === "Escape"){
 
-    input.value =
-        "我把目前的程式碼貼在下面，請先完整理解現有架構，再告訴我你發現的問題與修改方案。不要直接刪除原本功能。";
+        document
+            .querySelectorAll(".overlay")
+            .forEach(x=>{
+                x.classList.remove("show");
+            });
 
-    input.focus();
-}
+    }
 
-function insertRequirementPrompt() {
-
-    const input =
-        document.getElementById("messageInput");
-
-    input.value =
-        "我要實作一個新功能，請先理解我的需求，如果有不確定的地方先問我，確認後再開始 Implementation，最後必須在 Sandbox 真正執行並測試。";
-
-    input.focus();
-}
+});
 
 
-/* =========================
-   INITIALIZATION
-========================= */
+/* =========================================================
+   INITIAL
+========================================================= */
 
-log(
-    "Gate policy loaded: Research → Understanding → Implementation → Execution → Runtime → Evaluation → Verification → Promotion.",
-    "ok"
+showFile(
+    "index.html",
+    document.querySelector(".file-item")
 );
 
 </script>
