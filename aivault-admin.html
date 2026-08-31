@@ -5,64 +5,1400 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta name="theme-color" content="#0f172a"/>
 <title>AIVAULT 後台</title>
+
 <style>
-body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif;background:#0f172a;color:#e2e8f0;min-height:100dvh}
-.top{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #334155}
-.logo{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#f59e0b,#d97706);display:grid;place-items:center;font-weight:800;font-size:12px;color:#000}
-.wrap{max-width:720px;margin:0 auto;padding:16px}
-.card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:14px;margin-bottom:12px}
-.btn{border:none;border-radius:10px;padding:8px 12px;background:#334155;color:#fff;font:inherit;cursor:pointer}
-.btn.primary{background:linear-gradient(135deg,#3b82f6,#6366f1)}
-.meta{font-size:13px;color:#94a3b8;word-break:break-all}
-h1{font-size:18px;margin:0}h2{font-size:15px;margin:0 0 8px}
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif;
+  background:#0f172a;
+  color:#e2e8f0;
+  min-height:100dvh
+}
+
+.top{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:12px 16px;
+  border-bottom:1px solid #334155;
+  position:sticky;
+  top:0;
+  z-index:20;
+  background:#0f172a
+}
+
+.logo{
+  width:32px;
+  height:32px;
+  border-radius:8px;
+  background:linear-gradient(135deg,#f59e0b,#d97706);
+  display:grid;
+  place-items:center;
+  font-weight:800;
+  font-size:12px;
+  color:#000
+}
+
+.wrap{
+  max-width:720px;
+  margin:0 auto;
+  padding:16px
+}
+
+.card{
+  background:#1e293b;
+  border:1px solid #334155;
+  border-radius:12px;
+  padding:14px;
+  margin-bottom:12px
+}
+
+.btn{
+  border:none;
+  border-radius:10px;
+  padding:8px 12px;
+  background:#334155;
+  color:#fff;
+  font:inherit;
+  cursor:pointer
+}
+
+.btn.primary{
+  background:linear-gradient(135deg,#3b82f6,#6366f1)
+}
+
+.btn.success{
+  background:#166534
+}
+
+.btn.danger{
+  background:#7f1d1d
+}
+
+.meta{
+  font-size:13px;
+  color:#94a3b8;
+  word-break:break-all;
+  line-height:1.6
+}
+
+h1{
+  font-size:18px;
+  margin:0
+}
+
+h2{
+  font-size:15px;
+  margin:0 0 8px
+}
+
+/* Provider */
+
+.provider-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:12px
+}
+
+.provider-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px
+}
+
+.provider-item{
+  background:#172235;
+  border:1px solid #334155;
+  border-radius:12px;
+  padding:12px
+}
+
+.provider-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px
+}
+
+.provider-name{
+  font-weight:700;
+  font-size:15px
+}
+
+.provider-info{
+  margin-top:7px;
+  font-size:12px;
+  color:#94a3b8;
+  line-height:1.7;
+  word-break:break-all
+}
+
+.status{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  padding:4px 8px;
+  border-radius:999px;
+  font-size:12px;
+  white-space:nowrap
+}
+
+.status.online{
+  background:#14532d;
+  color:#bbf7d0
+}
+
+.status.offline{
+  background:#334155;
+  color:#cbd5e1
+}
+
+.status.error{
+  background:#7f1d1d;
+  color:#fecaca
+}
+
+.provider-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+  margin-top:10px
+}
+
+/* Form */
+
+.provider-form{
+  display:none;
+  margin-top:12px;
+  padding:12px;
+  background:#0f172a;
+  border:1px solid #334155;
+  border-radius:10px
+}
+
+.provider-form.show{
+  display:block
+}
+
+.field{
+  margin-bottom:10px
+}
+
+.field label{
+  display:block;
+  margin-bottom:5px;
+  font-size:12px;
+  color:#94a3b8
+}
+
+.field input{
+  width:100%;
+  padding:10px;
+  border-radius:9px;
+  border:1px solid #475569;
+  background:#020617;
+  color:#fff;
+  outline:none;
+  font:inherit
+}
+
+.field input:focus{
+  border-color:#60a5fa
+}
+
+.form-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:12px
+}
+
+.result{
+  display:none;
+  margin-top:10px;
+  padding:10px;
+  border-radius:9px;
+  background:#020617;
+  color:#cbd5e1;
+  font-size:12px;
+  white-space:pre-wrap;
+  word-break:break-word
+}
+
+.result.show{
+  display:block
+}
+
+.empty{
+  padding:18px;
+  text-align:center;
+  color:#64748b;
+  font-size:13px
+}
+
+.notice{
+  margin-top:10px;
+  padding:10px;
+  border-radius:9px;
+  background:#172554;
+  color:#bfdbfe;
+  font-size:12px;
+  line-height:1.7
+}
 </style>
 </head>
+
 <body>
+
 <header class="top">
+
   <div class="logo">AD</div>
-  <div><h1>AIVAULT 後台</h1><div class="meta">管理員</div></div>
+
+  <div>
+    <h1>AIVAULT 後台</h1>
+    <div class="meta">管理員</div>
+  </div>
+
   <div style="margin-left:auto;display:flex;gap:8px">
-    <button class="btn" type="button" id="btnHome">Home</button>
+
+    <button
+      class="btn"
+      type="button"
+      id="btnHome">
+      Home
+    </button>
+
   </div>
+
 </header>
+
+
 <main class="wrap">
+
+  <!-- =====================================================
+       登入資訊
+  ====================================================== -->
+
   <div class="card">
+
     <h2>目前登入</h2>
-    <div class="meta" id="info">檢查中…</div>
-  </div>
-  <div class="card">
-    <h2>快捷</h2>
-    <div style="display:flex;flex-wrap:wrap;gap:8px">
-      <button class="btn primary" type="button" data-go="aivault-home.html">工作平台 Home</button>
-      <button class="btn" type="button" data-go="aivault-video-studio.html">短視頻企劃</button>
-      <button class="btn" type="button" data-go="aivault-research-warroom.html">研究論文室</button>
-      <button class="btn" type="button" data-go="aivault-warroom.html">War Room</button>
+
+    <div
+      class="meta"
+      id="info">
+      檢查中…
     </div>
+
   </div>
+
+
+  <!-- =====================================================
+       快捷
+  ====================================================== -->
+
   <div class="card">
-    <h2>說明</h2>
-    <p class="meta">此為管理員入口頁。完整使用者／用量管理可後續擴充。僅 <b>n_950143@hotmail.com</b> 或 role=admin／owner 可進入。</p>
+
+    <h2>快捷</h2>
+
+    <div
+      style="
+        display:flex;
+        flex-wrap:wrap;
+        gap:8px">
+
+      <button
+        class="btn primary"
+        type="button"
+        data-go="aivault-home.html">
+        工作平台 Home
+      </button>
+
+      <button
+        class="btn"
+        type="button"
+        data-go="aivault-video-studio.html">
+        短視頻企劃
+      </button>
+
+      <button
+        class="btn"
+        type="button"
+        data-go="aivault-research-warroom.html">
+        研究論文室
+      </button>
+
+      <button
+        class="btn"
+        type="button"
+        data-go="aivault-warroom.html">
+        War Room
+      </button>
+
+    </div>
+
   </div>
+
+
+  <!-- =====================================================
+       AI PROVIDER 管理
+  ====================================================== -->
+
+  <div class="card">
+
+    <div class="provider-head">
+
+      <div>
+
+        <h2>🤖 AI Provider 管理</h2>
+
+        <div class="meta">
+          管理 AI API、Model、連線狀態與啟用狀態。
+        </div>
+
+      </div>
+
+      <button
+        class="btn primary"
+        type="button"
+        id="btnAddProvider">
+        ＋ 新增 AI
+      </button>
+
+    </div>
+
+
+    <!-- Provider 表單 -->
+
+    <div
+      class="provider-form"
+      id="providerForm">
+
+      <div class="field">
+
+        <label>
+          AI 名稱
+        </label>
+
+        <input
+          id="providerName"
+          type="text"
+          placeholder="例如：主要 AI"
+          autocomplete="off"/>
+
+      </div>
+
+
+      <div class="field">
+
+        <label>
+          API URL
+        </label>
+
+        <input
+          id="providerUrl"
+          type="url"
+          placeholder="https://..."
+          autocomplete="off"/>
+
+      </div>
+
+
+      <div class="field">
+
+        <label>
+          API Key
+        </label>
+
+        <input
+          id="providerKey"
+          type="password"
+          placeholder="輸入 API Key"
+          autocomplete="new-password"/>
+
+      </div>
+
+
+      <div class="field">
+
+        <label>
+          Model
+        </label>
+
+        <input
+          id="providerModel"
+          type="text"
+          placeholder="模型名稱"
+          autocomplete="off"/>
+
+      </div>
+
+
+      <div class="field">
+
+        <label>
+          優先順序
+        </label>
+
+        <input
+          id="providerPriority"
+          type="number"
+          min="1"
+          value="100"/>
+
+      </div>
+
+
+      <div class="form-actions">
+
+        <button
+          class="btn"
+          type="button"
+          id="btnTestProvider">
+          測試連線
+        </button>
+
+        <button
+          class="btn primary"
+          type="button"
+          id="btnSaveProvider">
+          儲存
+        </button>
+
+        <button
+          class="btn"
+          type="button"
+          id="btnCancelProvider">
+          取消
+        </button>
+
+      </div>
+
+
+      <div
+        class="result"
+        id="providerResult">
+      </div>
+
+
+      <div class="notice">
+
+        🔐 API Key 不會顯示在 Provider 清單。
+        <br>
+        🟢 在線代表最近一次連線測試成功。
+        <br>
+        ⚫ 離線代表尚未測試或目前沒有成功狀態。
+
+      </div>
+
+    </div>
+
+
+    <!-- Provider 清單 -->
+
+    <div
+      class="provider-list"
+      id="providerList">
+
+      <div class="empty">
+        載入 AI Provider 中…
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- =====================================================
+       說明
+  ====================================================== -->
+
+  <div class="card">
+
+    <h2>說明</h2>
+
+    <p class="meta">
+      此為管理員入口頁。
+      AI Provider 管理僅限管理員使用。
+      一般使用者不會看到 API Key。
+    </p>
+
+  </div>
+
 </main>
+
+
 <script type="module">
-const SUPABASE_URL='https://clcddygkaaqqtsbswgdf.supabase.co';
-const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE';
-const ADMIN_EMAILS=['n_950143@hotmail.com'];
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-const sb=createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,storage:localStorage}});
-const { data:{ session } }=await sb.auth.getSession();
-const user=session?.user;
-const email=(user?.email||'').toLowerCase();
-const role=user?.app_metadata?.role||user?.user_metadata?.role||'';
-const ok=role==='admin'||role==='owner'||ADMIN_EMAILS.includes(email);
-const el=document.getElementById('info');
-if(!user){el.textContent='未登入，請先登入 Home。';}
-else if(!ok){el.textContent='帳號 '+user.email+' 無管理員權限。';}
-else{
-  el.innerHTML='Email：'+user.email+'<br>暱稱：'+(user.user_metadata?.nickname||'—')+'<br>角色：'+(role||'admin（白名單）')+'<br>User ID：'+user.id;
+
+/* =========================================================
+   Supabase
+========================================================= */
+
+const SUPABASE_URL =
+  'https://clcddygkaaqqtsbswgdf.supabase.co';
+
+const SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzIiwicmVmIjoiY2xjZGR5Z2thYXFxdHNibXdkZiIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzg2NzM1MDY0LCJleHAiOjIxMDIzMTEwNjR9.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE';
+
+const ADMIN_EMAILS = [
+  'n_950143@hotmail.com'
+];
+
+
+/* =========================================================
+   Provider Manager
+========================================================= */
+
+const PROVIDER_MANAGER_URL =
+  SUPABASE_URL +
+  '/functions/v1/ai-provider-manager';
+
+
+import {
+  createClient
+} from
+'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+
+const sb =
+  createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY,
+    {
+      auth:{
+        persistSession:true,
+        autoRefreshToken:true,
+        storage:localStorage
+      }
+    }
+  );
+
+
+/* =========================================================
+   Elements
+========================================================= */
+
+const info =
+  document.getElementById('info');
+
+const providerList =
+  document.getElementById('providerList');
+
+const providerForm =
+  document.getElementById('providerForm');
+
+const providerResult =
+  document.getElementById('providerResult');
+
+const providerName =
+  document.getElementById('providerName');
+
+const providerUrl =
+  document.getElementById('providerUrl');
+
+const providerKey =
+  document.getElementById('providerKey');
+
+const providerModel =
+  document.getElementById('providerModel');
+
+const providerPriority =
+  document.getElementById('providerPriority');
+
+let editingId = null;
+
+
+/* =========================================================
+   HTML Escape
+========================================================= */
+
+function escapeHTML(value){
+
+  return String(value ?? '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#039;');
+
 }
-document.getElementById('btnHome').onclick=()=>location.href='aivault-home.html';
-document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>location.href=b.dataset.go);
+
+
+/* =========================================================
+   Session
+========================================================= */
+
+const {
+  data:{
+    session
+  }
+} =
+  await sb.auth.getSession();
+
+
+const user =
+  session?.user;
+
+
+const email =
+  (
+    user?.email ||
+    ''
+  ).toLowerCase();
+
+
+const role =
+  user?.app_metadata?.role ||
+  user?.user_metadata?.role ||
+  '';
+
+
+const isAdmin =
+  role === 'admin' ||
+  role === 'owner' ||
+  ADMIN_EMAILS.includes(email);
+
+
+if(!user){
+
+  info.textContent =
+    '未登入，請先登入 Home。';
+
+}else if(!isAdmin){
+
+  info.textContent =
+    '帳號沒有管理員權限。';
+
+}else{
+
+  info.innerHTML =
+    'Email：' +
+    escapeHTML(user.email) +
+    '<br>' +
+    '暱稱：' +
+    escapeHTML(
+      user.user_metadata?.nickname || '—'
+    ) +
+    '<br>' +
+    '角色：' +
+    escapeHTML(
+      role || 'admin（白名單）'
+    );
+
+  await loadProviders();
+
+}
+
+
+/* =========================================================
+   Provider API
+========================================================= */
+
+async function managerRequest(
+  action,
+  payload={}
+){
+
+  if(!session?.access_token){
+
+    throw new Error(
+      '沒有有效登入 Session。'
+    );
+
+  }
+
+
+  const response =
+    await fetch(
+      PROVIDER_MANAGER_URL,
+      {
+        method:'POST',
+
+        headers:{
+          'Content-Type':
+            'application/json',
+
+          'Authorization':
+            'Bearer ' +
+            session.access_token
+        },
+
+        body:
+          JSON.stringify({
+            action,
+            ...payload
+          })
+      }
+    );
+
+
+  const text =
+    await response.text();
+
+
+  let data;
+
+  try{
+
+    data =
+      text
+        ? JSON.parse(text)
+        : {};
+
+  }catch{
+
+    throw new Error(
+      'Provider Manager 回傳格式錯誤。'
+    );
+
+  }
+
+
+  if(!response.ok){
+
+    throw new Error(
+      data?.message ||
+      data?.error ||
+      'Provider Manager 請求失敗。'
+    );
+
+  }
+
+
+  return data;
+
+}
+
+
+/* =========================================================
+   Load Provider
+========================================================= */
+
+async function loadProviders(){
+
+  providerList.innerHTML = `
+    <div class="empty">
+      載入中…
+    </div>
+  `;
+
+
+  try{
+
+    const data =
+      await managerRequest(
+        'list'
+      );
+
+
+    renderProviders(
+      data.providers || []
+    );
+
+
+  }catch(error){
+
+    providerList.innerHTML = `
+      <div class="empty">
+        載入失敗
+        <br><br>
+        ${escapeHTML(error.message)}
+      </div>
+    `;
+
+  }
+
+}
+
+
+/* =========================================================
+   Render
+========================================================= */
+
+function renderProviders(
+  providers
+){
+
+  providerList.innerHTML = '';
+
+
+  if(!providers.length){
+
+    providerList.innerHTML = `
+      <div class="empty">
+        尚未新增 AI Provider。
+      </div>
+    `;
+
+    return;
+
+  }
+
+
+  providers.forEach(
+    provider=>{
+
+      const item =
+        document.createElement('div');
+
+      item.className =
+        'provider-item';
+
+
+      const status =
+        String(
+          provider.status ||
+          'offline'
+        ).toLowerCase();
+
+
+      let statusText =
+        '⚫ 離線';
+
+
+      if(status === 'online'){
+        statusText =
+          '🟢 在線';
+      }
+
+      if(status === 'error'){
+        statusText =
+          '🔴 錯誤';
+      }
+
+
+      item.innerHTML = `
+
+        <div class="provider-row">
+
+          <div>
+
+            <div class="provider-name">
+              ${escapeHTML(provider.name)}
+            </div>
+
+            <div class="provider-info">
+              Model：
+              ${escapeHTML(provider.model)}
+            </div>
+
+          </div>
+
+          <div
+            class="status ${escapeHTML(status)}">
+
+            ${statusText}
+
+          </div>
+
+        </div>
+
+
+        <div class="provider-info">
+
+          API：
+          ${escapeHTML(provider.api_url)}
+
+          <br>
+
+          Priority：
+          ${escapeHTML(provider.priority)}
+
+          <br>
+
+          狀態：
+          ${
+            provider.enabled
+              ? '啟用'
+              : '停用'
+          }
+
+          <br>
+
+          最後測試：
+          ${
+            escapeHTML(
+              provider.last_tested_at ||
+              '尚未測試'
+            )
+          }
+
+        </div>
+
+
+        <div class="provider-actions">
+
+          <button
+            class="btn"
+            data-action="edit">
+            編輯
+          </button>
+
+          <button
+            class="btn"
+            data-action="toggle">
+
+            ${
+              provider.enabled
+                ? '停用'
+                : '啟用'
+            }
+
+          </button>
+
+          <button
+            class="btn danger"
+            data-action="delete">
+            刪除
+          </button>
+
+        </div>
+      `;
+
+
+      item
+        .querySelector(
+          '[data-action="edit"]'
+        )
+        .onclick =
+          ()=>{
+            openEdit(provider);
+          };
+
+
+      item
+        .querySelector(
+          '[data-action="toggle"]'
+        )
+        .onclick =
+          async ()=>{
+
+            try{
+
+              await managerRequest(
+                'update',
+                {
+                  id:provider.id,
+                  enabled:
+                    !provider.enabled
+                }
+              );
+
+              await loadProviders();
+
+            }catch(error){
+
+              alert(
+                error.message
+              );
+
+            }
+
+          };
+
+
+      item
+        .querySelector(
+          '[data-action="delete"]'
+        )
+        .onclick =
+          async ()=>{
+
+            if(
+              !confirm(
+                '確定要刪除這個 AI Provider 嗎？'
+              )
+            ){
+
+              return;
+
+            }
+
+
+            try{
+
+              await managerRequest(
+                'delete',
+                {
+                  id:provider.id
+                }
+              );
+
+              await loadProviders();
+
+            }catch(error){
+
+              alert(
+                error.message
+              );
+
+            }
+
+          };
+
+
+      providerList.appendChild(item);
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   Add
+========================================================= */
+
+document
+  .getElementById(
+    'btnAddProvider'
+  )
+  .onclick =
+    ()=>{
+
+      editingId = null;
+
+      providerName.value = '';
+      providerUrl.value = '';
+      providerKey.value = '';
+      providerModel.value = '';
+      providerPriority.value = '100';
+
+      providerResult.classList.remove(
+        'show'
+      );
+
+      providerResult.textContent = '';
+
+      providerForm.classList.add(
+        'show'
+      );
+
+    };
+
+
+/* =========================================================
+   Cancel
+========================================================= */
+
+document
+  .getElementById(
+    'btnCancelProvider'
+  )
+  .onclick =
+    ()=>{
+
+      editingId = null;
+
+      providerForm.classList.remove(
+        'show'
+      );
+
+    };
+
+
+/* =========================================================
+   Edit
+========================================================= */
+
+function openEdit(provider){
+
+  editingId =
+    provider.id;
+
+  providerName.value =
+    provider.name || '';
+
+  providerUrl.value =
+    provider.api_url || '';
+
+  providerKey.value =
+    '';
+
+  providerModel.value =
+    provider.model || '';
+
+  providerPriority.value =
+    provider.priority ?? 100;
+
+  providerResult.classList.remove(
+    'show'
+  );
+
+  providerResult.textContent = '';
+
+  providerForm.classList.add(
+    'show'
+  );
+
+}
+
+
+/* =========================================================
+   Test
+========================================================= */
+
+document
+  .getElementById(
+    'btnTestProvider'
+  )
+  .onclick =
+    async ()=>{
+
+      const api_url =
+        providerUrl.value.trim();
+
+      const api_key =
+        providerKey.value.trim();
+
+      const model =
+        providerModel.value.trim();
+
+
+      if(
+        !api_url ||
+        !api_key ||
+        !model
+      ){
+
+        alert(
+          '請輸入 API URL、API Key、Model。'
+        );
+
+        return;
+
+      }
+
+
+      providerResult.classList.add(
+        'show'
+      );
+
+      providerResult.textContent =
+        '🟡 正在測試 AI Provider…';
+
+
+      try{
+
+        const data =
+          await managerRequest(
+            'test',
+            {
+              api_url,
+              api_key,
+              model
+            }
+          );
+
+
+        if(data.success){
+
+          providerResult.textContent =
+            '🟢 AI Provider 在線\n\n' +
+            (
+              data.test?.content ||
+              '連線測試成功。'
+            );
+
+        }else{
+
+          providerResult.textContent =
+            '🔴 AI Provider 測試失敗\n\n' +
+            (
+              data.test?.error ||
+              '未知錯誤'
+            );
+
+        }
+
+      }catch(error){
+
+        providerResult.textContent =
+          '🔴 測試失敗\n\n' +
+          error.message;
+
+      }
+
+    };
+
+
+/* =========================================================
+   Save
+========================================================= */
+
+document
+  .getElementById(
+    'btnSaveProvider'
+  )
+  .onclick =
+    async ()=>{
+
+      const name =
+        providerName.value.trim();
+
+      const api_url =
+        providerUrl.value.trim();
+
+      const api_key =
+        providerKey.value.trim();
+
+      const model =
+        providerModel.value.trim();
+
+      const priority =
+        Number(
+          providerPriority.value
+        ) || 100;
+
+
+      if(!name){
+
+        alert(
+          '請輸入 AI 名稱。'
+        );
+
+        return;
+
+      }
+
+
+      if(!api_url){
+
+        alert(
+          '請輸入 API URL。'
+        );
+
+        return;
+
+      }
+
+
+      if(!model){
+
+        alert(
+          '請輸入 Model。'
+        );
+
+        return;
+
+      }
+
+
+      try{
+
+        let data;
+
+
+        if(editingId){
+
+          data =
+            await managerRequest(
+              'update',
+              {
+                id:editingId,
+                name,
+                api_url,
+                model,
+                priority,
+                ...(api_key
+                  ? {
+                      api_key
+                    }
+                  : {})
+              }
+            );
+
+        }else{
+
+          if(!api_key){
+
+            alert(
+              '新增 AI 必須輸入 API Key。'
+            );
+
+            return;
+
+          }
+
+
+          data =
+            await managerRequest(
+              'create',
+              {
+                name,
+                api_url,
+                api_key,
+                model,
+                priority,
+                enabled:true
+              }
+            );
+
+        }
+
+
+        providerResult.classList.add(
+          'show'
+        );
+
+        providerResult.textContent =
+          '✅ AI Provider 已儲存。';
+
+
+        providerKey.value = '';
+
+        editingId = null;
+
+        await loadProviders();
+
+      }catch(error){
+
+        providerResult.classList.add(
+          'show'
+        );
+
+        providerResult.textContent =
+          '🔴 儲存失敗\n\n' +
+          error.message;
+
+      }
+
+    };
+
+
+/* =========================================================
+   Navigation
+========================================================= */
+
+document
+  .getElementById(
+    'btnHome'
+  )
+  .onclick =
+    ()=>{
+      location.href =
+        'aivault-home.html';
+    };
+
+
+document
+  .querySelectorAll(
+    '[data-go]'
+  )
+  .forEach(
+    button=>{
+
+      button.onclick =
+        ()=>{
+          location.href =
+            button.dataset.go;
+        };
+
+    }
+  );
+
 </script>
+
 </body>
 </html>
