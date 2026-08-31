@@ -2068,13 +2068,105 @@ function renderGates(parent,gates){
 
 
 /* =========================================================
-   AIVAULT AI GATEWAY — DEBUG TEST VERSION
+   AIVAULT AI GATEWAY — CORS / CONNECTION DIAGNOSTIC
 ========================================================= */
 
-async function callAIVAULT(
-  userMessage,
-  files
-){
+async function callAIVAULT(userMessage, files){
+
+  console.log("=================================");
+  console.log("AIVAULT GATEWAY CONNECTION TEST");
+  console.log("URL:", AI_GATEWAY_URL);
+  console.log("=================================");
+
+
+  /* =======================================================
+     TEST 1 — OPTIONS / CORS PREFLIGHT
+  ======================================================= */
+
+  try{
+
+    console.log("TEST 1: OPTIONS");
+
+    const optionsResponse =
+      await fetch(
+        AI_GATEWAY_URL,
+        {
+          method:"OPTIONS",
+
+          headers:{
+            "Origin":window.location.origin,
+            "Access-Control-Request-Method":"POST",
+            "Access-Control-Request-Headers":
+              "content-type,x-aivault-source"
+          }
+        }
+      );
+
+    console.log(
+      "OPTIONS STATUS:",
+      optionsResponse.status
+    );
+
+    console.log(
+      "OPTIONS STATUS TEXT:",
+      optionsResponse.statusText
+    );
+
+    console.log(
+      "OPTIONS HEADERS:"
+    );
+
+    optionsResponse.headers.forEach(
+      (value,key)=>{
+        console.log(
+          key + ":",
+          value
+        );
+      }
+    );
+
+    const optionsText =
+      await optionsResponse.text();
+
+    console.log(
+      "OPTIONS BODY:",
+      optionsText
+    );
+
+
+  }catch(optionsError){
+
+    console.error(
+      "OPTIONS FAILED:",
+      optionsError
+    );
+
+    throw new Error(
+
+      "【CORS / OPTIONS 連線失敗】\n\n" +
+
+      "前台連不到 AI Gateway 的 OPTIONS 預檢。\n\n" +
+
+      "Gateway URL:\n" +
+      AI_GATEWAY_URL +
+      "\n\n" +
+
+      "Browser Error:\n" +
+      optionsError.message +
+      "\n\n" +
+
+      "這通常代表：\n" +
+      "1. Edge Function CORS 沒有正確處理 OPTIONS\n" +
+      "2. Edge Function 沒有正常運作\n" +
+      "3. Supabase Function 目前無法被瀏覽器存取\n" +
+      "4. 網路層阻擋請求"
+    );
+  }
+
+
+  /* =======================================================
+     TEST 2 — REAL POST
+  ======================================================= */
 
   const payload = {
 
@@ -2094,11 +2186,12 @@ async function callAIVAULT(
       files || []
   };
 
+
   console.log("=================================");
-  console.log("Technical Dark Star → AI Gateway");
-  console.log("Gateway URL:", AI_GATEWAY_URL);
-  console.log("Payload:", payload);
+  console.log("TEST 2: POST");
+  console.log("PAYLOAD:",payload);
   console.log("=================================");
+
 
   let response;
 
@@ -2110,15 +2203,11 @@ async function callAIVAULT(
         {
           method:"POST",
 
+          mode:"cors",
+
           headers:{
             "Content-Type":
               "application/json",
-
-            /*
-              注意：
-              這裡故意不放 AI_GATEWAY_SECRET。
-              Secret 絕對不能放在前台。
-            */
 
             "x-aivault-source":
               "technical-dark-star-web"
@@ -2129,28 +2218,33 @@ async function callAIVAULT(
         }
       );
 
-  }catch(networkError){
+  }catch(postError){
 
     console.error(
-      "AI Gateway NETWORK ERROR:",
-      networkError
+      "POST FAILED:",
+      postError
     );
 
     throw new Error(
-      "【Gateway Network Error】\n\n" +
-      "前台無法連線到 AIVAULT AI Gateway。\n\n" +
+
+      "【Gateway POST 連線失敗】\n\n" +
+
+      "OPTIONS 預檢可能已完成，" +
+      "但 POST 無法建立 HTTP Response。\n\n" +
+
       "Gateway URL:\n" +
       AI_GATEWAY_URL +
       "\n\n" +
-      "錯誤：\n" +
-      networkError.message
+
+      "Browser Error:\n" +
+      postError.message
     );
   }
 
 
-  /*
-    先取得完整 HTTP 資訊
-  */
+  /* =======================================================
+     TEST 3 — RESPONSE
+  ======================================================= */
 
   const status =
     response.status;
@@ -2163,134 +2257,53 @@ async function callAIVAULT(
 
 
   console.log("=================================");
-  console.log("AI Gateway HTTP RESULT");
-  console.log("Status:", status);
-  console.log("Status Text:", statusText);
-  console.log("Raw Response:", responseText);
+  console.log("GATEWAY RESPONSE");
+  console.log("STATUS:",status);
+  console.log("STATUS TEXT:",statusText);
+  console.log("BODY:",responseText);
   console.log("=================================");
 
 
-  /*
-    嘗試解析 JSON
-  */
+  let data = {};
 
-  let data = null;
+  try{
 
-  if(responseText){
+    data =
+      responseText
+        ? JSON.parse(responseText)
+        : {};
 
-    try{
-
-      data =
-        JSON.parse(responseText);
-
-    }catch(parseError){
-
-      console.error(
-        "Gateway JSON Parse Error:",
-        parseError
-      );
-
-      throw new Error(
-        "【Gateway Response Error】\n\n" +
-
-        "HTTP Status: " +
-        status +
-        "\n\n" +
-
-        "Gateway 回傳不是 JSON。\n\n" +
-
-        "Raw Response:\n" +
-        responseText.slice(0,3000)
-      );
-    }
-  }
-
-
-  /*
-    HTTP ERROR
-  */
-
-  if(!response.ok){
-
-    console.error(
-      "AI Gateway HTTP ERROR:",
-      {
-        status,
-        statusText,
-        data
-      }
-    );
-
-
-    /*
-      特別抓 UNAUTHORIZED
-    */
-
-    if(
-      status === 401 ||
-      data?.error === "UNAUTHORIZED" ||
-      data?.code === "UNAUTHORIZED"
-    ){
-
-      throw new Error(
-
-        "【AI Gateway 驗證失敗】\n\n" +
-
-        "HTTP Status: " +
-        status +
-        "\n\n" +
-
-        "Gateway Error:\n" +
-        (
-          data?.error ||
-          data?.code ||
-          "UNAUTHORIZED"
-        ) +
-
-        "\n\n" +
-
-        "Gateway Message:\n" +
-        (
-          data?.message ||
-          data?.details ||
-          "沒有提供詳細訊息"
-        ) +
-
-        "\n\n" +
-
-        "Raw Response:\n" +
-        responseText.slice(0,3000) +
-
-        "\n\n" +
-
-        "判斷：\n" +
-        "前台已經成功連到 ai-gateway，" +
-        "但 Gateway 拒絕這次請求。"
-      );
-    }
-
-
-    /*
-      其他 HTTP ERROR
-    */
+  }catch(error){
 
     throw new Error(
 
-      "【AI Gateway HTTP Error】\n\n" +
+      "【Gateway 回傳格式錯誤】\n\n" +
 
       "HTTP Status: " +
       status +
-      "\n" +
+      "\n\n" +
 
-      "Status Text: " +
-      statusText +
+      "Raw Response:\n" +
+      responseText.slice(0,3000)
+    );
+  }
+
+
+  if(!response.ok){
+
+    throw new Error(
+
+      "【Gateway HTTP ERROR】\n\n" +
+
+      "HTTP Status: " +
+      status +
       "\n\n" +
 
       "Error:\n" +
       (
         data?.error ||
         data?.code ||
-        "UNKNOWN_ERROR"
+        "UNKNOWN"
       ) +
 
       "\n\n" +
@@ -2299,7 +2312,7 @@ async function callAIVAULT(
       (
         data?.message ||
         data?.details ||
-        "沒有提供詳細訊息"
+        "沒有提供"
       ) +
 
       "\n\n" +
@@ -2310,20 +2323,6 @@ async function callAIVAULT(
   }
 
 
-  /*
-    HTTP 200
-  */
-
-  console.log(
-    "AI Gateway SUCCESS:",
-    data
-  );
-
-
-  /*
-    更新 conversation_id
-  */
-
   conversationId =
     data?.conversation_id ||
     data?.conversationId ||
@@ -2333,56 +2332,8 @@ async function callAIVAULT(
 
   saveState();
 
-
-  /*
-    額外檢查：
-    HTTP 200 但是 Gateway 回傳 error
-  */
-
-  if(
-    data?.error ||
-    data?.code === "ERROR"
-  ){
-
-    throw new Error(
-
-      "【AI Gateway 回傳錯誤】\n\n" +
-
-      "HTTP Status: " +
-      status +
-      "\n\n" +
-
-      "Error:\n" +
-      (
-        data?.error ||
-        data?.code
-      ) +
-
-      "\n\n" +
-
-      "Message:\n" +
-      (
-        data?.message ||
-        data?.details ||
-        "沒有提供詳細訊息"
-      ) +
-
-      "\n\n" +
-
-      "完整 Response:\n" +
-      JSON.stringify(
-        data,
-        null,
-        2
-      )
-    );
-  }
-
-
   return data;
 }
-
-
 /* =========================================================
    AI RESPONSE
 ========================================================= */
