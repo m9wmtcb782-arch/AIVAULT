@@ -2071,67 +2071,49 @@ function renderGates(parent,gates){
    AIVAULT AI GATEWAY
 ========================================================= */
 
-async function callAIVAULT(
-  userMessage,
-  files
-){
+async function callAIVAULT(userMessage, files){
 
   const payload = {
-
-    engine:
-      ENGINE,
-
-    message:
-      userMessage,
-
-    conversation_id:
-      conversationId,
-
-    source:
-      "technical-dark-star-web",
-
-    files:
-      files || []
+    message: userMessage,
+    conversation_id: conversationId,
+    source: "technical-dark-star-web",
+    files: files || []
   };
 
-  const response =
-    await fetch(
-      AI_GATEWAY_URL,
-      {
-        method:"POST",
+  console.log("➡️ AIVAULT AI Gateway", payload);
 
-        headers:{
-          "Content-Type":
-            "application/json"
-        },
+  const response = await fetch(
+    AI_GATEWAY_URL,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    }
+  );
 
-        body:
-          JSON.stringify(payload)
-      }
-    );
+  const responseText = await response.text();
 
-  const responseText =
-    await response.text();
+  console.log(
+    "⬅️ Gateway 回應:",
+    responseText
+  );
 
   let data;
 
-  try{
-
-    data =
-      responseText
-        ? JSON.parse(responseText)
-        : {};
-
-  }catch(error){
-
+  try {
+    data = responseText
+      ? JSON.parse(responseText)
+      : {};
+  } catch(error) {
     throw new Error(
-      "AIVAULT AI Gateway 回傳不是 JSON：\n" +
-      responseText.slice(0,1200)
+      "Gateway 回傳不是 JSON：\n" +
+      responseText.slice(0, 1200)
     );
   }
 
   if(!response.ok){
-
     throw new Error(
       data?.error ||
       data?.message ||
