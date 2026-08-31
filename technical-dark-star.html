@@ -2068,105 +2068,13 @@ function renderGates(parent,gates){
 
 
 /* =========================================================
-   AIVAULT AI GATEWAY — CORS / CONNECTION DIAGNOSTIC
+   AIVAULT AI GATEWAY
 ========================================================= */
 
-async function callAIVAULT(userMessage, files){
-
-  console.log("=================================");
-  console.log("AIVAULT GATEWAY CONNECTION TEST");
-  console.log("URL:", AI_GATEWAY_URL);
-  console.log("=================================");
-
-
-  /* =======================================================
-     TEST 1 — OPTIONS / CORS PREFLIGHT
-  ======================================================= */
-
-  try{
-
-    console.log("TEST 1: OPTIONS");
-
-    const optionsResponse =
-      await fetch(
-        AI_GATEWAY_URL,
-        {
-          method:"OPTIONS",
-
-          headers:{
-            "Origin":window.location.origin,
-            "Access-Control-Request-Method":"POST",
-            "Access-Control-Request-Headers":
-              "content-type,x-aivault-source"
-          }
-        }
-      );
-
-    console.log(
-      "OPTIONS STATUS:",
-      optionsResponse.status
-    );
-
-    console.log(
-      "OPTIONS STATUS TEXT:",
-      optionsResponse.statusText
-    );
-
-    console.log(
-      "OPTIONS HEADERS:"
-    );
-
-    optionsResponse.headers.forEach(
-      (value,key)=>{
-        console.log(
-          key + ":",
-          value
-        );
-      }
-    );
-
-    const optionsText =
-      await optionsResponse.text();
-
-    console.log(
-      "OPTIONS BODY:",
-      optionsText
-    );
-
-
-  }catch(optionsError){
-
-    console.error(
-      "OPTIONS FAILED:",
-      optionsError
-    );
-
-    throw new Error(
-
-      "【CORS / OPTIONS 連線失敗】\n\n" +
-
-      "前台連不到 AI Gateway 的 OPTIONS 預檢。\n\n" +
-
-      "Gateway URL:\n" +
-      AI_GATEWAY_URL +
-      "\n\n" +
-
-      "Browser Error:\n" +
-      optionsError.message +
-      "\n\n" +
-
-      "這通常代表：\n" +
-      "1. Edge Function CORS 沒有正確處理 OPTIONS\n" +
-      "2. Edge Function 沒有正常運作\n" +
-      "3. Supabase Function 目前無法被瀏覽器存取\n" +
-      "4. 網路層阻擋請求"
-    );
-  }
-
-
-  /* =======================================================
-     TEST 2 — REAL POST
-  ======================================================= */
+async function callAIVAULT(
+  userMessage,
+  files
+){
 
   const payload = {
 
@@ -2186,85 +2094,26 @@ async function callAIVAULT(userMessage, files){
       files || []
   };
 
+  const response =
+    await fetch(
+      AI_GATEWAY_URL,
+      {
+        method:"POST",
 
-  console.log("=================================");
-  console.log("TEST 2: POST");
-  console.log("PAYLOAD:",payload);
-  console.log("=================================");
+        headers:{
+          "Content-Type":
+            "application/json"
+        },
 
-
-  let response;
-
-  try{
-
-    response =
-      await fetch(
-        AI_GATEWAY_URL,
-        {
-          method:"POST",
-
-          mode:"cors",
-
-          headers:{
-            "Content-Type":
-              "application/json",
-
-            "x-aivault-source":
-              "technical-dark-star-web"
-          },
-
-          body:
-            JSON.stringify(payload)
-        }
-      );
-
-  }catch(postError){
-
-    console.error(
-      "POST FAILED:",
-      postError
+        body:
+          JSON.stringify(payload)
+      }
     );
-
-    throw new Error(
-
-      "【Gateway POST 連線失敗】\n\n" +
-
-      "OPTIONS 預檢可能已完成，" +
-      "但 POST 無法建立 HTTP Response。\n\n" +
-
-      "Gateway URL:\n" +
-      AI_GATEWAY_URL +
-      "\n\n" +
-
-      "Browser Error:\n" +
-      postError.message
-    );
-  }
-
-
-  /* =======================================================
-     TEST 3 — RESPONSE
-  ======================================================= */
-
-  const status =
-    response.status;
-
-  const statusText =
-    response.statusText;
 
   const responseText =
     await response.text();
 
-
-  console.log("=================================");
-  console.log("GATEWAY RESPONSE");
-  console.log("STATUS:",status);
-  console.log("STATUS TEXT:",statusText);
-  console.log("BODY:",responseText);
-  console.log("=================================");
-
-
-  let data = {};
+  let data;
 
   try{
 
@@ -2276,64 +2125,33 @@ async function callAIVAULT(userMessage, files){
   }catch(error){
 
     throw new Error(
-
-      "【Gateway 回傳格式錯誤】\n\n" +
-
-      "HTTP Status: " +
-      status +
-      "\n\n" +
-
-      "Raw Response:\n" +
-      responseText.slice(0,3000)
+      "AIVAULT AI Gateway 回傳不是 JSON：\n" +
+      responseText.slice(0,1200)
     );
   }
-
 
   if(!response.ok){
 
     throw new Error(
-
-      "【Gateway HTTP ERROR】\n\n" +
-
-      "HTTP Status: " +
-      status +
-      "\n\n" +
-
-      "Error:\n" +
-      (
-        data?.error ||
-        data?.code ||
-        "UNKNOWN"
-      ) +
-
-      "\n\n" +
-
-      "Message:\n" +
-      (
-        data?.message ||
-        data?.details ||
-        "沒有提供"
-      ) +
-
-      "\n\n" +
-
-      "Raw Response:\n" +
-      responseText.slice(0,3000)
+      data?.error ||
+      data?.message ||
+      `HTTP ${response.status}`
     );
   }
 
-
   conversationId =
-    data?.conversation_id ||
-    data?.conversationId ||
-    data?.session_id ||
-    data?.sessionId ||
+    data.conversation_id ||
+    data.conversationId ||
+    data.session_id ||
+    data.sessionId ||
     conversationId;
 
   saveState();
 
   return data;
 }
+
+
 /* =========================================================
    AI RESPONSE
 ========================================================= */
@@ -2343,20 +2161,21 @@ function getAIReply(data){
   if(!data) return null;
 
   return (
-    data.content ??
     data.reply ??
     data.response ??
     data.answer ??
     data.message ??
     data.output ??
-    data.result?.content ??
     data.result?.reply ??
     data.result?.response ??
     data.result?.answer ??
     data.result?.output ??
     null
   );
-}/* =========================================================
+}
+
+
+/* =========================================================
    SEND
 ========================================================= */
 
@@ -2464,9 +2283,8 @@ async function sendMessage(){
     loading.remove();
 
     const errorText =
-  "Technical Dark Star 無法取得 AIVAULT 的真實回應。\n\n" +
-  "錯誤：" +
-  (error?.message || String(error));
+      "Technical Dark Star 無法取得 AIVAULT 的真實回應。\n\n" +
+      error.message;
 
     renderAIMessage(errorText);
 
