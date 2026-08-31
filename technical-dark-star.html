@@ -1,917 +1,2550 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="theme-color" content="#ffffff">
+<title>Technical Dark Star</title>
 
-  <title>AIVAULT AI</title>
+<style>
+*{box-sizing:border-box}
 
-  <style>
-    * {
-      box-sizing: border-box;
-    }
+html,body{
+  margin:0;
+  padding:0;
+  width:100%;
+  height:100%;
+  background:#fff;
+  color:#202123;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",
+    "Noto Sans TC","PingFang TC",sans-serif;
+}
 
-    body {
-      margin: 0;
-      font-family:
-        -apple-system,
-        BlinkMacSystemFont,
-        "Noto Sans TC",
-        "Microsoft JhengHei",
-        sans-serif;
-      background: #0b0f19;
-      color: #fff;
-      height: 100vh;
-      overflow: hidden;
-    }
+button,textarea,input{font:inherit}
+button{cursor:pointer}
+body{overflow:hidden}
 
-    .app {
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
+.app{
+  width:100%;
+  height:100dvh;
+  display:flex;
+  flex-direction:column;
+  background:#fff;
+}
 
-    /* =========================
-       Header
-    ========================= */
+/* TOP */
 
-    .header {
-      height: 64px;
-      padding: 0 20px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid #252b3a;
-      background: #111624;
-    }
+.topbar{
+  height:58px;
+  min-height:58px;
+  display:flex;
+  align-items:center;
+  padding:0 14px;
+  border-bottom:1px solid #eee;
+  background:rgba(255,255,255,.96);
+  position:relative;
+  z-index:30;
+}
 
-    .logo {
-      font-size: 20px;
-      font-weight: 700;
-      letter-spacing: 1px;
-    }
+.menu-button{
+  width:38px;
+  height:38px;
+  border:0;
+  background:transparent;
+  border-radius:10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#303030;
+}
 
-    .status {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 13px;
-      color: #9ca3af;
-    }
+.menu-button:hover{background:#f3f3f3}
 
-    .status-dot {
-      width: 9px;
-      height: 9px;
-      border-radius: 50%;
-      background: #666;
-    }
+.brand{
+  margin-left:7px;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-width:0;
+}
 
-    .status-dot.online {
-      background: #22c55e;
-      box-shadow: 0 0 10px #22c55e;
-    }
+.brand-mark{
+  width:28px;
+  height:28px;
+  border-radius:8px;
+  background:#171717;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:14px;
+  font-weight:600;
+}
 
-    .status-dot.busy {
-      background: #f59e0b;
-      box-shadow: 0 0 10px #f59e0b;
-    }
+.brand-title{
+  font-size:15px;
+  font-weight:600;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
 
-    .status-dot.error {
-      background: #ef4444;
-    }
+.brand-engine{
+  font-size:12px;
+  color:#8b8b8b;
+}
 
-    /* =========================
-       Chat
-    ========================= */
+/* CHAT */
 
-    .chat {
-      flex: 1;
-      overflow-y: auto;
-      padding: 24px 16px 120px;
-    }
+.main{
+  flex:1;
+  min-height:0;
+  position:relative;
+  display:flex;
+}
 
-    .messages {
-      max-width: 900px;
-      margin: auto;
-    }
+.chat{
+  flex:1;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  background:#fff;
+}
 
-    .message {
-      display: flex;
-      margin-bottom: 20px;
-    }
+.messages{
+  flex:1;
+  min-height:0;
+  overflow-y:auto;
+  scroll-behavior:smooth;
+}
 
-    .message.user {
-      justify-content: flex-end;
-    }
+.messages-inner{
+  width:min(760px,calc(100% - 32px));
+  margin:0 auto;
+  padding:34px 0 150px;
+}
 
-    .message.ai {
-      justify-content: flex-start;
-    }
+/* WELCOME */
 
-    .bubble {
-      max-width: 80%;
-      padding: 14px 17px;
-      border-radius: 16px;
-      line-height: 1.7;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
+.welcome{
+  min-height:calc(100dvh - 220px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:40px 0;
+}
 
-    .user .bubble {
-      background: #2563eb;
-      border-bottom-right-radius: 4px;
-    }
+.welcome-content{width:100%}
 
-    .ai .bubble {
-      background: #171d2b;
-      border: 1px solid #272e3e;
-      border-bottom-left-radius: 4px;
-    }
+.welcome-mark{
+  width:54px;
+  height:54px;
+  margin:0 auto 22px;
+  border-radius:16px;
+  background:#171717;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:24px;
+}
 
-    .ai-name {
-      font-size: 12px;
-      color: #8b93a7;
-      margin-bottom: 5px;
-    }
+.welcome-title{
+  margin:0;
+  font-size:30px;
+  font-weight:600;
+  letter-spacing:-.7px;
+}
 
-    /* =========================
-       Loading
-    ========================= */
+.welcome-subtitle{
+  margin:13px auto 0;
+  max-width:570px;
+  font-size:15px;
+  line-height:1.75;
+  color:#777;
+}
 
-    .typing {
-      display: flex;
-      gap: 5px;
-      align-items: center;
-    }
+/* MESSAGE */
 
-    .typing span {
-      width: 7px;
-      height: 7px;
-      background: #9ca3af;
-      border-radius: 50%;
-      animation: typing 1.2s infinite;
-    }
+.message{
+  display:flex;
+  gap:13px;
+  margin-bottom:30px;
+}
 
-    .typing span:nth-child(2) {
-      animation-delay: .15s;
-    }
+.message.user{justify-content:flex-end}
 
-    .typing span:nth-child(3) {
-      animation-delay: .3s;
-    }
+.message-avatar{
+  width:30px;
+  height:30px;
+  min-width:30px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:11px;
+  font-weight:600;
+  background:#171717;
+  color:#fff;
+  margin-top:2px;
+}
 
-    @keyframes typing {
-      0%, 60%, 100% {
-        opacity: .25;
-        transform: translateY(0);
-      }
+.message.user .message-avatar{
+  background:#e9e9e9;
+  color:#444;
+}
 
-      30% {
-        opacity: 1;
-        transform: translateY(-3px);
-      }
-    }
+.message-body{
+  min-width:0;
+  max-width:690px;
+}
 
-    /* =========================
-       Input
-    ========================= */
+.message.user .message-body{
+  max-width:min(600px,82%);
+}
 
-    .input-area {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      padding: 15px;
-      background:
-        linear-gradient(
-          transparent,
-          #0b0f19 20%
-        );
-    }
+.message-text{
+  font-size:16px;
+  line-height:1.75;
+  white-space:normal;
+  word-break:break-word;
+}
 
-    .input-box {
-      max-width: 900px;
-      margin: auto;
-      display: flex;
-      gap: 10px;
-      background: #151b29;
-      border: 1px solid #2a3142;
-      border-radius: 16px;
-      padding: 10px;
-    }
+.message.user .message-text{
+  background:#f4f4f4;
+  border-radius:18px;
+  padding:10px 15px;
+}
 
-    textarea {
-      flex: 1;
-      resize: none;
-      border: 0;
-      outline: none;
-      background: transparent;
-      color: white;
-      font-size: 16px;
-      line-height: 1.5;
-      min-height: 44px;
-      max-height: 150px;
-      padding: 10px;
-      font-family: inherit;
-    }
+.message-actions{
+  margin-top:8px;
+  display:flex;
+  gap:4px;
+}
 
-    textarea::placeholder {
-      color: #687084;
-    }
+.message-action{
+  width:31px;
+  height:31px;
+  border:0;
+  background:transparent;
+  border-radius:8px;
+  color:#777;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
 
-    button {
-      border: 0;
-      border-radius: 12px;
-      background: #2563eb;
-      color: white;
-      width: 48px;
-      height: 48px;
-      cursor: pointer;
-      font-size: 20px;
-    }
+.message-action:hover{
+  background:#f2f2f2;
+  color:#222;
+}
 
-    button:hover {
-      background: #1d4ed8;
-    }
+/* SANDBOX */
 
-    button:disabled {
-      opacity: .45;
-      cursor: not-allowed;
-    }
+.sandbox-card{
+  margin-top:15px;
+  border:1px solid #e4e4e4;
+  border-radius:14px;
+  overflow:hidden;
+  background:#fff;
+}
 
-    /* =========================
-       Error
-    ========================= */
+.sandbox-head{
+  height:48px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 10px 0 14px;
+  border-bottom:1px solid #ededed;
+}
 
-    .error {
-      color: #fca5a5;
-      font-size: 14px;
-    }
+.sandbox-title{
+  font-size:13px;
+  font-weight:600;
+}
 
-    @media (max-width: 600px) {
-      .bubble {
-        max-width: 88%;
-      }
+.sandbox-tabs{
+  display:flex;
+  gap:3px;
+}
 
-      .header {
-        padding: 0 15px;
-      }
+.sandbox-tab{
+  border:0;
+  background:transparent;
+  color:#777;
+  border-radius:7px;
+  padding:6px 9px;
+  font-size:11px;
+}
 
-      .chat {
-        padding-left: 10px;
-        padding-right: 10px;
-      }
-    }
-  </style>
+.sandbox-tab.active{
+  background:#eee;
+  color:#222;
+}
+
+.sandbox-body{height:420px}
+
+.sandbox-view{
+  display:none;
+  width:100%;
+  height:100%;
+}
+
+.sandbox-view.active{display:block}
+
+.sandbox-empty{
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  color:#888;
+  padding:30px;
+}
+
+.sandbox-empty-title{
+  color:#555;
+  font-size:14px;
+  margin-bottom:7px;
+}
+
+.sandbox-empty-text{
+  font-size:12px;
+  line-height:1.6;
+}
+
+.sandbox-frame{
+  width:100%;
+  height:100%;
+  border:0;
+  background:#fff;
+}
+
+.sandbox-code{
+  width:100%;
+  height:calc(100% - 42px);
+  border:0;
+  outline:0;
+  resize:none;
+  background:#101114;
+  color:#ddd;
+  padding:15px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,
+    Consolas,monospace;
+  font-size:13px;
+  line-height:1.6;
+}
+
+.sandbox-code-tools{
+  height:42px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 10px;
+  background:#181a1f;
+  border-bottom:1px solid #292c31;
+}
+
+.sandbox-file{
+  color:#aaa;
+  font-size:11px;
+}
+
+.sandbox-copy{
+  border:1px solid #373a40;
+  background:#22252b;
+  color:#eee;
+  border-radius:6px;
+  padding:5px 9px;
+  font-size:11px;
+}
+
+/* GATES */
+
+.gate-card{
+  margin-top:15px;
+  border:1px solid #e5e5e5;
+  border-radius:14px;
+  overflow:hidden;
+}
+
+.gate-head{
+  padding:13px 14px;
+  border-bottom:1px solid #eee;
+  font-size:13px;
+  font-weight:600;
+}
+
+.gate-list{padding:9px 14px 12px}
+
+.gate-row{
+  display:flex;
+  align-items:flex-start;
+  gap:9px;
+  padding:7px 0;
+}
+
+.gate-icon{
+  width:20px;
+  height:20px;
+  min-width:20px;
+  border-radius:50%;
+  background:#eee;
+  color:#999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:10px;
+}
+
+.gate-row.running .gate-icon{
+  background:#e9f0ff;
+  color:#2563eb;
+}
+
+.gate-row.completed .gate-icon{
+  background:#e7f7ef;
+  color:#15803d;
+}
+
+.gate-row.failed .gate-icon{
+  background:#fdeaea;
+  color:#dc2626;
+}
+
+.gate-name{
+  font-size:12px;
+  font-weight:500;
+}
+
+.gate-status{
+  margin-top:2px;
+  color:#888;
+  font-size:11px;
+}
+
+/* COMPOSER */
+
+.composer-area{
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  padding:10px 16px max(16px,env(safe-area-inset-bottom));
+  background:linear-gradient(
+    to bottom,
+    rgba(255,255,255,0),
+    rgba(255,255,255,.94) 22%,
+    #fff 45%
+  );
+  pointer-events:none;
+}
+
+.composer{
+  width:min(760px,100%);
+  margin:0 auto;
+  pointer-events:auto;
+  border:1px solid #d9d9d9;
+  border-radius:25px;
+  background:#fff;
+  box-shadow:0 3px 14px rgba(0,0,0,.06);
+  overflow:hidden;
+}
+
+.attachment-preview{
+  display:none;
+  padding:9px 12px 0;
+  gap:7px;
+  flex-wrap:wrap;
+}
+
+.attachment-preview.show{display:flex}
+
+.attachment-chip{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:7px 9px;
+  background:#f4f4f4;
+  border-radius:9px;
+  font-size:11px;
+  color:#555;
+  max-width:230px;
+}
+
+.attachment-chip-name{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.attachment-remove{
+  border:0;
+  background:transparent;
+  color:#888;
+  padding:0;
+  font-size:14px;
+}
+
+.composer-row{
+  min-height:54px;
+  display:flex;
+  align-items:flex-end;
+  gap:5px;
+  padding:6px 7px;
+}
+
+.composer-plus,
+.composer-mic{
+  width:39px;
+  height:39px;
+  min-width:39px;
+  border:0;
+  border-radius:50%;
+  background:transparent;
+  color:#444;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.composer-plus:hover,
+.composer-mic:hover{
+  background:#f1f1f1;
+}
+
+.composer-mic.recording{
+  background:#f0f0f0;
+  color:#111;
+}
+
+.composer-input{
+  flex:1;
+  min-height:39px;
+  max-height:180px;
+  resize:none;
+  border:0;
+  outline:0;
+  padding:9px 7px;
+  background:transparent;
+  font-size:16px;
+  line-height:1.45;
+}
+
+.composer-input::placeholder{color:#9a9a9a}
+
+.composer-send{
+  width:39px;
+  height:39px;
+  min-width:39px;
+  border:0;
+  border-radius:50%;
+  background:#171717;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.composer-send:disabled{
+  opacity:.35;
+  cursor:default;
+}
+
+/* ATTACH */
+
+.attach-menu{
+  position:fixed;
+  left:16px;
+  bottom:90px;
+  width:230px;
+  padding:7px;
+  background:#fff;
+  border:1px solid #e5e5e5;
+  border-radius:14px;
+  box-shadow:0 8px 30px rgba(0,0,0,.12);
+  display:none;
+  z-index:100;
+}
+
+.attach-menu.show{display:block}
+
+.attach-option{
+  width:100%;
+  border:0;
+  background:transparent;
+  border-radius:9px;
+  padding:11px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  text-align:left;
+  font-size:13px;
+  color:#333;
+}
+
+.attach-option:hover{background:#f3f3f3}
+
+/* DRAWER */
+
+.drawer-backdrop{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.22);
+  opacity:0;
+  visibility:hidden;
+  transition:.18s;
+  z-index:80;
+}
+
+.drawer-backdrop.show{
+  opacity:1;
+  visibility:visible;
+}
+
+.drawer{
+  position:fixed;
+  top:0;
+  bottom:0;
+  left:0;
+  width:min(310px,88vw);
+  background:#fff;
+  box-shadow:8px 0 30px rgba(0,0,0,.12);
+  transform:translateX(-105%);
+  transition:.2s;
+  z-index:90;
+  display:flex;
+  flex-direction:column;
+}
+
+.drawer.show{transform:translateX(0)}
+
+.drawer-top{
+  height:60px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 12px;
+  border-bottom:1px solid #eee;
+}
+
+.drawer-brand{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  font-size:14px;
+  font-weight:600;
+}
+
+.drawer-close{
+  width:36px;
+  height:36px;
+  border:0;
+  background:transparent;
+  border-radius:9px;
+}
+
+.drawer-close:hover{background:#f2f2f2}
+
+.new-chat{
+  margin:12px;
+  height:42px;
+  border:1px solid #dedede;
+  background:#fff;
+  border-radius:10px;
+  text-align:left;
+  padding:0 13px;
+  font-size:13px;
+}
+
+.new-chat:hover{background:#f5f5f5}
+
+.history{
+  flex:1;
+  min-height:0;
+  overflow-y:auto;
+  padding:3px 9px 20px;
+}
+
+.history-label{
+  padding:12px 8px 6px;
+  color:#999;
+  font-size:11px;
+}
+
+.history-item{
+  width:100%;
+  border:0;
+  background:transparent;
+  border-radius:9px;
+  padding:10px 9px;
+  text-align:left;
+  color:#333;
+  font-size:13px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.history-item:hover{background:#f2f2f2}
+
+.drawer-bottom{
+  border-top:1px solid #eee;
+  padding:9px;
+}
+
+.drawer-item{
+  width:100%;
+  border:0;
+  background:transparent;
+  border-radius:9px;
+  padding:10px;
+  text-align:left;
+  font-size:13px;
+  color:#444;
+}
+
+.drawer-item:hover{background:#f3f3f3}
+
+.hidden-file{display:none}
+
+.voice-status{
+  position:fixed;
+  left:50%;
+  bottom:105px;
+  transform:translateX(-50%);
+  padding:10px 15px;
+  background:#171717;
+  color:#fff;
+  border-radius:20px;
+  font-size:12px;
+  display:none;
+  z-index:120;
+}
+
+.voice-status.show{display:block}
+
+.icon{
+  width:20px;
+  height:20px;
+  display:block;
+}
+
+.icon-small{
+  width:18px;
+  height:18px;
+}
+
+@media(max-width:700px){
+
+  .brand-engine{display:none}
+
+  .messages-inner{
+    width:calc(100% - 24px);
+    padding-top:25px;
+  }
+
+  .welcome{
+    min-height:calc(100dvh - 220px);
+  }
+
+  .welcome-title{font-size:25px}
+
+  .welcome-subtitle{font-size:14px}
+
+  .message-text{font-size:16px}
+
+  .sandbox-body{height:360px}
+
+  .composer-area{
+    padding-left:9px;
+    padding-right:9px;
+  }
+
+  .composer{border-radius:22px}
+
+  .attach-menu{
+    left:9px;
+    bottom:88px;
+  }
+}
+</style>
 </head>
 
 <body>
 
 <div class="app">
 
-  <header class="header">
-    <div class="logo">
-      AIVAULT AI
+<header class="topbar">
+
+  <button id="menuButton" class="menu-button" aria-label="聊天紀錄">
+    <svg class="icon" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="1.8"
+      stroke-linecap="round">
+      <path d="M4 7h16"/>
+      <path d="M4 12h16"/>
+      <path d="M4 17h16"/>
+    </svg>
+  </button>
+
+  <div class="brand">
+
+    <div class="brand-mark">✦</div>
+
+    <div class="brand-title">
+      Technical Dark Star
     </div>
 
-    <div class="status">
-      <span
-        id="statusDot"
-        class="status-dot"
-      ></span>
-
-      <span id="statusText">
-        Gateway 連線中
-      </span>
+    <div class="brand-engine">
+      technical-dark-star
     </div>
-  </header>
 
+  </div>
 
-  <main
-    id="chat"
-    class="chat"
-  >
-    <div
-      id="messages"
-      class="messages"
-    >
+</header>
 
-      <div class="message ai">
-        <div>
-          <div class="ai-name">
-            AIVAULT AI
-          </div>
+<main class="main">
 
-          <div class="bubble">
-            你好，我是 AIVAULT AI。
-            
-            請輸入你的問題。
-          </div>
+<section class="chat">
+
+  <div id="messages" class="messages">
+
+    <div id="messagesInner" class="messages-inner">
+
+      <section id="welcome" class="welcome">
+
+        <div class="welcome-content">
+
+          <div class="welcome-mark">✦</div>
+
+          <h1 class="welcome-title">
+            你好，我是 Technical Dark Star
+          </h1>
+
+          <p class="welcome-subtitle">
+            直接跟我聊天、說話、傳檔案或貼上程式碼。
+            <br>
+            我會透過 AIVAULT 處理真正的 AI 回應與工程工作。
+          </p>
+
         </div>
-      </div>
 
-    </div>
-  </main>
-
-
-  <div class="input-area">
-
-    <div class="input-box">
-
-      <textarea
-        id="input"
-        placeholder="輸入訊息..."
-        rows="1"
-      ></textarea>
-
-      <button
-        id="send"
-        onclick="sendMessage()"
-      >
-        ↑
-      </button>
+      </section>
 
     </div>
 
   </div>
 
+  <div class="composer-area">
+
+    <div class="composer">
+
+      <div id="attachmentPreview" class="attachment-preview"></div>
+
+      <div class="composer-row">
+
+        <button id="plusButton" class="composer-plus" aria-label="新增">
+
+          <svg class="icon" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round">
+            <path d="M12 5v14"/>
+            <path d="M5 12h14"/>
+          </svg>
+
+        </button>
+
+        <textarea
+          id="composerInput"
+          class="composer-input"
+          rows="1"
+          placeholder="傳訊息給 Technical Dark Star……"></textarea>
+
+        <button id="micButton" class="composer-mic" aria-label="語音輸入">
+
+          <svg class="icon" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round">
+
+            <rect x="9" y="3" width="6" height="12" rx="3"/>
+            <path d="M5 11a7 7 0 0 0 14 0"/>
+            <path d="M12 18v3"/>
+            <path d="M9 21h6"/>
+
+          </svg>
+
+        </button>
+
+        <button id="sendButton" class="composer-send"
+          aria-label="送出" disabled>
+
+          <svg class="icon-small" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round">
+
+            <path d="M12 19V5"/>
+            <path d="M6 11l6-6 6 6"/>
+
+          </svg>
+
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
+
+</main>
 </div>
 
+<div id="attachMenu" class="attach-menu">
+
+  <button class="attach-option" data-type="image/*">
+    <span>圖片</span>
+  </button>
+
+  <button class="attach-option" data-type=".doc,.docx">
+    <span>Word</span>
+  </button>
+
+  <button class="attach-option" data-type=".pdf">
+    <span>PDF</span>
+  </button>
+
+  <button class="attach-option"
+    data-type=".txt,.md,.json,.js,.ts,.html,.css,.jsx,.tsx">
+    <span>TXT／程式碼</span>
+  </button>
+
+  <button class="attach-option" data-type="video/mp4">
+    <span>MP4</span>
+  </button>
+
+  <button class="attach-option" data-type="audio/wav,audio/x-wav">
+    <span>WAV</span>
+  </button>
+
+</div>
+
+<input id="fileInput" class="hidden-file" type="file">
+
+<div id="drawerBackdrop" class="drawer-backdrop"></div>
+
+<aside id="drawer" class="drawer">
+
+  <div class="drawer-top">
+
+    <div class="drawer-brand">
+
+      <div class="brand-mark">✦</div>
+      Technical Dark Star
+
+    </div>
+
+    <button id="drawerClose" class="drawer-close">
+
+      <svg class="icon-small" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round">
+
+        <path d="M6 6l12 12"/>
+        <path d="M18 6L6 18"/>
+
+      </svg>
+
+    </button>
+
+  </div>
+
+  <button id="newChatButton" class="new-chat">
+    ＋ 新聊天
+  </button>
+
+  <div id="history" class="history">
+    <div class="history-label">對話紀錄</div>
+  </div>
+
+  <div class="drawer-bottom">
+
+    <button id="capabilityButton" class="drawer-item">
+      🧠 學習能力
+    </button>
+
+    <button id="workHistoryButton" class="drawer-item">
+      🧪 工作紀錄
+    </button>
+
+  </div>
+
+</aside>
+
+<div id="voiceStatus" class="voice-status">
+  正在聆聽……
+</div>
 
 <script>
 
-/* ============================================================
-   AIVAULT AI GATEWAY
-   ============================================================
+/* =========================================================
+   AIVAULT 真實連線設定
+========================================================= */
 
-   把下面這個 URL 改成你的 Supabase Edge Function URL。
+const SUPABASE_URL =
+  "https://clcddygkaaqqtsbswgdf.supabase.co";
 
-   例如：
+/*
+  AIVAULT AI Gateway
+  不是 learning-executor。
+*/
+const AI_GATEWAY_URL =
+  SUPABASE_URL +
+  "/functions/v1/ai-gateway";
 
-   https://你的專案.supabase.co/functions/v1/ai-gateway
-
-   ============================================================ */
-
-const AIVAULT_AI_GATEWAY_URL =
-  "https://YOUR_PROJECT.supabase.co/functions/v1/ai-gateway";
-
-
-/* ============================================================
-   Chat State
-   ============================================================ */
-
-const conversation = [];
+const ENGINE =
+  "technical-dark-star";
 
 
-/* ============================================================
-   DOM
-   ============================================================ */
+/* =========================================================
+   STATE
+========================================================= */
 
-const input =
-  document.getElementById("input");
+let conversationId =
+  localStorage.getItem(
+    "technical_dark_star_conversation_id"
+  ) || null;
 
-const sendButton =
-  document.getElementById("send");
+let messagesHistory =
+  JSON.parse(
+    localStorage.getItem(
+      "technical_dark_star_messages"
+    ) || "[]"
+  );
+
+let attachments = [];
+let recognition = null;
+let isRecording = false;
+
+
+/* =========================================================
+   ELEMENTS
+========================================================= */
 
 const messages =
   document.getElementById("messages");
 
-const statusDot =
-  document.getElementById("statusDot");
+const messagesInner =
+  document.getElementById("messagesInner");
 
-const statusText =
-  document.getElementById("statusText");
+const input =
+  document.getElementById("composerInput");
+
+const sendButton =
+  document.getElementById("sendButton");
+
+const micButton =
+  document.getElementById("micButton");
+
+const plusButton =
+  document.getElementById("plusButton");
+
+const attachMenu =
+  document.getElementById("attachMenu");
+
+const fileInput =
+  document.getElementById("fileInput");
+
+const attachmentPreview =
+  document.getElementById("attachmentPreview");
+
+const drawer =
+  document.getElementById("drawer");
+
+const drawerBackdrop =
+  document.getElementById("drawerBackdrop");
+
+const menuButton =
+  document.getElementById("menuButton");
+
+const drawerClose =
+  document.getElementById("drawerClose");
+
+const historyElement =
+  document.getElementById("history");
+
+const voiceStatus =
+  document.getElementById("voiceStatus");
 
 
-/* ============================================================
-   Status
-   ============================================================ */
+/* =========================================================
+   UTIL
+========================================================= */
 
-function setStatus(
-  type,
-  text
-) {
-  statusDot.className =
-    "status-dot";
+function escapeHTML(value){
 
-  if (type) {
-    statusDot.classList.add(type);
-  }
-
-  statusText.textContent =
-    text;
+  return String(value ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
 }
 
 
-/* ============================================================
-   Add Message
-   ============================================================ */
+function scrollBottom(){
 
-function addMessage(
-  role,
-  content
-) {
-
-  const wrapper =
-    document.createElement("div");
-
-  wrapper.className =
-    `message ${role}`;
+  requestAnimationFrame(()=>{
+    messages.scrollTop =
+      messages.scrollHeight;
+  });
+}
 
 
-  const inner =
-    document.createElement("div");
+function saveState(){
+
+  localStorage.setItem(
+    "technical_dark_star_messages",
+    JSON.stringify(messagesHistory)
+  );
+
+  if(conversationId){
+
+    localStorage.setItem(
+      "technical_dark_star_conversation_id",
+      conversationId
+    );
+
+  }else{
+
+    localStorage.removeItem(
+      "technical_dark_star_conversation_id"
+    );
+  }
+}
 
 
-  if (role === "ai") {
+/* =========================================================
+   INPUT
+========================================================= */
 
-    const name =
+function resizeInput(){
+
+  input.style.height = "auto";
+
+  input.style.height =
+    Math.min(input.scrollHeight,180) + "px";
+}
+
+
+input.addEventListener("input",()=>{
+
+  resizeInput();
+
+  sendButton.disabled =
+    !input.value.trim() &&
+    attachments.length === 0;
+});
+
+
+input.addEventListener("keydown",event=>{
+
+  if(
+    event.key === "Enter" &&
+    !event.shiftKey
+  ){
+
+    event.preventDefault();
+
+    sendMessage();
+  }
+});
+
+
+/* =========================================================
+   DRAWER
+========================================================= */
+
+function openDrawer(){
+
+  drawer.classList.add("show");
+  drawerBackdrop.classList.add("show");
+
+  renderHistory();
+}
+
+
+function closeDrawer(){
+
+  drawer.classList.remove("show");
+  drawerBackdrop.classList.remove("show");
+}
+
+
+menuButton.addEventListener("click",openDrawer);
+drawerClose.addEventListener("click",closeDrawer);
+drawerBackdrop.addEventListener("click",closeDrawer);
+
+
+/* =========================================================
+   NEW CHAT
+========================================================= */
+
+document
+  .getElementById("newChatButton")
+  .addEventListener("click",()=>{
+
+    conversationId = null;
+    messagesHistory = [];
+    attachments = [];
+
+    saveState();
+    renderAttachments();
+
+    messagesInner.innerHTML = "";
+    messagesInner.appendChild(createWelcome());
+
+    closeDrawer();
+  });
+
+
+function createWelcome(){
+
+  const section =
+    document.createElement("section");
+
+  section.className = "welcome";
+
+  section.innerHTML = `
+
+<div class="welcome-content">
+
+  <div class="welcome-mark">✦</div>
+
+  <h1 class="welcome-title">
+    你好，我是 Technical Dark Star
+  </h1>
+
+  <p class="welcome-subtitle">
+    直接跟我聊天、說話、傳檔案或貼上程式碼。
+    <br>
+    我會透過 AIVAULT 處理真正的 AI 回應與工程工作。
+  </p>
+
+</div>
+`;
+
+  return section;
+}
+
+
+/* =========================================================
+   HISTORY
+========================================================= */
+
+function renderHistory(){
+
+  historyElement.innerHTML = `
+    <div class="history-label">對話紀錄</div>
+  `;
+
+  const users =
+    messagesHistory
+      .filter(item=>item.role === "user")
+      .slice()
+      .reverse();
+
+  if(!users.length){
+
+    const empty =
       document.createElement("div");
 
-    name.className =
-      "ai-name";
+    empty.style.padding = "15px 8px";
+    empty.style.fontSize = "12px";
+    empty.style.color = "#999";
+    empty.textContent = "目前沒有對話紀錄";
 
-    name.textContent =
-      "AIVAULT AI";
+    historyElement.appendChild(empty);
 
-    inner.appendChild(name);
+    return;
   }
 
+  users.forEach(item=>{
 
-  const bubble =
-    document.createElement("div");
+    const button =
+      document.createElement("button");
 
-  bubble.className =
-    "bubble";
+    button.className = "history-item";
 
-  bubble.textContent =
-    content;
+    button.textContent =
+      item.text || "新對話";
 
+    button.onclick = ()=>{
 
-  inner.appendChild(bubble);
+      loadConversation();
+      closeDrawer();
+    };
 
-  wrapper.appendChild(inner);
-
-  messages.appendChild(wrapper);
-
-  scrollToBottom();
-
-  return bubble;
+    historyElement.appendChild(button);
+  });
 }
 
 
-/* ============================================================
-   Typing Indicator
-   ============================================================ */
+function loadConversation(){
 
-function addTyping() {
+  messagesInner.innerHTML = "";
 
-  const wrapper =
+  if(!messagesHistory.length){
+
+    messagesInner.appendChild(createWelcome());
+
+    return;
+  }
+
+  messagesHistory.forEach(item=>{
+
+    if(item.role === "user"){
+
+      renderUserMessage(
+        item.text,
+        item.attachments || []
+      );
+
+    }else{
+
+      renderAIMessage(
+        item.text,
+        item.result || null
+      );
+    }
+  });
+
+  scrollBottom();
+}
+
+
+/* =========================================================
+   ATTACHMENT
+========================================================= */
+
+plusButton.addEventListener("click",event=>{
+
+  event.stopPropagation();
+
+  attachMenu.classList.toggle("show");
+});
+
+
+document.addEventListener("click",event=>{
+
+  if(
+    !attachMenu.contains(event.target) &&
+    event.target !== plusButton
+  ){
+
+    attachMenu.classList.remove("show");
+  }
+});
+
+
+document
+  .querySelectorAll(".attach-option")
+  .forEach(button=>{
+
+    button.addEventListener("click",()=>{
+
+      fileInput.accept =
+        button.dataset.type;
+
+      fileInput.click();
+
+      attachMenu.classList.remove("show");
+    });
+  });
+
+
+fileInput.addEventListener("change",async event=>{
+
+  const file =
+    event.target.files?.[0];
+
+  if(!file) return;
+
+  try{
+
+    const attachment =
+      await prepareAttachment(file);
+
+    attachments.push(attachment);
+
+    renderAttachments();
+
+    sendButton.disabled = false;
+
+  }catch(error){
+
+    alert(
+      "檔案處理失敗：\n" +
+      error.message
+    );
+  }
+
+  fileInput.value = "";
+});
+
+
+async function prepareAttachment(file){
+
+  const base = {
+    name:file.name,
+    type:file.type || "application/octet-stream",
+    size:file.size
+  };
+
+  const textTypes = [
+    "text/plain",
+    "text/markdown",
+    "application/json",
+    "text/javascript",
+    "application/javascript",
+    "text/css",
+    "text/html"
+  ];
+
+  const extension =
+    file.name
+      .split(".")
+      .pop()
+      .toLowerCase();
+
+  const textExtensions = [
+    "txt","md","json","js","ts",
+    "jsx","tsx","html","css"
+  ];
+
+  if(
+    textTypes.includes(file.type) ||
+    textExtensions.includes(extension)
+  ){
+
+    return {
+      ...base,
+      content_type:"text",
+      content:await file.text()
+    };
+  }
+
+  if(file.type.startsWith("image/")){
+
+    return {
+      ...base,
+      content_type:"image",
+      content_base64:
+        await readAsDataURL(file)
+    };
+  }
+
+  return {
+    ...base,
+    content_type:"file"
+  };
+}
+
+
+function readAsDataURL(file){
+
+  return new Promise((resolve,reject)=>{
+
+    const reader = new FileReader();
+
+    reader.onload =
+      ()=>resolve(reader.result);
+
+    reader.onerror =
+      ()=>reject(
+        new Error("無法讀取檔案")
+      );
+
+    reader.readAsDataURL(file);
+  });
+}
+
+
+function renderAttachments(){
+
+  attachmentPreview.innerHTML = "";
+
+  if(!attachments.length){
+
+    attachmentPreview.classList.remove("show");
+
+    return;
+  }
+
+  attachmentPreview.classList.add("show");
+
+  attachments.forEach((attachment,index)=>{
+
+    const chip =
+      document.createElement("div");
+
+    chip.className = "attachment-chip";
+
+    chip.innerHTML = `
+
+<span>${getFileIcon(attachment.type)}</span>
+
+<span class="attachment-chip-name">
+  ${escapeHTML(attachment.name)}
+</span>
+
+<button
+  class="attachment-remove"
+  data-index="${index}">
+  ×
+</button>
+`;
+
+    attachmentPreview.appendChild(chip);
+  });
+
+  attachmentPreview
+    .querySelectorAll(".attachment-remove")
+    .forEach(button=>{
+
+      button.onclick = ()=>{
+
+        const index =
+          Number(button.dataset.index);
+
+        attachments.splice(index,1);
+
+        renderAttachments();
+
+        sendButton.disabled =
+          !input.value.trim() &&
+          attachments.length === 0;
+      };
+    });
+}
+
+
+function getFileIcon(type){
+
+  if(type?.startsWith("image/")) return "圖片";
+  if(type === "application/pdf") return "PDF";
+  if(type?.startsWith("video/")) return "MP4";
+  if(type?.startsWith("audio/")) return "WAV";
+
+  return "檔案";
+}
+
+
+/* =========================================================
+   MESSAGE
+========================================================= */
+
+function removeWelcome(){
+
+  const welcome =
+    document.getElementById("welcome");
+
+  if(welcome) welcome.remove();
+}
+
+
+function renderUserMessage(
+  text,
+  attachedFiles=[]
+){
+
+  removeWelcome();
+
+  const row =
     document.createElement("div");
 
-  wrapper.className =
-    "message ai";
+  row.className = "message user";
 
-  wrapper.id =
-    "typingMessage";
+  row.innerHTML = `
+
+<div class="message-body">
+
+  <div class="message-text">
+    ${escapeHTML(
+      text || "已上傳檔案。"
+    ).replace(/\n/g,"<br>")}
+  </div>
+
+</div>
+
+<div class="message-avatar">
+  你
+</div>
+`;
+
+  if(attachedFiles.length){
+
+    const files =
+      document.createElement("div");
+
+    files.style.marginTop = "8px";
+    files.style.fontSize = "12px";
+    files.style.color = "#777";
+
+    files.innerHTML =
+      attachedFiles
+        .map(file =>
+          `📎 ${escapeHTML(file.name)}`
+        )
+        .join("<br>");
+
+    row
+      .querySelector(".message-body")
+      .appendChild(files);
+  }
+
+  messagesInner.appendChild(row);
+
+  scrollBottom();
+}
 
 
-  const inner =
+function renderAIMessage(text,result=null){
+
+  removeWelcome();
+
+  const row =
     document.createElement("div");
 
+  row.className = "message ai";
 
-  const name =
+  const avatar =
     document.createElement("div");
 
-  name.className =
-    "ai-name";
+  avatar.className = "message-avatar";
+  avatar.textContent = "✦";
 
-  name.textContent =
-    "AIVAULT AI";
-
-
-  const bubble =
+  const body =
     document.createElement("div");
 
-  bubble.className =
-    "bubble";
+  body.className = "message-body";
 
-
-  const typing =
+  const messageText =
     document.createElement("div");
 
-  typing.className =
-    "typing";
+  messageText.className = "message-text";
 
+  messageText.innerHTML =
+    escapeHTML(text || "")
+      .replace(/\n/g,"<br>");
 
-  typing.innerHTML =
-    `
-      <span></span>
-      <span></span>
-      <span></span>
+  body.appendChild(messageText);
+
+  if(text){
+
+    const actions =
+      document.createElement("div");
+
+    actions.className = "message-actions";
+
+    const speak =
+      document.createElement("button");
+
+    speak.className = "message-action";
+    speak.title = "聽 AI 說話";
+
+    speak.innerHTML = `
+      <svg class="icon-small"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.7"
+        stroke-linecap="round"
+        stroke-linejoin="round">
+
+        <path d="M4 10v4h4l5 4V6l-5 4H4z"/>
+        <path d="M17 9a5 5 0 0 1 0 6"/>
+        <path d="M19.5 6.5a9 9 0 0 1 0 11"/>
+
+      </svg>
     `;
 
+    speak.onclick =
+      ()=>speakText(text);
 
-  bubble.appendChild(typing);
+    actions.appendChild(speak);
+    body.appendChild(actions);
+  }
 
-  inner.appendChild(name);
+  if(result){
 
-  inner.appendChild(bubble);
+    appendResultArtifacts(
+      body,
+      result
+    );
+  }
 
-  wrapper.appendChild(inner);
+  row.appendChild(avatar);
+  row.appendChild(body);
 
-  messages.appendChild(wrapper);
+  messagesInner.appendChild(row);
 
-  scrollToBottom();
+  scrollBottom();
+
+  return row;
 }
 
 
-function removeTyping() {
+/* =========================================================
+   REAL RESULT
+========================================================= */
 
-  const element =
-    document.getElementById(
-      "typingMessage"
+function appendResultArtifacts(body,result){
+
+  if(!result) return;
+
+  const files =
+    result.files ||
+    result.workspace?.files ||
+    result.artifacts?.files ||
+    null;
+
+  if(files){
+
+    renderSandbox(
+      body,
+      files,
+      result
     );
+  }
 
-  if (element) {
-    element.remove();
+  const gates =
+    result.gates ||
+    result.learning?.gates ||
+    result.stages ||
+    null;
+
+  if(
+    Array.isArray(gates) &&
+    gates.length
+  ){
+
+    renderGates(body,gates);
   }
 }
 
 
-/* ============================================================
-   Scroll
-   ============================================================ */
+/* =========================================================
+   SANDBOX
+========================================================= */
 
-function scrollToBottom() {
+function renderSandbox(parent,files,result){
 
-  const chat =
-    document.getElementById(
-      "chat"
-    );
+  const names =
+    Object.keys(files || {});
 
-  chat.scrollTop =
-    chat.scrollHeight;
+  if(!names.length) return;
+
+  const preferred = [
+    "index.html",
+    "index.htm",
+    "src/App.jsx",
+    "App.jsx",
+    "main.js",
+    "src/main.js"
+  ];
+
+  const selected =
+    preferred.find(name=>names.includes(name)) ||
+    names[0];
+
+  const code =
+    typeof files[selected] === "string"
+      ? files[selected]
+      : JSON.stringify(files[selected],null,2);
+
+  const sandbox =
+    document.createElement("div");
+
+  sandbox.className = "sandbox-card";
+
+  sandbox.innerHTML = `
+
+<div class="sandbox-head">
+
+  <div class="sandbox-title">
+    Sandbox
+  </div>
+
+  <div class="sandbox-tabs">
+
+    <button
+      class="sandbox-tab active"
+      data-mode="preview">
+      完成品
+    </button>
+
+    <button
+      class="sandbox-tab"
+      data-mode="code">
+      程式碼
+    </button>
+
+  </div>
+
+</div>
+
+<div class="sandbox-body">
+
+  <div
+    class="sandbox-view active"
+    data-view="preview">
+
+    <div class="sandbox-empty">
+
+      <div>
+
+        <div class="sandbox-empty-title">
+          已收到實際檔案
+        </div>
+
+        <div class="sandbox-empty-text">
+          尚未提供 Sandbox Preview。
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <div
+    class="sandbox-view"
+    data-view="code">
+
+    <div class="sandbox-code-tools">
+
+      <div class="sandbox-file">
+        ${escapeHTML(selected)}
+      </div>
+
+      <button class="sandbox-copy">
+        複製全部
+      </button>
+
+    </div>
+
+    <textarea
+      class="sandbox-code"
+      readonly></textarea>
+
+  </div>
+
+</div>
+`;
+
+  const textarea =
+    sandbox.querySelector(".sandbox-code");
+
+  textarea.value = code;
+
+  const previewURL =
+    result?.sandbox?.preview_url ||
+    result?.sandbox?.previewUrl ||
+    result?.sandbox?.url ||
+    result?.preview_url ||
+    result?.previewUrl ||
+    null;
+
+  if(previewURL){
+
+    const preview =
+      sandbox.querySelector(
+        '[data-view="preview"]'
+      );
+
+    preview.innerHTML = "";
+
+    const iframe =
+      document.createElement("iframe");
+
+    iframe.className = "sandbox-frame";
+    iframe.src = previewURL;
+
+    preview.appendChild(iframe);
+  }
+
+  sandbox
+    .querySelectorAll(".sandbox-tab")
+    .forEach(tab=>{
+
+      tab.onclick = ()=>{
+
+        sandbox
+          .querySelectorAll(".sandbox-tab")
+          .forEach(item =>
+            item.classList.remove("active")
+          );
+
+        tab.classList.add("active");
+
+        sandbox
+          .querySelectorAll(".sandbox-view")
+          .forEach(view =>
+            view.classList.remove("active")
+          );
+
+        sandbox
+          .querySelector(
+            `[data-view="${tab.dataset.mode}"]`
+          )
+          .classList.add("active");
+      };
+    });
+
+  sandbox
+    .querySelector(".sandbox-copy")
+    .onclick = async ()=>{
+
+      try{
+
+        await navigator.clipboard.writeText(
+          getAllFilesText(files)
+        );
+
+        alert("完整程式碼已複製");
+
+      }catch(error){
+
+        textarea.focus();
+        textarea.select();
+        document.execCommand("copy");
+
+        alert("程式碼已複製");
+      }
+    };
+
+  parent.appendChild(sandbox);
 }
 
 
-/* ============================================================
-   Send Message
-   ============================================================ */
+function getAllFilesText(files){
 
-async function sendMessage() {
+  return Object
+    .entries(files)
+    .map(([name,content]) =>
+      `===== ${name} =====\n\n` +
+      (
+        typeof content === "string"
+          ? content
+          : JSON.stringify(content,null,2)
+      ) +
+      "\n\n"
+    )
+    .join("");
+}
+
+
+/* =========================================================
+   GATES
+========================================================= */
+
+function renderGates(parent,gates){
+
+  const card =
+    document.createElement("div");
+
+  card.className = "gate-card";
+
+  const head =
+    document.createElement("div");
+
+  head.className = "gate-head";
+  head.textContent =
+    "Technical Dark Star 工作進度";
+
+  const list =
+    document.createElement("div");
+
+  list.className = "gate-list";
+
+  gates.forEach(gate=>{
+
+    const row =
+      document.createElement("div");
+
+    const state =
+      String(
+        gate.status ||
+        gate.state ||
+        "pending"
+      ).toLowerCase();
+
+    if(
+      ["completed","passed","success"]
+        .includes(state)
+    ){
+
+      row.className =
+        "gate-row completed";
+
+    }else if(state === "running"){
+
+      row.className =
+        "gate-row running";
+
+    }else if(
+      ["failed","error"].includes(state)
+    ){
+
+      row.className =
+        "gate-row failed";
+
+    }else{
+
+      row.className = "gate-row";
+    }
+
+    let icon = "○";
+
+    if(
+      ["completed","passed","success"]
+        .includes(state)
+    ){
+
+      icon = "✓";
+
+    }else if(state === "running"){
+
+      icon = "●";
+
+    }else if(
+      ["failed","error"].includes(state)
+    ){
+
+      icon = "!";
+    }
+
+    row.innerHTML = `
+
+<div class="gate-icon">
+  ${icon}
+</div>
+
+<div>
+
+  <div class="gate-name">
+    ${escapeHTML(
+      gate.name ||
+      gate.stage ||
+      "Unknown"
+    )}
+  </div>
+
+  <div class="gate-status">
+    ${escapeHTML(
+      gate.message ||
+      gate.label ||
+      state
+    )}
+  </div>
+
+</div>
+`;
+
+    list.appendChild(row);
+  });
+
+  card.appendChild(head);
+  card.appendChild(list);
+
+  parent.appendChild(card);
+}
+
+
+/* =========================================================
+   AIVAULT AI GATEWAY
+========================================================= */
+
+async function callAIVAULT(
+  userMessage,
+  files
+){
+
+  const payload = {
+
+    engine:
+      ENGINE,
+
+    message:
+      userMessage,
+
+    conversation_id:
+      conversationId,
+
+    source:
+      "technical-dark-star-web",
+
+    files:
+      files || []
+  };
+
+  const response =
+    await fetch(
+      AI_GATEWAY_URL,
+      {
+        method:"POST",
+
+        headers:{
+          "Content-Type":
+            "application/json"
+        },
+
+        body:
+          JSON.stringify(payload)
+      }
+    );
+
+  const responseText =
+    await response.text();
+
+  let data;
+
+  try{
+
+    data =
+      responseText
+        ? JSON.parse(responseText)
+        : {};
+
+  }catch(error){
+
+    throw new Error(
+      "AIVAULT AI Gateway 回傳不是 JSON：\n" +
+      responseText.slice(0,1200)
+    );
+  }
+
+  if(!response.ok){
+
+    throw new Error(
+      data?.error ||
+      data?.message ||
+      `HTTP ${response.status}`
+    );
+  }
+
+  conversationId =
+    data.conversation_id ||
+    data.conversationId ||
+    data.session_id ||
+    data.sessionId ||
+    conversationId;
+
+  saveState();
+
+  return data;
+}
+
+
+/* =========================================================
+   AI RESPONSE
+========================================================= */
+
+function getAIReply(data){
+
+  if(!data) return null;
+
+  return (
+    data.reply ??
+    data.response ??
+    data.answer ??
+    data.message ??
+    data.output ??
+    data.result?.reply ??
+    data.result?.response ??
+    data.result?.answer ??
+    data.result?.output ??
+    null
+  );
+}
+
+
+/* =========================================================
+   SEND
+========================================================= */
+
+async function sendMessage(){
 
   const text =
     input.value.trim();
 
-  if (!text) {
+  if(
+    !text &&
+    !attachments.length
+  ){
+
     return;
   }
 
+  const outgoingFiles =
+    attachments.map(file=>({...file}));
 
-  if (
-    AIVAULT_AI_GATEWAY_URL.includes(
-      "YOUR_PROJECT"
-    )
-  ) {
+  const displayText =
+    text ||
+    "請分析我上傳的檔案。";
 
-    addMessage(
-      "ai",
-      "尚未設定 AIVAULT AI Gateway URL。"
+  renderUserMessage(
+    text,
+    outgoingFiles
+  );
+
+  messagesHistory.push({
+
+    role:"user",
+
+    text:text,
+
+    attachments:
+      outgoingFiles.map(file=>({
+
+        name:file.name,
+        type:file.type,
+        size:file.size
+
+      }))
+  });
+
+  saveState();
+
+  input.value = "";
+  attachments = [];
+
+  renderAttachments();
+
+  resizeInput();
+
+  sendButton.disabled = true;
+
+  const loading =
+    createLoadingMessage();
+
+  try{
+
+    /*
+      這裡是真正呼叫 AIVAULT AI Gateway。
+      沒有本地 AI。
+      沒有假答案。
+    */
+
+    const result =
+      await callAIVAULT(
+        text,
+        outgoingFiles
+      );
+
+    loading.remove();
+
+    const reply =
+      getAIReply(result);
+
+    /*
+      Gateway 有真正文字才顯示。
+      沒有文字就明確顯示資料狀態。
+    */
+
+    const displayReply =
+      reply ||
+      "AIVAULT AI Gateway 已回傳資料，但沒有提供可顯示的文字回應。";
+
+    renderAIMessage(
+      displayReply,
+      result
+    );
+
+    messagesHistory.push({
+
+      role:"assistant",
+
+      text:displayReply,
+
+      result:result
+    });
+
+    saveState();
+
+  }catch(error){
+
+    loading.remove();
+
+    const errorText =
+      "Technical Dark Star 無法取得 AIVAULT 的真實回應。\n\n" +
+      error.message;
+
+    renderAIMessage(errorText);
+
+    messagesHistory.push({
+
+      role:"assistant",
+
+      text:errorText
+    });
+
+    saveState();
+  }
+
+  renderHistory();
+}
+
+
+/* =========================================================
+   LOADING
+========================================================= */
+
+function createLoadingMessage(){
+
+  removeWelcome();
+
+  const row =
+    document.createElement("div");
+
+  row.className = "message ai";
+
+  row.innerHTML = `
+
+<div class="message-avatar">
+  ✦
+</div>
+
+<div class="message-body">
+
+  <div
+    class="message-text"
+    style="color:#888">
+
+    Technical Dark Star 正在思考……
+
+  </div>
+
+</div>
+`;
+
+  messagesInner.appendChild(row);
+
+  scrollBottom();
+
+  return row;
+}
+
+
+sendButton.addEventListener(
+  "click",
+  sendMessage
+);
+
+
+/* =========================================================
+   VOICE INPUT
+========================================================= */
+
+const SpeechRecognition =
+  window.SpeechRecognition ||
+  window.webkitSpeechRecognition;
+
+if(SpeechRecognition){
+
+  recognition =
+    new SpeechRecognition();
+
+  recognition.lang = "zh-TW";
+  recognition.continuous = false;
+  recognition.interimResults = true;
+
+  recognition.onstart = ()=>{
+
+    isRecording = true;
+
+    micButton.classList.add("recording");
+
+    voiceStatus.classList.add("show");
+
+    voiceStatus.textContent =
+      "正在聆聽……";
+  };
+
+  recognition.onresult = event=>{
+
+    let transcript = "";
+
+    for(
+      let i = event.resultIndex;
+      i < event.results.length;
+      i++
+    ){
+
+      transcript +=
+        event.results[i][0].transcript;
+    }
+
+    input.value = transcript;
+
+    resizeInput();
+
+    sendButton.disabled =
+      !transcript.trim();
+  };
+
+  recognition.onerror = event=>{
+
+    console.error(
+      "Speech recognition error:",
+      event.error
+    );
+
+    stopRecording();
+  };
+
+  recognition.onend = ()=>{
+
+    stopRecording();
+  };
+
+}else{
+
+  micButton.title =
+    "此瀏覽器不支援語音辨識";
+}
+
+
+function startRecording(){
+
+  if(!recognition){
+
+    alert(
+      "目前瀏覽器不支援語音辨識。"
     );
 
     return;
   }
 
+  if(isRecording){
 
-  input.value = "";
+    recognition.stop();
 
-  input.style.height =
-    "44px";
+    return;
+  }
 
-  sendButton.disabled =
-    true;
-
-
-  /* -------------------------
-     顯示使用者訊息
-  ------------------------- */
-
-  addMessage(
-    "user",
-    text
-  );
+  recognition.start();
+}
 
 
-  /* -------------------------
-     加入對話歷史
-  ------------------------- */
+function stopRecording(){
 
-  conversation.push({
-    role: "user",
-    content: text
+  isRecording = false;
+
+  micButton.classList.remove("recording");
+
+  voiceStatus.classList.remove("show");
+}
+
+
+micButton.addEventListener(
+  "click",
+  startRecording
+);
+
+
+/* =========================================================
+   AI VOICE
+========================================================= */
+
+function speakText(text){
+
+  if(!("speechSynthesis" in window)){
+
+    alert(
+      "目前瀏覽器不支援語音播放。"
+    );
+
+    return;
+  }
+
+  window.speechSynthesis.cancel();
+
+  const utterance =
+    new SpeechSynthesisUtterance(text);
+
+  utterance.lang = "zh-TW";
+  utterance.rate = 1;
+  utterance.pitch = 1;
+
+  window.speechSynthesis.speak(utterance);
+}
+
+
+/* =========================================================
+   CAPABILITY / WORK
+========================================================= */
+
+document
+  .getElementById("capabilityButton")
+  .addEventListener("click",()=>{
+
+    alert(
+      "學習能力資料將由 AIVAULT 真實資料提供。"
+    );
   });
 
 
-  addTyping();
+document
+  .getElementById("workHistoryButton")
+  .addEventListener("click",()=>{
 
-  setStatus(
-    "busy",
-    "AI 回答中"
-  );
-
-
-  try {
-
-    const response =
-      await fetch(
-        AIVAULT_AI_GATEWAY_URL,
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json"
-          },
-
-          body:
-            JSON.stringify({
-
-              /*
-               * Gateway v2.6 支援
-               * messages
-               */
-
-              messages:
-                conversation,
-
-              /*
-               * 明確指定 Provider。
-               *
-               * Gateway 會：
-               *
-               * Gemini Key1
-               * ↓
-               * Gemini Key2
-               * ↓
-               * ...
-               * ↓
-               * Groq
-               */
-
-              provider:
-                "gemini",
-
-              /*
-               * 使用 Gemini 預設模型。
-               * Failover 到 Groq 時，
-               * Gateway 自動切換 Groq model。
-               */
-
-              model:
-                "gemini-3.6-flash",
-
-              agent:
-                "aivault-chat",
-
-              temperature:
-                0.2,
-
-              max_tokens:
-                4096
-
-            })
-        }
-      );
-
-
-    const data =
-      await response.json();
-
-
-    removeTyping();
-
-
-    /* -------------------------
-       Gateway 失敗
-    ------------------------- */
-
-    if (
-      !response.ok ||
-      !data.success
-    ) {
-
-      const errorMessage =
-        data.message ||
-        data.error ||
-        "AI 執行失敗";
-
-      addMessage(
-        "ai",
-        `AI 執行失敗：${errorMessage}`
-      );
-
-      setStatus(
-        "error",
-        "Gateway 發生錯誤"
-      );
-
-      return;
-    }
-
-
-    /* -------------------------
-       AI Answer
-    ------------------------- */
-
-    const answer =
-      data.content ||
-      "AI 沒有返回內容。";
-
-
-    addMessage(
-      "ai",
-      answer
+    alert(
+      "工作紀錄將由 AIVAULT Learning Run 真實資料提供。"
     );
+  });
 
 
-    /* -------------------------
-       加入 AI 歷史
-    ------------------------- */
+/* =========================================================
+   INITIAL
+========================================================= */
 
-    conversation.push({
-      role: "assistant",
-      content: answer
-    });
+if(messagesHistory.length){
 
+  loadConversation();
 
-    /* -------------------------
-       Gateway 狀態
-    ------------------------- */
+}else{
 
-    if (
-      data.fallback
-    ) {
+  messagesInner.appendChild(
+    createWelcome()
+  );
+}
 
-      setStatus(
-        "online",
-        `AI Online · ${data.provider}`
-      );
-
-    } else {
-
-      setStatus(
-        "online",
-        "AI Online"
-      );
-    }
+renderAttachments();
+renderHistory();
+resizeInput();
 
 
-  } catch (error) {
+/* =========================================================
+   ERROR
+========================================================= */
 
-    removeTyping();
-
+window.addEventListener(
+  "unhandledrejection",
+  event=>{
 
     console.error(
-      "AIVAULT Gateway Error:",
-      error
+      "Unhandled:",
+      event.reason
     );
-
-
-    addMessage(
-      "ai",
-      "無法連接 AIVAULT AI Gateway。請確認 Gateway URL 與 Edge Function 狀態。"
-    );
-
-
-    setStatus(
-      "error",
-      "Gateway 無法連線"
-    );
-
-
-  } finally {
-
-    sendButton.disabled =
-      false;
-
-    input.focus();
-  }
-}
-
-
-/* ============================================================
-   Enter
-   ============================================================ */
-
-input.addEventListener(
-  "keydown",
-  function(event) {
-
-    if (
-      event.key === "Enter" &&
-      !event.shiftKey
-    ) {
-
-      event.preventDefault();
-
-      sendMessage();
-    }
-
   }
 );
-
-
-/* ============================================================
-   Auto Resize
-   ============================================================ */
-
-input.addEventListener(
-  "input",
-  function() {
-
-    this.style.height =
-      "auto";
-
-    this.style.height =
-      Math.min(
-        this.scrollHeight,
-        150
-      ) + "px";
-  }
-);
-
-
-/* ============================================================
-   Gateway Health Check
-   ============================================================ */
-
-async function checkGateway() {
-
-  if (
-    AIVAULT_AI_GATEWAY_URL.includes(
-      "YOUR_PROJECT"
-    )
-  ) {
-
-    setStatus(
-      "error",
-      "尚未設定 Gateway"
-    );
-
-    return;
-  }
-
-
-  try {
-
-    const response =
-      await fetch(
-        AIVAULT_AI_GATEWAY_URL +
-        "?health=1"
-      );
-
-
-    const data =
-      await response.json();
-
-
-    if (
-      response.ok &&
-      data.success
-    ) {
-
-      setStatus(
-        "online",
-        `Gateway Online · Gemini ${data.provider_pool.gemini_keys} / Groq ${data.provider_pool.groq_keys}`
-      );
-
-    } else {
-
-      setStatus(
-        "error",
-        "Gateway Offline"
-      );
-    }
-
-  } catch {
-
-    setStatus(
-      "error",
-      "Gateway 無法連線"
-    );
-  }
-}
-
-
-/* ============================================================
-   Start
-   ============================================================ */
-
-checkGateway();
 
 </script>
 
