@@ -2068,67 +2068,316 @@ function renderGates(parent,gates){
 
 
 /* =========================================================
-   AIVAULT AI GATEWAY
+   AIVAULT AI GATEWAY — DEBUG TEST VERSION
 ========================================================= */
 
-async function callAIVAULT(userMessage, files){
+async function callAIVAULT(
+  userMessage,
+  files
+){
 
   const payload = {
-    message: userMessage,
-    conversation_id: conversationId,
-    source: "technical-dark-star-web",
-    files: files || []
+
+    engine:
+      ENGINE,
+
+    message:
+      userMessage,
+
+    conversation_id:
+      conversationId,
+
+    source:
+      "technical-dark-star-web",
+
+    files:
+      files || []
   };
 
-  console.log("➡️ AIVAULT AI Gateway", payload);
+  console.log("=================================");
+  console.log("Technical Dark Star → AI Gateway");
+  console.log("Gateway URL:", AI_GATEWAY_URL);
+  console.log("Payload:", payload);
+  console.log("=================================");
 
-  const response = await fetch(
-    AI_GATEWAY_URL,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(payload)
-    }
-  );
+  let response;
 
-  const responseText = await response.text();
+  try{
 
-  console.log(
-    "⬅️ Gateway 回應:",
-    responseText
-  );
+    response =
+      await fetch(
+        AI_GATEWAY_URL,
+        {
+          method:"POST",
 
-  let data;
+          headers:{
+            "Content-Type":
+              "application/json",
 
-  try {
-    data = responseText
-      ? JSON.parse(responseText)
-      : {};
-  } catch(error) {
+            /*
+              注意：
+              這裡故意不放 AI_GATEWAY_SECRET。
+              Secret 絕對不能放在前台。
+            */
+
+            "x-aivault-source":
+              "technical-dark-star-web"
+          },
+
+          body:
+            JSON.stringify(payload)
+        }
+      );
+
+  }catch(networkError){
+
+    console.error(
+      "AI Gateway NETWORK ERROR:",
+      networkError
+    );
+
     throw new Error(
-      "Gateway 回傳不是 JSON：\n" +
-      responseText.slice(0, 1200)
+      "【Gateway Network Error】\n\n" +
+      "前台無法連線到 AIVAULT AI Gateway。\n\n" +
+      "Gateway URL:\n" +
+      AI_GATEWAY_URL +
+      "\n\n" +
+      "錯誤：\n" +
+      networkError.message
     );
   }
+
+
+  /*
+    先取得完整 HTTP 資訊
+  */
+
+  const status =
+    response.status;
+
+  const statusText =
+    response.statusText;
+
+  const responseText =
+    await response.text();
+
+
+  console.log("=================================");
+  console.log("AI Gateway HTTP RESULT");
+  console.log("Status:", status);
+  console.log("Status Text:", statusText);
+  console.log("Raw Response:", responseText);
+  console.log("=================================");
+
+
+  /*
+    嘗試解析 JSON
+  */
+
+  let data = null;
+
+  if(responseText){
+
+    try{
+
+      data =
+        JSON.parse(responseText);
+
+    }catch(parseError){
+
+      console.error(
+        "Gateway JSON Parse Error:",
+        parseError
+      );
+
+      throw new Error(
+        "【Gateway Response Error】\n\n" +
+
+        "HTTP Status: " +
+        status +
+        "\n\n" +
+
+        "Gateway 回傳不是 JSON。\n\n" +
+
+        "Raw Response:\n" +
+        responseText.slice(0,3000)
+      );
+    }
+  }
+
+
+  /*
+    HTTP ERROR
+  */
 
   if(!response.ok){
+
+    console.error(
+      "AI Gateway HTTP ERROR:",
+      {
+        status,
+        statusText,
+        data
+      }
+    );
+
+
+    /*
+      特別抓 UNAUTHORIZED
+    */
+
+    if(
+      status === 401 ||
+      data?.error === "UNAUTHORIZED" ||
+      data?.code === "UNAUTHORIZED"
+    ){
+
+      throw new Error(
+
+        "【AI Gateway 驗證失敗】\n\n" +
+
+        "HTTP Status: " +
+        status +
+        "\n\n" +
+
+        "Gateway Error:\n" +
+        (
+          data?.error ||
+          data?.code ||
+          "UNAUTHORIZED"
+        ) +
+
+        "\n\n" +
+
+        "Gateway Message:\n" +
+        (
+          data?.message ||
+          data?.details ||
+          "沒有提供詳細訊息"
+        ) +
+
+        "\n\n" +
+
+        "Raw Response:\n" +
+        responseText.slice(0,3000) +
+
+        "\n\n" +
+
+        "判斷：\n" +
+        "前台已經成功連到 ai-gateway，" +
+        "但 Gateway 拒絕這次請求。"
+      );
+    }
+
+
+    /*
+      其他 HTTP ERROR
+    */
+
     throw new Error(
-      data?.error ||
-      data?.message ||
-      `HTTP ${response.status}`
+
+      "【AI Gateway HTTP Error】\n\n" +
+
+      "HTTP Status: " +
+      status +
+      "\n" +
+
+      "Status Text: " +
+      statusText +
+      "\n\n" +
+
+      "Error:\n" +
+      (
+        data?.error ||
+        data?.code ||
+        "UNKNOWN_ERROR"
+      ) +
+
+      "\n\n" +
+
+      "Message:\n" +
+      (
+        data?.message ||
+        data?.details ||
+        "沒有提供詳細訊息"
+      ) +
+
+      "\n\n" +
+
+      "Raw Response:\n" +
+      responseText.slice(0,3000)
     );
   }
 
+
+  /*
+    HTTP 200
+  */
+
+  console.log(
+    "AI Gateway SUCCESS:",
+    data
+  );
+
+
+  /*
+    更新 conversation_id
+  */
+
   conversationId =
-    data.conversation_id ||
-    data.conversationId ||
-    data.session_id ||
-    data.sessionId ||
+    data?.conversation_id ||
+    data?.conversationId ||
+    data?.session_id ||
+    data?.sessionId ||
     conversationId;
 
   saveState();
+
+
+  /*
+    額外檢查：
+    HTTP 200 但是 Gateway 回傳 error
+  */
+
+  if(
+    data?.error ||
+    data?.code === "ERROR"
+  ){
+
+    throw new Error(
+
+      "【AI Gateway 回傳錯誤】\n\n" +
+
+      "HTTP Status: " +
+      status +
+      "\n\n" +
+
+      "Error:\n" +
+      (
+        data?.error ||
+        data?.code
+      ) +
+
+      "\n\n" +
+
+      "Message:\n" +
+      (
+        data?.message ||
+        data?.details ||
+        "沒有提供詳細訊息"
+      ) +
+
+      "\n\n" +
+
+      "完整 Response:\n" +
+      JSON.stringify(
+        data,
+        null,
+        2
+      )
+    );
+  }
+
 
   return data;
 }
