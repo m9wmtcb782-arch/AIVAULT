@@ -104,23 +104,94 @@ async function testAIConnection(){
 
 function updateGeneration(step,pct){$('genStep').textContent=step;$('genPct').textContent=pct+'%';$('genBar').style.width=pct+'%'}
 
-function cleanAIText(v){let s=String(v??'').trim();s=s.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'').trim();const a=s.indexOf('{'),b=s.lastIndexOf('}');if(a>=0&&b>a)s=s.slice(a,b+1);return s}
-function normalizeCourse(raw){
- let d=raw;
- if(typeof d==='string'){try{d=JSON.parse(cleanAIText(d))}catch{throw new Error('AI 回傳不是有效 JSON 課程資料')}}
- d=d?.course||d?.course_package||d?.data||d;
- const lessons=Array.isArray(d?.lessons)?d.lessons:[];
- if(!d||!lessons.length)throw new Error('AI 回傳缺少 lessons，無法建立完整課程');
- const plans=Array.isArray(d.plans)?d.plans:[{type:'one_time',enabled:true,price:null},{type:'monthly',enabled:false,price:null}];
+function cleanAIText(v){
+ let s=String(v??'').trim();
+ s=s.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'').trim();
+ const a=s.indexOf('{'),b=s.lastIndexOf('}');
+ if(a>=0&&b>a)s=s.slice(a,b+1);
+ return s;
+}
+
+function parseMaybeJSON(v){
+ if(typeof v!=='string')return v;
+ const s=cleanAIText(v);
+ try{return JSON.parse(s)}catch{return v}
+}
+
+function findCoursePayload(input,depth=0){
+ if(depth>8||input==null)return null;
+ input=parseMaybeJSON(input);
+ if(Array.isArray(input)){
+   for(const x of input){const found=findCoursePayload(x,depth+1);if(found)return found;}
+   return null;
+ }
+ if(typeof input!=='object')return null;
+ if(Array.isArray(input.lessons)&&input.lessons.length)return input;
+ for(const key of ['course_package','course','data','result','output','response','content','generated_course','coursePackage']){
+   if(input[key]!=null){const found=findCoursePayload(input[key],depth+1);if(found)return found;}
+ }
+ for(const key of Object.keys(input)){
+   const val=input[key];
+   if(val&&typeof val==='object'){
+     const found=findCoursePayload(val,depth+1);if(found)return found;
+   }else if(typeof val==='string'&&val.includes('lessons')){
+     const found=findCoursePayload(val,depth+1);if(found)return found;
+   }
+ }
+ return null;
+}
+
+function normalizeLesson(l,i){
+ l=parseMaybeJSON(l)||{};
  return {
-   course_id:d.course_id||'COURSE-'+Date.now(),title:d.title||'AI 課程',description:d.description||'',audience:d.audience||'',level:d.level||selectedLevel,
-   totalLessons:Number(d.totalLessons||d.total_lessons||lessons.length),totalHours:Number(d.totalHours||d.total_hours||0),practicalProjects:Number(d.practicalProjects||d.practical_projects||0),
-   outcome:d.outcome||d.learning_outcome||'',status:'draft',currency:d.currency||'TWD',plans,
-   lessons:lessons.map((l,i)=>({lesson_no:Number(l.lesson_no||l.lessonNo||i+1),title:l.title||`第 ${i+1} 堂`,summary:l.summary||l.description||'',skill:l.skill||l.skills||'',tools:l.tools||'',prompt:l.prompt||'',steps:Array.isArray(l.steps)?l.steps:[],practice:l.practice||'',assignment:l.assignment||'',assessment:l.assessment||''})),
-   tutor_config:d.tutor_config||d.tutorConfig||{enabled:true,mode:'adaptive'}
+   lesson_no:Number(l.lesson_no||l.lessonNo||l.number||i+1),
+   title:l.title||l.name||`第 ${i+1} 堂`,
+   summary:l.summary||l.description||l.overview||'',
+   skill:l.skill||l.skills||l.learning_skill||'',
+   tools:Array.isArray(l.tools)?l.tools.join('、'):(l.tools||l.tool||''),
+   prompt:l.prompt||l.example_prompt||'',
+   steps:Array.isArray(l.steps)?l.steps:(Array.isArray(l.teaching_steps)?l.teaching_steps:[]),
+   practice:l.practice||l.exercise||l.hands_on||'',
+   assignment:l.assignment||l.homework||'',
+   assessment:l.assessment||l.evaluation||''
  };
 }
 
+function normalizeCourse(raw){
+ const d=findCoursePayload(raw);
+ if(!d)throw new Error('AI 回傳格式無法辨識，找不到完整課程資料');
+ let lessons=Array.isArray(d.lessons)?d.lessons:[];
+ // 相容部分 Course Creator 可能使用 curriculum/modules/chapters 命名。
+ if(!lessons.length){
+   const groups=[d.curriculum,d.modules,d.chapters,d.sections];
+   for(const g of groups){
+     if(Array.isArray(g)&&g.length){
+       const flattened=[];
+       g.forEach((x)=>{
+         if(Array.isArray(x.lessons))flattened.push(...x.lessons);
+         else flattened.push(x);
+       });
+       if(flattened.length){lessons=flattened;break;}
+     }
+   }
+ }
+ if(!lessons.length)throw new Error('AI 回傳缺少 lessons，無法建立完整課程');
+ const plans=Array.isArray(d.plans)?d.plans:(Array.isArray(d.pricing_plans)?d.pricing_plans:[{type:'one_time',enabled:true,price:null},{type:'monthly',enabled:false,price:null}]);
+ return {
+   course_id:d.course_id||d.courseId||'COURSE-'+Date.now(),
+   title:d.title||d.course_title||'AI 課程',
+   description:d.description||d.course_description||'',
+   audience:d.audience||d.target_audience||'',
+   level:d.level||selectedLevel,
+   totalLessons:Number(d.totalLessons||d.total_lessons||lessons.length),
+   totalHours:Number(d.totalHours||d.total_hours||d.duration_hours||0),
+   practicalProjects:Number(d.practicalProjects||d.practical_projects||d.projects||0),
+   outcome:d.outcome||d.learning_outcome||d.learning_outcomes||'',
+   status:'draft',currency:d.currency||'TWD',plans,
+   lessons:lessons.map(normalizeLesson),
+   tutor_config:d.tutor_config||d.tutorConfig||{enabled:true,mode:'adaptive'}
+ };
+}
 function buildCourseCreatorRequest(topic,level){
  return {action:'generate_course',topic,level,language:'zh-TW',requirements:{ai_decides_lesson_count:true,ai_decides_total_hours:true,practical_every_lesson:true,required_lesson_fields:['skill','tools','prompt','steps','practice','assignment','assessment'],owner_sets_price:true,multi_plan_pricing:true,supported_plan_types:['one_time','monthly','yearly','free'],currency_not_hardcoded:true},response_format:'course_package_json'};
 }
