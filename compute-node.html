@@ -1,0 +1,2551 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
+
+  <title>AIVAULT Compute Mesh Node</title>
+
+  <style>
+    :root {
+      --bg: #07090d;
+      --panel: #10141b;
+      --panel2: #151a23;
+      --border: #27303d;
+      --text: #f4f7fb;
+      --muted: #8e9aaa;
+      --green: #35d07f;
+      --yellow: #f4c95d;
+      --red: #ff5f56;
+      --blue: #5aa9ff;
+      --cyan: #43d9e8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top, #17202d 0%, var(--bg) 45%);
+      color: var(--text);
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "SF Pro Display",
+        "PingFang TC",
+        "Noto Sans TC",
+        sans-serif;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 720px;
+      margin: 0 auto;
+      padding:
+        max(18px, env(safe-area-inset-top))
+        16px
+        max(24px, env(safe-area-inset-bottom))
+        16px;
+    }
+
+    .header {
+      padding: 14px 4px 22px;
+    }
+
+    .brand {
+      font-size: 25px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin-top: 5px;
+      font-size: 13px;
+    }
+
+    .card {
+      background: rgba(16, 20, 27, 0.92);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      margin-bottom: 14px;
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.22);
+    }
+
+    .status-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .status-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-dot {
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: #626b78;
+      box-shadow: 0 0 0 5px rgba(98, 107, 120, 0.12);
+    }
+
+    .status-dot.online {
+      background: var(--green);
+      box-shadow: 0 0 0 5px rgba(53, 208, 127, 0.12);
+    }
+
+    .status-dot.busy {
+      background: var(--blue);
+      box-shadow: 0 0 0 5px rgba(90, 169, 255, 0.12);
+    }
+
+    .status-dot.paused {
+      background: var(--yellow);
+      box-shadow: 0 0 0 5px rgba(244, 201, 93, 0.12);
+    }
+
+    .status-dot.error {
+      background: var(--red);
+      box-shadow: 0 0 0 5px rgba(255, 95, 86, 0.12);
+    }
+
+    .status-title {
+      font-weight: 700;
+      font-size: 16px;
+    }
+
+    .status-text {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 3px;
+    }
+
+    .badge {
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      background: #1c2430;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .badge.safe {
+      color: var(--green);
+      background: rgba(53, 208, 127, 0.1);
+    }
+
+    .badge.warning {
+      color: var(--yellow);
+      background: rgba(244, 201, 93, 0.1);
+    }
+
+    .badge.danger {
+      color: var(--red);
+      background: rgba(255, 95, 86, 0.1);
+    }
+
+    .section-title {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .metric {
+      background: var(--panel2);
+      border: 1px solid #202733;
+      border-radius: 13px;
+      padding: 13px;
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 6px;
+    }
+
+    .metric-value {
+      font-size: 15px;
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .task-name {
+      font-size: 18px;
+      font-weight: 750;
+      margin-bottom: 5px;
+    }
+
+    .task-id {
+      color: var(--muted);
+      font-size: 11px;
+      word-break: break-all;
+    }
+
+    .progress-wrap {
+      margin-top: 20px;
+    }
+
+    .progress-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 9px;
+    }
+
+    .progress-label {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .progress-percent {
+      font-size: 21px;
+      font-weight: 800;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 15px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: #202733;
+      border: 1px solid #2a3442;
+    }
+
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(
+        90deg,
+        #35d07f,
+        #43d9e8,
+        #5aa9ff
+      );
+      transition: width 120ms linear;
+      box-shadow: 0 0 18px rgba(67, 217, 232, 0.22);
+    }
+
+    .progress-info {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 9px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .result-box {
+      background: #080b10;
+      border: 1px solid #202733;
+      border-radius: 12px;
+      padding: 12px;
+      margin-top: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px;
+      line-height: 1.6;
+      overflow-wrap: anywhere;
+      max-height: 160px;
+      overflow-y: auto;
+    }
+
+    .button-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    button {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: #171d26;
+      color: var(--text);
+      border-radius: 12px;
+      min-height: 46px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:active {
+      transform: scale(0.985);
+    }
+
+    button.primary {
+      background: #1d5e42;
+      border-color: #287653;
+    }
+
+    button.warning {
+      background: #5c4a1d;
+      border-color: #816923;
+    }
+
+    button.danger {
+      background: #5d2525;
+      border-color: #7b3030;
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .token-input {
+      width: 100%;
+      min-height: 110px;
+      resize: vertical;
+      background: #080b10;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .token-input:focus {
+      border-color: var(--blue);
+    }
+
+    .help {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .log {
+      background: #080b10;
+      border: 1px solid #202733;
+      border-radius: 12px;
+      padding: 12px;
+      height: 190px;
+      overflow-y: auto;
+      font-family: ui-monospace, monospace;
+      font-size: 11px;
+      line-height: 1.65;
+      white-space: pre-wrap;
+    }
+
+    .log-line {
+      margin-bottom: 3px;
+    }
+
+    .log-time {
+      color: #667384;
+    }
+
+    .log-ok {
+      color: var(--green);
+    }
+
+    .log-warn {
+      color: var(--yellow);
+    }
+
+    .log-error {
+      color: var(--red);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .footer {
+      text-align: center;
+      color: #566171;
+      font-size: 10px;
+      padding: 10px 0 5px;
+    }
+
+    @media (max-width: 420px) {
+      .grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .button-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="header">
+    <div class="brand">AIVAULT Compute Mesh</div>
+    <div class="subtitle">
+      Secure volunteer compute node
+    </div>
+  </div>
+
+  <!-- Node status -->
+  <div class="card status-card">
+    <div class="status-left">
+      <div id="statusDot" class="status-dot"></div>
+
+      <div>
+        <div id="statusTitle" class="status-title">
+          尚未連線
+        </div>
+
+        <div id="statusText" class="status-text">
+          等待登入 Token
+        </div>
+      </div>
+    </div>
+
+    <div id="safetyBadge" class="badge">
+      SAFETY
+    </div>
+  </div>
+
+  <!-- Token -->
+  <div id="tokenCard" class="card">
+
+    <div class="section-title">
+      Supabase Access Token
+    </div>
+
+    <textarea
+      id="tokenInput"
+      class="token-input"
+      placeholder="貼上目前登入使用者的 Supabase Access Token"
+      autocomplete="off"
+      spellcheck="false"
+    ></textarea>
+
+    <div class="help">
+      Token 只會存在目前瀏覽器的 localStorage。
+      不要貼上 Supabase Service Role Key。
+    </div>
+
+    <div style="height:10px"></div>
+
+    <button id="connectButton" class="primary">
+      登入並加入 Compute Mesh
+    </button>
+
+  </div>
+
+  <!-- Device -->
+  <div class="card">
+
+    <div class="section-title">
+      Device
+    </div>
+
+    <div class="grid">
+
+      <div class="metric">
+        <div class="metric-label">Node ID</div>
+        <div id="nodeId" class="metric-value">—</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">CPU Threads</div>
+        <div id="cpuThreads" class="metric-value">—</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">Memory</div>
+        <div id="memory" class="metric-value">—</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">GPU</div>
+        <div id="gpu" class="metric-value">—</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">WebGPU</div>
+        <div id="webgpu" class="metric-value">—</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">Battery</div>
+        <div id="battery" class="metric-value">—</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">Thermal</div>
+        <div id="thermal" class="metric-value">—</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">Contribution</div>
+        <div id="contribution" class="metric-value">1% MAX</div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Task -->
+  <div id="taskCard" class="card">
+
+    <div class="section-title">
+      Current Task
+    </div>
+
+    <div id="noTask">
+      <div class="task-name">
+        暫無任務
+      </div>
+
+      <div class="task-id">
+        Node 將自動輪詢 Compute Mesh 任務佇列。
+      </div>
+    </div>
+
+    <div id="taskContent" class="hidden">
+
+      <div id="taskName" class="task-name">
+        Compute Task
+      </div>
+
+      <div id="taskId" class="task-id">
+        —
+      </div>
+
+      <div class="progress-wrap">
+
+        <div class="progress-header">
+
+          <div id="progressLabel" class="progress-label">
+            運算進度
+          </div>
+
+          <div id="progressPercent" class="progress-percent">
+            0%
+          </div>
+
+        </div>
+
+        <div class="progress-track">
+          <div
+            id="progressBar"
+            class="progress-bar"
+          ></div>
+        </div>
+
+        <div class="progress-info">
+          <span id="progressIteration">
+            0 / 0
+          </span>
+
+          <span id="progressState">
+            WAITING
+          </span>
+        </div>
+
+      </div>
+
+      <div id="resultBox" class="result-box hidden"></div>
+
+    </div>
+
+  </div>
+
+  <!-- Controls -->
+  <div class="card">
+
+    <div class="section-title">
+      Node Controls
+    </div>
+
+    <div class="button-row">
+
+      <button
+        id="pauseButton"
+        class="warning"
+        disabled
+      >
+        ⏸ 暫停運算
+      </button>
+
+      <button
+        id="resumeButton"
+        class="primary"
+        disabled
+      >
+        ▶ 恢復運算
+      </button>
+
+      <button
+        id="leaveButton"
+        class="danger"
+        disabled
+      >
+        離開 Mesh
+      </button>
+
+    </div>
+
+  </div>
+
+  <!-- Log -->
+  <div class="card">
+
+    <div class="section-title">
+      Node Log
+    </div>
+
+    <div id="log" class="log"></div>
+
+  </div>
+
+  <div class="footer">
+    AIVAULT Compute Mesh v0.2 · Safety-first compute
+  </div>
+
+</div>
+
+
+<script>
+"use strict";
+
+/* =========================================================
+   AIVAULT Compute Mesh Node v0.2
+   ========================================================= */
+
+const CONFIG = {
+  SUPABASE_URL:
+    "https://clcddygkaaqqtsbswgdf.supabase.co",
+
+  FUNCTION_URL:
+    "https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/aivault-compute-mesh",
+
+  TOKEN_STORAGE_KEY:
+    "aivault_access_token",
+
+  NODE_STORAGE_KEY:
+    "aivault_compute_node_id",
+
+  HEARTBEAT_INTERVAL:
+    15000,
+
+  TASK_POLL_INTERVAL:
+    5000,
+
+  COOLDOWN_MS:
+    5000,
+
+  MIN_BATTERY_PERCENT:
+    10,
+
+  MAX_CONTRIBUTION:
+    0.01,
+
+  /*
+   * 不允許長時間連續跑滿 CPU。
+   *
+   * 每次只做一小批 iterations，
+   * 完成後 yield 給瀏覽器。
+   */
+  SAFE_CHUNK_SIZE:
+    10,
+
+  /*
+   * 每個 task 的最大本地 iterations。
+   * 伺服器仍然是最終限制來源。
+   */
+  MAX_LOCAL_ITERATIONS:
+    1000
+};
+
+
+/* =========================================================
+   DOM
+   ========================================================= */
+
+const $ = (id) =>
+  document.getElementById(id);
+
+const statusDot =
+  $("statusDot");
+
+const statusTitle =
+  $("statusTitle");
+
+const statusText =
+  $("statusText");
+
+const safetyBadge =
+  $("safetyBadge");
+
+const tokenCard =
+  $("tokenCard");
+
+const tokenInput =
+  $("tokenInput");
+
+const connectButton =
+  $("connectButton");
+
+const nodeIdEl =
+  $("nodeId");
+
+const cpuThreadsEl =
+  $("cpuThreads");
+
+const memoryEl =
+  $("memory");
+
+const gpuEl =
+  $("gpu");
+
+const webgpuEl =
+  $("webgpu");
+
+const batteryEl =
+  $("battery");
+
+const thermalEl =
+  $("thermal");
+
+const contributionEl =
+  $("contribution");
+
+const taskCard =
+  $("taskCard");
+
+const noTask =
+  $("noTask");
+
+const taskContent =
+  $("taskContent");
+
+const taskName =
+  $("taskName");
+
+const taskId =
+  $("taskId");
+
+const progressBar =
+  $("progressBar");
+
+const progressPercent =
+  $("progressPercent");
+
+const progressIteration =
+  $("progressIteration");
+
+const progressState =
+  $("progressState");
+
+const resultBox =
+  $("resultBox");
+
+const pauseButton =
+  $("pauseButton");
+
+const resumeButton =
+  $("resumeButton");
+
+const leaveButton =
+  $("leaveButton");
+
+const logEl =
+  $("log");
+
+
+/* =========================================================
+   Runtime State
+   ========================================================= */
+
+let accessToken =
+  localStorage.getItem(
+    CONFIG.TOKEN_STORAGE_KEY
+  ) || "";
+
+let nodeId =
+  localStorage.getItem(
+    CONFIG.NODE_STORAGE_KEY
+  ) || "";
+
+let nodePaused = false;
+let nodeOnline = false;
+let nodeBusy = false;
+
+let heartbeatTimer = null;
+let taskPollTimer = null;
+let batteryManager = null;
+
+let currentTask = null;
+let currentTaskRunning = false;
+
+let cooldownUntil = 0;
+
+
+/* =========================================================
+   Logging
+   ========================================================= */
+
+function log(message, type = "") {
+
+  const now =
+    new Date().toLocaleTimeString(
+      "zh-TW",
+      {
+        hour12: false
+      }
+    );
+
+  const line =
+    document.createElement("div");
+
+  line.className =
+    "log-line " +
+    (
+      type === "ok"
+        ? "log-ok"
+        : type === "warn"
+        ? "log-warn"
+        : type === "error"
+        ? "log-error"
+        : ""
+    );
+
+  line.innerHTML =
+    `<span class="log-time">[${now}]</span> ${escapeHtml(message)}`;
+
+  logEl.appendChild(line);
+
+  while (
+    logEl.children.length > 150
+  ) {
+    logEl.removeChild(
+      logEl.firstChild
+    );
+  }
+
+  logEl.scrollTop =
+    logEl.scrollHeight;
+}
+
+
+function escapeHtml(value) {
+
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+
+/* =========================================================
+   Token
+   ========================================================= */
+
+function setToken(token) {
+
+  accessToken =
+    String(token || "").trim();
+
+  if (accessToken) {
+
+    localStorage.setItem(
+      CONFIG.TOKEN_STORAGE_KEY,
+      accessToken
+    );
+
+  } else {
+
+    localStorage.removeItem(
+      CONFIG.TOKEN_STORAGE_KEY
+    );
+  }
+}
+
+
+function getToken() {
+
+  return (
+    accessToken ||
+    localStorage.getItem(
+      CONFIG.TOKEN_STORAGE_KEY
+    ) ||
+    ""
+  ).trim();
+}
+
+
+/* =========================================================
+   API
+   ========================================================= */
+
+async function api(action, body = {}) {
+
+  const token =
+    getToken();
+
+  if (!token) {
+    throw new Error(
+      "Missing Supabase Access Token"
+    );
+  }
+
+  const response =
+    await fetch(
+      CONFIG.FUNCTION_URL,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+
+          "Authorization":
+            `Bearer ${token}`,
+
+          "x-aivault-client":
+            "compute-node"
+        },
+
+        body:
+          JSON.stringify({
+            action,
+            ...body
+          })
+      }
+    );
+
+  let data;
+
+  try {
+
+    data =
+      await response.json();
+
+  } catch {
+
+    throw new Error(
+      `Backend returned HTTP ${response.status}`
+    );
+  }
+
+  if (!response.ok) {
+
+    throw new Error(
+      data?.error ||
+      `HTTP ${response.status}`
+    );
+  }
+
+  if (data?.success === false) {
+
+    throw new Error(
+      data?.error ||
+      "Backend operation failed"
+    );
+  }
+
+  return data;
+}
+
+
+/* =========================================================
+   Device Detection
+   ========================================================= */
+
+async function detectDevice() {
+
+  cpuThreadsEl.textContent =
+    navigator.hardwareConcurrency
+      ? String(navigator.hardwareConcurrency)
+      : "Unknown";
+
+  memoryEl.textContent =
+    navigator.deviceMemory
+      ? `${navigator.deviceMemory} GB`
+      : "Restricted";
+
+  const gpu =
+    detectGPU();
+
+  gpuEl.textContent =
+    gpu;
+
+  const webgpu =
+    await detectWebGPU();
+
+  webgpuEl.textContent =
+    webgpu
+      ? "Available"
+      : "Unavailable";
+
+  contributionEl.textContent =
+    "1% MAX";
+
+  await detectBattery();
+
+  detectThermal();
+}
+
+
+function detectGPU() {
+
+  try {
+
+    const canvas =
+      document.createElement("canvas");
+
+    const gl =
+      canvas.getContext("webgl") ||
+      canvas.getContext("experimental-webgl");
+
+    if (!gl) {
+      return "Unavailable";
+    }
+
+    const debugInfo =
+      gl.getExtension(
+        "WEBGL_debug_renderer_info"
+      );
+
+    if (debugInfo) {
+
+      const renderer =
+        gl.getParameter(
+          debugInfo.UNMASKED_RENDERER_WEBGL
+        );
+
+      return renderer || "Available";
+    }
+
+    return "Available";
+
+  } catch {
+
+    return "Unavailable";
+  }
+}
+
+
+async function detectWebGPU() {
+
+  try {
+
+    return !!navigator.gpu;
+
+  } catch {
+
+    return false;
+  }
+}
+
+
+/* =========================================================
+   Battery
+   ========================================================= */
+
+async function detectBattery() {
+
+  if (
+    !navigator.getBattery
+  ) {
+
+    batteryEl.textContent =
+      "Unavailable";
+
+    return;
+  }
+
+  try {
+
+    batteryManager =
+      await navigator.getBattery();
+
+    updateBatteryUI();
+
+    batteryManager.addEventListener(
+      "levelchange",
+      updateBatteryUI
+    );
+
+    batteryManager.addEventListener(
+      "chargingchange",
+      updateBatteryUI
+    );
+
+  } catch {
+
+    batteryEl.textContent =
+      "Unavailable";
+  }
+}
+
+
+function getBatteryPercent() {
+
+  if (!batteryManager) {
+    return null;
+  }
+
+  return Math.round(
+    batteryManager.level * 100
+  );
+}
+
+
+function updateBatteryUI() {
+
+  const percent =
+    getBatteryPercent();
+
+  if (percent === null) {
+
+    batteryEl.textContent =
+      "Unavailable";
+
+    return;
+  }
+
+  batteryEl.textContent =
+    `${percent}%` +
+    (
+      batteryManager.charging
+        ? " · Charging"
+        : ""
+    );
+
+  if (
+    percent <=
+    CONFIG.MIN_BATTERY_PERCENT
+  ) {
+
+    batteryEl.style.color =
+      "var(--red)";
+
+    safetyBadge.textContent =
+      "LOW BATTERY";
+
+    safetyBadge.className =
+      "badge danger";
+
+    if (
+      nodeBusy ||
+      currentTaskRunning
+    ) {
+
+      stopForSafety(
+        "Battery below safety threshold"
+      );
+    }
+
+  } else {
+
+    batteryEl.style.color =
+      "";
+
+    if (!currentTaskRunning) {
+
+      safetyBadge.textContent =
+        "SAFE";
+
+      safetyBadge.className =
+        "badge safe";
+    }
+  }
+}
+
+
+/* =========================================================
+   Thermal
+   ========================================================= */
+
+function detectThermal() {
+
+  /*
+   * Web Browser 對 iPhone / Android
+   * 並沒有可靠的通用溫度 API。
+   *
+   * 所以這裡不能假裝知道實際攝氏溫度。
+   *
+   * unknown = 不可取得。
+   */
+  thermalEl.textContent =
+    "Unknown";
+
+  thermalEl.style.color =
+    "";
+}
+
+
+/* =========================================================
+   Safety Gate
+   ========================================================= */
+
+function safetyCheck() {
+
+  if (!nodeOnline) {
+
+    return {
+      ok: false,
+      reason: "Node is offline"
+    };
+  }
+
+  if (nodePaused) {
+
+    return {
+      ok: false,
+      reason: "Node is paused"
+    };
+  }
+
+  const battery =
+    getBatteryPercent();
+
+  if (
+    battery !== null &&
+    battery <=
+      CONFIG.MIN_BATTERY_PERCENT
+  ) {
+
+    return {
+      ok: false,
+      reason:
+        `Battery ${battery}% is below minimum`
+    };
+  }
+
+  return {
+    ok: true,
+    reason: null
+  };
+}
+
+
+function stopForSafety(reason) {
+
+  log(
+    `SAFETY STOP: ${reason}`,
+    "warn"
+  );
+
+  currentTaskRunning =
+    false;
+
+  nodeBusy =
+    false;
+
+  updateStatus(
+    "paused",
+    "安全機制已停止運算"
+  );
+
+  safetyBadge.textContent =
+    "SAFETY STOP";
+
+  safetyBadge.className =
+    "badge danger";
+
+  progressState.textContent =
+    "SAFETY STOP";
+
+  updateControls();
+}
+
+
+/* =========================================================
+   Node Registration
+   ========================================================= */
+
+async function registerNode() {
+
+  const token =
+    getToken();
+
+  if (!token) {
+
+    throw new Error(
+      "請先提供 Supabase Access Token"
+    );
+  }
+
+  log(
+    "正在向 AIVAULT Compute Mesh 註冊 Node..."
+  );
+
+  const capabilities = {
+
+    cpu_threads:
+      navigator.hardwareConcurrency || null,
+
+    memory_gb:
+      navigator.deviceMemory || null,
+
+    gpu:
+      detectGPU(),
+
+    webgpu:
+      !!navigator.gpu,
+
+    user_agent:
+      navigator.userAgent,
+
+    platform:
+      navigator.platform || null
+  };
+
+  const result =
+    await api(
+      "register",
+      {
+        capabilities,
+
+        contribution_limit:
+          CONFIG.MAX_CONTRIBUTION,
+
+        client_version:
+          "compute-node-v0.2"
+      }
+    );
+
+  const returnedNodeId =
+    result.node_id ||
+    result.node?.id ||
+    result.id;
+
+  if (!returnedNodeId) {
+
+    throw new Error(
+      "Register succeeded but no node_id returned"
+    );
+  }
+
+  nodeId =
+    returnedNodeId;
+
+  localStorage.setItem(
+    CONFIG.NODE_STORAGE_KEY,
+    nodeId
+  );
+
+  nodeOnline =
+    true;
+
+  nodePaused =
+    false;
+
+  nodeIdEl.textContent =
+    nodeId;
+
+  log(
+    `Node 已註冊：${nodeId}`,
+    "ok"
+  );
+
+  updateStatus(
+    "online",
+    "Node ONLINE · 等待 Compute Task"
+  );
+
+  updateControls();
+}
+
+
+/* =========================================================
+   Heartbeat
+   ========================================================= */
+
+function startHeartbeat() {
+
+  stopHeartbeat();
+
+  heartbeatTimer =
+    setInterval(
+      async () => {
+
+        try {
+
+          if (!nodeId) {
+            return;
+          }
+
+          const battery =
+            getBatteryPercent();
+
+          const result =
+            await api(
+              "heartbeat",
+              {
+                node_id:
+                  nodeId,
+
+                battery_percent:
+                  battery,
+
+                thermal_state:
+                  "unknown",
+
+                is_busy:
+                  nodeBusy,
+
+                contribution_limit:
+                  CONFIG.MAX_CONTRIBUTION
+              }
+            );
+
+          nodeOnline =
+            true;
+
+          if (!currentTaskRunning) {
+
+            if (nodePaused) {
+
+              updateStatus(
+                "paused",
+                "Node PAUSED"
+              );
+
+            } else {
+
+              updateStatus(
+                "online",
+                "Node ONLINE · 等待 Compute Task"
+              );
+            }
+          }
+
+        } catch (error) {
+
+          log(
+            `Heartbeat 失敗：${error.message}`,
+            "error"
+          );
+
+          nodeOnline =
+            false;
+
+          updateStatus(
+            "error",
+            "Heartbeat 失敗"
+          );
+        }
+
+      },
+      CONFIG.HEARTBEAT_INTERVAL
+    );
+}
+
+
+function stopHeartbeat() {
+
+  if (heartbeatTimer) {
+
+    clearInterval(
+      heartbeatTimer
+    );
+
+    heartbeatTimer =
+      null;
+  }
+}
+
+
+/* =========================================================
+   Task Polling
+   ========================================================= */
+
+function startTaskPolling() {
+
+  stopTaskPolling();
+
+  /*
+   * 立即檢查一次。
+   */
+  pollTask();
+
+  taskPollTimer =
+    setInterval(
+      pollTask,
+      CONFIG.TASK_POLL_INTERVAL
+    );
+}
+
+
+function stopTaskPolling() {
+
+  if (taskPollTimer) {
+
+    clearInterval(
+      taskPollTimer
+    );
+
+    taskPollTimer =
+      null;
+  }
+}
+
+
+async function pollTask() {
+
+  if (!nodeOnline) {
+    return;
+  }
+
+  if (nodePaused) {
+    return;
+  }
+
+  if (nodeBusy) {
+    return;
+  }
+
+  if (
+    Date.now() <
+    cooldownUntil
+  ) {
+    return;
+  }
+
+  const safety =
+    safetyCheck();
+
+  if (!safety.ok) {
+
+    log(
+      `Safety Gate：${safety.reason}`,
+      "warn"
+    );
+
+    return;
+  }
+
+  try {
+
+    const result =
+      await api(
+        "claim-task",
+        {
+          node_id:
+            nodeId,
+
+          /*
+           * 後端目前會限制 lease。
+           * 前端不要求超過 30 秒。
+           */
+          lease_seconds:
+            30
+        }
+      );
+
+    if (
+      !result.task &&
+      !result.task_id
+    ) {
+
+      return;
+    }
+
+    const task =
+      result.task ||
+      result;
+
+    if (!task.id &&
+        !result.task_id) {
+
+      log(
+        "Backend 回傳任務資料格式無法辨識",
+        "warn"
+      );
+
+      return;
+    }
+
+    currentTask =
+      task;
+
+    if (!currentTask.id) {
+      currentTask.id =
+        result.task_id;
+    }
+
+    if (!currentTask.type) {
+      currentTask.type =
+        result.task_type ||
+        "sha256_test";
+    }
+
+    if (
+      currentTask.iterations === undefined
+    ) {
+
+      currentTask.iterations =
+        result.iterations ||
+        1000;
+    }
+
+    /*
+     * 永遠不接受超過前端安全上限的 iterations。
+     */
+    currentTask.iterations =
+      Math.min(
+        Number(currentTask.iterations) || 0,
+        CONFIG.MAX_LOCAL_ITERATIONS
+      );
+
+    log(
+      `取得任務：${currentTask.id}`,
+      "ok"
+    );
+
+    await executeCurrentTask();
+
+  } catch (error) {
+
+    /*
+     * 沒有任務通常不應視為錯誤。
+     */
+    if (
+      !String(error.message)
+        .toLowerCase()
+        .includes("no task")
+    ) {
+
+      log(
+        `Claim Task：${error.message}`,
+        "error"
+      );
+    }
+  }
+}
+
+
+/* =========================================================
+   Task UI
+   ========================================================= */
+
+function showTask(task) {
+
+  noTask.classList.add(
+    "hidden"
+  );
+
+  taskContent.classList.remove(
+    "hidden"
+  );
+
+  taskName.textContent =
+    task.type === "sha256_test"
+      ? "SHA-256 Compute Test"
+      : `Compute Task · ${task.type}`;
+
+  taskId.textContent =
+    `Task ID: ${task.id}`;
+
+  setProgress(
+    0,
+    task.iterations
+  );
+
+  resultBox.classList.add(
+    "hidden"
+  );
+
+  resultBox.textContent =
+    "";
+}
+
+
+function hideTask() {
+
+  noTask.classList.remove(
+    "hidden"
+  );
+
+  taskContent.classList.add(
+    "hidden"
+  );
+
+  currentTask =
+    null;
+
+  setProgress(
+    0,
+    0
+  );
+}
+
+
+function setProgress(
+  completed,
+  total
+) {
+
+  const safeTotal =
+    Math.max(
+      Number(total) || 0,
+      1
+    );
+
+  const safeCompleted =
+    Math.min(
+      Math.max(
+        Number(completed) || 0,
+        0
+      ),
+      safeTotal
+    );
+
+  const percent =
+    Math.floor(
+      (
+        safeCompleted /
+        safeTotal
+      ) * 100
+    );
+
+  progressBar.style.width =
+    `${percent}%`;
+
+  progressPercent.textContent =
+    `${percent}%`;
+
+  progressIteration.textContent =
+    `${safeCompleted} / ${safeTotal}`;
+}
+
+
+/* =========================================================
+   REAL COMPUTE
+   ========================================================= */
+
+async function executeCurrentTask() {
+
+  const task =
+    currentTask;
+
+  if (!task) {
+    return;
+  }
+
+  if (
+    task.type !==
+    "sha256_test"
+  ) {
+
+    log(
+      `拒絕未知 Task Type：${task.type}`,
+      "error"
+    );
+
+    await safeFailTask(
+      task,
+      "Unsupported task type"
+    );
+
+    return;
+  }
+
+  const safety =
+    safetyCheck();
+
+  if (!safety.ok) {
+
+    await safeFailTask(
+      task,
+      safety.reason
+    );
+
+    return;
+  }
+
+  nodeBusy =
+    true;
+
+  currentTaskRunning =
+    true;
+
+  showTask(task);
+
+  updateStatus(
+    "busy",
+    "正在安全執行 Compute Task"
+  );
+
+  updateControls();
+
+  progressState.textContent =
+    "RUNNING";
+
+  log(
+    `開始實際運算：${task.type}`,
+    "ok"
+  );
+
+  const total =
+    Math.max(
+      1,
+      Math.min(
+        Number(task.iterations) || 1000,
+        CONFIG.MAX_LOCAL_ITERATIONS
+      )
+    );
+
+  const startedAt =
+    performance.now();
+
+  let completed =
+    0;
+
+  let digestHex =
+    "";
+
+  try {
+
+    /*
+     * 每次只執行 SAFE_CHUNK_SIZE。
+     * chunk 完成後把控制權還給瀏覽器。
+     */
+    while (
+      completed <
+      total
+    ) {
+
+      /*
+       * 每一個 chunk 開始前再次做 Safety Gate。
+       */
+      const gate =
+        safetyCheck();
+
+      if (!gate.ok) {
+
+        throw new Error(
+          `Safety Gate blocked: ${gate.reason}`
+        );
+      }
+
+      const chunkEnd =
+        Math.min(
+          completed +
+            CONFIG.SAFE_CHUNK_SIZE,
+          total
+        );
+
+      while (
+        completed <
+        chunkEnd
+      ) {
+
+        /*
+         * 固定、不可由遠端注入程式碼。
+         */
+        digestHex =
+          await sha256(
+            `AIVAULT-COMPUTE-TEST:${task.id}:${completed}`
+          );
+
+        completed++;
+
+        /*
+         * 真實進度：
+         * completed / total
+         */
+        setProgress(
+          completed,
+          total
+        );
+      }
+
+      /*
+       * Yield。
+       * 避免長時間霸佔 UI thread。
+       */
+      await yieldToBrowser();
+    }
+
+    const elapsed =
+      Math.round(
+        performance.now() -
+        startedAt
+      );
+
+    progressState.textContent =
+      "COMPLETED";
+
+    setProgress(
+      total,
+      total
+    );
+
+    log(
+      `Task 完成：${total} iterations · ${elapsed} ms`,
+      "ok"
+    );
+
+    resultBox.classList.remove(
+      "hidden"
+    );
+
+    resultBox.textContent =
+      JSON.stringify(
+        {
+          task_id:
+            task.id,
+
+          status:
+            "completed",
+
+          iterations:
+            total,
+
+          elapsed_ms:
+            elapsed,
+
+          sha256:
+            digestHex
+        },
+        null,
+        2
+      );
+
+    await submitResult(
+      task,
+      {
+        status:
+          "completed",
+
+        iterations:
+          total,
+
+        elapsed_ms:
+          elapsed,
+
+        result:
+          digestHex,
+
+        result_hash:
+          digestHex
+      }
+    );
+
+    log(
+      "結果已回傳 AIVAULT Compute Mesh",
+      "ok"
+    );
+
+  } catch (error) {
+
+    progressState.textContent =
+      "STOPPED";
+
+    log(
+      `Task 執行停止：${error.message}`,
+      "error"
+    );
+
+    await safeFailTask(
+      task,
+      error.message
+    );
+
+  } finally {
+
+    currentTaskRunning =
+      false;
+
+    nodeBusy =
+      false;
+
+    cooldownUntil =
+      Date.now() +
+      CONFIG.COOLDOWN_MS;
+
+    if (nodeOnline) {
+
+      if (nodePaused) {
+
+        updateStatus(
+          "paused",
+          "Node PAUSED"
+        );
+
+      } else {
+
+        updateStatus(
+          "online",
+          "Task 完成 · 冷卻後等待下一個任務"
+        );
+      }
+    }
+
+    updateControls();
+  }
+}
+
+
+/* =========================================================
+   SHA-256
+   ========================================================= */
+
+async function sha256(text) {
+
+  const encoder =
+    new TextEncoder();
+
+  const data =
+    encoder.encode(text);
+
+  const hash =
+    await crypto.subtle.digest(
+      "SHA-256",
+      data
+    );
+
+  return Array.from(
+    new Uint8Array(hash)
+  )
+    .map(
+      byte =>
+        byte
+          .toString(16)
+          .padStart(2, "0")
+    )
+    .join("");
+}
+
+
+/* =========================================================
+   Browser Yield
+   ========================================================= */
+
+function yieldToBrowser() {
+
+  return new Promise(
+    resolve => {
+
+      setTimeout(
+        resolve,
+        0
+      );
+    }
+  );
+}
+
+
+/* =========================================================
+   Submit Result
+   ========================================================= */
+
+async function submitResult(
+  task,
+  result
+) {
+
+  const response =
+    await api(
+      "submit-result",
+      {
+        node_id:
+          nodeId,
+
+        task_id:
+          task.id,
+
+        result
+      }
+    );
+
+  return response;
+}
+
+
+/* =========================================================
+   Fail Task
+   ========================================================= */
+
+async function safeFailTask(
+  task,
+  reason
+) {
+
+  try {
+
+    await api(
+      "submit-result",
+      {
+        node_id:
+          nodeId,
+
+        task_id:
+          task.id,
+
+        result: {
+          status:
+            "failed",
+
+          error:
+            String(reason)
+        }
+      }
+    );
+
+  } catch (error) {
+
+    log(
+      `回傳失敗結果也失敗：${error.message}`,
+      "error"
+    );
+  }
+}
+
+
+/* =========================================================
+   Pause
+   ========================================================= */
+
+async function pauseNode() {
+
+  if (!nodeId) {
+    return;
+  }
+
+  try {
+
+    await api(
+      "pause",
+      {
+        node_id:
+          nodeId
+      }
+    );
+
+    nodePaused =
+      true;
+
+    currentTaskRunning =
+      false;
+
+    log(
+      "Node 已暫停",
+      "warn"
+    );
+
+    updateStatus(
+      "paused",
+      "Node PAUSED"
+    );
+
+    updateControls();
+
+  } catch (error) {
+
+    log(
+      `Pause 失敗：${error.message}`,
+      "error"
+    );
+  }
+}
+
+
+/* =========================================================
+   Resume
+   ========================================================= */
+
+async function resumeNode() {
+
+  if (!nodeId) {
+    return;
+  }
+
+  const safety =
+    safetyCheck();
+
+  /*
+   * safetyCheck 會因 nodePaused 而失敗，
+   * 所以這裡單獨檢查 battery。
+   */
+  const battery =
+    getBatteryPercent();
+
+  if (
+    battery !== null &&
+    battery <=
+      CONFIG.MIN_BATTERY_PERCENT
+  ) {
+
+    log(
+      `電量 ${battery}% 太低，無法恢復`,
+      "warn"
+    );
+
+    return;
+  }
+
+  try {
+
+    await api(
+      "resume",
+      {
+        node_id:
+          nodeId
+      }
+    );
+
+    nodePaused =
+      false;
+
+    log(
+      "Node 已恢復",
+      "ok"
+    );
+
+    updateStatus(
+      "online",
+      "Node ONLINE · 等待 Compute Task"
+    );
+
+    safetyBadge.textContent =
+      "SAFE";
+
+    safetyBadge.className =
+      "badge safe";
+
+    updateControls();
+
+  } catch (error) {
+
+    log(
+      `Resume 失敗：${error.message}`,
+      "error"
+    );
+  }
+}
+
+
+/* =========================================================
+   Leave
+   ========================================================= */
+
+async function leaveMesh() {
+
+  stopHeartbeat();
+  stopTaskPolling();
+
+  currentTaskRunning =
+    false;
+
+  nodeBusy =
+    false;
+
+  nodeOnline =
+    false;
+
+  /*
+   * 目前 backend v0.2 沒有 disconnect action。
+   *
+   * 所以這裡不假裝伺服器已立即 offline。
+   * 停止 heartbeat 後，後端 maintenance
+   * 會依 heartbeat timeout 將 Node 標記 offline。
+   */
+
+  log(
+    "已停止本機 Compute Node",
+    "warn"
+  );
+
+  updateStatus(
+    "error",
+    "Node 已離開本機執行環境"
+  );
+
+  updateControls();
+}
+
+
+/* =========================================================
+   UI Status
+   ========================================================= */
+
+function updateStatus(
+  state,
+  text
+) {
+
+  statusDot.className =
+    "status-dot";
+
+  if (
+    state === "online"
+  ) {
+
+    statusDot.classList.add(
+      "online"
+    );
+
+    statusTitle.textContent =
+      "ONLINE";
+
+  } else if (
+    state === "busy"
+  ) {
+
+    statusDot.classList.add(
+      "busy"
+    );
+
+    statusTitle.textContent =
+      "COMPUTING";
+
+  } else if (
+    state === "paused"
+  ) {
+
+    statusDot.classList.add(
+      "paused"
+    );
+
+    statusTitle.textContent =
+      "PAUSED";
+
+  } else if (
+    state === "error"
+  ) {
+
+    statusDot.classList.add(
+      "error"
+    );
+
+    statusTitle.textContent =
+      "OFFLINE";
+
+  } else {
+
+    statusTitle.textContent =
+      "NOT CONNECTED";
+  }
+
+  statusText.textContent =
+    text;
+}
+
+
+/* =========================================================
+   Controls
+   ========================================================= */
+
+function updateControls() {
+
+  pauseButton.disabled =
+    !nodeOnline ||
+    nodePaused ||
+    !nodeId;
+
+  resumeButton.disabled =
+    !nodeOnline ||
+    !nodePaused ||
+    !nodeId;
+
+  leaveButton.disabled =
+    !nodeOnline &&
+    !nodeId;
+
+  connectButton.disabled =
+    nodeOnline;
+}
+
+
+/* =========================================================
+   Connect
+   ========================================================= */
+
+async function connectNode() {
+
+  const token =
+    tokenInput.value.trim();
+
+  if (!token) {
+
+    log(
+      "請先貼上 Supabase Access Token",
+      "error"
+    );
+
+    tokenInput.focus();
+
+    return;
+  }
+
+  setToken(token);
+
+  connectButton.disabled =
+    true;
+
+  try {
+
+    await detectDevice();
+
+    await registerNode();
+
+    tokenCard.classList.add(
+      "hidden"
+    );
+
+    startHeartbeat();
+
+    startTaskPolling();
+
+    log(
+      "Compute Node 已啟動",
+      "ok"
+    );
+
+  } catch (error) {
+
+    log(
+      `連線失敗：${error.message}`,
+      "error"
+    );
+
+    nodeOnline =
+      false;
+
+    updateStatus(
+      "error",
+      error.message
+    );
+
+    connectButton.disabled =
+      false;
+  }
+}
+
+
+/* =========================================================
+   Event Listeners
+   ========================================================= */
+
+connectButton.addEventListener(
+  "click",
+  connectNode
+);
+
+pauseButton.addEventListener(
+  "click",
+  pauseNode
+);
+
+resumeButton.addEventListener(
+  "click",
+  resumeNode
+);
+
+leaveButton.addEventListener(
+  "click",
+  leaveMesh
+);
+
+
+/* =========================================================
+   Page Visibility
+   ========================================================= */
+
+document.addEventListener(
+  "visibilitychange",
+  () => {
+
+    if (
+      document.visibilityState ===
+      "hidden"
+    ) {
+
+      /*
+       * 不強行在背景繼續運算。
+       *
+       * 瀏覽器可能被 OS 暫停。
+       */
+      if (currentTaskRunning) {
+
+        log(
+          "頁面進入背景，停止接受新的 Compute Task",
+          "warn"
+        );
+      }
+
+    } else {
+
+      log(
+        "頁面恢復前景"
+      );
+    }
+  }
+);
+
+
+/* =========================================================
+   Before Unload
+   ========================================================= */
+
+window.addEventListener(
+  "beforeunload",
+  () => {
+
+    stopHeartbeat();
+    stopTaskPolling();
+  }
+);
+
+
+/* =========================================================
+   Initial UI
+   ========================================================= */
+
+(async function init() {
+
+  updateStatus(
+    "offline",
+    "等待登入 Token"
+  );
+
+  updateControls();
+
+  await detectDevice();
+
+  /*
+   * 如果之前登入過，
+   * 自動帶入 Token，但不直接自動運算。
+   */
+  if (accessToken) {
+
+    tokenInput.value =
+      accessToken;
+
+    log(
+      "偵測到已保存的 Access Token"
+    );
+  }
+
+})();
+</script>
+
+</body>
+</html>
