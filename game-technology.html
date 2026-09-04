@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>科技</title>
+  <link rel="stylesheet" href="css/game.css" />
+</head>
+<body class="game-body">
+  <div class="snow-layer"></div>
+  <div class="app" id="app"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/env.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/boot.js"></script>
+  <script>
+    async function render() {
+      if (!(await FKAuth.requirePlayer())) return;
+      const snap = await FKApi.snapshot();
+      const rows = (snap.techs || []).map((t) => {
+        const def = FKEngine.TECHS.find((x) => x.id === t.tech_id);
+        const busy = t.research_finish_at && t.research_finish_at > Date.now();
+        return `<div class="list-item"><div><b>${def.name}</b> <span class="tiny">${def.branch}</span>
+          <div class="tiny">Lv.${t.level}</div>
+          ${busy ? `<div class="timer">${FKUI.remain(t.research_finish_at)}</div>` : ""}</div>
+          <button class="btn small" ${busy?"disabled":""} onclick="res('${t.tech_id}')">研究</button></div>`;
+      }).join("");
+      document.getElementById("app").innerHTML = `
+        <div class="page-head"><a class="back" href="game-city.html">← 返回</a><h2>科技中心</h2></div>
+        ${FKUI.top(snap)}
+        <div class="panel">${rows}
+          <button class="btn secondary" onclick="spd()">Coupons 加速（5）</button>
+        </div>${FKUI.nav("city")}`;
+    }
+    async function res(id) { try { await FKApi.research(id); await render(); } catch(e){ alert(e.message);} }
+    async function spd() { try { await FKApi.speedup("tech"); await render(); } catch(e){ alert(e.message);} }
+    render(); setInterval(render, 1000);
+  </script>
+</body>
+</html>
