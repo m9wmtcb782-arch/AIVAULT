@@ -76,20 +76,28 @@
     }
     const vid = document.getElementById("vid");
     const emoji = document.getElementById("emoji");
+    let loadTimer = null;
+    function fileOf(h) {
+      if (h.id.indexOf("warrior")>=0) return h.g==="m" ? "assets/hero-m-warrior.MP4" : "assets/hero-f-warrior.MP4";
+      if (h.id.indexOf("knight")>=0) return h.g==="m" ? "assets/hero-m-knight.MP4" : "assets/hero-f-knight.MP4";
+      if (h.id.indexOf("mage")>=0) return h.g==="m" ? "assets/hero-m-mage.MP4" : "assets/hero-f-mage.MP4";
+      return h.g==="m" ? "assets/hero-m-archer.MP4" : "assets/hero-f-archer.MP4";
+    }
     function playHero(h) {
       document.getElementById("hello").textContent = h.name + "：" + h.say;
       emoji.textContent = h.icon;
-      vid.src = "assets/" + h.id.replace("m_","hero-m-").replace("f_","hero-f-") + ".MP4";
-      if (h.id.indexOf("warrior")>=0) vid.src = h.g==="m" ? "assets/hero-m-warrior.MP4" : "assets/hero-f-warrior.MP4";
-      if (h.id.indexOf("knight")>=0) vid.src = h.g==="m" ? "assets/hero-m-knight.MP4" : "assets/hero-f-knight.MP4";
-      if (h.id.indexOf("mage")>=0) vid.src = h.g==="m" ? "assets/hero-m-mage.MP4" : "assets/hero-f-mage.MP4";
-      if (h.id.indexOf("archer")>=0) vid.src = h.g==="m" ? "assets/hero-m-archer.MP4" : "assets/hero-f-archer.MP4";
+      if (loadTimer) clearTimeout(loadTimer);
+      vid.pause();
+      vid.src = fileOf(h);
       vid.style.display = "block";
       const p = vid.play();
-      if (p) p.catch(()=>{});
+      if (p) p.catch(() => { vid.style.display = "none"; });
+      loadTimer = setTimeout(function(){
+        if (vid.readyState < 2) { vid.style.display = "none"; vid.pause(); }
+      }, 2000);
     }
     vid.addEventListener("error", () => { vid.style.display = "none"; });
-    vid.addEventListener("playing", () => { vid.style.display = "block"; });
+    vid.addEventListener("playing", () => { vid.style.display = "block"; if (loadTimer) clearTimeout(loadTimer); });
     paint();
     playHero(HEROES[0]);
 
