@@ -2,40 +2,82 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>世界地圖</title>
-  <link rel="stylesheet" href="css/game.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <title>世界地圖 · FROST KINGDOM</title>
   <style>
-    body { margin:0; background:#071018; color:#e8f4ff; font-family:sans-serif; }
-    .panel { margin:16px; padding:16px; border:1px solid #3a5a70; border-radius:16px; background:#0c1c2c; }
-    .btn { display:block; width:100%; margin:8px 0; padding:14px; border:0; border-radius:14px; font-weight:700; background:#8fd4ff; color:#081018; text-align:center; text-decoration:none; }
-    .grid { display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin:12px 0; }
-    .cell { height:40px; border-radius:8px; background:#123044; display:grid; place-items:center; font-size:12px; color:#c8ecff; text-decoration:none; }
-    .me { background:#2a6a3a; }
-    .ai { background:#4a3a18; }
+    body { margin:0; background:#071018; color:#e8f4ff; font-family:"PingFang TC","Noto Sans TC",sans-serif; overflow:hidden; }
+    .map { position:fixed; inset:0 0 132px 0;
+      background:
+        radial-gradient(circle at 24% 32%, #1b3d2a 0 70px, transparent 71px),
+        radial-gradient(circle at 76% 26%, #3a3a22 0 58px, transparent 59px),
+        radial-gradient(circle at 72% 72%, #2a2a44 0 64px, transparent 65px),
+        linear-gradient(#0b1c2a,#123024); }
+    .mark { position:absolute; transform:translate(-50%,-50%); text-align:center; width:80px; font-size:11px; }
+    .mark .ico { font-size:34px; filter:drop-shadow(0 6px 8px #000); }
+    .me { left:30%; top:64%; }
+    .ai { left:76%; top:28%; }
+    .ai.fire .ico { animation: blaze .25s infinite alternate; }
+    .flame { display:none; font-size:36px; }
+    .ai.fire .flame { display:block; }
+    @keyframes blaze { to { filter:brightness(1.4) saturate(1.4); } }
+    .hp { width:70px; height:7px; margin:4px auto 0; background:#2a1010; border-radius:99px; overflow:hidden; }
+    .hp i { display:block; height:100%; width:100%; background:#e24b4b; }
+    .worker { position:absolute; left:30%; top:64%; font-size:26px; transform:translate(-50%,-50%);
+      transition:left 2s linear, top 2s linear; }
+    .dock { position:fixed; left:0; right:0; bottom:0; background:#071018ee; border-top:1px solid #3a5a70;
+      padding:8px 10px calc(10px + env(safe-area-inset-bottom)); }
+    .chat { height:64px; overflow:auto; background:#08141e; border:1px solid #3a5a70; border-radius:12px; padding:6px 8px; font-size:12px; }
+    .row { display:flex; gap:6px; margin-top:6px; }
+    .row input { flex:1; border-radius:12px; border:1px solid #3a5a70; background:#061018; color:#fff; padding:10px; }
+    .row button, .acts button { border:0; border-radius:12px; font-weight:800; padding:10px; background:#9ad8ff; color:#081018; }
+    .acts { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-top:6px; }
+    .danger { background:#e24b4b !important; color:#fff !important; }
     .tiny { color:#8aa3b8; font-size:12px; }
+    a { color:#9ad8ff; text-decoration:none; }
   </style>
 </head>
-<body class="game-body">
-  <div class="panel">
-    <h2>世界地圖</h2>
-    <p class="tiny">綠＝你 · 褐＝AI</p>
-    <div class="grid">
-      <a class="cell me" href="game-city.html">我</a>
-      <a class="cell ai" href="game-player.html">AI</a>
-      <a class="cell ai" href="game-player.html">AI</a>
-      <div class="cell"></div>
-      <div class="cell"></div>
-      <a class="cell ai" href="game-player.html">AI</a>
-      <div class="cell"></div>
-      <a class="cell ai" href="game-player.html">AI</a>
-      <div class="cell"></div>
-      <div class="cell"></div>
-      <a class="cell ai" href="game-player.html">AI</a>
-      <div class="cell"></div>
-    </div>
-    <a class="btn" href="game-city.html">回主城</a>
-    <a class="btn" href="game-world.html">回世界</a>
+<body>
+  <div class="map">
+    <div class="mark" style="left:22%;top:28%"><div class="ico">🌲</div>寒木林</div>
+    <div class="mark" style="left:68%;top:74%"><div class="ico">⛏️</div>霜鐵礦</div>
+    <div class="mark me"><div class="ico">🏰</div>我的王城</div>
+    <div class="mark ai" id="ai"><div class="flame">🔥</div><div class="ico">☠️</div>AI 敵城<div class="hp"><i id="hp"></i></div></div>
+    <div class="worker" id="w">🪓</div>
   </div>
+  <div class="dock">
+    <div class="chat" id="chat"><div><b style="color:#9ad8ff">盟主</b> 先採木，再集火敵城。</div></div>
+    <div class="row"><input id="msg" placeholder="聯盟頻道…" /><button id="send" type="button">送出</button></div>
+    <div class="acts">
+      <button type="button" id="wood">採木</button>
+      <button type="button" class="danger" id="atk">攻城</button>
+      <button type="button" onclick="location.href='game-city.html'">回主城</button>
+    </div>
+  </div>
+  <script>
+    let hp=1000;
+    const w=document.getElementById("w");
+    const chat=document.getElementById("chat");
+    function say(f,t){ chat.innerHTML += `<div><b style="color:#9ad8ff">${f}</b> ${t}</div>`; chat.scrollTop=chat.scrollHeight; }
+    function go(x,y,done){ w.style.left=x; w.style.top=y; setTimeout(done,2000); }
+    document.getElementById("send").onclick=()=>{
+      const v=document.getElementById("msg").value.trim(); if(!v) return;
+      document.getElementById("msg").value=""; say("你",v); setTimeout(()=>say("盟主","收到，我在礦點會合。"),600);
+    };
+    document.getElementById("wood").onclick=()=>{
+      say("工頭","採集隊出發。");
+      go("22%","28%",()=>{ say("工頭","寒木運回 +120"); go("30%","64%",()=>{}); });
+    };
+    document.getElementById("atk").onclick=()=>{
+      if(hp<=0){ say("斥候","敵城已在燃燒。"); return; }
+      say("將軍","攻城！");
+      go("76%","28%",()=>{
+        hp=Math.max(0,hp-340);
+        document.getElementById("hp").style.width=(hp/1000*100)+"%";
+        if(hp<=0){ document.getElementById("ai").classList.add("fire"); say("戰報","敵城沒血，起火了！"); }
+        else say("戰報","敵城 HP "+hp);
+        go("30%","64%",()=>{});
+      });
+    };
+  </script>
 </body>
 </html>

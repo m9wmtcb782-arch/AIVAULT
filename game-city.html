@@ -2,39 +2,280 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>主城</title>
-  <link rel="stylesheet" href="css/game.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <title>主城 · FROST KINGDOM</title>
   <style>
-    body { margin:0; background:#071018; color:#e8f4ff; font-family:sans-serif; }
-    .panel { margin:16px; padding:16px; border:1px solid #3a5a70; border-radius:16px; background:#0c1c2c; }
-    .btn { display:block; width:100%; margin:8px 0; padding:14px; border:0; border-radius:14px; font-weight:700; background:#8fd4ff; color:#081018; text-align:center; text-decoration:none; }
+    :root {
+      --ice: #9ad8ff; --gold: #e7c56a; --ember: #ff7a3a; --hp: #e24b4b;
+      --panel: rgba(8,18,28,.82); --line: rgba(154,216,255,.28);
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin:0; height:100%; overflow:hidden; background:#071018; color:#e8f4ff;
+      font-family: "PingFang TC","Noto Sans TC","Segoe UI",sans-serif; }
+    .top {
+      position:fixed; left:0; right:0; top:0; z-index:20;
+      display:grid; grid-template-columns:auto 1fr auto; gap:8px; align-items:center;
+      padding:8px 10px calc(8px + env(safe-area-inset-top));
+      background: linear-gradient(#071018, transparent);
+    }
+    .who { display:flex; gap:8px; align-items:center; }
+    .av { width:36px; height:36px; border-radius:10px; display:grid; place-items:center;
+      background:linear-gradient(#2a5d82,#123044); border:1px solid var(--line); font-weight:800; }
+    .name { font-weight:800; font-size:13px; }
+    .meta { font-size:11px; color:#8aa3b8; }
+    .res { display:flex; gap:6px; overflow:auto; }
+    .chip { background:var(--panel); border:1px solid var(--line); border-radius:999px;
+      padding:5px 8px; font-size:11px; white-space:nowrap; }
+    .hpwrap { width:92px; }
+    .hpbar { height:8px; background:#2a1010; border-radius:99px; overflow:hidden; border:1px solid #5a2020; }
+    .hpfill { height:100%; width:100%; background:linear-gradient(90deg,#ff8a4a,#e24b4b); }
+    .scene {
+      position:fixed; inset:0 0 148px 0;
+      background:
+        radial-gradient(900px 420px at 50% 8%, rgba(80,160,220,.16), transparent 60%),
+        linear-gradient(#0a1826 0%, #10283a 42%, #1a3a28 42%, #102216 100%);
+    }
+    .snow { position:absolute; inset:0; pointer-events:none;
+      background-image:
+        radial-gradient(2px 2px at 12% 20%, #fff8, transparent),
+        radial-gradient(1px 1px at 70% 30%, #fff6, transparent),
+        radial-gradient(2px 2px at 40% 70%, #fff5, transparent);
+      animation: drift 16s linear infinite; }
+    @keyframes drift { to { background-position: 30px 180px, -20px 160px, 15px 200px; } }
+    .city { position:absolute; inset:8% 4% 6%; }
+    .b {
+      position:absolute; transform:translate(-50%,-50%); text-align:center; width:74px;
+      color:#d7ecff; font-size:11px; font-weight:700;
+    }
+    .ico {
+      width:58px; height:58px; margin:0 auto 4px; border-radius:16px;
+      display:grid; place-items:center; font-size:28px;
+      background:rgba(8,20,32,.72); border:1px solid var(--line);
+      box-shadow:0 8px 18px #0006;
+    }
+    .core { top:52%; left:50%; width:96px; }
+    .core .ico {
+      width:84px; height:84px; border-radius:24px; font-size:42px;
+      background:radial-gradient(circle at 50% 30%, #ffb070, #c45a20);
+      color:#3a1400; border-color:#ffb070;
+    }
+    .core.fire .ico { animation: blaze .25s infinite alternate; }
+    .flames {
+      display:none; position:absolute; left:50%; top:38%; transform:translate(-50%,-50%);
+      font-size:54px; pointer-events:none; filter: drop-shadow(0 0 12px #ff5a00);
+    }
+    .core.fire .flames { display:block; animation: rise .4s infinite alternate; }
+    @keyframes blaze { from { filter:brightness(1); } to { filter:brightness(1.35) saturate(1.3); } }
+    @keyframes rise { from { transform:translate(-50%,-46%) scale(1); opacity:.85; } to { transform:translate(-50%,-70%) scale(1.15); opacity:1; } }
+    .march {
+      position:absolute; left:18%; top:62%; font-size:28px; z-index:5;
+      transition: left 2.2s linear, top 2.2s linear;
+      filter: drop-shadow(0 4px 6px #000);
+    }
+    .march.walk { animation: bob .28s infinite alternate; }
+    @keyframes bob { to { transform: translateY(-7px); } }
+    .dock {
+      position:fixed; left:0; right:0; bottom:0; z-index:30;
+      background:rgba(7,16,24,.94); border-top:1px solid var(--line);
+      padding:8px 10px calc(10px + env(safe-area-inset-bottom));
+    }
+    .tabs { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:6px; }
+    .tab { border:1px solid var(--line); background:transparent; color:#8aa3b8; border-radius:10px; padding:7px; font-weight:700; }
+    .tab.on { color:#081018; background:#9ad8ff; }
+    .chat { height:76px; overflow:auto; background:#08141e; border:1px solid var(--line); border-radius:12px; padding:6px 8px; font-size:12px; }
+    .bubble { margin:4px 0; }
+    .bubble b { color:var(--ice); }
+    .row { display:flex; gap:6px; margin-top:6px; }
+    .row input { flex:1; border-radius:12px; border:1px solid var(--line); background:#061018; color:#fff; padding:10px; }
+    .row button, .acts button {
+      border:0; border-radius:12px; font-weight:800; padding:10px 12px; background:#9ad8ff; color:#081018;
+    }
+    .acts { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-top:6px; }
+    .acts .danger { background:linear-gradient(#ff9aa4,#e24b4b); color:#2a0008; }
+    .toast { position:fixed; top:58px; left:50%; transform:translateX(-50%); z-index:40;
+      background:#102033; border:1px solid var(--line); padding:8px 12px; border-radius:12px; font-size:12px; display:none; }
+    .sheet {
+      display:none; position:fixed; left:10px; right:10px; bottom:160px; z-index:35;
+      background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:14px;
+    }
+    .sheet.show { display:block; }
+    .sheet h3 { margin:0 0 6px; }
     .tiny { color:#8aa3b8; font-size:12px; }
   </style>
 </head>
-<body class="game-body">
-  <div class="panel">
-    <h2>主城</h2>
-    <p class="tiny" id="hint">熔爐已點燃</p>
-    <a class="btn" href="game-buildings.html">建築</a>
-    <a class="btn" href="game-technology.html">科技</a>
-    <a class="btn" href="game-army.html">軍隊</a>
-    <a class="btn" href="game-hospital.html">醫院</a>
-    <a class="btn" href="game-map.html">世界地圖</a>
-    <a class="btn" href="game-world.html">回世界</a>
+<body>
+  <div class="top">
+    <div class="who">
+      <div class="av">冰</div>
+      <div>
+        <div class="name" id="pname">霜境領主</div>
+        <div class="meta">Lv.2 · 熔爐</div>
+      </div>
+    </div>
+    <div class="res">
+      <div class="chip">木 <b id="wood">500</b></div>
+      <div class="chip">糧 <b id="food">500</b></div>
+      <div class="chip">石 <b id="stone">300</b></div>
+      <div class="chip">鐵 <b id="iron">200</b></div>
+    </div>
+    <div class="hpwrap">
+      <div class="tiny">敵城 HP</div>
+      <div class="hpbar"><div class="hpfill" id="hpfill"></div></div>
+      <div class="tiny" id="hptext">1000 / 1000</div>
+    </div>
   </div>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/env.js"></script>
-  <script src="js/engine.js"></script>
-  <script src="js/store.js"></script>
-  <script src="js/api.js"></script>
-  <script src="js/auth.js"></script>
-  <script src="js/ui.js"></script>
-  <script src="js/audio.js"></script>
-  <script src="js/boot.js"></script>
+
+  <div class="scene">
+    <div class="snow"></div>
+    <div class="city">
+      <div class="b" style="left:22%;top:38%" data-id="lumber"><div class="ico">🌲</div>伐木場</div>
+      <div class="b" style="left:78%;top:36%" data-id="farm"><div class="ico">🌾</div>農場</div>
+      <div class="b" style="left:20%;top:70%" data-id="stone"><div class="ico">🪨</div>採石</div>
+      <div class="b" style="left:80%;top:68%" data-id="iron"><div class="ico">⚒️</div>煉鐵</div>
+      <div class="b" style="left:38%;top:28%" data-id="barracks"><div class="ico">🛡️</div>軍營</div>
+      <div class="b" style="left:64%;top:26%" data-id="hospital"><div class="ico">🏥</div>醫院</div>
+      <div class="b" style="left:50%;top:80%" data-id="tech"><div class="ico">📘</div>科技</div>
+      <div class="b core" id="castle" style="left:50%;top:52%" data-id="castle">
+        <div class="flames">🔥</div>
+        <div class="ico">🔥</div>熔爐
+      </div>
+      <div class="march walk" id="u1">🗡️</div>
+      <div class="march walk" id="u2" style="top:68%">🏹</div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <div class="sheet" id="sheet">
+    <h3 id="stitle">建築</h3>
+    <p class="tiny" id="sbody">點擊升級或生產。</p>
+    <div class="acts">
+      <button type="button" id="sup">升級</button>
+      <button type="button" id="sdo">互動</button>
+      <button type="button" id="sx">關閉</button>
+    </div>
+  </div>
+
+  <div class="dock">
+    <div class="tabs">
+      <button class="tab on" data-ch="ally">聯盟</button>
+      <button class="tab" data-ch="world">世界</button>
+      <button class="tab" data-ch="war">戰報</button>
+    </div>
+    <div class="chat" id="chat"></div>
+    <div class="row">
+      <input id="msg" maxlength="80" placeholder="跟隊友說話…" />
+      <button type="button" id="send">送出</button>
+    </div>
+    <div class="acts">
+      <button type="button" id="gather">派人採集</button>
+      <button type="button" class="danger" id="attack">攻打敵城</button>
+      <button type="button" id="map">世界地圖</button>
+    </div>
+  </div>
+
   <script>
-    const hint = document.getElementById("hint");
-    hint.textContent = window.FKApi ? "引擎已載入" : "js 未上線，按鈕仍可切頁";
+    const S = {
+      wood:500, food:500, stone:300, iron:200,
+      hp:1000, max:1000, burning:false,
+      ch:"ally",
+      lv:{ lumber:1, farm:1, stone:1, iron:1, barracks:1, hospital:1, tech:1, castle:2 }
+    };
+    const NAMES = {
+      lumber:"伐木場", farm:"農場", stone:"採石場", iron:"煉鐵廠",
+      barracks:"軍營", hospital:"醫院", tech:"科技中心", castle:"熔爐"
+    };
+    const chatEl = document.getElementById("chat");
+    const logs = {
+      ally:[{from:"盟主·白霜", text:"守住東門，別讓野獸靠近熔爐。"}],
+      world:[{from:"系統", text:"暴風雪接近中。資源點產量提升。"}],
+      war:[{from:"斥候", text:"北方 AI 城血量全滿，可集結進攻。"}]
+    };
+    function toast(t){ const e=document.getElementById("toast"); e.textContent=t; e.style.display="block"; setTimeout(()=>e.style.display="none",1600); }
+    function renderRes(){
+      ["wood","food","stone","iron"].forEach(k => document.getElementById(k).textContent=S[k]);
+      const pct = Math.max(0, S.hp)/S.max*100;
+      document.getElementById("hpfill").style.width = pct+"%";
+      document.getElementById("hptext").textContent = S.hp+" / "+S.max;
+      const castle = document.getElementById("castle");
+      castle.classList.toggle("fire", S.burning || S.hp<=0);
+    }
+    function renderChat(){
+      chatEl.innerHTML = logs[S.ch].map(m => `<div class="bubble"><b>${m.from}</b> ${m.text}</div>`).join("");
+      chatEl.scrollTop = chatEl.scrollHeight;
+    }
+    function say(from, text, ch){
+      logs[ch||S.ch].push({from,text});
+      renderChat();
+    }
+    document.querySelectorAll(".tab").forEach(btn=>{
+      btn.onclick=()=>{
+        document.querySelectorAll(".tab").forEach(x=>x.classList.remove("on"));
+        btn.classList.add("on"); S.ch=btn.dataset.ch; renderChat();
+      };
+    });
+    document.getElementById("send").onclick=()=>{
+      const v=document.getElementById("msg").value.trim(); if(!v) return;
+      document.getElementById("msg").value="";
+      say("你", v);
+      if(S.ch==="ally") setTimeout(()=>say("盟主·白霜","收到，我從西側接應。","ally"),700);
+    };
+    let cur=null;
+    document.querySelectorAll(".b").forEach(el=>{
+      el.onclick=()=>{
+        cur=el.dataset.id;
+        document.getElementById("stitle").textContent = NAMES[cur]+" Lv."+S.lv[cur];
+        document.getElementById("sbody").textContent = cur==="castle" ? "王國核心。被攻破會起火。" : "消耗資源升級，提高產量或兵力。";
+        document.getElementById("sheet").classList.add("show");
+      };
+    });
+    document.getElementById("sx").onclick=()=>document.getElementById("sheet").classList.remove("show");
+    document.getElementById("sup").onclick=()=>{
+      const cost=80+S.lv[cur]*40;
+      if(S.wood<cost||S.stone<cost){ toast("資源不足"); return; }
+      S.wood-=cost; S.stone-=cost; S.lv[cur]++; renderRes();
+      document.getElementById("stitle").textContent = NAMES[cur]+" Lv."+S.lv[cur];
+      toast(NAMES[cur]+"升級完成");
+    };
+    document.getElementById("sdo").onclick=()=>{
+      if(cur==="lumber"){ S.wood+=60; toast("伐木 +60"); }
+      else if(cur==="farm"){ S.food+=60; toast("收成 +60"); }
+      else if(cur==="stone"){ S.stone+=40; toast("採石 +40"); }
+      else if(cur==="iron"){ S.iron+=30; toast("煉鐵 +30"); }
+      else if(cur==="barracks"){ toast("新兵整裝完畢"); }
+      else if(cur==="hospital"){ toast("傷兵治療中"); }
+      else if(cur==="tech"){ toast("研究推進中"); }
+      else toast("熔爐燃燒中");
+      renderRes();
+    };
+    function march(toLeft, toTop, done){
+      ["u1","u2"].forEach((id,i)=>{
+        const u=document.getElementById(id);
+        u.style.left=toLeft; u.style.top=(parseFloat(toTop)+i*6)+"%";
+      });
+      setTimeout(done, 2200);
+    }
+    document.getElementById("gather").onclick=()=>{
+      say("工頭","採集隊出發。","world");
+      march("20%","30%", ()=>{
+        S.wood+=80; S.iron+=20; renderRes();
+        ["u1","u2"].forEach(id=>{ const u=document.getElementById(id); u.style.left="18%"; });
+        toast("採集完成 木+80 鐵+20");
+        say("工頭","資源已運回熔爐。","ally");
+      });
+    };
+    document.getElementById("attack").onclick=()=>{
+      if(S.hp<=0){ toast("敵城已燃燒"); return; }
+      say("將軍","全軍出擊，目標敵城！","war");
+      march("78%","28%", ()=>{
+        S.hp = Math.max(0, S.hp-280);
+        if(S.hp<=0){ S.burning=true; S.wood+=80; S.food+=60; say("戰報","敵城陷落，熔爐起火！","war"); toast("敵城起火，攻城成功"); }
+        else { say("戰報","敵城剩餘 HP "+S.hp,"war"); toast("攻城命中，敵城 -280"); }
+        renderRes();
+        ["u1","u2"].forEach(id=>{ const u=document.getElementById(id); u.style.left="18%"; u.style.top = id==="u1"?"62%":"68%"; });
+      });
+    };
+    document.getElementById("map").onclick=()=>location.href="game-map.html";
+    renderRes(); renderChat();
   </script>
 </body>
 </html>
