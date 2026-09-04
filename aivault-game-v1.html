@@ -1229,48 +1229,137 @@ document
 
 async function bootstrapGame(playerName) {
 
-  if (!currentUser) {
+  try {
 
-    showToast("尚未登入");
-    return;
-  }
+    if (!currentUser) {
 
-  showLoading(true);
-
-  const {
-    data,
-    error
-  } = await supabaseClient.rpc(
-    "aivault_game_bootstrap_v1",
-    {
-      p_player_name: playerName
+      showToast("尚未登入");
+      return;
     }
-  );
 
-  showLoading(false);
+    const name =
+      String(playerName || "").trim();
 
-  if (error) {
+
+    /*
+      玩家名稱檢查
+    */
+
+    if (name.length < 2) {
+
+      setAuthStatus(
+        "玩家名稱至少需要 2 個字元。",
+        "error"
+      );
+
+      return;
+    }
+
+    if (name.length > 20) {
+
+      setAuthStatus(
+        "玩家名稱最多 20 個字元。",
+        "error"
+      );
+
+      return;
+    }
+
+
+    showLoading(true);
+
+    console.log(
+      "開始建立遊戲角色：",
+      name
+    );
+
+
+    /*
+      呼叫 Server RPC
+    */
+
+    const {
+      data,
+      error
+    } = await supabaseClient.rpc(
+      "aivault_game_bootstrap_v1",
+      {
+        p_player_name: name
+      }
+    );
+
+
+    if (error) {
+
+      console.error(
+        "BOOTSTRAP ERROR:",
+        error
+      );
+
+      throw new Error(
+        "建立遊戲角色失敗：" +
+        error.message
+      );
+    }
+
+
+    console.log(
+      "BOOTSTRAP RESULT:",
+      data
+    );
+
+
+    /*
+      確認 RPC 是否真的成功
+    */
+
+    if (
+      !data ||
+      data.success !== true
+    ) {
+
+      throw new Error(
+        data?.error ||
+        "遊戲角色建立失敗"
+      );
+    }
+
+
+    /*
+      建立成功
+    */
+
+    console.log(
+      "遊戲角色建立成功：",
+      data
+    );
+
+
+    /*
+      重新讀取完整遊戲資料
+    */
+
+    await enterGame();
+
+
+  } catch (error) {
 
     console.error(
-      "BOOTSTRAP ERROR:",
+      "BOOTSTRAP GAME ERROR:",
       error
     );
 
     setAuthStatus(
-      "建立遊戲角色失敗：" +
-      error.message,
+      error?.message ||
+      "建立遊戲角色失敗",
       "error"
     );
 
-    return;
+  } finally {
+
+    showLoading(false);
+
   }
-
-  console.log(
-    "BOOTSTRAP RESULT:",
-    data
-  );
-
-  await enterGame();
 
 }
 
@@ -1279,142 +1368,270 @@ async function bootstrapGame(playerName) {
    ENTER GAME
 ========================================================= */
 
-async function enterGame() {
+async function enterGame(playerName = "") {
 
-  showLoading(true);
+  try {
 
-  /*
-    先確認 Session
-  */
+    showLoading(true);
 
-  const {
-    data: sessionData
-  } = await supabaseClient.auth.getSession();
+    /*
+      先確認 Session
+    */
 
-  if (!sessionData.session) {
+    const {
+      data: sessionData,
+      error: sessionError
+    } = await supabaseClient.auth.getSession();
+
+    if (sessionError) {
+      throw new Error(
+        "取得登入狀態失敗：" +
+        sessionError.message
+      );
+    }
+
+    if (!sessionData.session) {
+
+      showLoading(false);
+      showAuth();
+
+      return;
+    }
+
+    currentUser =
+      sessionData.session.user;
+
+
+    /*
+      查詢遊戲角色
+    */
+
+    let {
+      data: player,
+      error: playerError
+    } = await supabaseClient
+      .from("aivault_game_players")
+      .select("*")
+      .eq("user_id", currentUser.id)
+      .maybeSingle();
+
+
+    if (playerError) {
+
+      console.error(
+        "PLAYER QUERY ERROR:",
+        playerError
+      );
+
+      throw new Error(
+        "讀取玩家資料失敗：" +
+        playerError.message
+      );
+    }
+
+
+    /*
+      沒有遊戲角色
+      → 如果有玩家姓名，就直接建立
+    */
+
+    if (!player) {
+
+      const name =
+        String(playerName || "")
+          .trim();
+
+      if (!name) {
+
+        showLoading(false);
+
+        authScreen.style.display =
+          "flex";
+
+        setAuthStatus(
+          "請輸入玩家名稱。",
+          ""
+        );
+
+        const nameInput =
+          document.getElementById(
+            "playerName"
+          );
+
+        if (nameInput) {
+          nameInput.focus();
+        }
+
+        return;
+      }
+
+
+      /*
+        建立遊戲角色
+        使用 Supabase RPC
+      */
+
+      console.log(
+        "正在建立遊戲角色：",
+        name
+      );
+
+      const {
+        data: bootstrapData,
+        error: bootstrapError
+      } = await supabaseClient.rpc(
+        "aivault_game_bootstrap_v1",
+        {
+          p_player_name: name
+        }
+      );
+
+
+      if (bootstrapError) {
+
+        console.error(
+          "BOOTSTRAP ERROR:",
+          bootstrapError
+        );
+
+        throw new Error(
+          "建立遊戲角色失敗：" +
+          bootstrapError.message
+        );
+      }
+
+
+      console.log(
+        "BOOTSTRAP RESULT:",
+        bootstrapData
+      );
+
+
+      /*
+        RPC 回傳失敗
+      */
+
+      if (
+        !bootstrapData ||
+        bootstrapData.success !== true
+      ) {
+
+        throw new Error(
+          bootstrapData?.error ||
+          "遊戲角色建立失敗"
+        );
+      }
+
+
+      /*
+        建立成功
+        再重新查詢玩家
+      */
+
+      const {
+        data: newPlayer,
+        error: newPlayerError
+      } =
+        await supabaseClient
+          .from("aivault_game_players")
+          .select("*")
+          .eq("user_id", currentUser.id)
+          .single();
+
+
+      if (newPlayerError) {
+
+        console.error(
+          "NEW PLAYER QUERY ERROR:",
+          newPlayerError
+        );
+
+        throw new Error(
+          "角色建立成功，但讀取角色資料失敗：" +
+          newPlayerError.message
+        );
+      }
+
+      player = newPlayer;
+    }
+
+
+    /*
+      保存目前玩家
+    */
+
+    currentPlayer = player;
+
+
+    /*
+      讀取城市
+    */
+
+    const {
+      data: city,
+      error: cityError
+    } = await supabaseClient
+      .from("aivault_game_cities")
+      .select("*")
+      .eq("player_id", player.id)
+      .maybeSingle();
+
+
+    if (cityError) {
+
+      console.error(
+        "CITY ERROR:",
+        cityError
+      );
+
+      throw new Error(
+        "讀取城市失敗：" +
+        cityError.message
+      );
+    }
+
+    currentCity = city;
+
+
+    /*
+      讀取遊戲資料
+    */
+
+    await loadGameData();
+
+
+    /*
+      顯示遊戲
+    */
+
+    showGame();
+
+    renderAll();
+
+    setupRealtime();
 
     showLoading(false);
-    showAuth();
-    return;
-  }
-
-  currentUser =
-    sessionData.session.user;
 
 
-  /*
-    查詢遊戲角色
-  */
+  } catch (error) {
 
-  let {
-    data: player,
-    error: playerError
-  } = await supabaseClient
-    .from("aivault_game_players")
-    .select("*")
-    .eq("user_id", currentUser.id)
-    .maybeSingle();
-
-
-  if (playerError) {
-
-    console.error(playerError);
+    console.error(
+      "ENTER GAME ERROR:",
+      error
+    );
 
     showLoading(false);
 
     setAuthStatus(
-      "讀取玩家資料失敗：" +
-      playerError.message,
+      error?.message ||
+      "進入遊戲失敗",
       "error"
     );
 
     showAuth();
-
-    return;
   }
-
-
-  /*
-    第一次進入遊戲
-    還沒有角色
-  */
-
-  if (!player) {
-
-    showLoading(false);
-
-    authScreen.style.display =
-      "flex";
-
-    setAuthStatus(
-      "請輸入玩家名稱後按「註冊」建立遊戲角色。",
-      ""
-    );
-
-    document
-      .getElementById("playerName")
-      .focus();
-
-    return;
-  }
-
-
-  currentPlayer = player;
-
-
-  /*
-    讀取城市
-  */
-
-  const {
-    data: city,
-    error: cityError
-  } = await supabaseClient
-    .from("aivault_game_cities")
-    .select("*")
-    .eq("player_id", player.id)
-    .maybeSingle();
-
-
-  if (cityError) {
-
-    console.error(cityError);
-
-    showLoading(false);
-
-    setAuthStatus(
-      "讀取城市失敗：" +
-      cityError.message,
-      "error"
-    );
-
-    return;
-  }
-
-  currentCity = city;
-
-
-  /*
-    讀取所有遊戲資料
-  */
-
-  await loadGameData();
-
-
-  /*
-    顯示遊戲
-  */
-
-  showGame();
-
-  renderAll();
-
-  setupRealtime();
-
-  showLoading(false);
 
 }
-
 
 /* =========================================================
    LOAD GAME DATA
