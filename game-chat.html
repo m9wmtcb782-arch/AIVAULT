@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>聊天</title>
+  <link rel="stylesheet" href="css/game.css" />
+</head>
+<body class="game-body">
+  <div class="snow-layer"></div>
+  <div class="app" id="app"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/env.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/boot.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    let ch = params.get("ch") || "world";
+    const to = params.get("to");
+    if (to) ch = "private";
+    async function render() {
+      if (!(await FKAuth.requirePlayer())) return;
+      const list = await FKApi.messages(ch, to);
+      const html = (list || []).map((m) =>
+        `<div class="bubble"><div class="from">${m.sender_name || m.sender_id} · ${new Date(m.created_at).toLocaleTimeString()}</div>${m.body}</div>`
+      ).join("") || `<p class="tiny">尚無訊息</p>`;
+      document.getElementById("app").innerHTML = `
+        <div class="page-head"><a class="back" href="game-world.html">← 返回</a><h2>聊天</h2></div>
+        <div class="tabs">
+          <a class="tab ${ch==="world"?"on":""}" href="game-chat.html?ch=world">World</a>
+          <a class="tab ${ch==="alliance"?"on":""}" href="game-chat.html?ch=alliance">Alliance</a>
+          <a class="tab ${ch==="private"?"on":""}" href="game-chat.html?ch=private">Private</a>
+        </div>
+        <div class="panel chat-box" id="box">${html}</div>
+        <div class="panel">
+          <input id="text" maxlength="240" placeholder="輸入訊息" />
+          <button class="btn" id="send">送出</button>
+        </div>
+        ${FKUI.nav("chat")}
+      `;
+      const box = document.getElementById("box");
+      box.scrollTop = box.scrollHeight;
+      document.getElementById("send").onclick = () => guarded(async () => {
+        await FKApi.sendMessage(ch, document.getElementById("text").value, to);
+        await render();
+      });
+    }
+    render();
+    setInterval(() => { if (document.getElementById("text") !== document.activeElement) render(); }, 4000);
+  </script>
+</body>
+</html>
