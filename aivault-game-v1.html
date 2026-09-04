@@ -1,0 +1,2102 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0b1220">
+<title>AIVAULT Online Game</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+:root {
+  --bg: #08101d;
+  --panel: rgba(18, 29, 48, 0.94);
+  --panel2: rgba(25, 39, 62, 0.96);
+  --border: rgba(255,255,255,.10);
+  --text: #f5f7fb;
+  --muted: #94a3b8;
+  --gold: #eabf68;
+  --green: #55d6a1;
+  --blue: #6da8ff;
+  --danger: #ff6b6b;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Display",
+    "Noto Sans TC",
+    "Microsoft JhengHei",
+    sans-serif;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+/* =========================
+   AUTH
+========================= */
+
+#authScreen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(83,130,255,.18), transparent 35%),
+    radial-gradient(circle at 80% 70%, rgba(234,191,104,.12), transparent 35%),
+    linear-gradient(145deg, #050a13, #101c30);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 30px;
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  background: rgba(12,20,34,.92);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 30px 80px rgba(0,0,0,.45);
+}
+
+.logo {
+  text-align: center;
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: 2px;
+}
+
+.logo-sub {
+  text-align: center;
+  color: var(--muted);
+  margin-top: 8px;
+  margin-bottom: 30px;
+}
+
+.field {
+  margin-bottom: 14px;
+}
+
+.field label {
+  display: block;
+  margin-bottom: 7px;
+  color: #cbd5e1;
+  font-size: 13px;
+}
+
+.field input {
+  width: 100%;
+  height: 50px;
+  padding: 0 15px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  outline: none;
+  background: #0b1525;
+  color: white;
+  font-size: 16px;
+}
+
+.field input:focus {
+  border-color: rgba(109,168,255,.7);
+}
+
+.auth-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+button {
+  border: 0;
+  cursor: pointer;
+  color: white;
+  font-weight: 800;
+}
+
+.primary-btn {
+  height: 50px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #4278d8, #6da8ff);
+}
+
+.secondary-btn {
+  height: 50px;
+  border-radius: 14px;
+  background: #1b2a42;
+}
+
+.status {
+  margin-top: 15px;
+  min-height: 20px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.error {
+  color: var(--danger);
+}
+
+.success {
+  color: var(--green);
+}
+
+/* =========================
+   GAME
+========================= */
+
+#gameScreen {
+  display: none;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(74,116,194,.12), transparent 35%),
+    #07101d;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 62px;
+  padding: 0 15px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(7,16,29,.92);
+  backdrop-filter: blur(18px);
+}
+
+.player-info {
+  min-width: 0;
+}
+
+.player-name {
+  font-weight: 900;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-level {
+  color: var(--gold);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.world-label {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.logout-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: #18263b;
+  font-size: 17px;
+}
+
+.resource-bar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: #0b1525;
+}
+
+.resource {
+  min-width: 0;
+  padding: 9px 7px;
+  border-radius: 12px;
+  background: #101d30;
+  text-align: center;
+}
+
+.resource-icon {
+  font-size: 17px;
+}
+
+.resource-name {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.resource-value {
+  display: block;
+  margin-top: 2px;
+  font-weight: 900;
+  font-size: 13px;
+}
+
+.main {
+  padding: 14px;
+  padding-bottom: 90px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 4px 2px 10px;
+}
+
+.section-title h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.section-title span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.hero-city {
+  position: relative;
+  min-height: 240px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background:
+    linear-gradient(
+      160deg,
+      rgba(50,84,130,.92),
+      rgba(13,27,45,.96)
+    );
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+.hero-city::before {
+  content: "";
+  position: absolute;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  right: -80px;
+  top: -100px;
+  background: rgba(109,168,255,.12);
+}
+
+.city-ground {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: 0;
+  height: 105px;
+  border-radius: 50% 50% 0 0;
+  background:
+    linear-gradient(
+      160deg,
+      #314b47,
+      #182d2c
+    );
+}
+
+.castle {
+  position: absolute;
+  left: 50%;
+  bottom: 48px;
+  transform: translateX(-50%);
+  width: 110px;
+  height: 110px;
+}
+
+.castle-main {
+  position: absolute;
+  left: 24px;
+  bottom: 0;
+  width: 62px;
+  height: 72px;
+  border-radius: 5px 5px 2px 2px;
+  background: linear-gradient(90deg,#6c7785,#a9b1ba,#687380);
+  box-shadow: 0 15px 30px rgba(0,0,0,.4);
+}
+
+.tower {
+  position: absolute;
+  bottom: 0;
+  width: 27px;
+  height: 88px;
+  background: linear-gradient(90deg,#566170,#9aa4af,#566170);
+}
+
+.tower.left {
+  left: 7px;
+}
+
+.tower.right {
+  right: 7px;
+}
+
+.roof {
+  position: absolute;
+  left: -4px;
+  top: -23px;
+  width: 35px;
+  height: 27px;
+  background: #4d5d76;
+  clip-path: polygon(50% 0,100% 100%,0 100%);
+}
+
+.flag {
+  position: absolute;
+  left: 50%;
+  top: -15px;
+  width: 2px;
+  height: 45px;
+  background: #d7dde6;
+}
+
+.flag::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0;
+  width: 27px;
+  height: 16px;
+  background: #d9a83d;
+  clip-path: polygon(0 0,100% 20%,75% 100%,0 100%);
+}
+
+.city-caption {
+  position: absolute;
+  left: 15px;
+  bottom: 15px;
+}
+
+.city-caption strong {
+  display: block;
+  font-size: 19px;
+}
+
+.city-caption span {
+  color: #cbd5e1;
+  font-size: 11px;
+}
+
+.building-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.building {
+  padding: 15px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--panel);
+}
+
+.building-icon {
+  font-size: 27px;
+}
+
+.building-name {
+  margin-top: 8px;
+  font-weight: 900;
+}
+
+.building-level {
+  margin-top: 3px;
+  color: var(--gold);
+  font-size: 12px;
+}
+
+.building-status {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.upgrade-btn {
+  width: 100%;
+  height: 38px;
+  margin-top: 10px;
+  border-radius: 10px;
+  background: #203451;
+  font-size: 12px;
+}
+
+.map-card {
+  min-height: 300px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background:
+    linear-gradient(145deg,#203a36,#102522);
+}
+
+.map-grid {
+  position: absolute;
+  inset: 0;
+  opacity: .22;
+  background-image:
+    linear-gradient(rgba(255,255,255,.2) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.2) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.map-city {
+  position: absolute;
+  transform: translate(-50%,-50%);
+  text-align: center;
+  z-index: 2;
+}
+
+.map-city-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 39px;
+  height: 39px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.4);
+  background: #182b43;
+  box-shadow: 0 6px 18px rgba(0,0,0,.4);
+  font-size: 20px;
+}
+
+.map-city.me .map-city-icon {
+  border-color: var(--gold);
+  background: #3b3020;
+}
+
+.map-city-name {
+  margin-top: 4px;
+  white-space: nowrap;
+  font-size: 9px;
+  color: #dbe5f2;
+}
+
+.map-city-level {
+  color: var(--gold);
+  font-size: 8px;
+}
+
+.empty {
+  color: var(--muted);
+  text-align: center;
+  padding: 25px;
+}
+
+/* =========================
+   BOTTOM NAV
+========================= */
+
+.bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  height: 70px;
+  border-top: 1px solid var(--border);
+  background: rgba(7,16,29,.96);
+  backdrop-filter: blur(18px);
+}
+
+.nav-btn {
+  background: transparent;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.nav-btn.active {
+  color: white;
+}
+
+.nav-icon {
+  display: block;
+  font-size: 21px;
+  margin-bottom: 3px;
+}
+
+/* =========================
+   LOADING
+========================= */
+
+#loading {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(3,8,15,.86);
+  backdrop-filter: blur(10px);
+}
+
+.loader-box {
+  text-align: center;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  margin: auto;
+  border: 3px solid rgba(255,255,255,.15);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* =========================
+   TOAST
+========================= */
+
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: 85px;
+  transform: translateX(-50%) translateY(15px);
+  z-index: 200;
+  max-width: calc(100% - 30px);
+  padding: 12px 17px;
+  border-radius: 13px;
+  background: rgba(17,28,45,.96);
+  border: 1px solid var(--border);
+  color: white;
+  font-size: 13px;
+  opacity: 0;
+  pointer-events: none;
+  transition: .25s;
+}
+
+#toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+</style>
+</head>
+
+<body>
+
+<!-- =========================
+     AUTH SCREEN
+========================= -->
+
+<section id="authScreen">
+
+  <div class="auth-card">
+
+    <div class="logo">AIVAULT</div>
+
+    <div class="logo-sub">
+      ONLINE WORLD
+    </div>
+
+    <div class="field">
+      <label>Email</label>
+      <input
+        id="email"
+        type="email"
+        autocomplete="email"
+        placeholder="輸入 AIVAULT 帳號 Email">
+    </div>
+
+    <div class="field">
+      <label>密碼</label>
+      <input
+        id="password"
+        type="password"
+        autocomplete="current-password"
+        placeholder="輸入密碼">
+    </div>
+
+    <div class="field">
+      <label>玩家名稱</label>
+      <input
+        id="playerName"
+        type="text"
+        maxlength="20"
+        placeholder="第一次進入遊戲才需要填寫">
+    </div>
+
+    <div class="auth-buttons">
+      <button
+        id="loginBtn"
+        class="primary-btn">
+        登入遊戲
+      </button>
+
+      <button
+        id="signupBtn"
+        class="secondary-btn">
+        註冊
+      </button>
+    </div>
+
+    <div id="authStatus" class="status"></div>
+
+  </div>
+
+</section>
+
+
+<!-- =========================
+     GAME SCREEN
+========================= -->
+
+<section id="gameScreen">
+
+  <header class="topbar">
+
+    <div class="player-info">
+      <div id="playerNameView" class="player-name">
+        玩家
+      </div>
+
+      <div>
+        <span id="playerLevelView" class="player-level">
+          Lv.1
+        </span>
+
+        <span id="worldView" class="world-label">
+          WORLD-001
+        </span>
+      </div>
+    </div>
+
+    <button
+      id="logoutBtn"
+      class="logout-btn"
+      title="登出">
+      ⇥
+    </button>
+
+  </header>
+
+
+  <!-- RESOURCE BAR -->
+
+  <div class="resource-bar">
+
+    <div class="resource">
+      <span class="resource-icon">🌲</span>
+      <span class="resource-name">木材</span>
+      <span id="wood" class="resource-value">0</span>
+    </div>
+
+    <div class="resource">
+      <span class="resource-icon">🌾</span>
+      <span class="resource-name">食物</span>
+      <span id="food" class="resource-value">0</span>
+    </div>
+
+    <div class="resource">
+      <span class="resource-icon">🪨</span>
+      <span class="resource-name">石材</span>
+      <span id="stone" class="resource-value">0</span>
+    </div>
+
+    <div class="resource">
+      <span class="resource-icon">⛓️</span>
+      <span class="resource-name">鐵</span>
+      <span id="iron" class="resource-value">0</span>
+    </div>
+
+    <div class="resource">
+      <span class="resource-icon">🪙</span>
+      <span class="resource-name">金幣</span>
+      <span id="gold" class="resource-value">0</span>
+    </div>
+
+    <div class="resource">
+      <span class="resource-icon">A</span>
+      <span class="resource-name">AV</span>
+      <span id="av" class="resource-value">0</span>
+    </div>
+
+  </div>
+
+
+  <main class="main">
+
+    <!-- CITY -->
+
+    <section id="citySection">
+
+      <div class="section-title">
+        <h2>我的城市</h2>
+        <span id="cityCoordinates">--</span>
+      </div>
+
+      <div class="hero-city">
+
+        <div class="city-ground"></div>
+
+        <div class="castle">
+
+          <div class="tower left">
+            <div class="roof"></div>
+          </div>
+
+          <div class="tower right">
+            <div class="roof"></div>
+          </div>
+
+          <div class="castle-main"></div>
+
+          <div class="flag"></div>
+
+        </div>
+
+        <div class="city-caption">
+          <strong id="cityNameView">我的城堡</strong>
+          <span id="cityLevelView">城堡 Lv.1</span>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- BUILDINGS -->
+
+    <section style="margin-top:22px;">
+
+      <div class="section-title">
+        <h2>城市建設</h2>
+        <span>6 個建築</span>
+      </div>
+
+      <div id="buildingGrid" class="building-grid">
+      </div>
+
+    </section>
+
+
+    <!-- ARMY -->
+
+    <section style="margin-top:22px;">
+
+      <div class="section-title">
+        <h2>軍隊</h2>
+        <span>城市駐軍</span>
+      </div>
+
+      <div id="armyGrid" class="building-grid">
+      </div>
+
+    </section>
+
+
+    <!-- WORLD MAP -->
+
+    <section style="margin-top:22px;">
+
+      <div class="section-title">
+        <h2>WORLD-001</h2>
+        <span id="mapPlayerCount">0 個城市</span>
+      </div>
+
+      <div id="map" class="map-card">
+
+        <div class="map-grid"></div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+
+  <!-- BOTTOM NAV -->
+
+  <nav class="bottom-nav">
+
+    <button
+      class="nav-btn active"
+      onclick="scrollToSection('citySection')">
+      <span class="nav-icon">🏰</span>
+      城市
+    </button>
+
+    <button
+      class="nav-btn"
+      onclick="scrollToMap()">
+      <span class="nav-icon">🗺️</span>
+      世界
+    </button>
+
+    <button
+      class="nav-btn"
+      onclick="showComingSoon('聊天')">
+      <span class="nav-icon">💬</span>
+      聊天
+    </button>
+
+    <button
+      class="nav-btn"
+      onclick="showComingSoon('更多功能')">
+      <span class="nav-icon">☰</span>
+      更多
+    </button>
+
+  </nav>
+
+</section>
+
+
+<!-- LOADING -->
+
+<div id="loading">
+
+  <div class="loader-box">
+
+    <div class="spinner"></div>
+
+    <div style="margin-top:14px;color:#cbd5e1;font-size:13px;">
+      正在進入 AIVAULT 世界……
+    </div>
+
+  </div>
+
+</div>
+
+
+<div id="toast"></div>
+
+
+<script>
+/* =========================================================
+   AIVAULT ONLINE GAME v1
+   Supabase connection
+========================================================= */
+
+const SUPABASE_URL =
+  "https://clcddygkaaqqtsbswgdf.supabase.co";
+
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE";
+
+const supabaseClient =
+  window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
+  );
+
+
+/* =========================================================
+   STATE
+========================================================= */
+
+let currentUser = null;
+let currentPlayer = null;
+let currentCity = null;
+let currentResources = null;
+let currentBuildings = [];
+let currentArmies = [];
+let realtimeChannel = null;
+
+
+/* =========================================================
+   DOM
+========================================================= */
+
+const authScreen =
+  document.getElementById("authScreen");
+
+const gameScreen =
+  document.getElementById("gameScreen");
+
+const authStatus =
+  document.getElementById("authStatus");
+
+const loading =
+  document.getElementById("loading");
+
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function showLoading(show) {
+  loading.style.display =
+    show ? "flex" : "none";
+}
+
+function setAuthStatus(message, type = "") {
+  authStatus.textContent = message;
+  authStatus.className =
+    "status " + type;
+}
+
+function showToast(message) {
+
+  const toast =
+    document.getElementById("toast");
+
+  toast.textContent = message;
+  toast.classList.add("show");
+
+  clearTimeout(window.__toastTimer);
+
+  window.__toastTimer =
+    setTimeout(() => {
+      toast.classList.remove("show");
+    }, 2500);
+}
+
+function formatNumber(value) {
+  return Number(value || 0)
+    .toLocaleString("zh-TW");
+}
+
+
+/* =========================================================
+   AUTH
+========================================================= */
+
+async function checkSession() {
+
+  const {
+    data,
+    error
+  } = await supabaseClient.auth.getSession();
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  if (data.session) {
+
+    currentUser =
+      data.session.user;
+
+    await enterGame();
+
+  } else {
+
+    showAuth();
+  }
+}
+
+
+function showAuth() {
+
+  gameScreen.style.display = "none";
+  authScreen.style.display = "flex";
+}
+
+
+function showGame() {
+
+  authScreen.style.display = "none";
+  gameScreen.style.display = "block";
+}
+
+
+/* =========================================================
+   LOGIN
+========================================================= */
+
+document
+  .getElementById("loginBtn")
+  .addEventListener("click", async () => {
+
+    const email =
+      document.getElementById("email")
+        .value
+        .trim();
+
+    const password =
+      document.getElementById("password")
+        .value;
+
+    if (!email || !password) {
+      setAuthStatus(
+        "請輸入 Email 和密碼",
+        "error"
+      );
+      return;
+    }
+
+    setAuthStatus("登入中……");
+    showLoading(true);
+
+    const {
+      data,
+      error
+    } = await supabaseClient.auth
+      .signInWithPassword({
+        email,
+        password
+      });
+
+    showLoading(false);
+
+    if (error) {
+
+      console.error(error);
+
+      setAuthStatus(
+        error.message,
+        "error"
+      );
+
+      return;
+    }
+
+    currentUser = data.user;
+
+    await enterGame();
+
+  });
+
+
+/* =========================================================
+   SIGN UP
+========================================================= */
+
+document
+  .getElementById("signupBtn")
+  .addEventListener("click", async () => {
+
+    const email =
+      document.getElementById("email")
+        .value
+        .trim();
+
+    const password =
+      document.getElementById("password")
+        .value;
+
+    const playerName =
+      document.getElementById("playerName")
+        .value
+        .trim();
+
+    if (!email || !password) {
+
+      setAuthStatus(
+        "註冊需要 Email 和密碼",
+        "error"
+      );
+
+      return;
+    }
+
+    if (!playerName) {
+
+      setAuthStatus(
+        "請輸入玩家名稱",
+        "error"
+      );
+
+      return;
+    }
+
+    if (playerName.length < 2) {
+
+      setAuthStatus(
+        "玩家名稱至少 2 個字",
+        "error"
+      );
+
+      return;
+    }
+
+    if (password.length < 6) {
+
+      setAuthStatus(
+        "密碼至少 6 個字元",
+        "error"
+      );
+
+      return;
+    }
+
+    showLoading(true);
+
+    const {
+      data,
+      error
+    } = await supabaseClient.auth
+      .signUp({
+        email,
+        password
+      });
+
+    showLoading(false);
+
+    if (error) {
+
+      console.error(error);
+
+      setAuthStatus(
+        error.message,
+        "error"
+      );
+
+      return;
+    }
+
+    /*
+      某些 Supabase 專案啟用了 Email Confirmation。
+      如果沒有 session，要求使用者先驗證 Email。
+    */
+
+    if (!data.session) {
+
+      setAuthStatus(
+        "註冊成功。請先完成 Email 驗證，再登入遊戲。",
+        "success"
+      );
+
+      return;
+    }
+
+    currentUser = data.user;
+
+    /*
+      註冊後直接建立遊戲角色
+    */
+
+    await bootstrapGame(playerName);
+
+  });
+
+
+/* =========================================================
+   BOOTSTRAP GAME
+========================================================= */
+
+async function bootstrapGame(playerName) {
+
+  if (!currentUser) {
+
+    showToast("尚未登入");
+    return;
+  }
+
+  showLoading(true);
+
+  const {
+    data,
+    error
+  } = await supabaseClient.rpc(
+    "aivault_game_bootstrap_v1",
+    {
+      p_player_name: playerName
+    }
+  );
+
+  showLoading(false);
+
+  if (error) {
+
+    console.error(
+      "BOOTSTRAP ERROR:",
+      error
+    );
+
+    setAuthStatus(
+      "建立遊戲角色失敗：" +
+      error.message,
+      "error"
+    );
+
+    return;
+  }
+
+  console.log(
+    "BOOTSTRAP RESULT:",
+    data
+  );
+
+  await enterGame();
+
+}
+
+
+/* =========================================================
+   ENTER GAME
+========================================================= */
+
+async function enterGame() {
+
+  showLoading(true);
+
+  /*
+    先確認 Session
+  */
+
+  const {
+    data: sessionData
+  } = await supabaseClient.auth.getSession();
+
+  if (!sessionData.session) {
+
+    showLoading(false);
+    showAuth();
+    return;
+  }
+
+  currentUser =
+    sessionData.session.user;
+
+
+  /*
+    查詢遊戲角色
+  */
+
+  let {
+    data: player,
+    error: playerError
+  } = await supabaseClient
+    .from("aivault_game_players")
+    .select("*")
+    .eq("user_id", currentUser.id)
+    .maybeSingle();
+
+
+  if (playerError) {
+
+    console.error(playerError);
+
+    showLoading(false);
+
+    setAuthStatus(
+      "讀取玩家資料失敗：" +
+      playerError.message,
+      "error"
+    );
+
+    showAuth();
+
+    return;
+  }
+
+
+  /*
+    第一次進入遊戲
+    還沒有角色
+  */
+
+  if (!player) {
+
+    showLoading(false);
+
+    authScreen.style.display =
+      "flex";
+
+    setAuthStatus(
+      "請輸入玩家名稱後按「註冊」建立遊戲角色。",
+      ""
+    );
+
+    document
+      .getElementById("playerName")
+      .focus();
+
+    return;
+  }
+
+
+  currentPlayer = player;
+
+
+  /*
+    讀取城市
+  */
+
+  const {
+    data: city,
+    error: cityError
+  } = await supabaseClient
+    .from("aivault_game_cities")
+    .select("*")
+    .eq("player_id", player.id)
+    .maybeSingle();
+
+
+  if (cityError) {
+
+    console.error(cityError);
+
+    showLoading(false);
+
+    setAuthStatus(
+      "讀取城市失敗：" +
+      cityError.message,
+      "error"
+    );
+
+    return;
+  }
+
+  currentCity = city;
+
+
+  /*
+    讀取所有遊戲資料
+  */
+
+  await loadGameData();
+
+
+  /*
+    顯示遊戲
+  */
+
+  showGame();
+
+  renderAll();
+
+  setupRealtime();
+
+  showLoading(false);
+
+}
+
+
+/* =========================================================
+   LOAD GAME DATA
+========================================================= */
+
+async function loadGameData() {
+
+  if (!currentPlayer || !currentCity) {
+    return;
+  }
+
+
+  /*
+    Resources
+  */
+
+  const {
+    data: resources,
+    error: resourcesError
+  } = await supabaseClient
+    .from("aivault_game_resources")
+    .select("*")
+    .eq("city_id", currentCity.id)
+    .maybeSingle();
+
+  if (resourcesError) {
+    console.error(resourcesError);
+  }
+
+  currentResources =
+    resources;
+
+
+  /*
+    Buildings
+  */
+
+  const {
+    data: buildings,
+    error: buildingsError
+  } = await supabaseClient
+    .from("aivault_game_buildings")
+    .select("*")
+    .eq("city_id", currentCity.id)
+    .order("building_type");
+
+  if (buildingsError) {
+    console.error(buildingsError);
+  }
+
+  currentBuildings =
+    buildings || [];
+
+
+  /*
+    Armies
+  */
+
+  const {
+    data: armies,
+    error: armiesError
+  } = await supabaseClient
+    .from("aivault_game_armies")
+    .select("*")
+    .eq("city_id", currentCity.id)
+    .order("troop_type");
+
+  if (armiesError) {
+    console.error(armiesError);
+  }
+
+  currentArmies =
+    armies || [];
+
+}
+
+
+/* =========================================================
+   RENDER
+========================================================= */
+
+function renderAll() {
+
+  if (!currentPlayer) {
+    return;
+  }
+
+  /*
+    Player
+  */
+
+  document
+    .getElementById("playerNameView")
+    .textContent =
+    currentPlayer.player_name;
+
+  document
+    .getElementById("playerLevelView")
+    .textContent =
+    "Lv." +
+    currentPlayer.level;
+
+  document
+    .getElementById("worldView")
+    .textContent =
+    currentPlayer.world_id;
+
+
+  /*
+    City
+  */
+
+  if (currentCity) {
+
+    document
+      .getElementById("cityNameView")
+      .textContent =
+      currentCity.city_name;
+
+    document
+      .getElementById("cityLevelView")
+      .textContent =
+      "城堡 Lv." +
+      currentCity.city_level;
+
+    document
+      .getElementById("cityCoordinates")
+      .textContent =
+      `座標 ${currentCity.map_x}, ${currentCity.map_y}`;
+  }
+
+
+  /*
+    Resources
+  */
+
+  if (currentResources) {
+
+    document.getElementById("wood")
+      .textContent =
+      formatNumber(currentResources.wood);
+
+    document.getElementById("food")
+      .textContent =
+      formatNumber(currentResources.food);
+
+    document.getElementById("stone")
+      .textContent =
+      formatNumber(currentResources.stone);
+
+    document.getElementById("iron")
+      .textContent =
+      formatNumber(currentResources.iron);
+
+    document.getElementById("gold")
+      .textContent =
+      formatNumber(currentResources.gold);
+
+    document.getElementById("av")
+      .textContent =
+      formatNumber(currentResources.av);
+  }
+
+
+  renderBuildings();
+  renderArmies();
+
+  loadWorldMap();
+
+}
+
+
+/* =========================================================
+   BUILDINGS
+========================================================= */
+
+const buildingMeta = {
+
+  castle: {
+    icon: "🏰",
+    name: "城堡"
+  },
+
+  lumber_mill: {
+    icon: "🌲",
+    name: "木材場"
+  },
+
+  farm: {
+    icon: "🌾",
+    name: "農場"
+  },
+
+  barracks: {
+    icon: "⚔️",
+    name: "軍營"
+  },
+
+  hospital: {
+    icon: "🏥",
+    name: "醫療所"
+  },
+
+  technology_center: {
+    icon: "🔬",
+    name: "科技中心"
+  }
+
+};
+
+
+function renderBuildings() {
+
+  const grid =
+    document.getElementById(
+      "buildingGrid"
+    );
+
+  if (!currentBuildings.length) {
+
+    grid.innerHTML =
+      `<div class="empty">
+        尚未建立建築
+      </div>`;
+
+    return;
+  }
+
+  grid.innerHTML =
+    currentBuildings.map(building => {
+
+      const meta =
+        buildingMeta[
+          building.building_type
+        ] || {
+          icon: "🏗️",
+          name: building.building_type
+        };
+
+      let status =
+        "可以升級";
+
+      if (building.upgrading) {
+        status =
+          "升級中";
+      }
+
+      return `
+        <div class="building">
+
+          <div class="building-icon">
+            ${meta.icon}
+          </div>
+
+          <div class="building-name">
+            ${meta.name}
+          </div>
+
+          <div class="building-level">
+            Lv.${building.level}
+          </div>
+
+          <div class="building-status">
+            ${status}
+          </div>
+
+          <button
+            class="upgrade-btn"
+            onclick="upgradeBuilding('${building.id}')"
+            ${building.upgrading ? "disabled" : ""}>
+            ${building.upgrading ? "升級中" : "升級"}
+          </button>
+
+        </div>
+      `;
+
+    }).join("");
+
+}
+
+
+/* =========================================================
+   ARMIES
+========================================================= */
+
+const armyMeta = {
+
+  warrior: {
+    icon: "⚔️",
+    name: "戰士"
+  },
+
+  archer: {
+    icon: "🏹",
+    name: "弓兵"
+  },
+
+  cavalry: {
+    icon: "🐎",
+    name: "騎兵"
+  },
+
+  mage: {
+    icon: "🔮",
+    name: "法師"
+  }
+
+};
+
+
+function renderArmies() {
+
+  const grid =
+    document.getElementById(
+      "armyGrid"
+    );
+
+  if (!currentArmies.length) {
+
+    grid.innerHTML =
+      `<div class="empty">
+        尚未建立軍隊
+      </div>`;
+
+    return;
+  }
+
+  grid.innerHTML =
+    currentArmies.map(army => {
+
+      const meta =
+        armyMeta[
+          army.troop_type
+        ] || {
+          icon: "🪖",
+          name: army.troop_type
+        };
+
+      return `
+        <div class="building">
+
+          <div class="building-icon">
+            ${meta.icon}
+          </div>
+
+          <div class="building-name">
+            ${meta.name}
+          </div>
+
+          <div class="building-level">
+            ${formatNumber(army.quantity)} 人
+          </div>
+
+          <div class="building-status">
+            傷兵：
+            ${formatNumber(army.wounded)}
+          </div>
+
+        </div>
+      `;
+
+    }).join("");
+
+}
+
+
+/* =========================================================
+   WORLD MAP
+========================================================= */
+
+async function loadWorldMap() {
+
+  if (!currentPlayer) {
+    return;
+  }
+
+  const {
+    data: cities,
+    error
+  } = await supabaseClient
+    .from("aivault_game_cities")
+    .select(`
+      id,
+      player_id,
+      world_id,
+      city_name,
+      map_x,
+      map_y,
+      city_level,
+      aivault_game_players (
+        player_name,
+        level,
+        status
+      )
+    `)
+    .eq(
+      "world_id",
+      currentPlayer.world_id
+    )
+    .limit(100);
+
+  if (error) {
+
+    console.error(
+      "WORLD MAP ERROR:",
+      error
+    );
+
+    return;
+  }
+
+  const map =
+    document.getElementById("map");
+
+  /*
+    保留背景格線
+  */
+
+  map.innerHTML =
+    `<div class="map-grid"></div>`;
+
+  const list =
+    cities || [];
+
+  document
+    .getElementById("mapPlayerCount")
+    .textContent =
+    `${list.length} 個城市`;
+
+
+  /*
+    將 WORLD 座標轉成視覺座標
+  */
+
+  list.forEach(city => {
+
+    const x =
+      Math.max(
+        6,
+        Math.min(
+          94,
+          (city.map_x / 200) * 100
+        )
+      );
+
+    const y =
+      Math.max(
+        8,
+        Math.min(
+          92,
+          (city.map_y / 200) * 100
+        )
+      );
+
+    const player =
+      Array.isArray(
+        city.aivault_game_players
+      )
+        ? city.aivault_game_players[0]
+        : city.aivault_game_players;
+
+    const isMe =
+      city.player_id ===
+      currentPlayer.id;
+
+    const marker =
+      document.createElement("div");
+
+    marker.className =
+      "map-city" +
+      (isMe ? " me" : "");
+
+    marker.style.left =
+      x + "%";
+
+    marker.style.top =
+      y + "%";
+
+    marker.innerHTML = `
+      <div class="map-city-icon">
+        ${isMe ? "🏰" : "🏯"}
+      </div>
+
+      <div class="map-city-name">
+        ${escapeHtml(city.city_name)}
+      </div>
+
+      <div class="map-city-level">
+        Lv.${city.city_level}
+      </div>
+    `;
+
+    marker.addEventListener(
+      "click",
+      () => {
+
+        if (isMe) {
+
+          showToast(
+            "這是你的城市"
+          );
+
+        } else {
+
+          showToast(
+            `${city.city_name} · Lv.${city.city_level}`
+          );
+
+        }
+
+      }
+    );
+
+    map.appendChild(marker);
+
+  });
+
+}
+
+
+/* =========================================================
+   REALTIME
+========================================================= */
+
+function setupRealtime() {
+
+  if (realtimeChannel) {
+
+    supabaseClient
+      .removeChannel(
+        realtimeChannel
+      );
+  }
+
+  realtimeChannel =
+    supabaseClient
+      .channel(
+        "aivault-game-world"
+      )
+
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "aivault_game_cities"
+        },
+        async () => {
+
+          await loadWorldMap();
+
+        }
+      )
+
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "aivault_game_players"
+        },
+        async () => {
+
+          await loadWorldMap();
+
+        }
+      )
+
+      .subscribe();
+
+}
+
+
+/* =========================================================
+   BUILDING UPGRADE
+========================================================= */
+
+async function upgradeBuilding(buildingId) {
+
+  /*
+    這裡故意先不直接 UPDATE。
+    
+    真正的升級必須由伺服器端
+    檢查資源、等級、時間、前置條件。
+    
+    目前只是 UI 提示。
+  */
+
+  showToast(
+    "建築升級伺服器正在建立中"
+  );
+
+}
+
+
+/* =========================================================
+   NAVIGATION
+========================================================= */
+
+function scrollToSection(id) {
+
+  document
+    .getElementById(id)
+    ?.scrollIntoView({
+      behavior: "smooth"
+    });
+
+}
+
+function scrollToMap() {
+
+  document
+    .getElementById("map")
+    ?.scrollIntoView({
+      behavior: "smooth"
+    });
+
+}
+
+function showComingSoon(name) {
+
+  showToast(
+    `${name}系統下一階段開啟`
+  );
+
+}
+
+
+/* =========================================================
+   LOGOUT
+========================================================= */
+
+document
+  .getElementById("logoutBtn")
+  .addEventListener(
+    "click",
+    async () => {
+
+      if (realtimeChannel) {
+
+        await supabaseClient
+          .removeChannel(
+            realtimeChannel
+          );
+
+        realtimeChannel = null;
+      }
+
+      await supabaseClient.auth.signOut();
+
+      currentUser = null;
+      currentPlayer = null;
+      currentCity = null;
+      currentResources = null;
+      currentBuildings = [];
+      currentArmies = [];
+
+      showAuth();
+
+      showToast("已登出");
+
+    }
+  );
+
+
+/* =========================================================
+   AUTH STATE
+========================================================= */
+
+supabaseClient.auth.onAuthStateChange(
+  async (event, session) => {
+
+    if (
+      event === "SIGNED_OUT"
+    ) {
+
+      currentUser = null;
+      showAuth();
+
+      return;
+    }
+
+    if (
+      event === "SIGNED_IN" &&
+      session
+    ) {
+
+      currentUser =
+        session.user;
+
+    }
+
+  }
+);
+
+
+/* =========================================================
+   ESCAPE HTML
+========================================================= */
+
+function escapeHtml(value) {
+
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+
+}
+
+
+/* =========================================================
+   START
+========================================================= */
+
+checkSession();
+
+</script>
+
+</body>
+</html>
