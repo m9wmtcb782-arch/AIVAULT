@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#0b1220">
 <title>AIVAULT Online Game</title>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
 <style>
 :root {
@@ -897,12 +897,49 @@ const SUPABASE_URL =
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE";
 
+/* ---------------------------------------------------------
+   Supabase SDK Guard
+--------------------------------------------------------- */
+
+if (
+  !window.supabase ||
+  typeof window.supabase.createClient !== "function"
+) {
+  document.body.innerHTML = `
+    <div style="
+      padding:30px;
+      font-family:system-ui;
+      text-align:center;
+      color:#fff;
+      background:#10131a;
+      min-height:100vh;
+    ">
+      <h2>⚠️ Supabase SDK 載入失敗</h2>
+      <p>請確認 Supabase SDK 已正確載入。</p>
+      <button onclick="location.reload()"
+        style="
+          padding:12px 20px;
+          border:0;
+          border-radius:10px;
+          cursor:pointer;
+        ">
+        重新載入
+      </button>
+    </div>
+  `;
+
+  throw new Error("Supabase JS SDK failed to load");
+}
+
+/* ---------------------------------------------------------
+   Create Supabase Client
+--------------------------------------------------------- */
+
 const supabaseClient =
   window.supabase.createClient(
     SUPABASE_URL,
     SUPABASE_ANON_KEY
   );
-
 
 /* =========================================================
    STATE
