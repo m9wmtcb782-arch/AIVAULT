@@ -8,76 +8,87 @@
     * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
     html,body { margin:0; min-height:100%; background:#071018; color:#e8f4ff;
       font-family:"PingFang TC","Noto Sans TC",sans-serif; }
-    .stage { min-height:100dvh; display:flex; flex-direction:column; padding:12px 12px calc(16px + env(safe-area-inset-bottom)); }
-    h1 { text-align:center; font-size:22px; margin:8px 0 4px; }
-    .sub { text-align:center; color:#8aa3b8; font-size:13px; margin-bottom:10px; }
-    .hero {
-      flex:1; min-height:46vh; border-radius:18px; overflow:hidden; position:relative;
-      background:#0c1a28 center/cover no-repeat; border:1px solid rgba(154,216,255,.28);
-    }
-    .hero.wave { animation: greet .7s ease; }
-    @keyframes greet { 0%{transform:translateY(18px) scale(.96);opacity:.4} 60%{transform:translateY(-6px)} 100%{transform:none;opacity:1} }
-    .bubble {
-      position:absolute; left:14px; right:14px; bottom:14px;
-      background:rgba(7,16,24,.82); border:1px solid rgba(154,216,255,.3);
-      border-radius:16px 16px 16px 4px; padding:10px 12px; font-size:14px;
-      transform-origin:left bottom; animation: pop .35s ease;
-    }
-    @keyframes pop { from { transform:scale(.7); opacity:0; } }
-    .picks { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:12px 0; }
-    .card { border:1px solid rgba(154,216,255,.28); background:#0c1a26; border-radius:14px; padding:8px; text-align:center; }
+    .stage { padding:12px 12px calc(16px + env(safe-area-inset-bottom)); }
+    h1 { text-align:center; font-size:20px; margin:6px 0; }
+    .sub { text-align:center; color:#8aa3b8; font-size:12px; margin-bottom:8px; }
+    .hero { height:38vh; border-radius:16px; background:#0c1a28 center/cover no-repeat; position:relative;
+      border:1px solid rgba(154,216,255,.28); }
+    .bubble { position:absolute; left:12px; right:12px; bottom:12px; background:rgba(7,16,24,.84);
+      border-radius:14px; padding:10px; font-size:13px; }
+    .sec { font-size:12px; color:#8aa3b8; margin:10px 0 6px; }
+    .picks { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; }
+    .card { border:1px solid rgba(154,216,255,.28); background:#0c1a26; border-radius:10px; padding:4px; color:inherit; }
     .card.on { border-color:#9ad8ff; box-shadow:0 0 0 2px #9ad8ff55; }
-    .card img { width:100%; height:120px; object-fit:cover; object-position:top; border-radius:10px; display:block; }
-    .card b { display:block; margin-top:6px; font-size:14px; }
-    .card span { color:#8aa3b8; font-size:11px; }
-    .btn { width:100%; border:0; border-radius:14px; padding:14px; font-weight:800; background:#9ad8ff; color:#081018; font-size:16px; }
-    .btn.ghost { background:transparent; color:#9ad8ff; border:1px solid rgba(154,216,255,.28); margin-top:8px; }
-    a { text-decoration:none; }
+    .card img { width:100%; height:72px; object-fit:cover; object-position:top; border-radius:8px; display:block; }
+    .card b { display:block; font-size:10px; margin-top:4px; text-align:center; }
+    .btn { width:100%; margin-top:12px; border:0; border-radius:14px; padding:14px; font-weight:800; background:#9ad8ff; color:#081018; }
+    .msg { min-height:16px; color:#e24b4b; font-size:12px; text-align:center; }
   </style>
 </head>
 <body>
   <div class="stage">
     <h1>選擇領主</h1>
-    <p class="sub">男主／女主進場會打招呼</p>
-    <div class="hero" id="hero">
-      <div class="bubble" id="hello">……</div>
-    </div>
-    <div class="picks">
-      <button class="card on" type="button" id="m">
-        <img src="assets/hero-male.jpg" alt="男主" />
-        <b>凌霜</b><span>男主 · 守城將</span>
-      </button>
-      <button class="card" type="button" id="f">
-        <img src="assets/hero-female.jpg" alt="女主" />
-        <b>白雪</b><span>女主 · 探路者</span>
-      </button>
-    </div>
-    <button class="btn" type="button" id="go">以這位領主進入王國</button>
-    <a class="btn ghost" href="game-start.html" style="display:block;text-align:center">返回</a>
+    <p class="sub" id="sub">男女各五人，寫入帳號</p>
+    <div class="hero" id="hero"><div class="bubble" id="hello">……</div></div>
+    <div class="sec">男主</div>
+    <div class="picks" id="males"></div>
+    <div class="sec">女主</div>
+    <div class="picks" id="females"></div>
+    <p class="msg" id="err"></p>
+    <button class="btn" type="button" id="go">確認並寫入帳號</button>
   </div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    const HERO = {
-      m: { src:"assets/hero-male.jpg", name:"凌霜", say:"你好，領主。暴風雪來了，我守著熔爐。" },
-      f: { src:"assets/hero-female.jpg", name:"白雪", say:"你好呀。東邊的雪路我探過了，跟我走。" }
-    };
-    let cur="m";
-    const hero=document.getElementById("hero");
-    const hello=document.getElementById("hello");
-    function show(id){
-      cur=id;
-      document.getElementById("m").classList.toggle("on", id==="m");
-      document.getElementById("f").classList.toggle("on", id==="f");
-      hero.style.backgroundImage="url('"+HERO[id].src+"')";
-      hero.classList.remove("wave"); void hero.offsetWidth; hero.classList.add("wave");
-      hello.textContent=HERO[id].name+"："+HERO[id].say;
+    const URL="https://clcddygkaaqqtsbswgdf.supabase.co";
+    const KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE";
+    const sb = supabase.createClient(URL, KEY);
+    const HEROES = [
+      {id:"m1",g:"m",name:"凌霜",src:"assets/hero-male.jpg",say:"你好，領主。熔爐交給我守。"},
+      {id:"m2",g:"m",name:"北烈",src:"assets/hero-male.jpg",say:"北邊的冰原我走過，跟我出征。"},
+      {id:"m3",g:"m",name:"鐵寒",src:"assets/hero-male.jpg",say:"軍營就緒。點頭，我就帶兵。"},
+      {id:"m4",g:"m",name:"朔風",src:"assets/hero-male.jpg",say:"斥候回報了，沙漠敵城能打。"},
+      {id:"m5",g:"m",name:"岩霜",src:"assets/hero-male.jpg",say:"城牆我來砌。你負責發令。"},
+      {id:"f1",g:"f",name:"白雪",src:"assets/hero-female.jpg",say:"你好呀。東邊雪路我探過了。"},
+      {id:"f2",g:"f",name:"冬晴",src:"assets/hero-female.jpg",say:"傷兵我會看。你去前線就好。"},
+      {id:"f3",g:"f",name:"霜蘭",src:"assets/hero-female.jpg",say:"聯盟頻道我盯著，隊友不會掉隊。"},
+      {id:"f4",g:"f",name:"冰璃",src:"assets/hero-female.jpg",say:"礦點座標記下了，採集隊出發。"},
+      {id:"f5",g:"f",name:"月寒",src:"assets/hero-female.jpg",say:"夜裡的城，我守最後一班。"}
+    ];
+    let cur="m1";
+    function byId(id){ return HEROES.find(h=>h.id===id); }
+    function render(){
+      const mk = list => list.map(h=>`<button class="card ${h.id===cur?"on":""}" data-id="${h.id}" type="button">
+        <img src="${h.src}" alt="${h.name}" /><b>${h.name}</b></button>`).join("");
+      document.getElementById("males").innerHTML = mk(HEROES.filter(h=>h.g==="m"));
+      document.getElementById("females").innerHTML = mk(HEROES.filter(h=>h.g==="f"));
+      document.querySelectorAll(".card").forEach(b=>b.onclick=()=>show(b.dataset.id));
     }
-    document.getElementById("m").onclick=()=>show("m");
-    document.getElementById("f").onclick=()=>show("f");
-    document.getElementById("go").onclick=()=>{
+    function show(id){
+      cur=id; const h=byId(id);
+      document.getElementById("hero").style.backgroundImage="url('"+h.src+"')";
+      document.getElementById("hello").textContent=h.name+"："+h.say;
+      render();
+    }
+    document.getElementById("go").onclick=async ()=>{
+      const err=document.getElementById("err"); err.textContent="";
       localStorage.setItem("fk_hero", cur);
+      const { data:{ session } } = await sb.auth.getSession();
+      if(!session){ err.textContent="尚未登入"; return; }
+      const { error } = await sb.rpc("aivault_game_set_hero_v1", { p_hero: cur });
+      if(error){
+        if((error.message||"").indexOf("NO_PLAYER")>=0){ location.href="game-create-player.html"; return; }
+        err.textContent=error.message; return;
+      }
       location.href="game-city.html";
     };
-    show("m");
+    show("m1");
+    (async ()=>{
+      const { data:{ session } } = await sb.auth.getSession();
+      document.getElementById("sub").textContent = session ? "已登入，選角會寫進資料庫" : "尚未登入";
+      if(!session) return;
+      const { data } = await sb.rpc("aivault_game_get_hero_v1");
+      if(data && byId(data)) show(data);
+    })();
   </script>
 </body>
 </html>
