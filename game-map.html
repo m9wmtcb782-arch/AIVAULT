@@ -5,78 +5,144 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
   <title>世界地圖 · FROST KINGDOM</title>
   <style>
-    body { margin:0; background:#071018; color:#e8f4ff; font-family:"PingFang TC","Noto Sans TC",sans-serif; overflow:hidden; }
-    .map { position:fixed; inset:0 0 132px 0;
+    * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html,body { margin:0; height:100%; overflow:hidden; background:#071018; color:#eef6ff;
+      font-family:"PingFang TC","Noto Sans TC",sans-serif; }
+    .hud { position:fixed; left:0; right:0; top:0; z-index:30; display:flex; justify-content:space-between; gap:8px;
+      padding:8px 10px calc(8px + env(safe-area-inset-top)); background:linear-gradient(#071018,transparent); }
+    .chip { background:rgba(8,18,28,.86); border:1px solid rgba(154,216,255,.3); border-radius:999px; padding:6px 10px; font-size:12px; font-weight:700; }
+    .view { position:fixed; inset:0 0 148px; overflow:hidden; touch-action:none; }
+    .world {
+      position:absolute; width:1600px; height:1066px;
       background:
-        radial-gradient(circle at 24% 32%, #1b3d2a 0 70px, transparent 71px),
-        radial-gradient(circle at 76% 26%, #3a3a22 0 58px, transparent 59px),
-        radial-gradient(circle at 72% 72%, #2a2a44 0 64px, transparent 65px),
-        linear-gradient(#0b1c2a,#123024); }
-    .mark { position:absolute; transform:translate(-50%,-50%); text-align:center; width:80px; font-size:11px; }
-    .mark .ico { font-size:34px; filter:drop-shadow(0 6px 8px #000); }
-    .me { left:30%; top:64%; }
-    .ai { left:76%; top:28%; }
-    .ai.fire .ico { animation: blaze .25s infinite alternate; }
-    .flame { display:none; font-size:36px; }
-    .ai.fire .flame { display:block; }
-    @keyframes blaze { to { filter:brightness(1.4) saturate(1.4); } }
-    .hp { width:70px; height:7px; margin:4px auto 0; background:#2a1010; border-radius:99px; overflow:hidden; }
-    .hp i { display:block; height:100%; width:100%; background:#e24b4b; }
-    .worker { position:absolute; left:30%; top:64%; font-size:26px; transform:translate(-50%,-50%);
-      transition:left 2s linear, top 2s linear; }
-    .dock { position:fixed; left:0; right:0; bottom:0; background:#071018ee; border-top:1px solid #3a5a70;
+        url("assets/world-map.jpg") center/cover no-repeat,
+        radial-gradient(400px 220px at 72% 28%, #c4a87a 0 40%, transparent 42%),
+        radial-gradient(500px 280px at 38% 48%, #8fb7a0 0 20%, transparent 22%),
+        linear-gradient(#9eb8c8, #6e8ea0);
+    }
+    .pin { position:absolute; transform:translate(-50%,-100%); text-align:center; width:76px; z-index:2; }
+    .pin .ico { font-size:30px; filter:drop-shadow(0 6px 6px #0008); }
+    .pin .lab { margin-top:2px; font-size:10px; font-weight:800; padding:2px 6px; border-radius:999px; background:#071018cc; }
+    .pin.me .lab { background:#1b4a2ccc; color:#b8ffd0; }
+    .pin.ally .lab { background:#1b3a5acc; color:#9ad8ff; }
+    .pin.enemy .lab { background:#4a2a18cc; color:#e7c56a; }
+    .pin.res .lab { background:#163844cc; color:#c8ecff; }
+    .pin.fire .ico { animation:flicker .25s infinite alternate; }
+    .pin.fire::after { content:"🔥"; position:absolute; left:50%; top:-12px; transform:translateX(-50%); font-size:18px; }
+    @keyframes flicker { to { filter:brightness(1.4); } }
+    .unit { position:absolute; z-index:4; font-size:26px; transform:translate(-50%,-50%);
+      transition:left 1.8s linear, top 1.8s linear; pointer-events:none; filter:drop-shadow(0 4px 4px #000); }
+    .dock { position:fixed; left:0; right:0; bottom:0; z-index:30; background:#071018f2; border-top:1px solid rgba(154,216,255,.28);
       padding:8px 10px calc(10px + env(safe-area-inset-bottom)); }
-    .chat { height:64px; overflow:auto; background:#08141e; border:1px solid #3a5a70; border-radius:12px; padding:6px 8px; font-size:12px; }
+    .info { font-size:12px; color:#c8ecff; min-height:16px; margin-bottom:4px; }
+    .chat { height:52px; overflow:auto; background:#08141e; border:1px solid rgba(154,216,255,.28); border-radius:10px; padding:6px 8px; font-size:12px; }
     .row { display:flex; gap:6px; margin-top:6px; }
-    .row input { flex:1; border-radius:12px; border:1px solid #3a5a70; background:#061018; color:#fff; padding:10px; }
-    .row button, .acts button { border:0; border-radius:12px; font-weight:800; padding:10px; background:#9ad8ff; color:#081018; }
+    input { flex:1; border-radius:10px; border:1px solid rgba(154,216,255,.28); background:#061018; color:#fff; padding:10px; }
+    button { border:0; border-radius:10px; font-weight:800; padding:10px 12px; background:#9ad8ff; color:#081018; }
     .acts { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-top:6px; }
-    .danger { background:#e24b4b !important; color:#fff !important; }
-    .tiny { color:#8aa3b8; font-size:12px; }
+    .danger { background:#e24b4b; color:#fff; }
     a { color:#9ad8ff; text-decoration:none; }
   </style>
 </head>
 <body>
-  <div class="map">
-    <div class="mark" style="left:22%;top:28%"><div class="ico">🌲</div>寒木林</div>
-    <div class="mark" style="left:68%;top:74%"><div class="ico">⛏️</div>霜鐵礦</div>
-    <div class="mark me"><div class="ico">🏰</div>我的王城</div>
-    <div class="mark ai" id="ai"><div class="flame">🔥</div><div class="ico">☠️</div>AI 敵城<div class="hp"><i id="hp"></i></div></div>
-    <div class="worker" id="w">🪓</div>
+  <div class="hud">
+    <div class="chip" id="coord">雪原</div>
+    <div class="chip">聯盟 · 霜牙</div>
+    <div class="chip"><a href="game-city.html">回主城</a></div>
+  </div>
+  <div class="view" id="view">
+    <div class="world" id="world">
+      <div class="pin me" data-id="me" style="left:32%;top:62%"><div class="ico">🏰</div><div class="lab">我</div></div>
+      <div class="pin ally" data-id="a1" style="left:24%;top:48%"><div class="ico">🛡️</div><div class="lab">白霜</div></div>
+      <div class="pin ally" data-id="a2" style="left:40%;top:54%"><div class="ico">🛡️</div><div class="lab">北風</div></div>
+      <div class="pin ally" data-id="a3" style="left:18%;top:70%"><div class="ico">🛡️</div><div class="lab">寒刃</div></div>
+      <div class="pin enemy" data-id="e1" style="left:74%;top:30%"><div class="ico">☠️</div><div class="lab">沙漠敵城</div></div>
+      <div class="pin enemy" data-id="e2" style="left:62%;top:58%"><div class="ico">☠️</div><div class="lab">丘陵敵城</div></div>
+      <div class="pin enemy" data-id="e3" style="left:48%;top:22%"><div class="ico">☠️</div><div class="lab">雪山敵城</div></div>
+      <div class="pin res" data-id="r1" style="left:44%;top:46%"><div class="ico">🌲</div><div class="lab">寒木林</div></div>
+      <div class="pin res" data-id="r2" style="left:70%;top:42%"><div class="ico">⛏️</div><div class="lab">沙地礦</div></div>
+      <div class="unit" id="unit">🗡️</div>
+    </div>
   </div>
   <div class="dock">
-    <div class="chat" id="chat"><div><b style="color:#9ad8ff">盟主</b> 先採木，再集火敵城。</div></div>
-    <div class="row"><input id="msg" placeholder="聯盟頻道…" /><button id="send" type="button">送出</button></div>
+    <div class="info" id="info">拖動地圖。點自己、隊友、敵人或資源。</div>
+    <div class="chat" id="chat"><div><b style="color:#9ad8ff">白霜</b> 我在西邊雪丘，沙漠那座敵城先別硬打。</div></div>
+    <div class="row"><input id="msg" placeholder="聯盟頻道…" /><button type="button" id="send">送出</button></div>
     <div class="acts">
-      <button type="button" id="wood">採木</button>
-      <button type="button" class="danger" id="atk">攻城</button>
-      <button type="button" onclick="location.href='game-city.html'">回主城</button>
+      <button type="button" id="goRes">採集</button>
+      <button type="button" class="danger" id="goAtk">出征</button>
+      <button type="button" id="goMe">回到我</button>
     </div>
   </div>
   <script>
-    let hp=1000;
-    const w=document.getElementById("w");
-    const chat=document.getElementById("chat");
-    function say(f,t){ chat.innerHTML += `<div><b style="color:#9ad8ff">${f}</b> ${t}</div>`; chat.scrollTop=chat.scrollHeight; }
-    function go(x,y,done){ w.style.left=x; w.style.top=y; setTimeout(done,2000); }
+    const world=document.getElementById("world");
+    const view=document.getElementById("view");
+    const unit=document.getElementById("unit");
+    const nodes={
+      me:{type:"me",name:"我的王城",x:32,y:62},
+      a1:{type:"ally",name:"白霜",x:24,y:48},
+      a2:{type:"ally",name:"北風",x:40,y:54},
+      a3:{type:"ally",name:"寒刃",x:18,y:70},
+      e1:{type:"enemy",name:"沙漠敵城",hp:1000,x:74,y:30},
+      e2:{type:"enemy",name:"丘陵敵城",hp:1000,x:62,y:58},
+      e3:{type:"enemy",name:"雪山敵城",hp:800,x:48,y:22},
+      r1:{type:"res",name:"寒木林",x:44,y:46},
+      r2:{type:"res",name:"沙地礦",x:70,y:42}
+    };
+    let sel="me", ox=0, oy=0, wx=-220, wy=-180, drag=false;
+    function apply(){ world.style.left=wx+"px"; world.style.top=wy+"px"; }
+    apply();
+    function putUnit(id){
+      const n=nodes[id];
+      unit.style.left=n.x+"%"; unit.style.top=n.y+"%";
+    }
+    putUnit("me");
+    view.addEventListener("pointerdown",e=>{ drag=true; ox=e.clientX-wx; oy=e.clientY-wy; view.setPointerCapture(e.pointerId); });
+    view.addEventListener("pointermove",e=>{ if(!drag) return; wx=e.clientX-ox; wy=e.clientY-oy; apply(); });
+    view.addEventListener("pointerup",()=>drag=false);
+    function say(f,t){ const c=document.getElementById("chat"); c.innerHTML+='<div><b style="color:#9ad8ff">'+f+"</b> "+t+"</div>"; c.scrollTop=c.scrollHeight; }
+    document.querySelectorAll(".pin").forEach(el=>{
+      el.addEventListener("pointerdown",e=>e.stopPropagation());
+      el.onclick=()=>{
+        sel=el.dataset.id;
+        const n=nodes[sel];
+        const zone = n.x>64?"沙漠": n.y<32?"雪山": n.x>54?"丘陵":"雪原";
+        document.getElementById("coord").textContent=zone;
+        if(n.type==="me") document.getElementById("info").textContent="我的王城 · "+zone;
+        if(n.type==="ally") document.getElementById("info").textContent="隊友 "+n.name+" · "+zone+" · 可集結";
+        if(n.type==="enemy") document.getElementById("info").textContent="敵人 "+n.name+" · HP "+n.hp;
+        if(n.type==="res") document.getElementById("info").textContent="資源點 "+n.name+" · 可採集";
+      };
+    });
     document.getElementById("send").onclick=()=>{
       const v=document.getElementById("msg").value.trim(); if(!v) return;
-      document.getElementById("msg").value=""; say("你",v); setTimeout(()=>say("盟主","收到，我在礦點會合。"),600);
+      document.getElementById("msg").value=""; say("你",v);
+      setTimeout(()=>say("北風","收到，我從雪林靠過去。"),600);
     };
-    document.getElementById("wood").onclick=()=>{
-      say("工頭","採集隊出發。");
-      go("22%","28%",()=>{ say("工頭","寒木運回 +120"); go("30%","64%",()=>{}); });
+    document.getElementById("goRes").onclick=()=>{
+      const n=nodes[sel]; if(!n||n.type!=="res"){ document.getElementById("info").textContent="先點森林或礦點"; return; }
+      say("工頭","採集隊穿越地形，前往 "+n.name);
+      unit.style.left=n.x+"%"; unit.style.top=n.y+"%";
+      setTimeout(()=>{ say("工頭",n.name+" 採集完成"); putUnit("me"); },1800);
     };
-    document.getElementById("atk").onclick=()=>{
-      if(hp<=0){ say("斥候","敵城已在燃燒。"); return; }
-      say("將軍","攻城！");
-      go("76%","28%",()=>{
-        hp=Math.max(0,hp-340);
-        document.getElementById("hp").style.width=(hp/1000*100)+"%";
-        if(hp<=0){ document.getElementById("ai").classList.add("fire"); say("戰報","敵城沒血，起火了！"); }
-        else say("戰報","敵城 HP "+hp);
-        go("30%","64%",()=>{});
-      });
+    document.getElementById("goAtk").onclick=()=>{
+      const n=nodes[sel]; if(!n||n.type!=="enemy"){ document.getElementById("info").textContent="先點一座敵城"; return; }
+      say("將軍","出征 "+n.name);
+      unit.style.left=n.x+"%"; unit.style.top=n.y+"%";
+      setTimeout(()=>{
+        n.hp=Math.max(0,n.hp-340);
+        if(n.hp<=0){
+          document.querySelector('.pin[data-id="'+sel+'"]').classList.add("fire");
+          say("戰報",n.name+" 沒血，城堡起火");
+        } else say("戰報",n.name+" HP "+n.hp);
+        document.getElementById("info").textContent="敵人 "+n.name+" · HP "+n.hp;
+        putUnit("me");
+      },1800);
+    };
+    document.getElementById("goMe").onclick=()=>{
+      sel="me"; wx=-180; wy=-280; apply(); putUnit("me");
+      document.getElementById("coord").textContent="雪原";
+      document.getElementById("info").textContent="我的王城 · 雪原";
     };
   </script>
 </body>
