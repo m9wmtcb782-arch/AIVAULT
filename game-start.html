@@ -24,9 +24,9 @@
   <div class="splash-actions">
     <h1 class="logo">AIVAULT</h1>
     <div class="sub">FROST KINGDOM</div>
-    <button class="btn" id="btnStart">開始遊戲</button>
-    <button class="btn secondary" id="btnLogin">登入帳號</button>
-    <button class="btn gold" id="btnContinue" style="display:none">繼續遊戲</button>
+    <button class="btn" id="btnStart" type="button">開始遊戲</button>
+    <button class="btn secondary" id="btnLogin" type="button">登入帳號</button>
+    <button class="btn gold" id="btnContinue" type="button" style="display:none">繼續遊戲</button>
     <p class="tiny" id="modeHint" style="text-align:center;margin-top:12px"></p>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -39,20 +39,33 @@
   <script src="js/audio.js"></script>
   <script src="js/boot.js"></script>
   <script>
-    document.getElementById("modeHint").textContent =
-      FKApi.mode() === "local" ? "本機權威引擎（填入 js/env.js 即可切換 AIVAULT Supabase）" : "已連接 AIVAULT Supabase";
-    document.getElementById("btnStart").onclick = () => { FKAudio.start(); location.href = "game-login.html"; };
-    document.getElementById("btnLogin").onclick = () => { FKAudio.start(); location.href = "game-login.html"; };
+    function goLogin() {
+      try { if (window.FKAudio) FKAudio.start(); } catch (e) {}
+      location.href = "game-login.html";
+    }
+    document.getElementById("btnStart").onclick = goLogin;
+    document.getElementById("btnLogin").onclick = goLogin;
+    try {
+      document.getElementById("modeHint").textContent =
+        (window.FKApi && FKApi.mode() === "local")
+          ? "本機權威引擎"
+          : (window.FKApi ? "已連接 AIVAULT Supabase" : "JS 未齊，先進入登入頁");
+    } catch (e) {
+      document.getElementById("modeHint").textContent = "JS 未齊";
+    }
     (async () => {
-      const s = await FKApi.session();
-      if (!s) return;
-      const btn = document.getElementById("btnContinue");
-      btn.style.display = "block";
-      btn.onclick = async () => {
-        FKAudio.start();
-        const p = await FKApi.getPlayer();
-        location.href = p ? "game-world.html" : "game-create-player.html";
-      };
+      try {
+        if (!window.FKApi) return;
+        const s = await FKApi.session();
+        if (!s) return;
+        const btn = document.getElementById("btnContinue");
+        btn.style.display = "block";
+        btn.onclick = async () => {
+          try { if (window.FKAudio) FKAudio.start(); } catch (e) {}
+          const p = await FKApi.getPlayer();
+          location.href = p ? "game-world.html" : "game-create-player.html";
+        };
+      } catch (e) {}
     })();
   </script>
 </body>
