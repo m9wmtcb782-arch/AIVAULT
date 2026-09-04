@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>主城</title>
+  <link rel="stylesheet" href="css/game.css" />
+</head>
+<body class="game-body">
+  <div class="snow-layer"></div>
+  <div class="app" id="app"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/env.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/boot.js"></script>
+  <script>
+    const POS = {
+      castle: ["50%","52%"], lumber: ["22%","38%"], farm: ["78%","36%"],
+      stone: ["20%","70%"], iron: ["80%","68%"], barracks: ["38%","28%"],
+      hospital: ["64%","26%"], tech: ["50%","78%"]
+    };
+    const LINK = {
+      castle: "game-buildings.html", tech: "game-technology.html",
+      barracks: "game-army.html", hospital: "game-hospital.html"
+    };
+    (async () => {
+      if (!(await FKAuth.requirePlayer())) return;
+      const snap = await FKApi.snapshot();
+      const spots = snap.buildings.map((b) => {
+        const def = FKEngine.BUILDINGS.find((x) => x.type === b.building_type);
+        const [l,t] = POS[b.building_type] || ["50%","50%"];
+        const href = LINK[b.building_type] || "game-buildings.html";
+        return `<a class="spot ${b.building_type==="castle"?"core":""}" style="left:${l};top:${t}" href="${href}">
+          <div class="ico">${b.building_type==="castle"?"火":def.name[0]}</div>${def.name} ${b.level}
+        </a>`;
+      }).join("");
+      document.getElementById("app").innerHTML = `
+        ${FKUI.top(snap)}
+        <div class="city-board">${spots}</div>
+        <div class="panel">
+          <div class="grid-2">
+            <button class="btn small" onclick="location.href='game-buildings.html'">建築一覽</button>
+            <button class="btn small secondary" onclick="location.href='game-technology.html'">科技</button>
+          </div>
+          <p class="tiny" style="margin-top:10px">點擊建築進入升級／生產。</p>
+        </div>
+        ${FKUI.nav("city")}
+      `;
+    })();
+  </script>
+</body>
+</html>
