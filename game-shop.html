@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>商店</title>
+  <link rel="stylesheet" href="css/game.css" />
+</head>
+<body class="game-body">
+  <div class="snow-layer"></div>
+  <div class="app" id="app"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/env.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/boot.js"></script>
+  <script>
+    async function render() {
+      if (!(await FKAuth.requirePlayer())) return;
+      const snap = await FKApi.snapshot();
+      document.getElementById("app").innerHTML = `
+        <div class="page-head"><a class="back" href="game-menu.html">← 返回</a><h2>商店</h2></div>
+        ${FKUI.top(snap)}
+        <div class="panel">
+          <div class="list-item"><div><b>小型補給</b><div class="tiny">木200 糧200 石100 鐵80</div></div>
+            <button class="btn small gold" onclick="buy('pack_small')">10 券</button></div>
+          <div class="list-item"><div><b>新兵卷</b><div class="tiny">戰士 +10</div></div>
+            <button class="btn small gold" onclick="buy('pack_army')">15 券</button></div>
+        </div>${FKUI.nav("more")}
+      `;
+    }
+    async function buy(sku) { try { await FKApi.shopBuy(sku); await render(); } catch(e){ alert(e.message);} }
+    render();
+  </script>
+</body>
+</html>
