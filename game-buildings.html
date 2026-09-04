@@ -5,53 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>建築</title>
   <link rel="stylesheet" href="css/game.css" />
+  <style>
+    body { margin:0; background:#071018; color:#e8f4ff; font-family:sans-serif; }
+    .panel { margin:16px; padding:16px; border:1px solid #3a5a70; border-radius:16px; background:#0c1c2c; }
+    .row { display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid #234; }
+    .btn { display:block; width:100%; margin:8px 0; padding:14px; border:0; border-radius:14px; font-weight:700; background:#8fd4ff; color:#081018; text-align:center; text-decoration:none; }
+    .tiny { color:#8aa3b8; font-size:12px; }
+    button.s { padding:8px 12px; border:0; border-radius:10px; background:#8fd4ff; font-weight:700; }
+  </style>
 </head>
 <body class="game-body">
-  <div class="snow-layer"></div>
-  <div class="app" id="app"></div>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/env.js"></script>
-  <script src="js/engine.js"></script>
-  <script src="js/store.js"></script>
-  <script src="js/api.js"></script>
-  <script src="js/auth.js"></script>
-  <script src="js/ui.js"></script>
-  <script src="js/audio.js"></script>
-  <script src="js/boot.js"></script>
-  <script>
-    async function render() {
-      if (!(await FKAuth.requirePlayer())) return;
-      const snap = await FKApi.snapshot();
-      const rows = snap.buildings.map((b) => {
-        const def = FKEngine.BUILDINGS.find((x) => x.type === b.building_type);
-        const cost = FKEngine.costScale(def.base, b.level);
-        const busy = b.upgrade_finish_at && b.upgrade_finish_at > Date.now();
-        return `<div class="list-item">
-          <div><b>${def.name}</b><div class="tiny">Lv.${b.level} · 木${cost.wood} 石${cost.stone} 鐵${cost.iron} 糧${cost.food}</div>
-          ${busy ? `<div class="timer">升級中 ${FKUI.remain(b.upgrade_finish_at)}</div>` : ""}</div>
-          <button class="btn small" ${busy ? "disabled" : ""} onclick="up('${b.id}')">升級</button>
-        </div>`;
-      }).join("");
-      document.getElementById("app").innerHTML = `
-        <div class="page-head"><a class="back" href="game-city.html">← 返回</a><h2>建築</h2></div>
-        ${FKUI.top(snap)}
-        <div class="panel">${rows}
-          <button class="btn secondary" onclick="spd()">Coupons 加速（5）</button>
-          <div class="msg" id="msg"></div>
-        </div>
-        ${FKUI.nav("city")}
-      `;
-    }
-    async function up(id) {
-      try { await FKApi.upgrade(id); await render(); }
-      catch (e) { const m = document.getElementById("msg"); if (m) m.textContent = e.message; else alert(e.message); }
-    }
-    async function spd() {
-      try { await FKApi.speedup("building"); await render(); }
-      catch (e) { alert(e.message); }
-    }
-    render();
-    setInterval(render, 1000);
-  </script>
+  <div class="panel">
+    <h2>建築</h2>
+    <p class="tiny">js 上線後升級會扣資源。現在先能看見列表。</p>
+    <div class="row"><span>熔爐 Lv.2</span><button class="s" type="button">升級</button></div>
+    <div class="row"><span>伐木場 Lv.1</span><button class="s" type="button">升級</button></div>
+    <div class="row"><span>農場 Lv.1</span><button class="s" type="button">升級</button></div>
+    <div class="row"><span>採石場 Lv.1</span><button class="s" type="button">升級</button></div>
+    <div class="row"><span>煉鐵廠 Lv.1</span><button class="s" type="button">升級</button></div>
+    <div class="row"><span>軍營 Lv.1</span><button class="s" type="button">升級</button></div>
+    <div class="row"><span>醫院 Lv.1</span><button class="s" type="button">升級</button></div>
+    <div class="row"><span>科技中心 Lv.1</span><button class="s" type="button">升級</button></div>
+    <a class="btn" href="game-city.html">回主城</a>
+  </div>
 </body>
 </html>
