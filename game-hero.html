@@ -3,42 +3,33 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>選擇領主 · FROST KINGDOM</title>
+  <title>選擇領主</title>
   <style>
-    * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-    html,body { margin:0; min-height:100%; background:#071018; color:#e8f4ff;
-      font-family:"PingFang TC","Noto Sans TC",sans-serif; }
-    .stage { padding:12px 12px calc(16px + env(safe-area-inset-bottom)); }
-    h1 { text-align:center; font-size:20px; margin:6px 0; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#071018; color:#e8f4ff; font-family:sans-serif; }
+    .stage { padding:12px 12px 24px; }
+    h1 { text-align:center; font-size:20px; }
     .sub { text-align:center; color:#8aa3b8; font-size:12px; }
-    .hero { height:42vh; border-radius:16px; position:relative; overflow:hidden;
-      background:#0c1a28; border:1px solid rgba(154,216,255,.28); }
-    .hero video, .hero img.poster {
-      width:100%; height:100%; object-fit:cover; object-position:top center; display:block;
-    }
-    .bubble { position:absolute; left:12px; right:12px; bottom:12px; background:rgba(7,16,24,.86);
-      border-radius:14px; padding:10px; font-size:13px; }
-    .job { position:absolute; top:10px; right:10px; background:#071018cc; border-radius:999px; padding:4px 10px; font-size:11px; }
-    .sec { font-size:12px; color:#8aa3b8; margin:10px 0 6px; }
-    .picks { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
-    .card { border:1px solid rgba(154,216,255,.28); background:#0c1a26; border-radius:10px; padding:4px; color:inherit; }
-    .card.on { border-color:#9ad8ff; box-shadow:0 0 0 2px #9ad8ff55; }
-    .card img { width:100%; height:78px; object-fit:cover; object-position:top; border-radius:8px; display:block; }
-    .card b { display:block; font-size:11px; margin-top:4px; text-align:center; }
-    .card i { display:block; font-style:normal; font-size:10px; color:#8aa3b8; text-align:center; }
-    .btn { width:100%; margin-top:12px; border:0; border-radius:14px; padding:14px; font-weight:800; background:#9ad8ff; color:#081018; }
-    .msg { min-height:16px; color:#e24b4b; font-size:12px; text-align:center; }
+    .hero { height:38vh; border-radius:16px; background:#123044; position:relative; overflow:hidden;
+      display:flex; align-items:flex-end; justify-content:center; font-size:72px; }
+    .hero video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+    .bubble { position:absolute; left:10px; right:10px; bottom:10px; background:#071018ee; border-radius:12px; padding:10px; font-size:14px; }
+    .sec { margin:10px 0 6px; color:#8aa3b8; font-size:13px; }
+    .picks { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .card { border:1px solid #3a5a70; background:#0c1a26; border-radius:12px; padding:12px; color:#e8f4ff; text-align:left; font-size:15px; }
+    .card.on { border-color:#9ad8ff; background:#163044; }
+    .card b { display:block; }
+    .card i { font-style:normal; color:#8aa3b8; font-size:12px; }
+    .btn { width:100%; margin-top:14px; border:0; border-radius:14px; padding:14px; font-weight:800; background:#9ad8ff; color:#081018; }
+    .msg { color:#ff8a9a; font-size:13px; min-height:18px; text-align:center; }
   </style>
 </head>
 <body>
   <div class="stage">
     <h1>選擇領主</h1>
-    <p class="sub">點角色會播放打招呼影片</p>
-    <div class="hero" id="hero">
-      <video id="vid" playsinline muted loop autoplay poster="assets/hero-m-warrior.jpg"></video>
-      <div class="job" id="job">戰士</div>
-      <div class="bubble" id="hello">……</div>
-    </div>
+    <p class="sub">先點角色，再按確認</p>
+    <div class="hero" id="stage">🗡️</div>
+    <div class="bubble" id="hello">點下面的角色</div>
     <div class="sec">男主</div>
     <div class="picks" id="males"></div>
     <div class="sec">女主</div>
@@ -46,70 +37,69 @@
     <p class="msg" id="err"></p>
     <button class="btn" type="button" id="go">確認並寫入帳號</button>
   </div>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    const URL="https://clcddygkaaqqtsbswgdf.supabase.co";
-    const KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE";
-    const sb = supabase.createClient(URL, KEY);
     const HEROES = [
-      {id:"m_warrior",g:"m",job:"戰士",img:"assets/hero-m-warrior.jpg",vid:"assets/hero-m-warrior.mp4",name:"凌霜",say:"戰士報到。盾在前，你在後。"},
-      {id:"m_knight",g:"m",job:"騎士",img:"assets/hero-m-knight.jpg",vid:"assets/hero-m-knight.mp4",name:"北烈",say:"騎士聽令。我為王國衝鋒。"},
-      {id:"m_mage",g:"m",job:"法師",img:"assets/hero-m-mage.jpg",vid:"assets/hero-m-mage.mp4",name:"朔風",say:"法術已備。冰焰聽你差遣。"},
-      {id:"m_archer",g:"m",job:"弓手",img:"assets/hero-m-archer.jpg",vid:"assets/hero-m-archer.mp4",name:"寒羽",say:"弓已上弦。山脊那頭交給我。"},
-      {id:"f_warrior",g:"f",job:"戰士",img:"assets/hero-f-warrior.jpg",vid:"assets/hero-f-warrior.mp4",name:"白雪",say:"女戰士在此。近身我來。"},
-      {id:"f_knight",g:"f",job:"騎士",img:"assets/hero-f-knight.jpg",vid:"assets/hero-f-knight.mp4",name:"霜蘭",say:"騎士禮。城門由我守。"},
-      {id:"f_mage",g:"f",job:"法師",img:"assets/hero-f-mage.jpg",vid:"assets/hero-f-mage.mp4",name:"冰璃",say:"法陣亮了。跟我念這句。"},
-      {id:"f_archer",g:"f",job:"弓手",img:"assets/hero-f-archer.jpg",vid:"assets/hero-f-archer.mp4",name:"月寒",say:"箭在弦上。你一揮手我就放。"}
+      {id:"m_warrior",g:"m",icon:"🗡️",job:"戰士",name:"凌霜",say:"戰士報到。盾在前，你在後。"},
+      {id:"m_knight",g:"m",icon:"🛡️",job:"騎士",name:"北烈",say:"騎士聽令。我為王國衝鋒。"},
+      {id:"m_mage",g:"m",icon:"✨",job:"法師",name:"朔風",say:"法術已備。冰焰聽你差遣。"},
+      {id:"m_archer",g:"m",icon:"🏹",job:"弓手",name:"寒羽",say:"弓已上弦。山脊那頭交給我。"},
+      {id:"f_warrior",g:"f",icon:"⚔️",job:"戰士",name:"白雪",say:"女戰士在此。近身我來。"},
+      {id:"f_knight",g:"f",icon:"🏰",job:"騎士",name:"霜蘭",say:"騎士禮。城門由我守。"},
+      {id:"f_mage",g:"f",icon:"❄️",job:"法師",name:"冰璃",say:"法陣亮了。跟我念這句。"},
+      {id:"f_archer",g:"f",icon:"🎯",job:"弓手",name:"月寒",say:"箭在弦上。你一揮手我就放。"}
     ];
-    let cur="m_warrior";
-    const vid=document.getElementById("vid");
-    function byId(id){ return HEROES.find(h=>h.id===id); }
-    function render(){
-      const mk = list => list.map(h=>`<button class="card ${h.id===cur?"on":""}" data-id="${h.id}" type="button">
-        <img src="${h.img}" alt="${h.name}" /><b>${h.name}</b><i>${h.job}</i></button>`).join("");
+    let cur = "m_warrior";
+    function paint() {
+      const mk = list => list.map(h =>
+        `<button class="card${h.id===cur?" on":""}" type="button" data-id="${h.id}">
+          <b>${h.icon} ${h.name}</b><i>${h.job}</i></button>`
+      ).join("");
       document.getElementById("males").innerHTML = mk(HEROES.filter(h=>h.g==="m"));
       document.getElementById("females").innerHTML = mk(HEROES.filter(h=>h.g==="f"));
-      document.querySelectorAll(".card").forEach(b=>b.onclick=()=>show(b.dataset.id));
+      document.querySelectorAll(".card").forEach(btn => {
+        btn.onclick = () => {
+          cur = btn.getAttribute("data-id");
+          const h = HEROES.find(x => x.id === cur);
+          document.getElementById("stage").textContent = h.icon;
+          document.getElementById("hello").textContent = h.name + "：" + h.say;
+          paint();
+        };
+      });
     }
-    function show(id){
-      cur=id; const h=byId(id);
-      document.getElementById("job").textContent=h.job;
-      document.getElementById("hello").textContent=h.name+"："+h.say;
-      vid.poster=h.img;
-      vid.src=h.vid;
-      vid.play().catch(()=>{});
-      render();
-    }
-    vid.addEventListener("error",()=>{
-      vid.removeAttribute("src");
-      vid.load();
-      vid.style.display="none";
-      let img=document.getElementById("poster");
-      if(!img){
-        img=document.createElement("img");
-        img.id="poster"; img.className="poster";
-        vid.parentNode.insertBefore(img, vid);
-      }
-      img.src=byId(cur).img;
-    });
-    vid.addEventListener("loadeddata",()=>{
-      vid.style.display="block";
-      const img=document.getElementById("poster");
-      if(img) img.remove();
-    });
-    document.getElementById("go").onclick=async ()=>{
-      const err=document.getElementById("err"); err.textContent="";
+    paint();
+    const h0 = HEROES[0];
+    document.getElementById("stage").textContent = h0.icon;
+    document.getElementById("hello").textContent = h0.name + "：" + h0.say;
+
+    document.getElementById("go").onclick = async () => {
+      const err = document.getElementById("err");
+      err.textContent = "寫入中…";
       localStorage.setItem("fk_hero", cur);
-      const { data:{ session } } = await sb.auth.getSession();
-      if(!session){ err.textContent="尚未登入"; return; }
-      const { error } = await sb.rpc("aivault_game_set_hero_v1", { p_hero: cur });
-      if(error){
-        if((error.message||"").indexOf("NO_PLAYER")>=0){ location.href="game-create-player.html"; return; }
-        err.textContent=error.message; return;
+      try {
+        if (!window.supabase) {
+          await new Promise((resolve, reject) => {
+            const s = document.createElement("script");
+            s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+            s.onload = resolve; s.onerror = () => reject(new Error("套件載入失敗"));
+            document.body.appendChild(s);
+          });
+        }
+        const sb = supabase.createClient(
+          "https://clcddygkaaqqtsbswgdf.supabase.co",
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE"
+        );
+        const { data: { session } } = await sb.auth.getSession();
+        if (!session) { err.textContent = "尚未登入"; location.href = "game-login.html"; return; }
+        const { error } = await sb.rpc("aivault_game_set_hero_v1", { p_hero: cur });
+        if (error) {
+          if ((error.message || "").indexOf("NO_PLAYER") >= 0) { location.href = "game-create-player.html"; return; }
+          err.textContent = error.message; return;
+        }
+        location.href = "game-city.html";
+      } catch (e) {
+        err.textContent = e.message || String(e);
       }
-      location.href="game-city.html";
     };
-    show("m_warrior");
   </script>
 </body>
 </html>
