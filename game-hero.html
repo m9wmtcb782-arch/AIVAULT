@@ -10,17 +10,22 @@
       font-family:"PingFang TC","Noto Sans TC",sans-serif; }
     .stage { padding:12px 12px calc(16px + env(safe-area-inset-bottom)); }
     h1 { text-align:center; font-size:20px; margin:6px 0; }
-    .sub { text-align:center; color:#8aa3b8; font-size:12px; margin-bottom:8px; }
-    .hero { height:38vh; border-radius:16px; background:#0c1a28 center/cover no-repeat; position:relative;
-      border:1px solid rgba(154,216,255,.28); }
-    .bubble { position:absolute; left:12px; right:12px; bottom:12px; background:rgba(7,16,24,.84);
+    .sub { text-align:center; color:#8aa3b8; font-size:12px; }
+    .hero { height:42vh; border-radius:16px; position:relative; overflow:hidden;
+      background:#0c1a28; border:1px solid rgba(154,216,255,.28); }
+    .hero video, .hero img.poster {
+      width:100%; height:100%; object-fit:cover; object-position:top center; display:block;
+    }
+    .bubble { position:absolute; left:12px; right:12px; bottom:12px; background:rgba(7,16,24,.86);
       border-radius:14px; padding:10px; font-size:13px; }
+    .job { position:absolute; top:10px; right:10px; background:#071018cc; border-radius:999px; padding:4px 10px; font-size:11px; }
     .sec { font-size:12px; color:#8aa3b8; margin:10px 0 6px; }
-    .picks { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; }
+    .picks { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
     .card { border:1px solid rgba(154,216,255,.28); background:#0c1a26; border-radius:10px; padding:4px; color:inherit; }
     .card.on { border-color:#9ad8ff; box-shadow:0 0 0 2px #9ad8ff55; }
-    .card img { width:100%; height:72px; object-fit:cover; object-position:top; border-radius:8px; display:block; }
-    .card b { display:block; font-size:10px; margin-top:4px; text-align:center; }
+    .card img { width:100%; height:78px; object-fit:cover; object-position:top; border-radius:8px; display:block; }
+    .card b { display:block; font-size:11px; margin-top:4px; text-align:center; }
+    .card i { display:block; font-style:normal; font-size:10px; color:#8aa3b8; text-align:center; }
     .btn { width:100%; margin-top:12px; border:0; border-radius:14px; padding:14px; font-weight:800; background:#9ad8ff; color:#081018; }
     .msg { min-height:16px; color:#e24b4b; font-size:12px; text-align:center; }
   </style>
@@ -28,8 +33,12 @@
 <body>
   <div class="stage">
     <h1>選擇領主</h1>
-    <p class="sub" id="sub">男女各五人，寫入帳號</p>
-    <div class="hero" id="hero"><div class="bubble" id="hello">……</div></div>
+    <p class="sub">點角色會播放打招呼影片</p>
+    <div class="hero" id="hero">
+      <video id="vid" playsinline muted loop autoplay poster="assets/hero-m-warrior.jpg"></video>
+      <div class="job" id="job">戰士</div>
+      <div class="bubble" id="hello">……</div>
+    </div>
     <div class="sec">男主</div>
     <div class="picks" id="males"></div>
     <div class="sec">女主</div>
@@ -43,32 +52,51 @@
     const KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE";
     const sb = supabase.createClient(URL, KEY);
     const HEROES = [
-      {id:"m1",g:"m",name:"凌霜",src:"assets/hero-male.jpg",say:"你好，領主。熔爐交給我守。"},
-      {id:"m2",g:"m",name:"北烈",src:"assets/hero-male.jpg",say:"北邊的冰原我走過，跟我出征。"},
-      {id:"m3",g:"m",name:"鐵寒",src:"assets/hero-male.jpg",say:"軍營就緒。點頭，我就帶兵。"},
-      {id:"m4",g:"m",name:"朔風",src:"assets/hero-male.jpg",say:"斥候回報了，沙漠敵城能打。"},
-      {id:"m5",g:"m",name:"岩霜",src:"assets/hero-male.jpg",say:"城牆我來砌。你負責發令。"},
-      {id:"f1",g:"f",name:"白雪",src:"assets/hero-female.jpg",say:"你好呀。東邊雪路我探過了。"},
-      {id:"f2",g:"f",name:"冬晴",src:"assets/hero-female.jpg",say:"傷兵我會看。你去前線就好。"},
-      {id:"f3",g:"f",name:"霜蘭",src:"assets/hero-female.jpg",say:"聯盟頻道我盯著，隊友不會掉隊。"},
-      {id:"f4",g:"f",name:"冰璃",src:"assets/hero-female.jpg",say:"礦點座標記下了，採集隊出發。"},
-      {id:"f5",g:"f",name:"月寒",src:"assets/hero-female.jpg",say:"夜裡的城，我守最後一班。"}
+      {id:"m_warrior",g:"m",job:"戰士",img:"assets/hero-m-warrior.jpg",vid:"assets/hero-m-warrior.mp4",name:"凌霜",say:"戰士報到。盾在前，你在後。"},
+      {id:"m_knight",g:"m",job:"騎士",img:"assets/hero-m-knight.jpg",vid:"assets/hero-m-knight.mp4",name:"北烈",say:"騎士聽令。我為王國衝鋒。"},
+      {id:"m_mage",g:"m",job:"法師",img:"assets/hero-m-mage.jpg",vid:"assets/hero-m-mage.mp4",name:"朔風",say:"法術已備。冰焰聽你差遣。"},
+      {id:"m_archer",g:"m",job:"弓手",img:"assets/hero-m-archer.jpg",vid:"assets/hero-m-archer.mp4",name:"寒羽",say:"弓已上弦。山脊那頭交給我。"},
+      {id:"f_warrior",g:"f",job:"戰士",img:"assets/hero-f-warrior.jpg",vid:"assets/hero-f-warrior.mp4",name:"白雪",say:"女戰士在此。近身我來。"},
+      {id:"f_knight",g:"f",job:"騎士",img:"assets/hero-f-knight.jpg",vid:"assets/hero-f-knight.mp4",name:"霜蘭",say:"騎士禮。城門由我守。"},
+      {id:"f_mage",g:"f",job:"法師",img:"assets/hero-f-mage.jpg",vid:"assets/hero-f-mage.mp4",name:"冰璃",say:"法陣亮了。跟我念這句。"},
+      {id:"f_archer",g:"f",job:"弓手",img:"assets/hero-f-archer.jpg",vid:"assets/hero-f-archer.mp4",name:"月寒",say:"箭在弦上。你一揮手我就放。"}
     ];
-    let cur="m1";
+    let cur="m_warrior";
+    const vid=document.getElementById("vid");
     function byId(id){ return HEROES.find(h=>h.id===id); }
     function render(){
       const mk = list => list.map(h=>`<button class="card ${h.id===cur?"on":""}" data-id="${h.id}" type="button">
-        <img src="${h.src}" alt="${h.name}" /><b>${h.name}</b></button>`).join("");
+        <img src="${h.img}" alt="${h.name}" /><b>${h.name}</b><i>${h.job}</i></button>`).join("");
       document.getElementById("males").innerHTML = mk(HEROES.filter(h=>h.g==="m"));
       document.getElementById("females").innerHTML = mk(HEROES.filter(h=>h.g==="f"));
       document.querySelectorAll(".card").forEach(b=>b.onclick=()=>show(b.dataset.id));
     }
     function show(id){
       cur=id; const h=byId(id);
-      document.getElementById("hero").style.backgroundImage="url('"+h.src+"')";
+      document.getElementById("job").textContent=h.job;
       document.getElementById("hello").textContent=h.name+"："+h.say;
+      vid.poster=h.img;
+      vid.src=h.vid;
+      vid.play().catch(()=>{});
       render();
     }
+    vid.addEventListener("error",()=>{
+      vid.removeAttribute("src");
+      vid.load();
+      vid.style.display="none";
+      let img=document.getElementById("poster");
+      if(!img){
+        img=document.createElement("img");
+        img.id="poster"; img.className="poster";
+        vid.parentNode.insertBefore(img, vid);
+      }
+      img.src=byId(cur).img;
+    });
+    vid.addEventListener("loadeddata",()=>{
+      vid.style.display="block";
+      const img=document.getElementById("poster");
+      if(img) img.remove();
+    });
     document.getElementById("go").onclick=async ()=>{
       const err=document.getElementById("err"); err.textContent="";
       localStorage.setItem("fk_hero", cur);
@@ -81,14 +109,7 @@
       }
       location.href="game-city.html";
     };
-    show("m1");
-    (async ()=>{
-      const { data:{ session } } = await sb.auth.getSession();
-      document.getElementById("sub").textContent = session ? "已登入，選角會寫進資料庫" : "尚未登入";
-      if(!session) return;
-      const { data } = await sb.rpc("aivault_game_get_hero_v1");
-      if(data && byId(data)) show(data);
-    })();
+    show("m_warrior");
   </script>
 </body>
 </html>
