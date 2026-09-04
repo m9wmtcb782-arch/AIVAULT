@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>選擇領主 · FROST KINGDOM</title>
+  <style>
+    * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html,body { margin:0; min-height:100%; background:#071018; color:#e8f4ff;
+      font-family:"PingFang TC","Noto Sans TC",sans-serif; }
+    .stage { min-height:100dvh; display:flex; flex-direction:column; padding:12px 12px calc(16px + env(safe-area-inset-bottom)); }
+    h1 { text-align:center; font-size:22px; margin:8px 0 4px; }
+    .sub { text-align:center; color:#8aa3b8; font-size:13px; margin-bottom:10px; }
+    .hero {
+      flex:1; min-height:46vh; border-radius:18px; overflow:hidden; position:relative;
+      background:#0c1a28 center/cover no-repeat; border:1px solid rgba(154,216,255,.28);
+    }
+    .hero.wave { animation: greet .7s ease; }
+    @keyframes greet { 0%{transform:translateY(18px) scale(.96);opacity:.4} 60%{transform:translateY(-6px)} 100%{transform:none;opacity:1} }
+    .bubble {
+      position:absolute; left:14px; right:14px; bottom:14px;
+      background:rgba(7,16,24,.82); border:1px solid rgba(154,216,255,.3);
+      border-radius:16px 16px 16px 4px; padding:10px 12px; font-size:14px;
+      transform-origin:left bottom; animation: pop .35s ease;
+    }
+    @keyframes pop { from { transform:scale(.7); opacity:0; } }
+    .picks { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:12px 0; }
+    .card { border:1px solid rgba(154,216,255,.28); background:#0c1a26; border-radius:14px; padding:8px; text-align:center; }
+    .card.on { border-color:#9ad8ff; box-shadow:0 0 0 2px #9ad8ff55; }
+    .card img { width:100%; height:120px; object-fit:cover; object-position:top; border-radius:10px; display:block; }
+    .card b { display:block; margin-top:6px; font-size:14px; }
+    .card span { color:#8aa3b8; font-size:11px; }
+    .btn { width:100%; border:0; border-radius:14px; padding:14px; font-weight:800; background:#9ad8ff; color:#081018; font-size:16px; }
+    .btn.ghost { background:transparent; color:#9ad8ff; border:1px solid rgba(154,216,255,.28); margin-top:8px; }
+    a { text-decoration:none; }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <h1>選擇領主</h1>
+    <p class="sub">男主／女主進場會打招呼</p>
+    <div class="hero" id="hero">
+      <div class="bubble" id="hello">……</div>
+    </div>
+    <div class="picks">
+      <button class="card on" type="button" id="m">
+        <img src="assets/hero-male.jpg" alt="男主" />
+        <b>凌霜</b><span>男主 · 守城將</span>
+      </button>
+      <button class="card" type="button" id="f">
+        <img src="assets/hero-female.jpg" alt="女主" />
+        <b>白雪</b><span>女主 · 探路者</span>
+      </button>
+    </div>
+    <button class="btn" type="button" id="go">以這位領主進入王國</button>
+    <a class="btn ghost" href="game-start.html" style="display:block;text-align:center">返回</a>
+  </div>
+  <script>
+    const HERO = {
+      m: { src:"assets/hero-male.jpg", name:"凌霜", say:"你好，領主。暴風雪來了，我守著熔爐。" },
+      f: { src:"assets/hero-female.jpg", name:"白雪", say:"你好呀。東邊的雪路我探過了，跟我走。" }
+    };
+    let cur="m";
+    const hero=document.getElementById("hero");
+    const hello=document.getElementById("hello");
+    function show(id){
+      cur=id;
+      document.getElementById("m").classList.toggle("on", id==="m");
+      document.getElementById("f").classList.toggle("on", id==="f");
+      hero.style.backgroundImage="url('"+HERO[id].src+"')";
+      hero.classList.remove("wave"); void hero.offsetWidth; hero.classList.add("wave");
+      hello.textContent=HERO[id].name+"："+HERO[id].say;
+    }
+    document.getElementById("m").onclick=()=>show("m");
+    document.getElementById("f").onclick=()=>show("f");
+    document.getElementById("go").onclick=()=>{
+      localStorage.setItem("fk_hero", cur);
+      location.href="game-city.html";
+    };
+    show("m");
+  </script>
+</body>
+</html>
