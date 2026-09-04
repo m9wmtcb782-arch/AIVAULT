@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>軍隊</title>
+  <link rel="stylesheet" href="css/game.css" />
+</head>
+<body class="game-body">
+  <div class="snow-layer"></div>
+  <div class="app" id="app"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/env.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/boot.js"></script>
+  <script>
+    async function render() {
+      if (!(await FKAuth.requirePlayer())) return;
+      const snap = await FKApi.snapshot();
+      const a = snap.army;
+      const rows = Object.keys(FKEngine.TROOPS).map((k) => {
+        const t = FKEngine.TROOPS[k];
+        return `<div class="list-item"><div><b>${t.name}</b>
+          <div class="tiny">現有 ${a[k]||0} · 傷兵 ${a["wounded_"+k]||0} · 糧${t.cost.food} 鐵${t.cost.iron}</div></div>
+          <div><input id="q_${k}" type="number" min="1" value="5" style="width:72px;display:inline-block;margin:0 6px 0 0"/>
+          <button class="btn small" onclick="train('${k}')">訓練</button></div></div>`;
+      }).join("");
+      const tr = a.training && a.training.finish_at > Date.now();
+      document.getElementById("app").innerHTML = `
+        <div class="page-head"><a class="back" href="game-world.html">← 返回</a><h2>軍營</h2></div>
+        ${FKUI.top(snap)}
+        <div class="panel">${rows}
+          ${tr ? `<div class="timer">訓練中 ${a.training.type} x${a.training.qty} ${FKUI.remain(a.training.finish_at)}</div>` : ""}
+          <div class="grid-2" style="margin-top:10px">
+            <button class="btn small secondary" onclick="location.href='game-hospital.html'">醫院</button>
+            <button class="btn small" onclick="spd()">加速訓練</button>
+          </div>
+        </div>${FKUI.nav("army")}`;
+    }
+    async function train(k) {
+      try { await FKApi.train(k, document.getElementById("q_"+k).value); await render(); }
+      catch(e){ alert(e.message); }
+    }
+    async function spd() { try { await FKApi.speedup("train"); await render(); } catch(e){ alert(e.message);} }
+    render(); setInterval(render, 1000);
+  </script>
+</body>
+</html>
