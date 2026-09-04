@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>世界入口</title>
+  <link rel="stylesheet" href="css/game.css" />
+</head>
+<body class="game-body">
+  <div class="snow-layer"></div>
+  <div class="app" id="app"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/env.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/boot.js"></script>
+  <script>
+    (async () => {
+      const ctx = await FKAuth.requirePlayer();
+      if (!ctx) return;
+      const snap = await FKApi.snapshot();
+      const c = snap.city;
+      document.getElementById("app").innerHTML = `
+        ${FKUI.top(snap)}
+        <div class="city-board" onclick="location.href='game-city.html'">
+          <div class="spot core" style="left:50%;top:52%"><div class="ico">火</div>熔爐 ${c.level}</div>
+        </div>
+        <div class="panel">
+          <h3>${snap.player.name} 的冰雪王國</h3>
+          <p class="tiny">座標 (${c.x}, ${c.y}) · 護盾至 ${c.shield_until ? new Date(c.shield_until).toLocaleTimeString() : "無"}</p>
+          <button class="btn" onclick="location.href='game-city.html'">進入主城</button>
+          <button class="btn secondary" onclick="location.href='game-map.html'">打開世界地圖</button>
+        </div>
+        ${FKUI.nav("city")}
+      `;
+    })();
+  </script>
+</body>
+</html>
