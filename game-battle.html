@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>戰鬥</title>
+  <link rel="stylesheet" href="css/game.css" />
+</head>
+<body class="game-body">
+  <div class="snow-layer"></div>
+  <div class="app" id="app"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/env.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/boot.js"></script>
+  <script>
+    (async () => {
+      if (!(await FKAuth.requirePlayer())) return;
+      const id = new URLSearchParams(location.search).get("id");
+      const snap = await FKApi.snapshot();
+      const info = await FKApi.playerPublic(id);
+      const a = snap.army;
+      const inputs = Object.keys(FKEngine.TROOPS).map((k) =>
+        `<label>${FKEngine.TROOPS[k].name}（擁有 ${a[k]||0}）</label>
+         <input id="${k}" type="number" min="0" max="${a[k]||0}" value="${Math.min(a[k]||0, 10)}" />`
+      ).join("");
+      document.getElementById("app").innerHTML = `
+        <div class="page-head"><a class="back" href="game-player.html?id=${id}">← 返回</a><h2>出征</h2></div>
+        ${FKUI.top(snap)}
+        <div class="panel">
+          <p>目標：${info.player.name} · 預估敵方戰力 ${FKUI.fmt(info.power)}</p>
+          <p class="tiny">勝負由權威引擎計算。</p>
+          ${inputs}
+          <button class="btn danger" id="go">發動攻擊</button>
+          <div class="msg" id="msg"></div>
+        </div>${FKUI.nav("army")}
+      `;
+      document.getElementById("go").onclick = () => guarded(async () => {
+        const march = {};
+        Object.keys(FKEngine.TROOPS).forEach((k) => march[k] = document.getElementById(k).value);
+        const battle = await FKApi.attack(id, march);
+        const r = battle.report || battle;
+        document.getElementById("msg").className = "msg ok";
+        document.getElementById("msg").textContent =
+          `結果：${battle.result}｜我方戰力 ${r.ap} vs ${r.dp}｜戰利品 木${r.loot?.wood||0} 糧${r.loot?.food||0}`;
+      });
+    })();
+  </script>
+</body>
+</html>
