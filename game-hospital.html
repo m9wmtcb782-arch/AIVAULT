@@ -5,38 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>醫院</title>
   <link rel="stylesheet" href="css/game.css" />
+  <style>
+    body { margin:0; background:#071018; color:#e8f4ff; font-family:sans-serif; }
+    .panel { margin:16px; padding:16px; border:1px solid #3a5a70; border-radius:16px; background:#0c1c2c; }
+    .row { display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid #234; }
+    .btn { display:block; width:100%; margin:8px 0; padding:14px; border:0; border-radius:14px; font-weight:700; background:#8fd4ff; color:#081018; text-align:center; text-decoration:none; }
+    .tiny { color:#8aa3b8; font-size:12px; }
+  </style>
 </head>
 <body class="game-body">
-  <div class="snow-layer"></div>
-  <div class="app" id="app"></div>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/env.js"></script>
-  <script src="js/engine.js"></script>
-  <script src="js/store.js"></script>
-  <script src="js/api.js"></script>
-  <script src="js/auth.js"></script>
-  <script src="js/ui.js"></script>
-  <script src="js/audio.js"></script>
-  <script src="js/boot.js"></script>
-  <script>
-    async function render() {
-      if (!(await FKAuth.requirePlayer())) return;
-      const snap = await FKApi.snapshot();
-      const a = snap.army;
-      const w = ["warrior","archer","cavalry","mage"].map(k => `<div class="list-item"><span>${FKEngine.TROOPS[k].name}</span><b>${a["wounded_"+k]||0}</b></div>`).join("");
-      const busy = a.healing && a.healing.finish_at > Date.now();
-      document.getElementById("app").innerHTML = `
-        <div class="page-head"><a class="back" href="game-city.html">← 返回</a><h2>醫院</h2></div>
-        ${FKUI.top(snap)}
-        <div class="panel">${w}
-          ${busy ? `<div class="timer">治療中 ${FKUI.remain(a.healing.finish_at)}</div>` : ""}
-          <button class="btn" onclick="heal()">全部治療</button>
-          <button class="btn secondary" onclick="spd()">Coupons 加速</button>
-        </div>${FKUI.nav("city")}`;
-    }
-    async function heal(){ try{ await FKApi.heal(); await render(); }catch(e){ alert(e.message);} }
-    async function spd(){ try{ await FKApi.speedup("heal"); await render(); }catch(e){ alert(e.message);} }
-    render(); setInterval(render, 1000);
-  </script>
+  <div class="panel">
+    <h2>醫院</h2>
+    <p class="tiny">傷兵待治療</p>
+    <div class="row"><span>戰士傷兵</span><b>0</b></div>
+    <div class="row"><span>弓手傷兵</span><b>0</b></div>
+    <div class="row"><span>騎兵傷兵</span><b>0</b></div>
+    <div class="row"><span>法師傷兵</span><b>0</b></div>
+    <a class="btn" href="game-army.html">回軍營</a>
+    <a class="btn" href="game-city.html">回主城</a>
+  </div>
 </body>
 </html>
