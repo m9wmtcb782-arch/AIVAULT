@@ -5,46 +5,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>世界地圖</title>
   <link rel="stylesheet" href="css/game.css" />
+  <style>
+    body { margin:0; background:#071018; color:#e8f4ff; font-family:sans-serif; }
+    .panel { margin:16px; padding:16px; border:1px solid #3a5a70; border-radius:16px; background:#0c1c2c; }
+    .btn { display:block; width:100%; margin:8px 0; padding:14px; border:0; border-radius:14px; font-weight:700; background:#8fd4ff; color:#081018; text-align:center; text-decoration:none; }
+    .grid { display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin:12px 0; }
+    .cell { height:40px; border-radius:8px; background:#123044; display:grid; place-items:center; font-size:12px; color:#c8ecff; text-decoration:none; }
+    .me { background:#2a6a3a; }
+    .ai { background:#4a3a18; }
+    .tiny { color:#8aa3b8; font-size:12px; }
+  </style>
 </head>
 <body class="game-body">
-  <div class="snow-layer"></div>
-  <div class="app" id="app"></div>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/env.js"></script>
-  <script src="js/engine.js"></script>
-  <script src="js/store.js"></script>
-  <script src="js/api.js"></script>
-  <script src="js/auth.js"></script>
-  <script src="js/ui.js"></script>
-  <script src="js/audio.js"></script>
-  <script src="js/boot.js"></script>
-  <script>
-    (async () => {
-      if (!(await FKAuth.requirePlayer())) return;
-      const snap = await FKApi.snapshot();
-      const world = await FKApi.world();
-      const size = world.size;
-      const key = {};
-      world.tiles.forEach((t) => { key[t.x + "," + t.y] = t; });
-      let cells = "";
-      for (let y = 0; y < size; y++) {
-        for (let x = 0; x < size; x++) {
-          const t = key[x + "," + y];
-          if (!t) { cells += `<div class="cell"></div>`; continue; }
-          if (t.type === "me") cells += `<a class="cell me" href="game-city.html" title="我的王城">我</a>`;
-          else if (t.type === "res") cells += `<a class="cell res" href="game-resource.html?id=${t.node.id}&kind=${t.node.kind}">${t.node.kind[0]}</a>`;
-          else cells += `<a class="cell ${t.type}" href="game-player.html?id=${t.player.id}">${t.type==="ai"?"AI":"P"}</a>`;
-        }
-      }
-      document.getElementById("app").innerHTML = `
-        ${FKUI.top(snap)}
-        <div class="panel" style="margin-bottom:8px">
-          <div class="tiny">綠＝你 · 紫＝玩家 · 褐＝AI 王國 · 青＝資源點。</div>
-        </div>
-        <div class="map-wrap"><div class="map-grid" style="grid-template-columns:repeat(${size},28px)">${cells}</div></div>
-        ${FKUI.nav("map")}
-      `;
-    })();
-  </script>
+  <div class="panel">
+    <h2>世界地圖</h2>
+    <p class="tiny">綠＝你 · 褐＝AI</p>
+    <div class="grid">
+      <a class="cell me" href="game-city.html">我</a>
+      <a class="cell ai" href="game-player.html">AI</a>
+      <a class="cell ai" href="game-player.html">AI</a>
+      <div class="cell"></div>
+      <div class="cell"></div>
+      <a class="cell ai" href="game-player.html">AI</a>
+      <div class="cell"></div>
+      <a class="cell ai" href="game-player.html">AI</a>
+      <div class="cell"></div>
+      <div class="cell"></div>
+      <a class="cell ai" href="game-player.html">AI</a>
+      <div class="cell"></div>
+    </div>
+    <a class="btn" href="game-city.html">回主城</a>
+    <a class="btn" href="game-world.html">回世界</a>
+  </div>
 </body>
 </html>
