@@ -5,41 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>科技</title>
   <link rel="stylesheet" href="css/game.css" />
+  <style>
+    body { margin:0; background:#071018; color:#e8f4ff; font-family:sans-serif; }
+    .panel { margin:16px; padding:16px; border:1px solid #3a5a70; border-radius:16px; background:#0c1c2c; }
+    .row { display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid #234; }
+    .btn { display:block; width:100%; margin:8px 0; padding:14px; border:0; border-radius:14px; font-weight:700; background:#8fd4ff; color:#081018; text-align:center; text-decoration:none; }
+    .tiny { color:#8aa3b8; font-size:12px; }
+    button.s { padding:8px 12px; border:0; border-radius:10px; background:#8fd4ff; font-weight:700; }
+  </style>
 </head>
 <body class="game-body">
-  <div class="snow-layer"></div>
-  <div class="app" id="app"></div>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/env.js"></script>
-  <script src="js/engine.js"></script>
-  <script src="js/store.js"></script>
-  <script src="js/api.js"></script>
-  <script src="js/auth.js"></script>
-  <script src="js/ui.js"></script>
-  <script src="js/audio.js"></script>
-  <script src="js/boot.js"></script>
-  <script>
-    async function render() {
-      if (!(await FKAuth.requirePlayer())) return;
-      const snap = await FKApi.snapshot();
-      const rows = (snap.techs || []).map((t) => {
-        const def = FKEngine.TECHS.find((x) => x.id === t.tech_id);
-        const busy = t.research_finish_at && t.research_finish_at > Date.now();
-        return `<div class="list-item"><div><b>${def.name}</b> <span class="tiny">${def.branch}</span>
-          <div class="tiny">Lv.${t.level}</div>
-          ${busy ? `<div class="timer">${FKUI.remain(t.research_finish_at)}</div>` : ""}</div>
-          <button class="btn small" ${busy?"disabled":""} onclick="res('${t.tech_id}')">研究</button></div>`;
-      }).join("");
-      document.getElementById("app").innerHTML = `
-        <div class="page-head"><a class="back" href="game-city.html">← 返回</a><h2>科技中心</h2></div>
-        ${FKUI.top(snap)}
-        <div class="panel">${rows}
-          <button class="btn secondary" onclick="spd()">Coupons 加速（5）</button>
-        </div>${FKUI.nav("city")}`;
-    }
-    async function res(id) { try { await FKApi.research(id); await render(); } catch(e){ alert(e.message);} }
-    async function spd() { try { await FKApi.speedup("tech"); await render(); } catch(e){ alert(e.message);} }
-    render(); setInterval(render, 1000);
-  </script>
+  <div class="panel">
+    <h2>科技中心</h2>
+    <p class="tiny">js 上線後研究才會真正計時。</p>
+    <div class="row"><span>經濟 Lv.0</span><button class="s" type="button">研究</button></div>
+    <div class="row"><span>軍事 Lv.0</span><button class="s" type="button">研究</button></div>
+    <div class="row"><span>防禦 Lv.0</span><button class="s" type="button">研究</button></div>
+    <div class="row"><span>智慧核心 Lv.0</span><button class="s" type="button">研究</button></div>
+    <div class="row"><span>工程 Lv.0</span><button class="s" type="button">研究</button></div>
+    <div class="row"><span>研發加速 Lv.0</span><button class="s" type="button">研究</button></div>
+    <a class="btn" href="game-city.html">回主城</a>
+  </div>
 </body>
 </html>
