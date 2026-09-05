@@ -1092,6 +1092,10 @@ const SANDBOX_URL =
   SUPABASE_URL +
   "/functions/v1/dark-star-sandbox";
 
+const GAME_SANDBOX_URL =
+  SUPABASE_URL +
+  "/functions/v1/dark-star-game-sandbox";
+
 const ENGINE =
   "technical-dark-star";
 
@@ -2557,14 +2561,87 @@ function hasImageAttachment(files){
   );
 }
 
+function isGameIntent(text, files){
+  const value = String(text || "");
+  if(isDebugIntent(value) || hasImageAttachment(files)){
+    return false;
+  }
+  return /小遊戲|遊戲|貪食蛇|寫一個遊戲|做一個遊戲|玩法/i.test(value);
+}
+
 function isSandboxIntent(text, files){
   const value = String(text || "");
 
-  if(isDebugIntent(value) || hasImageAttachment(files)){
+  if(isDebugIntent(value) || hasImageAttachment(files) || isGameIntent(value, files)){
     return false;
   }
 
   return /建立(一個)?|做成|寫一個頁面|實作頁面|重跑|沙盒|登入頁|計算機|preview|sandbox/i.test(value);
+}
+
+function extractHtmlFromText(text){
+  const raw = String(text || "");
+  const doctype = raw.search(/<!DOCTYPE html/i);
+  if(doctype >= 0) return raw.slice(doctype).trim();
+  const start = raw.search(/<html/i);
+  if(start >= 0) return raw.slice(start).trim();
+  return "";
+}
+
+async function callGameSandbox(userMessage, html){
+  const response = await fetch(GAME_SANDBOX_URL, {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({
+      engine: ENGINE,
+      source: "technical-dark-star-web",
+      action: "run",
+      message: userMessage,
+      html,
+      files: html ? { "index.html": html } : {}
+    })
+  });
+
+  const responseText = await response.text();
+  let data;
+  try{
+    data = responseText ? JSON.parse(responseText) : {};
+  }catch(error){
+    throw new Error("Game sandbox 回傳不是 JSON：\n" + responseText.slice(0,800));
+  }
+
+  if(!response.ok){
+    throw new Error(
+      data?.error ||
+      data?.message ||
+      `HTTP ${response.status}（若是 404，表示尚未部署 dark-star-game-sandbox）`
+    );
+  }
+
+  if(data.files && typeof data.files === "object"){
+    lastSandboxFiles = data.files;
+  }
+
+  return data;
+}
+
+async function makeGameWithDarkStar(userMessage, files){
+  const ai = await callAIVAULT(
+    "你是暗星。請依使用者的想像做一個可在瀏覽器玩的小遊戲。" +
+    "只輸出一份完整 HTML（含 <html>、<body>、<script>），不要解釋、不要 markdown。" +
+    "遊戲必須符合這段需求：\n" +
+    userMessage,
+    files
+  );
+  const html = extractHtmlFromText(getAIReply(ai) || "");
+  if(!html){
+    return ai;
+  }
+  const sandboxed = await callGameSandbox(userMessage, html);
+  if(!sandboxed.content && getAIReply(ai)){
+    sandboxed.content = getAIReply(ai);
+  }
+  return sandboxed;
 }
 
 async function callSandbox(userMessage, files, action){
@@ -2923,7 +3000,9 @@ async function sendMessage(){
     */
 
     const result =
-      isSandboxIntent(text, outgoingFiles)
+      isGameIntent(text, outgoingFiles)
+        ? await makeGameWithDarkStar(text, outgoingFiles)
+        : isSandboxIntent(text, outgoingFiles)
         ? await callSandbox(text, lastSandboxFiles, "run")
         : await callAIVAULT(
             text,
