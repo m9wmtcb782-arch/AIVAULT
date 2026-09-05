@@ -736,6 +736,41 @@ body{overflow:hidden}
   height:18px;
 }
 
+
+.brand-home{
+  margin-left:auto;
+  border:1px solid #e5e5e5;
+  background:#fff;
+  color:#333;
+  border-radius:9px;
+  padding:7px 10px;
+  font-size:12px;
+}
+.brand-home:hover{background:#f4f4f4}
+
+.message-action.danger:hover{
+  background:#fdeaea;
+  color:#dc2626;
+}
+
+.history-item-wrap{
+  display:flex;
+  align-items:center;
+  gap:4px;
+}
+.history-item-wrap .history-item{flex:1}
+.history-del{
+  width:28px;
+  min-width:28px;
+  height:28px;
+  border:0;
+  background:transparent;
+  color:#aaa;
+  border-radius:7px;
+  font-size:14px;
+}
+.history-del:hover{background:#fdeaea;color:#dc2626}
+
 @media(max-width:700px){
 
   .brand-engine{display:none}
@@ -801,6 +836,8 @@ body{overflow:hidden}
     </div>
 
   </div>
+
+  <a id="homeButton" class="brand-home" href="aivault-home.html">回工作中心</a>
 
 </header>
 
@@ -973,6 +1010,10 @@ body{overflow:hidden}
   </div>
 
   <div class="drawer-bottom">
+
+    <button id="clearMessagesButton" class="drawer-item">
+      🗑 刪除測試訊息
+    </button>
 
     <button id="capabilityButton" class="drawer-item">
       🧠 學習能力
@@ -1274,7 +1315,14 @@ function renderHistory(){
     return;
   }
 
-  users.forEach(item=>{
+  messagesHistory.forEach((item,index)=>{
+
+    if(item.role !== "user") return;
+
+    const wrap =
+      document.createElement("div");
+
+    wrap.className = "history-item-wrap";
 
     const button =
       document.createElement("button");
@@ -1282,7 +1330,7 @@ function renderHistory(){
     button.className = "history-item";
 
     button.textContent =
-      item.text || "新對話";
+      item.text || "測試訊息";
 
     button.onclick = ()=>{
 
@@ -1290,7 +1338,20 @@ function renderHistory(){
       closeDrawer();
     };
 
-    historyElement.appendChild(button);
+    const del =
+      document.createElement("button");
+
+    del.className = "history-del";
+    del.title = "刪除這則測試訊息";
+    del.textContent = "×";
+    del.onclick = event=>{
+      event.stopPropagation();
+      deleteMessage(index);
+    };
+
+    wrap.appendChild(button);
+    wrap.appendChild(del);
+    historyElement.appendChild(wrap);
   });
 }
 
@@ -1306,20 +1367,22 @@ function loadConversation(){
     return;
   }
 
-  messagesHistory.forEach(item=>{
+  messagesHistory.forEach((item,index)=>{
 
     if(item.role === "user"){
 
       renderUserMessage(
         item.text,
-        item.attachments || []
+        item.attachments || [],
+        index
       );
 
     }else{
 
       renderAIMessage(
         item.text,
-        item.result || null
+        item.result || null,
+        index
       );
     }
   });
@@ -1560,7 +1623,8 @@ function removeWelcome(){
 
 function renderUserMessage(
   text,
-  attachedFiles=[]
+  attachedFiles=[],
+  messageIndex=null
 ){
 
   removeWelcome();
@@ -1569,6 +1633,7 @@ function renderUserMessage(
     document.createElement("div");
 
   row.className = "message user";
+  if(messageIndex != null) row.dataset.index = String(messageIndex);
 
   row.innerHTML = `
 
@@ -1608,13 +1673,21 @@ function renderUserMessage(
       .appendChild(files);
   }
 
+  if(messageIndex != null){
+    const actions = document.createElement("div");
+    actions.className = "message-actions";
+    actions.style.justifyContent = "flex-end";
+    actions.appendChild(createDeleteButton(messageIndex));
+    row.querySelector(".message-body").appendChild(actions);
+  }
+
   messagesInner.appendChild(row);
 
   scrollBottom();
 }
 
 
-function renderAIMessage(text,result=null){
+function renderAIMessage(text,result=null,messageIndex=null){
 
   removeWelcome();
 
@@ -1622,6 +1695,7 @@ function renderAIMessage(text,result=null){
     document.createElement("div");
 
   row.className = "message ai";
+  if(messageIndex != null) row.dataset.index = String(messageIndex);
 
   const avatar =
     document.createElement("div");
@@ -1678,6 +1752,20 @@ function renderAIMessage(text,result=null){
       ()=>speakText(text);
 
     actions.appendChild(speak);
+
+    if(messageIndex != null){
+      actions.appendChild(createDeleteButton(messageIndex));
+    }
+
+    body.appendChild(actions);
+
+  }else if(messageIndex != null){
+
+    const actions =
+      document.createElement("div");
+
+    actions.className = "message-actions";
+    actions.appendChild(createDeleteButton(messageIndex));
     body.appendChild(actions);
   }
 
@@ -2606,9 +2694,74 @@ function speakText(text){
 }
 
 
+
+function createDeleteButton(index){
+
+  const button =
+    document.createElement("button");
+
+  button.className = "message-action danger";
+  button.title = "刪除這則訊息";
+  button.textContent = "×";
+  button.onclick = event=>{
+    event.stopPropagation();
+    deleteMessage(index);
+  };
+
+  return button;
+}
+
+
+function deleteMessage(index){
+
+  if(
+    index == null ||
+    index < 0 ||
+    index >= messagesHistory.length
+  ){
+    return;
+  }
+
+  messagesHistory.splice(index,1);
+  saveState();
+  loadConversation();
+  renderHistory();
+}
+
+
+function clearAllMessages(){
+
+  if(!messagesHistory.length){
+    alert("目前沒有測試訊息。");
+    return;
+  }
+
+  if(!confirm("確定刪除全部測試訊息？")){
+    return;
+  }
+
+  conversationId = null;
+  messagesHistory = [];
+  attachments = [];
+  saveState();
+  renderAttachments();
+  messagesInner.innerHTML = "";
+  messagesInner.appendChild(createWelcome());
+  renderHistory();
+}
+
+
 /* =========================================================
    CAPABILITY / WORK
 ========================================================= */
+
+document
+  .getElementById("clearMessagesButton")
+  .addEventListener("click",()=>{
+    clearAllMessages();
+    closeDrawer();
+  });
+
 
 document
   .getElementById("capabilityButton")
