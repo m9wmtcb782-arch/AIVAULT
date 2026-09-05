@@ -771,6 +771,46 @@ body{overflow:hidden}
 }
 .history-del:hover{background:#fdeaea;color:#dc2626}
 
+
+.media-stack{
+  margin-top:8px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.media-image,
+.media-video{
+  display:block;
+  max-width:min(420px,100%);
+  max-height:320px;
+  border-radius:14px;
+  border:1px solid #e8e8e8;
+  background:#f7f7f7;
+  object-fit:contain;
+}
+
+.media-article{
+  margin-top:8px;
+  padding:12px 14px;
+  border:1px solid #e8e8e8;
+  border-radius:14px;
+  background:#fafafa;
+  font-size:14px;
+  line-height:1.7;
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+
+.media-article a{color:#155eef}
+
+.attachment-chip img{
+  width:28px;
+  height:28px;
+  object-fit:cover;
+  border-radius:6px;
+}
+
 @media(max-width:700px){
 
   .brand-engine{display:none}
@@ -1431,34 +1471,124 @@ document
   });
 
 
-fileInput.addEventListener("change",async event=>{
 
-  const file =
-    event.target.files?.[0];
+async function addFilesFromList(fileList){
 
-  if(!file) return;
+  const incoming = Array.from(fileList || []).filter(Boolean);
 
-  try{
+  if(!incoming.length) return;
 
-    const attachment =
-      await prepareAttachment(file);
+  for(const file of incoming){
 
-    attachments.push(attachment);
+    try{
 
-    renderAttachments();
+      const attachment =
+        await prepareAttachment(file);
 
-    sendButton.disabled = false;
+      attachments.push(attachment);
 
-  }catch(error){
+    }catch(error){
 
-    alert(
-      "檔案處理失敗：\n" +
-      error.message
-    );
+      alert(
+        "檔案處理失敗：\n" +
+        error.message
+      );
+    }
   }
 
+  renderAttachments();
+
+  sendButton.disabled =
+    !input.value.trim() &&
+    attachments.length === 0;
+}
+
+
+document.addEventListener("paste", async event=>{
+
+  const clipboard =
+    event.clipboardData;
+
+  if(!clipboard) return;
+
+  const files = [];
+
+  if(clipboard.files && clipboard.files.length){
+
+    Array.from(clipboard.files).forEach(file=>files.push(file));
+  }
+
+  Array.from(clipboard.items || []).forEach(item=>{
+
+    if(item.kind === "file"){
+
+      const file = item.getAsFile();
+
+      if(file && !files.includes(file)){
+        files.push(file);
+      }
+    }
+  });
+
+  if(files.length){
+
+    event.preventDefault();
+    await addFilesFromList(files);
+    return;
+  }
+
+  const pasted =
+    clipboard.getData("text/plain");
+
+  if(
+    pasted &&
+    pasted.length > 800 &&
+    document.activeElement !== input
+  ){
+
+    event.preventDefault();
+
+    const file = new File(
+      [pasted],
+      "pasted-article.txt",
+      { type:"text/plain" }
+    );
+
+    await addFilesFromList([file]);
+  }
+});
+
+
+;["dragenter","dragover"].forEach(name=>{
+
+  document.addEventListener(name, event=>{
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  });
+});
+
+
+document.addEventListener("drop", async event=>{
+
+  event.preventDefault();
+
+  const files =
+    event.dataTransfer?.files;
+
+  if(files && files.length){
+
+    await addFilesFromList(files);
+  }
+});
+
+
+fileInput.addEventListener("change",async event=>{
+
+  await addFilesFromList(event.target.files);
   fileInput.value = "";
 });
+
 
 
 async function prepareAttachment(file){
@@ -1487,7 +1617,8 @@ async function prepareAttachment(file){
 
   const textExtensions = [
     "txt","md","json","js","ts",
-    "jsx","tsx","html","css"
+    "jsx","tsx","html","css",
+    "csv","xml","yml","yaml"
   ];
 
   if(
@@ -1495,20 +1626,56 @@ async function prepareAttachment(file){
     textExtensions.includes(extension)
   ){
 
+    const content = await file.text();
+
     return {
       ...base,
-      content_type:"text",
-      content:await file.text()
+      content_type: ["md","txt","html"].includes(extension) ? "article" : "text",
+      content,
+      preview: content.slice(0, 4000)
     };
   }
 
-  if(file.type.startsWith("image/")){
+  if(
+    file.type.startsWith("image/") ||
+    ["png","jpg","jpeg","gif","webp","bmp","svg"].includes(extension)
+  ){
+
+    const preview = await readAsDataURL(file);
 
     return {
       ...base,
       content_type:"image",
-      content_base64:
-        await readAsDataURL(file)
+      content_base64: preview,
+      preview
+    };
+  }
+
+  if(
+    file.type.startsWith("video/") ||
+    ["mp4","webm","mov"].includes(extension)
+  ){
+
+    const preview = await readAsDataURL(file);
+
+    return {
+      ...base,
+      content_type:"video",
+      content_base64: preview,
+      preview
+    };
+  }
+
+  if(
+    file.type === "application/pdf" ||
+    extension === "pdf"
+  ){
+
+    return {
+      ...base,
+      content_type:"article",
+      preview_kind:"pdf",
+      content: "[PDF] " + file.name
     };
   }
 
@@ -1558,9 +1725,14 @@ function renderAttachments(){
 
     chip.className = "attachment-chip";
 
+    const thumb =
+      attachment.preview && attachment.content_type === "image"
+        ? `<img src="${attachment.preview}" alt="">`
+        : `<span>${getFileIcon(attachment.type)}</span>`;
+
     chip.innerHTML = `
 
-<span>${getFileIcon(attachment.type)}</span>
+${thumb}
 
 <span class="attachment-chip-name">
   ${escapeHTML(attachment.name)}
@@ -1605,6 +1777,185 @@ function getFileIcon(type){
   if(type?.startsWith("audio/")) return "WAV";
 
   return "檔案";
+}
+
+
+
+function buildGatewayMessage(userMessage, files){
+
+  const text = (userMessage || "").trim();
+  const parts = [];
+
+  if(text) parts.push(text);
+
+  (files || []).forEach(file=>{
+
+    if(file.content_type === "image"){
+      parts.push("（已附加圖片：" + (file.name || "image") + "，請辨識圖片內容）");
+    }else if(file.content_type === "video"){
+      parts.push("（已附加影片：" + (file.name || "video") + "）");
+    }else if(file.content_type === "article" || file.content_type === "text"){
+      parts.push(
+        "（已附加文章／文件：" + (file.name || "file") + "）\n" +
+        String(file.content || "").slice(0,12000)
+      );
+    }else if(file.name){
+      parts.push("（已附加檔案：" + file.name + "）");
+    }
+  });
+
+  return parts.join("\n\n") || "請分析我上傳的檔案。";
+}
+
+
+function isDataOrHttpURL(value){
+
+  return typeof value === "string" &&
+    /^(https?:\/\/|data:image\/|data:video\/)/i.test(value.trim());
+}
+
+
+function collectAIMedia(result, text){
+
+  const items = [];
+
+  function push(item){
+    if(!item) return;
+    items.push(item);
+  }
+
+  const urls = [];
+
+  String(text || "").replace(
+    /(!)?\[([^\]]*)\]\(([^)]+)\)|(https?:\/\/[^\s<>"']+\.(?:png|jpe?g|gif|webp|mp4|webm))/ig,
+    function(match, bang, label, mdUrl, rawUrl){
+      const url = mdUrl || rawUrl;
+      if(url) urls.push(url);
+      return match;
+    }
+  );
+
+  urls.forEach(url=>{
+    if(/\.(mp4|webm|mov)(\?|$)/i.test(url)){
+      push({ name:"video", content_type:"video", preview:url });
+    }else if(/\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(url) || url.startsWith("data:image/")){
+      push({ name:"image", content_type:"image", preview:url });
+    }
+  });
+
+  const pools = [
+    result,
+    result?.files,
+    result?.media,
+    result?.images,
+    result?.videos,
+    result?.artifacts,
+    result?.workspace
+  ];
+
+  pools.forEach(pool=>{
+    if(!pool) return;
+    if(typeof pool === "string" && isDataOrHttpURL(pool)){
+      push({
+        name:"media",
+        content_type: pool.includes("video") || /\.mp4/i.test(pool) ? "video" : "image",
+        preview: pool
+      });
+      return;
+    }
+    if(Array.isArray(pool)){
+      pool.forEach((item,i)=>{
+        if(typeof item === "string" && isDataOrHttpURL(item)){
+          push({
+            name:"media-"+i,
+            content_type: /\.mp4|video/i.test(item) ? "video" : "image",
+            preview: item
+          });
+        }else if(item && typeof item === "object"){
+          const url = item.url || item.preview || item.content_base64 || item.src;
+          if(isDataOrHttpURL(url)){
+            push({
+              name: item.name || ("media-"+i),
+              content_type: item.content_type || (String(item.type||"").startsWith("video") ? "video" : "image"),
+              preview: url
+            });
+          }
+        }
+      });
+    }
+  });
+
+  return items;
+}
+
+
+function formatAIText(text){
+
+  const escaped = escapeHTML(text || "");
+  const html = escaped
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/(https?:\/\/[^\s<]+)/g, function(url){
+      if(url.includes("</a>")) return url;
+      return '<a href="'+url+'" target="_blank" rel="noopener">'+url+"</a>";
+    })
+    .replace(/\n/g,"<br>");
+
+  return { html };
+}
+
+
+function renderMediaStack(files){
+
+  const stack = document.createElement("div");
+  stack.className = "media-stack";
+
+  (files || []).forEach(file=>{
+
+    const type = file.content_type || (
+      String(file.type||"").startsWith("image/") ? "image" :
+      String(file.type||"").startsWith("video/") ? "video" :
+      file.content ? "article" : "file"
+    );
+
+    const src = file.preview || file.content_base64 || file.url || "";
+
+    if(type === "image" && src){
+      const img = document.createElement("img");
+      img.className = "media-image";
+      img.src = src;
+      img.alt = file.name || "圖片";
+      stack.appendChild(img);
+      return;
+    }
+
+    if(type === "video" && src){
+      const video = document.createElement("video");
+      video.className = "media-video";
+      video.src = src;
+      video.controls = true;
+      video.playsInline = true;
+      stack.appendChild(video);
+      return;
+    }
+
+    if(type === "article" || type === "text"){
+      const article = document.createElement("article");
+      article.className = "media-article";
+      article.textContent =
+        (file.name ? file.name + "\n\n" : "") +
+        String(file.content || file.preview || "");
+      stack.appendChild(article);
+      return;
+    }
+
+    const fallback = document.createElement("div");
+    fallback.style.fontSize = "12px";
+    fallback.style.color = "#777";
+    fallback.textContent = "📎 " + (file.name || "檔案");
+    stack.appendChild(fallback);
+  });
+
+  return stack;
 }
 
 
@@ -1654,23 +2005,9 @@ function renderUserMessage(
 
   if(attachedFiles.length){
 
-    const files =
-      document.createElement("div");
-
-    files.style.marginTop = "8px";
-    files.style.fontSize = "12px";
-    files.style.color = "#777";
-
-    files.innerHTML =
-      attachedFiles
-        .map(file =>
-          `📎 ${escapeHTML(file.name)}`
-        )
-        .join("<br>");
-
     row
       .querySelector(".message-body")
-      .appendChild(files);
+      .appendChild(renderMediaStack(attachedFiles));
   }
 
   if(messageIndex != null){
@@ -1713,11 +2050,15 @@ function renderAIMessage(text,result=null,messageIndex=null){
 
   messageText.className = "message-text";
 
-  messageText.innerHTML =
-    escapeHTML(text || "")
-      .replace(/\n/g,"<br>");
+  const formatted = formatAIText(text || "");
+  messageText.innerHTML = formatted.html;
 
   body.appendChild(messageText);
+
+  const aiMedia = collectAIMedia(result, text);
+  if(aiMedia.length){
+    body.appendChild(renderMediaStack(aiMedia));
+  }
 
   if(text){
 
@@ -2164,13 +2505,26 @@ async function callAIVAULT(
   files
 ){
 
+  const safeFiles = (files || []).map(file=>({
+    name: file.name,
+    type: file.type,
+    size: file.size,
+    content_type: file.content_type,
+    content: file.content || null,
+    content_base64: file.content_base64 || file.preview || null
+  }));
+
+  const images = safeFiles
+    .filter(file => file.content_type === "image" && file.content_base64)
+    .map(file => file.content_base64);
+
   const payload = {
 
     engine:
       ENGINE,
 
     message:
-      userMessage,
+      buildGatewayMessage(userMessage, safeFiles),
 
     conversation_id:
       conversationId,
@@ -2179,7 +2533,11 @@ async function callAIVAULT(
       "technical-dark-star-web",
 
     files:
-      files || []
+      safeFiles,
+
+    image: images[0] || null,
+
+    images
   };
 
   const response =
@@ -2422,7 +2780,12 @@ async function sendMessage(){
 
         name:file.name,
         type:file.type,
-        size:file.size
+        size:file.size,
+        content_type:file.content_type,
+        preview:file.preview || file.content_base64 || null,
+        content: file.content_type === "article" || file.content_type === "text"
+          ? String(file.content || file.preview || "").slice(0,8000)
+          : null
 
       }))
   });
@@ -2801,6 +3164,43 @@ if(messagesHistory.length){
 renderAttachments();
 renderHistory();
 resizeInput();
+
+if(new URLSearchParams(location.search).get("demo") === "1"){
+
+  const demoImage =
+    "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#111"/><stop offset="100%" stop-color="#4f46e5"/></linearGradient></defs><rect width="640" height="360" fill="url(#g)"/><text x="40" y="180" fill="white" font-size="36" font-family="sans-serif">Technical Dark Star</text><text x="40" y="230" fill="#ddd" font-size="20" font-family="sans-serif">示範圖片預覽</text></svg>`);
+
+  messagesHistory = [
+    {
+      role:"user",
+      text:"請辨識這張圖，並讀這篇文章。",
+      attachments:[
+        {
+          name:"demo-image.svg",
+          type:"image/svg+xml",
+          content_type:"image",
+          preview:demoImage
+        },
+        {
+          name:"demo-article.txt",
+          type:"text/plain",
+          content_type:"article",
+          content:"暗星示範文章\\n\\n這段是直接貼上或拖放文書後會顯示的文章區。\\n可以放論文段落、會議紀錄或程式說明。"
+        }
+      ]
+    },
+    {
+      role:"assistant",
+      text:"已看到圖片與文章。\\n圖片是 Technical Dark Star 示範圖。\\n文章內容已讀取。\\nhttps://example.com/demo.mp4",
+      result:{
+        videos:["https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"]
+      }
+    }
+  ];
+
+  loadConversation();
+}
+
 
 
 /* =========================================================
