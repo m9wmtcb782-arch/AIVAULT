@@ -1797,7 +1797,10 @@ function buildGatewayMessage(userMessage, files){
   (files || []).forEach(file=>{
 
     if(file.content_type === "image"){
-      parts.push("（已附加圖片：" + (file.name || "image") + "，請辨識圖片內容）");
+      parts.push(
+        "（已附加圖片：" + (file.name || "image") +
+        "。請先辨識圖片。若圖中有程式碼，請完整讀出、指出錯誤並給出修正後的程式。）"
+      );
     }else if(file.content_type === "video"){
       parts.push("（已附加影片：" + (file.name || "video") + "）");
     }else if(file.content_type === "article" || file.content_type === "text"){
@@ -2537,9 +2540,25 @@ function renderGates(parent,gates){
 
 
 
-function isSandboxIntent(text){
+function isDebugIntent(text){
+  return /除錯|debug|報錯|錯誤|修bug|看這(段|張)|程式碼|code review|為什麼不能|讀圖|辨識圖片/i.test(String(text || ""));
+}
+
+function hasImageAttachment(files){
+  return (files || []).some(file =>
+    file.content_type === "image" ||
+    String(file.type || "").startsWith("image/")
+  );
+}
+
+function isSandboxIntent(text, files){
   const value = String(text || "");
-  return /建立|做成|寫一個|實作|執行|重跑|測試|沙盒|登入頁|計算機|修復|preview|sandbox|run test/i.test(value);
+
+  if(isDebugIntent(value) || hasImageAttachment(files)){
+    return false;
+  }
+
+  return /建立(一個)?|做成|寫一個頁面|實作頁面|重跑|沙盒|登入頁|計算機|preview|sandbox/i.test(value);
 }
 
 async function callSandbox(userMessage, files, action){
@@ -2895,7 +2914,7 @@ async function sendMessage(){
     */
 
     const result =
-      isSandboxIntent(text)
+      isSandboxIntent(text, outgoingFiles)
         ? await callSandbox(text, lastSandboxFiles, "run")
         : await callAIVAULT(
             text,
