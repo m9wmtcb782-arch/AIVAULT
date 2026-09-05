@@ -80,7 +80,12 @@
     <div class="code" id="roomCode">------</div>
     <div class="pcs" style="flex-wrap:wrap">
       <button class="primary" id="btnHost">開房間（執白）</button>
-      <input id="joinId" maxlength="6" placeholder="代碼" />
+      <input id="joinId"
+       maxlength="8"
+       minlength="8"
+       placeholder="例如 AV7K29PQ"
+       autocomplete="off"
+       spellcheck="false" />
       <button id="btnJoin">加入（執黑）</button>
       <button id="btnRoomClose">關閉</button>
     </div>
@@ -568,7 +573,10 @@ async function hostRoom(){
 }
 async function joinRoom(){
   const id=document.getElementById('joinId').value.trim().toUpperCase();
-  if(id.length<4){ document.getElementById('roomHint').textContent='請輸入房間代碼'; return; }
+  if(!/^AV[A-Z0-9]{6}$/.test(id)){
+  document.getElementById('roomHint').textContent='請輸入完整房間代碼，例如 AV7K29PQ';
+  return;
+}
   if(net.peer) try{ net.peer.destroy(); }catch{}
   net.peer=new Peer();
   net.role='guest'; net.room=id; vsAI=false;
