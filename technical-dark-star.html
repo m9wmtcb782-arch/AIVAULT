@@ -2600,7 +2600,15 @@ function extractHtmlFromText(text){
   return "";
 }
 
-async function callDrawSandbox(userMessage){
+function extractSvgFromText(text){
+  const raw = String(text || "");
+  const start = raw.search(/<svg/i);
+  const end = raw.toLowerCase().lastIndexOf("</svg>");
+  if(start === -1 || end === -1 || end < start) return "";
+  return raw.slice(start, end + 6);
+}
+
+async function callDrawSandbox(userMessage, svg){
   const animation = /動畫|拍翅膀|轉動|閃爍|animate|gif/i.test(String(userMessage || ""));
   const response = await fetch(DRAW_SANDBOX_URL, {
     method:"POST",
@@ -2609,7 +2617,9 @@ async function callDrawSandbox(userMessage){
       engine: ENGINE,
       source: "technical-dark-star-web",
       message: userMessage,
-      kind: animation ? "animation" : "image"
+      kind: animation ? "animation" : "image",
+      svg: svg || "",
+      files: svg ? { "image.svg": svg } : {}
     })
   });
 
@@ -2634,6 +2644,22 @@ async function callDrawSandbox(userMessage){
   }
 
   return data;
+}
+
+async function makeDrawWithDarkStar(userMessage, files){
+  const animation = /動畫|拍翅膀|轉動|閃爍|animate|gif/i.test(String(userMessage || ""));
+  const ai = await callAIVAULT(
+    "你是暗星。請依使用者描述畫圖。" +
+    (animation ? "請輸出一份會動的完整 SVG（含 animate 或 animateTransform）。" : "請輸出一份完整 SVG 圖。") +
+    "必須含 <svg> 與 </svg>，用路徑畫出主體，不要只寫文字標題，不要 markdown，不要解釋。" +
+    "需求：\n" + userMessage,
+    files
+  );
+  const svg = extractSvgFromText(getAIReply(ai) || "");
+  if(!svg){
+    return ai;
+  }
+  return await callDrawSandbox(userMessage, svg);
 }
 
 async function callGameSandbox(userMessage, html){
@@ -2690,6 +2716,20 @@ async function makeGameWithDarkStar(userMessage, files){
     sandboxed.content = getAIReply(ai);
   }
   return sandboxed;
+}
+
+async function makePageWithDarkStar(userMessage, files){
+  const ai = await callAIVAULT(
+    "你是暗星。請依使用者需求做一個完整可在瀏覽器打開的網頁。" +
+    "只輸出一份完整 HTML（含 <html>、<body>），不要解釋、不要 markdown。" +
+    "需求：\n" + userMessage,
+    files
+  );
+  const html = extractHtmlFromText(getAIReply(ai) || "");
+  if(!html){
+    return ai;
+  }
+  return await callSandbox(userMessage, { "index.html": html }, "run");
 }
 
 async function callSandbox(userMessage, files, action){
@@ -3049,11 +3089,11 @@ async function sendMessage(){
 
     const result =
       isDrawIntent(text, outgoingFiles)
-        ? await callDrawSandbox(text)
+        ? await makeDrawWithDarkStar(text, outgoingFiles)
         : isGameIntent(text, outgoingFiles)
         ? await makeGameWithDarkStar(text, outgoingFiles)
         : isSandboxIntent(text, outgoingFiles)
-        ? await callSandbox(text, lastSandboxFiles, "run")
+        ? await makePageWithDarkStar(text, outgoingFiles)
         : await callAIVAULT(
             text,
             outgoingFiles
