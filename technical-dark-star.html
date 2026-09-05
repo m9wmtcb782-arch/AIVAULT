@@ -1088,8 +1088,14 @@ const AI_GATEWAY_URL =
   SUPABASE_URL +
   "/functions/v1/ai-gateway";
 
+const SANDBOX_URL =
+  SUPABASE_URL +
+  "/functions/v1/dark-star-sandbox";
+
 const ENGINE =
   "technical-dark-star";
+
+let lastSandboxFiles = {};
 
 
 /* =========================================================
@@ -2280,7 +2286,41 @@ function renderSandbox(parent,files,result){
   const textarea =
     sandbox.querySelector(".sandbox-code");
 
+
   textarea.value = code;
+
+  const previewPane =
+    sandbox.querySelector('[data-view="preview"]');
+
+  if(String(selected).endsWith(".html") || String(selected).endsWith(".htm")){
+    previewPane.innerHTML = "";
+    const iframe = document.createElement("iframe");
+    iframe.className = "sandbox-frame";
+    iframe.srcdoc = code;
+    previewPane.appendChild(iframe);
+  }
+
+  const rerun = document.createElement("button");
+  rerun.className = "sandbox-copy";
+  rerun.style.marginLeft = "8px";
+  rerun.textContent = "重跑沙盒";
+  rerun.onclick = async ()=>{
+    rerun.disabled = true;
+    rerun.textContent = "重跑中…";
+    try{
+      const result = await callSandbox("請重跑並測試目前的沙盒。", lastSandboxFiles, "rerun");
+      lastSandboxFiles = result.files || lastSandboxFiles;
+      const row = createLoadingMessage();
+      row.remove();
+      renderAIMessage(getAIReply(result) || "沙盒已重跑。", result);
+    }catch(error){
+      alert("沙盒重跑失敗：\n" + error.message);
+    }
+    rerun.disabled = false;
+    rerun.textContent = "重跑沙盒";
+  };
+  sandbox.querySelector(".sandbox-head").appendChild(rerun);
+
 
   const previewURL =
     result?.sandbox?.preview_url ||
@@ -2495,6 +2535,48 @@ function renderGates(parent,gates){
   parent.appendChild(card);
 }
 
+
+
+function isSandboxIntent(text){
+  const value = String(text || "");
+  return /建立|做成|寫一個|實作|執行|重跑|測試|沙盒|登入頁|計算機|修復|preview|sandbox|run test/i.test(value);
+}
+
+async function callSandbox(userMessage, files, action){
+  const response = await fetch(SANDBOX_URL, {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({
+      engine: ENGINE,
+      source: "technical-dark-star-web",
+      action: action || "run",
+      message: userMessage,
+      files: files && Object.keys(files).length ? files : lastSandboxFiles
+    })
+  });
+
+  const responseText = await response.text();
+  let data;
+  try{
+    data = responseText ? JSON.parse(responseText) : {};
+  }catch(error){
+    throw new Error("Sandbox 回傳不是 JSON：\n" + responseText.slice(0,800));
+  }
+
+  if(!response.ok){
+    throw new Error(
+      data?.error ||
+      data?.message ||
+      `HTTP ${response.status}（若是 404，表示尚未部署 dark-star-sandbox）`
+    );
+  }
+
+  if(data.files && typeof data.files === "object"){
+    lastSandboxFiles = data.files;
+  }
+
+  return data;
+}
 
 /* =========================================================
    AIVAULT AI GATEWAY
@@ -2813,10 +2895,12 @@ async function sendMessage(){
     */
 
     const result =
-      await callAIVAULT(
-        text,
-        outgoingFiles
-      );
+      isSandboxIntent(text)
+        ? await callSandbox(text, lastSandboxFiles, "run")
+        : await callAIVAULT(
+            text,
+            outgoingFiles
+          );
 
     loading.remove();
 
@@ -2898,11 +2982,37 @@ function createLoadingMessage(){
     style="color:#888">
 
     Technical Dark Star 正在思考……
+    <span class="think-timer">0 秒</span>
 
   </div>
 
 </div>
 `;
+
+  const timer =
+    row.querySelector(".think-timer");
+
+  const started = Date.now();
+
+  const tick = ()=>{
+    const seconds =
+      Math.floor((Date.now() - started) / 1000);
+    if(timer){
+      timer.textContent = seconds + " 秒";
+    }
+  };
+
+  tick();
+
+  const interval =
+    setInterval(tick, 250);
+
+  const originalRemove = row.remove.bind(row);
+
+  row.remove = ()=>{
+    clearInterval(interval);
+    originalRemove();
+  };
 
   messagesInner.appendChild(row);
 
