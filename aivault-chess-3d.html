@@ -8,7 +8,7 @@
   :root { --wood:#3a2a1c; --panel:#2a1d12ee; --line:#cbb48a; --text:#f4ead6; --dim:#c9b896; }
   * { box-sizing: border-box; }
   html, body { margin:0; height:100%; background:#2b1d14; color:var(--text); font-family:"PingFang TC","Noto Sans TC",system-ui,sans-serif; overflow:hidden; }
-  #c { position:fixed; inset:0; display:block; }
+  #c { position:fixed; inset:0; width:100%; height:100%; display:block; }
   .icon {
     position:fixed; z-index:6; width:44px; height:44px; border-radius:8px;
     background:#2a1f16cc; border:1px solid #d7c29a66; color:#f3e6c8;
@@ -271,26 +271,34 @@ renderer.toneMappingExposure=1.05;
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x3d2a1c);
 
-const camera=new THREE.PerspectiveCamera(32, 1, 0.1, 100);
+const camera=new THREE.OrthographicCamera(-8, 8, 8, -8, 0.1, 80);
 const controls=new OrbitControls(camera, canvas);
 controls.enableRotate=false;
 controls.enablePan=false;
 controls.enableZoom=false;
 controls.enableDamping=false;
 function fitBoard(fromBlack){
-  const w = innerWidth, h = innerHeight;
+  const vv = window.visualViewport;
+  const w = Math.round(vv ? vv.width : innerWidth);
+  const h = Math.round(vv ? vv.height : innerHeight);
+  renderer.setSize(w, h, true);
   const aspect = w / Math.max(h, 1);
-  camera.aspect = aspect;
-  camera.fov = 24;
+  const halfW = 4.85;
+  const halfH = 4.85;
+  if (aspect >= 1) {
+    camera.left = -halfH * aspect;
+    camera.right = halfH * aspect;
+    camera.top = halfH;
+    camera.bottom = -halfH;
+  } else {
+    camera.left = -halfW;
+    camera.right = halfW;
+    camera.top = halfW / aspect;
+    camera.bottom = -halfW / aspect;
+  }
   camera.updateProjectionMatrix();
-  const world = 9.2;
-  const vFov = camera.fov * Math.PI / 180;
-  const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect);
-  const distH = world / (2 * Math.tan(vFov / 2) * 0.72);
-  const distW = world / (2 * Math.tan(hFov / 2) * 0.72);
-  const dist = Math.max(distH, distW);
-  const z = (fromBlack ? -1 : 1) * dist * 0.18;
-  camera.position.set(0, dist, z);
+  const z = fromBlack ? -5.2 : 5.2;
+  camera.position.set(0, 14, z);
   controls.target.set(0, 0, 0);
   camera.lookAt(0, 0, 0);
 }
@@ -391,6 +399,7 @@ function syncPieces(){
     const p=board[r][c]; if(!p) continue;
     const m=pieceMesh(p.toLowerCase(), isWhite(p));
     m.position.set(c-3.5, 0.08, r-3.5);
+    m.scale.setScalar(1.22);
     m.userData={r,c,piece:true};
     piecesGroup.add(m);
   }
@@ -608,12 +617,10 @@ document.querySelectorAll('#promo button').forEach(btn=>{
   btn.onclick=()=>{ if(!pendingPromo) return; const {from,to,flag}=pendingPromo; doMove(from[0],from[1],to[0],to[1],flag,btn.dataset.p,true); };
 });
 
-function resize(){
-  const w=innerWidth, h=innerHeight;
-  renderer.setSize(w,h,false);
-  fitBoard(net.role==='guest');
-}
-addEventListener('resize', resize); resize();
+function resize(){ fitBoard(net.role==='guest'); }
+addEventListener('resize', resize);
+if (window.visualViewport) visualViewport.addEventListener('resize', resize);
+resize();
 function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene,camera); }
 reset(); loop();
 </script>
