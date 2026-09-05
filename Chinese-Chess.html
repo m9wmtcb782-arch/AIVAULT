@@ -1,400 +1,495 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
-
-  <meta
-    name="viewport"
-    content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"
-  />
-
-  <title>棋類遊戲｜中國象棋</title>
-
-  <style>
-    * {
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    html,
-    body {
-      margin: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      position: fixed;
-      inset: 0;
-      background: #111;
-      font-family:
-        -apple-system,
-        BlinkMacSystemFont,
-        "Noto Sans TC",
-        "Microsoft JhengHei",
-        sans-serif;
-    }
-
-    body {
-      touch-action: none;
-      overscroll-behavior: none;
-    }
-
-    #app {
-      position: fixed;
-      inset: 0;
-      overflow: hidden;
-    }
-
-    #game {
-      position: absolute;
-      inset: 0;
-      overflow: hidden;
-    }
+<meta charset="UTF-8">
+
+<meta
+  name="viewport"
+  content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"
+>
+
+<title>棋類遊戲｜中國象棋</title>
+
+<style>
+*{
+  box-sizing:border-box;
+  -webkit-tap-highlight-color:transparent;
+}
+
+html,
+body{
+  margin:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  position:fixed;
+  inset:0;
+  background:#111;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Noto Sans TC",
+    "Microsoft JhengHei",
+    sans-serif;
+  touch-action:none;
+  overscroll-behavior:none;
+}
+
+#app{
+  position:fixed;
+  inset:0;
+  overflow:hidden;
+}
+
+#game{
+  position:absolute;
+  inset:0;
+}
+
+canvas{
+  display:block;
+  width:100%;
+  height:100%;
+  touch-action:none;
+}
+
+/* =========================
+   HUD
+========================= */
+
+#hud{
+  position:fixed;
+  z-index:20;
+  top:env(safe-area-inset-top,0px);
+  left:0;
+  right:0;
+
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+
+  padding:10px 12px;
+
+  pointer-events:none;
+}
+
+.hud-box{
+  padding:8px 11px;
+  border-radius:13px;
+
+  color:#fff;
+
+  background:rgba(20,15,10,.84);
+
+  border:1px solid
+    rgba(255,220,150,.28);
+
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+
+#gameTitle{
+  font-weight:900;
+  letter-spacing:.8px;
+}
+
+#turnText{
+  font-size:13px;
+}
+
+/* =========================
+   Bottom controls
+========================= */
+
+#bottomBar{
+  position:fixed;
+  z-index:30;
 
-    canvas {
-      display: block;
-      width: 100%;
-      height: 100%;
-      touch-action: none;
-    }
+  left:50%;
+  transform:translateX(-50%);
 
-    #hud {
-      position: fixed;
-      top: env(safe-area-inset-top, 0px);
-      left: 0;
-      right: 0;
-      z-index: 20;
+  bottom:
+    calc(
+      12px +
+      env(safe-area-inset-bottom,0px)
+    );
 
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+  display:flex;
+  gap:8px;
 
-      padding: 12px 14px;
+  width:max-content;
+  max-width:94vw;
+}
 
-      pointer-events: none;
-    }
+button{
+  border:0;
+  outline:none;
 
-    .hud-box {
-      pointer-events: auto;
+  min-height:44px;
 
-      background: rgba(20, 15, 10, 0.82);
-      border: 1px solid rgba(255, 220, 150, 0.3);
-      border-radius: 14px;
+  padding:0 15px;
 
-      padding: 9px 13px;
+  border-radius:13px;
 
-      color: #fff;
-
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-    }
-
-    #gameTitle {
-      font-weight: 800;
-      letter-spacing: 1px;
-    }
+  color:#fff;
 
-    #turnText {
-      font-size: 14px;
-    }
+  background:
+    rgba(30,22,15,.9);
 
-    #message {
-      position: fixed;
-      z-index: 21;
+  border:1px solid
+    rgba(255,220,150,.22);
 
-      left: 50%;
-      bottom: calc(
-        20px + env(safe-area-inset-bottom, 0px)
-      );
+  font-size:14px;
+  font-weight:800;
 
-      transform: translateX(-50%);
+  touch-action:manipulation;
+}
 
-      min-width: 180px;
-      max-width: 90vw;
+button:active{
+  transform:scale(.97);
+}
 
-      padding: 10px 16px;
+button.primary{
+  background:
+    linear-gradient(
+      135deg,
+      #c78b2c,
+      #8c5517
+    );
+}
 
-      border-radius: 999px;
+button.red{
+  background:
+    linear-gradient(
+      135deg,
+      #a63b32,
+      #6f201c
+    );
+}
 
-      background: rgba(15, 10, 5, 0.86);
-      color: white;
+/* =========================
+   Message
+========================= */
 
-      text-align: center;
-      font-size: 14px;
+#message{
+  position:fixed;
+  z-index:25;
 
-      pointer-events: none;
+  left:50%;
 
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-    }
+  bottom:
+    calc(
+      66px +
+      env(safe-area-inset-bottom,0px)
+    );
 
-    #room {
-      position: fixed;
-      inset: 0;
-      z-index: 100;
+  transform:translateX(-50%);
 
-      display: none;
+  min-width:150px;
+  max-width:90vw;
 
-      align-items: center;
-      justify-content: center;
+  padding:8px 14px;
 
-      padding: 20px;
+  border-radius:999px;
 
-      background: rgba(0, 0, 0, 0.7);
+  background:
+    rgba(15,10,5,.86);
 
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-    }
+  color:#fff;
 
-    #room.on {
-      display: flex;
-    }
+  text-align:center;
 
-    .room-box {
-      width: min(440px, 94vw);
+  font-size:13px;
 
-      padding: 24px;
+  pointer-events:none;
 
-      border-radius: 24px;
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+}
 
-      background:
-        linear-gradient(
-          145deg,
-          rgba(90, 55, 25, 0.97),
-          rgba(25, 18, 12, 0.98)
-        );
+/* =========================
+   Start / Mode
+========================= */
 
-      border: 1px solid rgba(255, 220, 150, 0.35);
+#modePanel,
+#roomPanel,
+#gameOver{
+  position:fixed;
+  inset:0;
 
-      box-shadow:
-        0 25px 80px rgba(0, 0, 0, 0.55);
+  z-index:100;
 
-      color: white;
-    }
+  display:none;
 
-    .room-title {
-      font-size: 25px;
-      font-weight: 900;
-      margin-bottom: 8px;
-    }
+  align-items:center;
+  justify-content:center;
 
-    .room-subtitle {
-      color: #ddd;
-      font-size: 14px;
-      line-height: 1.6;
-      margin-bottom: 18px;
-    }
+  padding:18px;
 
-    .room-code {
-      display: flex;
-      align-items: center;
-      justify-content: center;
+  background:
+    rgba(0,0,0,.66);
 
-      min-height: 64px;
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+}
 
-      margin: 14px 0;
+#modePanel.on,
+#roomPanel.on,
+#gameOver.on{
+  display:flex;
+}
 
-      border-radius: 16px;
+.panel{
+  width:min(420px,94vw);
 
-      background: rgba(0, 0, 0, 0.35);
-      border: 1px solid rgba(255, 220, 150, 0.25);
+  padding:23px;
 
-      color: #ffd77a;
+  border-radius:24px;
 
-      font-size: 28px;
-      font-weight: 900;
-      letter-spacing: 4px;
-    }
+  color:#fff;
 
-    .room-row {
-      display: flex;
-      gap: 8px;
-      margin-top: 10px;
-    }
+  background:
+    linear-gradient(
+      145deg,
+      rgba(90,55,25,.98),
+      rgba(25,18,12,.99)
+    );
 
-    .room-row input {
-      flex: 1;
-      min-width: 0;
+  border:1px solid
+    rgba(255,220,150,.32);
 
-      height: 48px;
+  box-shadow:
+    0 25px 80px
+    rgba(0,0,0,.55);
+}
 
-      padding: 0 14px;
+.panel-title{
+  font-size:25px;
+  font-weight:900;
 
-      border: 0;
-      outline: none;
+  margin-bottom:7px;
+}
 
-      border-radius: 12px;
+.panel-subtitle{
+  color:#ddd;
 
-      background: rgba(255, 255, 255, 0.1);
+  font-size:13px;
 
-      color: white;
+  line-height:1.6;
 
-      font-size: 16px;
+  margin-bottom:18px;
+}
 
-      text-transform: uppercase;
-    }
+.mode-grid{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:10px;
+}
 
-    .room-row input::placeholder {
-      color: rgba(255, 255, 255, 0.5);
-    }
+.mode-button{
+  width:100%;
 
-    button {
-      border: 0;
-      cursor: pointer;
+  min-height:58px;
 
-      min-height: 46px;
+  text-align:left;
 
-      padding: 0 16px;
+  padding:0 17px;
 
-      border-radius: 12px;
+  font-size:15px;
+}
 
-      color: white;
+.mode-button span{
+  display:block;
 
-      background: rgba(255, 255, 255, 0.12);
+  margin-top:3px;
 
-      font-weight: 700;
-      font-size: 14px;
+  font-size:12px;
 
-      touch-action: manipulation;
-    }
+  font-weight:500;
 
-    button:active {
-      transform: scale(0.97);
-    }
+  opacity:.7;
+}
 
-    button.primary {
-      background:
-        linear-gradient(
-          135deg,
-          #c78b2c,
-          #8c5517
-        );
-    }
+.room-code{
+  display:flex;
 
-    button.red {
-      background:
-        linear-gradient(
-          135deg,
-          #a63b32,
-          #6f201c
-        );
-    }
+  align-items:center;
+  justify-content:center;
 
-    .room-hint {
-      margin-top: 16px;
+  min-height:62px;
 
-      min-height: 22px;
+  margin:12px 0;
 
-      color: #ddd;
+  border-radius:16px;
 
-      font-size: 13px;
+  background:
+    rgba(0,0,0,.35);
 
-      line-height: 1.5;
+  border:1px solid
+    rgba(255,220,150,.22);
 
-      text-align: center;
-    }
+  color:#ffd77a;
 
-    #menu {
-      position: fixed;
+  font-size:27px;
 
-      z-index: 30;
+  font-weight:900;
 
-      right: 14px;
+  letter-spacing:4px;
+}
 
-      top:
-        calc(
-          64px +
-          env(safe-area-inset-top, 0px)
-        );
-    }
+.room-row{
+  display:flex;
 
-    #menu button {
-      background:
-        rgba(20, 15, 10, 0.78);
+  gap:8px;
 
-      border:
-        1px solid
-        rgba(255, 220, 150, 0.25);
-    }
+  margin-top:9px;
+}
 
-    #gameOver {
-      position: fixed;
-      inset: 0;
+.room-row input{
+  flex:1;
+  min-width:0;
 
-      z-index: 90;
+  height:46px;
 
-      display: none;
+  padding:0 13px;
 
-      align-items: center;
-      justify-content: center;
+  border:0;
+  outline:none;
 
-      background:
-        rgba(0, 0, 0, 0.55);
+  border-radius:12px;
 
-      backdrop-filter: blur(5px);
-      -webkit-backdrop-filter: blur(5px);
-    }
+  background:
+    rgba(255,255,255,.1);
 
-    #gameOver.on {
-      display: flex;
-    }
+  color:#fff;
 
-    .game-over-box {
-      padding: 30px;
+  font-size:16px;
 
-      width: min(380px, 90vw);
+  text-transform:uppercase;
+}
 
-      border-radius: 22px;
+.room-row input::placeholder{
+  color:
+    rgba(255,255,255,.45);
+}
 
-      text-align: center;
+.hint{
+  min-height:20px;
 
-      background:
-        rgba(30, 20, 10, 0.95);
+  margin-top:14px;
 
-      border:
-        1px solid
-        rgba(255, 220, 150, 0.3);
+  text-align:center;
 
-      color: white;
-    }
+  color:#ddd;
 
-    .game-over-title {
-      font-size: 30px;
-      font-weight: 900;
-      margin-bottom: 12px;
-    }
+  font-size:12px;
 
-    @media (max-width: 600px) {
-      .room-box {
-        padding: 20px;
-      }
+  line-height:1.5;
+}
 
-      .room-title {
-        font-size: 22px;
-      }
+/* =========================
+   Game Over
+========================= */
 
-      .room-row {
-        flex-wrap: wrap;
-      }
+.game-over-box{
+  width:min(360px,90vw);
 
-      .room-row input {
-        flex-basis: 100%;
-      }
+  padding:30px;
 
-      .room-row button {
-        flex: 1;
-      }
-    }
-  </style>
+  border-radius:22px;
 
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-        "peerjs": "https://esm.sh/peerjs@1.5.4?bundle"
-      }
-    }
-  </script>
+  text-align:center;
+
+  color:#fff;
+
+  background:
+    rgba(30,20,10,.96);
+
+  border:1px solid
+    rgba(255,220,150,.3);
+}
+
+.game-over-title{
+  font-size:29px;
+  font-weight:900;
+
+  margin-bottom:18px;
+}
+
+.game-over-box button{
+  margin:4px;
+}
+
+/* =========================
+   Start button
+========================= */
+
+#startGame{
+  position:fixed;
+
+  z-index:35;
+
+  left:50%;
+
+  transform:translateX(-50%);
+
+  bottom:
+    calc(
+      20px +
+      env(safe-area-inset-bottom,0px)
+    );
+
+  min-width:190px;
+
+  min-height:50px;
+
+  font-size:16px;
+
+  box-shadow:
+    0 8px 30px
+    rgba(0,0,0,.35);
+}
+
+#startGame.hidden{
+  display:none;
+}
+
+@media(max-width:600px){
+
+  .panel{
+    padding:20px;
+  }
+
+  .panel-title{
+    font-size:22px;
+  }
+
+  #gameTitle{
+    font-size:13px;
+  }
+
+  #turnText{
+    font-size:12px;
+  }
+
+  #bottomBar button{
+    padding:0 12px;
+    font-size:12px;
+  }
+}
+</style>
+
+<script type="importmap">
+{
+  "imports":{
+    "three":
+      "https://unpkg.com/three@0.160.0/build/three.module.js",
+
+    "peerjs":
+      "https://esm.sh/peerjs@1.5.4?bundle"
+  }
+}
+</script>
 </head>
 
 <body>
@@ -405,43 +500,128 @@
 
   <div id="hud">
 
-    <div class="hud-box" id="gameTitle">
-      🀄 楚河漢界
+    <div
+      class="hud-box"
+      id="gameTitle"
+    >
+      🀄 中國象棋
     </div>
 
-    <div class="hud-box" id="turnText">
-      紅方回合
+    <div
+      class="hud-box"
+      id="turnText"
+    >
+      紅方
     </div>
 
   </div>
 
-  <div id="menu">
-    <button id="btnRoom">
-      線上對戰
-    </button>
-  </div>
 
   <div id="message">
-    點擊棋子開始
+    準備開始
   </div>
 
-  <!-- Room -->
 
-  <div id="room" class="on">
+  <!-- 開始按鈕 -->
 
-    <div class="room-box">
+  <button
+    id="startGame"
+    class="primary"
+  >
+    開始遊戲
+  </button>
 
-      <div class="room-title">
-        🀄 中國象棋
+
+  <!-- 遊戲中控制 -->
+
+  <div id="bottomBar">
+
+    <button id="btnMode">
+      遊戲模式
+    </button>
+
+    <button id="btnRestart">
+      重新開始
+    </button>
+
+  </div>
+
+
+  <!-- 模式 -->
+
+  <div
+    id="modePanel"
+  >
+
+    <div class="panel">
+
+      <div class="panel-title">
+        🀄 選擇遊戲模式
       </div>
 
-      <div class="room-subtitle">
-        楚河漢界・3D 線上對戰
-        <br />
-        開房間執紅，另一位玩家加入後執黑。
+      <div class="panel-subtitle">
+        選擇你要進行的中國象棋遊戲。
       </div>
 
-      <div class="room-code" id="roomCode">
+      <div class="mode-grid">
+
+        <button
+          class="mode-button primary"
+          id="modeAI"
+        >
+          🤖 與電腦對戰
+          <span>
+            玩家執紅，電腦執黑
+          </span>
+        </button>
+
+        <button
+          class="mode-button"
+          id="modeOnline"
+        >
+          🌐 線上雙人
+          <span>
+            WebRTC・建立或加入房間
+          </span>
+        </button>
+
+        <button
+          class="mode-button"
+          id="modeLocal"
+        >
+          👥 單機雙人
+          <span>
+            同一台手機輪流對弈
+          </span>
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- 線上房間 -->
+
+  <div
+    id="roomPanel"
+  >
+
+    <div class="panel">
+
+      <div class="panel-title">
+        🌐 線上雙人
+      </div>
+
+      <div class="panel-subtitle">
+        建立房間執紅，加入房間執黑。
+      </div>
+
+      <div
+        class="room-code"
+        id="roomCode"
+      >
         ------
       </div>
 
@@ -450,8 +630,9 @@
         <button
           class="primary"
           id="btnHost"
+          style="width:100%"
         >
-          開房間（執紅）
+          建立房間（紅方）
         </button>
 
       </div>
@@ -465,43 +646,42 @@
           placeholder="例如 AV7K29PQ"
           autocomplete="off"
           spellcheck="false"
-        />
+        >
 
         <button id="btnJoin">
-          加入（執黑）
+          加入
         </button>
 
       </div>
 
       <div class="room-row">
 
-        <button id="btnLocal">
-          本機雙人
-        </button>
-
         <button
-          class="red"
-          id="btnRoomClose"
+          id="btnRoomBack"
+          style="width:100%"
         >
-          關閉
+          返回
         </button>
 
       </div>
 
       <div
-        class="room-hint"
+        class="hint"
         id="roomHint"
       >
-        走 WebRTC，兩人都要開著這個頁面。
+        兩位玩家都需要保持頁面開啟。
       </div>
 
     </div>
 
   </div>
 
+
   <!-- Game Over -->
 
-  <div id="gameOver">
+  <div
+    id="gameOver"
+  >
 
     <div class="game-over-box">
 
@@ -514,13 +694,13 @@
 
       <button
         class="primary"
-        id="btnRestart"
+        id="btnOverRestart"
       >
-        重新開始
+        再來一局
       </button>
 
-      <button id="btnBackRoom">
-        回到房間
+      <button id="btnOverMode">
+        選擇模式
       </button>
 
     </div>
@@ -529,6 +709,7 @@
 
 </div>
 
+
 <script type="module">
 
 import * as THREE from 'three';
@@ -536,22 +717,27 @@ import { Peer } from 'peerjs';
 
 
 /* =========================================================
-   基本設定
+   視覺設定
 ========================================================= */
 
-const BASE_BOARD_WIDTH = 8;
-const BASE_BOARD_HEIGHT = 9;
-
 /*
-  棋子稍微縮小。
-  座標系統完全不動。
+  這次不直接縮放世界座標。
+  使用相機 framing，
+  因此觸控座標與棋盤座標完全一致。
+
+  整體比上一版再縮小。
 */
-const PIECE_RADIUS = 0.38;
-const PIECE_HEIGHT = 0.16;
+
+const CAMERA_Y = 13.8;
+const CAMERA_Z = 17.8;
+const CAMERA_FOV = 42;
+
+const PIECE_RADIUS = 0.34;
+const PIECE_HEIGHT = 0.15;
 
 
 /* =========================================================
-   Three.js
+   Three
 ========================================================= */
 
 let scene;
@@ -564,18 +750,16 @@ let piecesGroup;
 let raycaster;
 let pointer;
 
-let animationFrame;
-
 
 /* =========================================================
    Network
 ========================================================= */
 
 let net = {
-  peer: null,
-  conn: null,
-  role: null,
-  room: null
+  peer:null,
+  conn:null,
+  role:null,
+  room:null
 };
 
 
@@ -583,13 +767,17 @@ let net = {
    Game
 ========================================================= */
 
-let gameMode = 'local';
+let gameMode = 'none';
 
 let currentTurn = 'red';
 
-let selected = null;
+let selectedId = null;
 
 let gameOver = false;
+
+let gameStarted = false;
+
+let aiThinking = false;
 
 
 /* =========================================================
@@ -598,283 +786,64 @@ let gameOver = false;
 
 const BOARD = {
 
-  left: -4,
+  left:-4,
 
-  right: 4,
+  right:4,
 
-  top: 5,
+  top:5,
 
-  bottom: -4,
+  bottom:-4,
 
-  width: 8,
+  width:8,
 
-  height: 9
+  height:9
 
 };
 
 
 /* =========================================================
-   Initial Pieces
+   Piece definitions
 ========================================================= */
 
-const initialPieces = [
+const PIECES = [
 
-  {
-    id:'r_rook_1',
-    type:'rook',
-    color:'red',
-    x:0,
-    y:0
-  },
+  {id:'r_rook_1',type:'rook',color:'red',x:0,y:0},
+  {id:'r_horse_1',type:'horse',color:'red',x:1,y:0},
+  {id:'r_elephant_1',type:'elephant',color:'red',x:2,y:0},
+  {id:'r_advisor_1',type:'advisor',color:'red',x:3,y:0},
+  {id:'r_general',type:'general',color:'red',x:4,y:0},
+  {id:'r_advisor_2',type:'advisor',color:'red',x:5,y:0},
+  {id:'r_elephant_2',type:'elephant',color:'red',x:6,y:0},
+  {id:'r_horse_2',type:'horse',color:'red',x:7,y:0},
+  {id:'r_rook_2',type:'rook',color:'red',x:8,y:0},
 
-  {
-    id:'r_horse_1',
-    type:'horse',
-    color:'red',
-    x:1,
-    y:0
-  },
+  {id:'r_cannon_1',type:'cannon',color:'red',x:1,y:2},
+  {id:'r_cannon_2',type:'cannon',color:'red',x:7,y:2},
 
-  {
-    id:'r_elephant_1',
-    type:'elephant',
-    color:'red',
-    x:2,
-    y:0
-  },
+  {id:'r_pawn_1',type:'pawn',color:'red',x:0,y:3},
+  {id:'r_pawn_2',type:'pawn',color:'red',x:2,y:3},
+  {id:'r_pawn_3',type:'pawn',color:'red',x:4,y:3},
+  {id:'r_pawn_4',type:'pawn',color:'red',x:6,y:3},
+  {id:'r_pawn_5',type:'pawn',color:'red',x:8,y:3},
 
-  {
-    id:'r_advisor_1',
-    type:'advisor',
-    color:'red',
-    x:3,
-    y:0
-  },
+  {id:'b_rook_1',type:'rook',color:'black',x:0,y:9},
+  {id:'b_horse_1',type:'horse',color:'black',x:1,y:9},
+  {id:'b_elephant_1',type:'elephant',color:'black',x:2,y:9},
+  {id:'b_advisor_1',type:'advisor',color:'black',x:3,y:9},
+  {id:'b_general',type:'general',color:'black',x:4,y:9},
+  {id:'b_advisor_2',type:'advisor',color:'black',x:5,y:9},
+  {id:'b_elephant_2',type:'elephant',color:'black',x:6,y:9},
+  {id:'b_horse_2',type:'horse',color:'black',x:7,y:9},
+  {id:'b_rook_2',type:'rook',color:'black',x:8,y:9},
 
-  {
-    id:'r_general',
-    type:'general',
-    color:'red',
-    x:4,
-    y:0
-  },
+  {id:'b_cannon_1',type:'cannon',color:'black',x:1,y:7},
+  {id:'b_cannon_2',type:'cannon',color:'black',x:7,y:7},
 
-  {
-    id:'r_advisor_2',
-    type:'advisor',
-    color:'red',
-    x:5,
-    y:0
-  },
-
-  {
-    id:'r_elephant_2',
-    type:'elephant',
-    color:'red',
-    x:6,
-    y:0
-  },
-
-  {
-    id:'r_horse_2',
-    type:'horse',
-    color:'red',
-    x:7,
-    y:0
-  },
-
-  {
-    id:'r_rook_2',
-    type:'rook',
-    color:'red',
-    x:8,
-    y:0
-  },
-
-  {
-    id:'r_cannon_1',
-    type:'cannon',
-    color:'red',
-    x:1,
-    y:2
-  },
-
-  {
-    id:'r_cannon_2',
-    type:'cannon',
-    color:'red',
-    x:7,
-    y:2
-  },
-
-  {
-    id:'r_pawn_1',
-    type:'pawn',
-    color:'red',
-    x:0,
-    y:3
-  },
-
-  {
-    id:'r_pawn_2',
-    type:'pawn',
-    color:'red',
-    x:2,
-    y:3
-  },
-
-  {
-    id:'r_pawn_3',
-    type:'pawn',
-    color:'red',
-    x:4,
-    y:3
-  },
-
-  {
-    id:'r_pawn_4',
-    type:'pawn',
-    color:'red',
-    x:6,
-    y:3
-  },
-
-  {
-    id:'r_pawn_5',
-    type:'pawn',
-    color:'red',
-    x:8,
-    y:3
-  },
-
-
-  {
-    id:'b_rook_1',
-    type:'rook',
-    color:'black',
-    x:0,
-    y:9
-  },
-
-  {
-    id:'b_horse_1',
-    type:'horse',
-    color:'black',
-    x:1,
-    y:9
-  },
-
-  {
-    id:'b_elephant_1',
-    type:'elephant',
-    color:'black',
-    x:2,
-    y:9
-  },
-
-  {
-    id:'b_advisor_1',
-    type:'advisor',
-    color:'black',
-    x:3,
-    y:9
-  },
-
-  {
-    id:'b_general',
-    type:'general',
-    color:'black',
-    x:4,
-    y:9
-  },
-
-  {
-    id:'b_advisor_2',
-    type:'advisor',
-    color:'black',
-    x:5,
-    y:9
-  },
-
-  {
-    id:'b_elephant_2',
-    type:'elephant',
-    color:'black',
-    x:6,
-    y:9
-  },
-
-  {
-    id:'b_horse_2',
-    type:'horse',
-    color:'black',
-    x:7,
-    y:9
-  },
-
-  {
-    id:'b_rook_2',
-    type:'rook',
-    color:'black',
-    x:8,
-    y:9
-  },
-
-  {
-    id:'b_cannon_1',
-    type:'cannon',
-    color:'black',
-    x:1,
-    y:7
-  },
-
-  {
-    id:'b_cannon_2',
-    type:'cannon',
-    color:'black',
-    x:7,
-    y:7
-  },
-
-  {
-    id:'b_pawn_1',
-    type:'pawn',
-    color:'black',
-    x:0,
-    y:6
-  },
-
-  {
-    id:'b_pawn_2',
-    type:'pawn',
-    color:'black',
-    x:2,
-    y:6
-  },
-
-  {
-    id:'b_pawn_3',
-    type:'pawn',
-    color:'black',
-    x:4,
-    y:6
-  },
-
-  {
-    id:'b_pawn_4',
-    type:'pawn',
-    color:'black',
-    x:6,
-    y:6
-  },
-
-  {
-    id:'b_pawn_5',
-    type:'pawn',
-    color:'black',
-    x:8,
-    y:6
-  }
+  {id:'b_pawn_1',type:'pawn',color:'black',x:0,y:6},
+  {id:'b_pawn_2',type:'pawn',color:'black',x:2,y:6},
+  {id:'b_pawn_3',type:'pawn',color:'black',x:4,y:6},
+  {id:'b_pawn_4',type:'pawn',color:'black',x:6,y:6},
+  {id:'b_pawn_5',type:'pawn',color:'black',x:8,y:6}
 
 ];
 
@@ -882,66 +851,48 @@ let pieces = [];
 
 
 /* =========================================================
-   Piece Text
+   Chinese characters
 ========================================================= */
 
 const pieceText = {
 
-  red: {
-
+  red:{
     general:'帥',
-
     advisor:'仕',
-
     elephant:'相',
-
     horse:'傌',
-
     rook:'俥',
-
     cannon:'炮',
-
     pawn:'兵'
-
   },
 
-  black: {
-
+  black:{
     general:'將',
-
     advisor:'士',
-
     elephant:'象',
-
     horse:'馬',
-
     rook:'車',
-
     cannon:'砲',
-
     pawn:'卒'
-
   }
 
 };
 
 
 /* =========================================================
-   Start
+   Init
 ========================================================= */
 
-initThree();
+init();
 
 resetGame();
 
-animate();
-
 
 /* =========================================================
-   Three Initialization
+   Init Three
 ========================================================= */
 
-function initThree() {
+function init(){
 
   scene =
     new THREE.Scene();
@@ -955,7 +906,7 @@ function initThree() {
   camera =
     new THREE.PerspectiveCamera(
 
-      38,
+      CAMERA_FOV,
 
       window.innerWidth /
       window.innerHeight,
@@ -967,34 +918,21 @@ function initThree() {
     );
 
 
-  /*
-    關鍵：
-    相機往後拉。
-
-    棋盤會在手機畫面中
-    顯得更小、更完整。
-
-    不改世界座標，
-    所以不會破壞點擊與走棋。
-  */
-
   camera.position.set(
 
     0,
 
-    11.8,
+    CAMERA_Y,
 
-    14.2
+    CAMERA_Z
 
   );
 
 
   camera.lookAt(
-
     0,
     0,
     0
-
   );
 
 
@@ -1021,7 +959,6 @@ function initThree() {
   renderer.setSize(
 
     window.innerWidth,
-
     window.innerHeight
 
   );
@@ -1029,6 +966,10 @@ function initThree() {
 
   renderer.shadowMap.enabled =
     true;
+
+
+  renderer.shadowMap.type =
+    THREE.PCFSoftShadowMap;
 
 
   document
@@ -1040,12 +981,10 @@ function initThree() {
 
   const ambient =
     new THREE.AmbientLight(
-
       0xffffff,
-
-      1.8
-
+      1.9
     );
+
 
   scene.add(
     ambient
@@ -1054,20 +993,15 @@ function initThree() {
 
   const light =
     new THREE.DirectionalLight(
-
       0xffffff,
-
-      2.5
-
+      2.7
     );
 
 
   light.position.set(
-
-    4,
-    12,
-    8
-
+    5,
+    15,
+    9
   );
 
 
@@ -1101,30 +1035,27 @@ function initThree() {
 
 
   renderer.domElement.addEventListener(
-
     'pointerdown',
-
     onPointerDown
-
   );
 
 
   window.addEventListener(
-
     'resize',
-
     resize
-
   );
+
+
+  animate();
 
 }
 
 
 /* =========================================================
-   Create Board
+   Board
 ========================================================= */
 
-function createBoard() {
+function createBoard(){
 
   boardGroup =
     new THREE.Group();
@@ -1135,40 +1066,28 @@ function createBoard() {
   );
 
 
-  const boardGeometry =
-    new THREE.BoxGeometry(
-
-      9.8,
-
-      0.55,
-
-      10.8
-
-    );
-
-
-  const boardMaterial =
-    new THREE.MeshStandardMaterial({
-
-      color:0x6b3f1f,
-
-      roughness:0.65
-
-    });
-
-
   const board =
     new THREE.Mesh(
 
-      boardGeometry,
+      new THREE.BoxGeometry(
+        9.7,
+        .55,
+        10.7
+      ),
 
-      boardMaterial
+      new THREE.MeshStandardMaterial({
+
+        color:0x6b3f1f,
+
+        roughness:.66
+
+      })
 
     );
 
 
   board.position.y =
-    -0.35;
+    -.35;
 
 
   board.receiveShadow =
@@ -1180,7 +1099,7 @@ function createBoard() {
   );
 
 
-  const material =
+  const lineMaterial =
     new THREE.LineBasicMaterial({
 
       color:0x1f1008
@@ -1188,56 +1107,42 @@ function createBoard() {
     });
 
 
-  /*
-    Horizontal lines
-  */
+  /* horizontal */
 
-  for (
-    let y = 0;
-    y < 10;
+  for(
+    let y=0;
+    y<10;
     y++
-  ) {
+  ){
 
     const z =
-      BOARD.top - y;
-
-
-    const points = [
-
-      new THREE.Vector3(
-
-        BOARD.left,
-        0,
-        z
-
-      ),
-
-      new THREE.Vector3(
-
-        BOARD.right,
-        0,
-        z
-
-      )
-
-    ];
+      BOARD.top-y;
 
 
     const geometry =
       new THREE.BufferGeometry()
-        .setFromPoints(
-          points
-        );
+        .setFromPoints([
+
+          new THREE.Vector3(
+            BOARD.left,
+            0,
+            z
+          ),
+
+          new THREE.Vector3(
+            BOARD.right,
+            0,
+            z
+          )
+
+        ]);
 
 
     boardGroup.add(
 
       new THREE.Line(
-
         geometry,
-
-        material
-
+        lineMaterial
       )
 
     );
@@ -1245,56 +1150,42 @@ function createBoard() {
   }
 
 
-  /*
-    Vertical lines
-  */
+  /* vertical */
 
-  for (
-    let x = 0;
-    x < 9;
+  for(
+    let x=0;
+    x<9;
     x++
-  ) {
+  ){
 
     const xx =
-      BOARD.left + x;
-
-
-    const points = [
-
-      new THREE.Vector3(
-
-        xx,
-        0,
-        BOARD.top
-
-      ),
-
-      new THREE.Vector3(
-
-        xx,
-        0,
-        BOARD.bottom
-
-      )
-
-    ];
+      BOARD.left+x;
 
 
     const geometry =
       new THREE.BufferGeometry()
-        .setFromPoints(
-          points
-        );
+        .setFromPoints([
+
+          new THREE.Vector3(
+            xx,
+            0,
+            BOARD.top
+          ),
+
+          new THREE.Vector3(
+            xx,
+            0,
+            BOARD.bottom
+          )
+
+        ]);
 
 
     boardGroup.add(
 
       new THREE.Line(
-
         geometry,
-
-        material
-
+        lineMaterial
       )
 
     );
@@ -1303,88 +1194,11 @@ function createBoard() {
 
 
   addPalace(0);
-
   addPalace(7);
 
   createRiver();
 
-
-  const starPositions = [
-
-    [1,2],
-    [7,2],
-
-    [1,7],
-    [7,7],
-
-    [0,3],
-    [2,3],
-    [4,3],
-    [6,3],
-    [8,3],
-
-    [0,6],
-    [2,6],
-    [4,6],
-    [6,6],
-    [8,6]
-
-  ];
-
-
-  const starMaterial =
-    new THREE.MeshStandardMaterial({
-
-      color:0x241209
-
-    });
-
-
-  for (
-    const [x,y]
-    of starPositions
-  ) {
-
-    const geometry =
-      new THREE.CylinderGeometry(
-
-        0.055,
-
-        0.055,
-
-        0.02,
-
-        12
-
-      );
-
-
-    const dot =
-      new THREE.Mesh(
-
-        geometry,
-
-        starMaterial
-
-      );
-
-
-    dot.position.set(
-
-      BOARD.left + x,
-
-      0.02,
-
-      BOARD.top - y
-
-    );
-
-
-    boardGroup.add(
-      dot
-    );
-
-  }
+  createStars();
 
 }
 
@@ -1393,7 +1207,7 @@ function createBoard() {
    Palace
 ========================================================= */
 
-function addPalace(startY) {
+function addPalace(startY){
 
   const material =
     new THREE.LineBasicMaterial({
@@ -1404,76 +1218,54 @@ function addPalace(startY) {
 
 
   const z1 =
-    BOARD.top - startY;
+    BOARD.top-startY;
 
 
   const z2 =
-    BOARD.top -
-    startY -
-    2;
+    BOARD.top-startY-2;
 
 
-  const p1 =
+  const a =
     new THREE.Vector3(
-
-      BOARD.left + 3,
-      0.02,
+      BOARD.left+3,
+      .02,
       z1
-
     );
 
 
-  const p2 =
+  const b =
     new THREE.Vector3(
-
-      BOARD.left + 5,
-      0.02,
+      BOARD.left+5,
+      .02,
       z2
-
     );
 
 
-  const p3 =
+  const c =
     new THREE.Vector3(
-
-      BOARD.left + 5,
-      0.02,
+      BOARD.left+5,
+      .02,
       z1
-
     );
 
 
-  const p4 =
+  const d =
     new THREE.Vector3(
-
-      BOARD.left + 3,
-      0.02,
+      BOARD.left+3,
+      .02,
       z2
-
     );
-
-
-  const g1 =
-    new THREE.BufferGeometry()
-      .setFromPoints([
-        p1,
-        p2
-      ]);
-
-
-  const g2 =
-    new THREE.BufferGeometry()
-      .setFromPoints([
-        p3,
-        p4
-      ]);
 
 
   boardGroup.add(
 
     new THREE.Line(
-      g1,
+
+      new THREE.BufferGeometry()
+        .setFromPoints([a,b]),
+
       material
+
     )
 
   );
@@ -1482,8 +1274,12 @@ function addPalace(startY) {
   boardGroup.add(
 
     new THREE.Line(
-      g2,
+
+      new THREE.BufferGeometry()
+        .setFromPoints([c,d]),
+
       material
+
     )
 
   );
@@ -1495,50 +1291,35 @@ function addPalace(startY) {
    River
 ========================================================= */
 
-function createRiver() {
-
-  const geometry =
-    new THREE.PlaneGeometry(
-
-      8.2,
-
-      1.8
-
-    );
-
-
-  const material =
-    new THREE.MeshStandardMaterial({
-
-      color:0x7c4d25,
-
-      roughness:0.85
-
-    });
-
+function createRiver(){
 
   const river =
     new THREE.Mesh(
 
-      geometry,
+      new THREE.PlaneGeometry(
+        8.1,
+        1.75
+      ),
 
-      material
+      new THREE.MeshStandardMaterial({
+
+        color:0x754a25,
+
+        roughness:.85
+
+      })
 
     );
 
 
   river.rotation.x =
-    -Math.PI / 2;
+    -Math.PI/2;
 
 
   river.position.set(
-
     0,
-
-    0.015,
-
-    0.5
-
+    .015,
+    .5
   );
 
 
@@ -1562,13 +1343,13 @@ function createRiver() {
 
 
 /* =========================================================
-   River Text
+   River text
 ========================================================= */
 
 function createRiverText(
   text,
   x
-) {
+){
 
   const canvas =
     document.createElement(
@@ -1585,18 +1366,14 @@ function createRiverText(
 
 
   const ctx =
-    canvas.getContext(
-      '2d'
-    );
+    canvas.getContext('2d');
 
 
   ctx.clearRect(
-
     0,
     0,
-    canvas.width,
-    canvas.height
-
+    512,
+    160
   );
 
 
@@ -1605,7 +1382,7 @@ function createRiverText(
 
 
   ctx.font =
-    'bold 110px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
+    'bold 110px "Noto Serif TC","Noto Sans TC",serif';
 
 
   ctx.textAlign =
@@ -1617,13 +1394,9 @@ function createRiverText(
 
 
   ctx.fillText(
-
     text,
-
     256,
-
     80
-
   );
 
 
@@ -1637,48 +1410,33 @@ function createRiverText(
     true;
 
 
-  const material =
-    new THREE.MeshBasicMaterial({
-
-      map:texture,
-
-      transparent:true
-
-    });
-
-
-  const geometry =
-    new THREE.PlaneGeometry(
-
-      1.8,
-
-      0.56
-
-    );
-
-
   const mesh =
     new THREE.Mesh(
 
-      geometry,
+      new THREE.PlaneGeometry(
+        1.8,
+        .56
+      ),
 
-      material
+      new THREE.MeshBasicMaterial({
+
+        map:texture,
+
+        transparent:true
+
+      })
 
     );
 
 
   mesh.rotation.x =
-    -Math.PI / 2;
+    -Math.PI/2;
 
 
   mesh.position.set(
-
     x,
-
-    0.04,
-
-    0.5
-
+    .04,
+    .5
   );
 
 
@@ -1690,14 +1448,91 @@ function createRiverText(
 
 
 /* =========================================================
-   Reset Game
+   Stars
 ========================================================= */
 
-function resetGame() {
+function createStars(){
+
+  const positions = [
+
+    [1,2],
+    [7,2],
+
+    [1,7],
+    [7,7],
+
+    [0,3],
+    [2,3],
+    [4,3],
+    [6,3],
+    [8,3],
+
+    [0,6],
+    [2,6],
+    [4,6],
+    [6,6],
+    [8,6]
+
+  ];
+
+
+  const material =
+    new THREE.MeshStandardMaterial({
+
+      color:0x241209
+
+    });
+
+
+  for(
+    const [x,y]
+    of positions
+  ){
+
+    const dot =
+      new THREE.Mesh(
+
+        new THREE.CylinderGeometry(
+          .055,
+          .055,
+          .02,
+          12
+        ),
+
+        material
+
+      );
+
+
+    dot.position.set(
+
+      BOARD.left+x,
+
+      .02,
+
+      BOARD.top-y
+
+    );
+
+
+    boardGroup.add(
+      dot
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   Reset
+========================================================= */
+
+function resetGame(){
 
   pieces =
     structuredClone(
-      initialPieces
+      PIECES
     );
 
 
@@ -1705,7 +1540,7 @@ function resetGame() {
     'red';
 
 
-  selected =
+  selectedId =
     null;
 
 
@@ -1713,13 +1548,8 @@ function resetGame() {
     false;
 
 
-  document
-    .getElementById(
-      'gameOver'
-    )
-    .classList.remove(
-      'on'
-    );
+  aiThinking =
+    false;
 
 
   renderPieces();
@@ -1727,53 +1557,61 @@ function resetGame() {
   updateTurn();
 
   setMsg(
-    '紅方回合'
+    gameStarted
+      ? '紅方回合'
+      : '棋局準備完成'
   );
+
+  document
+    .getElementById(
+      'gameOver'
+    )
+    .classList
+    .remove(
+      'on'
+    );
 
 }
 
 
 /* =========================================================
-   Render Pieces
+   Render
 ========================================================= */
 
-function renderPieces() {
+function renderPieces(){
 
-  while (
+  while(
     piecesGroup.children.length
-  ) {
+  ){
 
     const obj =
       piecesGroup.children.pop();
 
 
     obj.traverse(
-      child => {
+      child=>{
 
-        if (
+        if(
           child.geometry
-        ) {
-
+        )
           child.geometry.dispose();
 
-        }
 
-
-        if (
+        if(
           child.material
-        ) {
+        ){
 
-          if (
+          if(
             Array.isArray(
               child.material
             )
-          ) {
+          ){
 
             child.material.forEach(
-              m => m.dispose()
+              m=>m.dispose()
             );
 
-          } else {
+          }else{
 
             child.material.dispose();
 
@@ -1787,18 +1625,19 @@ function renderPieces() {
   }
 
 
-  for (
-    const p of pieces
-  ) {
+  for(
+    const piece
+    of pieces
+  ){
 
     const mesh =
-      createPieceMesh(
-        p
+      createPiece(
+        piece
       );
 
 
     mesh.userData.pieceId =
-      p.id;
+      piece.id;
 
 
     piecesGroup.add(
@@ -1806,9 +1645,9 @@ function renderPieces() {
     );
 
 
-    updatePiecePosition(
+    setPiecePosition(
       mesh,
-      p
+      piece
     );
 
   }
@@ -1817,61 +1656,57 @@ function renderPieces() {
 
 
 /* =========================================================
-   Create Piece
+   Create piece
 ========================================================= */
 
-function createPieceMesh(
+function createPiece(
   piece
-) {
+){
 
   const group =
     new THREE.Group();
 
 
-  const color =
-    piece.color === 'red'
+  const red =
+    piece.color === 'red';
+
+
+  const bodyColor =
+    red
       ? 0xb22d24
       : 0x222222;
 
 
   const edgeColor =
-    piece.color === 'red'
+    red
       ? 0xf0a25a
       : 0xbebebe;
-
-
-  const geometry =
-    new THREE.CylinderGeometry(
-
-      PIECE_RADIUS,
-
-      PIECE_RADIUS,
-
-      PIECE_HEIGHT,
-
-      48
-
-    );
-
-
-  const material =
-    new THREE.MeshStandardMaterial({
-
-      color,
-
-      roughness:0.3,
-
-      metalness:0.15
-
-    });
 
 
   const body =
     new THREE.Mesh(
 
-      geometry,
+      new THREE.CylinderGeometry(
 
-      material
+        PIECE_RADIUS,
+
+        PIECE_RADIUS,
+
+        PIECE_HEIGHT,
+
+        48
+
+      ),
+
+      new THREE.MeshStandardMaterial({
+
+        color:bodyColor,
+
+        roughness:.28,
+
+        metalness:.12
+
+      })
 
     );
 
@@ -1885,43 +1720,34 @@ function createPieceMesh(
   );
 
 
-  const topGeometry =
-    new THREE.CylinderGeometry(
-
-      PIECE_RADIUS * 0.9,
-
-      PIECE_RADIUS * 0.9,
-
-      0.025,
-
-      48
-
-    );
-
-
-  const topMaterial =
-    new THREE.MeshStandardMaterial({
-
-      color:edgeColor,
-
-      roughness:0.45
-
-    });
-
-
   const top =
     new THREE.Mesh(
 
-      topGeometry,
+      new THREE.CylinderGeometry(
 
-      topMaterial
+        PIECE_RADIUS*.91,
+
+        PIECE_RADIUS*.91,
+
+        .026,
+
+        48
+
+      ),
+
+      new THREE.MeshStandardMaterial({
+
+        color:edgeColor,
+
+        roughness:.42
+
+      })
 
     );
 
 
   top.position.y =
-    PIECE_HEIGHT / 2 +
-    0.015;
+    PIECE_HEIGHT/2+.015;
 
 
   group.add(
@@ -1944,20 +1770,17 @@ function createPieceMesh(
 
 
   text.position.y =
-    PIECE_HEIGHT / 2 +
-    0.035;
+    PIECE_HEIGHT/2+.035;
 
 
   text.rotation.x =
-    -Math.PI / 2;
+    -Math.PI/2;
 
 
   text.scale.set(
-
-    0.68,
-    0.68,
-    0.68
-
+    .63,
+    .63,
+    .63
   );
 
 
@@ -1972,13 +1795,13 @@ function createPieceMesh(
 
 
 /* =========================================================
-   Piece Text
+   Piece text
 ========================================================= */
 
 function createPieceText(
   text,
   color
-) {
+){
 
   const canvas =
     document.createElement(
@@ -2001,12 +1824,10 @@ function createPieceText(
 
 
   ctx.clearRect(
-
     0,
     0,
     256,
     256
-
   );
 
 
@@ -2019,23 +1840,19 @@ function createPieceText(
 
 
   ctx.font =
-    'bold 150px "Noto Serif TC", "Noto Sans TC", serif';
+    'bold 150px "Noto Serif TC","Noto Sans TC",serif';
 
 
   ctx.fillStyle =
     color === 'red'
       ? '#7c160f'
-      : '#111111';
+      : '#111';
 
 
   ctx.fillText(
-
     text,
-
     128,
-
     128
-
   );
 
 
@@ -2049,31 +1866,20 @@ function createPieceText(
     true;
 
 
-  const material =
+  return new THREE.Mesh(
+
+    new THREE.PlaneGeometry(
+      .75,
+      .75
+    ),
+
     new THREE.MeshBasicMaterial({
 
       map:texture,
 
       transparent:true
 
-    });
-
-
-  const geometry =
-    new THREE.PlaneGeometry(
-
-      0.75,
-
-      0.75
-
-    );
-
-
-  return new THREE.Mesh(
-
-    geometry,
-
-    material
+    })
 
   );
 
@@ -2081,21 +1887,21 @@ function createPieceText(
 
 
 /* =========================================================
-   Piece Position
+   Position
 ========================================================= */
 
-function updatePiecePosition(
+function setPiecePosition(
   mesh,
   piece
-) {
+){
 
   mesh.position.set(
 
-    BOARD.left + piece.x,
+    BOARD.left+piece.x,
 
-    0.18,
+    .18,
 
-    BOARD.top - piece.y
+    BOARD.top-piece.y
 
   );
 
@@ -2103,17 +1909,33 @@ function updatePiecePosition(
 
 
 /* =========================================================
-   Pointer
+   Touch
 ========================================================= */
 
 function onPointerDown(
   event
-) {
+){
 
-  if (
-    gameOver
+  if(
+    !gameStarted ||
+    gameOver ||
+    aiThinking
   )
     return;
+
+
+  if(
+    gameMode === 'online' &&
+    !isMyTurn()
+  ){
+
+    setMsg(
+      '現在不是你的回合'
+    );
+
+    return;
+
+  }
 
 
   const rect =
@@ -2128,7 +1950,7 @@ function onPointerDown(
         rect.left
       ) /
       rect.width
-    ) * 2 - 1;
+    )*2-1;
 
 
   pointer.y =
@@ -2138,42 +1960,34 @@ function onPointerDown(
         rect.top
       ) /
       rect.height
-    ) * 2 + 1;
+    )*2+1;
 
 
   raycaster.setFromCamera(
-
     pointer,
-
     camera
-
   );
 
 
   const hits =
     raycaster.intersectObjects(
-
       piecesGroup.children,
-
       true
-
     );
 
 
-  if (
+  if(
     hits.length
-  ) {
+  ){
 
     let obj =
       hits[0].object;
 
 
-    while (
-
+    while(
       obj.parent &&
       !obj.userData.pieceId
-
-    ) {
+    ){
 
       obj =
         obj.parent;
@@ -2181,14 +1995,12 @@ function onPointerDown(
     }
 
 
-    if (
+    if(
       obj.userData.pieceId
-    ) {
+    ){
 
-      handlePieceClick(
-
+      clickPiece(
         obj.userData.pieceId
-
       );
 
       return;
@@ -2198,46 +2010,38 @@ function onPointerDown(
   }
 
 
-  const boardHits =
-    raycaster.intersectObject(
+  if(
+    selectedId
+  ){
 
-      boardGroup,
-
-      true
-
-    );
-
-
-  if (
-
-    boardHits.length &&
-    selected
-
-  ) {
-
-    const point =
-      boardHits[0].point;
-
-
-    const pos =
-      worldToBoard(
-        point
+    const boardHits =
+      raycaster.intersectObject(
+        boardGroup,
+        true
       );
 
 
-    if (
-      pos
-    ) {
+    if(
+      boardHits.length
+    ){
 
-      tryMove(
+      const pos =
+        worldToBoard(
+          boardHits[0].point
+        );
 
-        selected,
 
-        pos.x,
+      if(
+        pos
+      ){
 
-        pos.y
+        makeMoveFromUser(
+          selectedId,
+          pos.x,
+          pos.y
+        );
 
-      );
+      }
 
     }
 
@@ -2247,34 +2051,27 @@ function onPointerDown(
 
 
 /* =========================================================
-   Piece Click
+   Piece click
 ========================================================= */
 
-function handlePieceClick(
+function clickPiece(
   id
-) {
+){
 
   const piece =
-    pieces.find(
-
-      p =>
-        p.id === id
-
-    );
+    findPiece(id);
 
 
-  if (
+  if(
     !piece
   )
     return;
 
 
-  if (
-
+  if(
     gameMode === 'online' &&
     !isMyTurn()
-
-  ) {
+  ){
 
     setMsg(
       '現在不是你的回合'
@@ -2285,19 +2082,15 @@ function handlePieceClick(
   }
 
 
-  if (
+  if(
+    piece.color === currentTurn
+  ){
 
-    piece.color ===
-    currentTurn
-
-  ) {
-
-    selected =
+    selectedId =
       piece.id;
 
 
     setMsg(
-
       `已選擇 ${
         pieceText[
           piece.color
@@ -2305,7 +2098,6 @@ function handlePieceClick(
           piece.type
         ]
       }`
-
     );
 
 
@@ -2314,18 +2106,14 @@ function handlePieceClick(
   }
 
 
-  if (
-    selected
-  ) {
+  if(
+    selectedId
+  ){
 
-    tryMove(
-
-      selected,
-
+    makeMoveFromUser(
+      selectedId,
       piece.x,
-
       piece.y
-
     );
 
   }
@@ -2334,76 +2122,41 @@ function handlePieceClick(
 
 
 /* =========================================================
-   Try Move
+   User move
 ========================================================= */
 
-function tryMove(
-  pieceId,
-  tx,
-  ty
-) {
+function makeMoveFromUser(
+  id,
+  x,
+  y
+){
 
   const piece =
-    pieces.find(
-
-      p =>
-        p.id === pieceId
-
-    );
+    findPiece(id);
 
 
-  if (
+  if(
     !piece
   )
     return;
 
 
-  if (
-    piece.color !== currentTurn
-  ) {
-
-    selected =
-      null;
-
-    return;
-
-  }
-
-
-  if (
-
-    tx < 0 ||
-    tx > 8 ||
-    ty < 0 ||
-    ty > 9
-
-  ) {
-
-    setMsg(
-      '不能走到棋盤外'
-    );
-
-    return;
-
-  }
-
-
-  if (
-
-    !isLegalMove(
-
+  const result =
+    applyMove(
+      pieces,
       piece,
+      x,
+      y
+    );
 
-      tx,
 
-      ty
-
-    )
-
-  ) {
+  if(
+    !result.ok
+  ){
 
     setMsg(
-      '這一步不符合象棋規則'
+      result.reason ||
+      '這一步不能走'
     );
 
     return;
@@ -2411,113 +2164,18 @@ function tryMove(
   }
 
 
-  const target =
-    getPieceAt(
-
-      tx,
-
-      ty
-
-    );
+  pieces =
+    result.pieces;
 
 
-  if (
-    target
-  ) {
-
-    if (
-      target.color ===
-      piece.color
-    ) {
-
-      setMsg(
-        '不能吃自己的棋子'
-      );
-
-      return;
-
-    }
-
-
-    if (
-      target.type ===
-      'general'
-    ) {
-
-      gameOver =
-        true;
-
-
-      movePiece(
-
-        piece,
-
-        tx,
-
-        ty
-
-      );
-
-
-      renderPieces();
-
-
-      showGameOver(
-
-        piece.color === 'red'
-          ? '紅方勝利'
-          : '黑方勝利'
-
-      );
-
-
-      sendMove(
-
-        piece.id,
-
-        tx,
-
-        ty
-
-      );
-
-
-      return;
-
-    }
-
-
-    pieces =
-      pieces.filter(
-
-        p =>
-          p.id !==
-          target.id
-
-      );
-
-  }
-
-
-  movePiece(
-
-    piece,
-
-    tx,
-
-    ty
-
-  );
+  selectedId =
+    null;
 
 
   currentTurn =
-    currentTurn === 'red'
-      ? 'black'
-      : 'red';
-
-
-  selected =
-    null;
+    opposite(
+      currentTurn
+    );
 
 
   renderPieces();
@@ -2525,53 +2183,184 @@ function tryMove(
   updateTurn();
 
 
-  sendMove(
+  if(
+    gameMode === 'online'
+  ){
 
-    piece.id,
+    sendMove({
 
-    tx,
+      pieceId:id,
 
-    ty
+      x,
 
-  );
+      y
 
-}
+    });
+
+  }
 
 
-/* =========================================================
-   Move Piece
-========================================================= */
-
-function movePiece(
-  piece,
-  x,
-  y
-) {
-
-  piece.x =
-    x;
-
-  piece.y =
-    y;
+  checkAfterMove();
 
 }
 
 
 /* =========================================================
-   Xiangqi Basic Rules
+   Apply move
 ========================================================= */
 
-function isLegalMove(
+function applyMove(
+  state,
   piece,
   tx,
   ty
-) {
+){
+
+  if(
+    tx<0 ||
+    tx>8 ||
+    ty<0 ||
+    ty>9
+  ){
+
+    return {
+      ok:false,
+      reason:'不能走到棋盤外'
+    };
+
+  }
+
+
+  if(
+    piece.color !==
+    currentTurn
+  ){
+
+    return {
+      ok:false,
+      reason:'不是你的回合'
+    };
+
+  }
+
+
+  if(
+    !basicMoveLegal(
+      state,
+      piece,
+      tx,
+      ty
+    )
+  ){
+
+    return {
+      ok:false,
+      reason:'這一步不符合象棋規則'
+    };
+
+  }
+
+
+  const target =
+    getPieceAtState(
+      state,
+      tx,
+      ty
+    );
+
+
+  let next =
+    structuredClone(
+      state
+    );
+
+
+  const moving =
+    next.find(
+      p=>p.id===piece.id
+    );
+
+
+  if(
+    target
+  ){
+
+    next =
+      next.filter(
+        p=>p.id!==target.id
+      );
+
+  }
+
+
+  moving.x =
+    tx;
+
+  moving.y =
+    ty;
+
+
+  /*
+    不允許自己的將被吃。
+  */
+
+  if(
+    isInCheck(
+      next,
+      piece.color
+    )
+  ){
+
+    return {
+      ok:false,
+      reason:'不能讓自己的將受到攻擊'
+    };
+
+  }
+
+
+  /*
+    將帥照面。
+  */
+
+  if(
+    generalsFace(
+      next
+    )
+  ){
+
+    return {
+      ok:false,
+      reason:'將帥不能照面'
+    };
+
+  }
+
+
+  return {
+    ok:true,
+    pieces:next
+  };
+
+}
+
+
+/* =========================================================
+   Basic move rules
+========================================================= */
+
+function basicMoveLegal(
+  state,
+  piece,
+  tx,
+  ty
+){
 
   const dx =
-    tx - piece.x;
+    tx-piece.x;
 
   const dy =
-    ty - piece.y;
+    ty-piece.y;
 
   const ax =
     Math.abs(dx);
@@ -2581,327 +2370,223 @@ function isLegalMove(
 
 
   const target =
-    getPieceAt(
+    getPieceAtState(
+      state,
       tx,
       ty
     );
 
 
-  if (
-
+  if(
     target &&
     target.color ===
     piece.color
-
-  ) {
+  ){
 
     return false;
 
   }
 
 
-  switch (
+  switch(
     piece.type
-  ) {
+  ){
 
+    case 'general':{
 
-    /* General */
-
-    case 'general': {
-
-      if (
-        ax + ay !== 1
-      ) {
-
-        return false;
-
-      }
-
-
-      const inPalace =
-
-        piece.color === 'red'
-
-          ? tx >= 3 &&
-            tx <= 5 &&
-            ty >= 0 &&
-            ty <= 2
-
-          : tx >= 3 &&
-            tx <= 5 &&
-            ty >= 7 &&
-            ty <= 9;
-
-
-      if (
-        !inPalace
+      if(
+        ax+ay!==1
       )
         return false;
 
 
-      return true;
-
-    }
-
-
-    /* Advisor */
-
-    case 'advisor': {
-
-      if (
-
-        ax !== 1 ||
-        ay !== 1
-
-      ) {
-
-        return false;
-
-      }
-
-
-      return piece.color === 'red'
-
-        ? tx >= 3 &&
-          tx <= 5 &&
-          ty >= 0 &&
-          ty <= 2
-
-        : tx >= 3 &&
-          tx <= 5 &&
-          ty >= 7 &&
-          ty <= 9;
-
-    }
-
-
-    /* Elephant */
-
-    case 'elephant': {
-
-      if (
-
-        ax !== 2 ||
-        ay !== 2
-
-      ) {
-
-        return false;
-
-      }
-
-
-      if (
-
-        piece.color === 'red' &&
-        ty > 4
-
-      ) {
-
-        return false;
-
-      }
-
-
-      if (
-
-        piece.color === 'black' &&
-        ty < 5
-
-      ) {
-
-        return false;
-
-      }
-
-
-      const eyeX =
-        piece.x +
-        dx / 2;
-
-
-      const eyeY =
-        piece.y +
-        dy / 2;
-
-
-      if (
-
-        getPieceAt(
-          eyeX,
-          eyeY
-        )
-
-      ) {
-
-        return false;
-
-      }
-
-
-      return true;
-
-    }
-
-
-    /* Horse */
-
-    case 'horse': {
-
-      if (
-
-        !(
-          (
-            ax === 1 &&
-            ay === 2
-          ) ||
-          (
-            ax === 2 &&
-            ay === 1
-          )
-        )
-
-      ) {
-
-        return false;
-
-      }
-
-
-      let legX;
-
-      let legY;
-
-
-      if (
-        ax === 2
-      ) {
-
-        legX =
-          piece.x +
-          dx / 2;
-
-        legY =
-          piece.y;
-
-      } else {
-
-        legX =
-          piece.x;
-
-        legY =
-          piece.y +
-          dy / 2;
-
-      }
-
-
-      if (
-
-        getPieceAt(
-          legX,
-          legY
-        )
-
-      ) {
-
-        return false;
-
-      }
-
-
-      return true;
-
-    }
-
-
-    /* Rook */
-
-    case 'rook': {
-
-      if (
-
-        dx !== 0 &&
-        dy !== 0
-
-      ) {
-
-        return false;
-
-      }
-
-
-      return pathClear(
-
-        piece.x,
-        piece.y,
+      return inPalace(
+        piece.color,
         tx,
         ty
-
       );
 
     }
 
 
-    /* Cannon */
+    case 'advisor':{
 
-    case 'cannon': {
-
-      if (
-
-        dx !== 0 &&
-        dy !== 0
-
-      ) {
-
+      if(
+        ax!==1 ||
+        ay!==1
+      )
         return false;
 
-      }
 
-
-      const count =
-        countPiecesBetween(
-
-          piece.x,
-          piece.y,
-          tx,
-          ty
-
-        );
-
-
-      if (
-        target
-      ) {
-
-        return count === 1;
-
-      } else {
-
-        return count === 0;
-
-      }
+      return inPalace(
+        piece.color,
+        tx,
+        ty
+      );
 
     }
 
 
-    /* Pawn */
+    case 'elephant':{
 
-    case 'pawn': {
+      if(
+        ax!==2 ||
+        ay!==2
+      )
+        return false;
+
+
+      if(
+        piece.color==='red' &&
+        ty>4
+      )
+        return false;
+
+
+      if(
+        piece.color==='black' &&
+        ty<5
+      )
+        return false;
+
+
+      const eyeX =
+        piece.x+
+        dx/2;
+
+
+      const eyeY =
+        piece.y+
+        dy/2;
+
+
+      return !getPieceAtState(
+        state,
+        eyeX,
+        eyeY
+      );
+
+    }
+
+
+    case 'horse':{
+
+      if(
+        !(
+          (
+            ax===1 &&
+            ay===2
+          ) ||
+          (
+            ax===2 &&
+            ay===1
+          )
+        )
+      )
+        return false;
+
+
+      let legX;
+      let legY;
+
+
+      if(
+        ax===2
+      ){
+
+        legX =
+          piece.x+
+          Math.sign(dx);
+
+        legY =
+          piece.y;
+
+      }else{
+
+        legX =
+          piece.x;
+
+        legY =
+          piece.y+
+          Math.sign(dy);
+
+      }
+
+
+      return !getPieceAtState(
+        state,
+        legX,
+        legY
+      );
+
+    }
+
+
+    case 'rook':{
+
+      if(
+        dx!==0 &&
+        dy!==0
+      )
+        return false;
+
+
+      return countBetween(
+        state,
+        piece.x,
+        piece.y,
+        tx,
+        ty
+      )===0;
+
+    }
+
+
+    case 'cannon':{
+
+      if(
+        dx!==0 &&
+        dy!==0
+      )
+        return false;
+
+
+      const count =
+        countBetween(
+          state,
+          piece.x,
+          piece.y,
+          tx,
+          ty
+        );
+
+
+      if(
+        target
+      ){
+
+        return count===1;
+
+      }
+
+
+      return count===0;
+
+    }
+
+
+    case 'pawn':{
 
       const forward =
-
-        piece.color === 'red'
+        piece.color==='red'
           ? 1
           : -1;
 
 
-      if (
-
-        dx === 0 &&
-        dy === forward
-
-      ) {
+      if(
+        dx===0 &&
+        dy===forward
+      ){
 
         return true;
 
@@ -2909,21 +2594,16 @@ function isLegalMove(
 
 
       const crossed =
-
-        piece.color === 'red'
-
-          ? piece.y >= 5
-
-          : piece.y <= 4;
+        piece.color==='red'
+          ? piece.y>=5
+          : piece.y<=4;
 
 
-      if (
-
+      if(
         crossed &&
-        ay === 0 &&
-        ax === 1
-
-      ) {
+        ax===1 &&
+        ay===0
+      ){
 
         return true;
 
@@ -2943,128 +2623,89 @@ function isLegalMove(
 
 
 /* =========================================================
-   Path Clear
+   Palace
 ========================================================= */
 
-function pathClear(
-  x1,
-  y1,
-  x2,
-  y2
-) {
+function inPalace(
+  color,
+  x,
+  y
+){
 
-  const dx =
-    Math.sign(
-      x2 - x1
-    );
-
-
-  const dy =
-    Math.sign(
-      y2 - y1
-    );
+  if(
+    x<3 ||
+    x>5
+  )
+    return false;
 
 
-  let x =
-    x1 + dx;
+  if(
+    color==='red'
+  ){
 
-
-  let y =
-    y1 + dy;
-
-
-  while (
-
-    x !== x2 ||
-    y !== y2
-
-  ) {
-
-    if (
-
-      getPieceAt(
-        x,
-        y
-      )
-
-    ) {
-
-      return false;
-
-    }
-
-
-    x += dx;
-
-    y += dy;
+    return y>=0 && y<=2;
 
   }
 
 
-  return true;
+  return y>=7 && y<=9;
 
 }
 
 
 /* =========================================================
-   Count Pieces Between
+   Count between
 ========================================================= */
 
-function countPiecesBetween(
+function countBetween(
+  state,
   x1,
   y1,
   x2,
   y2
-) {
+){
 
   const dx =
     Math.sign(
-      x2 - x1
+      x2-x1
     );
-
 
   const dy =
     Math.sign(
-      y2 - y1
+      y2-y1
     );
 
 
   let x =
-    x1 + dx;
-
+    x1+dx;
 
   let y =
-    y1 + dy;
+    y1+dy;
 
 
-  let count =
-    0;
+  let count=0;
 
 
-  while (
+  while(
+    x!==x2 ||
+    y!==y2
+  ){
 
-    x !== x2 ||
-    y !== y2
-
-  ) {
-
-    if (
-
-      getPieceAt(
+    if(
+      getPieceAtState(
+        state,
         x,
         y
       )
-
-    ) {
+    ){
 
       count++;
 
     }
 
 
-    x += dx;
-
-    y += dy;
+    x+=dx;
+    y+=dy;
 
   }
 
@@ -3075,99 +2716,911 @@ function countPiecesBetween(
 
 
 /* =========================================================
-   Get Piece
+   Get piece
 ========================================================= */
 
-function getPieceAt(
+function getPieceAtState(
+  state,
   x,
   y
-) {
+){
+
+  return state.find(
+    p=>
+      p.x===x &&
+      p.y===y
+  );
+
+}
+
+
+function findPiece(
+  id
+){
 
   return pieces.find(
-
-    p =>
-      p.x === x &&
-      p.y === y
-
+    p=>p.id===id
   );
 
 }
 
 
 /* =========================================================
-   World To Board
+   Check
 ========================================================= */
 
-function worldToBoard(
-  point
-) {
+function isInCheck(
+  state,
+  color
+){
 
-  const x =
-    Math.round(
-
-      point.x -
-      BOARD.left
-
+  const general =
+    state.find(
+      p=>
+        p.type==='general' &&
+        p.color===color
     );
 
 
-  const y =
-    Math.round(
-
-      BOARD.top -
-      point.z
-
-    );
+  if(
+    !general
+  )
+    return true;
 
 
-  if (
+  const enemy =
+    opposite(color);
 
-    x < 0 ||
-    x > 8 ||
-    y < 0 ||
-    y > 9
 
-  ) {
+  for(
+    const p
+    of state.filter(
+      p=>p.color===enemy
+    )
+  ){
 
-    return null;
+    if(
+      basicMoveLegalIgnoringTurn(
+        state,
+        p,
+        general.x,
+        general.y
+      )
+    ){
+
+      return true;
+
+    }
 
   }
 
 
-  return {
-    x,
-    y
-  };
+  return false;
 
 }
 
 
 /* =========================================================
-   Room ID
+   Rule helper ignoring turn
 ========================================================= */
 
-function roomId() {
+function basicMoveLegalIgnoringTurn(
+  state,
+  piece,
+  tx,
+  ty
+){
+
+  const dx =
+    tx-piece.x;
+
+  const dy =
+    ty-piece.y;
+
+  const ax =
+    Math.abs(dx);
+
+  const ay =
+    Math.abs(dy);
+
+
+  const target =
+    getPieceAtState(
+      state,
+      tx,
+      ty
+    );
+
+
+  if(
+    target &&
+    target.color===piece.color
+  )
+    return false;
+
+
+  switch(
+    piece.type
+  ){
+
+    case 'general':
+
+      return (
+        ax+ay===1 &&
+        inPalace(
+          piece.color,
+          tx,
+          ty
+        )
+      );
+
+
+    case 'advisor':
+
+      return (
+        ax===1 &&
+        ay===1 &&
+        inPalace(
+          piece.color,
+          tx,
+          ty
+        )
+      );
+
+
+    case 'elephant':{
+
+      if(
+        ax!==2 ||
+        ay!==2
+      )
+        return false;
+
+
+      if(
+        piece.color==='red' &&
+        ty>4
+      )
+        return false;
+
+
+      if(
+        piece.color==='black' &&
+        ty<5
+      )
+        return false;
+
+
+      return !getPieceAtState(
+        state,
+        piece.x+dx/2,
+        piece.y+dy/2
+      );
+
+    }
+
+
+    case 'horse':{
+
+      if(
+        !(
+          (
+            ax===1 &&
+            ay===2
+          ) ||
+          (
+            ax===2 &&
+            ay===1
+          )
+        )
+      )
+        return false;
+
+
+      let lx;
+      let ly;
+
+
+      if(
+        ax===2
+      ){
+
+        lx =
+          piece.x+
+          Math.sign(dx);
+
+        ly =
+          piece.y;
+
+      }else{
+
+        lx =
+          piece.x;
+
+        ly =
+          piece.y+
+          Math.sign(dy);
+
+      }
+
+
+      return !getPieceAtState(
+        state,
+        lx,
+        ly
+      );
+
+    }
+
+
+    case 'rook':
+
+      return (
+        (
+          dx===0 ||
+          dy===0
+        ) &&
+        countBetween(
+          state,
+          piece.x,
+          piece.y,
+          tx,
+          ty
+        )===0
+      );
+
+
+    case 'cannon':{
+
+      if(
+        dx!==0 &&
+        dy!==0
+      )
+        return false;
+
+
+      const count =
+        countBetween(
+          state,
+          piece.x,
+          piece.y,
+          tx,
+          ty
+        );
+
+
+      return target
+        ? count===1
+        : count===0;
+
+    }
+
+
+    case 'pawn':{
+
+      const forward =
+        piece.color==='red'
+          ? 1
+          : -1;
+
+
+      if(
+        dx===0 &&
+        dy===forward
+      )
+        return true;
+
+
+      const crossed =
+        piece.color==='red'
+          ? piece.y>=5
+          : piece.y<=4;
+
+
+      return (
+        crossed &&
+        ax===1 &&
+        ay===0
+      );
+
+    }
+
+  }
+
+
+  return false;
+
+}
+
+
+/* =========================================================
+   Generals facing
+========================================================= */
+
+function generalsFace(
+  state
+){
+
+  const red =
+    state.find(
+      p=>
+        p.type==='general' &&
+        p.color==='red'
+    );
+
+
+  const black =
+    state.find(
+      p=>
+        p.type==='general' &&
+        p.color==='black'
+    );
+
+
+  if(
+    !red ||
+    !black
+  )
+    return true;
+
+
+  if(
+    red.x!==black.x
+  )
+    return false;
+
+
+  return countBetween(
+    state,
+    red.x,
+    red.y,
+    black.x,
+    black.y
+  )===0;
+
+}
+
+
+/* =========================================================
+   Legal moves
+========================================================= */
+
+function getLegalMoves(
+  state,
+  color
+){
+
+  const moves=[];
+
+
+  for(
+    const piece
+    of state.filter(
+      p=>p.color===color
+    )
+  ){
+
+    for(
+      let y=0;
+      y<10;
+      y++
+    ){
+
+      for(
+        let x=0;
+        x<9;
+        x++
+      ){
+
+        if(
+          !basicMoveLegal(
+            state,
+            piece,
+            x,
+            y
+          )
+        )
+          continue;
+
+
+        const target =
+          getPieceAtState(
+            state,
+            x,
+            y
+          );
+
+
+        const next =
+          structuredClone(
+            state
+          );
+
+
+        if(
+          target
+        ){
+
+          const index =
+            next.findIndex(
+              p=>p.id===target.id
+            );
+
+
+          if(
+            index>=0
+          )
+            next.splice(
+              index,
+              1
+            );
+
+        }
+
+
+        const moving =
+          next.find(
+            p=>p.id===piece.id
+          );
+
+
+        moving.x=x;
+        moving.y=y;
+
+
+        if(
+          isInCheck(
+            next,
+            color
+          )
+        )
+          continue;
+
+
+        if(
+          generalsFace(
+            next
+          )
+        )
+          continue;
+
+
+        moves.push({
+
+          pieceId:
+            piece.id,
+
+          x,
+
+          y
+
+        });
+
+      }
+
+    }
+
+  }
+
+
+  return moves;
+
+}
+
+
+/* =========================================================
+   After move
+========================================================= */
+
+function checkAfterMove(){
+
+  const enemy =
+    currentTurn;
+
+
+  const legal =
+    getLegalMoves(
+      pieces,
+      enemy
+    );
+
+
+  if(
+    legal.length===0
+  ){
+
+    if(
+      isInCheck(
+        pieces,
+        enemy
+      )
+    ){
+
+      endGame(
+
+        enemy==='red'
+          ? '黑方勝利・紅方被將死'
+          : '紅方勝利・黑方被將死'
+
+      );
+
+    }else{
+
+      endGame(
+        '和棋・困斃'
+      );
+
+    }
+
+
+    return;
+
+  }
+
+
+  if(
+    isInCheck(
+      pieces,
+      enemy
+    )
+  ){
+
+    setMsg(
+      enemy==='red'
+        ? '紅方被將軍'
+        : '黑方被將軍'
+    );
+
+  }else{
+
+    setMsg(
+      enemy==='red'
+        ? '紅方回合'
+        : '黑方回合'
+    );
+
+  }
+
+
+  /*
+    電腦回合
+  */
+
+  if(
+    gameMode==='ai' &&
+    currentTurn==='black' &&
+    !gameOver
+  ){
+
+    computerMove();
+
+  }
+
+}
+
+
+/* =========================================================
+   AI
+========================================================= */
+
+function computerMove(){
+
+  if(
+    aiThinking ||
+    gameOver
+  )
+    return;
+
+
+  aiThinking =
+    true;
+
+
+  setMsg(
+    '電腦思考中…'
+  );
+
+
+  setTimeout(
+    ()=>{
+
+      const move =
+        chooseAIMove(
+          pieces
+        );
+
+
+      if(
+        !move
+      ){
+
+        aiThinking=false;
+
+        return;
+
+      }
+
+
+      applyComputerMove(
+        move
+      );
+
+
+    },
+    350
+  );
+
+}
+
+
+/* =========================================================
+   AI move
+========================================================= */
+
+function chooseAIMove(
+  state
+){
+
+  const moves =
+    getLegalMoves(
+      state,
+      'black'
+    );
+
+
+  if(
+    !moves.length
+  )
+    return null;
+
+
+  /*
+    優先吃大子。
+    同時加入一點隨機，
+    避免每次完全一樣。
+  */
+
+  const scored =
+    moves.map(
+      move=>{
+
+        const target =
+          getPieceAtState(
+            state,
+            move.x,
+            move.y
+          );
+
+
+        let score =
+          Math.random()*20;
+
+
+        if(
+          target
+        ){
+
+          score +=
+            pieceValue(
+              target.type
+            )*10;
+
+        }
+
+
+        const next =
+          simulateMove(
+            state,
+            move
+          );
+
+
+        if(
+          isInCheck(
+            next,
+            'red'
+          )
+        ){
+
+          score+=120;
+
+        }
+
+
+        if(
+          isInCheck(
+            next,
+            'black'
+          )
+        ){
+
+          score-=60;
+
+        }
+
+
+        return {
+          move,
+          score
+        };
+
+      }
+    );
+
+
+  scored.sort(
+    (a,b)=>
+      b.score-a.score
+  );
+
+
+  return scored[0].move;
+
+}
+
+
+/* =========================================================
+   Simulate
+========================================================= */
+
+function simulateMove(
+  state,
+  move
+){
+
+  const next =
+    structuredClone(
+      state
+    );
+
+
+  const target =
+    next.find(
+      p=>
+        p.x===move.x &&
+        p.y===move.y
+    );
+
+
+  if(
+    target
+  ){
+
+    const index =
+      next.findIndex(
+        p=>p.id===target.id
+      );
+
+
+    if(
+      index>=0
+    )
+      next.splice(
+        index,
+        1
+      );
+
+  }
+
+
+  const moving =
+    next.find(
+      p=>p.id===move.pieceId
+    );
+
+
+  moving.x =
+    move.x;
+
+  moving.y =
+    move.y;
+
+
+  return next;
+
+}
+
+
+/* =========================================================
+   Apply AI move
+========================================================= */
+
+function applyComputerMove(
+  move
+){
+
+  pieces =
+    simulateMove(
+      pieces,
+      move
+    );
+
+
+  currentTurn =
+    'red';
+
+
+  selectedId =
+    null;
+
+
+  aiThinking =
+    false;
+
+
+  renderPieces();
+
+  updateTurn();
+
+  checkAfterMove();
+
+}
+
+
+/* =========================================================
+   Piece value
+========================================================= */
+
+function pieceValue(
+  type
+){
+
+  switch(type){
+
+    case 'general':
+      return 10000;
+
+    case 'rook':
+      return 900;
+
+    case 'cannon':
+      return 450;
+
+    case 'horse':
+      return 400;
+
+    case 'elephant':
+      return 200;
+
+    case 'advisor':
+      return 200;
+
+    case 'pawn':
+      return 100;
+
+  }
+
+
+  return 0;
+
+}
+
+
+/* =========================================================
+   Online
+========================================================= */
+
+function roomId(){
 
   return Math.random()
-
     .toString(36)
-
     .slice(2,8)
-
     .toUpperCase();
 
 }
 
 
 /* =========================================================
-   Host Room
+   Host
 ========================================================= */
 
-async function hostRoom() {
+function hostRoom(){
+
+  closePeer();
+
 
   const id =
-    'AV' +
-    roomId();
+    'AV'+roomId();
 
 
   document
@@ -3186,23 +3639,6 @@ async function hostRoom() {
       '正在建立房間…';
 
 
-  if (
-    net.peer
-  ) {
-
-    try {
-
-      net.peer.destroy();
-
-    } catch {}
-
-  }
-
-
-  net.peer =
-    new Peer(id);
-
-
   net.role =
     'host';
 
@@ -3215,77 +3651,65 @@ async function hostRoom() {
     'online';
 
 
+  net.peer =
+    new Peer(id);
+
+
   net.peer.on(
-
     'open',
-
-    () => {
+    ()=>{
 
       document
         .getElementById(
           'roomHint'
         )
         .textContent =
-          '房間已開，把代碼給對方。';
-
+          '房間已建立，把代碼給對方。';
 
       setMsg(
         '等待黑方加入'
       );
 
     }
-
   );
 
 
   net.peer.on(
-
-    'error',
-
-    e => {
-
-      document
-        .getElementById(
-          'roomHint'
-        )
-        .textContent =
-          '連線錯誤：' +
-          e.type;
-
-    }
-
-  );
-
-
-  net.peer.on(
-
     'connection',
-
-    conn => {
+    conn=>{
 
       net.conn =
         conn;
 
 
       conn.on(
-
         'open',
+        ()=>{
 
-        () => {
+          /*
+            主機是權威狀態。
+          */
 
           conn.send({
 
             t:'sync',
 
-            state:
-              getGameState()
+            state:{
+              pieces,
+              currentTurn,
+              gameOver
+            }
 
           });
 
 
+          gameStarted =
+            true;
+
+
           document
             .getElementById(
-              'room'
+              'roomPanel'
             )
             .classList
             .remove(
@@ -3293,50 +3717,68 @@ async function hostRoom() {
             );
 
 
+          document
+            .getElementById(
+              'startGame'
+            )
+            .classList
+            .add(
+              'hidden'
+            );
+
+
           setMsg(
-            '黑方已加入'
+            '黑方已加入，紅方先走'
           );
 
         }
-
       );
 
 
       conn.on(
-
         'data',
-
-        onNetData
-
+        onNetworkData
       );
 
 
       conn.on(
-
         'close',
-
-        () => {
+        ()=>{
 
           setMsg(
-            '黑方離線'
+            '黑方已離線'
           );
 
         }
-
       );
 
     }
+  );
 
+
+  net.peer.on(
+    'error',
+    e=>{
+
+      document
+        .getElementById(
+          'roomHint'
+        )
+        .textContent =
+          '連線錯誤：'+
+          e.type;
+
+    }
   );
 
 }
 
 
 /* =========================================================
-   Join Room
+   Join
 ========================================================= */
 
-async function joinRoom() {
+function joinRoom(){
 
   const id =
     document
@@ -3348,42 +3790,29 @@ async function joinRoom() {
       .toUpperCase();
 
 
-  if (
-
+  if(
     !/^AV[A-Z0-9]{6}$/.test(
       id
     )
-
-  ) {
+  ){
 
     document
       .getElementById(
         'roomHint'
       )
       .textContent =
-        '房間代碼格式錯誤，請輸入完整 8 碼代碼。';
-
+        '房間代碼必須是完整 8 碼，例如 AV7K29PQ。';
 
     return;
 
   }
 
 
-  if (
-    net.peer
-  ) {
-
-    try {
-
-      net.peer.destroy();
-
-    } catch {}
-
-  }
+  closePeer();
 
 
-  net.peer =
-    new Peer();
+  gameMode =
+    'online';
 
 
   net.role =
@@ -3394,15 +3823,21 @@ async function joinRoom() {
     id;
 
 
-  gameMode =
-    'online';
+  net.peer =
+    new Peer();
+
+
+  document
+    .getElementById(
+      'roomHint'
+    )
+    .textContent =
+      '正在加入房間…';
 
 
   net.peer.on(
-
     'open',
-
-    () => {
+    ()=>{
 
       const conn =
         net.peer.connect(
@@ -3421,14 +3856,12 @@ async function joinRoom() {
 
 
       conn.on(
-
         'open',
-
-        () => {
+        ()=>{
 
           document
             .getElementById(
-              'room'
+              'roomPanel'
             )
             .classList
             .remove(
@@ -3436,124 +3869,86 @@ async function joinRoom() {
             );
 
 
+          document
+            .getElementById(
+              'startGame'
+            )
+            .classList
+            .add(
+              'hidden'
+            );
+
+
+          gameStarted =
+            true;
+
+
           setMsg(
-            '已加入房間，等待紅方'
+            '已連線，等待紅方'
           );
 
         }
-
       );
 
 
       conn.on(
-
         'data',
-
-        onNetData
-
+        onNetworkData
       );
 
 
       conn.on(
-
         'close',
-
-        () => {
+        ()=>{
 
           setMsg(
-            '紅方離線'
+            '紅方已離線'
           );
 
         }
-
       );
 
     }
-
   );
 
 
   net.peer.on(
-
     'error',
-
-    e => {
+    e=>{
 
       document
         .getElementById(
           'roomHint'
         )
         .textContent =
-          '加入失敗：' +
+          '加入失敗：'+
           e.type;
 
     }
-
   );
 
 }
 
 
 /* =========================================================
-   Send Move
+   Network data
 ========================================================= */
 
-function sendMove(
-  pieceId,
-  x,
-  y
-) {
-
-  if (
-    gameMode !==
-    'online'
-  )
-    return;
-
-
-  if (
-
-    !net.conn ||
-    !net.conn.open
-
-  )
-    return;
-
-
-  net.conn.send({
-
-    t:'move',
-
-    pieceId,
-
-    x,
-
-    y
-
-  });
-
-}
-
-
-/* =========================================================
-   Network Data
-========================================================= */
-
-function onNetData(
+function onNetworkData(
   data
-) {
+){
 
-  if (
+  if(
     !data
   )
     return;
 
 
-  if (
-    data.t === 'sync'
-  ) {
+  if(
+    data.t==='sync'
+  ){
 
-    applyGameState(
+    applySync(
       data.state
     );
 
@@ -3562,9 +3957,9 @@ function onNetData(
   }
 
 
-  if (
-    data.t === 'move'
-  ) {
+  if(
+    data.t==='move'
+  ){
 
     applyRemoteMove(
       data
@@ -3576,165 +3971,18 @@ function onNetData(
 
 
 /* =========================================================
-   Remote Move
+   Sync
 ========================================================= */
 
-function applyRemoteMove(
-  data
-) {
-
-  const piece =
-    pieces.find(
-
-      p =>
-        p.id ===
-        data.pieceId
-
-    );
-
-
-  if (
-    !piece
-  )
-    return;
-
-
-  const target =
-    getPieceAt(
-
-      data.x,
-      data.y
-
-    );
-
-
-  if (
-
-    target &&
-    target.color !==
-    piece.color
-
-  ) {
-
-    if (
-
-      target.type ===
-      'general'
-
-    ) {
-
-      pieces =
-        pieces.filter(
-
-          p =>
-            p.id !==
-            target.id
-
-        );
-
-
-      movePiece(
-
-        piece,
-
-        data.x,
-
-        data.y
-
-      );
-
-
-      renderPieces();
-
-
-      gameOver =
-        true;
-
-
-      showGameOver(
-
-        piece.color === 'red'
-          ? '紅方勝利'
-          : '黑方勝利'
-
-      );
-
-
-      return;
-
-    }
-
-
-    pieces =
-      pieces.filter(
-
-        p =>
-          p.id !==
-          target.id
-
-      );
-
-  }
-
-
-  movePiece(
-
-    piece,
-
-    data.x,
-
-    data.y
-
-  );
-
-
-  currentTurn =
-
-    currentTurn === 'red'
-      ? 'black'
-      : 'red';
-
-
-  selected =
-    null;
-
-
-  renderPieces();
-
-  updateTurn();
-
-}
-
-
-/* =========================================================
-   Game State
-========================================================= */
-
-function getGameState() {
-
-  return {
-
-    pieces,
-
-    currentTurn,
-
-    gameOver
-
-  };
-
-}
-
-
-/* =========================================================
-   Apply Game State
-========================================================= */
-
-function applyGameState(
+function applySync(
   state
-) {
+){
 
-  if (
-    !state
+  if(
+    !state ||
+    !Array.isArray(
+      state.pieces
+    )
   )
     return;
 
@@ -3753,7 +4001,7 @@ function applyGameState(
     state.gameOver;
 
 
-  selected =
+  selectedId =
     null;
 
 
@@ -3765,42 +4013,151 @@ function applyGameState(
 
 
 /* =========================================================
-   My Turn
+   Send move
 ========================================================= */
 
-function isMyTurn() {
+function sendMove(
+  move
+){
 
-  if (
-    gameMode !==
-    'online'
+  if(
+    gameMode!=='online'
+  )
+    return;
+
+
+  if(
+    !net.conn ||
+    !net.conn.open
+  )
+    return;
+
+
+  net.conn.send({
+
+    t:'move',
+
+    pieceId:
+      move.pieceId,
+
+    x:
+      move.x,
+
+    y:
+      move.y
+
+  });
+
+}
+
+
+/* =========================================================
+   Remote move
+========================================================= */
+
+function applyRemoteMove(
+  data
+){
+
+  const piece =
+    pieces.find(
+      p=>
+        p.id===
+        data.pieceId
+    );
+
+
+  if(
+    !piece
+  )
+    return;
+
+
+  const next =
+    simulateMove(
+      pieces,
+      data
+    );
+
+
+  /*
+    線上玩家收到的走法
+    仍然檢查合法性。
+  */
+
+  if(
+    !basicMoveLegal(
+      pieces,
+      piece,
+      data.x,
+      data.y
+    )
+  )
+    return;
+
+
+  if(
+    isInCheck(
+      next,
+      piece.color
+    )
+  )
+    return;
+
+
+  if(
+    generalsFace(
+      next
+    )
+  )
+    return;
+
+
+  pieces =
+    next;
+
+
+  currentTurn =
+    opposite(
+      currentTurn
+    );
+
+
+  selectedId =
+    null;
+
+
+  renderPieces();
+
+  updateTurn();
+
+  checkAfterMove();
+
+}
+
+
+/* =========================================================
+   My turn
+========================================================= */
+
+function isMyTurn(){
+
+  if(
+    gameMode!=='online'
   )
     return true;
 
 
-  if (
-    net.role ===
-    'host'
-  ) {
-
-    return (
-      currentTurn ===
-      'red'
-    );
-
-  }
+  if(
+    net.role==='host'
+  )
+    return currentTurn==='red';
 
 
-  if (
-    net.role ===
-    'guest'
-  ) {
-
-    return (
-      currentTurn ===
-      'black'
-    );
-
-  }
+  if(
+    net.role==='guest'
+  )
+    return currentTurn==='black';
 
 
   return false;
@@ -3809,53 +4166,50 @@ function isMyTurn() {
 
 
 /* =========================================================
-   Update Turn
+   Close Peer
 ========================================================= */
 
-function updateTurn() {
+function closePeer(){
 
-  const text =
+  try{
 
-    currentTurn === 'red'
-      ? '紅方回合'
-      : '黑方回合';
-
-
-  document
-    .getElementById(
-      'turnText'
+    if(
+      net.conn
     )
-    .textContent =
-      text;
+      net.conn.close();
+
+  }catch{}
+
+
+  try{
+
+    if(
+      net.peer
+    )
+      net.peer.destroy();
+
+  }catch{}
+
+
+  net.peer=null;
+  net.conn=null;
+  net.role=null;
+  net.room=null;
 
 }
 
 
 /* =========================================================
-   Message
+   End game
 ========================================================= */
 
-function setMsg(
+function endGame(
   text
-) {
+){
 
-  document
-    .getElementById(
-      'message'
-    )
-    .textContent =
-      text;
+  gameOver =
+    true;
 
-}
-
-
-/* =========================================================
-   Game Over
-========================================================= */
-
-function showGameOver(
-  text
-) {
 
   document
     .getElementById(
@@ -3874,6 +4228,119 @@ function showGameOver(
       'on'
     );
 
+
+  setMsg(
+    text
+  );
+
+}
+
+
+/* =========================================================
+   Turn
+========================================================= */
+
+function updateTurn(){
+
+  const el =
+    document.getElementById(
+      'turnText'
+    );
+
+
+  if(
+    gameMode==='ai'
+  ){
+
+    el.textContent =
+      currentTurn==='red'
+        ? '你：紅方'
+        : '電腦：黑方';
+
+    return;
+
+  }
+
+
+  if(
+    gameMode==='online'
+  ){
+
+    el.textContent =
+      currentTurn==='red'
+        ? '紅方回合'
+        : '黑方回合';
+
+    return;
+
+  }
+
+
+  el.textContent =
+    currentTurn==='red'
+      ? '紅方回合'
+      : '黑方回合';
+
+}
+
+
+/* =========================================================
+   Opposite
+========================================================= */
+
+function opposite(
+  color
+){
+
+  return color==='red'
+    ? 'black'
+    : 'red';
+
+}
+
+
+/* =========================================================
+   World -> Board
+========================================================= */
+
+function worldToBoard(
+  point
+){
+
+  /*
+    因為這版沒有把 boardGroup
+    做 scale，所以世界座標直接
+    對應棋盤座標。
+  */
+
+  const x =
+    Math.round(
+      point.x-
+      BOARD.left
+    );
+
+
+  const y =
+    Math.round(
+      BOARD.top-
+      point.z
+    );
+
+
+  if(
+    x<0 ||
+    x>8 ||
+    y<0 ||
+    y>9
+  )
+    return null;
+
+
+  return {
+    x,
+    y
+  };
+
 }
 
 
@@ -3881,29 +4348,25 @@ function showGameOver(
    Resize
 ========================================================= */
 
-function resize() {
+function resize(){
 
-  const width =
+  const w =
     window.innerWidth;
 
 
-  const height =
+  const h =
     window.innerHeight;
 
 
   renderer.setSize(
-
-    width,
-
-    height,
-
+    w,
+    h,
     false
-
   );
 
 
   camera.aspect =
-    width / height;
+    w/h;
 
 
   camera.updateProjectionMatrix();
@@ -3915,68 +4378,39 @@ function resize() {
    Animation
 ========================================================= */
 
-function animate() {
+function animate(){
 
-  animationFrame =
-    requestAnimationFrame(
-      animate
-    );
+  requestAnimationFrame(
+    animate
+  );
 
 
   renderer.render(
-
     scene,
-
     camera
-
   );
 
 }
 
 
 /* =========================================================
-   Buttons
+   UI
 ========================================================= */
 
-document
-  .getElementById(
-    'btnHost'
-  )
-  .addEventListener(
 
-    'click',
-
-    hostRoom
-
-  );
-
+/* 開始遊戲 */
 
 document
   .getElementById(
-    'btnJoin'
+    'startGame'
   )
   .addEventListener(
-
     'click',
-
-    joinRoom
-
-  );
-
-
-document
-  .getElementById(
-    'btnRoom'
-  )
-  .addEventListener(
-
-    'click',
-
-    () => {
+    ()=>{
 
       document
         .getElementById(
-          'room'
+          'modePanel'
         )
         .classList
         .add(
@@ -3984,55 +4418,189 @@ document
         );
 
     }
-
   );
 
 
+/* AI */
+
 document
   .getElementById(
-    'btnRoomClose'
+    'modeAI'
   )
   .addEventListener(
-
     'click',
+    ()=>{
 
-    () => {
+      gameMode =
+        'ai';
+
+      gameStarted =
+        true;
+
+      resetGame();
 
       document
         .getElementById(
-          'room'
+          'modePanel'
         )
         .classList
         .remove(
           'on'
         );
 
-    }
+      document
+        .getElementById(
+          'startGame'
+        )
+        .classList
+        .add(
+          'hidden'
+        );
 
+      setMsg(
+        '你是紅方，請先走'
+      );
+
+    }
   );
 
 
+/* Local */
+
 document
   .getElementById(
-    'btnLocal'
+    'modeLocal'
   )
   .addEventListener(
-
     'click',
-
-    () => {
+    ()=>{
 
       gameMode =
         'local';
 
+      gameStarted =
+        true;
 
-      net.role =
-        null;
-
+      resetGame();
 
       document
         .getElementById(
-          'room'
+          'modePanel'
+        )
+        .classList
+        .remove(
+          'on'
+        );
+
+      document
+        .getElementById(
+          'startGame'
+        )
+        .classList
+        .add(
+          'hidden'
+        );
+
+      setMsg(
+        '單機雙人：紅方先走'
+      );
+
+    }
+  );
+
+
+/* Online */
+
+document
+  .getElementById(
+    'modeOnline'
+  )
+  .addEventListener(
+    'click',
+    ()=>{
+
+      document
+        .getElementById(
+          'modePanel'
+        )
+        .classList
+        .remove(
+          'on'
+        );
+
+      document
+        .getElementById(
+          'roomPanel'
+        )
+        .classList
+        .add(
+          'on'
+        );
+
+    }
+  );
+
+
+/* Mode button */
+
+document
+  .getElementById(
+    'btnMode'
+  )
+  .addEventListener(
+    'click',
+    ()=>{
+
+      document
+        .getElementById(
+          'modePanel'
+        )
+        .classList
+        .add(
+          'on'
+        );
+
+    }
+  );
+
+
+/* Host */
+
+document
+  .getElementById(
+    'btnHost'
+  )
+  .addEventListener(
+    'click',
+    hostRoom
+  );
+
+
+/* Join */
+
+document
+  .getElementById(
+    'btnJoin'
+  )
+  .addEventListener(
+    'click',
+    joinRoom
+  );
+
+
+/* Room back */
+
+document
+  .getElementById(
+    'btnRoomBack'
+  )
+  .addEventListener(
+    'click',
+    ()=>{
+
+      document
+        .getElementById(
+          'roomPanel'
         )
         .classList
         .remove(
@@ -4040,44 +4608,44 @@ document
         );
 
 
-      resetGame();
-
-
-      setMsg(
-        '本機雙人模式：紅方先走'
-      );
+      document
+        .getElementById(
+          'modePanel'
+        )
+        .classList
+        .add(
+          'on'
+        );
 
     }
-
   );
 
+
+/* Restart */
 
 document
   .getElementById(
     'btnRestart'
   )
   .addEventListener(
-
     'click',
-
-    () => {
+    ()=>{
 
       resetGame();
 
     }
-
   );
 
 
+/* Game over restart */
+
 document
   .getElementById(
-    'btnBackRoom'
+    'btnOverRestart'
   )
   .addEventListener(
-
     'click',
-
-    () => {
+    ()=>{
 
       document
         .getElementById(
@@ -4088,10 +4656,34 @@ document
           'on'
         );
 
+      resetGame();
+
+    }
+  );
+
+
+/* Game over mode */
+
+document
+  .getElementById(
+    'btnOverMode'
+  )
+  .addEventListener(
+    'click',
+    ()=>{
 
       document
         .getElementById(
-          'room'
+          'gameOver'
+        )
+        .classList
+        .remove(
+          'on'
+        );
+
+      document
+        .getElementById(
+          'modePanel'
         )
         .classList
         .add(
@@ -4099,41 +4691,27 @@ document
         );
 
     }
-
   );
 
 
-/* =========================================================
-   Prevent Mobile Gestures
-========================================================= */
+/* Prevent gestures */
 
 document.addEventListener(
-
   'touchmove',
-
-  event => {
-
-    event.preventDefault();
-
+  e=>{
+    e.preventDefault();
   },
-
   {
     passive:false
   }
-
 );
 
 
 document.addEventListener(
-
   'gesturestart',
-
-  event => {
-
-    event.preventDefault();
-
+  e=>{
+    e.preventDefault();
   }
-
 );
 
 </script>
