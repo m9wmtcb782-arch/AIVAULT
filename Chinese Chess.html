@@ -1,0 +1,3997 @@
+<!DOCTYPE html>
+
+<html lang="zh-Hant">
+
+<head>
+
+  <meta charset="UTF-8" />
+
+  <meta
+
+    name="viewport"
+
+    content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"
+
+  />
+
+  <title>棋類遊戲｜中國象棋</title>
+
+  <style>
+
+    * {
+
+      box-sizing: border-box;
+
+      -webkit-tap-highlight-color: transparent;
+
+    }
+
+    html,
+
+    body {
+
+      margin: 0;
+
+      width: 100%;
+
+      height: 100%;
+
+      overflow: hidden;
+
+      position: fixed;
+
+      inset: 0;
+
+      background: #111;
+
+      font-family:
+
+        -apple-system,
+
+        BlinkMacSystemFont,
+
+        "Noto Sans TC",
+
+        "Microsoft JhengHei",
+
+        sans-serif;
+
+    }
+
+    #app {
+
+      position: fixed;
+
+      inset: 0;
+
+      overflow: hidden;
+
+    }
+
+    #game {
+
+      position: absolute;
+
+      inset: 0;
+
+      overflow: hidden;
+
+    }
+
+    canvas {
+
+      display: block;
+
+      width: 100%;
+
+      height: 100%;
+
+      touch-action: none;
+
+    }
+
+    /* =========================
+
+       HUD
+
+    ========================= */
+
+    #hud {
+
+      position: fixed;
+
+      top: env(safe-area-inset-top, 0px);
+
+      left: 0;
+
+      right: 0;
+
+      z-index: 20;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: space-between;
+
+      padding: 12px 14px;
+
+      pointer-events: none;
+
+    }
+
+    .hud-box {
+
+      pointer-events: auto;
+
+      background: rgba(20, 15, 10, 0.82);
+
+      border: 1px solid rgba(255, 220, 150, 0.3);
+
+      border-radius: 14px;
+
+      padding: 9px 13px;
+
+      color: #fff;
+
+      backdrop-filter: blur(10px);
+
+    }
+
+    #gameTitle {
+
+      font-weight: 800;
+
+      letter-spacing: 1px;
+
+    }
+
+    #turnText {
+
+      font-size: 14px;
+
+    }
+
+    /* =========================
+
+       Message
+
+    ========================= */
+
+    #message {
+
+      position: fixed;
+
+      z-index: 21;
+
+      left: 50%;
+
+      bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+
+      transform: translateX(-50%);
+
+      min-width: 180px;
+
+      max-width: 90vw;
+
+      padding: 10px 16px;
+
+      border-radius: 999px;
+
+      background: rgba(15, 10, 5, 0.86);
+
+      color: white;
+
+      text-align: center;
+
+      font-size: 14px;
+
+      pointer-events: none;
+
+      backdrop-filter: blur(8px);
+
+    }
+
+    /* =========================
+
+       Room
+
+    ========================= */
+
+    #room {
+
+      position: fixed;
+
+      inset: 0;
+
+      z-index: 100;
+
+      display: none;
+
+      align-items: center;
+
+      justify-content: center;
+
+      padding: 20px;
+
+      background: rgba(0, 0, 0, 0.7);
+
+      backdrop-filter: blur(8px);
+
+    }
+
+    #room.on {
+
+      display: flex;
+
+    }
+
+    .room-box {
+
+      width: min(440px, 94vw);
+
+      padding: 24px;
+
+      border-radius: 24px;
+
+      background:
+
+        linear-gradient(
+
+          145deg,
+
+          rgba(90, 55, 25, 0.97),
+
+          rgba(25, 18, 12, 0.98)
+
+        );
+
+      border: 1px solid rgba(255, 220, 150, 0.35);
+
+      box-shadow:
+
+        0 25px 80px rgba(0, 0, 0, 0.55);
+
+      color: white;
+
+    }
+
+    .room-title {
+
+      font-size: 25px;
+
+      font-weight: 900;
+
+      margin-bottom: 8px;
+
+    }
+
+    .room-subtitle {
+
+      color: #ddd;
+
+      font-size: 14px;
+
+      line-height: 1.6;
+
+      margin-bottom: 18px;
+
+    }
+
+    .room-code {
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      min-height: 64px;
+
+      margin: 14px 0;
+
+      border-radius: 16px;
+
+      background: rgba(0, 0, 0, 0.35);
+
+      border: 1px solid rgba(255, 220, 150, 0.25);
+
+      color: #ffd77a;
+
+      font-size: 28px;
+
+      font-weight: 900;
+
+      letter-spacing: 4px;
+
+    }
+
+    .room-row {
+
+      display: flex;
+
+      gap: 8px;
+
+      margin-top: 10px;
+
+    }
+
+    .room-row input {
+
+      flex: 1;
+
+      min-width: 0;
+
+      height: 48px;
+
+      padding: 0 14px;
+
+      border: 0;
+
+      outline: none;
+
+      border-radius: 12px;
+
+      background: rgba(255, 255, 255, 0.1);
+
+      color: white;
+
+      font-size: 16px;
+
+      text-transform: uppercase;
+
+    }
+
+    .room-row input::placeholder {
+
+      color: rgba(255, 255, 255, 0.5);
+
+    }
+
+    button {
+
+      border: 0;
+
+      cursor: pointer;
+
+      min-height: 46px;
+
+      padding: 0 16px;
+
+      border-radius: 12px;
+
+      color: white;
+
+      background: rgba(255, 255, 255, 0.12);
+
+      font-weight: 700;
+
+      font-size: 14px;
+
+    }
+
+    button:active {
+
+      transform: scale(0.97);
+
+    }
+
+    button.primary {
+
+      background: linear-gradient(135deg, #c78b2c, #8c5517);
+
+    }
+
+    button.red {
+
+      background: linear-gradient(135deg, #a63b32, #6f201c);
+
+    }
+
+    .room-hint {
+
+      margin-top: 16px;
+
+      min-height: 22px;
+
+      color: #ddd;
+
+      font-size: 13px;
+
+      line-height: 1.5;
+
+      text-align: center;
+
+    }
+
+    /* =========================
+
+       Top menu
+
+    ========================= */
+
+    #menu {
+
+      position: fixed;
+
+      z-index: 30;
+
+      right: 14px;
+
+      top: calc(64px + env(safe-area-inset-top, 0px));
+
+    }
+
+    #menu button {
+
+      background: rgba(20, 15, 10, 0.78);
+
+      border: 1px solid rgba(255, 220, 150, 0.25);
+
+    }
+
+    /* =========================
+
+       Game over
+
+    ========================= */
+
+    #gameOver {
+
+      position: fixed;
+
+      inset: 0;
+
+      z-index: 90;
+
+      display: none;
+
+      align-items: center;
+
+      justify-content: center;
+
+      background: rgba(0, 0, 0, 0.55);
+
+      backdrop-filter: blur(5px);
+
+    }
+
+    #gameOver.on {
+
+      display: flex;
+
+    }
+
+    .game-over-box {
+
+      padding: 30px;
+
+      width: min(380px, 90vw);
+
+      border-radius: 22px;
+
+      text-align: center;
+
+      background: rgba(30, 20, 10, 0.95);
+
+      border: 1px solid rgba(255, 220, 150, 0.3);
+
+      color: white;
+
+    }
+
+    .game-over-title {
+
+      font-size: 30px;
+
+      font-weight: 900;
+
+      margin-bottom: 12px;
+
+    }
+
+    /* =========================
+
+       Mobile
+
+    ========================= */
+
+    @media (max-width: 600px) {
+
+      .room-box {
+
+        padding: 20px;
+
+      }
+
+      .room-title {
+
+        font-size: 22px;
+
+      }
+
+      .room-row {
+
+        flex-wrap: wrap;
+
+      }
+
+      .room-row input {
+
+        flex-basis: 100%;
+
+      }
+
+      .room-row button {
+
+        flex: 1;
+
+      }
+
+    }
+
+  </style>
+
+  <script type="importmap">
+
+    {
+
+      "imports": {
+
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+
+        "peerjs": "https://esm.sh/peerjs@1.5.4?bundle"
+
+      }
+
+    }
+
+  </script>
+
+</head>
+
+<body>
+
+<div id="app">
+
+  <div id="game"></div>
+
+  <div id="hud">
+
+    <div class="hud-box" id="gameTitle">
+
+      🀄 楚河漢界
+
+    </div>
+
+    <div class="hud-box" id="turnText">
+
+      紅方回合
+
+    </div>
+
+  </div>
+
+  <div id="menu">
+
+    <button id="btnRoom">線上對戰</button>
+
+  </div>
+
+  <div id="message">
+
+    點擊棋子開始
+
+  </div>
+
+  <!-- =========================
+
+       Room
+
+  ========================= -->
+
+  <div id="room" class="on">
+
+    <div class="room-box">
+
+      <div class="room-title">
+
+        🀄 中國象棋
+
+      </div>
+
+      <div class="room-subtitle">
+
+        楚河漢界・3D 線上對戰
+
+        <br />
+
+        開房間執紅，另一位玩家加入後執黑。
+
+      </div>
+
+      <div class="room-code" id="roomCode">
+
+        ------
+
+      </div>
+
+      <div class="room-row">
+
+        <button class="primary" id="btnHost">
+
+          開房間（執紅）
+
+        </button>
+
+      </div>
+
+      <div class="room-row">
+
+        <input
+
+          id="joinId"
+
+          maxlength="8"
+
+          minlength="8"
+
+          placeholder="例如 AV7K29PQ"
+
+          autocomplete="off"
+
+          spellcheck="false"
+
+        />
+
+        <button id="btnJoin">
+
+          加入（執黑）
+
+        </button>
+
+      </div>
+
+      <div class="room-row">
+
+        <button id="btnLocal">
+
+          本機雙人
+
+        </button>
+
+        <button class="red" id="btnRoomClose">
+
+          關閉
+
+        </button>
+
+      </div>
+
+      <div class="room-hint" id="roomHint">
+
+        走 WebRTC，兩人都要開著這個頁面。
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- =========================
+
+       Game Over
+
+  ========================= -->
+
+  <div id="gameOver">
+
+    <div class="game-over-box">
+
+      <div class="game-over-title" id="gameOverTitle">
+
+        遊戲結束
+
+      </div>
+
+      <button class="primary" id="btnRestart">
+
+        重新開始
+
+      </button>
+
+      <button id="btnBackRoom">
+
+        回到房間
+
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+<script type="module">
+
+import * as THREE from 'three';
+
+import { Peer } from 'peerjs';
+
+/* =========================================================
+
+   基本設定
+
+========================================================= */
+
+const BASE_BOARD_WIDTH = 8;
+
+const BASE_BOARD_HEIGHT = 9;
+
+const PIECE_RADIUS = 0.42;
+
+const PIECE_HEIGHT = 0.18;
+
+/* =========================================================
+
+   Three.js
+
+========================================================= */
+
+let scene;
+
+let camera;
+
+let renderer;
+
+let boardGroup;
+
+let piecesGroup;
+
+let raycaster;
+
+let pointer;
+
+let animationFrame;
+
+/* =========================================================
+
+   Network
+
+========================================================= */
+
+let net = {
+
+  peer: null,
+
+  conn: null,
+
+  role: null,
+
+  room: null
+
+};
+
+/* =========================================================
+
+   Game
+
+========================================================= */
+
+let gameMode = 'local';
+
+let currentTurn = 'red';
+
+let selected = null;
+
+let gameOver = false;
+
+/* =========================================================
+
+   Board
+
+========================================================= */
+
+const BOARD = {
+
+  left: -4,
+
+  right: 4,
+
+  top: 5,
+
+  bottom: -4,
+
+  width: 8,
+
+  height: 9
+
+};
+
+/* =========================================================
+
+   Piece data
+
+=========================================================
+
+   r = red
+
+   b = black
+
+========================================================= */
+
+const initialPieces = [
+
+  /* Red */
+
+  { id:'r_rook_1', type:'rook', color:'red',   x:0, y:0 },
+
+  { id:'r_horse_1',type:'horse',color:'red',   x:1, y:0 },
+
+  { id:'r_elephant_1',type:'elephant',color:'red',x:2,y:0 },
+
+  { id:'r_advisor_1',type:'advisor',color:'red',x:3,y:0 },
+
+  { id:'r_general',type:'general',color:'red',x:4,y:0 },
+
+  { id:'r_advisor_2',type:'advisor',color:'red',x:5,y:0 },
+
+  { id:'r_elephant_2',type:'elephant',color:'red',x:6,y:0 },
+
+  { id:'r_horse_2',type:'horse',color:'red',x:7,y:0 },
+
+  { id:'r_rook_2',type:'rook',color:'red',x:8,y:0 },
+
+  { id:'r_cannon_1',type:'cannon',color:'red',x:1,y:2 },
+
+  { id:'r_cannon_2',type:'cannon',color:'red',x:7,y:2 },
+
+  { id:'r_pawn_1',type:'pawn',color:'red',x:0,y:3 },
+
+  { id:'r_pawn_2',type:'pawn',color:'red',x:2,y:3 },
+
+  { id:'r_pawn_3',type:'pawn',color:'red',x:4,y:3 },
+
+  { id:'r_pawn_4',type:'pawn',color:'red',x:6,y:3 },
+
+  { id:'r_pawn_5',type:'pawn',color:'red',x:8,y:3 },
+
+  /* Black */
+
+  { id:'b_rook_1', type:'rook', color:'black', x:0, y:9 },
+
+  { id:'b_horse_1',type:'horse',color:'black',x:1,y:9 },
+
+  { id:'b_elephant_1',type:'elephant',color:'black',x:2,y:9 },
+
+  { id:'b_advisor_1',type:'advisor',color:'black',x:3,y:9 },
+
+  { id:'b_general',type:'general',color:'black',x:4,y:9 },
+
+  { id:'b_advisor_2',type:'advisor',color:'black',x:5,y:9 },
+
+  { id:'b_elephant_2',type:'elephant',color:'black',x:6,y:9 },
+
+  { id:'b_horse_2',type:'horse',color:'black',x:7,y:9 },
+
+  { id:'b_rook_2', type:'rook', color:'black', x:8, y:9 },
+
+  { id:'b_cannon_1',type:'cannon',color:'black',x:1,y:7 },
+
+  { id:'b_cannon_2',type:'cannon',color:'black',x:7,y:7 },
+
+  { id:'b_pawn_1',type:'pawn',color:'black',x:0,y:6 },
+
+  { id:'b_pawn_2',type:'pawn',color:'black',x:2,y:6 },
+
+  { id:'b_pawn_3',type:'pawn',color:'black',x:4,y:6 },
+
+  { id:'b_pawn_4',type:'pawn',color:'black',x:6,y:6 },
+
+  { id:'b_pawn_5',type:'pawn',color:'black',x:8,y:6 }
+
+];
+
+let pieces = [];
+
+/* =========================================================
+
+   Chinese characters
+
+========================================================= */
+
+const pieceText = {
+
+  red: {
+
+    general:'帥',
+
+    advisor:'仕',
+
+    elephant:'相',
+
+    horse:'傌',
+
+    rook:'俥',
+
+    cannon:'炮',
+
+    pawn:'兵'
+
+  },
+
+  black: {
+
+    general:'將',
+
+    advisor:'士',
+
+    elephant:'象',
+
+    horse:'馬',
+
+    rook:'車',
+
+    cannon:'砲',
+
+    pawn:'卒'
+
+  }
+
+};
+
+/* =========================================================
+
+   Init
+
+========================================================= */
+
+initThree();
+
+resetGame();
+
+animate();
+
+function initThree() {
+
+  scene = new THREE.Scene();
+
+  scene.background = new THREE.Color(0x15110d);
+
+  /* Camera */
+
+  camera = new THREE.PerspectiveCamera(
+
+    38,
+
+    window.innerWidth / window.innerHeight,
+
+    0.1,
+
+    100
+
+  );
+
+  camera.position.set(
+
+    0,
+
+    9.8,
+
+    11.5
+
+  );
+
+  camera.lookAt(0, 0, 0);
+
+  /* Renderer */
+
+  renderer = new THREE.WebGLRenderer({
+
+    antialias: true,
+
+    alpha: false
+
+  });
+
+  renderer.setPixelRatio(
+
+    Math.min(window.devicePixelRatio, 2)
+
+  );
+
+  renderer.setSize(
+
+    window.innerWidth,
+
+    window.innerHeight
+
+  );
+
+  renderer.shadowMap.enabled = true;
+
+  document
+
+    .getElementById('game')
+
+    .appendChild(renderer.domElement);
+
+  /* Lights */
+
+  const ambient = new THREE.AmbientLight(
+
+    0xffffff,
+
+    1.8
+
+  );
+
+  scene.add(ambient);
+
+  const light = new THREE.DirectionalLight(
+
+    0xffffff,
+
+    2.5
+
+  );
+
+  light.position.set(
+
+    4,
+
+    12,
+
+    8
+
+  );
+
+  light.castShadow = true;
+
+  scene.add(light);
+
+  /* Board */
+
+  createBoard();
+
+  piecesGroup = new THREE.Group();
+
+  scene.add(piecesGroup);
+
+  /* Raycaster */
+
+  raycaster = new THREE.Raycaster();
+
+  pointer = new THREE.Vector2();
+
+  renderer.domElement.addEventListener(
+
+    'pointerdown',
+
+    onPointerDown
+
+  );
+
+  window.addEventListener(
+
+    'resize',
+
+    resize
+
+  );
+
+}
+
+/* =========================================================
+
+   Board
+
+========================================================= */
+
+function createBoard() {
+
+  boardGroup = new THREE.Group();
+
+  scene.add(boardGroup);
+
+  /* Wooden board */
+
+  const boardGeometry =
+
+    new THREE.BoxGeometry(
+
+      9.8,
+
+      0.55,
+
+      10.8
+
+    );
+
+  const boardMaterial =
+
+    new THREE.MeshStandardMaterial({
+
+      color: 0x6b3f1f,
+
+      roughness: 0.65
+
+    });
+
+  const board =
+
+    new THREE.Mesh(
+
+      boardGeometry,
+
+      boardMaterial
+
+    );
+
+  board.position.y = -0.35;
+
+  board.receiveShadow = true;
+
+  boardGroup.add(board);
+
+  /* Grid */
+
+  const material =
+
+    new THREE.LineBasicMaterial({
+
+      color: 0x1f1008
+
+    });
+
+  for (let y = 0; y < 10; y++) {
+
+    const z =
+
+      BOARD.top - y;
+
+    const points = [
+
+      new THREE.Vector3(
+
+        BOARD.left,
+
+        0,
+
+        z
+
+      ),
+
+      new THREE.Vector3(
+
+        BOARD.right,
+
+        0,
+
+        z
+
+      )
+
+    ];
+
+    const geometry =
+
+      new THREE.BufferGeometry()
+
+        .setFromPoints(points);
+
+    boardGroup.add(
+
+      new THREE.Line(
+
+        geometry,
+
+        material
+
+      )
+
+    );
+
+  }
+
+  for (let x = 0; x < 9; x++) {
+
+    const xx =
+
+      BOARD.left + x;
+
+    const points = [
+
+      new THREE.Vector3(
+
+        xx,
+
+        0,
+
+        BOARD.top
+
+      ),
+
+      new THREE.Vector3(
+
+        xx,
+
+        0,
+
+        BOARD.bottom
+
+      )
+
+    ];
+
+    const geometry =
+
+      new THREE.BufferGeometry()
+
+        .setFromPoints(points);
+
+    boardGroup.add(
+
+      new THREE.Line(
+
+        geometry,
+
+        material
+
+      )
+
+    );
+
+  }
+
+  /* Palace */
+
+  addPalace(0);
+
+  addPalace(7);
+
+  /* River */
+
+  createRiver();
+
+  /* Star points */
+
+  const starPositions = [
+
+    [1,2],
+
+    [7,2],
+
+    [1,7],
+
+    [7,7],
+
+    [0,3],
+
+    [2,3],
+
+    [4,3],
+
+    [6,3],
+
+    [8,3],
+
+    [0,6],
+
+    [2,6],
+
+    [4,6],
+
+    [6,6],
+
+    [8,6]
+
+  ];
+
+  const starMaterial =
+
+    new THREE.MeshStandardMaterial({
+
+      color: 0x241209
+
+    });
+
+  for (const [x,y] of starPositions) {
+
+    const geometry =
+
+      new THREE.CylinderGeometry(
+
+        0.055,
+
+        0.055,
+
+        0.02,
+
+        12
+
+      );
+
+    const dot =
+
+      new THREE.Mesh(
+
+        geometry,
+
+        starMaterial
+
+      );
+
+    dot.position.set(
+
+      BOARD.left + x,
+
+      0.02,
+
+      BOARD.top - y
+
+    );
+
+    boardGroup.add(dot);
+
+  }
+
+}
+
+/* =========================================================
+
+   Palace
+
+========================================================= */
+
+function addPalace(startY) {
+
+  const material =
+
+    new THREE.LineBasicMaterial({
+
+      color: 0x2a1409
+
+    });
+
+  const z1 =
+
+    BOARD.top - startY;
+
+  const z2 =
+
+    BOARD.top - startY - 2;
+
+  const p1 = new THREE.Vector3(
+
+    BOARD.left + 3,
+
+    0.02,
+
+    z1
+
+  );
+
+  const p2 = new THREE.Vector3(
+
+    BOARD.left + 5,
+
+    0.02,
+
+    z2
+
+  );
+
+  const p3 = new THREE.Vector3(
+
+    BOARD.left + 5,
+
+    0.02,
+
+    z1
+
+  );
+
+  const p4 = new THREE.Vector3(
+
+    BOARD.left + 3,
+
+    0.02,
+
+    z2
+
+  );
+
+  const g1 =
+
+    new THREE.BufferGeometry()
+
+      .setFromPoints([p1,p2]);
+
+  const g2 =
+
+    new THREE.BufferGeometry()
+
+      .setFromPoints([p3,p4]);
+
+  boardGroup.add(
+
+    new THREE.Line(g1, material)
+
+  );
+
+  boardGroup.add(
+
+    new THREE.Line(g2, material)
+
+  );
+
+}
+
+/* =========================================================
+
+   River
+
+========================================================= */
+
+function createRiver() {
+
+  const geometry =
+
+    new THREE.PlaneGeometry(
+
+      8.2,
+
+      1.8
+
+    );
+
+  const material =
+
+    new THREE.MeshStandardMaterial({
+
+      color: 0x7c4d25,
+
+      roughness: 0.85
+
+    });
+
+  const river =
+
+    new THREE.Mesh(
+
+      geometry,
+
+      material
+
+    );
+
+  river.rotation.x =
+
+    -Math.PI / 2;
+
+  river.position.set(
+
+    0,
+
+    0.015,
+
+    0.5
+
+  );
+
+  boardGroup.add(river);
+
+  createRiverText(
+
+    '楚河',
+
+    -2.2
+
+  );
+
+  createRiverText(
+
+    '漢界',
+
+    2.2
+
+  );
+
+}
+
+function createRiverText(text, x) {
+
+  /*
+
+    使用 Canvas 做文字貼圖，
+
+    避免依賴外部中文字型。
+
+  */
+
+  const canvas =
+
+    document.createElement('canvas');
+
+  canvas.width = 512;
+
+  canvas.height = 160;
+
+  const ctx =
+
+    canvas.getContext('2d');
+
+  ctx.clearRect(
+
+    0,
+
+    0,
+
+    canvas.width,
+
+    canvas.height
+
+  );
+
+  ctx.fillStyle =
+
+    '#28160b';
+
+  ctx.font =
+
+    'bold 110px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
+
+  ctx.textAlign =
+
+    'center';
+
+  ctx.textBaseline =
+
+    'middle';
+
+  ctx.fillText(
+
+    text,
+
+    256,
+
+    80
+
+  );
+
+  const texture =
+
+    new THREE.CanvasTexture(canvas);
+
+  texture.needsUpdate = true;
+
+  const material =
+
+    new THREE.MeshBasicMaterial({
+
+      map: texture,
+
+      transparent: true
+
+    });
+
+  const geometry =
+
+    new THREE.PlaneGeometry(
+
+      1.8,
+
+      0.56
+
+    );
+
+  const mesh =
+
+    new THREE.Mesh(
+
+      geometry,
+
+      material
+
+    );
+
+  mesh.rotation.x =
+
+    -Math.PI / 2;
+
+  mesh.position.set(
+
+    x,
+
+    0.04,
+
+    0.5
+
+  );
+
+  boardGroup.add(mesh);
+
+}
+
+/* =========================================================
+
+   Pieces
+
+========================================================= */
+
+function resetGame() {
+
+  pieces =
+
+    structuredClone(initialPieces);
+
+  currentTurn = 'red';
+
+  selected = null;
+
+  gameOver = false;
+
+  document
+
+    .getElementById('gameOver')
+
+    .classList.remove('on');
+
+  renderPieces();
+
+  updateTurn();
+
+  setMsg('紅方回合');
+
+}
+
+function renderPieces() {
+
+  while (piecesGroup.children.length) {
+
+    const obj =
+
+      piecesGroup.children.pop();
+
+    obj.traverse(child => {
+
+      if (child.geometry)
+
+        child.geometry.dispose();
+
+      if (child.material) {
+
+        if (Array.isArray(child.material)) {
+
+          child.material.forEach(
+
+            m => m.dispose()
+
+          );
+
+        } else {
+
+          child.material.dispose();
+
+        }
+
+      }
+
+    });
+
+  }
+
+  for (const p of pieces) {
+
+    const mesh =
+
+      createPieceMesh(p);
+
+    mesh.userData.pieceId =
+
+      p.id;
+
+    piecesGroup.add(mesh);
+
+    updatePiecePosition(
+
+      mesh,
+
+      p
+
+    );
+
+  }
+
+}
+
+/* =========================================================
+
+   Create 3D piece
+
+========================================================= */
+
+function createPieceMesh(piece) {
+
+  const group =
+
+    new THREE.Group();
+
+  const color =
+
+    piece.color === 'red'
+
+      ? 0xb22d24
+
+      : 0x222222;
+
+  const edgeColor =
+
+    piece.color === 'red'
+
+      ? 0xf0a25a
+
+      : 0xbebebe;
+
+  /* Main cylinder */
+
+  const geometry =
+
+    new THREE.CylinderGeometry(
+
+      PIECE_RADIUS,
+
+      PIECE_RADIUS,
+
+      PIECE_HEIGHT,
+
+      48
+
+    );
+
+  const material =
+
+    new THREE.MeshStandardMaterial({
+
+      color,
+
+      roughness: 0.3,
+
+      metalness: 0.15
+
+    });
+
+  const body =
+
+    new THREE.Mesh(
+
+      geometry,
+
+      material
+
+    );
+
+  body.castShadow = true;
+
+  group.add(body);
+
+  /* Top disc */
+
+  const topGeometry =
+
+    new THREE.CylinderGeometry(
+
+      PIECE_RADIUS * 0.9,
+
+      PIECE_RADIUS * 0.9,
+
+      0.025,
+
+      48
+
+    );
+
+  const topMaterial =
+
+    new THREE.MeshStandardMaterial({
+
+      color: edgeColor,
+
+      roughness: 0.45
+
+    });
+
+  const top =
+
+    new THREE.Mesh(
+
+      topGeometry,
+
+      topMaterial
+
+    );
+
+  top.position.y =
+
+    PIECE_HEIGHT / 2 + 0.015;
+
+  group.add(top);
+
+  /* Text */
+
+  const text =
+
+    createPieceText(
+
+      pieceText[piece.color][piece.type],
+
+      piece.color
+
+    );
+
+  text.position.y =
+
+    PIECE_HEIGHT / 2 + 0.035;
+
+  text.rotation.x =
+
+    -Math.PI / 2;
+
+  text.scale.set(
+
+    0.72,
+
+    0.72,
+
+    0.72
+
+  );
+
+  group.add(text);
+
+  return group;
+
+}
+
+/* =========================================================
+
+   Piece text
+
+========================================================= */
+
+function createPieceText(
+
+  text,
+
+  color
+
+) {
+
+  const canvas =
+
+    document.createElement('canvas');
+
+  canvas.width = 256;
+
+  canvas.height = 256;
+
+  const ctx =
+
+    canvas.getContext('2d');
+
+  ctx.clearRect(
+
+    0,
+
+    0,
+
+    256,
+
+    256
+
+  );
+
+  ctx.textAlign =
+
+    'center';
+
+  ctx.textBaseline =
+
+    'middle';
+
+  ctx.font =
+
+    'bold 150px "Noto Serif TC", "Noto Sans TC", serif';
+
+  ctx.fillStyle =
+
+    color === 'red'
+
+      ? '#7c160f'
+
+      : '#111111';
+
+  ctx.fillText(
+
+    text,
+
+    128,
+
+    128
+
+  );
+
+  const texture =
+
+    new THREE.CanvasTexture(canvas);
+
+  texture.needsUpdate = true;
+
+  const material =
+
+    new THREE.MeshBasicMaterial({
+
+      map: texture,
+
+      transparent: true
+
+    });
+
+  const geometry =
+
+    new THREE.PlaneGeometry(
+
+      0.75,
+
+      0.75
+
+    );
+
+  return new THREE.Mesh(
+
+    geometry,
+
+    material
+
+  );
+
+}
+
+/* =========================================================
+
+   Position
+
+========================================================= */
+
+function updatePiecePosition(
+
+  mesh,
+
+  piece
+
+) {
+
+  mesh.position.set(
+
+    BOARD.left + piece.x,
+
+    0.18,
+
+    BOARD.top - piece.y
+
+  );
+
+}
+
+/* =========================================================
+
+   Touch / Mouse
+
+========================================================= */
+
+function onPointerDown(event) {
+
+  if (gameOver)
+
+    return;
+
+  const rect =
+
+    renderer.domElement.getBoundingClientRect();
+
+  pointer.x =
+
+    ((event.clientX - rect.left) /
+
+      rect.width) * 2 - 1;
+
+  pointer.y =
+
+    -((event.clientY - rect.top) /
+
+      rect.height) * 2 + 1;
+
+  raycaster.setFromCamera(
+
+    pointer,
+
+    camera
+
+  );
+
+  const hits =
+
+    raycaster.intersectObjects(
+
+      piecesGroup.children,
+
+      true
+
+    );
+
+  if (hits.length) {
+
+    let obj =
+
+      hits[0].object;
+
+    while (
+
+      obj.parent &&
+
+      !obj.userData.pieceId
+
+    ) {
+
+      obj =
+
+        obj.parent;
+
+    }
+
+    if (obj.userData.pieceId) {
+
+      handlePieceClick(
+
+        obj.userData.pieceId
+
+      );
+
+      return;
+
+    }
+
+  }
+
+  /* 點擊棋盤 */
+
+  const boardHits =
+
+    raycaster.intersectObject(
+
+      boardGroup,
+
+      true
+
+    );
+
+  if (
+
+    boardHits.length &&
+
+    selected
+
+  ) {
+
+    const point =
+
+      boardHits[0].point;
+
+    const pos =
+
+      worldToBoard(
+
+        point
+
+      );
+
+    if (pos) {
+
+      tryMove(
+
+        selected,
+
+        pos.x,
+
+        pos.y
+
+      );
+
+    }
+
+  }
+
+}
+
+/* =========================================================
+
+   Piece click
+
+========================================================= */
+
+function handlePieceClick(id) {
+
+  const piece =
+
+    pieces.find(
+
+      p => p.id === id
+
+    );
+
+  if (!piece)
+
+    return;
+
+  if (
+
+    gameMode === 'online' &&
+
+    !isMyTurn()
+
+  ) {
+
+    setMsg('現在不是你的回合');
+
+    return;
+
+  }
+
+  if (
+
+    piece.color === currentTurn
+
+  ) {
+
+    selected =
+
+      piece.id;
+
+    setMsg(
+
+      `已選擇 ${pieceText[piece.color][piece.type]}`
+
+    );
+
+    return;
+
+  }
+
+  if (selected) {
+
+    tryMove(
+
+      selected,
+
+      piece.x,
+
+      piece.y
+
+    );
+
+  }
+
+}
+
+/* =========================================================
+
+   Move
+
+========================================================= */
+
+function tryMove(
+
+  pieceId,
+
+  tx,
+
+  ty
+
+) {
+
+  const piece =
+
+    pieces.find(
+
+      p => p.id === pieceId
+
+    );
+
+  if (!piece)
+
+    return;
+
+  if (
+
+    piece.color !== currentTurn
+
+  ) {
+
+    selected = null;
+
+    return;
+
+  }
+
+  if (
+
+    tx < 0 ||
+
+    tx > 8 ||
+
+    ty < 0 ||
+
+    ty > 9
+
+  ) {
+
+    setMsg('不能走到棋盤外');
+
+    return;
+
+  }
+
+  if (
+
+    !isLegalMove(
+
+      piece,
+
+      tx,
+
+      ty
+
+    )
+
+  ) {
+
+    setMsg('這一步不符合象棋規則');
+
+    return;
+
+  }
+
+  const target =
+
+    getPieceAt(tx, ty);
+
+  /* Capture */
+
+  if (target) {
+
+    if (
+
+      target.color === piece.color
+
+    ) {
+
+      setMsg('不能吃自己的棋子');
+
+      return;
+
+    }
+
+    if (
+
+      target.type === 'general'
+
+    ) {
+
+      gameOver = true;
+
+      movePiece(
+
+        piece,
+
+        tx,
+
+        ty
+
+      );
+
+      renderPieces();
+
+      showGameOver(
+
+        piece.color === 'red'
+
+          ? '紅方勝利'
+
+          : '黑方勝利'
+
+      );
+
+      sendMove(
+
+        piece.id,
+
+        tx,
+
+        ty
+
+      );
+
+      return;
+
+    }
+
+    pieces =
+
+      pieces.filter(
+
+        p => p.id !== target.id
+
+      );
+
+  }
+
+  movePiece(
+
+    piece,
+
+    tx,
+
+    ty
+
+  );
+
+  currentTurn =
+
+    currentTurn === 'red'
+
+      ? 'black'
+
+      : 'red';
+
+  selected = null;
+
+  renderPieces();
+
+  updateTurn();
+
+  sendMove(
+
+    piece.id,
+
+    tx,
+
+    ty
+
+  );
+
+}
+
+/* =========================================================
+
+   Execute move
+
+========================================================= */
+
+function movePiece(
+
+  piece,
+
+  x,
+
+  y
+
+) {
+
+  piece.x = x;
+
+  piece.y = y;
+
+}
+
+/* =========================================================
+
+   Xiangqi movement rules
+
+========================================================= */
+
+function isLegalMove(
+
+  piece,
+
+  tx,
+
+  ty
+
+) {
+
+  const dx =
+
+    tx - piece.x;
+
+  const dy =
+
+    ty - piece.y;
+
+  const ax =
+
+    Math.abs(dx);
+
+  const ay =
+
+    Math.abs(dy);
+
+  const target =
+
+    getPieceAt(tx, ty);
+
+  if (
+
+    target &&
+
+    target.color === piece.color
+
+  ) {
+
+    return false;
+
+  }
+
+  switch (piece.type) {
+
+    /* =====================
+
+       General
+
+    ===================== */
+
+    case 'general': {
+
+      if (
+
+        ax + ay !== 1
+
+      ) {
+
+        return false;
+
+      }
+
+      const inPalace =
+
+        piece.color === 'red'
+
+          ? tx >= 3 &&
+
+            tx <= 5 &&
+
+            ty >= 0 &&
+
+            ty <= 2
+
+          : tx >= 3 &&
+
+            tx <= 5 &&
+
+            ty >= 7 &&
+
+            ty <= 9;
+
+      if (!inPalace)
+
+        return false;
+
+      return true;
+
+    }
+
+    /* =====================
+
+       Advisor
+
+    ===================== */
+
+    case 'advisor': {
+
+      if (
+
+        ax !== 1 ||
+
+        ay !== 1
+
+      ) {
+
+        return false;
+
+      }
+
+      return piece.color === 'red'
+
+        ? tx >= 3 &&
+
+          tx <= 5 &&
+
+          ty >= 0 &&
+
+          ty <= 2
+
+        : tx >= 3 &&
+
+          tx <= 5 &&
+
+          ty >= 7 &&
+
+          ty <= 9;
+
+    }
+
+    /* =====================
+
+       Elephant
+
+    ===================== */
+
+    case 'elephant': {
+
+      if (
+
+        ax !== 2 ||
+
+        ay !== 2
+
+      ) {
+
+        return false;
+
+      }
+
+      /* Cannot cross river */
+
+      if (
+
+        piece.color === 'red' &&
+
+        ty > 4
+
+      ) {
+
+        return false;
+
+      }
+
+      if (
+
+        piece.color === 'black' &&
+
+        ty < 5
+
+      ) {
+
+        return false;
+
+      }
+
+      /* Elephant eye */
+
+      const eyeX =
+
+        piece.x + dx / 2;
+
+      const eyeY =
+
+        piece.y + dy / 2;
+
+      if (
+
+        getPieceAt(
+
+          eyeX,
+
+          eyeY
+
+        )
+
+      ) {
+
+        return false;
+
+      }
+
+      return true;
+
+    }
+
+    /* =====================
+
+       Horse
+
+    ===================== */
+
+    case 'horse': {
+
+      if (
+
+        !(
+
+          (ax === 1 && ay === 2) ||
+
+          (ax === 2 && ay === 1)
+
+        )
+
+      ) {
+
+        return false;
+
+      }
+
+      let legX;
+
+      let legY;
+
+      if (ax === 2) {
+
+        legX =
+
+          piece.x + dx / 2;
+
+        legY =
+
+          piece.y;
+
+      } else {
+
+        legX =
+
+          piece.x;
+
+        legY =
+
+          piece.y + dy / 2;
+
+      }
+
+      if (
+
+        getPieceAt(
+
+          legX,
+
+          legY
+
+        )
+
+      ) {
+
+        return false;
+
+      }
+
+      return true;
+
+    }
+
+    /* =====================
+
+       Rook
+
+    ===================== */
+
+    case 'rook': {
+
+      if (
+
+        dx !== 0 &&
+
+        dy !== 0
+
+      ) {
+
+        return false;
+
+      }
+
+      return pathClear(
+
+        piece.x,
+
+        piece.y,
+
+        tx,
+
+        ty
+
+      );
+
+    }
+
+    /* =====================
+
+       Cannon
+
+    ===================== */
+
+    case 'cannon': {
+
+      if (
+
+        dx !== 0 &&
+
+        dy !== 0
+
+      ) {
+
+        return false;
+
+      }
+
+      const count =
+
+        countPiecesBetween(
+
+          piece.x,
+
+          piece.y,
+
+          tx,
+
+          ty
+
+        );
+
+      if (target) {
+
+        return count === 1;
+
+      } else {
+
+        return count === 0;
+
+      }
+
+    }
+
+    /* =====================
+
+       Pawn
+
+    ===================== */
+
+    case 'pawn': {
+
+      const forward =
+
+        piece.color === 'red'
+
+          ? 1
+
+          : -1;
+
+      /* One step forward */
+
+      if (
+
+        dx === 0 &&
+
+        dy === forward
+
+      ) {
+
+        return true;
+
+      }
+
+      /* Has crossed river */
+
+      const crossed =
+
+        piece.color === 'red'
+
+          ? piece.y >= 5
+
+          : piece.y <= 4;
+
+      if (
+
+        crossed &&
+
+        ay === 0 &&
+
+        ax === 1
+
+      ) {
+
+        return true;
+
+      }
+
+      return false;
+
+    }
+
+  }
+
+  return false;
+
+}
+
+/* =========================================================
+
+   Path
+
+========================================================= */
+
+function pathClear(
+
+  x1,
+
+  y1,
+
+  x2,
+
+  y2
+
+) {
+
+  const dx =
+
+    Math.sign(x2 - x1);
+
+  const dy =
+
+    Math.sign(y2 - y1);
+
+  let x =
+
+    x1 + dx;
+
+  let y =
+
+    y1 + dy;
+
+  while (
+
+    x !== x2 ||
+
+    y !== y2
+
+  ) {
+
+    if (
+
+      getPieceAt(
+
+        x,
+
+        y
+
+      )
+
+    ) {
+
+      return false;
+
+    }
+
+    x += dx;
+
+    y += dy;
+
+  }
+
+  return true;
+
+}
+
+/* =========================================================
+
+   Count between
+
+========================================================= */
+
+function countPiecesBetween(
+
+  x1,
+
+  y1,
+
+  x2,
+
+  y2
+
+) {
+
+  const dx =
+
+    Math.sign(x2 - x1);
+
+  const dy =
+
+    Math.sign(y2 - y1);
+
+  let x =
+
+    x1 + dx;
+
+  let y =
+
+    y1 + dy;
+
+  let count = 0;
+
+  while (
+
+    x !== x2 ||
+
+    y !== y2
+
+  ) {
+
+    if (
+
+      getPieceAt(
+
+        x,
+
+        y
+
+      )
+
+    ) {
+
+      count++;
+
+    }
+
+    x += dx;
+
+    y += dy;
+
+  }
+
+  return count;
+
+}
+
+/* =========================================================
+
+   Piece lookup
+
+========================================================= */
+
+function getPieceAt(
+
+  x,
+
+  y
+
+) {
+
+  return pieces.find(
+
+    p =>
+
+      p.x === x &&
+
+      p.y === y
+
+  );
+
+}
+
+/* =========================================================
+
+   World → board
+
+========================================================= */
+
+function worldToBoard(point) {
+
+  const x =
+
+    Math.round(
+
+      point.x - BOARD.left
+
+    );
+
+  const y =
+
+    Math.round(
+
+      BOARD.top - point.z
+
+    );
+
+  if (
+
+    x < 0 ||
+
+    x > 8 ||
+
+    y < 0 ||
+
+    y > 9
+
+  ) {
+
+    return null;
+
+  }
+
+  return {
+
+    x,
+
+    y
+
+  };
+
+}
+
+/* =========================================================
+
+   Network
+
+========================================================= */
+
+function roomId() {
+
+  return Math.random()
+
+    .toString(36)
+
+    .slice(2,8)
+
+    .toUpperCase();
+
+}
+
+/* =========================================================
+
+   Host
+
+========================================================= */
+
+async function hostRoom() {
+
+  const id =
+
+    'AV' + roomId();
+
+  document
+
+    .getElementById('roomCode')
+
+    .textContent = id;
+
+  document
+
+    .getElementById('roomHint')
+
+    .textContent =
+
+      '正在建立房間…';
+
+  if (net.peer) {
+
+    try {
+
+      net.peer.destroy();
+
+    } catch {}
+
+  }
+
+  net.peer =
+
+    new Peer(id);
+
+  net.role =
+
+    'host';
+
+  net.room =
+
+    id;
+
+  gameMode =
+
+    'online';
+
+  net.peer.on(
+
+    'open',
+
+    () => {
+
+      document
+
+        .getElementById('roomHint')
+
+        .textContent =
+
+          '房間已開，把代碼給對方。';
+
+      setMsg(
+
+        '等待黑方加入'
+
+      );
+
+    }
+
+  );
+
+  net.peer.on(
+
+    'error',
+
+    e => {
+
+      document
+
+        .getElementById('roomHint')
+
+        .textContent =
+
+          '連線錯誤：' +
+
+          e.type;
+
+    }
+
+  );
+
+  net.peer.on(
+
+    'connection',
+
+    conn => {
+
+      net.conn =
+
+        conn;
+
+      conn.on(
+
+        'open',
+
+        () => {
+
+          conn.send({
+
+            t:'sync',
+
+            state:getGameState()
+
+          });
+
+          document
+
+            .getElementById('room')
+
+            .classList.remove('on');
+
+          setMsg(
+
+            '黑方已加入'
+
+          );
+
+        }
+
+      );
+
+      conn.on(
+
+        'data',
+
+        onNetData
+
+      );
+
+      conn.on(
+
+        'close',
+
+        () => {
+
+          setMsg(
+
+            '黑方離線'
+
+          );
+
+        }
+
+      );
+
+    }
+
+  );
+
+}
+
+/* =========================================================
+
+   Join
+
+========================================================= */
+
+async function joinRoom() {
+
+  const id =
+
+    document
+
+      .getElementById('joinId')
+
+      .value
+
+      .trim()
+
+      .toUpperCase();
+
+  if (
+
+    !/^AV[A-Z0-9]{6}$/.test(id)
+
+  ) {
+
+    document
+
+      .getElementById('roomHint')
+
+      .textContent =
+
+        '房間代碼格式錯誤，請輸入完整 8 碼代碼。';
+
+    return;
+
+  }
+
+  if (net.peer) {
+
+    try {
+
+      net.peer.destroy();
+
+    } catch {}
+
+  }
+
+  net.peer =
+
+    new Peer();
+
+  net.role =
+
+    'guest';
+
+  net.room =
+
+    id;
+
+  gameMode =
+
+    'online';
+
+  net.peer.on(
+
+    'open',
+
+    () => {
+
+      const conn =
+
+        net.peer.connect(
+
+          id,
+
+          {
+
+            reliable:true
+
+          }
+
+        );
+
+      net.conn =
+
+        conn;
+
+      conn.on(
+
+        'open',
+
+        () => {
+
+          document
+
+            .getElementById('room')
+
+            .classList.remove('on');
+
+          setMsg(
+
+            '已加入房間，等待紅方'
+
+          );
+
+        }
+
+      );
+
+      conn.on(
+
+        'data',
+
+        onNetData
+
+      );
+
+      conn.on(
+
+        'close',
+
+        () => {
+
+          setMsg(
+
+            '紅方離線'
+
+          );
+
+        }
+
+      );
+
+    }
+
+  );
+
+  net.peer.on(
+
+    'error',
+
+    e => {
+
+      document
+
+        .getElementById('roomHint')
+
+        .textContent =
+
+          '加入失敗：' +
+
+          e.type;
+
+    }
+
+  );
+
+}
+
+/* =========================================================
+
+   Send move
+
+========================================================= */
+
+function sendMove(
+
+  pieceId,
+
+  x,
+
+  y
+
+) {
+
+  if (
+
+    gameMode !== 'online'
+
+  )
+
+    return;
+
+  if (
+
+    !net.conn ||
+
+    !net.conn.open
+
+  )
+
+    return;
+
+  net.conn.send({
+
+    t:'move',
+
+    pieceId,
+
+    x,
+
+    y
+
+  });
+
+}
+
+/* =========================================================
+
+   Network data
+
+========================================================= */
+
+function onNetData(data) {
+
+  if (!data)
+
+    return;
+
+  if (
+
+    data.t === 'sync'
+
+  ) {
+
+    applyGameState(
+
+      data.state
+
+    );
+
+    return;
+
+  }
+
+  if (
+
+    data.t === 'move'
+
+  ) {
+
+    applyRemoteMove(
+
+      data
+
+    );
+
+  }
+
+}
+
+/* =========================================================
+
+   Remote move
+
+========================================================= */
+
+function applyRemoteMove(data) {
+
+  const piece =
+
+    pieces.find(
+
+      p =>
+
+        p.id === data.pieceId
+
+    );
+
+  if (!piece)
+
+    return;
+
+  const target =
+
+    getPieceAt(
+
+      data.x,
+
+      data.y
+
+    );
+
+  if (
+
+    target &&
+
+    target.color !== piece.color
+
+  ) {
+
+    if (
+
+      target.type === 'general'
+
+    ) {
+
+      pieces =
+
+        pieces.filter(
+
+          p => p.id !== target.id
+
+        );
+
+      movePiece(
+
+        piece,
+
+        data.x,
+
+        data.y
+
+      );
+
+      renderPieces();
+
+      gameOver = true;
+
+      showGameOver(
+
+        piece.color === 'red'
+
+          ? '紅方勝利'
+
+          : '黑方勝利'
+
+      );
+
+      return;
+
+    }
+
+    pieces =
+
+      pieces.filter(
+
+        p => p.id !== target.id
+
+      );
+
+  }
+
+  movePiece(
+
+    piece,
+
+    data.x,
+
+    data.y
+
+  );
+
+  currentTurn =
+
+    currentTurn === 'red'
+
+      ? 'black'
+
+      : 'red';
+
+  selected = null;
+
+  renderPieces();
+
+  updateTurn();
+
+}
+
+/* =========================================================
+
+   State
+
+========================================================= */
+
+function getGameState() {
+
+  return {
+
+    pieces,
+
+    currentTurn,
+
+    gameOver
+
+  };
+
+}
+
+function applyGameState(
+
+  state
+
+) {
+
+  if (!state)
+
+    return;
+
+  pieces =
+
+    structuredClone(
+
+      state.pieces
+
+    );
+
+  currentTurn =
+
+    state.currentTurn;
+
+  gameOver =
+
+    state.gameOver;
+
+  selected = null;
+
+  renderPieces();
+
+  updateTurn();
+
+}
+
+/* =========================================================
+
+   My turn
+
+========================================================= */
+
+function isMyTurn() {
+
+  if (
+
+    gameMode !== 'online'
+
+  )
+
+    return true;
+
+  if (
+
+    net.role === 'host'
+
+  ) {
+
+    return currentTurn === 'red';
+
+  }
+
+  if (
+
+    net.role === 'guest'
+
+  ) {
+
+    return currentTurn === 'black';
+
+  }
+
+  return false;
+
+}
+
+/* =========================================================
+
+   UI
+
+========================================================= */
+
+function updateTurn() {
+
+  const text =
+
+    currentTurn === 'red'
+
+      ? '紅方回合'
+
+      : '黑方回合';
+
+  document
+
+    .getElementById('turnText')
+
+    .textContent =
+
+      text;
+
+}
+
+function setMsg(text) {
+
+  document
+
+    .getElementById('message')
+
+    .textContent =
+
+      text;
+
+}
+
+/* =========================================================
+
+   Game Over
+
+========================================================= */
+
+function showGameOver(text) {
+
+  document
+
+    .getElementById('gameOverTitle')
+
+    .textContent =
+
+      text;
+
+  document
+
+    .getElementById('gameOver')
+
+    .classList.add('on');
+
+}
+
+/* =========================================================
+
+   Resize
+
+========================================================= */
+
+function resize() {
+
+  const width =
+
+    window.innerWidth;
+
+  const height =
+
+    window.innerHeight;
+
+  renderer.setSize(
+
+    width,
+
+    height,
+
+    false
+
+  );
+
+  camera.aspect =
+
+    width / height;
+
+  camera.updateProjectionMatrix();
+
+}
+
+/* =========================================================
+
+   Animation
+
+========================================================= */
+
+function animate() {
+
+  animationFrame =
+
+    requestAnimationFrame(
+
+      animate
+
+    );
+
+  renderer.render(
+
+    scene,
+
+    camera
+
+  );
+
+}
+
+/* =========================================================
+
+   Buttons
+
+========================================================= */
+
+document
+
+  .getElementById('btnHost')
+
+  .addEventListener(
+
+    'click',
+
+    hostRoom
+
+  );
+
+document
+
+  .getElementById('btnJoin')
+
+  .addEventListener(
+
+    'click',
+
+    joinRoom
+
+  );
+
+document
+
+  .getElementById('btnRoom')
+
+  .addEventListener(
+
+    'click',
+
+    () => {
+
+      document
+
+        .getElementById('room')
+
+        .classList.add('on');
+
+    }
+
+  );
+
+document
+
+  .getElementById('btnRoomClose')
+
+  .addEventListener(
+
+    'click',
+
+    () => {
+
+      document
+
+        .getElementById('room')
+
+        .classList.remove('on');
+
+    }
+
+  );
+
+document
+
+  .getElementById('btnLocal')
+
+  .addEventListener(
+
+    'click',
+
+    () => {
+
+      gameMode =
+
+        'local';
+
+      net.role =
+
+        null;
+
+      document
+
+        .getElementById('room')
+
+        .classList.remove('on');
+
+      resetGame();
+
+      setMsg(
+
+        '本機雙人模式：紅方先走'
+
+      );
+
+    }
+
+  );
+
+document
+
+  .getElementById('btnRestart')
+
+  .addEventListener(
+
+    'click',
+
+    () => {
+
+      resetGame();
+
+    }
+
+  );
+
+document
+
+  .getElementById('btnBackRoom')
+
+  .addEventListener(
+
+    'click',
+
+    () => {
+
+      document
+
+        .getElementById('gameOver')
+
+        .classList.remove('on');
+
+      document
+
+        .getElementById('room')
+
+        .classList.add('on');
+
+    }
+
+  );
+
+/* =========================================================
+
+   Prevent mobile page gestures
+
+========================================================= */
+
+document.addEventListener(
+
+  'touchmove',
+
+  event => {
+
+    event.preventDefault();
+
+  },
+
+  {
+
+    passive:false
+
+  }
+
+);
+
+document.addEventListener(
+
+  'gesturestart',
+
+  event => {
+
+    event.preventDefault();
+
+  }
+
+);
+
+</script>
+
+</body>
+
+</html>
