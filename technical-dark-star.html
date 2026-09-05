@@ -1096,6 +1096,10 @@ const GAME_SANDBOX_URL =
   SUPABASE_URL +
   "/functions/v1/dark-star-game-sandbox";
 
+const DRAW_SANDBOX_URL =
+  SUPABASE_URL +
+  "/functions/v1/dark-star-draw-sandbox";
+
 const ENGINE =
   "technical-dark-star";
 
@@ -2561,9 +2565,17 @@ function hasImageAttachment(files){
   );
 }
 
-function isGameIntent(text, files){
+function isDrawIntent(text, files){
   const value = String(text || "");
   if(isDebugIntent(value) || hasImageAttachment(files)){
+    return false;
+  }
+  return /畫|繪|蝴蝶|圖片|生圖|動畫|svg|sketch/i.test(value);
+}
+
+function isGameIntent(text, files){
+  const value = String(text || "");
+  if(isDebugIntent(value) || hasImageAttachment(files) || isDrawIntent(value, files)){
     return false;
   }
   return /小遊戲|遊戲|貪食蛇|寫一個遊戲|做一個遊戲|玩法/i.test(value);
@@ -2572,7 +2584,7 @@ function isGameIntent(text, files){
 function isSandboxIntent(text, files){
   const value = String(text || "");
 
-  if(isDebugIntent(value) || hasImageAttachment(files) || isGameIntent(value, files)){
+  if(isDebugIntent(value) || hasImageAttachment(files) || isGameIntent(value, files) || isDrawIntent(value, files)){
     return false;
   }
 
@@ -2586,6 +2598,42 @@ function extractHtmlFromText(text){
   const start = raw.search(/<html/i);
   if(start >= 0) return raw.slice(start).trim();
   return "";
+}
+
+async function callDrawSandbox(userMessage){
+  const animation = /動畫|拍翅膀|轉動|閃爍|animate|gif/i.test(String(userMessage || ""));
+  const response = await fetch(DRAW_SANDBOX_URL, {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({
+      engine: ENGINE,
+      source: "technical-dark-star-web",
+      message: userMessage,
+      kind: animation ? "animation" : "image"
+    })
+  });
+
+  const responseText = await response.text();
+  let data;
+  try{
+    data = responseText ? JSON.parse(responseText) : {};
+  }catch(error){
+    throw new Error("Draw sandbox 回傳不是 JSON：\n" + responseText.slice(0,800));
+  }
+
+  if(!response.ok){
+    throw new Error(
+      data?.error ||
+      data?.message ||
+      `HTTP ${response.status}（若是 404，表示尚未部署 dark-star-draw-sandbox）`
+    );
+  }
+
+  if(data.files && typeof data.files === "object"){
+    lastSandboxFiles = data.files;
+  }
+
+  return data;
 }
 
 async function callGameSandbox(userMessage, html){
@@ -3000,7 +3048,9 @@ async function sendMessage(){
     */
 
     const result =
-      isGameIntent(text, outgoingFiles)
+      isDrawIntent(text, outgoingFiles)
+        ? await callDrawSandbox(text)
+        : isGameIntent(text, outgoingFiles)
         ? await makeGameWithDarkStar(text, outgoingFiles)
         : isSandboxIntent(text, outgoingFiles)
         ? await callSandbox(text, lastSandboxFiles, "run")
