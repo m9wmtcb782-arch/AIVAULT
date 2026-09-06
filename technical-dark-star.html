@@ -3038,6 +3038,287 @@ async function callAIVAULT(
   saveState();
   return data;
 }
+  /* =========================================================
+   GATEWAY RESPONSE PARSER
+========================================================= */
+function logGatewaySchema(data){
+  try{
+    if(
+      !data ||
+      typeof data !== "object"
+    ){
+      console.info(
+        "[DarkStar][gateway-schema]",
+        typeof data
+      );
+      return;
+    }
+    const keys =
+      Object.keys(data)
+        .map(key => ({
+          key,
+          type:
+            Array.isArray(data[key])
+              ? "array"
+              : typeof data[key]
+        }));
+    console.info(
+      "[DarkStar][gateway-schema]",
+      {
+        keys,
+        success:
+          data.success,
+        provider:
+          data.provider,
+        model:
+          data.model,
+        hasContent:
+          typeof data.content === "string",
+        hasText:
+          typeof data.text === "string",
+        memory:
+          data.memory || null
+      }
+    );
+  }catch(error){
+    console.info(
+      "[DarkStar][gateway-schema] log failed"
+    );
+  }
+}
+/* =========================================================
+   EXTRACT TEXT
+========================================================= */
+function extractTextValue(
+  value,
+  depth = 0
+){
+  if(value == null){
+    return null;
+  }
+  if(
+    typeof value === "string"
+  ){
+    const text =
+      value.trim();
+    return text
+      ? text
+      : null;
+  }
+  if(
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ){
+    return String(value);
+  }
+  if(depth > 6){
+    return null;
+  }
+  if(Array.isArray(value)){
+    const parts =
+      value
+        .map(
+          item =>
+            extractTextValue(
+              item,
+              depth + 1
+            )
+        )
+        .filter(Boolean);
+    return parts.length
+      ? parts.join("\n")
+      : null;
+  }
+  if(
+    typeof value === "object"
+  ){
+    /*
+      Gateway v3.1
+    */
+    const preferred = [
+      "content",
+      "text",
+      "reply",
+      "response",
+      "answer",
+      "output",
+      "message"
+    ];
+    for(
+      const key of preferred
+    ){
+      if(
+        !(key in value)
+      ){
+        continue;
+      }
+      if(
+        key === "message" &&
+        typeof value[key] !== "string"
+      ){
+        const nested =
+          extractTextValue(
+            value[key],
+            depth + 1
+          );
+        if(nested){
+          return nested;
+        }
+        continue;
+      }
+      const found =
+        extractTextValue(
+          value[key],
+          depth + 1
+        );
+      if(found){
+        return found;
+      }
+    }
+    /*
+      OpenAI-compatible
+      choices
+    */
+    if(
+      Array.isArray(
+        value.choices
+      ) &&
+      value.choices[0]
+    ){
+      const choice =
+        value.choices[0];
+      const found =
+        extractTextValue(
+          choice.message?.content ??
+          choice.text ??
+          choice.content ??
+          choice,
+          depth + 1
+        );
+      if(found){
+        return found;
+      }
+    }
+    /*
+      Gemini candidates
+    */
+    if(
+      Array.isArray(
+        value.candidates
+      ) &&
+      value.candidates[0]
+    ){
+      const candidate =
+        value.candidates[0];
+      const found =
+        extractTextValue(
+          candidate.content ??
+          candidate,
+          depth + 1
+        );
+      if(found){
+        return found;
+      }
+    }
+    /*
+      Gemini parts
+    */
+    if(
+      Array.isArray(
+        value.parts
+      )
+    ){
+      const parts =
+        value.parts
+          .map(
+            part =>
+              extractTextValue(
+                part?.text ??
+                part,
+                depth + 1
+              )
+          )
+          .filter(Boolean);
+      if(parts.length){
+        return parts.join(
+          "\n"
+        );
+      }
+    }
+  }
+  return null;
+}
+/* =========================================================
+   GET AI REPLY
+========================================================= */
+function getAIReply(data){
+  if(!data){
+    return null;
+  }
+  logGatewaySchema(
+    data
+  );
+  /*
+    Gateway v3.1 primary response:
+    
+    {
+      success: true,
+      text: "...",
+      provider: "...",
+      memory: {...}
+    }
+    也兼容舊版 content。
+  */
+  const direct =
+    extractTextValue(
+      {
+        content:
+          data.content,
+        text:
+          data.text,
+        reply:
+          data.reply,
+        response:
+          typeof data.response === "string"
+            ? data.response
+            : null,
+        answer:
+          data.answer,
+        output:
+          data.output,
+        message:
+          typeof data.message === "string"
+            ? data.message
+            : null
+      },
+      0
+    );
+  if(direct){
+    return direct;
+  }
+  /*
+    Nested response
+  */
+  return (
+    extractTextValue(
+      data.result,
+      0
+    ) ||
+    extractTextValue(
+      data.data,
+      0
+    ) ||
+    extractTextValue(
+      data.payload,
+      0
+    ) ||
+    extractTextValue(
+      data.output,
+      0
+    ) ||
+    null
+  );
+}
 /* =========================================================
    SEND
 ========================================================= */
