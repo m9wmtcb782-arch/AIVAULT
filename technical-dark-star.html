@@ -3644,8 +3644,7 @@ async function sendMessage(){
             outgoingFiles
           );
 
-    loading.stop();
-loading.row.remove();
+    loading.remove();
 
     const reply =
       getAIReply(result);
@@ -3677,8 +3676,7 @@ loading.row.remove();
 
   }catch(error){
 
-    loading.stop();
-loading.row.remove();
+    loading.remove();
 
     const errorText =
       "Technical Dark Star 無法取得 AIVAULT 的真實回應。\n\n" +
@@ -3701,47 +3699,10 @@ loading.row.remove();
 
 
 /* =========================================================
-   STAGE TIMER
-   顯示格式：
-   8.42秒
-   1分 8.42秒
-   10分 35.21秒
-   ========================================================= */
+   LOADING
+========================================================= */
 
-function formatStageDuration(milliseconds){
-
-  const totalSeconds =
-    milliseconds / 1000;
-
-  if(totalSeconds < 60){
-
-    return totalSeconds.toFixed(2) + "秒";
-
-  }
-
-  const minutes =
-    Math.floor(totalSeconds / 60);
-
-  const seconds =
-    totalSeconds % 60;
-
-  return (
-    minutes +
-    "分 " +
-    seconds.toFixed(2) +
-    "秒"
-  );
-
-}
-
-
-/* =========================================================
-   CREATE LOADING MESSAGE
-   ========================================================= */
-
-function createLoadingMessage(
-  label = "Technical Dark Star 正在思考……"
-){
+function createLoadingMessage(){
 
   removeWelcome();
 
@@ -3762,84 +3723,44 @@ function createLoadingMessage(
     class="message-text"
     style="color:#888">
 
-    ${escapeHTML(label)}
-
-    <span class="think-timer">
-      0.00秒
-    </span>
+    Technical Dark Star 正在思考……
+    <span class="think-timer">0 秒</span>
 
   </div>
 
 </div>
-
 `;
 
   const timer =
     row.querySelector(".think-timer");
 
-  const started =
-    performance.now();
+  const started = Date.now();
 
   const tick = ()=>{
-
-    const elapsed =
-      performance.now() - started;
-
+    const seconds =
+      Math.floor((Date.now() - started) / 1000);
     if(timer){
-
-      timer.textContent =
-        formatStageDuration(elapsed);
-
+      timer.textContent = seconds + " 秒";
     }
-
   };
 
   tick();
 
   const interval =
-    setInterval(tick, 100);
+    setInterval(tick, 250);
 
-  const originalRemove =
-    row.remove.bind(row);
+  const originalRemove = row.remove.bind(row);
 
   row.remove = ()=>{
-
     clearInterval(interval);
-
     originalRemove();
-
   };
 
   messagesInner.appendChild(row);
 
   scrollBottom();
 
-  return {
-
-    row,
-
-    started,
-
-    stop(){
-
-      clearInterval(interval);
-
-      const elapsed =
-        performance.now() - started;
-
-      if(timer){
-
-        timer.textContent =
-          formatStageDuration(elapsed);
-
-      }
-
-      return elapsed;
-
-    }
-
-  };
-
+  return row;
 }
 
 
