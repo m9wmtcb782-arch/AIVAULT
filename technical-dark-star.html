@@ -1,0 +1,4076 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="theme-color" content="#ffffff">
+<title>Technical Dark Star</title>
+
+<style>
+*{box-sizing:border-box}
+
+html,body{
+  margin:0;
+  padding:0;
+  width:100%;
+  height:100%;
+  background:#fff;
+  color:#202123;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",
+    "Noto Sans TC","PingFang TC",sans-serif;
+}
+
+button,textarea,input{font:inherit}
+button{cursor:pointer}
+body{overflow:hidden}
+
+.app{
+  width:100%;
+  height:100dvh;
+  display:flex;
+  flex-direction:column;
+  background:#fff;
+}
+
+/* TOP */
+
+.topbar{
+  height:58px;
+  min-height:58px;
+  display:flex;
+  align-items:center;
+  padding:0 14px;
+  border-bottom:1px solid #eee;
+  background:rgba(255,255,255,.96);
+  position:relative;
+  z-index:30;
+}
+
+.menu-button{
+  width:38px;
+  height:38px;
+  border:0;
+  background:transparent;
+  border-radius:10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#303030;
+}
+
+.menu-button:hover{background:#f3f3f3}
+
+.brand{
+  margin-left:7px;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-width:0;
+}
+
+.brand-mark{
+  width:28px;
+  height:28px;
+  border-radius:8px;
+  background:#171717;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:14px;
+  font-weight:600;
+}
+
+.brand-title{
+  font-size:15px;
+  font-weight:600;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.brand-engine{
+  font-size:12px;
+  color:#8b8b8b;
+}
+
+/* CHAT */
+
+.main{
+  flex:1;
+  min-height:0;
+  position:relative;
+  display:flex;
+}
+
+.chat{
+  flex:1;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  background:#fff;
+}
+
+.messages{
+  flex:1;
+  min-height:0;
+  overflow-y:auto;
+  scroll-behavior:smooth;
+}
+
+.messages-inner{
+  width:min(760px,calc(100% - 32px));
+  margin:0 auto;
+  padding:34px 0 150px;
+}
+
+/* WELCOME */
+
+.welcome{
+  min-height:calc(100dvh - 220px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:40px 0;
+}
+
+.welcome-content{width:100%}
+
+.welcome-mark{
+  width:54px;
+  height:54px;
+  margin:0 auto 22px;
+  border-radius:16px;
+  background:#171717;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:24px;
+}
+
+.welcome-title{
+  margin:0;
+  font-size:30px;
+  font-weight:600;
+  letter-spacing:-.7px;
+}
+
+.welcome-subtitle{
+  margin:13px auto 0;
+  max-width:570px;
+  font-size:15px;
+  line-height:1.75;
+  color:#777;
+}
+
+/* MESSAGE */
+
+.message{
+  display:flex;
+  gap:13px;
+  margin-bottom:30px;
+}
+
+.message.user{justify-content:flex-end}
+
+.message-avatar{
+  width:30px;
+  height:30px;
+  min-width:30px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:11px;
+  font-weight:600;
+  background:#171717;
+  color:#fff;
+  margin-top:2px;
+}
+
+.message.user .message-avatar{
+  background:#e9e9e9;
+  color:#444;
+}
+
+.message-body{
+  min-width:0;
+  max-width:690px;
+}
+
+.message.user .message-body{
+  max-width:min(600px,82%);
+}
+
+.message-text{
+  font-size:16px;
+  line-height:1.75;
+  white-space:normal;
+  word-break:break-word;
+}
+
+.message.user .message-text{
+  background:#f4f4f4;
+  border-radius:18px;
+  padding:10px 15px;
+}
+
+.message-actions{
+  margin-top:8px;
+  display:flex;
+  gap:4px;
+}
+
+.message-action{
+  width:31px;
+  height:31px;
+  border:0;
+  background:transparent;
+  border-radius:8px;
+  color:#777;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.message-action:hover{
+  background:#f2f2f2;
+  color:#222;
+}
+
+/* SANDBOX */
+
+.sandbox-card{
+  margin-top:15px;
+  border:1px solid #e4e4e4;
+  border-radius:14px;
+  overflow:hidden;
+  background:#fff;
+}
+
+.sandbox-head{
+  height:48px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 10px 0 14px;
+  border-bottom:1px solid #ededed;
+}
+
+.sandbox-title{
+  font-size:13px;
+  font-weight:600;
+}
+
+.sandbox-tabs{
+  display:flex;
+  gap:3px;
+}
+
+.sandbox-tab{
+  border:0;
+  background:transparent;
+  color:#777;
+  border-radius:7px;
+  padding:6px 9px;
+  font-size:11px;
+}
+
+.sandbox-tab.active{
+  background:#eee;
+  color:#222;
+}
+
+.sandbox-body{height:420px}
+
+.sandbox-view{
+  display:none;
+  width:100%;
+  height:100%;
+}
+
+.sandbox-view.active{display:block}
+
+.sandbox-empty{
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  color:#888;
+  padding:30px;
+}
+
+.sandbox-empty-title{
+  color:#555;
+  font-size:14px;
+  margin-bottom:7px;
+}
+
+.sandbox-empty-text{
+  font-size:12px;
+  line-height:1.6;
+}
+
+.sandbox-frame{
+  width:100%;
+  height:100%;
+  border:0;
+  background:#fff;
+}
+
+.sandbox-code{
+  width:100%;
+  height:calc(100% - 42px);
+  border:0;
+  outline:0;
+  resize:none;
+  background:#101114;
+  color:#ddd;
+  padding:15px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,
+    Consolas,monospace;
+  font-size:13px;
+  line-height:1.6;
+}
+
+.sandbox-code-tools{
+  height:42px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 10px;
+  background:#181a1f;
+  border-bottom:1px solid #292c31;
+}
+
+.sandbox-file{
+  color:#aaa;
+  font-size:11px;
+}
+
+.sandbox-copy{
+  border:1px solid #373a40;
+  background:#22252b;
+  color:#eee;
+  border-radius:6px;
+  padding:5px 9px;
+  font-size:11px;
+}
+
+/* GATES */
+
+.gate-card{
+  margin-top:15px;
+  border:1px solid #e5e5e5;
+  border-radius:14px;
+  overflow:hidden;
+}
+
+.gate-head{
+  padding:13px 14px;
+  border-bottom:1px solid #eee;
+  font-size:13px;
+  font-weight:600;
+}
+
+.gate-list{padding:9px 14px 12px}
+
+.gate-row{
+  display:flex;
+  align-items:flex-start;
+  gap:9px;
+  padding:7px 0;
+}
+
+.gate-icon{
+  width:20px;
+  height:20px;
+  min-width:20px;
+  border-radius:50%;
+  background:#eee;
+  color:#999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:10px;
+}
+
+.gate-row.running .gate-icon{
+  background:#e9f0ff;
+  color:#2563eb;
+}
+
+.gate-row.completed .gate-icon{
+  background:#e7f7ef;
+  color:#15803d;
+}
+
+.gate-row.failed .gate-icon{
+  background:#fdeaea;
+  color:#dc2626;
+}
+
+.gate-name{
+  font-size:12px;
+  font-weight:500;
+}
+
+.gate-status{
+  margin-top:2px;
+  color:#888;
+  font-size:11px;
+}
+
+/* COMPOSER */
+
+.composer-area{
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  padding:10px 16px max(16px,env(safe-area-inset-bottom));
+  background:linear-gradient(
+    to bottom,
+    rgba(255,255,255,0),
+    rgba(255,255,255,.94) 22%,
+    #fff 45%
+  );
+  pointer-events:none;
+}
+
+.composer{
+  width:min(760px,100%);
+  margin:0 auto;
+  pointer-events:auto;
+  border:1px solid #d9d9d9;
+  border-radius:25px;
+  background:#fff;
+  box-shadow:0 3px 14px rgba(0,0,0,.06);
+  overflow:hidden;
+}
+
+.attachment-preview{
+  display:none;
+  padding:9px 12px 0;
+  gap:7px;
+  flex-wrap:wrap;
+}
+
+.attachment-preview.show{display:flex}
+
+.attachment-chip{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:7px 9px;
+  background:#f4f4f4;
+  border-radius:9px;
+  font-size:11px;
+  color:#555;
+  max-width:230px;
+}
+
+.attachment-chip-name{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.attachment-remove{
+  border:0;
+  background:transparent;
+  color:#888;
+  padding:0;
+  font-size:14px;
+}
+
+.composer-row{
+  min-height:54px;
+  display:flex;
+  align-items:flex-end;
+  gap:5px;
+  padding:6px 7px;
+}
+
+.composer-plus,
+.composer-mic{
+  width:39px;
+  height:39px;
+  min-width:39px;
+  border:0;
+  border-radius:50%;
+  background:transparent;
+  color:#444;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.composer-plus:hover,
+.composer-mic:hover{
+  background:#f1f1f1;
+}
+
+.composer-mic.recording{
+  background:#f0f0f0;
+  color:#111;
+}
+
+.composer-input{
+  flex:1;
+  min-height:39px;
+  max-height:180px;
+  resize:none;
+  border:0;
+  outline:0;
+  padding:9px 7px;
+  background:transparent;
+  font-size:16px;
+  line-height:1.45;
+}
+
+.composer-input::placeholder{color:#9a9a9a}
+
+.composer-send{
+  width:39px;
+  height:39px;
+  min-width:39px;
+  border:0;
+  border-radius:50%;
+  background:#171717;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.composer-send:disabled{
+  opacity:.35;
+  cursor:default;
+}
+
+/* ATTACH */
+
+.attach-menu{
+  position:fixed;
+  left:16px;
+  bottom:90px;
+  width:230px;
+  padding:7px;
+  background:#fff;
+  border:1px solid #e5e5e5;
+  border-radius:14px;
+  box-shadow:0 8px 30px rgba(0,0,0,.12);
+  display:none;
+  z-index:100;
+}
+
+.attach-menu.show{display:block}
+
+.attach-option{
+  width:100%;
+  border:0;
+  background:transparent;
+  border-radius:9px;
+  padding:11px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  text-align:left;
+  font-size:13px;
+  color:#333;
+}
+
+.attach-option:hover{background:#f3f3f3}
+
+/* DRAWER */
+
+.drawer-backdrop{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.22);
+  opacity:0;
+  visibility:hidden;
+  transition:.18s;
+  z-index:80;
+}
+
+.drawer-backdrop.show{
+  opacity:1;
+  visibility:visible;
+}
+
+.drawer{
+  position:fixed;
+  top:0;
+  bottom:0;
+  left:0;
+  width:min(310px,88vw);
+  background:#fff;
+  box-shadow:8px 0 30px rgba(0,0,0,.12);
+  transform:translateX(-105%);
+  transition:.2s;
+  z-index:90;
+  display:flex;
+  flex-direction:column;
+}
+
+.drawer.show{transform:translateX(0)}
+
+.drawer-top{
+  height:60px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 12px;
+  border-bottom:1px solid #eee;
+}
+
+.drawer-brand{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  font-size:14px;
+  font-weight:600;
+}
+
+.drawer-close{
+  width:36px;
+  height:36px;
+  border:0;
+  background:transparent;
+  border-radius:9px;
+}
+
+.drawer-close:hover{background:#f2f2f2}
+
+.new-chat{
+  margin:12px;
+  height:42px;
+  border:1px solid #dedede;
+  background:#fff;
+  border-radius:10px;
+  text-align:left;
+  padding:0 13px;
+  font-size:13px;
+}
+
+.new-chat:hover{background:#f5f5f5}
+
+.history{
+  flex:1;
+  min-height:0;
+  overflow-y:auto;
+  padding:3px 9px 20px;
+}
+
+.history-label{
+  padding:12px 8px 6px;
+  color:#999;
+  font-size:11px;
+}
+
+.history-item{
+  width:100%;
+  border:0;
+  background:transparent;
+  border-radius:9px;
+  padding:10px 9px;
+  text-align:left;
+  color:#333;
+  font-size:13px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.history-item:hover{background:#f2f2f2}
+
+.drawer-bottom{
+  border-top:1px solid #eee;
+  padding:9px;
+}
+
+.drawer-item{
+  width:100%;
+  border:0;
+  background:transparent;
+  border-radius:9px;
+  padding:10px;
+  text-align:left;
+  font-size:13px;
+  color:#444;
+}
+
+.drawer-item:hover{background:#f3f3f3}
+
+.hidden-file{display:none}
+
+.voice-status{
+  position:fixed;
+  left:50%;
+  bottom:105px;
+  transform:translateX(-50%);
+  padding:10px 15px;
+  background:#171717;
+  color:#fff;
+  border-radius:20px;
+  font-size:12px;
+  display:none;
+  z-index:120;
+}
+
+.voice-status.show{display:block}
+
+.icon{
+  width:20px;
+  height:20px;
+  display:block;
+}
+
+.icon-small{
+  width:18px;
+  height:18px;
+}
+
+
+.brand-home{
+  margin-left:auto;
+  border:1px solid #e5e5e5;
+  background:#fff;
+  color:#333;
+  border-radius:9px;
+  padding:7px 10px;
+  font-size:12px;
+}
+.brand-home:hover{background:#f4f4f4}
+
+.message-action.danger:hover{
+  background:#fdeaea;
+  color:#dc2626;
+}
+
+.history-item-wrap{
+  display:flex;
+  align-items:center;
+  gap:4px;
+}
+.history-item-wrap .history-item{flex:1}
+.history-del{
+  width:28px;
+  min-width:28px;
+  height:28px;
+  border:0;
+  background:transparent;
+  color:#aaa;
+  border-radius:7px;
+  font-size:14px;
+}
+.history-del:hover{background:#fdeaea;color:#dc2626}
+
+
+.media-stack{
+  margin-top:8px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.media-image,
+.media-video{
+  display:block;
+  max-width:min(420px,100%);
+  max-height:320px;
+  border-radius:14px;
+  border:1px solid #e8e8e8;
+  background:#f7f7f7;
+  object-fit:contain;
+}
+
+.media-article{
+  margin-top:8px;
+  padding:12px 14px;
+  border:1px solid #e8e8e8;
+  border-radius:14px;
+  background:#fafafa;
+  font-size:14px;
+  line-height:1.7;
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+
+.media-article a{color:#155eef}
+
+.attachment-chip img{
+  width:28px;
+  height:28px;
+  object-fit:cover;
+  border-radius:6px;
+}
+
+@media(max-width:700px){
+
+  .brand-engine{display:none}
+
+  .messages-inner{
+    width:calc(100% - 24px);
+    padding-top:25px;
+  }
+
+  .welcome{
+    min-height:calc(100dvh - 220px);
+  }
+
+  .welcome-title{font-size:25px}
+
+  .welcome-subtitle{font-size:14px}
+
+  .message-text{font-size:16px}
+
+  .sandbox-body{height:360px}
+
+  .composer-area{
+    padding-left:9px;
+    padding-right:9px;
+  }
+
+  .composer{border-radius:22px}
+
+  .attach-menu{
+    left:9px;
+    bottom:88px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<header class="topbar">
+
+  <button id="menuButton" class="menu-button" aria-label="聊天紀錄">
+    <svg class="icon" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="1.8"
+      stroke-linecap="round">
+      <path d="M4 7h16"/>
+      <path d="M4 12h16"/>
+      <path d="M4 17h16"/>
+    </svg>
+  </button>
+
+  <div class="brand">
+
+    <div class="brand-mark">✦</div>
+
+    <div class="brand-title">
+      Technical Dark Star
+    </div>
+
+    <div class="brand-engine">
+      technical-dark-star
+    </div>
+
+  </div>
+
+  <a id="homeButton" class="brand-home" href="aivault-home.html">回工作中心</a>
+
+</header>
+
+<main class="main">
+
+<section class="chat">
+
+  <div id="messages" class="messages">
+
+    <div id="messagesInner" class="messages-inner">
+
+      <section id="welcome" class="welcome">
+
+        <div class="welcome-content">
+
+          <div class="welcome-mark">✦</div>
+
+          <h1 class="welcome-title">
+            你好，我是 Technical Dark Star
+          </h1>
+
+          <p class="welcome-subtitle">
+            直接跟我聊天、說話、傳檔案或貼上程式碼。
+            <br>
+            我會透過 AIVAULT 處理真正的 AI 回應與工程工作。
+          </p>
+
+        </div>
+
+      </section>
+
+    </div>
+
+  </div>
+
+  <div class="composer-area">
+
+    <div class="composer">
+
+      <div id="attachmentPreview" class="attachment-preview"></div>
+
+      <div class="composer-row">
+
+        <button id="plusButton" class="composer-plus" aria-label="新增">
+
+          <svg class="icon" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round">
+            <path d="M12 5v14"/>
+            <path d="M5 12h14"/>
+          </svg>
+
+        </button>
+
+        <textarea
+          id="composerInput"
+          class="composer-input"
+          rows="1"
+          placeholder="傳訊息給 Technical Dark Star……"></textarea>
+
+        <button id="micButton" class="composer-mic" aria-label="語音輸入">
+
+          <svg class="icon" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round">
+
+            <rect x="9" y="3" width="6" height="12" rx="3"/>
+            <path d="M5 11a7 7 0 0 0 14 0"/>
+            <path d="M12 18v3"/>
+            <path d="M9 21h6"/>
+
+          </svg>
+
+        </button>
+
+        <button id="sendButton" class="composer-send"
+          aria-label="送出" disabled>
+
+          <svg class="icon-small" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round">
+
+            <path d="M12 19V5"/>
+            <path d="M6 11l6-6 6 6"/>
+
+          </svg>
+
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
+
+</main>
+</div>
+
+<div id="attachMenu" class="attach-menu">
+
+  <button class="attach-option" data-type="image/*">
+    <span>圖片</span>
+  </button>
+
+  <button class="attach-option" data-type=".doc,.docx">
+    <span>Word</span>
+  </button>
+
+  <button class="attach-option" data-type=".pdf">
+    <span>PDF</span>
+  </button>
+
+  <button class="attach-option"
+    data-type=".txt,.md,.json,.js,.ts,.html,.css,.jsx,.tsx">
+    <span>TXT／程式碼</span>
+  </button>
+
+  <button class="attach-option" data-type="video/mp4">
+    <span>MP4</span>
+  </button>
+
+  <button class="attach-option" data-type="audio/wav,audio/x-wav">
+    <span>WAV</span>
+  </button>
+
+</div>
+
+<input id="fileInput" class="hidden-file" type="file">
+
+<div id="drawerBackdrop" class="drawer-backdrop"></div>
+
+<aside id="drawer" class="drawer">
+
+  <div class="drawer-top">
+
+    <div class="drawer-brand">
+
+      <div class="brand-mark">✦</div>
+      Technical Dark Star
+
+    </div>
+
+    <button id="drawerClose" class="drawer-close">
+
+      <svg class="icon-small" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round">
+
+        <path d="M6 6l12 12"/>
+        <path d="M18 6L6 18"/>
+
+      </svg>
+
+    </button>
+
+  </div>
+
+  <button id="newChatButton" class="new-chat">
+    ＋ 新聊天
+  </button>
+
+  <div id="history" class="history">
+    <div class="history-label">對話紀錄</div>
+  </div>
+
+  <div class="drawer-bottom">
+
+    <button id="clearMessagesButton" class="drawer-item">
+      🗑 刪除測試訊息
+    </button>
+
+    <button id="capabilityButton" class="drawer-item">
+      🧠 學習能力
+    </button>
+
+    <button id="workHistoryButton" class="drawer-item">
+      🧪 工作紀錄
+    </button>
+
+  </div>
+
+</aside>
+
+<div id="voiceStatus" class="voice-status">
+  正在聆聽……
+</div>
+
+<script>
+
+/* =========================================================
+   AIVAULT 真實連線設定
+========================================================= */
+
+const SUPABASE_URL =
+  "https://clcddygkaaqqtsbswgdf.supabase.co";
+
+/*
+  AIVAULT AI Gateway
+  不是 learning-executor。
+*/
+const AI_GATEWAY_URL =
+  SUPABASE_URL +
+  "/functions/v1/ai-gateway";
+
+const SANDBOX_URL =
+  SUPABASE_URL +
+  "/functions/v1/dark-star-sandbox";
+
+const GAME_SANDBOX_URL =
+  SUPABASE_URL +
+  "/functions/v1/dark-star-game-sandbox";
+
+const DRAW_SANDBOX_URL =
+  SUPABASE_URL +
+  "/functions/v1/dark-star-draw-sandbox";
+
+const ENGINE =
+  "technical-dark-star";
+
+let lastSandboxFiles = {};
+
+
+/* =========================================================
+   STATE
+========================================================= */
+
+let conversationId =
+  localStorage.getItem(
+    "technical_dark_star_conversation_id"
+  ) || null;
+
+let messagesHistory =
+  JSON.parse(
+    localStorage.getItem(
+      "technical_dark_star_messages"
+    ) || "[]"
+  );
+
+let attachments = [];
+let recognition = null;
+let isRecording = false;
+
+
+/* =========================================================
+   ELEMENTS
+========================================================= */
+
+const messages =
+  document.getElementById("messages");
+
+const messagesInner =
+  document.getElementById("messagesInner");
+
+const input =
+  document.getElementById("composerInput");
+
+const sendButton =
+  document.getElementById("sendButton");
+
+const micButton =
+  document.getElementById("micButton");
+
+const plusButton =
+  document.getElementById("plusButton");
+
+const attachMenu =
+  document.getElementById("attachMenu");
+
+const fileInput =
+  document.getElementById("fileInput");
+
+const attachmentPreview =
+  document.getElementById("attachmentPreview");
+
+const drawer =
+  document.getElementById("drawer");
+
+const drawerBackdrop =
+  document.getElementById("drawerBackdrop");
+
+const menuButton =
+  document.getElementById("menuButton");
+
+const drawerClose =
+  document.getElementById("drawerClose");
+
+const historyElement =
+  document.getElementById("history");
+
+const voiceStatus =
+  document.getElementById("voiceStatus");
+
+
+/* =========================================================
+   UTIL
+========================================================= */
+
+function escapeHTML(value){
+
+  return String(value ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
+}
+
+
+function scrollBottom(){
+
+  requestAnimationFrame(()=>{
+    messages.scrollTop =
+      messages.scrollHeight;
+  });
+}
+
+
+function saveState(){
+
+  localStorage.setItem(
+    "technical_dark_star_messages",
+    JSON.stringify(messagesHistory)
+  );
+
+  if(conversationId){
+
+    localStorage.setItem(
+      "technical_dark_star_conversation_id",
+      conversationId
+    );
+
+  }else{
+
+    localStorage.removeItem(
+      "technical_dark_star_conversation_id"
+    );
+  }
+}
+
+
+/* =========================================================
+   INPUT
+========================================================= */
+
+function resizeInput(){
+
+  input.style.height = "auto";
+
+  input.style.height =
+    Math.min(input.scrollHeight,180) + "px";
+}
+
+
+input.addEventListener("input",()=>{
+
+  resizeInput();
+
+  sendButton.disabled =
+    !input.value.trim() &&
+    attachments.length === 0;
+});
+
+
+input.addEventListener("keydown",event=>{
+
+  if(
+    event.key === "Enter" &&
+    !event.shiftKey
+  ){
+
+    event.preventDefault();
+
+    sendMessage();
+  }
+});
+
+
+/* =========================================================
+   DRAWER
+========================================================= */
+
+function openDrawer(){
+
+  drawer.classList.add("show");
+  drawerBackdrop.classList.add("show");
+
+  renderHistory();
+}
+
+
+function closeDrawer(){
+
+  drawer.classList.remove("show");
+  drawerBackdrop.classList.remove("show");
+}
+
+
+menuButton.addEventListener("click",openDrawer);
+drawerClose.addEventListener("click",closeDrawer);
+drawerBackdrop.addEventListener("click",closeDrawer);
+
+
+/* =========================================================
+   NEW CHAT
+========================================================= */
+
+document
+  .getElementById("newChatButton")
+  .addEventListener("click",()=>{
+
+    conversationId = null;
+    messagesHistory = [];
+    attachments = [];
+
+    saveState();
+    renderAttachments();
+
+    messagesInner.innerHTML = "";
+    messagesInner.appendChild(createWelcome());
+
+    closeDrawer();
+  });
+
+
+function createWelcome(){
+
+  const section =
+    document.createElement("section");
+
+  section.className = "welcome";
+
+  section.innerHTML = `
+
+<div class="welcome-content">
+
+  <div class="welcome-mark">✦</div>
+
+  <h1 class="welcome-title">
+    你好，我是 Technical Dark Star
+  </h1>
+
+  <p class="welcome-subtitle">
+    直接跟我聊天、說話、傳檔案或貼上程式碼。
+    <br>
+    我會透過 AIVAULT 處理真正的 AI 回應與工程工作。
+  </p>
+
+</div>
+`;
+
+  return section;
+}
+
+
+/* =========================================================
+   HISTORY
+========================================================= */
+
+function renderHistory(){
+
+  historyElement.innerHTML = `
+    <div class="history-label">對話紀錄</div>
+  `;
+
+  const users =
+    messagesHistory
+      .filter(item=>item.role === "user")
+      .slice()
+      .reverse();
+
+  if(!users.length){
+
+    const empty =
+      document.createElement("div");
+
+    empty.style.padding = "15px 8px";
+    empty.style.fontSize = "12px";
+    empty.style.color = "#999";
+    empty.textContent = "目前沒有對話紀錄";
+
+    historyElement.appendChild(empty);
+
+    return;
+  }
+
+  messagesHistory.forEach((item,index)=>{
+
+    if(item.role !== "user") return;
+
+    const wrap =
+      document.createElement("div");
+
+    wrap.className = "history-item-wrap";
+
+    const button =
+      document.createElement("button");
+
+    button.className = "history-item";
+
+    button.textContent =
+      item.text || "測試訊息";
+
+    button.onclick = ()=>{
+
+      loadConversation();
+      closeDrawer();
+    };
+
+    const del =
+      document.createElement("button");
+
+    del.className = "history-del";
+    del.title = "刪除這則測試訊息";
+    del.textContent = "×";
+    del.onclick = event=>{
+      event.stopPropagation();
+      deleteMessage(index);
+    };
+
+    wrap.appendChild(button);
+    wrap.appendChild(del);
+    historyElement.appendChild(wrap);
+  });
+}
+
+
+function loadConversation(){
+
+  messagesInner.innerHTML = "";
+
+  if(!messagesHistory.length){
+
+    messagesInner.appendChild(createWelcome());
+
+    return;
+  }
+
+  messagesHistory.forEach((item,index)=>{
+
+    if(item.role === "user"){
+
+      renderUserMessage(
+        item.text,
+        item.attachments || [],
+        index
+      );
+
+    }else{
+
+      renderAIMessage(
+        item.text,
+        item.result || null,
+        index
+      );
+    }
+  });
+
+  scrollBottom();
+}
+
+
+/* =========================================================
+   ATTACHMENT
+========================================================= */
+
+plusButton.addEventListener("click",event=>{
+
+  event.stopPropagation();
+
+  attachMenu.classList.toggle("show");
+});
+
+
+document.addEventListener("click",event=>{
+
+  if(
+    !attachMenu.contains(event.target) &&
+    event.target !== plusButton
+  ){
+
+    attachMenu.classList.remove("show");
+  }
+});
+
+
+document
+  .querySelectorAll(".attach-option")
+  .forEach(button=>{
+
+    button.addEventListener("click",()=>{
+
+      fileInput.accept =
+        button.dataset.type;
+
+      fileInput.click();
+
+      attachMenu.classList.remove("show");
+    });
+  });
+
+
+
+async function addFilesFromList(fileList){
+
+  const incoming = Array.from(fileList || []).filter(Boolean);
+
+  if(!incoming.length) return;
+
+  for(const file of incoming){
+
+    try{
+
+      const attachment =
+        await prepareAttachment(file);
+
+      attachments.push(attachment);
+
+    }catch(error){
+
+      alert(
+        "檔案處理失敗：\n" +
+        error.message
+      );
+    }
+  }
+
+  renderAttachments();
+
+  sendButton.disabled =
+    !input.value.trim() &&
+    attachments.length === 0;
+}
+
+
+document.addEventListener("paste", async event=>{
+
+  const clipboard =
+    event.clipboardData;
+
+  if(!clipboard) return;
+
+  const files = [];
+
+  if(clipboard.files && clipboard.files.length){
+
+    Array.from(clipboard.files).forEach(file=>files.push(file));
+  }
+
+  Array.from(clipboard.items || []).forEach(item=>{
+
+    if(item.kind === "file"){
+
+      const file = item.getAsFile();
+
+      if(file && !files.includes(file)){
+        files.push(file);
+      }
+    }
+  });
+
+  if(files.length){
+
+    event.preventDefault();
+    await addFilesFromList(files);
+    return;
+  }
+
+  const pasted =
+    clipboard.getData("text/plain");
+
+  if(
+    pasted &&
+    pasted.length > 800 &&
+    document.activeElement !== input
+  ){
+
+    event.preventDefault();
+
+    const file = new File(
+      [pasted],
+      "pasted-article.txt",
+      { type:"text/plain" }
+    );
+
+    await addFilesFromList([file]);
+  }
+});
+
+
+;["dragenter","dragover"].forEach(name=>{
+
+  document.addEventListener(name, event=>{
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  });
+});
+
+
+document.addEventListener("drop", async event=>{
+
+  event.preventDefault();
+
+  const files =
+    event.dataTransfer?.files;
+
+  if(files && files.length){
+
+    await addFilesFromList(files);
+  }
+});
+
+
+fileInput.addEventListener("change",async event=>{
+
+  await addFilesFromList(event.target.files);
+  fileInput.value = "";
+});
+
+
+
+async function prepareAttachment(file){
+
+  const base = {
+    name:file.name,
+    type:file.type || "application/octet-stream",
+    size:file.size
+  };
+
+  const textTypes = [
+    "text/plain",
+    "text/markdown",
+    "application/json",
+    "text/javascript",
+    "application/javascript",
+    "text/css",
+    "text/html"
+  ];
+
+  const extension =
+    file.name
+      .split(".")
+      .pop()
+      .toLowerCase();
+
+  const textExtensions = [
+    "txt","md","json","js","ts",
+    "jsx","tsx","html","css",
+    "csv","xml","yml","yaml"
+  ];
+
+  if(
+    textTypes.includes(file.type) ||
+    textExtensions.includes(extension)
+  ){
+
+    const content = await file.text();
+
+    return {
+      ...base,
+      content_type: ["md","txt","html"].includes(extension) ? "article" : "text",
+      content,
+      preview: content.slice(0, 4000)
+    };
+  }
+
+  if(
+    file.type.startsWith("image/") ||
+    ["png","jpg","jpeg","gif","webp","bmp","svg"].includes(extension)
+  ){
+
+    const preview = await readAsDataURL(file);
+
+    return {
+      ...base,
+      content_type:"image",
+      content_base64: preview,
+      preview
+    };
+  }
+
+  if(
+    file.type.startsWith("video/") ||
+    ["mp4","webm","mov"].includes(extension)
+  ){
+
+    if(file.size > 3.5 * 1024 * 1024){
+      throw new Error(
+        "影片超過 3.5MB。手機 2 秒影片也常太大，請改拍更短、或先用照片。"
+      );
+    }
+
+    const preview = await readAsDataURL(file);
+
+    return {
+      ...base,
+      content_type:"video",
+      content_base64: preview,
+      preview
+    };
+  }
+
+  if(
+    file.type === "application/pdf" ||
+    extension === "pdf"
+  ){
+
+    return {
+      ...base,
+      content_type:"article",
+      preview_kind:"pdf",
+      content: "[PDF] " + file.name
+    };
+  }
+
+  return {
+    ...base,
+    content_type:"file"
+  };
+}
+
+
+function readAsDataURL(file){
+
+  return new Promise((resolve,reject)=>{
+
+    const reader = new FileReader();
+
+    reader.onload =
+      ()=>resolve(reader.result);
+
+    reader.onerror =
+      ()=>reject(
+        new Error("無法讀取檔案")
+      );
+
+    reader.readAsDataURL(file);
+  });
+}
+
+
+function renderAttachments(){
+
+  attachmentPreview.innerHTML = "";
+
+  if(!attachments.length){
+
+    attachmentPreview.classList.remove("show");
+
+    return;
+  }
+
+  attachmentPreview.classList.add("show");
+
+  attachments.forEach((attachment,index)=>{
+
+    const chip =
+      document.createElement("div");
+
+    chip.className = "attachment-chip";
+
+    const thumb =
+      attachment.preview && attachment.content_type === "image"
+        ? `<img src="${attachment.preview}" alt="">`
+        : `<span>${getFileIcon(attachment.type)}</span>`;
+
+    chip.innerHTML = `
+
+${thumb}
+
+<span class="attachment-chip-name">
+  ${escapeHTML(attachment.name)}
+</span>
+
+<button
+  class="attachment-remove"
+  data-index="${index}">
+  ×
+</button>
+`;
+
+    attachmentPreview.appendChild(chip);
+  });
+
+  attachmentPreview
+    .querySelectorAll(".attachment-remove")
+    .forEach(button=>{
+
+      button.onclick = ()=>{
+
+        const index =
+          Number(button.dataset.index);
+
+        attachments.splice(index,1);
+
+        renderAttachments();
+
+        sendButton.disabled =
+          !input.value.trim() &&
+          attachments.length === 0;
+      };
+    });
+}
+
+
+function getFileIcon(type){
+
+  if(type?.startsWith("image/")) return "圖片";
+  if(type === "application/pdf") return "PDF";
+  if(type?.startsWith("video/")) return "MP4";
+  if(type?.startsWith("audio/")) return "WAV";
+
+  return "檔案";
+}
+
+
+
+function buildGatewayMessage(userMessage, files){
+
+  const text = (userMessage || "").trim();
+  const parts = [];
+
+  if(text) parts.push(text);
+
+  (files || []).forEach(file=>{
+
+    if(file.content_type === "image"){
+      parts.push(
+        "（已附加圖片：" + (file.name || "image") +
+        "。請先辨識圖片。若圖中有程式碼，請完整讀出、指出錯誤並給出修正後的程式。）"
+      );
+    }else if(file.content_type === "video"){
+      parts.push("（已附加影片：" + (file.name || "video") + "）");
+    }else if(file.content_type === "article" || file.content_type === "text"){
+      parts.push(
+        "（已附加文章／文件：" + (file.name || "file") + "）\n" +
+        String(file.content || "").slice(0,12000)
+      );
+    }else if(file.name){
+      parts.push("（已附加檔案：" + file.name + "）");
+    }
+  });
+
+  return parts.join("\n\n") || "請分析我上傳的檔案。";
+}
+
+
+function isDataOrHttpURL(value){
+
+  return typeof value === "string" &&
+    /^(https?:\/\/|data:image\/|data:video\/)/i.test(value.trim());
+}
+
+
+function collectAIMedia(result, text){
+
+  const items = [];
+
+  function push(item){
+    if(!item) return;
+    items.push(item);
+  }
+
+  const urls = [];
+
+  String(text || "").replace(
+    /(!)?\[([^\]]*)\]\(([^)]+)\)|(https?:\/\/[^\s<>"']+\.(?:png|jpe?g|gif|webp|mp4|webm))/ig,
+    function(match, bang, label, mdUrl, rawUrl){
+      const url = mdUrl || rawUrl;
+      if(url) urls.push(url);
+      return match;
+    }
+  );
+
+  urls.forEach(url=>{
+    if(/\.(mp4|webm|mov)(\?|$)/i.test(url)){
+      push({ name:"video", content_type:"video", preview:url });
+    }else if(/\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(url) || url.startsWith("data:image/")){
+      push({ name:"image", content_type:"image", preview:url });
+    }
+  });
+
+  const pools = [
+    result,
+    result?.files,
+    result?.media,
+    result?.images,
+    result?.videos,
+    result?.artifacts,
+    result?.workspace
+  ];
+
+  pools.forEach(pool=>{
+    if(!pool) return;
+    if(typeof pool === "string" && isDataOrHttpURL(pool)){
+      push({
+        name:"media",
+        content_type: pool.includes("video") || /\.mp4/i.test(pool) ? "video" : "image",
+        preview: pool
+      });
+      return;
+    }
+    if(Array.isArray(pool)){
+      pool.forEach((item,i)=>{
+        if(typeof item === "string" && isDataOrHttpURL(item)){
+          push({
+            name:"media-"+i,
+            content_type: /\.mp4|video/i.test(item) ? "video" : "image",
+            preview: item
+          });
+        }else if(item && typeof item === "object"){
+          const url = item.url || item.preview || item.content_base64 || item.src;
+          if(isDataOrHttpURL(url)){
+            push({
+              name: item.name || ("media-"+i),
+              content_type: item.content_type || (String(item.type||"").startsWith("video") ? "video" : "image"),
+              preview: url
+            });
+          }
+        }
+      });
+    }
+  });
+
+  return items;
+}
+
+
+function formatAIText(text){
+
+  const escaped = escapeHTML(text || "");
+  const html = escaped
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/(https?:\/\/[^\s<]+)/g, function(url){
+      if(url.includes("</a>")) return url;
+      return '<a href="'+url+'" target="_blank" rel="noopener">'+url+"</a>";
+    })
+    .replace(/\n/g,"<br>");
+
+  return { html };
+}
+
+
+function renderMediaStack(files){
+
+  const stack = document.createElement("div");
+  stack.className = "media-stack";
+
+  (files || []).forEach(file=>{
+
+    const type = file.content_type || (
+      String(file.type||"").startsWith("image/") ? "image" :
+      String(file.type||"").startsWith("video/") ? "video" :
+      file.content ? "article" : "file"
+    );
+
+    const src = file.preview || file.content_base64 || file.url || "";
+
+    if(type === "image" && src){
+      const img = document.createElement("img");
+      img.className = "media-image";
+      img.src = src;
+      img.alt = file.name || "圖片";
+      stack.appendChild(img);
+      return;
+    }
+
+    if(type === "video" && src){
+      const video = document.createElement("video");
+      video.className = "media-video";
+      video.src = src;
+      video.controls = true;
+      video.playsInline = true;
+      stack.appendChild(video);
+      return;
+    }
+
+    if(type === "article" || type === "text"){
+      const article = document.createElement("article");
+      article.className = "media-article";
+      article.textContent =
+        (file.name ? file.name + "\n\n" : "") +
+        String(file.content || file.preview || "");
+      stack.appendChild(article);
+      return;
+    }
+
+    const fallback = document.createElement("div");
+    fallback.style.fontSize = "12px";
+    fallback.style.color = "#777";
+    fallback.textContent = "📎 " + (file.name || "檔案");
+    stack.appendChild(fallback);
+  });
+
+  return stack;
+}
+
+
+/* =========================================================
+   MESSAGE
+========================================================= */
+
+function removeWelcome(){
+
+  const welcome =
+    document.getElementById("welcome");
+
+  if(welcome) welcome.remove();
+}
+
+
+function renderUserMessage(
+  text,
+  attachedFiles=[],
+  messageIndex=null
+){
+
+  removeWelcome();
+
+  const row =
+    document.createElement("div");
+
+  row.className = "message user";
+  if(messageIndex != null) row.dataset.index = String(messageIndex);
+
+  row.innerHTML = `
+
+<div class="message-body">
+
+  <div class="message-text">
+    ${escapeHTML(
+      text || "已上傳檔案。"
+    ).replace(/\n/g,"<br>")}
+  </div>
+
+</div>
+
+<div class="message-avatar">
+  你
+</div>
+`;
+
+  if(attachedFiles.length){
+
+    row
+      .querySelector(".message-body")
+      .appendChild(renderMediaStack(attachedFiles));
+  }
+
+  if(messageIndex != null){
+    const actions = document.createElement("div");
+    actions.className = "message-actions";
+    actions.style.justifyContent = "flex-end";
+    actions.appendChild(createDeleteButton(messageIndex));
+    row.querySelector(".message-body").appendChild(actions);
+  }
+
+  messagesInner.appendChild(row);
+
+  scrollBottom();
+}
+
+
+function renderAIMessage(text,result=null,messageIndex=null){
+
+  removeWelcome();
+
+  const row =
+    document.createElement("div");
+
+  row.className = "message ai";
+  if(messageIndex != null) row.dataset.index = String(messageIndex);
+
+  const avatar =
+    document.createElement("div");
+
+  avatar.className = "message-avatar";
+  avatar.textContent = "✦";
+
+  const body =
+    document.createElement("div");
+
+  body.className = "message-body";
+
+  const messageText =
+    document.createElement("div");
+
+  messageText.className = "message-text";
+
+  const formatted = formatAIText(text || "");
+  messageText.innerHTML = formatted.html;
+
+  body.appendChild(messageText);
+
+  const aiMedia = collectAIMedia(result, text);
+  if(aiMedia.length){
+    body.appendChild(renderMediaStack(aiMedia));
+  }
+
+  if(text){
+
+    const actions =
+      document.createElement("div");
+
+    actions.className = "message-actions";
+
+    const speak =
+      document.createElement("button");
+
+    speak.className = "message-action";
+    speak.title = "聽 AI 說話";
+
+    speak.innerHTML = `
+      <svg class="icon-small"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.7"
+        stroke-linecap="round"
+        stroke-linejoin="round">
+
+        <path d="M4 10v4h4l5 4V6l-5 4H4z"/>
+        <path d="M17 9a5 5 0 0 1 0 6"/>
+        <path d="M19.5 6.5a9 9 0 0 1 0 11"/>
+
+      </svg>
+    `;
+
+    speak.onclick =
+      ()=>speakText(text);
+
+    actions.appendChild(speak);
+
+    if(messageIndex != null){
+      actions.appendChild(createDeleteButton(messageIndex));
+    }
+
+    body.appendChild(actions);
+
+  }else if(messageIndex != null){
+
+    const actions =
+      document.createElement("div");
+
+    actions.className = "message-actions";
+    actions.appendChild(createDeleteButton(messageIndex));
+    body.appendChild(actions);
+  }
+
+  if(result){
+
+    appendResultArtifacts(
+      body,
+      result
+    );
+  }
+
+  row.appendChild(avatar);
+  row.appendChild(body);
+
+  messagesInner.appendChild(row);
+
+  scrollBottom();
+
+  return row;
+}
+
+
+/* =========================================================
+   REAL RESULT
+========================================================= */
+
+function appendResultArtifacts(body,result){
+
+  if(!result) return;
+
+  const files =
+    result.files ||
+    result.workspace?.files ||
+    result.artifacts?.files ||
+    null;
+
+  if(files){
+
+    renderSandbox(
+      body,
+      files,
+      result
+    );
+  }
+
+  const gates =
+    result.gates ||
+    result.learning?.gates ||
+    result.stages ||
+    null;
+
+  if(
+    Array.isArray(gates) &&
+    gates.length
+  ){
+
+    renderGates(body,gates);
+  }
+}
+
+
+/* =========================================================
+   SANDBOX
+========================================================= */
+
+function renderSandbox(parent,files,result){
+
+  const names =
+    Object.keys(files || {});
+
+  if(!names.length) return;
+
+  const preferred = [
+    "index.html",
+    "index.htm",
+    "src/App.jsx",
+    "App.jsx",
+    "main.js",
+    "src/main.js"
+  ];
+
+  const selected =
+    preferred.find(name=>names.includes(name)) ||
+    names[0];
+
+  const code =
+    typeof files[selected] === "string"
+      ? files[selected]
+      : JSON.stringify(files[selected],null,2);
+
+  const sandbox =
+    document.createElement("div");
+
+  sandbox.className = "sandbox-card";
+
+  sandbox.innerHTML = `
+
+<div class="sandbox-head">
+
+  <div class="sandbox-title">
+    Sandbox
+  </div>
+
+  <div class="sandbox-tabs">
+
+    <button
+      class="sandbox-tab active"
+      data-mode="preview">
+      完成品
+    </button>
+
+    <button
+      class="sandbox-tab"
+      data-mode="code">
+      程式碼
+    </button>
+
+  </div>
+
+</div>
+
+<div class="sandbox-body">
+
+  <div
+    class="sandbox-view active"
+    data-view="preview">
+
+    <div class="sandbox-empty">
+
+      <div>
+
+        <div class="sandbox-empty-title">
+          已收到實際檔案
+        </div>
+
+        <div class="sandbox-empty-text">
+          尚未提供 Sandbox Preview。
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <div
+    class="sandbox-view"
+    data-view="code">
+
+    <div class="sandbox-code-tools">
+
+      <div class="sandbox-file">
+        ${escapeHTML(selected)}
+      </div>
+
+      <button class="sandbox-copy">
+        複製全部
+      </button>
+
+    </div>
+
+    <textarea
+      class="sandbox-code"
+      readonly></textarea>
+
+  </div>
+
+</div>
+`;
+
+  const textarea =
+    sandbox.querySelector(".sandbox-code");
+
+
+  textarea.value = code;
+
+  const previewPane =
+    sandbox.querySelector('[data-view="preview"]');
+
+  if(String(selected).endsWith(".html") || String(selected).endsWith(".htm")){
+    previewPane.innerHTML = "";
+    const iframe = document.createElement("iframe");
+    iframe.className = "sandbox-frame";
+    iframe.srcdoc = code;
+    previewPane.appendChild(iframe);
+  }
+
+  const rerun = document.createElement("button");
+  rerun.className = "sandbox-copy";
+  rerun.style.marginLeft = "8px";
+  rerun.textContent = "重跑沙盒";
+  rerun.onclick = async ()=>{
+    rerun.disabled = true;
+    rerun.textContent = "重跑中…";
+    try{
+      const result = await callSandbox("請重跑並測試目前的沙盒。", lastSandboxFiles, "rerun");
+      lastSandboxFiles = result.files || lastSandboxFiles;
+      const row = createLoadingMessage();
+      row.remove();
+      renderAIMessage(getAIReply(result) || "沙盒已重跑。", result);
+    }catch(error){
+      alert("沙盒重跑失敗：\n" + error.message);
+    }
+    rerun.disabled = false;
+    rerun.textContent = "重跑沙盒";
+  };
+  sandbox.querySelector(".sandbox-head").appendChild(rerun);
+
+
+  const previewURL =
+    result?.sandbox?.preview_url ||
+    result?.sandbox?.previewUrl ||
+    result?.sandbox?.url ||
+    result?.preview_url ||
+    result?.previewUrl ||
+    null;
+
+  if(previewURL){
+
+    const preview =
+      sandbox.querySelector(
+        '[data-view="preview"]'
+      );
+
+    preview.innerHTML = "";
+
+    const iframe =
+      document.createElement("iframe");
+
+    iframe.className = "sandbox-frame";
+    iframe.src = previewURL;
+
+    preview.appendChild(iframe);
+  }
+
+  sandbox
+    .querySelectorAll(".sandbox-tab")
+    .forEach(tab=>{
+
+      tab.onclick = ()=>{
+
+        sandbox
+          .querySelectorAll(".sandbox-tab")
+          .forEach(item =>
+            item.classList.remove("active")
+          );
+
+        tab.classList.add("active");
+
+        sandbox
+          .querySelectorAll(".sandbox-view")
+          .forEach(view =>
+            view.classList.remove("active")
+          );
+
+        sandbox
+          .querySelector(
+            `[data-view="${tab.dataset.mode}"]`
+          )
+          .classList.add("active");
+      };
+    });
+
+  sandbox
+    .querySelector(".sandbox-copy")
+    .onclick = async ()=>{
+
+      try{
+
+        await navigator.clipboard.writeText(
+          getAllFilesText(files)
+        );
+
+        alert("完整程式碼已複製");
+
+      }catch(error){
+
+        textarea.focus();
+        textarea.select();
+        document.execCommand("copy");
+
+        alert("程式碼已複製");
+      }
+    };
+
+  parent.appendChild(sandbox);
+}
+
+
+function getAllFilesText(files){
+
+  return Object
+    .entries(files)
+    .map(([name,content]) =>
+      `===== ${name} =====\n\n` +
+      (
+        typeof content === "string"
+          ? content
+          : JSON.stringify(content,null,2)
+      ) +
+      "\n\n"
+    )
+    .join("");
+}
+
+
+/* =========================================================
+   GATES
+========================================================= */
+
+function renderGates(parent,gates){
+
+  const card =
+    document.createElement("div");
+
+  card.className = "gate-card";
+
+  const head =
+    document.createElement("div");
+
+  head.className = "gate-head";
+  head.textContent =
+    "Technical Dark Star 工作進度";
+
+  const list =
+    document.createElement("div");
+
+  list.className = "gate-list";
+
+  gates.forEach(gate=>{
+
+    const row =
+      document.createElement("div");
+
+    const state =
+      String(
+        gate.status ||
+        gate.state ||
+        "pending"
+      ).toLowerCase();
+
+    if(
+      ["completed","passed","success"]
+        .includes(state)
+    ){
+
+      row.className =
+        "gate-row completed";
+
+    }else if(state === "running"){
+
+      row.className =
+        "gate-row running";
+
+    }else if(
+      ["failed","error"].includes(state)
+    ){
+
+      row.className =
+        "gate-row failed";
+
+    }else{
+
+      row.className = "gate-row";
+    }
+
+    let icon = "○";
+
+    if(
+      ["completed","passed","success"]
+        .includes(state)
+    ){
+
+      icon = "✓";
+
+    }else if(state === "running"){
+
+      icon = "●";
+
+    }else if(
+      ["failed","error"].includes(state)
+    ){
+
+      icon = "!";
+    }
+
+    row.innerHTML = `
+
+<div class="gate-icon">
+  ${icon}
+</div>
+
+<div>
+
+  <div class="gate-name">
+    ${escapeHTML(
+      gate.name ||
+      gate.stage ||
+      "Unknown"
+    )}
+  </div>
+
+  <div class="gate-status">
+    ${escapeHTML(
+      gate.message ||
+      gate.label ||
+      state
+    )}
+  </div>
+
+</div>
+`;
+
+    list.appendChild(row);
+  });
+
+  card.appendChild(head);
+  card.appendChild(list);
+
+  parent.appendChild(card);
+}
+
+
+
+function isDebugIntent(text){
+  return /除錯|debug|報錯|錯誤|修bug|看這(段|張)|程式碼|code review|為什麼不能|讀圖|辨識圖片/i.test(String(text || ""));
+}
+
+function hasImageAttachment(files){
+  return (files || []).some(file =>
+    file.content_type === "image" ||
+    String(file.type || "").startsWith("image/")
+  );
+}
+
+function isDrawIntent(text, files){
+  const value = String(text || "");
+  if(isDebugIntent(value) || hasImageAttachment(files)){
+    return false;
+  }
+  return /畫|繪|蝴蝶|圖片|生圖|動畫|svg|sketch/i.test(value);
+}
+
+function isGameIntent(text, files){
+  const value = String(text || "");
+  if(isDebugIntent(value) || hasImageAttachment(files) || isDrawIntent(value, files)){
+    return false;
+  }
+  return /小遊戲|遊戲|貪食蛇|寫一個遊戲|做一個遊戲|玩法/i.test(value);
+}
+
+function isSandboxIntent(text, files){
+  const value = String(text || "");
+
+  if(isDebugIntent(value) || hasImageAttachment(files) || isGameIntent(value, files) || isDrawIntent(value, files)){
+    return false;
+  }
+
+  return /建立(一個)?|做成|寫一個頁面|實作頁面|重跑|沙盒|登入頁|計算機|preview|sandbox/i.test(value);
+}
+
+function extractHtmlFromText(text){
+  const raw = String(text || "");
+  const doctype = raw.search(/<!DOCTYPE html/i);
+  if(doctype >= 0) return raw.slice(doctype).trim();
+  const start = raw.search(/<html/i);
+  if(start >= 0) return raw.slice(start).trim();
+  return "";
+}
+
+function extractSvgFromText(text){
+  const raw = String(text || "");
+  const start = raw.search(/<svg/i);
+  const end = raw.toLowerCase().lastIndexOf("</svg>");
+  if(start === -1 || end === -1 || end < start) return "";
+  return raw.slice(start, end + 6);
+}
+
+async function callDrawSandbox(userMessage, svg){
+  const animation = /動畫|拍翅膀|轉動|閃爍|animate|gif/i.test(String(userMessage || ""));
+  const response = await fetch(DRAW_SANDBOX_URL, {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({
+      engine: ENGINE,
+      source: "technical-dark-star-web",
+      message: userMessage,
+      kind: animation ? "animation" : "image",
+      svg: svg || "",
+      files: svg ? { "image.svg": svg } : {}
+    })
+  });
+
+  const responseText = await response.text();
+  let data;
+  try{
+    data = responseText ? JSON.parse(responseText) : {};
+  }catch(error){
+    throw new Error("Draw sandbox 回傳不是 JSON：\n" + responseText.slice(0,800));
+  }
+
+  if(!response.ok){
+    throw new Error(
+      data?.error ||
+      data?.message ||
+      `HTTP ${response.status}（若是 404，表示尚未部署 dark-star-draw-sandbox）`
+    );
+  }
+
+  if(data.files && typeof data.files === "object"){
+    lastSandboxFiles = data.files;
+  }
+
+  return data;
+}
+
+async function makeDrawWithDarkStar(userMessage, files){
+  const animation = /動畫|拍翅膀|轉動|閃爍|animate|gif/i.test(String(userMessage || ""));
+  const ai = await callAIVAULT(
+    "你是暗星。請依使用者描述畫圖。" +
+    (animation ? "請輸出一份會動的完整 SVG（含 animate 或 animateTransform）。" : "請輸出一份完整 SVG 圖。") +
+    "必須含 <svg> 與 </svg>，用路徑畫出主體，不要只寫文字標題，不要 markdown，不要解釋。" +
+    "需求：\n" + userMessage,
+    files
+  );
+  const svg = extractSvgFromText(getAIReply(ai) || "");
+  if(!svg){
+    return ai;
+  }
+  return await callDrawSandbox(userMessage, svg);
+}
+
+async function callGameSandbox(userMessage, html){
+  const response = await fetch(GAME_SANDBOX_URL, {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({
+      engine: ENGINE,
+      source: "technical-dark-star-web",
+      action: "run",
+      message: userMessage,
+      html,
+      files: html ? { "index.html": html } : {}
+    })
+  });
+
+  const responseText = await response.text();
+  let data;
+  try{
+    data = responseText ? JSON.parse(responseText) : {};
+  }catch(error){
+    throw new Error("Game sandbox 回傳不是 JSON：\n" + responseText.slice(0,800));
+  }
+
+  if(!response.ok){
+    throw new Error(
+      data?.error ||
+      data?.message ||
+      `HTTP ${response.status}（若是 404，表示尚未部署 dark-star-game-sandbox）`
+    );
+  }
+
+  if(data.files && typeof data.files === "object"){
+    lastSandboxFiles = data.files;
+  }
+
+  return data;
+}
+
+async function makeGameWithDarkStar(userMessage, files){
+  const ai = await callAIVAULT(
+    "你是暗星。請依使用者的想像做一個可在瀏覽器玩的小遊戲。" +
+    "只輸出一份完整 HTML（含 <html>、<body>、<script>），不要解釋、不要 markdown。" +
+    "遊戲必須符合這段需求：\n" +
+    userMessage,
+    files
+  );
+  const html = extractHtmlFromText(getAIReply(ai) || "");
+  if(!html){
+    return ai;
+  }
+  const sandboxed = await callGameSandbox(userMessage, html);
+  if(!sandboxed.content && getAIReply(ai)){
+    sandboxed.content = getAIReply(ai);
+  }
+  return sandboxed;
+}
+
+async function makePageWithDarkStar(userMessage, files){
+  const ai = await callAIVAULT(
+    "你是暗星。請依使用者需求做一個完整可在瀏覽器打開的網頁。" +
+    "只輸出一份完整 HTML（含 <html>、<body>），不要解釋、不要 markdown。" +
+    "需求：\n" + userMessage,
+    files
+  );
+  const html = extractHtmlFromText(getAIReply(ai) || "");
+  if(!html){
+    return ai;
+  }
+  return await callSandbox(userMessage, { "index.html": html }, "run");
+}
+
+async function callSandbox(userMessage, files, action){
+  const response = await fetch(SANDBOX_URL, {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({
+      engine: ENGINE,
+      source: "technical-dark-star-web",
+      action: action || "run",
+      message: userMessage,
+      files: files && Object.keys(files).length ? files : lastSandboxFiles
+    })
+  });
+
+  const responseText = await response.text();
+  let data;
+  try{
+    data = responseText ? JSON.parse(responseText) : {};
+  }catch(error){
+    throw new Error("Sandbox 回傳不是 JSON：\n" + responseText.slice(0,800));
+  }
+
+  if(!response.ok){
+    throw new Error(
+      data?.error ||
+      data?.message ||
+      `HTTP ${response.status}（若是 404，表示尚未部署 dark-star-sandbox）`
+    );
+  }
+
+  if(data.files && typeof data.files === "object"){
+    lastSandboxFiles = data.files;
+  }
+
+  return data;
+}
+
+  * =========================================================
+   AIVAULT AI GATEWAY
+========================================================= */
+
+async function callAIVAULT(
+  userMessage,
+  files
+){
+
+  const safeFiles = (files || []).map(file=>({
+    name: file.name,
+    type: file.type,
+    size: file.size,
+    content_type: file.content_type,
+    content: file.content || null,
+    content_base64: file.content_base64 || file.preview || null
+  }));
+
+  const images = safeFiles
+    .filter(file => file.content_type === "image" && file.content_base64)
+    .map(file => file.content_base64);
+
+  const payload = {
+
+    engine:
+      ENGINE,
+
+    message:
+      buildGatewayMessage(userMessage, safeFiles),
+
+    conversation_id:
+      conversationId,
+
+    source:
+      "technical-dark-star-web",
+
+    files:
+      safeFiles,
+
+    image: images[0] || null,
+
+    images
+  };
+
+  const response =
+    await fetch(
+      AI_GATEWAY_URL,
+      {
+        method:"POST",
+
+        headers:{
+          "Content-Type":
+            "application/json"
+        },
+
+        body:
+          JSON.stringify(payload)
+      }
+    );
+
+  const responseText =
+    await response.text();
+
+  let data;
+
+  try{
+
+    data =
+      responseText
+        ? JSON.parse(responseText)
+        : {};
+
+  }catch(error){
+
+    throw new Error(
+      "AIVAULT AI Gateway 回傳不是 JSON：\n" +
+      responseText.slice(0,1200)
+    );
+  }
+
+  if(!response.ok){
+
+    const detail =
+      data?.message ||
+      data?.error ||
+      (Array.isArray(data?.failover?.previous_failures) &&
+        data.failover.previous_failures[0]?.error) ||
+      `HTTP ${response.status}`;
+
+    throw new Error(String(detail));
+  }
+
+  conversationId =
+    data.conversation_id ||
+    data.conversationId ||
+    data.session_id ||
+    data.sessionId ||
+    conversationId;
+
+  saveState();
+
+  return data;
+}
+
+/* Drop-in replacement for getAIReply() in technical-dark-star.html
+   Confirmed live schema (ai-gateway-v2.7):
+   { success, content, provider, model, governance, routing, gateway, ... }
+   Primary display field: content
+*/
+
+function logGatewaySchema(data){
+  try{
+    if(!data || typeof data !== "object"){
+      console.info("[DarkStar][gateway-schema]", typeof data);
+      return;
+    }
+
+    const keys = Object.keys(data).map(key=>({
+      key,
+      type: Array.isArray(data[key]) ? "array" : typeof data[key]
+    }));
+
+    console.info("[DarkStar][gateway-schema]", {
+      keys,
+      success: data.success,
+      provider: data.provider,
+      model: data.model,
+      hasContent: typeof data.content === "string"
+    });
+  }catch(error){
+    console.info("[DarkStar][gateway-schema] log failed");
+  }
+}
+
+function extractTextValue(value, depth){
+
+  if(value == null) return null;
+
+  if(typeof value === "string"){
+    const text = value.trim();
+    return text ? text : null;
+  }
+
+  if(typeof value === "number" || typeof value === "boolean"){
+    return String(value);
+  }
+
+  if(depth > 4) return null;
+
+  if(Array.isArray(value)){
+    const parts = value
+      .map(item => extractTextValue(item, depth + 1))
+      .filter(Boolean);
+
+    return parts.length ? parts.join("\n") : null;
+  }
+
+  if(typeof value === "object"){
+
+    const preferred = [
+      "content",
+      "text",
+      "reply",
+      "response",
+      "answer",
+      "output",
+      "message"
+    ];
+
+    for(const key of preferred){
+      if(!(key in value)) continue;
+
+      if(key === "message" && typeof value[key] !== "string"){
+        const nested = extractTextValue(value[key], depth + 1);
+        if(nested) return nested;
+        continue;
+      }
+
+      const found = extractTextValue(value[key], depth + 1);
+      if(found) return found;
+    }
+
+    if(Array.isArray(value.parts)){
+      const parts = value.parts
+        .map(part => extractTextValue(part.text ?? part, depth + 1))
+        .filter(Boolean);
+      if(parts.length) return parts.join("\n");
+    }
+
+    if(Array.isArray(value.choices) && value.choices[0]){
+      const choice = value.choices[0];
+      const found = extractTextValue(
+        choice.message?.content ??
+        choice.text ??
+        choice.content ??
+        choice,
+        depth + 1
+      );
+      if(found) return found;
+    }
+
+    if(Array.isArray(value.candidates) && value.candidates[0]){
+      const found = extractTextValue(
+        value.candidates[0].content ??
+        value.candidates[0],
+        depth + 1
+      );
+      if(found) return found;
+    }
+  }
+
+  return null;
+}
+
+function getAIReply(data){
+
+  if(!data) return null;
+
+  logGatewaySchema(data);
+
+  const direct = extractTextValue({
+    content: data.content,
+    reply: data.reply,
+    response: typeof data.response === "string" ? data.response : null,
+    answer: data.answer,
+    output: data.output,
+    text: data.text,
+    message: typeof data.message === "string" ? data.message : null
+  }, 0);
+
+  if(direct) return direct;
+
+  return (
+    extractTextValue(data.result, 0) ||
+    extractTextValue(data.data, 0) ||
+    extractTextValue(data.payload, 0) ||
+    extractTextValue(data.output, 0) ||
+    extractTextValue(data, 0) ||
+    null
+  );
+}
+/* =========================================================
+   AIVAULT AI GATEWAY
+   Technical Dark Star Frontend
+   Memory-compatible with AI Gateway v3.1
+========================================================= */
+function getDarkStarTopicId(){
+  /*
+    優先使用目前已存在的 conversationId。
+    如果 conversationId 已存在：
+      conversationId → topic_id
+    如果不存在：
+      建立一個穩定 topic_id
+    這個 topic_id 必須在同一個聊天視窗中持續使用。
+  */
+  if(
+    typeof conversationId === "string" &&
+    conversationId.trim()
+  ){
+    return conversationId.trim();
+  }
+  let topicId = null;
+  try{
+    topicId =
+      localStorage.getItem(
+        "technical-dark-star-topic-id"
+      );
+  }catch(error){
+    console.warn(
+      "[DarkStar][memory] localStorage read failed",
+      error
+    );
+  }
+  if(
+    typeof topicId !== "string" ||
+    !topicId.trim()
+  ){
+    topicId =
+      "technical-dark-star-" +
+      crypto.randomUUID();
+    try{
+      localStorage.setItem(
+        "technical-dark-star-topic-id",
+        topicId
+      );
+    }catch(error){
+      console.warn(
+        "[DarkStar][memory] localStorage write failed",
+        error
+      );
+    }
+  }
+  return topicId;
+}
+async function callAIVAULT(
+  userMessage,
+  files
+){
+  const safeFiles =
+    (files || []).map(file=>({
+      name:
+        file.name,
+      type:
+        file.type,
+      size:
+        file.size,
+      content_type:
+        file.content_type,
+      content:
+        file.content || null,
+      content_base64:
+        file.content_base64 ||
+        file.preview ||
+        null
+    }));
+  const images =
+    safeFiles
+      .filter(
+        file =>
+          file.content_type === "image" &&
+          file.content_base64
+      )
+      .map(
+        file =>
+          file.content_base64
+      );
+  /*
+    ========================================================
+    IMPORTANT
+    ========================================================
+    Gateway v3.1 的持久記憶以 topic_id 為主。
+    因此：
+      前台 conversationId
+              ↓
+      topic_id
+              ↓
+      Gateway
+              ↓
+      Supabase Memory
+    同一個聊天視窗必須持續使用同一個 topic_id。
+  */
+  const topicId =
+    getDarkStarTopicId();
+  const payload = {
+    /*
+      Gateway provider routing
+    */
+    engine:
+      ENGINE,
+    /*
+      目前使用者訊息
+    */
+    message:
+      buildGatewayMessage(
+        userMessage,
+        safeFiles
+      ),
+    /*
+      舊有 conversation_id 保留
+      不刪除，避免破壞既有前台狀態。
+    */
+    conversation_id:
+      conversationId || null,
+    /*
+      NEW:
+      Gateway v3.1 Persistent Memory key
+    */
+    topic_id:
+      topicId,
+    /*
+      Agent identity
+    */
+    agent_id:
+      "technical-dark-star",
+    /*
+      Source
+    */
+    source:
+      "technical-dark-star-web",
+    /*
+      Files
+    */
+    files:
+      safeFiles,
+    /*
+      Vision
+    */
+    image:
+      images[0] || null,
+    images:
+      images
+  };
+  /*
+    Debug information.
+    不會輸出 API Key。
+  */
+  console.info(
+    "[DarkStar][gateway-request]",
+    {
+      topic_id:
+        payload.topic_id,
+      conversation_id:
+        payload.conversation_id,
+      agent_id:
+        payload.agent_id,
+      source:
+        payload.source,
+      files:
+        safeFiles.length,
+      images:
+        images.length
+    }
+  );
+  const response =
+    await fetch(
+      AI_GATEWAY_URL,
+      {
+        method:
+          "POST",
+        headers:{
+          "Content-Type":
+            "application/json"
+        },
+        body:
+          JSON.stringify(
+            payload
+          )
+      }
+    );
+  const responseText =
+    await response.text();
+  let data;
+  try{
+    data =
+      responseText
+        ? JSON.parse(
+            responseText
+          )
+        : {};
+  }catch(error){
+    throw new Error(
+      "AIVAULT AI Gateway 回傳不是 JSON：\n" +
+      responseText.slice(
+        0,
+        1200
+      )
+    );
+  }
+  /*
+    Gateway HTTP error
+  */
+  if(!response.ok){
+    const detail =
+      data?.message ||
+      data?.error ||
+      (
+        Array.isArray(
+          data?.failover?.previous_failures
+        ) &&
+        data.failover.previous_failures[0]
+          ?.error
+      ) ||
+      `HTTP ${response.status}`;
+    throw new Error(
+      String(detail)
+    );
+  }
+  /*
+    Gateway v3.1 會回傳 conversation_id。
+    如果有，就同步回前台狀態。
+  */
+  conversationId =
+    data.conversation_id ||
+    data.conversationId ||
+    data.session_id ||
+    data.sessionId ||
+    conversationId;
+  /*
+    ========================================================
+    MEMORY DIAGNOSTICS
+    ========================================================
+  */
+  console.info(
+    "[DarkStar][gateway-memory]",
+    {
+      enabled:
+        data?.memory?.enabled,
+      topic_id:
+        data?.memory?.topic_id ||
+        data?.topic_id ||
+        topicId,
+      conversation_id:
+        data?.memory?.conversation_id ||
+        data?.conversation_id ||
+        conversationId,
+      retained_messages:
+        data?.memory?.retained_messages,
+      context_messages_sent:
+        data?.memory?.context_messages_sent,
+      reason:
+        data?.memory?.reason,
+      diagnostic:
+        data?.memory?.diagnostic
+    }
+  );
+  /*
+    保存前台狀態
+  */
+  saveState();
+  return data;
+}
+  /* =========================================================
+   GATEWAY RESPONSE PARSER
+========================================================= */
+function logGatewaySchema(data){
+  try{
+    if(
+      !data ||
+      typeof data !== "object"
+    ){
+      console.info(
+        "[DarkStar][gateway-schema]",
+        typeof data
+      );
+      return;
+    }
+    const keys =
+      Object.keys(data)
+        .map(key => ({
+          key,
+          type:
+            Array.isArray(data[key])
+              ? "array"
+              : typeof data[key]
+        }));
+    console.info(
+      "[DarkStar][gateway-schema]",
+      {
+        keys,
+        success:
+          data.success,
+        provider:
+          data.provider,
+        model:
+          data.model,
+        hasContent:
+          typeof data.content === "string",
+        hasText:
+          typeof data.text === "string",
+        memory:
+          data.memory || null
+      }
+    );
+  }catch(error){
+    console.info(
+      "[DarkStar][gateway-schema] log failed"
+    );
+  }
+}
+/* =========================================================
+   EXTRACT TEXT
+========================================================= */
+function extractTextValue(
+  value,
+  depth = 0
+){
+  if(value == null){
+    return null;
+  }
+  if(
+    typeof value === "string"
+  ){
+    const text =
+      value.trim();
+    return text
+      ? text
+      : null;
+  }
+  if(
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ){
+    return String(value);
+  }
+  if(depth > 6){
+    return null;
+  }
+  if(Array.isArray(value)){
+    const parts =
+      value
+        .map(
+          item =>
+            extractTextValue(
+              item,
+              depth + 1
+            )
+        )
+        .filter(Boolean);
+    return parts.length
+      ? parts.join("\n")
+      : null;
+  }
+  if(
+    typeof value === "object"
+  ){
+    /*
+      Gateway v3.1
+    */
+    const preferred = [
+      "content",
+      "text",
+      "reply",
+      "response",
+      "answer",
+      "output",
+      "message"
+    ];
+    for(
+      const key of preferred
+    ){
+      if(
+        !(key in value)
+      ){
+        continue;
+      }
+      if(
+        key === "message" &&
+        typeof value[key] !== "string"
+      ){
+        const nested =
+          extractTextValue(
+            value[key],
+            depth + 1
+          );
+        if(nested){
+          return nested;
+        }
+        continue;
+      }
+      const found =
+        extractTextValue(
+          value[key],
+          depth + 1
+        );
+      if(found){
+        return found;
+      }
+    }
+    /*
+      OpenAI-compatible
+      choices
+    */
+    if(
+      Array.isArray(
+        value.choices
+      ) &&
+      value.choices[0]
+    ){
+      const choice =
+        value.choices[0];
+      const found =
+        extractTextValue(
+          choice.message?.content ??
+          choice.text ??
+          choice.content ??
+          choice,
+          depth + 1
+        );
+      if(found){
+        return found;
+      }
+    }
+    /*
+      Gemini candidates
+    */
+    if(
+      Array.isArray(
+        value.candidates
+      ) &&
+      value.candidates[0]
+    ){
+      const candidate =
+        value.candidates[0];
+      const found =
+        extractTextValue(
+          candidate.content ??
+          candidate,
+          depth + 1
+        );
+      if(found){
+        return found;
+      }
+    }
+    /*
+      Gemini parts
+    */
+    if(
+      Array.isArray(
+        value.parts
+      )
+    ){
+      const parts =
+        value.parts
+          .map(
+            part =>
+              extractTextValue(
+                part?.text ??
+                part,
+                depth + 1
+              )
+          )
+          .filter(Boolean);
+      if(parts.length){
+        return parts.join(
+          "\n"
+        );
+      }
+    }
+  }
+  return null;
+}
+/* =========================================================
+   GET AI REPLY
+========================================================= */
+function getAIReply(data){
+  if(!data){
+    return null;
+  }
+  logGatewaySchema(
+    data
+  );
+  /*
+    Gateway v3.1 primary response:
+    
+    {
+      success: true,
+      text: "...",
+      provider: "...",
+      memory: {...}
+    }
+    也兼容舊版 content。
+  */
+  const direct =
+    extractTextValue(
+      {
+        content:
+          data.content,
+        text:
+          data.text,
+        reply:
+          data.reply,
+        response:
+          typeof data.response === "string"
+            ? data.response
+            : null,
+        answer:
+          data.answer,
+        output:
+          data.output,
+        message:
+          typeof data.message === "string"
+            ? data.message
+            : null
+      },
+      0
+    );
+  if(direct){
+    return direct;
+  }
+  /*
+    Nested response
+  */
+  return (
+    extractTextValue(
+      data.result,
+      0
+    ) ||
+    extractTextValue(
+      data.data,
+      0
+    ) ||
+    extractTextValue(
+      data.payload,
+      0
+    ) ||
+    extractTextValue(
+      data.output,
+      0
+    ) ||
+    null
+  );
+}
+/* =========================================================
+   SEND
+========================================================= */
+
+async function sendMessage(){
+
+  const text =
+    input.value.trim();
+
+  if(
+    !text &&
+    !attachments.length
+  ){
+
+    return;
+  }
+
+  const outgoingFiles =
+    attachments.map(file=>({...file}));
+
+  const displayText =
+    text ||
+    "請分析我上傳的檔案。";
+
+  renderUserMessage(
+    text,
+    outgoingFiles
+  );
+
+  messagesHistory.push({
+
+    role:"user",
+
+    text:text,
+
+    attachments:
+      outgoingFiles.map(file=>({
+
+        name:file.name,
+        type:file.type,
+        size:file.size,
+        content_type:file.content_type,
+        preview:file.preview || file.content_base64 || null,
+        content: file.content_type === "article" || file.content_type === "text"
+          ? String(file.content || file.preview || "").slice(0,8000)
+          : null
+
+      }))
+  });
+
+  saveState();
+
+  input.value = "";
+  attachments = [];
+
+  renderAttachments();
+
+  resizeInput();
+
+  sendButton.disabled = true;
+
+  const loading =
+    createLoadingMessage();
+
+  try{
+
+    /*
+      這裡是真正呼叫 AIVAULT AI Gateway。
+      沒有本地 AI。
+      沒有假答案。
+    */
+
+    const result =
+      isDrawIntent(text, outgoingFiles)
+        ? await makeDrawWithDarkStar(text, outgoingFiles)
+        : isGameIntent(text, outgoingFiles)
+        ? await makeGameWithDarkStar(text, outgoingFiles)
+        : isSandboxIntent(text, outgoingFiles)
+        ? await makePageWithDarkStar(text, outgoingFiles)
+        : await callAIVAULT(
+            text,
+            outgoingFiles
+          );
+
+    loading.remove();
+
+    const reply =
+      getAIReply(result);
+
+    /*
+      Gateway 有真正文字才顯示。
+      沒有文字就明確顯示資料狀態。
+    */
+
+    const displayReply =
+      reply ||
+      "AIVAULT AI Gateway 已回傳資料，但沒有提供可顯示的文字回應。";
+
+    renderAIMessage(
+      displayReply,
+      result
+    );
+
+    messagesHistory.push({
+
+      role:"assistant",
+
+      text:displayReply,
+
+      result:result
+    });
+
+    saveState();
+
+  }catch(error){
+
+    loading.remove();
+
+    const errorText =
+      "Technical Dark Star 無法取得 AIVAULT 的真實回應。\n\n" +
+      error.message;
+
+    renderAIMessage(errorText);
+
+    messagesHistory.push({
+
+      role:"assistant",
+
+      text:errorText
+    });
+
+    saveState();
+  }
+
+  renderHistory();
+}
+
+
+/* =========================================================
+   LOADING
+========================================================= */
+
+function createLoadingMessage(){
+
+  removeWelcome();
+
+  const row =
+    document.createElement("div");
+
+  row.className = "message ai";
+
+  row.innerHTML = `
+
+<div class="message-avatar">
+  ✦
+</div>
+
+<div class="message-body">
+
+  <div
+    class="message-text"
+    style="color:#888">
+
+    Technical Dark Star 正在思考……
+    <span class="think-timer">0 秒</span>
+
+  </div>
+
+</div>
+`;
+
+  const timer =
+    row.querySelector(".think-timer");
+
+  const started = Date.now();
+
+  const tick = ()=>{
+    const seconds =
+      Math.floor((Date.now() - started) / 1000);
+    if(timer){
+      timer.textContent = seconds + " 秒";
+    }
+  };
+
+  tick();
+
+  const interval =
+    setInterval(tick, 250);
+
+  const originalRemove = row.remove.bind(row);
+
+  row.remove = ()=>{
+    clearInterval(interval);
+    originalRemove();
+  };
+
+  messagesInner.appendChild(row);
+
+  scrollBottom();
+
+  return row;
+}
+
+
+sendButton.addEventListener(
+  "click",
+  sendMessage
+);
+
+
+/* =========================================================
+   VOICE INPUT
+========================================================= */
+
+const SpeechRecognition =
+  window.SpeechRecognition ||
+  window.webkitSpeechRecognition;
+
+if(SpeechRecognition){
+
+  recognition =
+    new SpeechRecognition();
+
+  recognition.lang = "zh-TW";
+  recognition.continuous = false;
+  recognition.interimResults = true;
+
+  recognition.onstart = ()=>{
+
+    isRecording = true;
+
+    micButton.classList.add("recording");
+
+    voiceStatus.classList.add("show");
+
+    voiceStatus.textContent =
+      "正在聆聽……";
+  };
+
+  recognition.onresult = event=>{
+
+    let transcript = "";
+
+    for(
+      let i = event.resultIndex;
+      i < event.results.length;
+      i++
+    ){
+
+      transcript +=
+        event.results[i][0].transcript;
+    }
+
+    input.value = transcript;
+
+    resizeInput();
+
+    sendButton.disabled =
+      !transcript.trim();
+  };
+
+  recognition.onerror = event=>{
+
+    console.error(
+      "Speech recognition error:",
+      event.error
+    );
+
+    stopRecording();
+  };
+
+  recognition.onend = ()=>{
+
+    stopRecording();
+  };
+
+}else{
+
+  micButton.title =
+    "此瀏覽器不支援語音辨識";
+}
+
+
+function startRecording(){
+
+  if(!recognition){
+
+    alert(
+      "目前瀏覽器不支援語音辨識。"
+    );
+
+    return;
+  }
+
+  if(isRecording){
+
+    recognition.stop();
+
+    return;
+  }
+
+  recognition.start();
+}
+
+
+function stopRecording(){
+
+  isRecording = false;
+
+  micButton.classList.remove("recording");
+
+  voiceStatus.classList.remove("show");
+}
+
+
+micButton.addEventListener(
+  "click",
+  startRecording
+);
+
+
+/* =========================================================
+   AI VOICE
+========================================================= */
+
+function speakText(text){
+
+  if(!("speechSynthesis" in window)){
+
+    alert(
+      "目前瀏覽器不支援語音播放。"
+    );
+
+    return;
+  }
+
+  window.speechSynthesis.cancel();
+
+  const utterance =
+    new SpeechSynthesisUtterance(text);
+
+  utterance.lang = "zh-TW";
+  utterance.rate = 1;
+  utterance.pitch = 1;
+
+  window.speechSynthesis.speak(utterance);
+}
+
+
+
+function createDeleteButton(index){
+
+  const button =
+    document.createElement("button");
+
+  button.className = "message-action danger";
+  button.title = "刪除這則訊息";
+  button.textContent = "×";
+  button.onclick = event=>{
+    event.stopPropagation();
+    deleteMessage(index);
+  };
+
+  return button;
+}
+
+
+function deleteMessage(index){
+
+  if(
+    index == null ||
+    index < 0 ||
+    index >= messagesHistory.length
+  ){
+    return;
+  }
+
+  messagesHistory.splice(index,1);
+  saveState();
+  loadConversation();
+  renderHistory();
+}
+
+
+function clearAllMessages(){
+
+  if(!messagesHistory.length){
+    alert("目前沒有測試訊息。");
+    return;
+  }
+
+  if(!confirm("確定刪除全部測試訊息？")){
+    return;
+  }
+
+  conversationId = null;
+  messagesHistory = [];
+  attachments = [];
+  saveState();
+  renderAttachments();
+  messagesInner.innerHTML = "";
+  messagesInner.appendChild(createWelcome());
+  renderHistory();
+}
+
+
+/* =========================================================
+   CAPABILITY / WORK
+========================================================= */
+
+document
+  .getElementById("clearMessagesButton")
+  .addEventListener("click",()=>{
+    clearAllMessages();
+    closeDrawer();
+  });
+
+
+document
+  .getElementById("capabilityButton")
+  .addEventListener("click",()=>{
+
+    alert(
+      "學習能力資料將由 AIVAULT 真實資料提供。"
+    );
+  });
+
+
+document
+  .getElementById("workHistoryButton")
+  .addEventListener("click",()=>{
+
+    alert(
+      "工作紀錄將由 AIVAULT Learning Run 真實資料提供。"
+    );
+  });
+
+
+/* =========================================================
+   INITIAL
+========================================================= */
+
+if(messagesHistory.length){
+
+  loadConversation();
+
+}else{
+
+  messagesInner.appendChild(
+    createWelcome()
+  );
+}
+
+renderAttachments();
+renderHistory();
+resizeInput();
+
+if(new URLSearchParams(location.search).get("demo") === "1"){
+
+  const demoImage =
+    "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#111"/><stop offset="100%" stop-color="#4f46e5"/></linearGradient></defs><rect width="640" height="360" fill="url(#g)"/><text x="40" y="180" fill="white" font-size="36" font-family="sans-serif">Technical Dark Star</text><text x="40" y="230" fill="#ddd" font-size="20" font-family="sans-serif">示範圖片預覽</text></svg>`);
+
+  messagesHistory = [
+    {
+      role:"user",
+      text:"請辨識這張圖，並讀這篇文章。",
+      attachments:[
+        {
+          name:"demo-image.svg",
+          type:"image/svg+xml",
+          content_type:"image",
+          preview:demoImage
+        },
+        {
+          name:"demo-article.txt",
+          type:"text/plain",
+          content_type:"article",
+          content:"暗星示範文章\\n\\n這段是直接貼上或拖放文書後會顯示的文章區。\\n可以放論文段落、會議紀錄或程式說明。"
+        }
+      ]
+    },
+    {
+      role:"assistant",
+      text:"已看到圖片與文章。\\n圖片是 Technical Dark Star 示範圖。\\n文章內容已讀取。\\nhttps://example.com/demo.mp4",
+      result:{
+        videos:["https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"]
+      }
+    }
+  ];
+
+  loadConversation();
+}
+
+
+
+/* =========================================================
+   ERROR
+========================================================= */
+
+window.addEventListener(
+  "unhandledrejection",
+  event=>{
+
+    console.error(
+      "Unhandled:",
+      event.reason
+    );
+  }
+);
+
+</script>
+
+</body>
+</html>
