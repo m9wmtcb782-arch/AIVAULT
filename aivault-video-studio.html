@@ -1,37 +1,69 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#050505">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<meta name="theme-color" content="#080808" />
 <title>AIVAULT Video Studio</title>
 
 <style>
-*{
-  box-sizing:border-box;
+:root{
+  --bg:#070707;
+  --panel:#101010;
+  --panel-2:#151515;
+  --panel-3:#0b0b0b;
+  --line:#292929;
+  --line-soft:rgba(255,255,255,.07);
+  --text:#f5f5f5;
+  --muted:#969696;
+  --accent:#ef233c;
+  --accent-bright:#ff3650;
+  --accent-soft:rgba(239,35,60,.13);
+  --green:#22c55e;
+  --yellow:#facc15;
+  --danger:#ef4444;
+  --radius:16px;
 }
 
-html,
-body{
-  margin:0;
-  padding:0;
+*{
+  box-sizing:border-box;
+  -webkit-tap-highlight-color:transparent;
+}
+
+html{
   width:100%;
   min-height:100%;
-  background:#050505;
-  color:#f5f5f5;
+  overflow-x:hidden;
+  overscroll-behavior-x:none;
+  /*
+   * 全域視覺基準提高約 1.5 倍。
+   * 原本使用 px 的元件另外同步放大。
+   */
+  font-size:150%;
+}
+
+body{
+  width:100%;
+  min-height:100vh;
+  margin:0;
+  overflow-x:hidden;
+  overscroll-behavior-x:none;
+  touch-action:pan-y;
+  background:
+    radial-gradient(
+      circle at 50% -10%,
+      rgba(239,35,60,.11),
+      transparent 36%
+    ),
+    var(--bg);
+  color:var(--text);
   font-family:
     -apple-system,
     BlinkMacSystemFont,
     "SF Pro Display",
     "Segoe UI",
     "Noto Sans TC",
-    Arial,
     sans-serif;
-}
-
-body{
-  min-height:100vh;
-  overflow-x:hidden;
 }
 
 button,
@@ -45,360 +77,375 @@ button{
   cursor:pointer;
 }
 
-:root{
-  --bg:#050505;
-  --panel:#0c0c0f;
-  --panel2:#111116;
-  --panel3:#16161b;
-  --line:rgba(255,255,255,.09);
-  --line2:rgba(255,255,255,.14);
-  --text:#f5f5f7;
-  --muted:#9696a0;
-  --muted2:#666671;
-  --red:#ff2b2b;
-  --red2:#ff4d4d;
-  --redSoft:rgba(255,43,43,.12);
-  --green:#38d996;
-  --yellow:#ffca55;
+button,
+a{
+  -webkit-user-select:none;
+  user-select:none;
+}
+
+a{
+  color:inherit;
+  text-decoration:none;
 }
 
 /* =========================================================
-   TOP BAR
-   ========================================================= */
-
-.topbar{
+   APP
+========================================================= */
+.app{
   width:100%;
-  max-width:1500px;
+  min-height:100vh;
+  padding-bottom:60px;
+}
+
+/* =========================================================
+   HEADER
+========================================================= */
+.header{
+  position:sticky;
+  top:0;
+  z-index:100;
+  width:100%;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  background:rgba(7,7,7,.93);
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+}
+
+.header-inner{
+  width:min(1180px,100%);
+  min-height:78px;
   margin:0 auto;
-  padding:
-    max(14px,env(safe-area-inset-top))
-    18px
-    14px
-    18px;
-
-  display:grid;
-  grid-template-columns:
-    minmax(0,1fr)
-    minmax(220px,auto)
-    auto;
-
-  gap:14px;
-  align-items:center;
-
-  border-bottom:1px solid var(--line);
-  background:rgba(5,5,5,.96);
-
-  position:relative;
-  z-index:20;
-}
-
-.brand{
-  min-width:0;
-}
-
-.brand-main{
+  padding:12px 18px;
   display:flex;
   align-items:center;
-  gap:9px;
+  justify-content:space-between;
+  gap:14px;
+}
+
+/* =========================================================
+   DARK STAR BRAND
+========================================================= */
+.brand{
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:13px;
+}
+
+.dark-star-logo{
+  position:relative;
+  width:48px;
+  height:48px;
+  flex:none;
+  display:grid;
+  place-items:center;
+  border-radius:13px;
+  background:
+    radial-gradient(
+      circle,
+      rgba(255,255,255,.13),
+      transparent 58%
+    ),
+    #090909;
+  border:1px solid rgba(239,35,60,.45);
+  box-shadow:
+    0 0 20px rgba(239,35,60,.16),
+    inset 0 0 16px rgba(239,35,60,.06);
+}
+
+.dark-star-logo svg{
+  width:29px;
+  height:29px;
+  fill:none;
+  stroke:#ff3650;
+  stroke-width:1.5;
+  filter:drop-shadow(0 0 6px rgba(239,35,60,.75));
+}
+
+.brand-text{
   min-width:0;
 }
 
-.brand-name{
-  font-size:17px;
-  font-weight:900;
-  letter-spacing:.08em;
+.brand-title{
+  font-size:20px;
+  font-weight:850;
+  letter-spacing:.015em;
   white-space:nowrap;
 }
 
 .brand-sub{
-  margin-top:3px;
-  color:#686872;
-  font-size:9px;
-  letter-spacing:.18em;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
+  margin-top:4px;
+  color:var(--muted);
+  font-size:13px;
+  letter-spacing:.04em;
 }
 
-.dark-star{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  width:25px;
-  height:25px;
-  border-radius:7px;
-  border:1px solid rgba(255,43,43,.4);
-  background:rgba(255,43,43,.08);
-  color:#ff4545;
-  font-size:12px;
-  flex:0 0 auto;
-}
-
-/* FIX:
-   AI status is no longer absolute positioned.
-   It occupies its own grid column and can wrap safely.
-*/
-.ai-status{
+/* =========================================================
+   HEADER RIGHT
+========================================================= */
+.header-right{
   min-width:0;
-  width:100%;
   display:flex;
   align-items:center;
-  justify-content:center;
+  gap:9px;
 }
 
-.ai-provider{
+.ai-info{
   min-width:0;
-  max-width:100%;
+  max-width:320px;
   display:flex;
   align-items:center;
   gap:8px;
-
-  padding:8px 12px;
-
-  border:1px solid rgba(255,43,43,.42);
-  background:
-    linear-gradient(
-      180deg,
-      rgba(255,43,43,.13),
-      rgba(255,43,43,.055)
-    );
-
+  padding:10px 13px;
+  border:1px solid rgba(239,35,60,.25);
   border-radius:999px;
-
-  color:#ff5c5c;
-  box-shadow:
-    0 0 18px rgba(255,43,43,.06),
-    inset 0 0 15px rgba(255,43,43,.025);
+  background:rgba(239,35,60,.055);
+  color:#ff9dac;
+  font-size:14px;
+  white-space:nowrap;
+  overflow:hidden;
 }
 
-.ai-dot{
-  width:7px;
-  height:7px;
-  border-radius:50%;
-  background:var(--red);
-  box-shadow:0 0 9px var(--red);
-  flex:0 0 auto;
+.ai-info-icon{
+  flex:none;
+  color:var(--accent-bright);
+  font-size:17px;
 }
 
 #aiProviderText{
   min-width:0;
-  max-width:100%;
-  white-space:normal;
-  overflow-wrap:anywhere;
-  word-break:break-word;
-  text-align:center;
-  line-height:1.25;
-  font-size:10px;
-  letter-spacing:.04em;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
 .home-btn{
-  border:1px solid var(--line2);
-  background:#0d0d10;
-  color:#d7d7dc;
-  padding:9px 13px;
-  border-radius:9px;
-  white-space:nowrap;
+  min-height:46px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:0 15px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:#111;
+  color:#ddd;
+  font-size:15px;
+  font-weight:750;
+  transition:
+    border-color .18s,
+    background .18s,
+    color .18s,
+    transform .08s;
 }
 
 .home-btn:hover{
-  border-color:rgba(255,255,255,.25);
-  background:#151519;
+  border-color:var(--accent);
+  color:#fff;
+  background:#151515;
+}
+
+.home-btn:active{
+  transform:scale(.97);
 }
 
 /* =========================================================
    MAIN
-   ========================================================= */
-
-.page{
-  width:100%;
-  max-width:1500px;
+========================================================= */
+.main{
+  width:min(1180px,100%);
   margin:0 auto;
-  padding:
-    24px
-    18px
-    max(50px,env(safe-area-inset-bottom));
-
-  position:relative;
+  padding:26px 18px 65px;
 }
 
+/* =========================================================
+   HERO
+========================================================= */
 .hero{
-  padding:18px 2px 24px;
+  margin-bottom:24px;
 }
 
 .eyebrow{
-  color:#ff4545;
-  font-size:10px;
-  font-weight:800;
-  letter-spacing:.22em;
+  margin-bottom:9px;
+  color:#ff6a7b;
+  font-size:15px;
+  font-weight:850;
+  letter-spacing:.14em;
+  text-transform:uppercase;
 }
 
-.hero h1{
-  margin:7px 0 8px;
-  font-size:clamp(30px,5vw,58px);
-  line-height:1;
-  letter-spacing:-.045em;
-}
-
-.hero p{
-  max-width:850px;
+h1{
   margin:0;
-  color:#85858f;
-  line-height:1.7;
-  font-size:13px;
+  font-size:clamp(34px,6vw,52px);
+  line-height:1.04;
+  letter-spacing:-.04em;
+}
+
+.hero-desc{
+  max-width:850px;
+  margin:13px 0 0;
+  color:var(--muted);
+  font-size:18px;
+  line-height:1.75;
 }
 
 /* =========================================================
-   PANEL
-   ========================================================= */
-
-.panel{
+   CARD
+========================================================= */
+.card{
+  margin-bottom:18px;
+  padding:22px;
+  border:1px solid var(--line);
+  border-radius:var(--radius);
   background:
     linear-gradient(
       180deg,
-      rgba(255,255,255,.035),
-      rgba(255,255,255,.012)
-    );
-
-  border:1px solid var(--line);
-  border-radius:18px;
-  margin-bottom:16px;
-  overflow:hidden;
+      rgba(255,255,255,.025),
+      rgba(255,255,255,.008)
+    ),
+    var(--panel);
+  box-shadow:0 20px 60px rgba(0,0,0,.25);
 }
 
-.panel-head{
-  padding:17px 18px;
-  border-bottom:1px solid var(--line);
-
+.section-title{
+  margin-bottom:18px;
   display:flex;
+  align-items:center;
   justify-content:space-between;
-  align-items:flex-start;
-  gap:14px;
+  gap:12px;
 }
 
-.panel-title{
-  font-size:15px;
-  font-weight:850;
+.section-title h2{
+  margin:0;
+  font-size:22px;
+  font-weight:800;
 }
 
-.panel-desc{
-  margin-top:5px;
-  color:#70707a;
-  font-size:11px;
-  line-height:1.5;
-}
-
-.panel-body{
-  padding:18px;
+.section-title span{
+  color:#777;
+  font-size:14px;
+  letter-spacing:.04em;
 }
 
 /* =========================================================
-   INPUTS
-   ========================================================= */
-
-.form-grid{
+   FORM
+========================================================= */
+.grid{
   display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
   gap:14px;
+}
+
+.grid-2{
+  grid-template-columns:repeat(2,minmax(0,1fr));
 }
 
 .field{
   min-width:0;
 }
 
-.field.full{
-  grid-column:1/-1;
-}
-
-.field label{
+.field-label{
   display:block;
-  margin-bottom:7px;
-  color:#a9a9b2;
-  font-size:11px;
-  font-weight:700;
+  margin-bottom:9px;
+  color:#c9c9c9;
+  font-size:16px;
+  font-weight:750;
 }
 
 input,
 textarea,
 select{
   width:100%;
-  border:1px solid var(--line2);
-  border-radius:11px;
+  border:1px solid var(--line);
   outline:none;
-  background:#08080a;
-  color:#f4f4f6;
-  padding:11px 12px;
+  border-radius:12px;
+  background:#090909;
+  color:#fff;
+  padding:14px 15px;
+  font-size:16px;
+  transition:
+    border-color .18s,
+    box-shadow .18s;
+}
+
+input::placeholder,
+textarea::placeholder{
+  color:#555;
 }
 
 input:focus,
 textarea:focus,
 select:focus{
-  border-color:rgba(255,43,43,.55);
-  box-shadow:0 0 0 3px rgba(255,43,43,.07);
+  border-color:rgba(239,35,60,.7);
+  box-shadow:
+    0 0 0 3px
+    rgba(239,35,60,.08);
 }
 
 textarea{
-  min-height:120px;
+  min-height:135px;
   resize:vertical;
-  line-height:1.65;
+  line-height:1.75;
 }
 
-select{
-  appearance:auto;
+.small-textarea{
+  min-height:100px;
 }
 
 /* =========================================================
-   MULTI SELECT GROUPS
-   ========================================================= */
-
-.option-section{
-  margin-top:18px;
+   THEME CATEGORY
+========================================================= */
+.theme-category{
+  margin-top:17px;
+  padding-top:15px;
+  border-top:1px solid var(--line-soft);
 }
 
-.option-section:first-child{
+.theme-category:first-child{
   margin-top:0;
+  padding-top:0;
+  border-top:0;
 }
 
-.option-label{
-  margin-bottom:9px;
-  color:#aaaab3;
-  font-size:11px;
-  font-weight:800;
-  letter-spacing:.05em;
+.theme-category-title{
+  margin-bottom:11px;
+  color:#eee;
+  font-size:16px;
+  font-weight:850;
 }
 
-.option-help{
-  margin-top:-3px;
-  margin-bottom:9px;
-  color:#5f5f69;
-  font-size:10px;
+.theme-category-title span{
+  margin-left:6px;
+  color:#777;
+  font-size:13px;
+  font-weight:600;
 }
 
+/* =========================================================
+   CHIPS
+========================================================= */
 .chips{
   display:flex;
   flex-wrap:wrap;
-  gap:8px;
+  gap:9px;
 }
 
 .chip{
-  min-height:35px;
-  border:1px solid var(--line2);
-  border-radius:999px;
-  padding:8px 12px;
-
-  background:#0b0b0e;
-  color:#bdbdc5;
-
+  min-height:46px;
+  padding:9px 14px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:#0c0c0c;
+  color:#cfcfcf;
+  font-size:15px;
+  font-weight:650;
   transition:
-    background .15s ease,
-    border-color .15s ease,
-    color .15s ease,
-    box-shadow .15s ease,
-    transform .1s ease;
+    border-color .16s,
+    color .16s,
+    background .16s,
+    box-shadow .16s,
+    transform .08s;
 }
 
 .chip:hover{
-  border-color:rgba(255,255,255,.28);
+  border-color:#555;
   color:#fff;
 }
 
@@ -406,131 +453,178 @@ select{
   transform:scale(.97);
 }
 
-.chip.active{
-  border-color:rgba(255,43,43,.75);
-  background:rgba(255,43,43,.13);
-  color:#ff6060;
+.chip.on{
+  border-color:var(--accent);
+  color:#fff;
+  background:var(--accent-soft);
   box-shadow:
-    0 0 0 1px rgba(255,43,43,.08),
-    0 0 16px rgba(255,43,43,.06);
-}
-
-.chip .check{
-  display:none;
-  margin-right:5px;
-}
-
-.chip.active .check{
-  display:inline;
+    0 0 0 1px rgba(239,35,60,.13) inset,
+    0 0 18px rgba(239,35,60,.08);
 }
 
 /* =========================================================
-   MODE / DURATION
-   ========================================================= */
-
-.single-select-row{
+   TABS
+========================================================= */
+.tabs{
   display:flex;
-  flex-wrap:wrap;
   gap:8px;
+  margin-bottom:18px;
+  overflow:hidden;
+  touch-action:pan-y;
 }
 
-.single-chip{
-  border:1px solid var(--line2);
-  background:#0b0b0e;
-  color:#aaaab2;
-  border-radius:9px;
-  padding:9px 12px;
-}
-
-.single-chip.active{
-  border-color:rgba(255,43,43,.72);
-  color:#ff5555;
-  background:rgba(255,43,43,.1);
-}
-
-/* =========================================================
-   AI
-   ========================================================= */
-
-.ai-bar{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  padding:11px 13px;
+.tab{
+  flex:1;
+  min-width:0;
+  min-height:48px;
+  padding:9px;
   border:1px solid var(--line);
   border-radius:11px;
-  background:#09090b;
+  background:#0c0c0c;
+  color:#999;
+  font-size:15px;
+  font-weight:750;
+  transition:
+    border-color .16s,
+    background .16s,
+    color .16s;
 }
 
-.status-dot{
-  width:8px;
-  height:8px;
+.tab.on{
+  border-color:var(--accent);
+  background:var(--accent-soft);
+  color:#fff;
+  box-shadow:0 0 14px rgba(239,35,60,.07);
+}
+
+.pane{
+  display:none;
+}
+
+.pane.active{
+  display:block;
+}
+
+/* =========================================================
+   DIRECTOR
+========================================================= */
+.director-group{
+  padding:17px 0;
+  border-top:1px solid var(--line-soft);
+}
+
+.director-group:first-child{
+  padding-top:0;
+  border-top:0;
+}
+
+.director-name{
+  margin-bottom:11px;
+  color:#eee;
+  font-size:17px;
+  font-weight:800;
+}
+
+/* =========================================================
+   CONTINUITY
+========================================================= */
+.continuity-list{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+
+.toggle{
+  min-height:51px;
+  padding:11px 13px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:#0c0c0c;
+  color:#bbb;
+  text-align:left;
+  font-size:15px;
+  transition:
+    border-color .16s,
+    background .16s,
+    color .16s;
+}
+
+.toggle.on{
+  border-color:var(--accent);
+  background:rgba(239,35,60,.10);
+  color:#fff;
+}
+
+.toggle-dot{
+  width:11px;
+  height:11px;
+  flex:none;
   border-radius:50%;
-  background:#777;
-  flex:0 0 auto;
+  background:#333;
+  transition:
+    background .16s,
+    box-shadow .16s;
 }
 
-.status-dot.ok{
-  background:var(--green);
-  box-shadow:0 0 10px rgba(56,217,150,.5);
-}
-
-.status-dot.loading{
-  background:var(--yellow);
-  box-shadow:0 0 10px rgba(255,202,85,.5);
-}
-
-.status-dot.error{
-  background:var(--red);
-  box-shadow:0 0 10px rgba(255,43,43,.5);
-}
-
-#statusText{
-  color:#a7a7b0;
-  font-size:11px;
+.toggle.on .toggle-dot{
+  background:var(--accent);
+  box-shadow:0 0 10px rgba(239,35,60,.65);
 }
 
 /* =========================================================
    BUTTONS
-   ========================================================= */
-
+========================================================= */
 .actions{
   display:flex;
   flex-wrap:wrap;
-  gap:9px;
-  margin-top:15px;
+  gap:10px;
+  margin-top:18px;
 }
 
 .btn{
-  border:1px solid var(--line2);
-  background:#111115;
-  color:#e7e7ea;
-  border-radius:10px;
-  padding:11px 15px;
-  font-weight:750;
+  min-height:50px;
+  padding:10px 18px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#111;
+  color:#ddd;
+  font-size:15px;
+  font-weight:800;
+  transition:
+    border-color .18s,
+    background .18s,
+    color .18s,
+    transform .08s;
 }
 
 .btn:hover{
-  background:#18181d;
+  border-color:#555;
+  color:#fff;
+}
+
+.btn:active{
+  transform:scale(.97);
 }
 
 .btn-primary{
-  border-color:rgba(255,43,43,.55);
-  background:linear-gradient(
-    180deg,
-    #d92121,
-    #a70f0f
-  );
-  color:white;
-  box-shadow:0 8px 24px rgba(255,43,43,.12);
+  border-color:var(--accent);
+  background:var(--accent);
+  color:#fff;
+  box-shadow:0 8px 25px rgba(239,35,60,.18);
 }
 
 .btn-primary:hover{
-  background:linear-gradient(
-    180deg,
-    #ed2929,
-    #b91414
-  );
+  border-color:var(--accent-bright);
+  background:var(--accent-bright);
+}
+
+.btn-danger{
+  border-color:rgba(239,68,68,.4);
+  color:#ff9a9a;
 }
 
 .btn:disabled{
@@ -539,424 +633,429 @@ select{
 }
 
 /* =========================================================
-   WORKSPACE TABS
-   ========================================================= */
-
-.tabs{
+   STATUS
+========================================================= */
+.status-bar{
+  min-height:51px;
+  margin-top:14px;
+  padding:12px 14px;
   display:flex;
-  gap:5px;
-  overflow-x:auto;
-  border-bottom:1px solid var(--line);
-  padding:0 10px;
-  scrollbar-width:none;
-}
-
-.tabs::-webkit-scrollbar{
-  display:none;
-}
-
-.tab{
-  flex:0 0 auto;
-  border:0;
-  background:transparent;
-  color:#70707a;
-  padding:13px 13px;
-  font-size:11px;
-  font-weight:800;
-  border-bottom:2px solid transparent;
-}
-
-.tab.active{
-  color:#ff5252;
-  border-bottom-color:#ff2b2b;
-}
-
-.tab-panel{
-  display:none;
-}
-
-.tab-panel.active{
-  display:block;
-}
-
-/* =========================================================
-   TEXT EDITOR
-   ========================================================= */
-
-.editor-grid{
-  display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:12px;
-}
-
-.editor-card{
+  align-items:center;
+  gap:10px;
   border:1px solid var(--line);
   border-radius:12px;
-  overflow:hidden;
-  background:#09090b;
+  background:#0b0b0b;
 }
 
-.editor-title{
-  padding:10px 12px;
-  color:#a9a9b2;
-  font-size:10px;
-  font-weight:800;
-  border-bottom:1px solid var(--line);
+.status-dot{
+  width:10px;
+  height:10px;
+  flex:none;
+  border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 10px rgba(34,197,94,.5);
 }
 
-.editor-card textarea{
-  border:0;
-  border-radius:0;
-  min-height:180px;
+.status-dot.busy{
+  background:var(--yellow);
+  box-shadow:0 0 10px rgba(250,204,21,.5);
+  animation:statusPulse 1s infinite;
+}
+
+.status-dot.error{
+  background:var(--danger);
+  box-shadow:0 0 10px rgba(239,68,68,.5);
+}
+
+#statusText{
+  color:#ccc;
+  font-size:15px;
+  line-height:1.4;
+}
+
+@keyframes statusPulse{
+  50%{
+    opacity:.35;
+  }
 }
 
 /* =========================================================
-   DIRECTOR
-   ========================================================= */
-
-.director-grid{
-  display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
+   AI PANEL
+========================================================= */
+.ai-panel{
+  min-width:0;
+  display:flex;
+  align-items:center;
   gap:14px;
-}
-
-.director-group{
-  padding:14px;
-  border:1px solid var(--line);
+  padding:15px;
+  border:1px solid rgba(239,35,60,.2);
   border-radius:13px;
-  background:#09090b;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(239,35,60,.08),
+      rgba(239,35,60,.015)
+    );
 }
 
-.director-group h3{
-  margin:0 0 10px;
-  font-size:11px;
-  color:#c5c5cc;
+.ai-panel-icon{
+  width:44px;
+  height:44px;
+  flex:none;
+  display:grid;
+  place-items:center;
+  border-radius:11px;
+  background:rgba(239,35,60,.13);
+  color:var(--accent-bright);
+  font-size:21px;
+}
+
+.ai-panel-main{
+  min-width:0;
+}
+
+.ai-panel-label{
+  margin-bottom:3px;
+  color:#888;
+  font-size:14px;
+}
+
+.ai-panel-value{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#fff;
+  font-size:16px;
+  font-weight:800;
 }
 
 /* =========================================================
-   CONTINUITY
-   ========================================================= */
-
-.continuity-grid{
-  display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:12px;
-}
-
-.continuity-group{
-  padding:14px;
+   OUTPUT
+========================================================= */
+.output{
+  min-height:145px;
+  padding:15px;
   border:1px solid var(--line);
-  border-radius:13px;
-  background:#09090b;
+  border-radius:12px;
+  background:#090909;
+  white-space:pre-wrap;
+  word-break:break-word;
+  color:#ddd;
+  font-size:16px;
+  line-height:1.8;
 }
 
-.continuity-group h3{
-  margin:0 0 10px;
-  font-size:11px;
-  color:#c5c5cc;
+.empty{
+  color:#555;
 }
 
 /* =========================================================
    TIMELINE
-   ========================================================= */
-
-.timeline-wrap{
-  width:100%;
-  overflow-x:auto;
-  border:1px solid var(--line);
-  border-radius:13px;
-}
-
+========================================================= */
 .timeline{
-  width:100%;
-  min-width:720px;
-  border-collapse:collapse;
-}
-
-.timeline th,
-.timeline td{
-  border-bottom:1px solid var(--line);
-  padding:10px;
-  vertical-align:top;
-  text-align:left;
-  font-size:10px;
-}
-
-.timeline th{
-  color:#777780;
-  background:#09090b;
-  font-weight:800;
-}
-
-.timeline td{
-  color:#bdbdc5;
-}
-
-.timeline tr:last-child td{
-  border-bottom:0;
-}
-
-.second{
-  color:#ff4d4d !important;
-  font-weight:900;
-  width:65px;
-}
-
-.ms{
-  color:#777780 !important;
-  white-space:nowrap;
-}
-
-/* =========================================================
-   PROMPT
-   ========================================================= */
-
-.prompt-grid{
   display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:14px;
-}
-
-.prompt-card{
-  border:1px solid var(--line);
-  border-radius:13px;
-  overflow:hidden;
-  background:#08080a;
-}
-
-.prompt-card-head{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
   gap:8px;
-
-  padding:11px 12px;
-  border-bottom:1px solid var(--line);
+  max-height:520px;
+  overflow:auto;
+  padding-right:2px;
 }
 
-.prompt-card-title{
-  color:#ff5252;
-  font-size:11px;
-  font-weight:900;
-}
-
-.prompt-card textarea{
-  border:0;
-  border-radius:0;
-  min-height:300px;
-  font-family:
-    ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    Consolas,
-    monospace;
-  font-size:11px;
-}
-
-.copy-btn{
-  border:1px solid var(--line2);
-  background:#111115;
-  color:#aaaab2;
-  border-radius:7px;
-  padding:5px 8px;
-  font-size:9px;
-}
-
-.copy-btn:hover{
-  color:white;
-}
-
-/* =========================================================
-   KEYFRAMES
-   ========================================================= */
-
-.keyframe-list{
+.timeline-row{
   display:grid;
-  gap:7px;
-}
-
-.keyframe{
-  border:1px solid var(--line);
-  background:#09090b;
-  border-radius:10px;
-  padding:10px 12px;
-
-  display:grid;
-  grid-template-columns:90px 1fr;
+  grid-template-columns:70px 1fr;
   gap:10px;
+  padding:11px;
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:10px;
+  background:#0b0b0b;
 }
 
-.keyframe-time{
-  color:#ff4d4d;
-  font-family:monospace;
-  font-size:10px;
-  font-weight:900;
+.timeline-time{
+  color:#ff6a7b;
+  font-size:15px;
+  font-weight:850;
 }
 
-.keyframe-body{
-  min-width:0;
-  color:#aaaab3;
-  font-size:10px;
+.timeline-content{
+  color:#ccc;
+  font-size:15px;
   line-height:1.6;
 }
 
 /* =========================================================
-   EMPTY / REVIEW
-   ========================================================= */
-
-.empty{
-  padding:30px 15px;
-  text-align:center;
-  color:#5f5f68;
-  font-size:11px;
+   PROMPT
+========================================================= */
+.prompt-box{
+  min-height:220px;
+  padding:16px;
+  border:1px solid rgba(239,35,60,.24);
+  border-radius:13px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(239,35,60,.035),
+      rgba(0,0,0,.2)
+    );
+  white-space:pre-wrap;
+  word-break:break-word;
+  color:#eee;
+  font-size:16px;
+  line-height:1.8;
 }
 
-.review-grid{
-  display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:12px;
+/* =========================================================
+   FOOTER
+========================================================= */
+.footer-note{
+  margin-top:24px;
+  text-align:center;
+  color:#505050;
+  font-size:13px;
 }
 
 /* =========================================================
    MOBILE
-   ========================================================= */
+========================================================= */
+@media(max-width:720px){
 
-@media(max-width:900px){
-
-  .topbar{
-    grid-template-columns:1fr auto;
-    grid-template-areas:
-      "brand home"
-      "ai ai";
-
-    align-items:center;
+  html,
+  body{
+    overflow-x:hidden !important;
+    overscroll-behavior-x:none !important;
+    touch-action:pan-y !important;
   }
 
-  .brand{
-    grid-area:brand;
+  .header-inner{
+    min-height:70px;
+    padding:9px 10px;
+  }
+
+  .dark-star-logo{
+    width:40px;
+    height:40px;
+  }
+
+  .dark-star-logo svg{
+    width:24px;
+    height:24px;
+  }
+
+  .brand-title{
+    font-size:17px;
+  }
+
+  .brand-sub{
+    display:none;
+  }
+
+  .header-right{
+    gap:5px;
+  }
+
+  .ai-info{
+    max-width:135px;
+    padding:8px 9px;
+    font-size:12px;
   }
 
   .home-btn{
-    grid-area:home;
+    min-height:40px;
+    padding:0 9px;
+    font-size:12px;
   }
 
-  .ai-status{
-    grid-area:ai;
-    justify-content:flex-start;
-  }
-
-  .ai-provider{
-    width:100%;
-    justify-content:flex-start;
-    border-radius:11px;
-  }
-
-  .form-grid,
-  .editor-grid,
-  .director-grid,
-  .continuity-grid,
-  .prompt-grid,
-  .review-grid{
-    grid-template-columns:1fr;
-  }
-
-  .field.full{
-    grid-column:auto;
-  }
-}
-
-@media(max-width:600px){
-
-  .topbar{
-    padding-left:13px;
-    padding-right:13px;
-  }
-
-  .page{
-    padding-left:12px;
-    padding-right:12px;
-    padding-top:15px;
+  .main{
+    padding:20px 11px 50px;
   }
 
   .hero{
-    padding-top:13px;
+    margin-bottom:18px;
   }
 
-  .hero h1{
-    font-size:32px;
+  .eyebrow{
+    font-size:12px;
   }
 
-  .panel-head,
-  .panel-body{
-    padding:14px;
+  h1{
+    font-size:36px;
+  }
+
+  .hero-desc{
+    font-size:16px;
+    line-height:1.7;
+  }
+
+  .card{
+    padding:16px;
+    margin-bottom:14px;
+    border-radius:14px;
+  }
+
+  .section-title h2{
+    font-size:19px;
+  }
+
+  .section-title span{
+    font-size:12px;
+  }
+
+  .grid-2{
+    grid-template-columns:1fr;
+  }
+
+  .field-label{
+    font-size:15px;
+  }
+
+  input,
+  textarea,
+  select{
+    font-size:16px;
+    padding:13px;
+  }
+
+  .theme-category-title{
+    font-size:15px;
+  }
+
+  .theme-category-title span{
+    font-size:12px;
+  }
+
+  .chips{
+    gap:7px;
   }
 
   .chip{
-    padding:8px 10px;
-    font-size:11px;
+    min-height:43px;
+    padding:8px 11px;
+    font-size:14px;
   }
 
-  .actions{
-    flex-direction:column;
+  .tabs{
+    gap:4px;
+  }
+
+  .tab{
+    min-height:45px;
+    padding:7px 3px;
+    font-size:12px;
+  }
+
+  .continuity-list{
+    grid-template-columns:1fr;
+  }
+
+  .toggle{
+    min-height:47px;
+    font-size:14px;
   }
 
   .actions .btn{
-    width:100%;
+    flex:1 1 calc(50% - 10px);
   }
 
-  .keyframe{
-    grid-template-columns:1fr;
-    gap:4px;
+  .timeline-row{
+    grid-template-columns:58px 1fr;
+  }
+
+  .timeline-time{
+    font-size:13px;
+  }
+
+  .timeline-content{
+    font-size:13px;
+  }
+
+  .output,
+  .prompt-box{
+    font-size:15px;
   }
 }
 </style>
 </head>
 
 <body>
+<div class="app">
 
-<!-- =========================================================
-     TOP BAR
-     ========================================================= -->
+<!-- =======================================================
+     HEADER
+======================================================= -->
+<header class="header">
+  <div class="header-inner">
 
-<header class="topbar">
+    <div class="brand">
 
-  <div class="brand">
-    <div class="brand-main">
-      <span class="dark-star">★</span>
-      <span class="brand-name">AIVAULT VIDEO STUDIO</span>
+      <div
+        class="dark-star-logo"
+        aria-label="Technical Dark Star"
+      >
+        <svg
+          viewBox="0 0 100 100"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <path
+            d="
+              M50 5
+              L57 39
+              L95 50
+              L57 61
+              L50 95
+              L43 61
+              L5 50
+              L43 39
+              Z
+            "
+          />
+          <circle
+            cx="50"
+            cy="50"
+            r="9"
+          />
+        </svg>
+      </div>
+
+      <div class="brand-text">
+        <div class="brand-title">
+          AIVAULT Video Studio
+        </div>
+        <div class="brand-sub">
+          TECHNICAL DARK STAR · CREATIVE ENGINE
+        </div>
+      </div>
+
     </div>
 
-    <div class="brand-sub">
-      AI VIDEO CREATIVE ENGINE · TECHNICAL DARK STAR
+    <div class="header-right">
+
+      <div class="ai-info">
+        <span class="ai-info-icon">✦</span>
+        <span id="aiProviderText">
+          AI：尚未連線
+        </span>
+      </div>
+
+      <button
+        id="homeBtn"
+        class="home-btn"
+        type="button"
+      >
+        ← 返回 Home
+      </button>
+
     </div>
   </div>
-
-  <div class="ai-status">
-    <div class="ai-provider">
-      <span class="ai-dot"></span>
-      <span id="aiProviderText">
-        AIVAULT AI Gateway（未連線）
-      </span>
-    </div>
-  </div>
-
-  <button
-    class="home-btn"
-    id="homeBtn"
-    type="button"
-  >
-    ← 返回 Home
-  </button>
-
 </header>
 
+<!-- =======================================================
+     MAIN
+======================================================= -->
+<main class="main">
 
-<main class="page">
-
-<!-- =========================================================
+<!-- =====================================================
      HERO
-     ========================================================= -->
-
+====================================================== -->
 <section class="hero">
 
   <div class="eyebrow">
@@ -967,318 +1066,530 @@ select{
     Video Studio
   </h1>
 
-  <p>
-    從電影劇情、角色、導演語言、Continuity，
-    到逐秒時間軸、毫秒 Keyframe，
-    最後交由 AIVAULT Video Prompt Compiler
-    產生 Seedance 2.5 可使用的中英文影片提示詞。
+  <p class="hero-desc">
+    從故事創作、角色設定、導演技法、角色與場景一致性，
+    到秒級時間軸、毫秒級關鍵幀與 Seedance 2.5 影片提示詞。
   </p>
 
 </section>
 
+<!-- =====================================================
+     PROJECT SETTINGS
+====================================================== -->
+<section class="card">
 
-<!-- =========================================================
-     PROJECT SETUP
-     ========================================================= -->
-
-<section class="panel">
-
-  <div class="panel-head">
-    <div>
-      <div class="panel-title">
-        影片設定
-      </div>
-
-      <div class="panel-desc">
-        電影劇情／主題現在可以複選；自訂主題也可以與既有主題同時使用。
-      </div>
-    </div>
+  <div class="section-title">
+    <h2>影片設定</h2>
+    <span>Project Setup</span>
   </div>
 
-  <div class="panel-body">
+  <div class="grid grid-2">
 
-    <div class="form-grid">
+    <div class="field">
+      <label class="field-label">
+        故事名稱
+      </label>
 
-      <div class="field">
-        <label for="storyTitle">
-          故事名稱
-        </label>
+      <input
+        id="storyTitle"
+        type="text"
+        placeholder="例如：最後一顆星星"
+      />
+    </div>
 
-        <input
-          id="storyTitle"
-          type="text"
-          placeholder="例如：最後一艘飛船"
-        >
+    <div class="field">
+      <label class="field-label">
+        主要角色
+      </label>
+
+      <input
+        id="characters"
+        type="text"
+        placeholder="例如：小女孩、機器狗"
+      />
+    </div>
+
+  </div>
+
+  <div
+    class="field"
+    style="margin-top:15px"
+  >
+
+    <label class="field-label">
+      故事主題
+    </label>
+
+    <!-- ===================================================
+         電影／劇情
+    ==================================================== -->
+    <div class="theme-category">
+
+      <div class="theme-category-title">
+        🎬 電影／劇情
+        <span>Film & Drama</span>
       </div>
 
+      <div class="chips" id="themeDrama">
 
-      <div class="field">
-        <label for="characters">
-          角色
-        </label>
-
-        <input
-          id="characters"
-          type="text"
-          placeholder="例如：林夜、AI少女、老船長"
-        >
-      </div>
-
-
-      <div class="field full">
-
-        <div class="option-section">
-
-          <div class="option-label">
-            電影劇情／主題
-          </div>
-
-          <div class="option-help">
-            可複選。再次點擊已選項目即可取消。
-          </div>
-
-          <div
-            class="chips"
-            id="themeChips"
-          >
-
-            <button
-              class="chip"
-              type="button"
-              data-theme-value="冒險"
-            >
-              <span class="check">✓</span>
-              冒險
-            </button>
-
-            <button
-              class="chip"
-              type="button"
-              data-theme-value="科幻"
-            >
-              <span class="check">✓</span>
-              科幻
-            </button>
-
-            <button
-              class="chip"
-              type="button"
-              data-theme-value="奇幻"
-            >
-              <span class="check">✓</span>
-              奇幻
-            </button>
-
-            <button
-              class="chip"
-              type="button"
-              data-theme-value="愛情"
-            >
-              <span class="check">✓</span>
-              愛情
-            </button>
-
-            <button
-              class="chip"
-              type="button"
-              data-theme-value="懸疑"
-            >
-              <span class="check">✓</span>
-              懸疑
-            </button>
-
-            <button
-              class="chip"
-              type="button"
-              data-theme-value="恐怖"
-            >
-              <span class="check">✓</span>
-              恐怖
-            </button>
-
-            <button
-              class="chip"
-              type="button"
-              data-theme-value="教育"
-            >
-              <span class="check">✓</span>
-              教育
-            </button>
-
-            <button
-              class="chip"
-              type="button"
-              data-theme-value="兒童"
-            >
-              <span class="check">✓</span>
-              兒童
-            </button>
-
-          </div>
-
-        </div>
-
-
-        <div class="field" style="margin-top:12px">
-
-          <label for="customTheme">
-            自訂電影劇情／主題
-          </label>
-
-          <input
-            id="customTheme"
-            type="text"
-            placeholder="例如：末日、生存、父女情感、時間旅行"
-          >
-
-        </div>
+        <button class="chip" type="button" data-theme="冒險">冒險</button>
+        <button class="chip" type="button" data-theme="動作">動作</button>
+        <button class="chip" type="button" data-theme="劇情">劇情</button>
+        <button class="chip" type="button" data-theme="喜劇">喜劇</button>
+        <button class="chip" type="button" data-theme="愛情">愛情</button>
+        <button class="chip" type="button" data-theme="青春">青春</button>
+        <button class="chip" type="button" data-theme="成長">成長</button>
+        <button class="chip" type="button" data-theme="家庭">家庭</button>
+        <button class="chip" type="button" data-theme="犯罪">犯罪</button>
+        <button class="chip" type="button" data-theme="黑幫">黑幫</button>
+        <button class="chip" type="button" data-theme="推理">推理</button>
+        <button class="chip" type="button" data-theme="懸疑">懸疑</button>
+        <button class="chip" type="button" data-theme="驚悚">驚悚</button>
+        <button class="chip" type="button" data-theme="恐怖">恐怖</button>
+        <button class="chip" type="button" data-theme="災難">災難</button>
+        <button class="chip" type="button" data-theme="戰爭">戰爭</button>
+        <button class="chip" type="button" data-theme="歷史">歷史</button>
+        <button class="chip" type="button" data-theme="傳記">傳記</button>
 
       </div>
+    </div>
 
+    <!-- ===================================================
+         奇幻／世界觀
+    ==================================================== -->
+    <div class="theme-category">
 
-      <div class="field full">
+      <div class="theme-category-title">
+        🧙 奇幻／世界觀
+        <span>Fantasy & World</span>
+      </div>
 
-        <label for="storyRequest">
-          故事需求
-        </label>
+      <div class="chips">
 
-        <textarea
-          id="storyRequest"
-          placeholder="描述你想拍的電影故事、衝突、角色關係、結局方向或特殊要求..."
-        ></textarea>
+        <button class="chip" type="button" data-theme="奇幻">奇幻</button>
+        <button class="chip" type="button" data-theme="黑暗奇幻">黑暗奇幻</button>
+        <button class="chip" type="button" data-theme="魔法">魔法</button>
+        <button class="chip" type="button" data-theme="神話">神話</button>
+        <button class="chip" type="button" data-theme="仙俠">仙俠</button>
+        <button class="chip" type="button" data-theme="武俠">武俠</button>
+        <button class="chip" type="button" data-theme="東方幻想">東方幻想</button>
+        <button class="chip" type="button" data-theme="西方幻想">西方幻想</button>
+        <button class="chip" type="button" data-theme="超自然">超自然</button>
+        <button class="chip" type="button" data-theme="平行世界">平行世界</button>
+        <button class="chip" type="button" data-theme="時空穿越">時空穿越</button>
+        <button class="chip" type="button" data-theme="末日">末日</button>
+        <button class="chip" type="button" data-theme="寓言">寓言</button>
+        <button class="chip" type="button" data-theme="童話">童話</button>
 
+      </div>
+    </div>
+
+    <!-- ===================================================
+         科幻／未來
+    ==================================================== -->
+    <div class="theme-category">
+
+      <div class="theme-category-title">
+        🚀 科幻／未來
+        <span>Science Fiction & Future</span>
+      </div>
+
+      <div class="chips">
+
+        <button class="chip" type="button" data-theme="科幻">科幻</button>
+        <button class="chip" type="button" data-theme="太空">太空</button>
+        <button class="chip" type="button" data-theme="外星文明">外星文明</button>
+        <button class="chip" type="button" data-theme="機器人">機器人</button>
+        <button class="chip" type="button" data-theme="人工智慧">人工智慧</button>
+        <button class="chip" type="button" data-theme="未來世界">未來世界</button>
+        <button class="chip" type="button" data-theme="時間旅行">時間旅行</button>
+        <button class="chip" type="button" data-theme="科技驚悚">科技驚悚</button>
+        <button class="chip" type="button" data-theme="賽博朋克">賽博朋克</button>
+        <button class="chip" type="button" data-theme="虛擬世界">虛擬世界</button>
+        <button class="chip" type="button" data-theme="人工生命">人工生命</button>
+
+      </div>
+    </div>
+
+    <!-- ===================================================
+         動畫／兒童
+    ==================================================== -->
+    <div class="theme-category">
+
+      <div class="theme-category-title">
+        🧸 動畫／兒童
+        <span>Animation & Kids</span>
+      </div>
+
+      <div class="chips">
+
+        <button class="chip" type="button" data-theme="動畫">動畫</button>
+        <button class="chip" type="button" data-theme="日本動漫">日本動漫</button>
+        <button class="chip" type="button" data-theme="3D動畫">3D動畫</button>
+        <button class="chip" type="button" data-theme="卡通">卡通</button>
+        <button class="chip" type="button" data-theme="兒童">兒童</button>
+        <button class="chip" type="button" data-theme="親子">親子</button>
+        <button class="chip" type="button" data-theme="教育">教育</button>
+        <button class="chip" type="button" data-theme="兒童冒險">兒童冒險</button>
+        <button class="chip" type="button" data-theme="兒童安全">兒童安全</button>
+
+      </div>
+    </div>
+
+    <!-- ===================================================
+         社會／人文
+    ==================================================== -->
+    <div class="theme-category">
+
+      <div class="theme-category-title">
+        🏙️ 社會／人文
+        <span>Society & Humanity</span>
+      </div>
+
+      <div class="chips">
+
+        <button class="chip" type="button" data-theme="社會">社會</button>
+        <button class="chip" type="button" data-theme="職場">職場</button>
+        <button class="chip" type="button" data-theme="校園">校園</button>
+        <button class="chip" type="button" data-theme="青春校園">青春校園</button>
+        <button class="chip" type="button" data-theme="家庭倫理">家庭倫理</button>
+        <button class="chip" type="button" data-theme="心理">心理</button>
+        <button class="chip" type="button" data-theme="人性">人性</button>
+        <button class="chip" type="button" data-theme="社會寫實">社會寫實</button>
+        <button class="chip" type="button" data-theme="法律">法律</button>
+        <button class="chip" type="button" data-theme="醫療">醫療</button>
+        <button class="chip" type="button" data-theme="紀錄片">紀錄片</button>
+        <button class="chip" type="button" data-theme="勵志">勵志</button>
+
+      </div>
+    </div>
+
+    <!-- ===================================================
+         娛樂／生活
+    ==================================================== -->
+    <div class="theme-category">
+
+      <div class="theme-category-title">
+        🎵 娛樂／生活
+        <span>Entertainment & Lifestyle</span>
+      </div>
+
+      <div class="chips">
+
+        <button class="chip" type="button" data-theme="音樂">音樂</button>
+        <button class="chip" type="button" data-theme="舞蹈">舞蹈</button>
+        <button class="chip" type="button" data-theme="MV">MV</button>
+        <button class="chip" type="button" data-theme="廣告">廣告</button>
+        <button class="chip" type="button" data-theme="品牌故事">品牌故事</button>
+        <button class="chip" type="button" data-theme="旅遊">旅遊</button>
+        <button class="chip" type="button" data-theme="美食">美食</button>
+        <button class="chip" type="button" data-theme="自然">自然</button>
+        <button class="chip" type="button" data-theme="動物">動物</button>
+        <button class="chip" type="button" data-theme="運動">運動</button>
+        <button class="chip" type="button" data-theme="電競">電競</button>
+        <button class="chip" type="button" data-theme="超級英雄">超級英雄</button>
+
+      </div>
+    </div>
+
+    <input
+      id="customTheme"
+      type="text"
+      placeholder="或輸入自訂主題，例如：台灣夜市中的 AI 機器人冒險"
+      style="margin-top:12px"
+    />
+
+  </div>
+
+  <div
+    class="field"
+    style="margin-top:15px"
+  >
+
+    <label class="field-label">
+      故事要求
+    </label>
+
+    <textarea
+      id="storyRequest"
+      class="small-textarea"
+      placeholder="告訴 AI 你希望故事有什麼內容、角色關係、情緒、結局或特殊要求。"
+    ></textarea>
+
+  </div>
+
+</section>
+
+<!-- =====================================================
+     MODE + DURATION
+====================================================== -->
+<section class="card">
+
+  <div class="section-title">
+    <h2>影片模式</h2>
+    <span>Mode</span>
+  </div>
+
+  <div
+    class="chips"
+    id="modeChips"
+  >
+
+    <button
+      class="chip on"
+      type="button"
+      data-mode="單集"
+    >
+      單集
+    </button>
+
+    <button
+      class="chip"
+      type="button"
+      data-mode="系列"
+    >
+      系列
+    </button>
+
+  </div>
+
+  <div
+    class="section-title"
+    style="margin-top:20px"
+  >
+
+    <h2>影片長度</h2>
+
+    <span>
+      Duration
+    </span>
+
+  </div>
+
+  <div
+    class="chips"
+    id="durationChips"
+  >
+
+    <button class="chip" type="button" data-duration="10">
+      10 秒
+    </button>
+
+    <button class="chip" type="button" data-duration="15">
+      15 秒
+    </button>
+
+    <button class="chip on" type="button" data-duration="30">
+      30 秒
+    </button>
+
+    <button class="chip" type="button" data-duration="60">
+      60 秒
+    </button>
+
+    <button class="chip" type="button" data-duration="90">
+      90 秒
+    </button>
+
+    <button class="chip" type="button" data-duration="120">
+      120 秒
+    </button>
+
+  </div>
+
+  <div
+    class="field"
+    style="margin-top:18px"
+  >
+
+    <label class="field-label">
+      輸出語言
+    </label>
+
+    <select id="language">
+
+      <option value="zh-TW">
+        繁體中文
+      </option>
+
+      <option value="zh-CN">
+        简体中文
+      </option>
+
+      <option value="zh-TW,en">
+        繁體中文＋English
+      </option>
+
+      <option value="zh-CN,en">
+        简体中文＋English
+      </option>
+
+      <option value="en">
+        English
+      </option>
+
+    </select>
+
+  </div>
+
+</section>
+
+<!-- =====================================================
+     AI ASSISTANCE
+====================================================== -->
+<section class="card">
+
+  <div class="section-title">
+
+    <h2>
+      AI 協助
+    </h2>
+
+    <span>
+      AI Assistance
+    </span>
+
+  </div>
+
+  <div class="ai-panel">
+
+    <div class="ai-panel-icon">
+      ✦
+    </div>
+
+    <div class="ai-panel-main">
+
+      <div class="ai-panel-label">
+        目前實際使用的 AI
+      </div>
+
+      <div
+        id="aiPanelValue"
+        class="ai-panel-value"
+      >
+        尚未呼叫 AI Gateway
       </div>
 
     </div>
 
+  </div>
 
-    <!-- MODE -->
+  <div class="status-bar">
 
-    <div class="option-section">
+    <span
+      id="statusDot"
+      class="status-dot"
+    ></span>
 
-      <div class="option-label">
-        製作模式
-      </div>
+    <span id="statusText">
+      Studio Ready
+    </span>
 
-      <div class="single-select-row">
+  </div>
 
-        <button
-          class="single-chip active"
-          type="button"
-          data-mode="單集"
-        >
-          單集
-        </button>
+</section>
 
-        <button
-          class="single-chip"
-          type="button"
-          data-mode="系列"
-        >
-          系列
-        </button>
+<!-- =====================================================
+     WORKSPACE
+====================================================== -->
+<section class="card">
 
-      </div>
+  <div class="section-title">
 
-    </div>
+    <h2>
+      創作工作區
+    </h2>
 
+    <span>
+      Workspace
+    </span>
 
-    <!-- DURATION -->
+  </div>
 
-    <div class="option-section">
+  <div
+    class="tabs"
+    id="workspaceTabs"
+  >
 
-      <div class="option-label">
-        影片長度
-      </div>
+    <button
+      class="tab on"
+      type="button"
+      data-pane="storyPane"
+    >
+      Story
+    </button>
 
-      <div class="single-select-row">
+    <button
+      class="tab"
+      type="button"
+      data-pane="scriptPane"
+    >
+      Script
+    </button>
 
-        <button class="single-chip" type="button" data-duration="10">10 秒</button>
-        <button class="single-chip" type="button" data-duration="15">15 秒</button>
+    <button
+      class="tab"
+      type="button"
+      data-pane="narrationPane"
+    >
+      Narration
+    </button>
 
-        <button
-          class="single-chip active"
-          type="button"
-          data-duration="30"
-        >
-          30 秒
-        </button>
+    <button
+      class="tab"
+      type="button"
+      data-pane="storyboardPane"
+    >
+      Storyboard
+    </button>
 
-        <button class="single-chip" type="button" data-duration="60">60 秒</button>
-        <button class="single-chip" type="button" data-duration="90">90 秒</button>
-        <button class="single-chip" type="button" data-duration="120">120 秒</button>
+    <button
+      class="tab"
+      type="button"
+      data-pane="reviewPane"
+    >
+      Review
+    </button>
 
-      </div>
+  </div>
 
-    </div>
+  <!-- STORY -->
 
+  <div
+    id="storyPane"
+    class="pane active"
+  >
 
-    <!-- LANGUAGE -->
+    <div class="field">
 
-    <div class="option-section">
+      <label class="field-label">
+        故事
+      </label>
 
-      <div class="option-label">
-        提示詞語言
-      </div>
-
-      <select id="language">
-
-        <option value="zh-TW">
-          繁體中文
-        </option>
-
-        <option value="zh-CN">
-          簡體中文
-        </option>
-
-        <option value="zh-TW,en">
-          繁體中文 + English
-        </option>
-
-        <option value="zh-CN,en">
-          簡體中文 + English
-        </option>
-
-        <option value="en">
-          English
-        </option>
-
-      </select>
-
-    </div>
-
-
-    <div class="option-section">
-
-      <div class="ai-bar">
-
-        <span
-          class="status-dot"
-          id="statusDot"
-        ></span>
-
-        <span id="statusText">
-          等待開始
+      <div
+        id="storyOutput"
+        class="output"
+      >
+        <span class="empty">
+          尚未建立故事。
         </span>
-
       </div>
 
     </div>
-
 
     <div class="actions">
 
       <button
-        class="btn btn-primary"
         id="generateStoryBtn"
+        class="btn btn-primary"
         type="button"
       >
         ✦ AI 創作故事
       </button>
 
       <button
-        class="btn"
         id="clearStoryBtn"
+        class="btn btn-danger"
         type="button"
       >
         清除故事
@@ -1288,1054 +1599,434 @@ select{
 
   </div>
 
-</section>
-
-
-<!-- =========================================================
-     WORKSPACE
-     ========================================================= -->
-
-<section class="panel">
-
-  <div class="panel-head">
-
-    <div>
-      <div class="panel-title">
-        AI 創作工作區
-      </div>
-
-      <div class="panel-desc">
-        故事 → 劇本 → 旁白 → 分鏡 → 審查。
-      </div>
-    </div>
-
-  </div>
-
-
-  <div class="tabs">
-
-    <button class="tab active" type="button" data-tab="story">
-      Story
-    </button>
-
-    <button class="tab" type="button" data-tab="script">
-      Script
-    </button>
-
-    <button class="tab" type="button" data-tab="narration">
-      Narration
-    </button>
-
-    <button class="tab" type="button" data-tab="storyboard">
-      Storyboard
-    </button>
-
-    <button class="tab" type="button" data-tab="review">
-      Review
-    </button>
-
-  </div>
-
-
-  <!-- STORY -->
-
-  <div
-    class="tab-panel active"
-    id="tab-story"
-  >
-
-    <div class="panel-body">
-
-      <div class="editor-card">
-
-        <div class="editor-title">
-          AI 完整故事
-        </div>
-
-        <textarea
-          id="storyOutput"
-          placeholder="AI 產生的完整故事會出現在這裡..."
-        ></textarea>
-
-      </div>
-
-    </div>
-
-  </div>
-
-
   <!-- SCRIPT -->
 
   <div
-    class="tab-panel"
-    id="tab-script"
+    id="scriptPane"
+    class="pane"
   >
 
-    <div class="panel-body">
-
-      <div class="editor-card">
-
-        <div class="editor-title">
-          劇本
-        </div>
-
-        <textarea
-          id="scriptOutput"
-          placeholder="劇本..."
-        ></textarea>
-
-      </div>
-
-    </div>
+    <textarea
+      id="scriptOutput"
+      placeholder="故事產生後，這裡會顯示劇本。你也可以直接修改。"
+    ></textarea>
 
   </div>
-
 
   <!-- NARRATION -->
 
   <div
-    class="tab-panel"
-    id="tab-narration"
+    id="narrationPane"
+    class="pane"
   >
 
-    <div class="panel-body">
-
-      <div class="editor-card">
-
-        <div class="editor-title">
-          旁白
-        </div>
-
-        <textarea
-          id="narrationOutput"
-          placeholder="旁白..."
-        ></textarea>
-
-      </div>
-
-    </div>
+    <textarea
+      id="narrationOutput"
+      placeholder="故事產生後，這裡會顯示旁白。"
+    ></textarea>
 
   </div>
-
 
   <!-- STORYBOARD -->
 
   <div
-    class="tab-panel"
-    id="tab-storyboard"
+    id="storyboardPane"
+    class="pane"
   >
 
-    <div class="panel-body">
-
-      <div class="editor-card">
-
-        <div class="editor-title">
-          分鏡
-        </div>
-
-        <textarea
-          id="storyboardOutput"
-          placeholder="分鏡..."
-        ></textarea>
-
-      </div>
-
-    </div>
+    <textarea
+      id="storyboardOutput"
+      placeholder="故事產生後，這裡會顯示分鏡。"
+    ></textarea>
 
   </div>
-
 
   <!-- REVIEW -->
 
   <div
-    class="tab-panel"
-    id="tab-review"
+    id="reviewPane"
+    class="pane"
   >
 
-    <div class="panel-body">
+    <div class="field">
 
-      <div class="review-grid">
+      <label class="field-label">
+        事實查核
+      </label>
 
-        <div class="editor-card">
-
-          <div class="editor-title">
-            事實查核
-          </div>
-
-          <textarea
-            id="factCheckOutput"
-            placeholder="事實查核..."
-          ></textarea>
-
-        </div>
-
-
-        <div class="editor-card">
-
-          <div class="editor-title">
-            討論
-          </div>
-
-          <textarea
-            id="discussionOutput"
-            placeholder="討論..."
-          ></textarea>
-
-        </div>
-
-
-        <div
-          class="editor-card"
-          style="grid-column:1/-1"
-        >
-
-          <div class="editor-title">
-            最終審查
-          </div>
-
-          <textarea
-            id="reviewOutput"
-            placeholder="最終審查..."
-          ></textarea>
-
-        </div>
-
-      </div>
+      <textarea
+        id="factCheckOutput"
+        class="small-textarea"
+        placeholder="AI 故事中的事實查核結果。"
+      ></textarea>
 
     </div>
 
-  </div>
-
-</section>
-
-
-<!-- =========================================================
-     DIRECTOR
-     ========================================================= -->
-
-<section class="panel">
-
-  <div class="panel-head">
-
-    <div>
-
-      <div class="panel-title">
-        🎥 Director
-      </div>
-
-      <div class="panel-desc">
-        每一組都可以複選。選擇會完整傳入 Video Prompt Compiler。
-      </div>
-
-    </div>
-
-  </div>
-
-
-  <div class="panel-body">
-
-    <div class="director-grid">
-
-
-      <!-- VISUAL STYLE -->
-
-      <div class="director-group">
-
-        <h3>
-          Visual Style
-        </h3>
-
-        <div
-          class="chips"
-          data-director-group="visual_style"
-        >
-
-          <button class="chip" type="button" data-director-value="photorealistic">
-            <span class="check">✓</span> Photorealistic
-          </button>
-
-          <button class="chip" type="button" data-director-value="cinematic">
-            <span class="check">✓</span> Cinematic
-          </button>
-
-          <button class="chip" type="button" data-director-value="anime">
-            <span class="check">✓</span> Anime
-          </button>
-
-          <button class="chip" type="button" data-director-value="3d-animation">
-            <span class="check">✓</span> 3D Animation
-          </button>
-
-          <button class="chip" type="button" data-director-value="dark-fantasy">
-            <span class="check">✓</span> Dark Fantasy
-          </button>
-
-        </div>
-
-      </div>
-
-
-      <!-- CAMERA -->
-
-      <div class="director-group">
-
-        <h3>
-          Camera Language
-        </h3>
-
-        <div
-          class="chips"
-          data-director-group="camera_language"
-        >
-
-          <button class="chip" type="button" data-director-value="close-up">
-            <span class="check">✓</span> Close-up
-          </button>
-
-          <button class="chip" type="button" data-director-value="medium-shot">
-            <span class="check">✓</span> Medium Shot
-          </button>
-
-          <button class="chip" type="button" data-director-value="wide-shot">
-            <span class="check">✓</span> Wide Shot
-          </button>
-
-          <button class="chip" type="button" data-director-value="tracking-shot">
-            <span class="check">✓</span> Tracking
-          </button>
-
-          <button class="chip" type="button" data-director-value="dolly-in">
-            <span class="check">✓</span> Dolly In
-          </button>
-
-          <button class="chip" type="button" data-director-value="dolly-out">
-            <span class="check">✓</span> Dolly Out
-          </button>
-
-          <button class="chip" type="button" data-director-value="orbit">
-            <span class="check">✓</span> Orbit
-          </button>
-
-          <button class="chip" type="button" data-director-value="pov">
-            <span class="check">✓</span> POV
-          </button>
-
-        </div>
-
-      </div>
-
-
-      <!-- PACING -->
-
-      <div class="director-group">
-
-        <h3>
-          Pacing & Rhythm
-        </h3>
-
-        <div
-          class="chips"
-          data-director-group="pacing_rhythm"
-        >
-
-          <button class="chip" type="button" data-director-value="slow-motion">
-            <span class="check">✓</span> Slow Motion
-          </button>
-
-          <button class="chip" type="button" data-director-value="fast-motion">
-            <span class="check">✓</span> Fast Motion
-          </button>
-
-          <button class="chip" type="button" data-director-value="dynamic">
-            <span class="check">✓</span> Dynamic
-          </button>
-
-          <button class="chip" type="button" data-director-value="smooth-motion">
-            <span class="check">✓</span> Smooth Motion
-          </button>
-
-          <button class="chip" type="button" data-director-value="handheld">
-            <span class="check">✓</span> Handheld
-          </button>
-
-        </div>
-
-      </div>
-
-
-      <!-- TONE -->
-
-      <div class="director-group">
-
-        <h3>
-          Tone & Emotion
-        </h3>
-
-        <div
-          class="chips"
-          data-director-group="tone_emotion"
-        >
-
-          <button class="chip" type="button" data-director-value="dramatic">
-            <span class="check">✓</span> Dramatic
-          </button>
-
-          <button class="chip" type="button" data-director-value="emotional">
-            <span class="check">✓</span> Emotional
-          </button>
-
-          <button class="chip" type="button" data-director-value="tense">
-            <span class="check">✓</span> Tense
-          </button>
-
-          <button class="chip" type="button" data-director-value="hopeful">
-            <span class="check">✓</span> Hopeful
-          </button>
-
-          <button class="chip" type="button" data-director-value="dark">
-            <span class="check">✓</span> Dark
-          </button>
-
-          <button class="chip" type="button" data-director-value="mysterious">
-            <span class="check">✓</span> Mysterious
-          </button>
-
-        </div>
-
-      </div>
-
-
-      <!-- AUDIENCE -->
-
-      <div class="director-group">
-
-        <h3>
-          Audience
-        </h3>
-
-        <div
-          class="chips"
-          data-director-group="audience"
-        >
-
-          <button class="chip" type="button" data-director-value="general">
-            <span class="check">✓</span> General
-          </button>
-
-          <button class="chip" type="button" data-director-value="family">
-            <span class="check">✓</span> Family
-          </button>
-
-          <button class="chip" type="button" data-director-value="children">
-            <span class="check">✓</span> Children
-          </button>
-
-          <button class="chip" type="button" data-director-value="teen">
-            <span class="check">✓</span> Teen
-          </button>
-
-          <button class="chip" type="button" data-director-value="adult">
-            <span class="check">✓</span> Adult
-          </button>
-
-        </div>
-
-      </div>
-
-
-      <!-- SAFETY -->
-
-      <div class="director-group">
-
-        <h3>
-          Safety / Compliance
-        </h3>
-
-        <div
-          class="chips"
-          data-director-group="safety_compliance"
-        >
-
-          <button class="chip" type="button" data-director-value="non-graphic-violence">
-            <span class="check">✓</span> Non-graphic Violence
-          </button>
-
-          <button class="chip" type="button" data-director-value="no-gore">
-            <span class="check">✓</span> No Gore
-          </button>
-
-          <button class="chip" type="button" data-director-value="family-safe">
-            <span class="check">✓</span> Family Safe
-          </button>
-
-          <button class="chip" type="button" data-director-value="brand-safe">
-            <span class="check">✓</span> Brand Safe
-          </button>
-
-          <button class="chip" type="button" data-director-value="realistic-but-safe">
-            <span class="check">✓</span> Realistic but Safe
-          </button>
-
-        </div>
-
-      </div>
-
-
-      <!-- NARRATIVE MODE -->
-
-      <div class="director-group">
-
-        <h3>
-          Narrative Mode
-        </h3>
-
-        <div
-          class="chips"
-          data-director-group="narrative_mode"
-        >
-
-          <button class="chip" type="button" data-director-value="linear">
-            <span class="check">✓</span> Linear
-          </button>
-
-          <button class="chip" type="button" data-director-value="nonlinear">
-            <span class="check">✓</span> Nonlinear
-          </button>
-
-          <button class="chip" type="button" data-director-value="flashback">
-            <span class="check">✓</span> Flashback
-          </button>
-
-          <button class="chip" type="button" data-director-value="parallel">
-            <span class="check">✓</span> Parallel
-          </button>
-
-          <button class="chip" type="button" data-director-value="montage">
-            <span class="check">✓</span> Montage
-          </button>
-
-        </div>
-
-      </div>
-
-
-      <!-- ENDING -->
-
-      <div class="director-group">
-
-        <h3>
-          Ending
-        </h3>
-
-        <div
-          class="chips"
-          data-director-group="ending"
-        >
-
-          <button class="chip" type="button" data-director-value="happy-ending">
-            <span class="check">✓</span> Happy Ending
-          </button>
-
-          <button class="chip" type="button" data-director-value="tragic-ending">
-            <span class="check">✓</span> Tragic Ending
-          </button>
-
-          <button class="chip" type="button" data-director-value="open-ending">
-            <span class="check">✓</span> Open Ending
-          </button>
-
-          <button class="chip" type="button" data-director-value="twist-ending">
-            <span class="check">✓</span> Twist Ending
-          </button>
-
-          <button class="chip" type="button" data-director-value="cliffhanger">
-            <span class="check">✓</span> Cliffhanger
-          </button>
-
-        </div>
-
-      </div>
-
-    </div>
-
-  </div>
-
-</section>
-
-
-<!-- =========================================================
-     CONTINUITY
-     ========================================================= -->
-
-<section class="panel">
-
-  <div class="panel-head">
-
-    <div>
-
-      <div class="panel-title">
-        🔗 Continuity
-      </div>
-
-      <div class="panel-desc">
-        角色、視覺、故事、音訊全部可以複選。
-      </div>
-
-    </div>
-
-  </div>
-
-
-  <div class="panel-body">
-
-    <div class="continuity-grid">
-
-
-      <!-- CHARACTER -->
-
-      <div class="continuity-group">
-
-        <h3>
-          Character
-        </h3>
-
-        <div
-          class="chips"
-          data-continuity-group="character"
-        >
-
-          <button
-            class="chip active"
-            type="button"
-            data-continuity-value="same_person"
-          >
-            <span class="check">✓</span>
-            Same Person
-          </button>
-
-          <button
-            class="chip active"
-            type="button"
-            data-continuity-value="same_face"
-          >
-            <span class="check">✓</span>
-            Same Face
-          </button>
-
-          <button
-            class="chip active"
-            type="button"
-            data-continuity-value="same_hairstyle"
-          >
-            <span class="check">✓</span>
-            Same Hairstyle
-          </button>
-
-          <button
-            class="chip active"
-            type="button"
-            data-continuity-value="same_clothing"
-          >
-            <span class="check">✓</span>
-            Same Clothing
-          </button>
-
-          <button
-            class="chip active"
-            type="button"
-            data-continuity-value="same_body_proportions"
-          >
-            <span class="check">✓</span>
-            Same Body Proportions
-          </button>
-
-          <button
-            class="chip active"
-            type="button"
-            data-continuity-value="prevent_identity_drift"
-          >
-            <span class="check">✓</span>
-            Prevent Identity Drift
-          </button>
-
-        </div>
-
-      </div>
-
-
-      <!-- VISUAL -->
-
-      <div class="continuity-group">
-
-        <h3>
-          Visual
-        </h3>
-
-        <div
-          class="chips"
-          data-continuity-group="visual"
-        >
-
-          <button
-            class="chip active"
-            type="button"
-            data-continuity-value="same_environment"
-          >
-            <span class="check">✓</span>
-            Same Environment
-          </button>
-
-          <button
-            class="chip active"
-            type="button"
-            data-continuity-value="same_visual_style"
-          >
-            <span class="check">✓</span>
-            Same Visual Style
-          </button>
-
-          <button
-            class="chip active"
-            type="button"
-            data-continuity-value="same_lighting_logic"
-          >
-            <span class="check">✓</span>
-            Same Lighting Logic
-          </button>
-
-          <button
-            class="chip active"
-            type="button"
-            data-continuity-value="same_color_logic"
-          >
-            <span class="check">✓</span>
-            Same Color Logic
-          </button>
-
-        </div>
-
-      </div>
-
-
-      <!-- STORY -->
-
-      <div class="continuity-group">
-
-        <h3>
-          Story
-        </h3>
-
-        <div
-          class="chips"
-          data-continuity-group="story"
-        >
-
-          <button
-            class="chip active"
-            type="button"
-            data-continuity-value="previous_end_state"
-          >
-            <span class="check">✓</span>
-            Previous End State
-          </button>
-
-          <button
-            class="chip active"
-            type="button"
-            data-continuity-value="causal_continuity"
-          >
-            <span class="check">✓</span>
-            Causal Continuity
-          </button>
-
-          <button
-            class="chip active"
-            type="button"
-            data-continuity-value="location_continuity"
-          >
-            <span class="check">✓</span>
-            Location Continuity
-          </button>
-
-          <button
-            class="chip active"
-            type="button"
-            data-continuity-value="time_continuity"
-          >
-            <span class="check">✓</span>
-            Time Continuity
-          </button>
-
-        </div>
-
-      </div>
-
-
-      <!-- AUDIO -->
-
-      <div class="continuity-group">
-
-        <h3>
-          Audio
-        </h3>
-
-        <div
-          class="chips"
-          data-continuity-group="audio"
-        >
-
-          <button
-            class="chip active"
-            type="button"
-            data-continuity-value="same_voice"
-          >
-            <span class="check">✓</span>
-            Same Voice
-          </button>
-
-          <button
-            class="chip active"
-            type="button"
-            data-continuity-value="same_voice_identity"
-          >
-            <span class="check">✓</span>
-            Same Voice Identity
-          </button>
-
-          <button
-            class="chip active"
-            type="button"
-            data-continuity-value="ambient_continuity"
-          >
-            <span class="check">✓</span>
-            Ambient Continuity
-          </button>
-
-          <button
-            class="chip active"
-            type="button"
-            data-continuity-value="music_continuity"
-          >
-            <span class="check">✓</span>
-            Music Continuity
-          </button>
-
-        </div>
-
-      </div>
-
-    </div>
-
-  </div>
-
-</section>
-
-
-<!-- =========================================================
-     SECOND TIMELINE
-     ========================================================= -->
-
-<section class="panel">
-
-  <div class="panel-head">
-
-    <div>
-
-      <div class="panel-title">
-        ⏱ 第二級時間軸
-      </div>
-
-      <div class="panel-desc">
-        每一秒建立一個可供影片 Prompt Compiler 使用的時間單位。
-      </div>
-
-    </div>
-
-    <button
-      class="btn"
-      id="rebuildTimelineBtn"
-      type="button"
+    <div
+      class="field"
+      style="margin-top:15px"
     >
-      重新建立
+
+      <label class="field-label">
+        討論 / 評估
+      </label>
+
+      <textarea
+        id="discussionOutput"
+        class="small-textarea"
+        placeholder="故事品質、邏輯與創作評估。"
+      ></textarea>
+
+    </div>
+
+    <div
+      class="field"
+      style="margin-top:15px"
+    >
+
+      <label class="field-label">
+        最終審查
+      </label>
+
+      <textarea
+        id="reviewOutput"
+        class="small-textarea"
+        placeholder="最終影片內容審查。"
+      ></textarea>
+
+    </div>
+
+  </div>
+
+</section>
+
+<!-- =====================================================
+     DIRECTOR
+====================================================== -->
+<section class="card">
+
+  <div class="section-title">
+
+    <h2>
+      Director
+    </h2>
+
+    <span>
+      導演控制
+    </span>
+
+  </div>
+
+  <div id="directorContainer">
+
+    <!-- CAMERA -->
+
+    <div class="director-group">
+
+      <div class="director-name">
+        Camera / 鏡頭
+      </div>
+
+      <div class="chips">
+
+        <button class="chip" type="button" data-director-group="camera" data-director-value="close-up">特寫</button>
+        <button class="chip" type="button" data-director-group="camera" data-director-value="medium-shot">中景</button>
+        <button class="chip" type="button" data-director-group="camera" data-director-value="wide-shot">廣角</button>
+        <button class="chip" type="button" data-director-group="camera" data-director-value="tracking-shot">跟拍</button>
+        <button class="chip" type="button" data-director-group="camera" data-director-value="dolly-in">推鏡</button>
+        <button class="chip" type="button" data-director-group="camera" data-director-value="dolly-out">拉鏡</button>
+        <button class="chip" type="button" data-director-group="camera" data-director-value="orbit">環繞</button>
+
+      </div>
+
+    </div>
+
+    <!-- MOVEMENT -->
+
+    <div class="director-group">
+
+      <div class="director-name">
+        Movement / 運動
+      </div>
+
+      <div class="chips">
+
+        <button class="chip" type="button" data-director-group="movement" data-director-value="slow-motion">慢動作</button>
+        <button class="chip" type="button" data-director-group="movement" data-director-value="fast-motion">快動作</button>
+        <button class="chip" type="button" data-director-group="movement" data-director-value="handheld">手持感</button>
+        <button class="chip" type="button" data-director-group="movement" data-director-value="smooth-motion">平滑運動</button>
+        <button class="chip" type="button" data-director-group="movement" data-director-value="dynamic">動態鏡頭</button>
+
+      </div>
+
+    </div>
+
+    <!-- LIGHTING -->
+
+    <div class="director-group">
+
+      <div class="director-name">
+        Lighting / 光線
+      </div>
+
+      <div class="chips">
+
+        <button class="chip" type="button" data-director-group="lighting" data-director-value="cinematic">電影光</button>
+        <button class="chip" type="button" data-director-group="lighting" data-director-value="soft-light">柔光</button>
+        <button class="chip" type="button" data-director-group="lighting" data-director-value="dramatic">戲劇光</button>
+        <button class="chip" type="button" data-director-group="lighting" data-director-value="backlight">逆光</button>
+        <button class="chip" type="button" data-director-group="lighting" data-director-value="neon">霓虹光</button>
+
+      </div>
+
+    </div>
+
+    <!-- VISUAL -->
+
+    <div class="director-group">
+
+      <div class="director-name">
+        Visual / 視覺
+      </div>
+
+      <div class="chips">
+
+        <button class="chip" type="button" data-director-group="visual" data-director-value="photorealistic">寫實</button>
+        <button class="chip" type="button" data-director-group="visual" data-director-value="cinematic">電影感</button>
+        <button class="chip" type="button" data-director-group="visual" data-director-value="anime">Anime</button>
+        <button class="chip" type="button" data-director-group="visual" data-director-value="3d-animation">3D Animation</button>
+        <button class="chip" type="button" data-director-group="visual" data-director-value="dark-fantasy">Dark Fantasy</button>
+
+      </div>
+
+    </div>
+
+    <!-- EDITING -->
+
+    <div class="director-group">
+
+      <div class="director-name">
+        Editing / 剪輯
+      </div>
+
+      <div class="chips">
+
+        <button class="chip" type="button" data-director-group="editing" data-director-value="hard-cut">硬切</button>
+        <button class="chip" type="button" data-director-group="editing" data-director-value="match-cut">Match Cut</button>
+        <button class="chip" type="button" data-director-group="editing" data-director-value="crossfade">淡入淡出</button>
+        <button class="chip" type="button" data-director-group="editing" data-director-value="montage">蒙太奇</button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
+
+<!-- =====================================================
+     CONTINUITY
+====================================================== -->
+<section class="card">
+
+  <div class="section-title">
+
+    <h2>
+      Continuity
+    </h2>
+
+    <span>
+      角色與場景一致性
+    </span>
+
+  </div>
+
+  <div
+    id="continuityList"
+    class="continuity-list"
+  >
+
+    <button class="toggle on" type="button" data-continuity="same_person">
+      <span>同一人物</span>
+      <span class="toggle-dot"></span>
+    </button>
+
+    <button class="toggle on" type="button" data-continuity="same_face">
+      <span>臉部一致</span>
+      <span class="toggle-dot"></span>
+    </button>
+
+    <button class="toggle on" type="button" data-continuity="same_hairstyle">
+      <span>髮型一致</span>
+      <span class="toggle-dot"></span>
+    </button>
+
+    <button class="toggle on" type="button" data-continuity="same_clothing">
+      <span>服裝一致</span>
+      <span class="toggle-dot"></span>
+    </button>
+
+    <button class="toggle on" type="button" data-continuity="same_body_proportions">
+      <span>身體比例一致</span>
+      <span class="toggle-dot"></span>
+    </button>
+
+    <button class="toggle on" type="button" data-continuity="same_environment">
+      <span>環境一致</span>
+      <span class="toggle-dot"></span>
+    </button>
+
+    <button class="toggle on" type="button" data-continuity="same_visual_style">
+      <span>視覺風格一致</span>
+      <span class="toggle-dot"></span>
+    </button>
+
+    <button class="toggle on" type="button" data-continuity="same_lighting_logic">
+      <span>光線邏輯一致</span>
+      <span class="toggle-dot"></span>
+    </button>
+
+    <button class="toggle on" type="button" data-continuity="prevent_identity_drift">
+      <span>防止 Identity Drift</span>
+      <span class="toggle-dot"></span>
+    </button>
+
+    <button class="toggle on" type="button" data-continuity="previous_end_state">
+      <span>延續上一鏡結尾狀態</span>
+      <span class="toggle-dot"></span>
     </button>
 
   </div>
 
+</section>
 
-  <div class="panel-body">
+<!-- =====================================================
+     SECOND TIMELINE
+====================================================== -->
+<section class="card">
 
-    <div
-      class="timeline-wrap"
-      id="timelineWrap"
-    >
-      <div class="empty">
-        尚未建立時間軸
-      </div>
+  <div class="section-title">
+
+    <h2>
+      Second Timeline
+    </h2>
+
+    <span>
+      秒級時間軸
+    </span>
+
+  </div>
+
+  <div
+    id="timelineOutput"
+    class="timeline"
+  >
+
+    <div class="empty">
+      產生故事後，這裡會建立秒級時間軸。
     </div>
 
   </div>
 
 </section>
 
+<!-- =====================================================
+     SEEDANCE PROMPT
+====================================================== -->
+<section class="card">
 
-<!-- =========================================================
-     MILLISECOND KEYFRAMES
-     ========================================================= -->
+  <div class="section-title">
 
-<section class="panel">
+    <h2>
+      Seedance 2.5 Prompt
+    </h2>
 
-  <div class="panel-head">
-
-    <div>
-
-      <div class="panel-title">
-        ⚡ Millisecond Keyframes
-      </div>
-
-      <div class="panel-desc">
-        以毫秒時間戳描述每一秒區段的開始與結束。
-      </div>
-
-    </div>
+    <span>
+      Final Video Prompt
+    </span>
 
   </div>
 
+  <p
+    style="
+      margin:0 0 15px;
+      color:#888;
+      font-size:15px;
+      line-height:1.7;
+    "
+  >
+    Video Studio 會把故事、導演技法、Continuity、
+    秒級時間軸與毫秒級關鍵幀整合，再交給
+    AIVAULT Video Prompt Compiler。
+  </p>
 
-  <div class="panel-body">
+  <div
+    id="promptZh"
+    class="prompt-box"
+  >
 
-    <div
-      class="keyframe-list"
-      id="keyframeList"
+    <span class="empty">
+      尚未生成影片提示詞。
+    </span>
+
+  </div>
+
+  <div style="height:12px"></div>
+
+  <div
+    id="promptEn"
+    class="prompt-box"
+  >
+
+    <span class="empty">
+      English prompt 尚未生成。
+    </span>
+
+  </div>
+
+  <div class="actions">
+
+    <button
+      id="generatePromptBtn"
+      class="btn btn-primary"
+      type="button"
     >
+      ✦ 生成影片提示詞
+    </button>
 
-      <div class="empty">
-        尚未建立 Keyframes
-      </div>
+    <button
+      id="copyZhBtn"
+      class="btn"
+      type="button"
+    >
+      複製中文 Prompt
+    </button>
 
-    </div>
+    <button
+      id="copyEnBtn"
+      class="btn"
+      type="button"
+    >
+      Copy English Prompt
+    </button>
 
   </div>
 
 </section>
 
-
-<!-- =========================================================
-     PROMPT COMPILER
-     ========================================================= -->
-
-<section class="panel">
-
-  <div class="panel-head">
-
-    <div>
-
-      <div class="panel-title">
-        🎬 生成提示詞
-      </div>
-
-      <div class="panel-desc">
-        最終審查完成後，將故事、Director、Continuity、
-        第二級時間軸與毫秒 Keyframe 一起交給
-        AIVAULT Video Prompt Compiler，
-        目標模型：Seedance 2.5。
-      </div>
-
-    </div>
-
-  </div>
-
-
-  <div class="panel-body">
-
-    <div class="actions">
-
-      <button
-        class="btn btn-primary"
-        id="generatePromptBtn"
-        type="button"
-      >
-        ✦ 生成影片提示詞
-      </button>
-
-    </div>
-
-
-    <div
-      class="prompt-grid"
-      style="margin-top:14px"
-    >
-
-
-      <!-- ZH -->
-
-      <div class="prompt-card">
-
-        <div class="prompt-card-head">
-
-          <div class="prompt-card-title">
-            繁體中文 Prompt
-          </div>
-
-          <button
-            class="copy-btn"
-            type="button"
-            data-copy="promptZh"
-          >
-            複製
-          </button>
-
-        </div>
-
-        <textarea
-          id="promptZh"
-          placeholder="生成後的中文 Seedance 2.5 Prompt..."
-        ></textarea>
-
-      </div>
-
-
-      <!-- EN -->
-
-      <div class="prompt-card">
-
-        <div class="prompt-card-head">
-
-          <div class="prompt-card-title">
-            English Prompt
-          </div>
-
-          <button
-            class="copy-btn"
-            type="button"
-            data-copy="promptEn"
-          >
-            複製
-          </button>
-
-        </div>
-
-        <textarea
-          id="promptEn"
-          placeholder="Generated English Seedance 2.5 Prompt..."
-        ></textarea>
-
-      </div>
-
-    </div>
-
-  </div>
-
-</section>
+<div class="footer-note">
+  AIVAULT Video Studio · Technical Dark Star ·
+  AI Gateway → Video Prompt Compiler → Seedance 2.5
+</div>
 
 </main>
-
+</div>
 
 <script>
-"use strict";
 
 /* =========================================================
    CONFIG
-   ========================================================= */
+========================================================= */
 
 const CONFIG = {
 
@@ -2346,249 +2037,193 @@ const CONFIG = {
     "https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/aivault-video-prompt",
 
   /*
-   * 不要把正式 API Secret 寫在前端。
-   * 若需要 Supabase anon key，可在正式環境注入。
+   * DO NOT PUT INTERNAL AI SECRETS HERE.
    */
   SUPABASE_ANON_KEY:
     "YOUR_SUPABASE_ANON_KEY",
 
   HOME_FALLBACK:
     "./index.html"
-
 };
 
+/* =========================================================
+   DOM HELPER
+========================================================= */
+
+const $ = id =>
+  document.getElementById(id);
 
 /* =========================================================
-   STATE
-   ========================================================= */
+   PROJECT STATE
+========================================================= */
 
 const videoProject = {
 
-  /*
-   * themes 是真正的多選陣列。
-   * theme 保留作為舊後端相容的字串。
-   */
-  themes: [],
+  theme:"",
+  title:"",
+  characters:"",
+  request:"",
 
-  theme: "",
+  mode:"單集",
 
-  title: "",
+  duration_seconds:30,
 
-  characters: "",
+  language:"zh-TW",
 
-  request: "",
+  story:"",
+  outline:"",
+  script:"",
+  narration:"",
+  storyboard:"",
+  fact_check:"",
+  discussion:"",
+  review:"",
 
-  mode: "單集",
+  director_techniques:{},
 
-  duration_seconds: 30,
+  continuity:{
 
-  language: "zh-TW",
-
-  story: "",
-
-  outline: "",
-
-  script: "",
-
-  narration: "",
-
-  storyboard: "",
-
-  fact_check: "",
-
-  discussion: "",
-
-  review: "",
-
-
-  /*
-   * Director 全部改為陣列。
-   */
-  director_techniques: {
-
-    visual_style: [],
-
-    camera_language: [],
-
-    pacing_rhythm: [],
-
-    tone_emotion: [],
-
-    audience: [],
-
-    safety_compliance: [],
-
-    narrative_mode: [],
-
-    ending: []
+    same_person:true,
+    same_face:true,
+    same_hairstyle:true,
+    same_clothing:true,
+    same_body_proportions:true,
+    same_environment:true,
+    same_visual_style:true,
+    same_lighting_logic:true,
+    prevent_identity_drift:true,
+    previous_end_state:true
 
   },
 
-
-  /*
-   * Continuity 使用四大分類。
-   */
-  continuity: {
-
-    character: [],
-
-    visual: [],
-
-    story: [],
-
-    audio: []
-
+  prompt:{
+    zh:"",
+    en:""
   },
 
+  timeline:[],
 
-  prompt: {
-
-    zh: "",
-
-    en: ""
-
-  },
-
-
-  timeline: [],
-
-  ai: {
-
-    provider: "",
-
-    model: "",
-
-    raw: null
-
+  ai:{
+    provider:"",
+    model:"",
+    raw:null
   }
-
 };
-
-
-/* =========================================================
-   DOM
-   ========================================================= */
-
-const $ = selector =>
-  document.querySelector(selector);
-
-const $$ = selector =>
-  Array.from(document.querySelectorAll(selector));
-
 
 /* =========================================================
    STATUS
-   ========================================================= */
+========================================================= */
 
-function setStatus(text, type = ""){
+function setStatus(
+  text,
+  type="ready"
+){
 
-  const statusText =
-    $("#statusText");
+  $("statusText").textContent =
+    text;
 
   const dot =
-    $("#statusDot");
+    $("statusDot");
 
-  if(statusText){
-    statusText.textContent = text;
+  dot.classList.remove(
+    "busy",
+    "error"
+  );
+
+  if(type === "busy"){
+    dot.classList.add("busy");
   }
 
-  if(dot){
-
-    dot.className =
-      "status-dot";
-
-    if(type){
-      dot.classList.add(type);
-    }
-
+  if(type === "error"){
+    dot.classList.add("error");
   }
-
 }
-
 
 /* =========================================================
-   AI INFO EXTRACTION
-   ========================================================= */
+   AI RESPONSE PARSER
+========================================================= */
 
-function getPath(obj, path){
+function findNestedValue(
+  data,
+  paths
+){
 
-  try{
+  for(
+    const path of paths
+  ){
 
-    return path
-      .split(".")
-      .reduce(
-        (acc,key) =>
-          acc == null
-            ? undefined
-            : acc[key],
-        obj
-      );
+    let current =
+      data;
 
-  }catch(e){
-
-    return undefined;
-
-  }
-
-}
-
-
-function firstValue(data, paths){
-
-  for(const path of paths){
-
-    const value =
-      getPath(data,path);
-
-    if(
-      typeof value === "string" &&
-      value.trim()
+    for(
+      const key of path
     ){
 
-      return value.trim();
+      if(
+        current === null ||
+        current === undefined
+      ){
 
+        current =
+          undefined;
+
+        break;
+      }
+
+      current =
+        current[key];
     }
 
+    if(
+      current !== undefined &&
+      current !== null &&
+      String(current).trim() !== ""
+    ){
+
+      return String(
+        current
+      );
+    }
   }
 
   return "";
-
 }
 
-
-function extractAIInfo(data){
+function extractAIInfo(
+  data
+){
 
   const provider =
-    firstValue(
+    findNestedValue(
       data,
       [
-        "provider",
-        "provider_name",
-        "model_provider",
-        "route.provider",
-        "routing.provider",
-        "ai.provider",
-        "result.provider",
-        "data.provider",
-        "meta.provider",
-        "metadata.provider"
+        ["provider"],
+        ["provider_name"],
+        ["model_provider"],
+        ["route","provider"],
+        ["routing","provider"],
+        ["ai","provider"],
+        ["result","provider"],
+        ["data","provider"],
+        ["meta","provider"],
+        ["metadata","provider"]
       ]
     );
 
   const model =
-    firstValue(
+    findNestedValue(
       data,
       [
-        "model",
-        "model_name",
-        "model_id",
-        "route.model",
-        "routing.model",
-        "ai.model",
-        "result.model",
-        "data.model",
-        "meta.model",
-        "metadata.model"
+        ["model"],
+        ["model_name"],
+        ["model_id"],
+        ["route","model"],
+        ["routing","model"],
+        ["ai","model"],
+        ["result","model"],
+        ["data","model"],
+        ["meta","model"],
+        ["metadata","model"]
       ]
     );
 
@@ -2596,137 +2231,153 @@ function extractAIInfo(data){
     provider,
     model
   };
-
 }
 
-
-function setAIInfo(data){
+function setAIInfo(
+  data
+){
 
   const info =
-    extractAIInfo(data);
+    extractAIInfo(
+      data
+    );
 
   videoProject.ai.provider =
-    info.provider || "";
+    info.provider;
 
   videoProject.ai.model =
-    info.model || "";
+    info.model;
 
   videoProject.ai.raw =
-    data || null;
+    data;
 
+  let label;
 
-  let text =
-    "AIVAULT AI Gateway";
+  if(
+    info.provider &&
+    info.model
+  ){
 
-  if(info.provider && info.model){
-
-    text =
+    label =
       `${info.provider} · ${info.model}`;
 
-  }else if(info.provider){
+  }else if(
+    info.provider
+  ){
 
-    text =
+    label =
       info.provider;
 
-  }else if(info.model){
+  }else if(
+    info.model
+  ){
 
-    text =
-      `AIVAULT · ${info.model}`;
+    label =
+      info.model;
 
   }else{
 
-    text =
+    label =
       "AIVAULT AI Gateway（未回傳模型資訊）";
-
   }
 
+  $("aiProviderText").textContent =
+    `AI：${label}`;
 
-  const el =
-    $("#aiProviderText");
-
-  if(el){
-    el.textContent = text;
-  }
-
+  $("aiPanelValue").textContent =
+    label;
 }
 
+/* =========================================================
+   LANGUAGE
+========================================================= */
+
+function getLanguageLabel(
+  language
+){
+
+  const map = {
+
+    "zh-TW":
+      "繁體中文",
+
+    "zh-CN":
+      "简体中文",
+
+    "zh-TW,en":
+      "繁體中文＋English",
+
+    "zh-CN,en":
+      "简体中文＋English",
+
+    "en":
+      "English"
+
+  };
+
+  return (
+    map[language] ||
+    language
+  );
+}
 
 /* =========================================================
    HEADERS
-   ========================================================= */
+========================================================= */
 
 function getPublicHeaders(){
 
   const headers = {
-
     "Content-Type":
       "application/json"
-
   };
 
-
-  const key =
-    String(
-      CONFIG.SUPABASE_ANON_KEY || ""
-    ).trim();
-
-
   if(
-    key &&
-    key !== "YOUR_SUPABASE_ANON_KEY"
+    CONFIG.SUPABASE_ANON_KEY &&
+    CONFIG.SUPABASE_ANON_KEY !==
+      "YOUR_SUPABASE_ANON_KEY"
   ){
 
-    headers.apikey = key;
+    headers.apikey =
+      CONFIG.SUPABASE_ANON_KEY;
 
     headers.Authorization =
-      `Bearer ${key}`;
-
+      `Bearer ${CONFIG.SUPABASE_ANON_KEY}`;
   }
 
-
   return headers;
-
 }
-
 
 /* =========================================================
    AI GATEWAY
-   ========================================================= */
+========================================================= */
 
-async function callAIGateway(payload){
+async function callAIGateway(
+  payload
+){
 
   const response =
     await fetch(
       CONFIG.AI_GATEWAY_URL,
       {
         method:"POST",
-        headers:getPublicHeaders(),
-        body:JSON.stringify(payload)
+        headers:
+          getPublicHeaders(),
+        body:
+          JSON.stringify(
+            payload
+          )
       }
     );
 
-
-  const text =
-    await response.text();
-
-
-  let data;
+  let data = {};
 
   try{
-
     data =
-      text
-        ? JSON.parse(text)
-        : {};
-
-  }catch(e){
-
-    data = {
-      text
-    };
-
+      await response.json();
+  }catch{
+    data = {};
   }
-
 
   if(!response.ok){
 
@@ -2735,1131 +2386,880 @@ async function callAIGateway(payload){
       data?.message ||
       `AI Gateway HTTP ${response.status}`
     );
-
   }
 
-
   return data;
-
 }
 
-
 /* =========================================================
-   EXTRACT AI TEXT
-   ========================================================= */
+   AI TEXT EXTRACTION
+========================================================= */
 
-function extractAIText(data){
+function extractAIText(
+  data
+){
 
-  if(typeof data === "string"){
+  if(
+    typeof data ===
+    "string"
+  ){
+
     return data;
   }
 
-  const candidates = [
+  return (
 
-    data?.text,
-
-    data?.content,
-
-    data?.response,
-
-    data?.answer,
-
-    data?.message?.content,
-
-    data?.result?.text,
-
-    data?.result?.content,
-
-    data?.data?.text,
-
-    data?.data?.content,
-
-    data?.output?.text,
-
-    data?.choices?.[0]?.message?.content,
-
-    data?.choices?.[0]?.text
-
-  ];
-
-
-  for(const value of candidates){
-
-    if(
-      typeof value === "string" &&
-      value.trim()
-    ){
-
-      return value.trim();
-
-    }
-
-  }
-
-
-  return "";
-
+    data?.text ||
+    data?.content ||
+    data?.response ||
+    data?.answer ||
+    data?.message?.content ||
+    data?.result?.text ||
+    data?.result?.content ||
+    data?.data?.text ||
+    data?.data?.content ||
+    data?.output?.text ||
+    data?.choices?.[0]?.message?.content ||
+    data?.choices?.[0]?.text ||
+    ""
+  );
 }
-
-
-/* =========================================================
-   MULTI THEME
-   ========================================================= */
-
-function getSelectedThemes(){
-
-  const values =
-    $$("#themeChips .chip.active")
-      .map(
-        chip =>
-          chip.dataset.themeValue
-      )
-      .filter(Boolean);
-
-
-  const custom =
-    $("#customTheme")
-      ?.value
-      ?.trim();
-
-
-  if(custom){
-
-    values.push(custom);
-
-  }
-
-
-  return [
-    ...new Set(values)
-  ];
-
-}
-
-
-function syncThemes(){
-
-  const themes =
-    getSelectedThemes();
-
-
-  videoProject.themes =
-    themes;
-
-
-  /*
-   * 舊版相容。
-   */
-  videoProject.theme =
-    themes.join("、");
-
-}
-
-
-/* =========================================================
-   DIRECTOR MULTI SELECT
-   ========================================================= */
-
-function syncDirector(){
-
-  const result = {};
-
-
-  $$("[data-director-group]")
-    .forEach(groupEl => {
-
-      const group =
-        groupEl.dataset.directorGroup;
-
-
-      const values =
-        Array.from(
-          groupEl.querySelectorAll(
-            ".chip.active"
-          )
-        )
-        .map(
-          chip =>
-            chip.dataset.directorValue
-        )
-        .filter(Boolean);
-
-
-      result[group] = [
-        ...new Set(values)
-      ];
-
-    });
-
-
-  videoProject.director_techniques =
-    result;
-
-}
-
-
-function getDirectorSummary(){
-
-  syncDirector();
-
-  return Object.entries(
-    videoProject.director_techniques
-  )
-  .filter(
-    ([,values]) =>
-      Array.isArray(values) &&
-      values.length
-  )
-  .map(
-    ([group,values]) =>
-      `${group}: ${values.join(", ")}`
-  )
-  .join(" | ");
-
-}
-
-
-/* =========================================================
-   CONTINUITY MULTI SELECT
-   ========================================================= */
-
-function syncContinuity(){
-
-  const result = {};
-
-
-  $$("[data-continuity-group]")
-    .forEach(groupEl => {
-
-      const group =
-        groupEl.dataset.continuityGroup;
-
-
-      const values =
-        Array.from(
-          groupEl.querySelectorAll(
-            ".chip.active"
-          )
-        )
-        .map(
-          chip =>
-            chip.dataset.continuityValue
-        )
-        .filter(Boolean);
-
-
-      result[group] = [
-        ...new Set(values)
-      ];
-
-    });
-
-
-  videoProject.continuity =
-    result;
-
-}
-
-
-function getContinuitySummary(){
-
-  syncContinuity();
-
-
-  return Object.entries(
-    videoProject.continuity
-  )
-  .filter(
-    ([,values]) =>
-      Array.isArray(values) &&
-      values.length
-  )
-  .map(
-    ([group,values]) =>
-      `${group}: ${values.join(", ")}`
-  )
-  .join(" | ");
-
-}
-
-
-/* =========================================================
-   SYNC PROJECT
-   ========================================================= */
-
-function syncProjectFromInputs(){
-
-  syncThemes();
-
-  videoProject.title =
-    $("#storyTitle")
-      ?.value
-      ?.trim() || "";
-
-  videoProject.characters =
-    $("#characters")
-      ?.value
-      ?.trim() || "";
-
-  videoProject.request =
-    $("#storyRequest")
-      ?.value
-      ?.trim() || "";
-
-  videoProject.language =
-    $("#language")
-      ?.value || "zh-TW";
-
-  syncDirector();
-
-  syncContinuity();
-
-}
-
 
 /* =========================================================
    STORY REQUEST
-   ========================================================= */
+========================================================= */
 
 function buildStoryRequest(){
-
-  syncProjectFromInputs();
-
 
   return {
 
     action:"chat",
 
-    system:`
+    messages:[
 
-你是 AIVAULT Video Studio 的專業電影編劇與導演。
+      {
+        role:"system",
 
-你必須根據使用者提供的電影主題、角色與創作要求，
-建立可以直接進入 AI Video Prompt Compiler 的完整影片內容。
+        content:`
 
-重要要求：
+你是 AIVAULT Video Studio 的專業故事編劇。
 
-1. 電影主題可以同時包含多個類型。
-2. 不可以忽略任何使用者選擇的主題。
-3. 必須保持角色身份一致。
-4. 不可以無理由改變角色外貌、服裝、髮型、年齡或身體比例。
-5. 必須保持場景與時間的因果連續。
-6. 動作必須有清楚因果。
-7. 不可以突然跳到沒有敘事原因的場景。
-8. 分鏡必須能被後續 Video Prompt Compiler 使用。
-9. 導演設定可以同時包含多種鏡頭、節奏、視覺與情緒。
-10. 最終審查必須檢查角色一致性、故事因果、場景連續性與影片可執行性。
+你的工作不是只產生影片 Prompt。
 
-請按照以下標題輸出：
+你必須先真正創作一個完整、
+合理、具有因果關係、
+角色動機、情緒與結局的故事。
+
+影片資料：
+
+影片長度：
+${videoProject.duration_seconds} 秒
+
+影片語言：
+${getLanguageLabel(videoProject.language)}
+
+影片模式：
+${videoProject.mode}
+
+請輸出以下結構：
 
 【故事大綱】
+說明故事起點、衝突、發展與結局。
+
 【完整故事】
+真正完整的故事內容。
+
 【劇本】
+依照影片可以實際拍攝的方式，
+撰寫角色行動與對話。
+
 【旁白】
+如果故事需要旁白，
+提供可直接使用的旁白。
+
 【分鏡】
+依照影片時間順序說明：
+畫面、角色、動作、鏡頭。
+
 【事實查核】
+如果涉及現實世界資訊，
+指出需要注意的事實。
+如果是純虛構，明確說明。
+
 【討論】
+說明故事邏輯、情緒與影片呈現上的重點。
+
 【最終審查】
+檢查故事是否適合轉換成 AI 影片。
 
-不要省略任何區塊。
-`,
+重要：
 
-    user:{
+1. 不要只寫 Prompt。
+2. 不要省略故事。
+3. 自訂主題必須保留。
+4. 故事必須能被後續 Video Prompt Compiler 使用。
+5. 角色必須具有清楚身份。
+6. 行動必須具有前後因果。
+7. 避免突然改變人物外貌。
+8. 避免沒有原因的場景跳躍。
+9. 主題可以是現實、幻想、科幻、動畫、紀錄片或其他創作類型。
+10. 必須忠實遵守使用者選擇的主題。
+`
+      },
 
-      theme:
-        videoProject.themes,
+      {
+        role:"user",
 
-      theme_text:
-        videoProject.theme,
+        content:`
 
-      title:
-        videoProject.title,
+【主題】
+${videoProject.theme || "未提供"}
 
-      characters:
-        videoProject.characters,
+【故事名稱】
+${videoProject.title || "請自動命名"}
 
-      request:
-        videoProject.request,
+【主要角色】
+${videoProject.characters || "請依故事需要設計"}
 
-      mode:
-        videoProject.mode,
+【故事要求】
+${videoProject.request || "請依主題創作一個完整、合理、可拍攝的故事。"}
 
-      duration_seconds:
-        videoProject.duration_seconds,
+`
+      }
 
-      director:
-        videoProject.director_techniques,
+    ],
 
-      continuity:
-        videoProject.continuity
-
-    }
-
+    temperature:0.8
   };
-
 }
-
 
 /* =========================================================
    SECTION PARSER
-   ========================================================= */
+========================================================= */
 
-function extractSection(text, title){
+function extractSection(
+  text,
+  start,
+  nextHeaders
+){
 
-  if(!text){
+  const startIndex =
+    text.indexOf(start);
+
+  if(startIndex < 0){
     return "";
   }
 
+  const contentStart =
+    startIndex +
+    start.length;
 
-  const escaped =
-    title.replace(
-      /[.*+?^${}()|[\]\\]/g,
-      "\\$&"
-    );
+  let endIndex =
+    text.length;
 
+  for(
+    const header
+    of nextHeaders
+  ){
 
-  const pattern =
-    new RegExp(
-      `【${escaped}】\\s*([\\s\\S]*?)(?=\\n?【[^】]+】|$)`,
-      "i"
-    );
+    const index =
+      text.indexOf(
+        header,
+        contentStart
+      );
 
+    if(
+      index >= 0 &&
+      index < endIndex
+    ){
 
-  const match =
-    text.match(pattern);
+      endIndex =
+        index;
+    }
+  }
 
-
-  return match
-    ? match[1].trim()
-    : "";
-
+  return text
+    .slice(
+      contentStart,
+      endIndex
+    )
+    .trim();
 }
 
+/* =========================================================
+   PARSE STORY
+========================================================= */
 
-function parseStoryText(text){
+function parseStoryText(
+  text
+){
 
-  return {
+  videoProject.story =
+    text;
 
-    outline:
-      extractSection(
-        text,
-        "故事大綱"
-      ),
+  videoProject.outline =
+    extractSection(
+      text,
+      "【故事大綱】",
+      [
+        "【完整故事】",
+        "【劇本】",
+        "【旁白】",
+        "【分鏡】",
+        "【事實查核】",
+        "【討論】",
+        "【最終審查】"
+      ]
+    );
 
-    story:
-      extractSection(
-        text,
-        "完整故事"
-      ),
+  videoProject.script =
+    extractSection(
+      text,
+      "【劇本】",
+      [
+        "【旁白】",
+        "【分鏡】",
+        "【事實查核】",
+        "【討論】",
+        "【最終審查】"
+      ]
+    );
 
-    script:
-      extractSection(
-        text,
-        "劇本"
-      ),
+  videoProject.narration =
+    extractSection(
+      text,
+      "【旁白】",
+      [
+        "【分鏡】",
+        "【事實查核】",
+        "【討論】",
+        "【最終審查】"
+      ]
+    );
 
-    narration:
-      extractSection(
-        text,
-        "旁白"
-      ),
+  videoProject.storyboard =
+    extractSection(
+      text,
+      "【分鏡】",
+      [
+        "【事實查核】",
+        "【討論】",
+        "【最終審查】"
+      ]
+    );
 
-    storyboard:
-      extractSection(
-        text,
-        "分鏡"
-      ),
+  videoProject.fact_check =
+    extractSection(
+      text,
+      "【事實查核】",
+      [
+        "【討論】",
+        "【最終審查】"
+      ]
+    );
 
-    fact_check:
-      extractSection(
-        text,
-        "事實查核"
-      ),
+  videoProject.discussion =
+    extractSection(
+      text,
+      "【討論】",
+      [
+        "【最終審查】"
+      ]
+    );
 
-    discussion:
-      extractSection(
-        text,
-        "討論"
-      ),
+  videoProject.review =
+    extractSection(
+      text,
+      "【最終審查】",
+      []
+    );
 
-    review:
-      extractSection(
-        text,
-        "最終審查"
-      )
+  if(
+    !videoProject.script
+  ){
 
-  };
+    videoProject.script =
+      text;
+  }
 
+  if(
+    !videoProject.storyboard
+  ){
+
+    videoProject.storyboard =
+      text;
+  }
+
+  if(
+    !videoProject.review
+  ){
+
+    videoProject.review =
+      "已取得 AI 故事內容，可進一步轉換為影片 Prompt。";
+  }
 }
-
 
 /* =========================================================
    RENDER STORY
-   ========================================================= */
+========================================================= */
 
 function renderStory(){
 
-  $("#storyOutput").value =
-    videoProject.story || "";
+  $("storyOutput").textContent =
+    videoProject.story ||
+    "尚未建立故事。";
 
-  $("#scriptOutput").value =
-    videoProject.script || "";
+  $("scriptOutput").value =
+    videoProject.script ||
+    "";
 
-  $("#narrationOutput").value =
-    videoProject.narration || "";
+  $("narrationOutput").value =
+    videoProject.narration ||
+    "";
 
-  $("#storyboardOutput").value =
-    videoProject.storyboard || "";
+  $("storyboardOutput").value =
+    videoProject.storyboard ||
+    "";
 
-  $("#factCheckOutput").value =
-    videoProject.fact_check || "";
+  $("factCheckOutput").value =
+    videoProject.fact_check ||
+    "";
 
-  $("#discussionOutput").value =
-    videoProject.discussion || "";
+  $("discussionOutput").value =
+    videoProject.discussion ||
+    "";
 
-  $("#reviewOutput").value =
-    videoProject.review || "";
-
+  $("reviewOutput").value =
+    videoProject.review ||
+    "";
 }
-
 
 /* =========================================================
-   READ EDITABLE FIELDS
-   ========================================================= */
+   DIRECTOR SUMMARY
+========================================================= */
 
-function syncEditableFields(){
+function getDirectorSummary(){
 
-  videoProject.story =
-    $("#storyOutput")
-      ?.value || "";
+  const groups =
+    videoProject.director_techniques;
 
-  videoProject.script =
-    $("#scriptOutput")
-      ?.value || "";
+  const parts = [];
 
-  videoProject.narration =
-    $("#narrationOutput")
-      ?.value || "";
+  for(
+    const key
+    of Object.keys(groups)
+  ){
 
-  videoProject.storyboard =
-    $("#storyboardOutput")
-      ?.value || "";
+    const values =
+      groups[key];
 
-  videoProject.fact_check =
-    $("#factCheckOutput")
-      ?.value || "";
+    if(
+      values &&
+      values.length
+    ){
 
-  videoProject.discussion =
-    $("#discussionOutput")
-      ?.value || "";
+      parts.push(
+        `${key}: ${values.join(", ")}`
+      );
+    }
+  }
 
-  videoProject.review =
-    $("#reviewOutput")
-      ?.value || "";
-
+  return parts.length
+    ? parts.join(" | ")
+    : "自然電影鏡頭";
 }
 
+/* =========================================================
+   CONTINUITY SUMMARY
+========================================================= */
+
+function getContinuitySummary(){
+
+  const active = [];
+
+  for(
+    const [
+      key,
+      value
+    ]
+    of Object.entries(
+      videoProject.continuity
+    )
+  ){
+
+    if(value){
+      active.push(key);
+    }
+  }
+
+  return active.join(", ");
+}
 
 /* =========================================================
    SECOND TIMELINE
-   ========================================================= */
-
-function getSourceLines(){
-
-  syncEditableFields();
-
-
-  const source =
-    videoProject.storyboard ||
-    videoProject.script ||
-    videoProject.story ||
-    videoProject.request ||
-    videoProject.theme ||
-    "影片內容";
-
-
-  const lines =
-    source
-      .split(/\n+/)
-      .map(x => x.trim())
-      .filter(Boolean);
-
-
-  return lines.length
-    ? lines
-    : ["影片內容"];
-
-}
-
+========================================================= */
 
 function buildSecondTimeline(){
-
-  syncEditableFields();
-
-  syncDirector();
-
-  syncContinuity();
-
 
   const duration =
     Number(
       videoProject.duration_seconds
     ) || 30;
 
+  const source =
+    videoProject.storyboard ||
+    videoProject.script ||
+    videoProject.story ||
+    videoProject.theme ||
+    "影片內容";
 
-  const lines =
-    getSourceLines();
+  const cleanLines =
+    source
+      .split(/\n+/)
+      .map(
+        x => x.trim()
+      )
+      .filter(Boolean);
 
+  const rows = [];
 
-  const camera =
-    videoProject
-      .director_techniques
-      .camera_language
-      ?.join(", ") || "";
+  for(
+    let second = 0;
+    second < duration;
+    second++
+  ){
 
+    const sourceLine =
+      cleanLines.length
+        ? cleanLines[
+            second %
+            cleanLines.length
+          ]
+        : source;
+
+    rows.push({
+
+      second,
+
+      duration_ms:1000,
+
+      scene:
+        sourceLine,
+
+      camera:
+        getDirectorSummary(),
+
+      continuity:
+        getContinuitySummary()
+
+    });
+  }
+
+  videoProject.timeline =
+    rows;
+
+  renderTimeline();
+
+  return rows;
+}
+
+/* =========================================================
+   ESCAPE HTML
+========================================================= */
+
+function escapeHTML(
+  value
+){
+
+  return String(
+    value ?? ""
+  )
+
+  .replaceAll(
+    "&",
+    "&amp;"
+  )
+
+  .replaceAll(
+    "<",
+    "&lt;"
+  )
+
+  .replaceAll(
+    ">",
+    "&gt;"
+  )
+
+  .replaceAll(
+    '"',
+    "&quot;"
+  )
+
+  .replaceAll(
+    "'",
+    "&#039;"
+  );
+}
+
+/* =========================================================
+   RENDER TIMELINE
+========================================================= */
+
+function renderTimeline(){
+
+  const container =
+    $("timelineOutput");
+
+  if(
+    !videoProject.timeline.length
+  ){
+
+    container.innerHTML =
+      `<div class="empty">
+        尚未建立時間軸。
+      </div>`;
+
+    return;
+  }
+
+  const fragment =
+    document.createDocumentFragment();
+
+  for(
+    const row
+    of videoProject.timeline
+  ){
+
+    const el =
+      document.createElement(
+        "div"
+      );
+
+    el.className =
+      "timeline-row";
+
+    el.innerHTML = `
+
+      <div class="timeline-time">
+        ${String(
+          row.second
+        ).padStart(2,"0")}s
+      </div>
+
+      <div class="timeline-content">
+
+        <strong>
+          ${escapeHTML(
+            row.scene
+          )}
+        </strong>
+
+        <br>
+
+        Camera：
+        ${escapeHTML(
+          row.camera
+        )}
+
+      </div>
+
+    `;
+
+    fragment.appendChild(
+      el
+    );
+  }
+
+  container.innerHTML = "";
+
+  container.appendChild(
+    fragment
+  );
+}
+
+/* =========================================================
+   MILLISECOND KEYFRAMES
+========================================================= */
+
+function buildMillisecondKeyframes(){
+
+  const duration =
+    Number(
+      videoProject.duration_seconds
+    ) || 30;
+
+  const keyframes = [];
+
+  for(
+    let second = 0;
+    second < duration;
+    second++
+  ){
+
+    const row =
+      videoProject.timeline[
+        second
+      ];
+
+    keyframes.push({
+
+      time_ms:
+        second * 1000,
+
+      end_time_ms:
+        (second + 1) * 1000,
+
+      scene:
+        row?.scene || "",
+
+      camera:
+        row?.camera || "",
+
+      continuity:
+        row?.continuity || ""
+
+    });
+  }
+
+  return keyframes;
+}
+
+/* =========================================================
+   LOCAL FALLBACK PROMPT
+========================================================= */
+
+function buildLocalPrompt(){
+
+  const director =
+    getDirectorSummary();
 
   const continuity =
     getContinuitySummary();
 
-
-  videoProject.timeline =
-    Array.from(
-      {
-        length:duration
-      },
-      (_,index) => {
-
-        const scene =
-          lines[index % lines.length];
-
-
-        return {
-
-          second:
-            index + 1,
-
-          duration_ms:
-            1000,
-
-          start_ms:
-            index * 1000,
-
-          end_ms:
-            (index + 1) * 1000,
-
-          scene,
-
-          camera,
-
-          continuity
-
-        };
-
-      }
-    );
-
-
-  renderTimeline();
-
-  renderKeyframes();
-
-}
-
-
-/* =========================================================
-   TIMELINE RENDER
-   ========================================================= */
-
-function renderTimeline(){
-
-  const wrap =
-    $("#timelineWrap");
-
-
-  if(!videoProject.timeline.length){
-
-    wrap.innerHTML =
-      `<div class="empty">
-        尚未建立時間軸
-      </div>`;
-
-    return;
-
-  }
-
-
-  const rows =
-    videoProject.timeline
-      .map(
-        row => `
-
-        <tr>
-
-          <td class="second">
-            ${row.second}s
-          </td>
-
-          <td class="ms">
-            ${row.start_ms}–${row.end_ms} ms
-          </td>
-
-          <td>
-            ${escapeHtml(row.scene)}
-          </td>
-
-          <td>
-            ${escapeHtml(row.camera || "未指定")}
-          </td>
-
-          <td>
-            ${escapeHtml(row.continuity || "未指定")}
-          </td>
-
-        </tr>
-
-      `
-      )
-      .join("");
-
-
-  wrap.innerHTML = `
-
-    <table class="timeline">
-
-      <thead>
-
-        <tr>
-          <th>秒</th>
-          <th>毫秒區間</th>
-          <th>場景</th>
-          <th>Camera</th>
-          <th>Continuity</th>
-        </tr>
-
-      </thead>
-
-      <tbody>
-        ${rows}
-      </tbody>
-
-    </table>
-
-  `;
-
-}
-
-
-/* =========================================================
-   MILLISECOND KEYFRAMES
-   ========================================================= */
-
-function buildMillisecondKeyframes(){
-
-  return videoProject.timeline.map(
-    row => ({
-
-      time_ms:
-        row.start_ms,
-
-      end_time_ms:
-        row.end_ms,
-
-      scene:
-        row.scene || "",
-
-      camera:
-        row.camera || "",
-
-      continuity:
-        row.continuity || "",
-
-      duration_ms:
-        row.duration_ms || 1000
-
-    })
-  );
-
-}
-
-
-function renderKeyframes(){
-
-  const list =
-    $("#keyframeList");
-
-
-  const frames =
-    buildMillisecondKeyframes();
-
-
-  if(!frames.length){
-
-    list.innerHTML =
-      `<div class="empty">
-        尚未建立 Keyframes
-      </div>`;
-
-    return;
-
-  }
-
-
-  list.innerHTML =
-    frames
-      .map(
-        frame => `
-
-        <div class="keyframe">
-
-          <div class="keyframe-time">
-            ${frame.time_ms}ms
-            →
-            ${frame.end_time_ms}ms
-          </div>
-
-          <div class="keyframe-body">
-
-            <strong>
-              Scene:
-            </strong>
-
-            ${escapeHtml(frame.scene)}
-
-            <br>
-
-            <strong>
-              Camera:
-            </strong>
-
-            ${escapeHtml(
-              frame.camera || "未指定"
-            )}
-
-            <br>
-
-            <strong>
-              Continuity:
-            </strong>
-
-            ${escapeHtml(
-              frame.continuity || "未指定"
-            )}
-
-          </div>
-
-        </div>
-
-      `
-      )
-      .join("");
-
-}
-
-
-/* =========================================================
-   LOCAL PROMPT
-   ========================================================= */
-
-function buildLocalPrompt(){
-
-  syncEditableFields();
-
-  syncProjectFromInputs();
-
-  buildSecondTimeline();
-
-
-  const themes =
-    videoProject.themes.length
-      ? videoProject.themes.join("、")
-      : "未指定";
-
-
-  const director =
-    getDirectorSummary() ||
-    "未指定";
-
-
-  const continuity =
-    getContinuitySummary() ||
-    "未指定";
-
-
-  const timelineText =
+  const timeline =
     videoProject.timeline
       .map(
         row =>
-          `[${row.start_ms}-${row.end_ms}ms] ` +
-          `第${row.second}秒：` +
-          `${row.scene}；` +
-          `Camera=${row.camera || "未指定"}；` +
-          `Continuity=${row.continuity || "未指定"}`
+          `${row.second}s-${row.second + 1}s: ${row.scene}`
       )
       .join("\n");
 
-
   const zh = `
 
-Seedance 2.5 電影級影片生成提示詞
+Seedance 2.5 cinematic video generation prompt.
 
-【影片核心】
-故事名稱：${videoProject.title || "未命名"}
-電影劇情／主題：${themes}
-角色：${videoProject.characters || "未指定"}
-影片模式：${videoProject.mode}
-影片長度：${videoProject.duration_seconds} 秒
+【主題】
+${videoProject.theme || "未指定"}
+
+【故事名稱】
+${videoProject.title || "未指定"}
 
 【故事】
-${videoProject.story || videoProject.request || "未指定"}
+${videoProject.story || "依照影片主題自然發展"}
 
-【劇本】
-${videoProject.script || "未指定"}
+【角色】
+${videoProject.characters || "依故事設定"}
 
-【旁白】
-${videoProject.narration || "未指定"}
-
-【分鏡】
-${videoProject.storyboard || "未指定"}
-
-【Director】
+【導演技法】
 ${director}
 
 【Continuity】
 ${continuity}
 
-【時間軸】
-${timelineText}
+【影片長度】
+${videoProject.duration_seconds} 秒
 
-【最終審查】
-${videoProject.review || "未指定"}
+【秒級時間軸】
+${timeline}
 
-【生成要求】
+【毫秒級關鍵幀】
+每秒建立 1000ms 時間區段，
+保持動作與鏡頭連續。
 
-電影級敘事與視覺品質。
-保持角色身份一致。
-保持臉部、髮型、服裝、身體比例一致。
-保持環境、視覺風格、燈光邏輯與色彩邏輯一致。
-保持前一鏡頭結束狀態與下一鏡頭開始狀態連續。
-所有動作必須具有因果關係。
-避免角色身份漂移。
-避免場景無原因跳轉。
-依照時間軸執行每一秒的劇情。
-使用精確的毫秒時間戳控制鏡頭與動作節奏。
-完整執行指定的 Camera Language、Pacing、Tone、Visual Style。
-`;
+要求：
 
+保持角色身份、臉部、髮型、
+服裝、身體比例與環境的一致性。
 
+避免 identity drift。
+
+避免突然變形、換裝、換臉、
+環境跳變或不合理的角色移動。
+
+所有動作必須具有前後因果。
+
+鏡頭運動必須連續。
+
+光線邏輯必須保持一致。
+
+畫面使用電影級構圖、
+合理景深、自然光線與物理合理運動。
+
+角色必須依照故事身份行動，
+不得任意新增主要角色。
+
+場景轉換必須具有時間或敘事上的合理性。
+
+輸出適用於 Seedance 2.5。
+
+`.trim();
 
   const en = `
 
-Seedance 2.5 Cinematic Video Generation Prompt
+Seedance 2.5 cinematic video generation prompt.
 
-[CORE]
-Title: ${videoProject.title || "Untitled"}
-Genres / Themes: ${videoProject.themes.join(", ") || "Not specified"}
-Characters: ${videoProject.characters || "Not specified"}
-Mode: ${videoProject.mode}
-Duration: ${videoProject.duration_seconds} seconds
+Theme:
+${videoProject.theme || "Not specified"}
 
-[STORY]
-${videoProject.story || videoProject.request || "Not specified"}
+Title:
+${videoProject.title || "Not specified"}
 
-[SCRIPT]
-${videoProject.script || "Not specified"}
+Story:
+${videoProject.story || "Develop naturally from the theme."}
 
-[NARRATION]
-${videoProject.narration || "Not specified"}
+Characters:
+${videoProject.characters || "Defined by the story."}
 
-[STORYBOARD]
-${videoProject.storyboard || "Not specified"}
-
-[DIRECTOR]
+Director techniques:
 ${director}
 
-[CONTINUITY]
+Continuity:
 ${continuity}
 
-[TIMELINE]
-${videoProject.timeline
-  .map(
-    row =>
-      `[${row.start_ms}-${row.end_ms}ms] ` +
-      `Second ${row.second}: ` +
-      `${row.scene}; ` +
-      `Camera=${row.camera || "Not specified"}; ` +
-      `Continuity=${row.continuity || "Not specified"}`
-  )
-  .join("\n")}
+Duration:
+${videoProject.duration_seconds} seconds
 
-[FINAL REVIEW]
-${videoProject.review || "Not specified"}
+Second-level timeline:
+${timeline}
 
-[GENERATION REQUIREMENTS]
+Millisecond keyframes:
+Each second is represented as a 1000ms
+continuous time segment.
 
-Cinematic storytelling and visual quality.
-Maintain strict character identity consistency.
-Keep the same face, hairstyle, clothing and body proportions.
-Maintain environmental, visual-style, lighting and color continuity.
-Maintain continuity between the previous shot's ending state and the next shot's starting state.
-All actions must have clear causal relationships.
+Maintain strict character identity consistency,
+facial consistency, hairstyle, clothing,
+body proportions, environment and visual style.
+
 Prevent identity drift.
-Avoid unexplained scene transitions.
-Follow the second-by-second timeline.
-Use precise millisecond timestamps for camera and action timing.
-Apply all selected Camera Language, Pacing, Tone and Visual Style instructions.
-`;
 
+Prevent sudden facial changes,
+costume changes, body deformation,
+environment discontinuity and broken motion.
 
-  videoProject.prompt.zh =
-    zh.trim();
+All character actions must have
+clear temporal and causal continuity.
 
-  videoProject.prompt.en =
-    en.trim();
+Camera movement must remain coherent.
 
+Lighting logic must remain consistent.
 
-  renderPrompts();
+Use cinematic composition,
+physically plausible movement,
+natural depth of field and coherent lighting.
 
+Characters must preserve their established identity.
+
+Do not arbitrarily introduce major characters.
+
+Scene transitions must have logical
+temporal or narrative continuity.
+
+Optimized for Seedance 2.5.
+
+`.trim();
+
+  return {
+    zh,
+    en
+  };
 }
-
 
 /* =========================================================
    VIDEO PROMPT BACKEND
-   ========================================================= */
+========================================================= */
 
-async function callVideoPromptBackend(payload){
+async function callVideoPromptBackend(
+  payload
+){
 
   const response =
     await fetch(
       CONFIG.VIDEO_PROMPT_URL,
       {
         method:"POST",
-        headers:getPublicHeaders(),
-        body:JSON.stringify(payload)
+        headers:
+          getPublicHeaders(),
+        body:
+          JSON.stringify(
+            payload
+          )
       }
     );
 
-
-  const text =
-    await response.text();
-
-
-  let data;
+  let data = {};
 
   try{
 
     data =
-      text
-        ? JSON.parse(text)
-        : {};
+      await response.json();
 
-  }catch(e){
+  }catch{
 
-    data = {
-      text
-    };
-
+    data = {};
   }
-
 
   if(!response.ok){
 
     throw new Error(
       data?.error ||
       data?.message ||
-      `Video Prompt Backend HTTP ${response.status}`
+      `Video Prompt HTTP ${response.status}`
     );
-
   }
 
-
   return data;
-
 }
-
 
 /* =========================================================
    EXTRACT PROMPTS
-   ========================================================= */
+========================================================= */
 
-function extractPrompts(data){
+function extractPrompts(
+  data
+){
 
-  const roots = [
-    data,
-    data?.data,
-    data?.result
-  ];
+  const prompt =
+    data?.prompt ||
+    data?.data?.prompt ||
+    data?.result?.prompt ||
+    "";
 
+  const zh =
+    data?.prompt_zh ||
+    data?.data?.prompt_zh ||
+    data?.result?.prompt_zh ||
+    data?.zh ||
+    prompt ||
+    "";
 
-  let zh = "";
-  let en = "";
-
-
-  for(const root of roots){
-
-    if(!root){
-      continue;
-    }
-
-
-    zh =
-      zh ||
-      root.prompt_zh ||
-      root.zh ||
-      root.prompt?.zh ||
-      root.prompt?.zh_tw ||
-      root.data?.prompt_zh ||
-      "";
-
-
-    en =
-      en ||
-      root.prompt_en ||
-      root.en ||
-      root.prompt?.en ||
-      root.prompt?.english ||
-      root.data?.prompt_en ||
-      "";
-
-  }
-
-
-  /*
-   * 某些後端直接把 prompt 當成字串。
-   */
-  if(!zh && typeof data?.prompt === "string"){
-    zh = data.prompt;
-  }
-
+  const en =
+    data?.prompt_en ||
+    data?.data?.prompt_en ||
+    data?.result?.prompt_en ||
+    data?.en ||
+    "";
 
   return {
-
-    zh:
-      typeof zh === "string"
-        ? zh.trim()
-        : "",
-
-    en:
-      typeof en === "string"
-        ? en.trim()
-        : ""
-
+    zh,
+    en
   };
-
 }
-
 
 /* =========================================================
    PROMPT REQUEST
-   ========================================================= */
+========================================================= */
 
 function buildPromptRequest(){
-
-  syncEditableFields();
-
-  syncProjectFromInputs();
-
-  buildSecondTimeline();
-
 
   return {
 
@@ -3869,16 +3269,14 @@ function buildPromptRequest(){
     target:
       "seedance-2.5",
 
-    language:
-      [videoProject.language],
+    language:[
+      videoProject.language
+    ],
 
     source:{
 
       theme:
         videoProject.theme,
-
-      themes:
-        videoProject.themes,
 
       title:
         videoProject.title,
@@ -3909,7 +3307,6 @@ function buildPromptRequest(){
 
       review:
         videoProject.review
-
     },
 
     duration_seconds:
@@ -3918,24 +3315,11 @@ function buildPromptRequest(){
     mode:
       videoProject.mode,
 
-
-    /*
-     * 同時保留完整陣列，
-     * 與舊版可能使用的欄位相容。
-     */
     director_techniques:
       videoProject.director_techniques,
 
-    director_summary:
-      getDirectorSummary(),
-
-
     continuity:
       videoProject.continuity,
-
-    continuity_summary:
-      getContinuitySummary(),
-
 
     second_level_timeline:
       videoProject.timeline,
@@ -3945,285 +3329,293 @@ function buildPromptRequest(){
 
     timeline:
       videoProject.timeline
-
   };
-
 }
-
-
-/* =========================================================
-   RENDER PROMPTS
-   ========================================================= */
-
-function renderPrompts(){
-
-  $("#promptZh").value =
-    videoProject.prompt.zh || "";
-
-  $("#promptEn").value =
-    videoProject.prompt.en || "";
-
-}
-
 
 /* =========================================================
    GENERATE STORY
-   ========================================================= */
+========================================================= */
 
 async function generateStory(){
 
   syncProjectFromInputs();
 
+  if(!videoProject.theme){
 
-  if(!videoProject.themes.length){
-
-    alert(
-      "請至少選擇一個電影劇情／主題。"
+    setStatus(
+      "請先輸入或選擇故事主題。",
+      "error"
     );
 
-    return;
+    $("customTheme").focus();
 
+    return;
   }
 
-
   const button =
-    $("#generateStoryBtn");
+    $("generateStoryBtn");
 
-
-  button.disabled = true;
-
+  button.disabled =
+    true;
 
   setStatus(
-    "AI 正在創作電影故事...",
-    "loading"
+    "AI 正在創作故事…",
+    "busy"
   );
 
+  $("aiProviderText").textContent =
+    "AI：正在連線…";
+
+  $("aiPanelValue").textContent =
+    "正在透過 AIVAULT AI Gateway 選擇 AI…";
 
   try{
 
-    const payload =
-      buildStoryRequest();
-
-
     const data =
       await callAIGateway(
-        payload
+        buildStoryRequest()
       );
 
-
-    setAIInfo(data);
-
+    setAIInfo(
+      data
+    );
 
     const text =
-      extractAIText(data);
-
+      extractAIText(
+        data
+      );
 
     if(!text){
 
       throw new Error(
-        "AI Gateway 沒有回傳文字內容。"
+        "AI Gateway 已回應，但沒有取得文字內容。"
       );
-
     }
 
-
-    const parsed =
-      parseStoryText(text);
-
-
-    videoProject.outline =
-      parsed.outline || "";
-
-    videoProject.story =
-      parsed.story || text;
-
-    videoProject.script =
-      parsed.script || text;
-
-    videoProject.narration =
-      parsed.narration || "";
-
-    videoProject.storyboard =
-      parsed.storyboard || text;
-
-    videoProject.fact_check =
-      parsed.fact_check || "";
-
-    videoProject.discussion =
-      parsed.discussion || "";
-
-    videoProject.review =
-      parsed.review ||
-      "請確認角色一致性、故事因果、場景連續性、視覺一致性與影片可執行性。";
-
+    parseStoryText(
+      text
+    );
 
     renderStory();
 
     buildSecondTimeline();
 
-
     setStatus(
-      "AI 故事創作完成",
-      "ok"
+      "Story Ready · AI 創作完成",
+      "ready"
     );
 
   }catch(error){
 
-    console.error(error);
+    console.error(
+      "generateStory error:",
+      error
+    );
 
     setStatus(
-      `AI 創作失敗：${error.message}`,
+      `AI 故事創作失敗：${error.message}`,
       "error"
     );
 
-    alert(
-      `AI 創作失敗：${error.message}`
-    );
+    $("aiPanelValue").textContent =
+      "AI Gateway 連線失敗";
+
+    $("aiProviderText").textContent =
+      "AI：連線失敗";
 
   }finally{
 
-    button.disabled = false;
-
+    button.disabled =
+      false;
   }
-
 }
-
 
 /* =========================================================
    GENERATE PROMPT
-   ========================================================= */
+========================================================= */
 
 async function generatePrompt(){
 
   syncProjectFromInputs();
 
-  syncEditableFields();
+  if(!videoProject.theme){
 
-
-  if(!videoProject.themes.length){
-
-    alert(
-      "請至少選擇一個電影劇情／主題。"
+    setStatus(
+      "請先輸入或選擇故事主題。",
+      "error"
     );
 
+    $("customTheme").focus();
+
     return;
-
   }
-
 
   if(
     !videoProject.timeline.length
   ){
 
     buildSecondTimeline();
-
   }
 
-
   const button =
-    $("#generatePromptBtn");
+    $("generatePromptBtn");
 
-
-  button.disabled = true;
-
+  button.disabled =
+    true;
 
   setStatus(
-    "Video Prompt Compiler 正在生成 Seedance 2.5 Prompt...",
-    "loading"
+    "正在編譯 Seedance 2.5 Prompt…",
+    "busy"
   );
-
 
   try{
 
-    const payload =
-      buildPromptRequest();
-
-
-    try{
-
-      const data =
-        await callVideoPromptBackend(
-          payload
-        );
-
-
-      const prompts =
-        extractPrompts(data);
-
-
-      if(
-        prompts.zh ||
-        prompts.en
-      ){
-
-        videoProject.prompt.zh =
-          prompts.zh ||
-          videoProject.prompt.zh;
-
-        videoProject.prompt.en =
-          prompts.en ||
-          videoProject.prompt.en;
-
-      }else{
-
-        /*
-         * Backend 沒有回傳 Prompt 時，
-         * 使用本地編譯結果。
-         */
-        buildLocalPrompt();
-
-      }
-
-    }catch(backendError){
-
-      console.warn(
-        "Video Prompt Backend fallback:",
-        backendError
+    const data =
+      await callVideoPromptBackend(
+        buildPromptRequest()
       );
 
-      /*
-       * 不破壞故事內容。
-       * Compiler 失敗時仍產生本地完整 Prompt。
-       */
-      buildLocalPrompt();
+    const prompts =
+      extractPrompts(
+        data
+      );
 
+    if(
+      prompts.zh ||
+      prompts.en
+    ){
+
+      const fallback =
+        buildLocalPrompt();
+
+      videoProject.prompt.zh =
+        prompts.zh ||
+        fallback.zh;
+
+      videoProject.prompt.en =
+        prompts.en ||
+        fallback.en;
+
+      setStatus(
+        "Prompt Ready · Video Prompt Compiler 完成",
+        "ready"
+      );
+
+    }else{
+
+      const fallback =
+        buildLocalPrompt();
+
+      videoProject.prompt.zh =
+        fallback.zh;
+
+      videoProject.prompt.en =
+        fallback.en;
+
+      setStatus(
+        "Prompt Ready · 使用本地 fallback",
+        "ready"
+      );
     }
-
 
     renderPrompts();
 
-
-    setStatus(
-      "Seedance 2.5 影片提示詞生成完成",
-      "ok"
-    );
-
-
   }catch(error){
 
-    console.error(error);
-
-    setStatus(
-      `提示詞生成失敗：${error.message}`,
-      "error"
+    console.error(
+      "generatePrompt error:",
+      error
     );
 
-    alert(
-      `提示詞生成失敗：${error.message}`
+    const fallback =
+      buildLocalPrompt();
+
+    videoProject.prompt.zh =
+      fallback.zh;
+
+    videoProject.prompt.en =
+      fallback.en;
+
+    renderPrompts();
+
+    setStatus(
+      `Compiler 暫時無法連線，已使用本地 fallback：${error.message}`,
+      "error"
     );
 
   }finally{
 
-    button.disabled = false;
-
+    button.disabled =
+      false;
   }
-
 }
 
+/* =========================================================
+   RENDER PROMPTS
+========================================================= */
+
+function renderPrompts(){
+
+  $("promptZh").textContent =
+    videoProject.prompt.zh ||
+    "尚未生成影片提示詞。";
+
+  $("promptEn").textContent =
+    videoProject.prompt.en ||
+    "English prompt 尚未生成。";
+}
 
 /* =========================================================
-   CLEAR
-   ========================================================= */
+   SYNC INPUT
+========================================================= */
+
+function syncProjectFromInputs(){
+
+  videoProject.title =
+    $("storyTitle")
+      .value
+      .trim();
+
+  videoProject.characters =
+    $("characters")
+      .value
+      .trim();
+
+  videoProject.request =
+    $("storyRequest")
+      .value
+      .trim();
+
+  videoProject.language =
+    $("language")
+      .value;
+
+  const custom =
+    $("customTheme")
+      .value
+      .trim();
+
+  if(custom){
+
+    videoProject.theme =
+      custom;
+
+    document
+      .querySelectorAll(
+        "#themeChips .chip"
+      )
+      .forEach(
+        chip =>
+          chip.classList.remove(
+            "on"
+          )
+      );
+  }
+}
+
+/* =========================================================
+   CLEAR STORY
+========================================================= */
 
 function clearStory(){
 
@@ -4236,74 +3628,38 @@ function clearStory(){
   videoProject.discussion = "";
   videoProject.review = "";
 
-  videoProject.prompt = {
-    zh:"",
-    en:""
-  };
-
   videoProject.timeline = [];
 
+  videoProject.prompt.zh = "";
+  videoProject.prompt.en = "";
 
   renderStory();
-
+  renderTimeline();
   renderPrompts();
 
-  renderTimeline();
-
-  renderKeyframes();
-
-
   setStatus(
-    "已清除故事與生成內容",
-    ""
+    "Story 已清除",
+    "ready"
   );
-
 }
-
-
-/* =========================================================
-   ESCAPE HTML
-   ========================================================= */
-
-function escapeHtml(value){
-
-  return String(value ?? "")
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;")
-    .replace(/'/g,"&#039;");
-
-}
-
 
 /* =========================================================
    COPY
-   ========================================================= */
+========================================================= */
 
-async function copyText(id){
-
-  const el =
-    document.getElementById(id);
-
-
-  if(!el){
-    return;
-  }
-
-
-  const text =
-    el.value || "";
-
+async function copyText(
+  text
+){
 
   if(!text){
 
-    alert("目前沒有可複製的內容。");
+    setStatus(
+      "目前沒有可複製的內容。",
+      "error"
+    );
 
     return;
-
   }
-
 
   try{
 
@@ -4311,424 +3667,640 @@ async function copyText(id){
       text
     );
 
-  }catch(e){
+    setStatus(
+      "已複製到剪貼簿。",
+      "ready"
+    );
 
-    el.select();
+  }catch{
+
+    const textarea =
+      document.createElement(
+        "textarea"
+      );
+
+    textarea.value =
+      text;
+
+    textarea.style.position =
+      "fixed";
+
+    textarea.style.opacity =
+      "0";
+
+    document.body.appendChild(
+      textarea
+    );
+
+    textarea.select();
 
     document.execCommand(
       "copy"
     );
 
+    textarea.remove();
+
+    setStatus(
+      "已複製到剪貼簿。",
+      "ready"
+    );
   }
-
-
-  setStatus(
-    "已複製提示詞",
-    "ok"
-  );
-
 }
 
-
 /* =========================================================
-   EVENT: THEME MULTI SELECT
-   ========================================================= */
+   ALL THEME BUTTONS
+========================================================= */
 
-$$("#themeChips .chip")
-  .forEach(chip => {
+document
+  .querySelectorAll(
+    "[data-theme]"
+  )
+  .forEach(
+    button => {
 
-    chip.addEventListener(
-      "click",
-      () => {
+      button.addEventListener(
+        "click",
+        () => {
 
-        /*
-         * 重點：
-         * 不再清除其他 chip。
-         */
-        chip.classList.toggle(
-          "active"
-        );
+          document
+            .querySelectorAll(
+              "[data-theme]"
+            )
+            .forEach(
+              item =>
+                item.classList.remove(
+                  "on"
+                )
+            );
 
-        syncThemes();
+          button.classList.add(
+            "on"
+          );
 
-      }
-    );
+          videoProject.theme =
+            button.dataset.theme;
 
-  });
+          $("customTheme").value =
+            "";
 
-
-$("#customTheme")
-  ?.addEventListener(
-    "input",
-    () => {
-
-      syncThemes();
-
+          setStatus(
+            `主題：${videoProject.theme}`,
+            "ready"
+          );
+        }
+      );
     }
   );
 
-
 /* =========================================================
-   EVENT: DIRECTOR MULTI SELECT
-   ========================================================= */
+   CUSTOM THEME
+========================================================= */
 
-$$("[data-director-group] .chip")
-  .forEach(chip => {
+$("customTheme")
+  .addEventListener(
+    "input",
+    event => {
 
-    chip.addEventListener(
-      "click",
-      () => {
+      const value =
+        event.target.value
+          .trim();
 
-        /*
-         * 每個 Director group 都是獨立多選。
-         */
-        chip.classList.toggle(
-          "active"
-        );
+      if(value){
 
-        syncDirector();
+        videoProject.theme =
+          value;
 
-      }
-    );
-
-  });
-
-
-/* =========================================================
-   EVENT: CONTINUITY MULTI SELECT
-   ========================================================= */
-
-$$("[data-continuity-group] .chip")
-  .forEach(chip => {
-
-    chip.addEventListener(
-      "click",
-      () => {
-
-        chip.classList.toggle(
-          "active"
-        );
-
-        syncContinuity();
-
-      }
-    );
-
-  });
-
-
-/* =========================================================
-   EVENT: MODE SINGLE SELECT
-   ========================================================= */
-
-$$("[data-mode]")
-  .forEach(chip => {
-
-    chip.addEventListener(
-      "click",
-      () => {
-
-        $$("[data-mode]")
+        document
+          .querySelectorAll(
+            "[data-theme]"
+          )
           .forEach(
-            x =>
-              x.classList.remove(
-                "active"
+            item =>
+              item.classList.remove(
+                "on"
               )
           );
-
-
-        chip.classList.add(
-          "active"
-        );
-
-
-        videoProject.mode =
-          chip.dataset.mode;
-
       }
-    );
-
-  });
-
+    }
+  );
 
 /* =========================================================
-   EVENT: DURATION SINGLE SELECT
-   ========================================================= */
+   MODE
+========================================================= */
 
-$$("[data-duration]")
-  .forEach(chip => {
+document
+  .querySelectorAll(
+    "#modeChips .chip"
+  )
+  .forEach(
+    button => {
 
-    chip.addEventListener(
-      "click",
-      () => {
+      button.addEventListener(
+        "click",
+        () => {
 
-        $$("[data-duration]")
-          .forEach(
-            x =>
-              x.classList.remove(
-                "active"
-              )
+          document
+            .querySelectorAll(
+              "#modeChips .chip"
+            )
+            .forEach(
+              item =>
+                item.classList.remove(
+                  "on"
+                )
+            );
+
+          button.classList.add(
+            "on"
           );
 
+          videoProject.mode =
+            button.dataset.mode;
 
-        chip.classList.add(
-          "active"
-        );
-
-
-        videoProject.duration_seconds =
-          Number(
-            chip.dataset.duration
+          setStatus(
+            `模式：${videoProject.mode}`,
+            "ready"
           );
-
-
-        /*
-         * 秒數變更後立即更新時間軸。
-         */
-        buildSecondTimeline();
-
-      }
-    );
-
-  });
-
+        }
+      );
+    }
+  );
 
 /* =========================================================
-   EVENT: LANGUAGE
-   ========================================================= */
+   DURATION
+========================================================= */
 
-$("#language")
-  ?.addEventListener(
+document
+  .querySelectorAll(
+    "#durationChips .chip"
+  )
+  .forEach(
+    button => {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          document
+            .querySelectorAll(
+              "#durationChips .chip"
+            )
+            .forEach(
+              item =>
+                item.classList.remove(
+                  "on"
+                )
+            );
+
+          button.classList.add(
+            "on"
+          );
+
+          videoProject.duration_seconds =
+            Number(
+              button.dataset.duration
+            );
+
+          if(
+            videoProject.story
+          ){
+
+            buildSecondTimeline();
+          }
+
+          setStatus(
+            `影片長度：${videoProject.duration_seconds} 秒`,
+            "ready"
+          );
+        }
+      );
+    }
+  );
+
+/* =========================================================
+   LANGUAGE
+========================================================= */
+
+$("language")
+  .addEventListener(
     "change",
     event => {
 
       videoProject.language =
         event.target.value;
 
+      setStatus(
+        `輸出語言：${getLanguageLabel(videoProject.language)}`,
+        "ready"
+      );
     }
   );
 
+/* =========================================================
+   DIRECTOR BUTTONS
+========================================================= */
+
+document
+  .querySelectorAll(
+    "[data-director-group]"
+  )
+  .forEach(
+    button => {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          const group =
+            button.dataset.directorGroup;
+
+          const value =
+            button.dataset.directorValue;
+
+          if(
+            !videoProject
+              .director_techniques[group]
+          ){
+
+            videoProject
+              .director_techniques[group] =
+                [];
+          }
+
+          const list =
+            videoProject
+              .director_techniques[group];
+
+          const index =
+            list.indexOf(
+              value
+            );
+
+          if(index >= 0){
+
+            list.splice(
+              index,
+              1
+            );
+
+            button.classList.remove(
+              "on"
+            );
+
+          }else{
+
+            list.push(
+              value
+            );
+
+            button.classList.add(
+              "on"
+            );
+          }
+
+          if(
+            list.length === 0
+          ){
+
+            delete
+              videoProject
+                .director_techniques[group];
+          }
+
+          if(
+            videoProject.story
+          ){
+
+            buildSecondTimeline();
+          }
+        }
+      );
+    }
+  );
 
 /* =========================================================
-   EVENT: GENERATE STORY
-   ========================================================= */
+   CONTINUITY
+========================================================= */
 
-$("#generateStoryBtn")
-  ?.addEventListener(
+document
+  .querySelectorAll(
+    "[data-continuity]"
+  )
+  .forEach(
+    button => {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          const key =
+            button.dataset.continuity;
+
+          videoProject
+            .continuity[key] =
+              !videoProject
+                .continuity[key];
+
+          button.classList.toggle(
+            "on",
+            videoProject
+              .continuity[key]
+          );
+
+          if(
+            videoProject.story
+          ){
+
+            buildSecondTimeline();
+          }
+        }
+      );
+    }
+  );
+
+/* =========================================================
+   WORKSPACE TABS
+========================================================= */
+
+document
+  .querySelectorAll(
+    "#workspaceTabs .tab"
+  )
+  .forEach(
+    tab => {
+
+      tab.addEventListener(
+        "click",
+        () => {
+
+          const paneId =
+            tab.dataset.pane;
+
+          document
+            .querySelectorAll(
+              "#workspaceTabs .tab"
+            )
+            .forEach(
+              item =>
+                item.classList.remove(
+                  "on"
+                )
+            );
+
+          document
+            .querySelectorAll(
+              ".pane"
+            )
+            .forEach(
+              pane =>
+                pane.classList.remove(
+                  "active"
+                )
+            );
+
+          tab.classList.add(
+            "on"
+          );
+
+          const pane =
+            $(paneId);
+
+          if(pane){
+
+            pane.classList.add(
+              "active"
+            );
+          }
+        }
+      );
+    }
+  );
+
+/* =========================================================
+   EDITABLE FIELDS
+========================================================= */
+
+$("scriptOutput")
+  .addEventListener(
+    "input",
+    event => {
+
+      videoProject.script =
+        event.target.value;
+    }
+  );
+
+$("narrationOutput")
+  .addEventListener(
+    "input",
+    event => {
+
+      videoProject.narration =
+        event.target.value;
+    }
+  );
+
+$("storyboardOutput")
+  .addEventListener(
+    "input",
+    event => {
+
+      videoProject.storyboard =
+        event.target.value;
+
+      if(
+        videoProject.storyboard
+      ){
+
+        buildSecondTimeline();
+      }
+    }
+  );
+
+$("factCheckOutput")
+  .addEventListener(
+    "input",
+    event => {
+
+      videoProject.fact_check =
+        event.target.value;
+    }
+  );
+
+$("discussionOutput")
+  .addEventListener(
+    "input",
+    event => {
+
+      videoProject.discussion =
+        event.target.value;
+    }
+  );
+
+$("reviewOutput")
+  .addEventListener(
+    "input",
+    event => {
+
+      videoProject.review =
+        event.target.value;
+    }
+  );
+
+/* =========================================================
+   MAIN ACTION BUTTONS
+========================================================= */
+
+$("generateStoryBtn")
+  .addEventListener(
     "click",
     generateStory
   );
 
-
-/* =========================================================
-   EVENT: GENERATE PROMPT
-   ========================================================= */
-
-$("#generatePromptBtn")
-  ?.addEventListener(
-    "click",
-    generatePrompt
-  );
-
-
-/* =========================================================
-   EVENT: CLEAR
-   ========================================================= */
-
-$("#clearStoryBtn")
-  ?.addEventListener(
+$("clearStoryBtn")
+  .addEventListener(
     "click",
     clearStory
   );
 
-
-/* =========================================================
-   EVENT: TIMELINE
-   ========================================================= */
-
-$("#rebuildTimelineBtn")
-  ?.addEventListener(
+$("generatePromptBtn")
+  .addEventListener(
     "click",
-    () => {
-
-      syncEditableFields();
-
-      buildSecondTimeline();
-
-      setStatus(
-        "第二級時間軸已重新建立",
-        "ok"
-      );
-
-    }
+    generatePrompt
   );
 
+$("copyZhBtn")
+  .addEventListener(
+    "click",
+    () =>
+      copyText(
+        videoProject.prompt.zh
+      )
+  );
+
+$("copyEnBtn")
+  .addEventListener(
+    "click",
+    () =>
+      copyText(
+        videoProject.prompt.en
+      )
+  );
 
 /* =========================================================
-   EVENT: COPY BUTTONS
-   ========================================================= */
+   RETURN HOME
+========================================================= */
 
-$$("[data-copy]")
-  .forEach(button => {
-
-    button.addEventListener(
-      "click",
-      () => {
-
-        copyText(
-          button.dataset.copy
-        );
-
-      }
-    );
-
-  });
-
-
-/* =========================================================
-   EVENT: WORKSPACE TABS
-   ========================================================= */
-
-$$(".tab")
-  .forEach(tab => {
-
-    tab.addEventListener(
-      "click",
-      () => {
-
-        const target =
-          tab.dataset.tab;
-
-
-        $$(".tab")
-          .forEach(
-            x =>
-              x.classList.remove(
-                "active"
-              )
-          );
-
-
-        $$(".tab-panel")
-          .forEach(
-            x =>
-              x.classList.remove(
-                "active"
-              )
-          );
-
-
-        tab.classList.add(
-          "active"
-        );
-
-
-        $(`#tab-${target}`)
-          ?.classList.add(
-            "active"
-          );
-
-      }
-    );
-
-  });
-
-
-/* =========================================================
-   EVENT: EDITABLE CONTENT
-   ========================================================= */
-
-[
-  "#storyOutput",
-  "#scriptOutput",
-  "#narrationOutput",
-  "#storyboardOutput",
-  "#factCheckOutput",
-  "#discussionOutput",
-  "#reviewOutput"
-]
-.forEach(selector => {
-
-  $(selector)
-    ?.addEventListener(
-      "input",
-      () => {
-
-        syncEditableFields();
-
-      }
-    );
-
-});
-
-
-/* =========================================================
-   HOME
-   ========================================================= */
-
-$("#homeBtn")
-  ?.addEventListener(
+$("homeBtn")
+  .addEventListener(
     "click",
     () => {
 
-      try{
+      if(
+        window.history.length > 1
+      ){
 
-        if(
-          window.history.length > 1
-        ){
+        window.history.back();
 
-          window.history.back();
-
-        }else{
-
-          window.location.href =
-            CONFIG.HOME_FALLBACK;
-
-        }
-
-      }catch(e){
+      }else{
 
         window.location.href =
           CONFIG.HOME_FALLBACK;
-
       }
-
     }
   );
 
-
 /* =========================================================
-   INITIAL STATE
-   ========================================================= */
+   INITIALIZE
+========================================================= */
 
 function initialize(){
 
-  /*
-   * 預設 Continuity 全部開啟。
-   */
-  syncDirector();
+  videoProject.mode =
+    document
+      .querySelector(
+        "#modeChips .chip.on"
+      )
+      ?.dataset.mode ||
+    "單集";
 
-  syncContinuity();
+  videoProject.duration_seconds =
+    Number(
+      document
+        .querySelector(
+          "#durationChips .chip.on"
+        )
+        ?.dataset.duration
+    ) || 30;
 
-  syncThemes();
+  videoProject.language =
+    $("language").value;
 
-  renderTimeline();
+  $("aiProviderText").textContent =
+    "AI：尚未連線";
 
-  renderKeyframes();
-
-  renderPrompts();
+  $("aiPanelValue").textContent =
+    "尚未呼叫 AI Gateway";
 
   setStatus(
-    "等待開始",
-    ""
+    "Studio Ready",
+    "ready"
   );
 
+  document
+    .querySelectorAll(
+      "[data-director-group].on"
+    )
+    .forEach(
+      button => {
+
+        const group =
+          button.dataset.directorGroup;
+
+        const value =
+          button.dataset.directorValue;
+
+        if(
+          !videoProject
+            .director_techniques[group]
+        ){
+
+          videoProject
+            .director_techniques[group] =
+              [];
+        }
+
+        videoProject
+          .director_techniques[group]
+          .push(value);
+      }
+    );
+
+  document
+    .querySelectorAll(
+      "[data-continuity]"
+    )
+    .forEach(
+      button => {
+
+        const key =
+          button.dataset.continuity;
+
+        videoProject
+          .continuity[key] =
+            button.classList.contains(
+              "on"
+            );
+      }
+    );
 }
 
+/* =========================================================
+   START
+========================================================= */
 
 initialize();
 
 </script>
-
 </body>
 </html>
