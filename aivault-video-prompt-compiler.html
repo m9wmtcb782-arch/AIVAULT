@@ -1,0 +1,2789 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>AIVAULT Video Prompt Compiler</title>
+
+<style>
+*{
+  box-sizing:border-box;
+}
+
+:root{
+  --bg:#07090d;
+  --panel:#0d1118;
+  --panel2:#111722;
+  --border:#222b38;
+  --text:#eef2f7;
+  --muted:#8d98a8;
+  --accent:#8b7cff;
+  --accent2:#5ce1e6;
+  --danger:#ff657a;
+  --ok:#62e6a5;
+}
+
+body{
+  margin:0;
+  background:
+    radial-gradient(circle at 20% 0%,rgba(139,124,255,.12),transparent 30%),
+    radial-gradient(circle at 90% 10%,rgba(92,225,230,.08),transparent 28%),
+    var(--bg);
+  color:var(--text);
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Display",
+    "PingFang TC",
+    "Noto Sans TC",
+    sans-serif;
+}
+
+button,
+input,
+textarea{
+  font:inherit;
+}
+
+button{
+  cursor:pointer;
+}
+
+.app{
+  width:min(1500px,100%);
+  margin:auto;
+  padding:20px;
+}
+
+/* HEADER */
+
+.header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+  margin-bottom:20px;
+}
+
+.logo{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+.logo-mark{
+  width:42px;
+  height:42px;
+  border:1px solid var(--accent);
+  border-radius:12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:900;
+  color:var(--accent2);
+  box-shadow:0 0 30px rgba(139,124,255,.18);
+}
+
+.logo-title{
+  font-size:18px;
+  font-weight:800;
+}
+
+.logo-sub{
+  color:var(--muted);
+  font-size:12px;
+  margin-top:2px;
+}
+
+.badge{
+  padding:7px 11px;
+  border:1px solid #263244;
+  border-radius:999px;
+  color:var(--accent2);
+  font-size:12px;
+}
+
+/* LAYOUT */
+
+.grid{
+  display:grid;
+  grid-template-columns:390px minmax(0,1fr);
+  gap:18px;
+}
+
+.panel{
+  background:linear-gradient(
+    180deg,
+    rgba(17,23,34,.95),
+    rgba(10,14,21,.97)
+  );
+  border:1px solid var(--border);
+  border-radius:18px;
+  overflow:hidden;
+}
+
+.panel-head{
+  padding:17px 18px;
+  border-bottom:1px solid var(--border);
+}
+
+.panel-title{
+  font-size:15px;
+  font-weight:800;
+}
+
+.panel-desc{
+  color:var(--muted);
+  font-size:12px;
+  margin-top:5px;
+}
+
+.panel-body{
+  padding:18px;
+}
+
+/* INPUTS */
+
+label{
+  display:block;
+  font-size:12px;
+  color:#c4ccd7;
+  margin-bottom:8px;
+}
+
+.field{
+  margin-bottom:17px;
+}
+
+input,
+textarea{
+  width:100%;
+  background:#080c12;
+  border:1px solid #26303e;
+  color:var(--text);
+  border-radius:11px;
+  outline:none;
+  padding:11px 12px;
+}
+
+input:focus,
+textarea:focus{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(139,124,255,.08);
+}
+
+textarea{
+  resize:vertical;
+  min-height:100px;
+}
+
+/* CHIPS */
+
+.chips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+}
+
+.chip{
+  border:1px solid #2a3443;
+  background:#0a0f16;
+  color:#aeb8c6;
+  padding:8px 10px;
+  border-radius:9px;
+  font-size:12px;
+  transition:.15s;
+}
+
+.chip:hover{
+  border-color:#53617a;
+}
+
+.chip.active{
+  color:#fff;
+  border-color:var(--accent);
+  background:rgba(139,124,255,.16);
+  box-shadow:inset 0 0 0 1px rgba(139,124,255,.08);
+}
+
+/* TECHNIQUES */
+
+.tech-section{
+  margin-bottom:18px;
+}
+
+.tech-title{
+  font-size:12px;
+  font-weight:800;
+  color:#d7deea;
+  margin-bottom:8px;
+}
+
+.tech-count{
+  color:var(--accent2);
+  font-size:11px;
+  margin-left:5px;
+}
+
+/* BUTTON */
+
+.compile-btn{
+  width:100%;
+  border:0;
+  border-radius:12px;
+  padding:14px;
+  color:white;
+  font-weight:800;
+  background:
+    linear-gradient(
+      135deg,
+      #6f5fff,
+      #4e9de9
+    );
+  box-shadow:0 10px 35px rgba(111,95,255,.18);
+}
+
+.compile-btn:hover{
+  filter:brightness(1.08);
+}
+
+.compile-btn:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+
+/* RIGHT */
+
+.output{
+  min-height:700px;
+}
+
+.output-tabs{
+  display:flex;
+  gap:5px;
+  padding:10px;
+  border-bottom:1px solid var(--border);
+  overflow:auto;
+}
+
+.out-tab{
+  white-space:nowrap;
+  border:1px solid transparent;
+  background:transparent;
+  color:#8f9aaa;
+  padding:8px 11px;
+  border-radius:8px;
+}
+
+.out-tab.active{
+  color:white;
+  background:#151c27;
+  border-color:#2a3545;
+}
+
+.output-content{
+  padding:18px;
+}
+
+/* STATUS */
+
+.status{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:11px 13px;
+  background:#090e15;
+  border:1px solid #202a38;
+  border-radius:10px;
+  margin-bottom:15px;
+}
+
+.dot{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:#697586;
+}
+
+.status.ok .dot{
+  background:var(--ok);
+  box-shadow:0 0 10px var(--ok);
+}
+
+.status.error .dot{
+  background:var(--danger);
+  box-shadow:0 0 10px var(--danger);
+}
+
+.status-text{
+  font-size:12px;
+  color:#aeb7c4;
+}
+
+/* CARDS */
+
+.result-card{
+  background:#090e15;
+  border:1px solid #202a38;
+  border-radius:13px;
+  padding:15px;
+  margin-bottom:12px;
+}
+
+.result-title{
+  font-weight:800;
+  margin-bottom:9px;
+}
+
+.meta-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+}
+
+.meta{
+  background:#0e141d;
+  border:1px solid #202a36;
+  border-radius:9px;
+  padding:10px;
+}
+
+.meta-k{
+  font-size:10px;
+  color:#788596;
+}
+
+.meta-v{
+  margin-top:4px;
+  font-weight:800;
+  font-size:13px;
+}
+
+/* PROMPT */
+
+.prompt{
+  white-space:pre-wrap;
+  line-height:1.65;
+  font-size:13px;
+  color:#dbe3ee;
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    monospace;
+}
+
+.copy-btn{
+  float:right;
+  border:1px solid #2b3747;
+  background:#101722;
+  color:#aeb8c6;
+  border-radius:7px;
+  padding:5px 8px;
+  font-size:11px;
+}
+
+.copy-btn:hover{
+  color:#fff;
+  border-color:var(--accent);
+}
+
+/* SECOND TIMELINE */
+
+.second-card{
+  border:1px solid #202a38;
+  border-radius:12px;
+  overflow:hidden;
+  margin-bottom:10px;
+  background:#090e15;
+}
+
+.second-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:10px 12px;
+  background:#0d131c;
+  border-bottom:1px solid #202a38;
+}
+
+.second-num{
+  font-weight:900;
+  color:var(--accent2);
+}
+
+.second-time{
+  color:#758193;
+  font-size:11px;
+}
+
+.second-body{
+  padding:12px;
+}
+
+.second-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:9px;
+}
+
+.unit{
+  background:#0e141d;
+  border:1px solid #202a36;
+  border-radius:8px;
+  padding:9px;
+}
+
+.unit-k{
+  color:#788596;
+  font-size:10px;
+  margin-bottom:4px;
+}
+
+.unit-v{
+  font-size:12px;
+  line-height:1.5;
+}
+
+/* JSON */
+
+.json{
+  white-space:pre-wrap;
+  overflow:auto;
+  max-height:650px;
+  color:#cbd5e1;
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+  font-size:12px;
+  line-height:1.55;
+}
+
+/* EMPTY */
+
+.empty{
+  min-height:600px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  color:#687587;
+  text-align:center;
+}
+
+.empty-icon{
+  font-size:42px;
+  margin-bottom:14px;
+  opacity:.5;
+}
+
+.empty-title{
+  color:#aab4c2;
+  font-weight:800;
+  margin-bottom:5px;
+}
+
+/* RESPONSIVE */
+
+@media(max-width:1050px){
+  .grid{
+    grid-template-columns:1fr;
+  }
+
+  .meta-grid{
+    grid-template-columns:repeat(2,1fr);
+  }
+}
+
+@media(max-width:650px){
+  .app{
+    padding:10px;
+  }
+
+  .header{
+    align-items:flex-start;
+  }
+
+  .badge{
+    display:none;
+  }
+
+  .panel-body{
+    padding:13px;
+  }
+
+  .second-grid{
+    grid-template-columns:1fr;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+  <header class="header">
+
+    <div class="logo">
+      <div class="logo-mark">A</div>
+
+      <div>
+        <div class="logo-title">
+          AIVAULT Video Prompt Compiler
+        </div>
+
+        <div class="logo-sub">
+          Story → Prompt → Timeline → Continuity
+        </div>
+      </div>
+    </div>
+
+    <div class="badge">
+      PROMPT COMPILER · NOT VIDEO GENERATOR
+    </div>
+
+  </header>
+
+
+  <div class="grid">
+
+    <!-- LEFT -->
+
+    <section class="panel">
+
+      <div class="panel-head">
+        <div class="panel-title">
+          Prompt 編譯輸入
+        </div>
+
+        <div class="panel-desc">
+          將故事與導演技術轉換成可供影片模型使用的結構化提示詞。
+        </div>
+      </div>
+
+
+      <div class="panel-body">
+
+        <div class="field">
+
+          <label>故事 / 場景</label>
+
+          <textarea
+            id="story"
+            placeholder="例如：一名女子在雨夜街道尋找失散的弟弟。她沿著霓虹燈照亮的街道前進，最後在巷口聽見弟弟的聲音。"
+          ></textarea>
+
+        </div>
+
+
+        <div class="field">
+
+          <label>主要人物</label>
+
+          <input
+            id="character"
+            value="一名年輕女子"
+            placeholder="例如：一名30歲女子，黑色長髮，米色風衣"
+          >
+
+        </div>
+
+
+        <div class="field">
+
+          <label>環境</label>
+
+          <input
+            id="environment"
+            value="雨夜的城市街道"
+            placeholder="例如：台北雨夜街道、霓虹招牌、濕地反光"
+          >
+
+        </div>
+
+
+        <div class="field">
+
+          <label>影片提示詞長度</label>
+
+          <div class="chips" id="durationChips">
+
+            <button class="chip active" data-duration="6">6s</button>
+            <button class="chip" data-duration="10">10s</button>
+            <button class="chip" data-duration="15">15s</button>
+            <button class="chip" data-duration="30">30s</button>
+            <button class="chip" data-duration="60">60s</button>
+
+          </div>
+
+        </div>
+
+
+        <div class="field">
+
+          <label>角色外觀鎖定</label>
+
+          <input
+            id="appearance"
+            value="黑色長髮、米色風衣、深色長褲"
+            placeholder="髮型、服裝、外觀"
+          >
+
+        </div>
+
+
+        <div class="field">
+
+          <label>畫面風格</label>
+
+          <input
+            id="style"
+            value="電影寫實"
+            placeholder="例如：電影寫實、紀錄片、科幻"
+          >
+
+        </div>
+
+
+        <div class="field">
+
+          <label>聲音</label>
+
+          <input
+            id="audio"
+            value="雨聲、遠處車流聲、低沉電影配樂"
+            placeholder="例如：人物對話、旁白、環境音"
+          >
+
+        </div>
+
+
+        <!-- TECHNIQUES -->
+
+        <div id="techniques"></div>
+
+
+        <button
+          id="compileBtn"
+          class="compile-btn"
+        >
+          開始編譯 Prompt
+        </button>
+
+      </div>
+
+    </section>
+
+
+    <!-- RIGHT -->
+
+    <section class="panel output">
+
+      <div class="output-tabs">
+
+        <button class="out-tab active" data-tab="overview">
+          編譯結果
+        </button>
+
+        <button class="out-tab" data-tab="timeline">
+          每秒 Prompt
+        </button>
+
+        <button class="out-tab" data-tab="continuity">
+          身份連續性
+        </button>
+
+        <button class="out-tab" data-tab="seedance">
+          Seedance Prompt
+        </button>
+
+        <button class="out-tab" data-tab="json">
+          Prompt Spec
+        </button>
+
+      </div>
+
+
+      <div class="output-content">
+
+        <div
+          id="status"
+          class="status"
+        >
+          <div class="dot"></div>
+          <div class="status-text">
+            尚未開始編譯
+          </div>
+        </div>
+
+
+        <div id="output"></div>
+
+      </div>
+
+    </section>
+
+  </div>
+
+</div>
+
+
+<script>
+
+/* =========================================================
+   AIVAULT VIDEO PROMPT COMPILER
+   FRONTEND ONLY
+   Prompt creation / planning / compilation
+   NOT video generation
+========================================================= */
+
+
+/* ---------------------------------------------------------
+   CONFIG
+--------------------------------------------------------- */
+
+const SUPABASE_URL =
+  'https://clcddygkaaqqtsbswgdf.supabase.co';
+
+const VIDEO_PROMPT_URL =
+  SUPABASE_URL +
+  '/functions/v1/aivault-video-prompt';
+
+
+/*
+  注意：
+
+  AIVAULT_VIDEO_PROMPT_SECRET
+  絕對不能放在這個前端。
+
+  本頁目前先使用前端本地 Compiler，
+  因此不需要暴露 internal secret。
+*/
+
+
+/* ---------------------------------------------------------
+   STATE
+--------------------------------------------------------- */
+
+const state = {
+
+  duration: 6,
+
+  techniques: {},
+
+  result: null,
+
+  activeTab: 'overview'
+
+};
+
+
+/* ---------------------------------------------------------
+   DIRECTOR TECHNIQUE DICTIONARY
+--------------------------------------------------------- */
+
+const TECHNIQUES = {
+
+  "景別": [
+    "超遠景",
+    "遠景",
+    "全景",
+    "中遠景",
+    "中景",
+    "中近景",
+    "近景",
+    "大特寫",
+    "細節特寫"
+  ],
+
+  "拍攝視角": [
+    "平視",
+    "第一人稱視角",
+    "第三人稱視角",
+    "主觀視角",
+    "肩後視角",
+    "旁觀者視角",
+    "上帝視角"
+  ],
+
+  "攝影機角度": [
+    "正面",
+    "側面",
+    "背面",
+    "低角度仰拍",
+    "高角度俯拍",
+    "正上方俯拍",
+    "接近地面",
+    "傾斜角度"
+  ],
+
+  "運鏡": [
+    "固定鏡頭",
+    "緩慢推近",
+    "快速推近",
+    "緩慢拉遠",
+    "快速拉遠",
+    "向左橫移",
+    "向右橫移",
+    "跟隨人物",
+    "環繞人物",
+    "360度環繞",
+    "上升",
+    "下降",
+    "手持攝影",
+    "輕微手持晃動",
+    "快速甩鏡"
+  ],
+
+  "對焦": [
+    "全景深",
+    "淺景深",
+    "背景虛化",
+    "前景虛化",
+    "臉部對焦",
+    "物體對焦",
+    "焦點從人物移到背景",
+    "焦點從背景移到人物"
+  ],
+
+  "人物調度": [
+    "人物走入畫面",
+    "人物走出畫面",
+    "向鏡頭走來",
+    "背對鏡頭離開",
+    "穿越畫面",
+    "跟拍",
+    "人物停留左側",
+    "人物停留中央",
+    "人物停留右側",
+    "前景人物＋背景人物",
+    "背景到前景"
+  ],
+
+  "構圖": [
+    "中央構圖",
+    "三分法",
+    "對稱",
+    "非對稱",
+    "大量留白",
+    "前景框景",
+    "引導線",
+    "多層次景深",
+    "人物靠左",
+    "人物靠右"
+  ],
+
+  "轉場": [
+    "直接切換",
+    "動作接續",
+    "動作匹配",
+    "快速甩鏡",
+    "淡入",
+    "淡出",
+    "溶解",
+    "白閃",
+    "黑閃",
+    "突然切換",
+    "音樂節奏切換"
+  ],
+
+  "光線": [
+    "自然光",
+    "黃金時刻",
+    "藍調時刻",
+    "柔和光線",
+    "強烈逆光",
+    "側光",
+    "頂光",
+    "輪廓光",
+    "霓虹燈光",
+    "高調明亮",
+    "低調陰暗",
+    "明暗對比強烈"
+  ],
+
+  "畫面風格": [
+    "電影寫實",
+    "超寫實",
+    "紀錄片",
+    "商業廣告",
+    "MV",
+    "復古電影",
+    "黑色電影",
+    "溫暖電影感",
+    "冷色電影感",
+    "動漫",
+    "科幻",
+    "古典電影",
+    "手持紀錄片"
+  ],
+
+  "動作節奏": [
+    "極慢",
+    "很慢",
+    "慢",
+    "自然",
+    "稍快",
+    "快",
+    "很快",
+    "極快",
+    "突然停止",
+    "慢動作",
+    "即時速度",
+    "延時攝影"
+  ],
+
+  "聲音": [
+    "人物對話",
+    "旁白",
+    "環境音",
+    "腳步聲",
+    "雨聲",
+    "風聲",
+    "車流聲",
+    "人群聲",
+    "電影配樂",
+    "音樂逐漸增強",
+    "音樂突然停止",
+    "完全靜音"
+  ]
+
+};
+
+
+/* ---------------------------------------------------------
+   TECHNIQUE UI
+--------------------------------------------------------- */
+
+function renderTechniques(){
+
+  const root =
+    document.getElementById('techniques');
+
+  root.innerHTML = '';
+
+  Object.entries(TECHNIQUES)
+    .forEach(([category, options]) => {
+
+      if(!state.techniques[category]){
+        state.techniques[category] = [];
+      }
+
+      const section =
+        document.createElement('div');
+
+      section.className =
+        'tech-section';
+
+      const title =
+        document.createElement('div');
+
+      title.className =
+        'tech-title';
+
+      title.innerHTML =
+        `${category}
+         <span class="tech-count"
+               data-count="${category}">
+           ${state.techniques[category].length}
+         </span>`;
+
+      section.appendChild(title);
+
+
+      const chips =
+        document.createElement('div');
+
+      chips.className =
+        'chips';
+
+
+      options.forEach(option => {
+
+        const btn =
+          document.createElement('button');
+
+        btn.className =
+          'chip';
+
+        if(
+          state.techniques[category]
+            .includes(option)
+        ){
+
+          btn.classList.add('active');
+
+        }
+
+        btn.textContent =
+          option;
+
+        btn.onclick = () => {
+
+          const list =
+            state.techniques[category];
+
+          const index =
+            list.indexOf(option);
+
+          if(index >= 0){
+
+            list.splice(index,1);
+
+            btn.classList.remove('active');
+
+          }else{
+
+            list.push(option);
+
+            btn.classList.add('active');
+
+          }
+
+          const count =
+            document.querySelector(
+              `[data-count="${CSS.escape(category)}"]`
+            );
+
+          if(count){
+
+            count.textContent =
+              list.length;
+
+          }
+
+        };
+
+        chips.appendChild(btn);
+
+      });
+
+
+      section.appendChild(chips);
+
+      root.appendChild(section);
+
+    });
+
+}
+
+
+/* ---------------------------------------------------------
+   DURATION
+--------------------------------------------------------- */
+
+document
+  .querySelectorAll('#durationChips .chip')
+  .forEach(btn => {
+
+    btn.onclick = () => {
+
+      document
+        .querySelectorAll(
+          '#durationChips .chip'
+        )
+        .forEach(x =>
+          x.classList.remove('active')
+        );
+
+      btn.classList.add('active');
+
+      state.duration =
+        Number(btn.dataset.duration);
+
+    };
+
+  });
+
+
+/* ---------------------------------------------------------
+   GET INPUT
+--------------------------------------------------------- */
+
+function getInput(){
+
+  return {
+
+    story:
+      document
+        .getElementById('story')
+        .value
+        .trim(),
+
+    character:
+      document
+        .getElementById('character')
+        .value
+        .trim(),
+
+    environment:
+      document
+        .getElementById('environment')
+        .value
+        .trim(),
+
+    appearance:
+      document
+        .getElementById('appearance')
+        .value
+        .trim(),
+
+    style:
+      document
+        .getElementById('style')
+        .value
+        .trim(),
+
+    audio:
+      document
+        .getElementById('audio')
+        .value
+        .trim(),
+
+    duration:
+      state.duration,
+
+    techniques:
+      JSON.parse(
+        JSON.stringify(
+          state.techniques
+        )
+      )
+
+  };
+
+}
+
+
+/* ---------------------------------------------------------
+   TECHNIQUE FLATTENER
+--------------------------------------------------------- */
+
+function selectedTechniques(){
+
+  const output = [];
+
+  Object.entries(
+    state.techniques
+  ).forEach(([category, values]) => {
+
+    if(values.length){
+
+      output.push(
+        `${category}：${values.join('、')}`
+      );
+
+    }
+
+  });
+
+  return output;
+
+}
+
+
+/* ---------------------------------------------------------
+   CHARACTER IDENTITY
+--------------------------------------------------------- */
+
+function buildCharacterIdentity(input){
+
+  return {
+
+    id:
+      "character_001",
+
+    identity_lock:
+      "HARD",
+
+    face_identity: {
+
+      lock:true,
+
+      priority:
+        "CRITICAL",
+
+      preserve:[
+        "facial structure",
+        "face shape",
+        "eye shape and spacing",
+        "eyebrow shape",
+        "nose structure",
+        "mouth and lip proportions",
+        "jawline",
+        "cheeks",
+        "chin",
+        "overall facial proportions"
+      ]
+
+    },
+
+    appearance_identity: {
+
+      description:
+        input.appearance,
+
+      preserve:[
+        "apparent age",
+        "skin appearance",
+        "hair",
+        "hairstyle",
+        "body proportions",
+        "clothing"
+      ]
+
+    }
+
+  };
+
+}
+
+
+/* ---------------------------------------------------------
+   CONTINUITY
+--------------------------------------------------------- */
+
+function buildContinuity(input){
+
+  return {
+
+    sequence_id:
+      "seq_" +
+      Date.now(),
+
+    clip_index:
+      1,
+
+    previous_clip_id:
+      null,
+
+    previous_end_timestamp_ms:
+      0,
+
+    characters:[
+      buildCharacterIdentity(input)
+    ],
+
+    environment:{
+      identity_lock:"HARD",
+      description:
+        input.environment
+    },
+
+    visual_style:{
+      identity_lock:"HARD",
+      description:
+        input.style
+    },
+
+    camera_visual_language:{
+      preserve:true
+    },
+
+    lighting_logic:{
+      preserve:true
+    },
+
+    previous_end_state:
+      "片段開始時必須延續上一片段的最後人物姿勢、位置、視線、動作狀態、服裝、環境與光線狀態。",
+
+    authorized_changes:[
+      "劇情明確要求的人物動作變化",
+      "劇情明確要求的鏡頭變化",
+      "劇情明確要求的環境變化",
+      "劇情明確要求的時間變化"
+    ],
+
+    identity_drift_policy:{
+      enabled:true,
+      severity:"critical",
+      action:"prevent"
+    },
+
+    hard_constraints:[
+
+      "same character identity",
+      "same facial identity",
+      "same hairstyle",
+      "same clothing",
+      "same body proportions",
+      "same environment identity",
+      "same visual style",
+      "same lighting logic",
+      "same temporal continuity",
+      "no unexplained object changes",
+      "no unexplained costume changes",
+      "no character duplication"
+
+    ]
+
+  };
+
+}
+
+
+/* ---------------------------------------------------------
+   SECOND TIMELINE
+--------------------------------------------------------- */
+
+function buildSecondTimeline(input){
+
+  const timeline = [];
+
+  for(let second=0;
+      second<input.duration;
+      second++){
+
+    const startMs =
+      second * 1000;
+
+    const endMs =
+      (second + 1) * 1000;
+
+
+    let action;
+
+    if(second === 0){
+
+      action =
+        `${input.character}在${input.environment}中開始行動，建立人物、環境與空間關係。`;
+
+    }else if(second === input.duration - 1){
+
+      action =
+        `${input.character}延續前一秒的動作與狀態，完成本段劇情動作並保持自然連續。`;
+
+    }else{
+
+      action =
+        `${input.character}延續上一秒的動作與位置，依照故事自然推進。`;
+
+    }
+
+
+    const techniques =
+      selectedTechniques();
+
+
+    const camera =
+      techniques.find(x =>
+        x.startsWith('運鏡：')
+      ) || '運鏡：保持連續且自然';
+
+
+    const shot =
+      techniques.find(x =>
+        x.startsWith('景別：')
+      ) || '景別：依劇情維持一致';
+
+
+    const focus =
+      techniques.find(x =>
+        x.startsWith('對焦：')
+      ) || '對焦：人物臉部優先';
+
+
+    const lighting =
+      techniques.find(x =>
+        x.startsWith('光線：')
+      ) || `光線：延續${input.environment}既有光線邏輯`;
+
+
+    const audio =
+      input.audio ||
+      '環境音自然延續';
+
+
+    timeline.push({
+
+      second:
+        second + 1,
+
+      start_ms:
+        startMs,
+
+      end_ms:
+        endMs,
+
+      duration_ms:
+        1000,
+
+      action,
+
+      camera,
+
+      shot,
+
+      focus,
+
+      lighting,
+
+      audio,
+
+      character_state:
+        "保持相同人物身份、臉部特徵、髮型、服裝與身體比例",
+
+      environment_state:
+        "保持相同環境身份與空間邏輯",
+
+      visual_style:
+        input.style
+
+    });
+
+  }
+
+  return timeline;
+
+}
+
+
+/* ---------------------------------------------------------
+   MILLISECOND KEYFRAMES
+--------------------------------------------------------- */
+
+function buildKeyframes(input){
+
+  /*
+    不產生每一毫秒一條文字。
+
+    底層保留 1ms resolution。
+    實際 keyframe 只在需要變化的時間點建立。
+  */
+
+  const keyframes = [];
+
+  keyframes.push({
+
+    time_ms:0,
+
+    type:"clip_start",
+
+    state:
+      "建立人物、環境、服裝、光線、鏡頭語言與上一片段 End State"
+
+  });
+
+
+  if(input.duration >= 6){
+
+    keyframes.push({
+
+      time_ms:
+        Math.floor(
+          input.duration * 500
+        ),
+
+      type:"midpoint",
+
+      state:
+        "維持身份鎖定並延續動作狀態"
+
+    });
+
+  }
+
+
+  keyframes.push({
+
+    time_ms:
+      input.duration * 1000,
+
+    type:"clip_end",
+
+    state:
+      "保存本片段最後人物位置、姿勢、視線、動作、環境、光線與鏡頭狀態"
+
+  });
+
+
+  return keyframes;
+
+}
+
+
+/* ---------------------------------------------------------
+   CHINESE PROMPT
+--------------------------------------------------------- */
+
+function buildChinesePrompt(input){
+
+  const tech =
+    selectedTechniques();
+
+  const techText =
+    tech.length
+      ? tech.join('\n')
+      : '未指定特殊導演技術，依故事自然安排。';
+
+
+  return `
+【AIVAULT VIDEO PROMPT】
+
+【影片長度】
+${input.duration} 秒
+
+【故事】
+${input.story}
+
+【主要人物】
+${input.character}
+
+【人物外觀】
+${input.appearance}
+
+【環境】
+${input.environment}
+
+【視覺風格】
+${input.style}
+
+【導演技術】
+${techText}
+
+【聲音】
+${input.audio}
+
+【CRITICAL IDENTITY CONTINUITY】
+人物必須始終是同一個人。
+
+不得因鏡頭切換、角度改變、運鏡、光線變化、動作變化或時間推進而變成另一個人。
+
+必須保持：
+- 相同人物身份
+- 相同臉部身份
+- 相同臉型
+- 相同眼睛形狀與間距
+- 相同眉型
+- 相同鼻子結構
+- 相同嘴唇比例
+- 相同下顎線
+- 相同臉部整體比例
+- 相同髮型
+- 相同服裝
+- 相同身體比例
+
+【CONTINUITY】
+每一秒必須從上一秒的最後狀態繼續。
+
+如果存在上一個 Clip：
+必須從 previous_end_state 接續。
+
+保持：
+- 人物位置
+- 人物姿勢
+- 人物視線
+- 動作狀態
+- 服裝
+- 環境
+- 空間關係
+- 光線邏輯
+- 視覺風格
+- 攝影機語言
+
+任何身份變化都視為 Critical Error。
+
+【AUTHORIZED CHANGES】
+只有故事明確要求的變化才可以改變人物狀態。
+
+【NEGATIVE CONSTRAINTS】
+不要換人。
+不要改臉。
+不要生成第二個相同人物。
+不要複製人物。
+不要突然改變髮型。
+不要突然改變服裝。
+不要改變人物身體比例。
+不要無理由改變環境。
+不要無理由改變光線。
+不要破壞時間連續性。
+不要產生不合理的物件變化。
+
+【TIMING】
+使用連續時間軸。
+底層時間解析度為 1ms。
+每秒為一個主要 Prompt Unit。
+只在必要的動作、鏡頭、速度、焦點或狀態變化處使用毫秒級 Keyframe。
+`.trim();
+
+}
+
+
+/* ---------------------------------------------------------
+   ENGLISH PROMPT
+--------------------------------------------------------- */
+
+function buildEnglishPrompt(input){
+
+  const tech =
+    selectedTechniques();
+
+  const techText =
+    tech.length
+      ? tech.join(', ')
+      : 'No special director technique specified.';
+
+
+  return `
+AIVAULT VIDEO PROMPT
+
+Duration:
+${input.duration} seconds
+
+Story:
+${input.story}
+
+Main Character:
+${input.character}
+
+Appearance:
+${input.appearance}
+
+Environment:
+${input.environment}
+
+Visual Style:
+${input.style}
+
+Director Techniques:
+${techText}
+
+Audio:
+${input.audio}
+
+CRITICAL IDENTITY CONTINUITY:
+
+The character must remain the exact same person throughout the entire sequence.
+
+Do not transform the character into another person because of camera changes, angle changes, movement, lighting, action, or temporal progression.
+
+Preserve:
+- exact character identity
+- facial identity
+- facial structure
+- face shape
+- eye shape and spacing
+- eyebrow shape
+- nose structure
+- mouth and lip proportions
+- jawline
+- cheeks
+- chin
+- overall facial proportions
+- hairstyle
+- clothing
+- body proportions
+
+CONTINUITY:
+
+Every second must continue directly from the previous second's ending state.
+
+If a previous clip exists, begin from the previous clip's end state.
+
+Preserve:
+character position,
+pose,
+eyeline,
+action state,
+clothing,
+environment,
+spatial relationships,
+lighting logic,
+visual style,
+camera language.
+
+Any identity drift is a CRITICAL ERROR.
+
+AUTHORIZED CHANGES:
+
+Only changes explicitly required by the story are allowed.
+
+NEGATIVE CONSTRAINTS:
+
+Do not change the person.
+Do not change the face.
+Do not duplicate the character.
+Do not create a second version of the character.
+Do not randomly change hairstyle.
+Do not randomly change clothing.
+Do not alter body proportions.
+Do not introduce unexplained environmental changes.
+Do not introduce unexplained lighting changes.
+Do not break temporal continuity.
+
+TIMING:
+
+Use a continuous timeline.
+Underlying temporal resolution: 1 millisecond.
+One primary Prompt Unit per second.
+Use millisecond keyframes only where an actual state, action, camera, speed, focus, or timing change is required.
+`.trim();
+
+}
+
+
+/* ---------------------------------------------------------
+   PROMPT SPEC
+--------------------------------------------------------- */
+
+function buildPromptSpec(input){
+
+  const continuity =
+    buildContinuity(input);
+
+  const timeline =
+    buildSecondTimeline(input);
+
+  const keyframes =
+    buildKeyframes(input);
+
+
+  return {
+
+    seedance_version:
+      "2.5",
+
+    format:{
+      duration_seconds:
+        input.duration,
+
+      duration_ms:
+        input.duration * 1000,
+
+      timing_resolution_ms:
+        1
+    },
+
+    assets:{
+      reference_required:
+        true,
+
+      identity_reference:
+        "character_001"
+    },
+
+    subject:{
+      character:
+        input.character,
+
+      appearance:
+        input.appearance
+    },
+
+    environment:{
+      description:
+        input.environment,
+
+      identity_lock:
+        "HARD"
+    },
+
+    camera:{
+      techniques:
+        input.techniques["景別"] || [],
+
+      angles:
+        input.techniques["攝影機角度"] || [],
+
+      movement:
+        input.techniques["運鏡"] || [],
+
+      viewpoint:
+        input.techniques["拍攝視角"] || [],
+
+      focus:
+        input.techniques["對焦"] || [],
+
+      composition:
+        input.techniques["構圖"] || []
+    },
+
+    cinematography:{
+      visual_style:
+        input.style,
+
+      lighting:
+        input.techniques["光線"] || []
+    },
+
+    motion:{
+      rhythm:
+        input.techniques["動作節奏"] || []
+    },
+
+    audio:{
+      description:
+        input.audio,
+
+      techniques:
+        input.techniques["聲音"] || []
+    },
+
+    transitions:
+      input.techniques["轉場"] || [],
+
+    timeline,
+
+    keyframes,
+
+    continuity,
+
+    constraints:{
+      identity_drift:
+        "CRITICAL",
+
+      action:
+        "prevent",
+
+      rules:[
+        "same character identity",
+        "same facial identity",
+        "same hairstyle",
+        "same clothing",
+        "same body proportions",
+        "same environment identity",
+        "same visual style",
+        "same lighting logic",
+        "same temporal continuity",
+        "no unexplained object changes",
+        "no unexplained costume changes",
+        "no character duplication"
+      ]
+    }
+
+  };
+
+}
+
+
+/* ---------------------------------------------------------
+   COMPILER
+--------------------------------------------------------- */
+
+function compilePrompt(){
+
+  const input =
+    getInput();
+
+
+  if(!input.story){
+
+    setStatus(
+      'error',
+      '請先輸入故事 / 場景。'
+    );
+
+    return null;
+
+  }
+
+
+  if(!input.character){
+
+    setStatus(
+      'error',
+      '請先輸入主要人物。'
+    );
+
+    return null;
+
+  }
+
+
+  const continuity =
+    buildContinuity(input);
+
+  const timeline =
+    buildSecondTimeline(input);
+
+  const keyframes =
+    buildKeyframes(input);
+
+  const promptSpec =
+    buildPromptSpec(input);
+
+
+  const result = {
+
+    version:
+      "aivault-video-prompt-compiler-1.0.0",
+
+    type:
+      "PROMPT_COMPILATION",
+
+    generated_at:
+      new Date().toISOString(),
+
+    duration_seconds:
+      input.duration,
+
+    duration_ms:
+      input.duration * 1000,
+
+    clip_duration_seconds:
+      input.duration,
+
+    chinese_prompt:
+      buildChinesePrompt(input),
+
+    english_prompt:
+      buildEnglishPrompt(input),
+
+    timeline,
+
+    keyframes,
+
+    continuity,
+
+    prompt_spec:
+      promptSpec
+
+  };
+
+
+  state.result =
+    result;
+
+
+  return result;
+
+}
+
+
+/* ---------------------------------------------------------
+   STATUS
+--------------------------------------------------------- */
+
+function setStatus(type,text){
+
+  const status =
+    document.getElementById('status');
+
+  status.className =
+    'status ' + type;
+
+  status.querySelector(
+    '.status-text'
+  ).textContent =
+    text;
+
+}
+
+
+/* ---------------------------------------------------------
+   ESCAPE
+--------------------------------------------------------- */
+
+function esc(value){
+
+  return String(value ?? '')
+    .replaceAll('&','&amp;')
+    .replaceAll('<','&lt;')
+    .replaceAll('>','&gt;')
+    .replaceAll('"','&quot;')
+    .replaceAll("'","&#039;");
+
+}
+
+
+/* ---------------------------------------------------------
+   COPY
+--------------------------------------------------------- */
+
+async function copyText(text){
+
+  try{
+
+    await navigator.clipboard.writeText(text);
+
+    setStatus(
+      'ok',
+      '已複製 Prompt。'
+    );
+
+  }catch(e){
+
+    setStatus(
+      'error',
+      '複製失敗，請手動選取文字。'
+    );
+
+  }
+
+}
+
+
+/* ---------------------------------------------------------
+   OVERVIEW
+--------------------------------------------------------- */
+
+function renderOverview(){
+
+  const r =
+    state.result;
+
+  if(!r){
+
+    renderEmpty();
+
+    return;
+
+  }
+
+
+  const techniques =
+    selectedTechniques();
+
+
+  document.getElementById(
+    'output'
+  ).innerHTML = `
+
+    <div class="result-card">
+
+      <div class="result-title">
+        Prompt 編譯完成
+      </div>
+
+      <div class="meta-grid">
+
+        <div class="meta">
+          <div class="meta-k">
+            Prompt Version
+          </div>
+
+          <div class="meta-v">
+            1.0.0
+          </div>
+        </div>
+
+        <div class="meta">
+          <div class="meta-k">
+            Duration
+          </div>
+
+          <div class="meta-v">
+            ${r.duration_seconds}s
+          </div>
+        </div>
+
+        <div class="meta">
+          <div class="meta-k">
+            Timeline
+          </div>
+
+          <div class="meta-v">
+            ${r.timeline.length} 秒
+          </div>
+        </div>
+
+        <div class="meta">
+          <div class="meta-k">
+            Identity Lock
+          </div>
+
+          <div class="meta-v">
+            CRITICAL / HARD
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <div class="result-card">
+
+      <div class="result-title">
+        已套用導演技術
+      </div>
+
+      <div class="prompt">
+        ${
+          techniques.length
+            ? esc(
+                techniques.join('\n')
+              )
+            : '未指定特殊技術'
+        }
+      </div>
+
+    </div>
+
+
+    <div class="result-card">
+
+      <div class="result-title">
+        繁體中文 Prompt
+
+        <button
+          class="copy-btn"
+          onclick='copyText(${JSON.stringify(
+            r.chinese_prompt
+          )})'
+        >
+          複製
+        </button>
+
+      </div>
+
+      <div class="prompt">
+        ${esc(r.chinese_prompt)}
+      </div>
+
+    </div>
+
+  `;
+
+}
+
+
+/* ---------------------------------------------------------
+   TIMELINE
+--------------------------------------------------------- */
+
+function renderTimeline(){
+
+  const r =
+    state.result;
+
+  if(!r){
+
+    renderEmpty();
+
+    return;
+
+  }
+
+
+  let html = '';
+
+  r.timeline.forEach(unit => {
+
+    html += `
+
+      <div class="second-card">
+
+        <div class="second-head">
+
+          <div class="second-num">
+            SECOND ${unit.second}
+          </div>
+
+          <div class="second-time">
+            ${unit.start_ms}ms →
+            ${unit.end_ms}ms
+          </div>
+
+        </div>
+
+
+        <div class="second-body">
+
+          <div class="second-grid">
+
+            <div class="unit">
+
+              <div class="unit-k">
+                ACTION
+              </div>
+
+              <div class="unit-v">
+                ${esc(unit.action)}
+              </div>
+
+            </div>
+
+
+            <div class="unit">
+
+              <div class="unit-k">
+                CAMERA
+              </div>
+
+              <div class="unit-v">
+                ${esc(unit.camera)}
+              </div>
+
+            </div>
+
+
+            <div class="unit">
+
+              <div class="unit-k">
+                SHOT
+              </div>
+
+              <div class="unit-v">
+                ${esc(unit.shot)}
+              </div>
+
+            </div>
+
+
+            <div class="unit">
+
+              <div class="unit-k">
+                FOCUS
+              </div>
+
+              <div class="unit-v">
+                ${esc(unit.focus)}
+              </div>
+
+            </div>
+
+
+            <div class="unit">
+
+              <div class="unit-k">
+                LIGHTING
+              </div>
+
+              <div class="unit-v">
+                ${esc(unit.lighting)}
+              </div>
+
+            </div>
+
+
+            <div class="unit">
+
+              <div class="unit-k">
+                AUDIO
+              </div>
+
+              <div class="unit-v">
+                ${esc(unit.audio)}
+              </div>
+
+            </div>
+
+
+            <div class="unit">
+
+              <div class="unit-k">
+                CHARACTER STATE
+              </div>
+
+              <div class="unit-v">
+                ${esc(unit.character_state)}
+              </div>
+
+            </div>
+
+
+            <div class="unit">
+
+              <div class="unit-k">
+                ENVIRONMENT
+              </div>
+
+              <div class="unit-v">
+                ${esc(unit.environment_state)}
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    `;
+
+  });
+
+
+  document.getElementById(
+    'output'
+  ).innerHTML = html;
+
+}
+
+
+/* ---------------------------------------------------------
+   CONTINUITY
+--------------------------------------------------------- */
+
+function renderContinuity(){
+
+  const r =
+    state.result;
+
+  if(!r){
+
+    renderEmpty();
+
+    return;
+
+  }
+
+
+  document.getElementById(
+    'output'
+  ).innerHTML = `
+
+    <div class="result-card">
+
+      <div class="result-title">
+        Critical Identity Continuity
+      </div>
+
+      <div class="prompt">
+身份鎖定：HARD
+
+優先級：CRITICAL
+
+任何身份漂移：
+→ Critical Error
+→ prevent
+
+這不是一般的「保持人物一致」文字，而是結構化 Continuity Constraint。
+      </div>
+
+    </div>
+
+
+    <div class="result-card">
+
+      <div class="result-title">
+        Face Identity Lock
+      </div>
+
+      <div class="prompt">
+${esc(
+  r.continuity
+    .characters[0]
+    .face_identity
+    .preserve
+    .map(x => '✓ ' + x)
+    .join('\n')
+)}
+      </div>
+
+    </div>
+
+
+    <div class="result-card">
+
+      <div class="result-title">
+        Appearance Identity
+      </div>
+
+      <div class="prompt">
+${esc(
+  r.continuity
+    .characters[0]
+    .appearance_identity
+    .preserve
+    .map(x => '✓ ' + x)
+    .join('\n')
+)}
+      </div>
+
+    </div>
+
+
+    <div class="result-card">
+
+      <div class="result-title">
+        Hard Constraints
+      </div>
+
+      <div class="prompt">
+${esc(
+  r.continuity
+    .hard_constraints
+    .map(x => '✓ ' + x)
+    .join('\n')
+)}
+      </div>
+
+    </div>
+
+
+    <div class="result-card">
+
+      <div class="result-title">
+        Previous End State
+      </div>
+
+      <div class="prompt">
+${esc(
+  r.continuity.previous_end_state
+)}
+      </div>
+
+    </div>
+
+  `;
+
+}
+
+
+/* ---------------------------------------------------------
+   SEEDANCE
+--------------------------------------------------------- */
+
+function renderSeedance(){
+
+  const r =
+    state.result;
+
+  if(!r){
+
+    renderEmpty();
+
+    return;
+
+  }
+
+
+  document.getElementById(
+    'output'
+  ).innerHTML = `
+
+    <div class="result-card">
+
+      <div class="result-title">
+        Seedance 2.5 Prompt
+      </div>
+
+      <div class="panel-desc">
+        這裡產生的是供影片模型使用的 Prompt，
+        本頁本身不生成影片。
+      </div>
+
+    </div>
+
+
+    <div class="result-card">
+
+      <div class="result-title">
+        Traditional Chinese
+
+        <button
+          class="copy-btn"
+          onclick='copyText(${JSON.stringify(
+            r.chinese_prompt
+          )})'
+        >
+          複製
+        </button>
+
+      </div>
+
+      <div class="prompt">
+        ${esc(r.chinese_prompt)}
+      </div>
+
+    </div>
+
+
+    <div class="result-card">
+
+      <div class="result-title">
+        English
+
+        <button
+          class="copy-btn"
+          onclick='copyText(${JSON.stringify(
+            r.english_prompt
+          )})'
+        >
+          Copy
+        </button>
+
+      </div>
+
+      <div class="prompt">
+        ${esc(r.english_prompt)}
+      </div>
+
+    </div>
+
+  `;
+
+}
+
+
+/* ---------------------------------------------------------
+   JSON
+--------------------------------------------------------- */
+
+function renderJSON(){
+
+  const r =
+    state.result;
+
+  if(!r){
+
+    renderEmpty();
+
+    return;
+
+  }
+
+
+  document.getElementById(
+    'output'
+  ).innerHTML = `
+
+    <div class="result-card">
+
+      <div class="result-title">
+        Prompt Spec
+      </div>
+
+      <button
+        class="copy-btn"
+        onclick='copyText(${JSON.stringify(
+          JSON.stringify(
+            r.prompt_spec,
+            null,
+            2
+          )
+        )})'
+      >
+        複製 JSON
+      </button>
+
+      <div class="json">
+${esc(
+  JSON.stringify(
+    r.prompt_spec,
+    null,
+    2
+  )
+)}
+      </div>
+
+    </div>
+
+  `;
+
+}
+
+
+/* ---------------------------------------------------------
+   EMPTY
+--------------------------------------------------------- */
+
+function renderEmpty(){
+
+  document.getElementById(
+    'output'
+  ).innerHTML = `
+
+    <div class="empty">
+
+      <div class="empty-icon">
+        ✦
+      </div>
+
+      <div class="empty-title">
+        等待 Prompt 編譯
+      </div>
+
+      <div>
+        輸入故事並選擇導演技術
+      </div>
+
+    </div>
+
+  `;
+
+}
+
+
+/* ---------------------------------------------------------
+   TAB
+--------------------------------------------------------- */
+
+function renderActiveTab(){
+
+  switch(state.activeTab){
+
+    case 'overview':
+      renderOverview();
+      break;
+
+    case 'timeline':
+      renderTimeline();
+      break;
+
+    case 'continuity':
+      renderContinuity();
+      break;
+
+    case 'seedance':
+      renderSeedance();
+      break;
+
+    case 'json':
+      renderJSON();
+      break;
+
+  }
+
+}
+
+
+document
+  .querySelectorAll('.out-tab')
+  .forEach(btn => {
+
+    btn.onclick = () => {
+
+      document
+        .querySelectorAll('.out-tab')
+        .forEach(x =>
+          x.classList.remove('active')
+        );
+
+      btn.classList.add('active');
+
+      state.activeTab =
+        btn.dataset.tab;
+
+      renderActiveTab();
+
+    };
+
+  });
+
+
+/* ---------------------------------------------------------
+   COMPILE BUTTON
+--------------------------------------------------------- */
+
+document
+  .getElementById('compileBtn')
+  .onclick = () => {
+
+    const btn =
+      document.getElementById(
+        'compileBtn'
+      );
+
+    btn.disabled = true;
+
+    setStatus(
+      '',
+      '正在建立 Prompt Spec、每秒時間軸與身份連續性規則…'
+    );
+
+
+    setTimeout(() => {
+
+      try{
+
+        const result =
+          compilePrompt();
+
+        if(!result){
+          btn.disabled = false;
+          return;
+        }
+
+
+        setStatus(
+          'ok',
+          `Prompt 編譯完成：${result.duration_seconds} 秒 / ${result.timeline.length} 個 Prompt Units / 1ms 底層時間解析度`
+        );
+
+
+        state.activeTab =
+          'overview';
+
+
+        document
+          .querySelectorAll('.out-tab')
+          .forEach(x =>
+            x.classList.remove('active')
+          );
+
+
+        document
+          .querySelector(
+            '[data-tab="overview"]'
+          )
+          .classList.add('active');
+
+
+        renderOverview();
+
+      }catch(error){
+
+        console.error(error);
+
+        setStatus(
+          'error',
+          'Prompt 編譯失敗：' +
+          error.message
+        );
+
+      }finally{
+
+        btn.disabled = false;
+
+      }
+
+    },120);
+
+  };
+
+
+/* ---------------------------------------------------------
+   INITIALIZE
+--------------------------------------------------------- */
+
+renderTechniques();
+
+renderEmpty();
+
+
+/* ---------------------------------------------------------
+   OPTIONAL BACKEND FUNCTION
+---------------------------------------------------------
+
+  後續正式接上：
+
+  POST
+  /functions/v1/aivault-video-prompt
+
+  action:
+  compile
+
+  但目前不要把
+  AIVAULT_VIDEO_PROMPT_SECRET
+  放進前端。
+
+  正式架構應該：
+
+  Frontend
+      ↓
+  safe user auth / backend route
+      ↓
+  aivault-video-prompt
+      ↓
+  Prompt Compiler
+      ↓
+  Prompt Spec
+      ↓
+  Seedance 2.5 Prompt
+
+--------------------------------------------------------- */
+
+</script>
+
+</body>
+</html>
