@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
 <title>AIVAULT Video Studio</title>
 
 <style>
@@ -21,11 +21,25 @@
   --danger:#ef4444;
 }
 
-*{box-sizing:border-box}
+*{
+  box-sizing:border-box;
+  max-width:100%;
+}
 
-html,body{
-  margin:0;
+html{
+  width:100%;
   min-height:100%;
+  overflow-x:hidden;
+  overscroll-behavior-x:none;
+}
+
+body{
+  width:100%;
+  min-height:100%;
+  margin:0;
+  overflow-x:hidden;
+  overscroll-behavior-x:none;
+  touch-action:pan-y;
   background:
     radial-gradient(circle at 50% -10%,rgba(244,63,94,.12),transparent 35%),
     var(--bg);
@@ -34,7 +48,10 @@ html,body{
   "Noto Sans TC",Arial,sans-serif;
 }
 
-button,input,textarea,select{
+button,
+input,
+textarea,
+select{
   font:inherit;
 }
 
@@ -42,21 +59,35 @@ button{
   cursor:pointer;
 }
 
-.app{
-  width:min(1180px,100%);
-  margin:auto;
-  padding:18px 14px 80px;
+input,
+textarea,
+select{
+  max-width:100%;
 }
 
+.app{
+  width:100%;
+  max-width:1180px;
+  margin:0 auto;
+  padding:18px 14px 100px;
+  overflow-x:hidden;
+}
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
 .header{
+  width:100%;
   display:flex;
   justify-content:space-between;
   align-items:center;
-  gap:16px;
+  gap:12px;
   margin-bottom:18px;
 }
 
 .brand{
+  min-width:0;
   display:flex;
   align-items:center;
   gap:12px;
@@ -65,6 +96,7 @@ button{
 .logo{
   width:42px;
   height:42px;
+  flex:0 0 42px;
   border-radius:13px;
   display:grid;
   place-items:center;
@@ -74,16 +106,52 @@ button{
   font-size:21px;
 }
 
+.brand-text{
+  min-width:0;
+}
+
 .brand h1{
   margin:0;
   font-size:20px;
   letter-spacing:.3px;
+  white-space:nowrap;
 }
 
 .brand p{
   margin:3px 0 0;
   color:var(--muted);
   font-size:12px;
+}
+
+.header-right{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex:0 0 auto;
+}
+
+/* 返回 Home */
+
+.home-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  border:1px solid #363640;
+  background:#111118;
+  color:#e7e7eb;
+  border-radius:10px;
+  padding:8px 11px;
+  font-size:12px;
+  font-weight:600;
+  text-decoration:none;
+  white-space:nowrap;
+  transition:.15s;
+}
+
+.home-btn:hover{
+  border-color:#666672;
+  background:#191922;
 }
 
 .status{
@@ -96,23 +164,31 @@ button{
   padding:8px 12px;
   font-size:12px;
   color:var(--muted);
+  white-space:nowrap;
 }
 
 .dot{
   width:7px;
   height:7px;
+  flex:0 0 7px;
   border-radius:50%;
   background:var(--green);
   box-shadow:0 0 9px rgba(52,211,153,.8);
 }
 
+/* =========================================================
+   PANEL
+   ========================================================= */
+
 .panel{
+  width:100%;
   background:linear-gradient(180deg,rgba(24,24,31,.97),rgba(14,14,19,.97));
   border:1px solid var(--line);
   border-radius:18px;
   padding:18px;
   margin-bottom:14px;
   box-shadow:0 12px 45px rgba(0,0,0,.2);
+  overflow:hidden;
 }
 
 .section-title{
@@ -143,7 +219,12 @@ button{
   padding:5px 9px;
   font-size:11px;
   white-space:nowrap;
+  flex:0 0 auto;
 }
+
+/* =========================================================
+   INPUT
+   ========================================================= */
 
 label{
   display:block;
@@ -190,12 +271,9 @@ label{
   gap:10px;
 }
 
-@media(max-width:700px){
-  .grid2,
-  .grid3{
-    grid-template-columns:1fr;
-  }
-}
+/* =========================================================
+   CHIPS
+   ========================================================= */
 
 .chips{
   display:flex;
@@ -247,12 +325,18 @@ label{
   margin-top:7px;
 }
 
+/* =========================================================
+   TABS
+   ========================================================= */
+
 .tabs{
   display:flex;
   gap:6px;
-  overflow:auto;
+  overflow-x:hidden;
+  overflow-y:hidden;
   padding-bottom:4px;
   margin-bottom:14px;
+  touch-action:pan-y;
 }
 
 .tab{
@@ -271,12 +355,20 @@ label{
   background:#1c1c24;
 }
 
+/* =========================================================
+   WORKSPACE
+   ========================================================= */
+
 .workspace{
   min-height:240px;
+  width:100%;
+  overflow:hidden;
 }
 
 .workspace-pane{
   display:none;
+  width:100%;
+  overflow:hidden;
 }
 
 .workspace-pane.on{
@@ -331,6 +423,7 @@ label{
   background:#0c0c11;
   padding:13px;
   margin-top:10px;
+  overflow:hidden;
 }
 
 .story-card h3{
@@ -341,6 +434,7 @@ label{
 .story-card pre{
   white-space:pre-wrap;
   word-break:break-word;
+  overflow-wrap:anywhere;
   margin:0;
   color:#d7d7dd;
   font:inherit;
@@ -348,16 +442,14 @@ label{
   line-height:1.7;
 }
 
+/* =========================================================
+   DIRECTOR
+   ========================================================= */
+
 .director-grid{
   display:grid;
   grid-template-columns:repeat(2,1fr);
   gap:12px;
-}
-
-@media(max-width:700px){
-  .director-grid{
-    grid-template-columns:1fr;
-  }
 }
 
 .tech-group{
@@ -365,6 +457,7 @@ label{
   border-radius:14px;
   padding:12px;
   background:#0d0d12;
+  overflow:hidden;
 }
 
 .tech-group h3{
@@ -380,9 +473,14 @@ label{
   padding:7px 9px;
 }
 
+/* =========================================================
+   SOURCE
+   ========================================================= */
+
 .source-preview{
   display:grid;
   gap:8px;
+  width:100%;
 }
 
 .source-line{
@@ -391,6 +489,7 @@ label{
   border-radius:10px;
   padding:10px 12px;
   font-size:12px;
+  overflow-wrap:anywhere;
 }
 
 .source-line strong{
@@ -401,9 +500,14 @@ label{
   color:#9999a3;
 }
 
+/* =========================================================
+   PROMPT
+   ========================================================= */
+
 .prompt-box{
   position:relative;
   margin-top:10px;
+  width:100%;
 }
 
 .prompt-box textarea{
@@ -411,6 +515,7 @@ label{
   padding-right:45px;
   font-size:12px;
   line-height:1.7;
+  overflow-wrap:anywhere;
 }
 
 .copy-float{
@@ -423,6 +528,7 @@ label{
   border-radius:8px;
   padding:7px 9px;
   font-size:11px;
+  z-index:2;
 }
 
 .copy-float:hover{
@@ -436,9 +542,14 @@ label{
   flex-wrap:wrap;
 }
 
+/* =========================================================
+   TIMELINE
+   ========================================================= */
+
 .timeline{
   display:grid;
   gap:7px;
+  width:100%;
 }
 
 .timeline-item{
@@ -449,6 +560,7 @@ label{
   background:#0c0c11;
   border-radius:10px;
   padding:9px;
+  overflow:hidden;
 }
 
 .timeline-time{
@@ -461,7 +573,13 @@ label{
   color:#cfcfd6;
   font-size:12px;
   line-height:1.55;
+  word-break:break-word;
+  overflow-wrap:anywhere;
 }
+
+/* =========================================================
+   LOADING
+   ========================================================= */
 
 .loading{
   display:none;
@@ -473,6 +591,10 @@ label{
 .loading.on{
   display:block;
 }
+
+/* =========================================================
+   TOAST
+   ========================================================= */
 
 .toast{
   position:fixed;
@@ -489,6 +611,8 @@ label{
   font-size:12px;
   transition:.2s;
   z-index:50;
+  max-width:calc(100vw - 30px);
+  text-align:center;
 }
 
 .toast.on{
@@ -511,6 +635,102 @@ label{
   font-size:10px;
   margin-top:25px;
 }
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media(max-width:700px){
+
+  html,
+  body{
+    overflow-x:hidden !important;
+    width:100%;
+    max-width:100%;
+    touch-action:pan-y;
+  }
+
+  .app{
+    width:100%;
+    padding:12px 10px 100px;
+    overflow-x:hidden;
+  }
+
+  .header{
+    align-items:flex-start;
+  }
+
+  .brand{
+    min-width:0;
+  }
+
+  .brand h1{
+    font-size:17px;
+  }
+
+  .brand p{
+    font-size:10px;
+  }
+
+  .logo{
+    width:38px;
+    height:38px;
+    flex-basis:38px;
+  }
+
+  .header-right{
+    flex-direction:column;
+    align-items:flex-end;
+  }
+
+  .status{
+    padding:6px 9px;
+    font-size:10px;
+  }
+
+  .home-btn{
+    padding:7px 9px;
+    font-size:11px;
+  }
+
+  .panel{
+    padding:14px;
+    border-radius:15px;
+  }
+
+  .grid2,
+  .grid3,
+  .director-grid{
+    grid-template-columns:1fr;
+  }
+
+  .section-title{
+    gap:8px;
+  }
+
+  .section-title h2{
+    font-size:15px;
+  }
+
+  .badge{
+    font-size:9px;
+    padding:4px 7px;
+  }
+
+  .chip{
+    padding:7px 9px;
+    font-size:11px;
+  }
+
+  .tech-group .chip{
+    padding:6px 8px;
+    font-size:11px;
+  }
+
+  .prompt-box textarea{
+    min-height:250px;
+  }
+}
 </style>
 </head>
 
@@ -518,30 +738,59 @@ label{
 
 <div class="app">
 
+  <!-- =====================================================
+       HEADER
+       ===================================================== -->
+
   <header class="header">
+
     <div class="brand">
+
       <div class="logo">✦</div>
-      <div>
+
+      <div class="brand-text">
         <h1>AIVAULT Video Studio</h1>
         <p>AI 故事創作・分鏡・導演・影片提示詞工作室</p>
       </div>
+
     </div>
 
-    <div class="status">
-      <span class="dot"></span>
-      <span id="statusText">Studio Ready</span>
+    <div class="header-right">
+
+      <!-- 返回 Home -->
+      <a
+        id="homeBtn"
+        class="home-btn"
+        href="./index.html"
+      >
+        ⌂ 返回 Home
+      </a>
+
+      <div class="status">
+        <span class="dot"></span>
+        <span id="statusText">Studio Ready</span>
+      </div>
+
     </div>
+
   </header>
 
-  <!-- ① 故事主題 -->
+
+  <!-- =====================================================
+       ① 故事主題
+       ===================================================== -->
+
   <section class="panel">
 
     <div class="section-title">
+
       <div>
         <h2>① 故事主題</h2>
         <p>可以直接選固定題材，也可以完全自己輸入。</p>
       </div>
+
       <span class="badge">Story Creation</span>
+
     </div>
 
     <label>固定題材</label>
@@ -562,6 +811,7 @@ label{
     </div>
 
     <div style="margin-top:13px">
+
       <label for="themeInput">自訂題材</label>
 
       <input
@@ -573,91 +823,132 @@ label{
       <div class="small-note">
         固定題材與自訂題材都會成為真正的 Story Source，不會在最後生成提示詞時遺失。
       </div>
+
     </div>
 
   </section>
 
 
-  <!-- ② 故事設定 -->
+  <!-- =====================================================
+       ② 故事設定
+       ===================================================== -->
+
   <section class="panel">
 
     <div class="section-title">
+
       <div>
         <h2>② 故事設定</h2>
         <p>讓 AI 真正幫你寫故事，而不是只生成一段影片 Prompt。</p>
       </div>
+
       <span class="badge">AI Writer</span>
+
     </div>
 
     <div class="grid2">
 
       <div>
+
         <label>故事名稱</label>
+
         <input
           id="storyTitle"
           class="input"
           placeholder="可留空，AI 自動命名"
         />
+
       </div>
 
       <div>
+
         <label>主要角色</label>
+
         <input
           id="characters"
           class="input"
           placeholder="例如：10歲女孩、小學老師、AI 機器人"
         />
+
       </div>
 
     </div>
 
     <div style="margin-top:13px">
+
       <label>故事要求</label>
 
       <textarea
         id="storyRequest"
         class="textarea"
-        placeholder="告訴 AI 你想怎麼寫。例如：&#10;主角是一名小學生，第一次獨自使用網路，遇到陌生人要求提供個人資料。故事要有危機、轉折與安全教育。"
+        placeholder="告訴 AI 你想怎麼寫。例如：
+主角是一名小學生，第一次獨自使用網路，遇到陌生人要求提供個人資料。故事要有危機、轉折與安全教育。"
       ></textarea>
+
     </div>
 
     <div class="grid3" style="margin-top:13px">
 
       <div>
+
         <label>故事模式</label>
+
         <div class="mode-row" id="modeChips">
+
           <button class="chip on" data-mode="單集">單集</button>
           <button class="chip" data-mode="系列">系列</button>
           <button class="chip" data-mode="科普">科普</button>
           <button class="chip" data-mode="故事">故事</button>
           <button class="chip" data-mode="訪談">訪談</button>
           <button class="chip" data-mode="紀錄片">紀錄片</button>
+
         </div>
+
       </div>
 
+
       <div>
+
         <label>影片長度</label>
+
         <div class="duration-row" id="durationChips">
+
           <button class="chip duration-btn" data-duration="6">6 秒</button>
           <button class="chip duration-btn" data-duration="10">10 秒</button>
           <button class="chip duration-btn" data-duration="15">15 秒</button>
           <button class="chip duration-btn on" data-duration="30">30 秒</button>
           <button class="chip duration-btn" data-duration="60">60 秒</button>
+
         </div>
+
       </div>
 
+
       <div>
+
         <label>影片語言</label>
+
         <select id="language" class="select">
+
           <option value="zh-TW">繁體中文</option>
+
+          <!-- 新增：簡體中文 -->
+          <option value="zh-CN">简体中文</option>
+
           <option value="zh-TW,en">繁體中文＋English</option>
+
+          <option value="zh-CN,en">简体中文＋English</option>
+
           <option value="en">English</option>
+
         </select>
+
       </div>
 
     </div>
 
     <div class="action-row">
+
       <button class="btn primary" id="generateStoryBtn">
         ✦ AI 開始寫故事
       </button>
@@ -665,6 +956,7 @@ label{
       <button class="btn secondary" id="clearStoryBtn">
         清除故事
       </button>
+
     </div>
 
     <div class="loading" id="storyLoading">
@@ -674,15 +966,21 @@ label{
   </section>
 
 
-  <!-- ③ 工作區 -->
+  <!-- =====================================================
+       ③ 故事工作區
+       ===================================================== -->
+
   <section class="panel">
 
     <div class="section-title">
+
       <div>
         <h2>③ 故事工作區</h2>
         <p>故事、文案、旁白、分鏡都集中在同一個專案。</p>
       </div>
+
       <span class="badge">Project Workspace</span>
+
     </div>
 
     <div class="tabs" id="workspaceTabs">
@@ -700,51 +998,75 @@ label{
     <div class="workspace">
 
       <div class="workspace-pane on" id="pane-topic">
+
         <div class="story-card">
           <h3>目前故事主題</h3>
           <pre id="topicOutput">尚未設定</pre>
         </div>
+
       </div>
 
+
       <div class="workspace-pane" id="pane-outline">
+
         <div class="story-card">
           <h3>故事大綱</h3>
           <pre id="outlineOutput">AI 生成故事後會出現在這裡。</pre>
         </div>
+
       </div>
 
+
       <div class="workspace-pane" id="pane-script">
+
         <div class="story-card">
           <h3>文案／旁白</h3>
           <pre id="scriptOutput">AI 生成故事後會出現在這裡。</pre>
         </div>
+
       </div>
 
+
       <div class="workspace-pane" id="pane-fact">
+
         <div class="story-card">
           <h3>事實查核</h3>
           <pre id="factOutput">目前尚未進行事實查核。</pre>
         </div>
+
       </div>
+
 
       <div class="workspace-pane" id="pane-storyboard">
+
         <div id="timelineOutput" class="timeline">
-          <div class="empty">AI 生成故事後，這裡會建立分鏡。</div>
+
+          <div class="empty">
+            AI 生成故事後，這裡會建立分鏡。
+          </div>
+
         </div>
+
       </div>
 
+
       <div class="workspace-pane" id="pane-discussion">
+
         <div class="story-card">
           <h3>討論／與談</h3>
           <pre id="discussionOutput">尚未建立討論內容。</pre>
         </div>
+
       </div>
 
+
       <div class="workspace-pane" id="pane-review">
+
         <div class="story-card">
           <h3>最終審查</h3>
           <pre id="reviewOutput">尚未完成最終審查。</pre>
         </div>
+
       </div>
 
     </div>
@@ -752,22 +1074,31 @@ label{
   </section>
 
 
-  <!-- ④ 導演 -->
+  <!-- =====================================================
+       ④ 導演
+       ===================================================== -->
+
   <section class="panel">
 
     <div class="section-title">
+
       <div>
         <h2>④ 導演／拍攝效果</h2>
         <p>可複選。這些設定最後會進入影片生成 Prompt。</p>
       </div>
+
       <span class="badge">Director</span>
+
     </div>
 
     <div class="director-grid" id="directorTechniques">
 
       <div class="tech-group">
+
         <h3>景別</h3>
+
         <div class="chips" data-category="景別">
+
           <button class="chip" data-value="超遠景">超遠景</button>
           <button class="chip" data-value="遠景">遠景</button>
           <button class="chip" data-value="全景">全景</button>
@@ -777,12 +1108,18 @@ label{
           <button class="chip" data-value="近景">近景</button>
           <button class="chip" data-value="大特寫">大特寫</button>
           <button class="chip" data-value="細節特寫">細節特寫</button>
+
         </div>
+
       </div>
 
+
       <div class="tech-group">
+
         <h3>拍攝視角</h3>
+
         <div class="chips" data-category="拍攝視角">
+
           <button class="chip" data-value="平視">平視</button>
           <button class="chip" data-value="第一人稱視角">第一人稱視角</button>
           <button class="chip" data-value="第三人稱視角">第三人稱視角</button>
@@ -790,12 +1127,18 @@ label{
           <button class="chip" data-value="肩後視角">肩後視角</button>
           <button class="chip" data-value="旁觀者視角">旁觀者視角</button>
           <button class="chip" data-value="上帝視角">上帝視角</button>
+
         </div>
+
       </div>
 
+
       <div class="tech-group">
+
         <h3>攝影機角度</h3>
+
         <div class="chips" data-category="攝影機角度">
+
           <button class="chip" data-value="正面">正面</button>
           <button class="chip" data-value="側面">側面</button>
           <button class="chip" data-value="背面">背面</button>
@@ -804,12 +1147,18 @@ label{
           <button class="chip" data-value="正上方俯拍">正上方俯拍</button>
           <button class="chip" data-value="接近地面">接近地面</button>
           <button class="chip" data-value="傾斜角度">傾斜角度</button>
+
         </div>
+
       </div>
 
+
       <div class="tech-group">
+
         <h3>運鏡</h3>
+
         <div class="chips" data-category="運鏡">
+
           <button class="chip" data-value="固定鏡頭">固定鏡頭</button>
           <button class="chip" data-value="緩慢推近">緩慢推近</button>
           <button class="chip" data-value="快速推近">快速推近</button>
@@ -825,12 +1174,18 @@ label{
           <button class="chip" data-value="手持攝影">手持攝影</button>
           <button class="chip" data-value="輕微手持晃動">輕微手持晃動</button>
           <button class="chip" data-value="快速甩鏡">快速甩鏡</button>
+
         </div>
+
       </div>
 
+
       <div class="tech-group">
+
         <h3>對焦</h3>
+
         <div class="chips" data-category="對焦">
+
           <button class="chip" data-value="全景深">全景深</button>
           <button class="chip" data-value="淺景深">淺景深</button>
           <button class="chip" data-value="背景虛化">背景虛化</button>
@@ -839,12 +1194,18 @@ label{
           <button class="chip" data-value="物體對焦">物體對焦</button>
           <button class="chip" data-value="焦點從人物移到背景">焦點從人物移到背景</button>
           <button class="chip" data-value="焦點從背景移到人物">焦點從背景移到人物</button>
+
         </div>
+
       </div>
 
+
       <div class="tech-group">
+
         <h3>人物調度</h3>
+
         <div class="chips" data-category="人物調度">
+
           <button class="chip" data-value="人物走入畫面">人物走入畫面</button>
           <button class="chip" data-value="人物走出畫面">人物走出畫面</button>
           <button class="chip" data-value="向鏡頭走來">向鏡頭走來</button>
@@ -856,12 +1217,18 @@ label{
           <button class="chip" data-value="人物停留右側">人物停留右側</button>
           <button class="chip" data-value="前景人物＋背景人物">前景人物＋背景人物</button>
           <button class="chip" data-value="背景到前景">背景到前景</button>
+
         </div>
+
       </div>
 
+
       <div class="tech-group">
+
         <h3>構圖</h3>
+
         <div class="chips" data-category="構圖">
+
           <button class="chip" data-value="中央構圖">中央構圖</button>
           <button class="chip" data-value="三分法">三分法</button>
           <button class="chip" data-value="對稱">對稱</button>
@@ -872,12 +1239,18 @@ label{
           <button class="chip" data-value="多層次景深">多層次景深</button>
           <button class="chip" data-value="人物靠左">人物靠左</button>
           <button class="chip" data-value="人物靠右">人物靠右</button>
+
         </div>
+
       </div>
 
+
       <div class="tech-group">
+
         <h3>光線</h3>
+
         <div class="chips" data-category="光線">
+
           <button class="chip" data-value="自然光">自然光</button>
           <button class="chip" data-value="黃金時刻">黃金時刻</button>
           <button class="chip" data-value="藍調時刻">藍調時刻</button>
@@ -890,12 +1263,18 @@ label{
           <button class="chip" data-value="高調明亮">高調明亮</button>
           <button class="chip" data-value="低調陰暗">低調陰暗</button>
           <button class="chip" data-value="明暗對比強烈">明暗對比強烈</button>
+
         </div>
+
       </div>
 
+
       <div class="tech-group">
+
         <h3>畫面風格</h3>
+
         <div class="chips" data-category="畫面風格">
+
           <button class="chip" data-value="電影寫實">電影寫實</button>
           <button class="chip" data-value="超寫實">超寫實</button>
           <button class="chip" data-value="紀錄片">紀錄片</button>
@@ -909,12 +1288,18 @@ label{
           <button class="chip" data-value="科幻">科幻</button>
           <button class="chip" data-value="古典電影">古典電影</button>
           <button class="chip" data-value="手持紀錄片">手持紀錄片</button>
+
         </div>
+
       </div>
 
+
       <div class="tech-group">
+
         <h3>動作節奏</h3>
+
         <div class="chips" data-category="動作節奏">
+
           <button class="chip" data-value="極慢">極慢</button>
           <button class="chip" data-value="很慢">很慢</button>
           <button class="chip" data-value="慢">慢</button>
@@ -927,12 +1312,18 @@ label{
           <button class="chip" data-value="慢動作">慢動作</button>
           <button class="chip" data-value="即時速度">即時速度</button>
           <button class="chip" data-value="延時攝影">延時攝影</button>
+
         </div>
+
       </div>
 
+
       <div class="tech-group">
+
         <h3>轉場</h3>
+
         <div class="chips" data-category="轉場">
+
           <button class="chip" data-value="直接切換">直接切換</button>
           <button class="chip" data-value="動作接續">動作接續</button>
           <button class="chip" data-value="動作匹配">動作匹配</button>
@@ -944,12 +1335,18 @@ label{
           <button class="chip" data-value="黑閃">黑閃</button>
           <button class="chip" data-value="突然切換">突然切換</button>
           <button class="chip" data-value="音樂節奏切換">音樂節奏切換</button>
+
         </div>
+
       </div>
 
+
       <div class="tech-group">
+
         <h3>聲音</h3>
+
         <div class="chips" data-category="聲音">
+
           <button class="chip" data-value="人物對話">人物對話</button>
           <button class="chip" data-value="旁白">旁白</button>
           <button class="chip" data-value="環境音">環境音</button>
@@ -962,7 +1359,9 @@ label{
           <button class="chip" data-value="音樂逐漸增強">音樂逐漸增強</button>
           <button class="chip" data-value="音樂突然停止">音樂突然停止</button>
           <button class="chip" data-value="完全靜音">完全靜音</button>
+
         </div>
+
       </div>
 
     </div>
@@ -970,15 +1369,21 @@ label{
   </section>
 
 
-  <!-- ⑤ 人物一致性 -->
+  <!-- =====================================================
+       ⑤ 一致性
+       ===================================================== -->
+
   <section class="panel">
 
     <div class="section-title">
+
       <div>
         <h2>⑤ 角色／場景一致性</h2>
         <p>用於多鏡頭與多段影片，避免角色外觀漂移。</p>
       </div>
+
       <span class="badge">Continuity Lock</span>
+
     </div>
 
     <div class="chips" id="continuityChips">
@@ -999,15 +1404,21 @@ label{
   </section>
 
 
-  <!-- ⑥ 最終提示詞 -->
+  <!-- =====================================================
+       ⑥ 最終提示詞
+       ===================================================== -->
+
   <section class="panel">
 
     <div class="section-title">
+
       <div>
         <h2>⑥ 生成影片提示詞</h2>
         <p>把故事、旁白、分鏡、導演設定與一致性一次整合。</p>
       </div>
+
       <span class="badge">Seedance 2.5 Prompt</span>
+
     </div>
 
     <div class="source-preview">
@@ -1028,6 +1439,11 @@ label{
       </div>
 
       <div class="source-line">
+        <strong>影片語言：</strong>
+        <span id="promptLanguage">繁體中文</span>
+      </div>
+
+      <div class="source-line">
         <strong>導演設定：</strong>
         <span id="promptTechniques">尚未選擇</span>
       </div>
@@ -1035,9 +1451,14 @@ label{
     </div>
 
     <div class="action-row">
-      <button class="btn primary full" id="generatePromptBtn">
+
+      <button
+        class="btn primary full"
+        id="generatePromptBtn"
+      >
         🎬 生成影片提示詞
       </button>
+
     </div>
 
     <div class="loading" id="promptLoading">
@@ -1045,6 +1466,7 @@ label{
     </div>
 
     <div class="prompt-box">
+
       <textarea
         id="promptZh"
         class="textarea"
@@ -1052,18 +1474,32 @@ label{
         placeholder="按下「生成影片提示詞」後，完整中文 Prompt 會出現在這裡。"
       ></textarea>
 
-      <button class="copy-float" data-copy="promptZh">
+      <button
+        class="copy-float"
+        data-copy="promptZh"
+      >
         複製
       </button>
+
     </div>
 
     <div class="prompt-actions">
-      <button class="btn green" data-copy="promptZh">
+
+      <button
+        class="btn green"
+        data-copy="promptZh"
+      >
         📋 複製中文提示詞
       </button>
+
     </div>
 
-    <div class="prompt-box" style="margin-top:18px">
+
+    <div
+      class="prompt-box"
+      style="margin-top:18px"
+    >
+
       <textarea
         id="promptEn"
         class="textarea"
@@ -1071,15 +1507,24 @@ label{
         placeholder="English Prompt will appear here."
       ></textarea>
 
-      <button class="copy-float" data-copy="promptEn">
+      <button
+        class="copy-float"
+        data-copy="promptEn"
+      >
         Copy
       </button>
+
     </div>
 
     <div class="prompt-actions">
-      <button class="btn green" data-copy="promptEn">
+
+      <button
+        class="btn green"
+        data-copy="promptEn"
+      >
         📋 Copy English Prompt
       </button>
+
     </div>
 
   </section>
@@ -1091,15 +1536,18 @@ label{
 
 </div>
 
+
 <div class="toast" id="toast"></div>
 
 
 <script>
+
 /* =========================================================
-   AIVAULT VIDEO STUDIO
+   CONFIG
    ========================================================= */
 
 const CONFIG = {
+
   AI_GATEWAY_URL:
     "https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/ai-gateway",
 
@@ -1107,8 +1555,23 @@ const CONFIG = {
     "https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/aivault-video-prompt",
 
   SUPABASE_ANON_KEY:
-    "YOUR_SUPABASE_ANON_KEY"
+    "YOUR_SUPABASE_ANON_KEY",
+
+  /*
+   * 返回 Home 的位置。
+   * 如果你的 Home 不是 index.html，只改這裡。
+   */
+  HOME_URL:
+    "./index.html"
+
 };
+
+
+/* =========================================================
+   HOME
+   ========================================================= */
+
+$("homeBtn").href = CONFIG.HOME_URL;
 
 
 /* =========================================================
@@ -1116,42 +1579,71 @@ const CONFIG = {
    ========================================================= */
 
 const videoProject = {
+
   theme: "",
+
   title: "",
+
   characters: "",
+
   request: "",
+
   mode: "單集",
+
   duration_seconds: 30,
+
   language: "zh-TW",
 
   story: "",
+
   outline: "",
+
   script: "",
+
   narration: "",
+
   storyboard: "",
+
   fact_check: "",
+
   discussion: "",
+
   review: "",
 
   director_techniques: {},
 
   continuity: {
+
     same_person: true,
+
     same_face: true,
+
     same_hairstyle: true,
+
     same_clothing: true,
+
     same_body_proportions: true,
+
     same_environment: true,
+
     same_visual_style: true,
+
     same_lighting_logic: true,
+
     prevent_identity_drift: true,
+
     previous_end_state: true
+
   },
 
   prompt: {
+
     zh: "",
+
     en: ""
+
   }
+
 };
 
 
@@ -1159,7 +1651,8 @@ const videoProject = {
    DOM
    ========================================================= */
 
-const $ = id => document.getElementById(id);
+const $ = id =>
+  document.getElementById(id);
 
 
 /* =========================================================
@@ -1167,16 +1660,51 @@ const $ = id => document.getElementById(id);
    ========================================================= */
 
 function toast(message){
+
   const el = $("toast");
 
   el.textContent = message;
+
   el.classList.add("on");
 
   clearTimeout(window.__toastTimer);
 
   window.__toastTimer = setTimeout(()=>{
+
     el.classList.remove("on");
+
   },1800);
+
+}
+
+
+/* =========================================================
+   LANGUAGE LABEL
+   ========================================================= */
+
+function getLanguageLabel(value){
+
+  const map = {
+
+    "zh-TW":
+      "繁體中文",
+
+    "zh-CN":
+      "简体中文",
+
+    "zh-TW,en":
+      "繁體中文＋English",
+
+    "zh-CN,en":
+      "简体中文＋English",
+
+    "en":
+      "English"
+
+  };
+
+  return map[value] || value;
+
 }
 
 
@@ -1184,188 +1712,278 @@ function toast(message){
    THEME
    ========================================================= */
 
-$("themeChips").addEventListener("click", e => {
+$("themeChips").addEventListener(
+  "click",
+  e => {
 
-  const btn = e.target.closest("[data-t]");
+    const btn =
+      e.target.closest("[data-t]");
 
-  if(!btn) return;
+    if(!btn) return;
 
-  const value = btn.dataset.t;
+    const value =
+      btn.dataset.t;
 
-  $("themeInput").value = value;
+    $("themeInput").value =
+      value;
 
-  document
-    .querySelectorAll("#themeChips .chip")
-    .forEach(chip=>{
-      chip.classList.toggle(
-        "on",
-        chip.dataset.t === value
-      );
-    });
+    document
+      .querySelectorAll("#themeChips .chip")
+      .forEach(chip => {
 
-  videoProject.theme = value;
+        chip.classList.toggle(
+          "on",
+          chip.dataset.t === value
+        );
 
-  updateSourcePreview();
-});
+      });
+
+    videoProject.theme =
+      value;
+
+    updateSourcePreview();
+
+  }
+);
 
 
-$("themeInput").addEventListener("input", ()=>{
+$("themeInput").addEventListener(
+  "input",
+  ()=>{
 
-  const value = $("themeInput").value.trim();
+    const value =
+      $("themeInput").value.trim();
 
-  videoProject.theme = value;
+    videoProject.theme =
+      value;
 
-  document
-    .querySelectorAll("#themeChips .chip")
-    .forEach(chip=>{
-      chip.classList.toggle(
-        "on",
-        chip.dataset.t === value
-      );
-    });
+    document
+      .querySelectorAll("#themeChips .chip")
+      .forEach(chip=>{
 
-  updateSourcePreview();
-});
+        chip.classList.toggle(
+          "on",
+          chip.dataset.t === value
+        );
+
+      });
+
+    updateSourcePreview();
+
+  }
+);
 
 
 /* =========================================================
    MODE
    ========================================================= */
 
-$("modeChips").addEventListener("click", e=>{
+$("modeChips").addEventListener(
+  "click",
+  e=>{
 
-  const btn = e.target.closest("[data-mode]");
+    const btn =
+      e.target.closest("[data-mode]");
 
-  if(!btn) return;
+    if(!btn) return;
 
-  document
-    .querySelectorAll("#modeChips .chip")
-    .forEach(x=>{
-      x.classList.toggle("on",x===btn);
-    });
+    document
+      .querySelectorAll("#modeChips .chip")
+      .forEach(x=>{
 
-  videoProject.mode = btn.dataset.mode;
-});
+        x.classList.toggle(
+          "on",
+          x===btn
+        );
+
+      });
+
+    videoProject.mode =
+      btn.dataset.mode;
+
+  }
+);
 
 
 /* =========================================================
    DURATION
    ========================================================= */
 
-$("durationChips").addEventListener("click", e=>{
+$("durationChips").addEventListener(
+  "click",
+  e=>{
 
-  const btn = e.target.closest("[data-duration]");
+    const btn =
+      e.target.closest("[data-duration]");
 
-  if(!btn) return;
+    if(!btn) return;
 
-  const duration = Number(btn.dataset.duration);
+    const duration =
+      Number(btn.dataset.duration);
 
-  videoProject.duration_seconds = duration;
+    videoProject.duration_seconds =
+      duration;
 
-  document
-    .querySelectorAll("#durationChips .chip")
-    .forEach(x=>{
-      x.classList.toggle("on",x===btn);
-    });
+    document
+      .querySelectorAll(
+        "#durationChips .chip"
+      )
+      .forEach(x=>{
 
-  updateSourcePreview();
-});
+        x.classList.toggle(
+          "on",
+          x===btn
+        );
+
+      });
+
+    updateSourcePreview();
+
+  }
+);
 
 
 /* =========================================================
    LANGUAGE
    ========================================================= */
 
-$("language").addEventListener("change", e=>{
-  videoProject.language = e.target.value;
-});
+$("language").addEventListener(
+  "change",
+  e=>{
+
+    videoProject.language =
+      e.target.value;
+
+    updateSourcePreview();
+
+  }
+);
 
 
 /* =========================================================
    DIRECTOR TECHNIQUES
    ========================================================= */
 
-$("directorTechniques").addEventListener("click", e=>{
+$("directorTechniques").addEventListener(
+  "click",
+  e=>{
 
-  const btn = e.target.closest("[data-value]");
+    const btn =
+      e.target.closest("[data-value]");
 
-  if(!btn) return;
+    if(!btn) return;
 
-  btn.classList.toggle("on");
+    btn.classList.toggle("on");
 
-  const group = btn.closest(".tech-group");
-  const category = group.dataset.category ||
-    group.querySelector("[data-category]")?.dataset.category;
+    const chipsContainer =
+      btn.closest("[data-category]");
 
-  /*
-   * 因為 data-category 在 .chips 上，
-   * 從按鈕往上找到它。
-   */
-  const chipsContainer = btn.closest("[data-category]");
+    if(!chipsContainer) return;
 
-  if(!chipsContainer) return;
+    const category =
+      chipsContainer.dataset.category;
 
-  const realCategory = chipsContainer.dataset.category;
+    if(!videoProject.director_techniques[category]){
 
-  if(!videoProject.director_techniques[realCategory]){
-    videoProject.director_techniques[realCategory] = [];
+      videoProject.director_techniques[category] =
+        [];
+
+    }
+
+    const selected = [
+      ...chipsContainer.querySelectorAll(
+        ".chip.on"
+      )
+    ].map(
+      x => x.dataset.value
+    );
+
+    videoProject.director_techniques[category] =
+      selected;
+
+    if(selected.length === 0){
+
+      delete videoProject.director_techniques[
+        category
+      ];
+
+    }
+
+    updateSourcePreview();
+
   }
-
-  const selected = [
-    ...chipsContainer.querySelectorAll(".chip.on")
-  ].map(x=>x.dataset.value);
-
-  videoProject.director_techniques[realCategory] = selected;
-
-  if(selected.length === 0){
-    delete videoProject.director_techniques[realCategory];
-  }
-
-  updateSourcePreview();
-});
+);
 
 
 /* =========================================================
    CONTINUITY
    ========================================================= */
 
-$("continuityChips").addEventListener("click", e=>{
+$("continuityChips").addEventListener(
+  "click",
+  e=>{
 
-  const btn = e.target.closest("[data-cont]");
+    const btn =
+      e.target.closest("[data-cont]");
 
-  if(!btn) return;
+    if(!btn) return;
 
-  btn.classList.toggle("on");
+    btn.classList.toggle("on");
 
-  videoProject.continuity[btn.dataset.cont] =
-    btn.classList.contains("on");
-});
+    videoProject.continuity[
+      btn.dataset.cont
+    ] =
+      btn.classList.contains("on");
+
+  }
+);
 
 
 /* =========================================================
    WORKSPACE TABS
    ========================================================= */
 
-$("workspaceTabs").addEventListener("click", e=>{
+$("workspaceTabs").addEventListener(
+  "click",
+  e=>{
 
-  const btn = e.target.closest("[data-tab]");
+    const btn =
+      e.target.closest("[data-tab]");
 
-  if(!btn) return;
+    if(!btn) return;
 
-  document
-    .querySelectorAll("#workspaceTabs .tab")
-    .forEach(x=>{
-      x.classList.toggle("on",x===btn);
-    });
+    document
+      .querySelectorAll(
+        "#workspaceTabs .tab"
+      )
+      .forEach(x=>{
 
-  document
-    .querySelectorAll(".workspace-pane")
-    .forEach(x=>{
-      x.classList.remove("on");
-    });
+        x.classList.toggle(
+          "on",
+          x===btn
+        );
 
-  $("pane-"+btn.dataset.tab).classList.add("on");
-});
+      });
+
+    document
+      .querySelectorAll(
+        ".workspace-pane"
+      )
+      .forEach(x=>{
+
+        x.classList.remove("on");
+
+      });
+
+    const pane =
+      $("pane-"+btn.dataset.tab);
+
+    if(pane){
+      pane.classList.add("on");
+    }
+
+  }
+);
 
 
 /* =========================================================
@@ -1390,6 +2008,7 @@ function collectProject(){
     $("language").value;
 
   return videoProject;
+
 }
 
 
@@ -1401,17 +2020,31 @@ function directorSummary(){
 
   const parts = [];
 
-  for(const [category, values] of Object.entries(
-    videoProject.director_techniques
-  )){
+  for(
+    const [
+      category,
+      values
+    ]
+    of Object.entries(
+      videoProject.director_techniques
+    )
+  ){
+
     if(values?.length){
+
       parts.push(
         `${category}：${values.join("、")}`
       );
+
     }
+
   }
 
-  return parts.join("｜") || "尚未選擇";
+  return (
+    parts.join("｜") ||
+    "尚未選擇"
+  );
+
 }
 
 
@@ -1422,7 +2055,8 @@ function directorSummary(){
 function updateSourcePreview(){
 
   $("promptTheme").textContent =
-    videoProject.theme || "尚未設定";
+    videoProject.theme ||
+    "尚未設定";
 
   $("promptStory").textContent =
     videoProject.story ||
@@ -1432,16 +2066,23 @@ function updateSourcePreview(){
   $("promptDuration").textContent =
     `${videoProject.duration_seconds} 秒`;
 
+  $("promptLanguage").textContent =
+    getLanguageLabel(
+      videoProject.language
+    );
+
   $("promptTechniques").textContent =
     directorSummary();
 
   $("topicOutput").textContent =
-    videoProject.theme || "尚未設定";
+    videoProject.theme ||
+    "尚未設定";
+
 }
 
 
 /* =========================================================
-   BUILD AI GATEWAY REQUEST
+   BUILD AI STORY REQUEST
    ========================================================= */
 
 function buildStoryRequest(){
@@ -1449,11 +2090,15 @@ function buildStoryRequest(){
   collectProject();
 
   return {
-    action: "chat",
 
-    messages: [
+    action:"chat",
+
+    messages:[
+
       {
-        role: "system",
+
+        role:"system",
+
         content:
 `你是 AIVAULT Video Studio 的專業故事編劇。
 
@@ -1475,12 +2120,15 @@ function buildStoryRequest(){
 如果使用者使用自訂主題，必須完整保留其核心意思。
 
 影片長度：${videoProject.duration_seconds} 秒
-語言：${videoProject.language}
+語言：${getLanguageLabel(videoProject.language)}
 模式：${videoProject.mode}`
+
       },
 
       {
+
         role:"user",
+
         content:
 `主題：
 ${videoProject.theme || "未提供"}
@@ -1493,11 +2141,15 @@ ${videoProject.characters || "請依故事需要設計"}
 
 故事要求：
 ${videoProject.request || "請依主題創作一個完整、合理、可拍攝的故事"}`
+
       }
+
     ],
 
-    temperature: 0.8
+    temperature:0.8
+
   };
+
 }
 
 
@@ -1508,38 +2160,56 @@ ${videoProject.request || "請依主題創作一個完整、合理、可拍攝�
 async function callAIGateway(payload){
 
   const headers = {
-    "Content-Type":"application/json"
+
+    "Content-Type":
+      "application/json"
+
   };
 
   if(
     CONFIG.SUPABASE_ANON_KEY &&
-    CONFIG.SUPABASE_ANON_KEY !== "YOUR_SUPABASE_ANON_KEY"
+    CONFIG.SUPABASE_ANON_KEY !==
+      "YOUR_SUPABASE_ANON_KEY"
   ){
-    headers.apikey = CONFIG.SUPABASE_ANON_KEY;
+
+    headers.apikey =
+      CONFIG.SUPABASE_ANON_KEY;
+
     headers.Authorization =
       `Bearer ${CONFIG.SUPABASE_ANON_KEY}`;
+
   }
 
-  const response = await fetch(
-    CONFIG.AI_GATEWAY_URL,
-    {
-      method:"POST",
-      headers,
-      body:JSON.stringify(payload)
-    }
-  );
+  const response =
+    await fetch(
+      CONFIG.AI_GATEWAY_URL,
+      {
 
-  const data = await response.json();
+        method:"POST",
+
+        headers,
+
+        body:
+          JSON.stringify(payload)
+
+      }
+    );
+
+  const data =
+    await response.json();
 
   if(!response.ok){
+
     throw new Error(
       data?.error ||
       data?.message ||
       `AI Gateway HTTP ${response.status}`
     );
+
   }
 
   return data;
+
 }
 
 
@@ -1550,19 +2220,31 @@ async function callAIGateway(payload){
 function extractAIText(data){
 
   if(typeof data === "string"){
+
     return data;
+
   }
 
   return (
+
     data?.text ||
+
     data?.content ||
+
     data?.response ||
+
     data?.answer ||
+
     data?.message?.content ||
+
     data?.result?.text ||
+
     data?.data?.text ||
+
     ""
+
   );
+
 }
 
 
@@ -1572,61 +2254,108 @@ function extractAIText(data){
 
 function parseStoryText(text){
 
-  videoProject.story = text;
-
-  /*
-   * 不強迫 AI 一定使用 JSON。
-   * 即使 AI 回傳一般文字，也保留完整故事。
-   */
+  videoProject.story =
+    text;
 
   const sections = {
+
     outline:"",
+
     script:"",
+
     narration:"",
+
     storyboard:"",
+
     fact:"",
+
     review:""
+
   };
 
   const patterns = [
-    ["outline",/故事大綱[：:\s]*([\s\S]*?)(?=\n(?:完整故事|故事內容|文案|旁白|分鏡|事實查核|最終審查)|$)/i],
-    ["script",/(?:完整故事|故事內容)[：:\s]*([\s\S]*?)(?=\n(?:文案|旁白|分鏡|事實查核|最終審查)|$)/i],
-    ["narration",/(?:文案|旁白)[：:\s]*([\s\S]*?)(?=\n(?:分鏡|事實查核|最終審查)|$)/i],
-    ["storyboard",/分鏡[：:\s]*([\s\S]*?)(?=\n(?:事實查核|最終審查)|$)/i],
-    ["fact",/事實查核[：:\s]*([\s\S]*?)(?=\n(?:最終審查)|$)/i],
-    ["review",/最終審查[：:\s]*([\s\S]*?)$/i]
+
+    [
+      "outline",
+      /故事大綱[：:\s]*([\s\S]*?)(?=\n(?:完整故事|故事內容|文案|旁白|分鏡|事實查核|最終審查)|$)/i
+    ],
+
+    [
+      "script",
+      /(?:完整故事|故事內容)[：:\s]*([\s\S]*?)(?=\n(?:文案|旁白|分鏡|事實查核|最終審查)|$)/i
+    ],
+
+    [
+      "narration",
+      /(?:文案|旁白)[：:\s]*([\s\S]*?)(?=\n(?:分鏡|事實查核|最終審查)|$)/i
+    ],
+
+    [
+      "storyboard",
+      /分鏡[：:\s]*([\s\S]*?)(?=\n(?:事實查核|最終審查)|$)/i
+    ],
+
+    [
+      "fact",
+      /事實查核[：:\s]*([\s\S]*?)(?=\n(?:最終審查)|$)/i
+    ],
+
+    [
+      "review",
+      /最終審查[：:\s]*([\s\S]*?)$/i
+    ]
+
   ];
 
-  for(const [key,regex] of patterns){
+  for(
+    const [
+      key,
+      regex
+    ]
+    of patterns
+  ){
 
-    const match = text.match(regex);
+    const match =
+      text.match(regex);
 
     if(match?.[1]){
-      sections[key] = match[1].trim();
+
+      sections[key] =
+        match[1].trim();
+
     }
+
   }
 
   videoProject.outline =
-    sections.outline || text;
+    sections.outline ||
+    text;
 
   videoProject.script =
-    sections.script || text;
+    sections.script ||
+    text;
 
   videoProject.narration =
-    sections.narration || text;
+    sections.narration ||
+    text;
 
   videoProject.storyboard =
-    sections.storyboard || "";
+    sections.storyboard ||
+    "";
 
   videoProject.fact_check =
-    sections.fact || "尚未進行事實查核。";
+    sections.fact ||
+    "尚未進行事實查核。";
 
   videoProject.review =
-    sections.review || "尚未完成最終審查。";
+    sections.review ||
+    "尚未完成最終審查。";
 
-  videoProject.discussion = "";
+  videoProject.discussion =
+    "";
 
   renderWorkspace();
+
 }
 
 
@@ -1637,10 +2366,12 @@ function parseStoryText(text){
 function renderWorkspace(){
 
   $("topicOutput").textContent =
-    videoProject.theme || "尚未設定";
+    videoProject.theme ||
+    "尚未設定";
 
   $("outlineOutput").textContent =
-    videoProject.outline || "尚未生成";
+    videoProject.outline ||
+    "尚未生成";
 
   $("scriptOutput").textContent =
     videoProject.narration ||
@@ -1662,17 +2393,20 @@ function renderWorkspace(){
   renderTimeline();
 
   updateSourcePreview();
+
 }
 
 
 /* =========================================================
-   BUILD SECOND TIMELINE
+   SECOND TIMELINE
    ========================================================= */
 
 function buildSecondTimeline(){
 
   const total =
-    Number(videoProject.duration_seconds) || 30;
+    Number(
+      videoProject.duration_seconds
+    ) || 30;
 
   const story =
     videoProject.story ||
@@ -1684,32 +2418,52 @@ function buildSecondTimeline(){
   const lines =
     story
       .split(/\n+/)
-      .map(x=>x.trim())
+      .map(
+        x=>x.trim()
+      )
       .filter(Boolean);
 
   const result = [];
 
-  for(let second=0; second<total; second++){
+  for(
+    let second=0;
+    second<total;
+    second++
+  ){
 
     const source =
       lines.length
         ? lines[
             Math.floor(
-              second * lines.length / total
+              second *
+              lines.length /
+              total
             )
           ]
         : videoProject.theme;
 
     result.push({
+
       second,
-      start_ms: second * 1000,
-      end_ms: (second + 1) * 1000,
-      action: source || "",
-      camera: directorSummary()
+
+      start_ms:
+        second * 1000,
+
+      end_ms:
+        (second + 1) * 1000,
+
+      action:
+        source || "",
+
+      camera:
+        directorSummary()
+
     });
+
   }
 
   return result;
+
 }
 
 
@@ -1719,42 +2473,63 @@ function buildSecondTimeline(){
 
 function renderTimeline(){
 
-  const container = $("timelineOutput");
+  const container =
+    $("timelineOutput");
 
-  const timeline = buildSecondTimeline();
+  const timeline =
+    buildSecondTimeline();
 
   if(!timeline.length){
+
     container.innerHTML =
       `<div class="empty">尚未建立分鏡。</div>`;
+
     return;
+
   }
 
-  container.innerHTML = "";
+  container.innerHTML =
+    "";
 
-  timeline.forEach(item=>{
+  timeline.forEach(
+    item=>{
 
-    const el =
-      document.createElement("div");
+      const el =
+        document.createElement(
+          "div"
+        );
 
-    el.className = "timeline-item";
+      el.className =
+        "timeline-item";
 
-    el.innerHTML = `
-      <div class="timeline-time">
-        ${item.second + 1}s
-      </div>
+      el.innerHTML = `
 
-      <div class="timeline-text">
-        <strong>
-          ${escapeHTML(item.start_ms)}ms –
-          ${escapeHTML(item.end_ms)}ms
-        </strong>
-        <br>
-        ${escapeHTML(item.action)}
-      </div>
-    `;
+        <div class="timeline-time">
 
-    container.appendChild(el);
-  });
+          ${item.second + 1}s
+
+        </div>
+
+        <div class="timeline-text">
+
+          <strong>
+            ${escapeHTML(item.start_ms)}ms –
+            ${escapeHTML(item.end_ms)}ms
+          </strong>
+
+          <br>
+
+          ${escapeHTML(item.action)}
+
+        </div>
+
+      `;
+
+      container.appendChild(el);
+
+    }
+  );
+
 }
 
 
@@ -1762,92 +2537,126 @@ function renderTimeline(){
    GENERATE STORY
    ========================================================= */
 
-$("generateStoryBtn").addEventListener("click", async ()=>{
+$("generateStoryBtn").addEventListener(
+  "click",
+  async ()=>{
 
-  collectProject();
+    collectProject();
 
-  if(!videoProject.theme){
+    if(!videoProject.theme){
 
-    toast("請先選擇固定題材或輸入自訂題材");
-
-    $("themeInput").focus();
-
-    return;
-  }
-
-  $("storyLoading").classList.add("on");
-
-  $("statusText").textContent =
-    "AI Writing…";
-
-  try{
-
-    const data =
-      await callAIGateway(
-        buildStoryRequest()
+      toast(
+        "請先選擇固定題材或輸入自訂題材"
       );
 
-    const text =
-      extractAIText(data);
+      $("themeInput").focus();
 
-    if(!text){
-      throw new Error(
-        "AI 沒有回傳故事內容"
-      );
+      return;
+
     }
 
-    parseStoryText(text);
+    $("storyLoading")
+      .classList
+      .add("on");
 
     $("statusText").textContent =
-      "Story Ready";
+      "AI Writing…";
 
-    toast("故事生成完成");
+    try{
 
-  }catch(error){
+      const data =
+        await callAIGateway(
+          buildStoryRequest()
+        );
 
-    console.error(error);
+      const text =
+        extractAIText(data);
 
-    $("statusText").textContent =
-      "Story Error";
+      if(!text){
 
-    toast(
-      "故事生成失敗：" +
-      error.message
-    );
+        throw new Error(
+          "AI 沒有回傳故事內容"
+        );
 
-  }finally{
+      }
 
-    $("storyLoading").classList.remove("on");
+      parseStoryText(text);
+
+      $("statusText").textContent =
+        "Story Ready";
+
+      toast(
+        "故事生成完成"
+      );
+
+    }catch(error){
+
+      console.error(error);
+
+      $("statusText").textContent =
+        "Story Error";
+
+      toast(
+        "故事生成失敗：" +
+        error.message
+      );
+
+    }finally{
+
+      $("storyLoading")
+        .classList
+        .remove("on");
+
+    }
+
   }
-
-});
+);
 
 
 /* =========================================================
    CLEAR STORY
    ========================================================= */
 
-$("clearStoryBtn").addEventListener("click", ()=>{
+$("clearStoryBtn").addEventListener(
+  "click",
+  ()=>{
 
-  videoProject.story = "";
-  videoProject.outline = "";
-  videoProject.script = "";
-  videoProject.narration = "";
-  videoProject.storyboard = "";
-  videoProject.fact_check = "";
-  videoProject.discussion = "";
-  videoProject.review = "";
+    videoProject.story = "";
 
-  renderWorkspace();
+    videoProject.outline = "";
 
-  $("promptZh").value = "";
-  $("promptEn").value = "";
+    videoProject.script = "";
 
-  videoProject.prompt.zh = "";
-  videoProject.prompt.en = "";
+    videoProject.narration = "";
 
-  toast("故事內容已清除");
-});
+    videoProject.storyboard = "";
+
+    videoProject.fact_check = "";
+
+    videoProject.discussion = "";
+
+    videoProject.review = "";
+
+    renderWorkspace();
+
+    $("promptZh").value =
+      "";
+
+    $("promptEn").value =
+      "";
+
+    videoProject.prompt.zh =
+      "";
+
+    videoProject.prompt.en =
+      "";
+
+    toast(
+      "故事內容已清除"
+    );
+
+  }
+);
 
 
 /* =========================================================
@@ -1902,7 +2711,8 @@ function buildPromptRequest(){
 
     continuity:{
 
-      identity_lock:"HARD",
+      identity_lock:
+        "HARD",
 
       same_person:
         videoProject.continuity.same_person,
@@ -1938,20 +2748,25 @@ function buildPromptRequest(){
 
     output:{
 
-      target:"Seedance 2.5",
+      target:
+        "Seedance 2.5",
 
       language:
         videoProject.language
           .split(","),
 
-      second_level_timeline:true,
+      second_level_timeline:
+        true,
 
-      millisecond_keyframes:true
+      millisecond_keyframes:
+        true
 
     },
 
     timeline
+
   };
+
 }
 
 
@@ -1959,23 +2774,26 @@ function buildPromptRequest(){
    VIDEO PROMPT BACKEND
    ========================================================= */
 
-async function callVideoPromptBackend(payload){
+async function callVideoPromptBackend(
+  payload
+){
 
   const headers = {
-    "Content-Type":"application/json"
+
+    "Content-Type":
+      "application/json"
+
   };
 
   /*
-   * 注意：
-   * 這裡絕對不放 AIVAULT_VIDEO_PROMPT_SECRET。
-   *
-   * 前端只使用 Supabase 公開 anon key。
-   * Internal Secret 必須留在 Edge Function Secrets。
+   * 絕對不在前端放
+   * AIVAULT_VIDEO_PROMPT_SECRET。
    */
 
   if(
     CONFIG.SUPABASE_ANON_KEY &&
-    CONFIG.SUPABASE_ANON_KEY !== "YOUR_SUPABASE_ANON_KEY"
+    CONFIG.SUPABASE_ANON_KEY !==
+      "YOUR_SUPABASE_ANON_KEY"
   ){
 
     headers.apikey =
@@ -1983,15 +2801,21 @@ async function callVideoPromptBackend(payload){
 
     headers.Authorization =
       `Bearer ${CONFIG.SUPABASE_ANON_KEY}`;
+
   }
 
   const response =
     await fetch(
       CONFIG.VIDEO_PROMPT_URL,
       {
+
         method:"POST",
+
         headers,
-        body:JSON.stringify(payload)
+
+        body:
+          JSON.stringify(payload)
+
       }
     );
 
@@ -2005,9 +2829,11 @@ async function callVideoPromptBackend(payload){
       data?.message ||
       `Video Prompt HTTP ${response.status}`
     );
+
   }
 
   return data;
+
 }
 
 
@@ -2028,6 +2854,7 @@ function extractPrompts(data){
     zh:
       prompt.zh ||
       prompt.zh_tw ||
+      prompt.zh_cn ||
       data?.prompt_zh ||
       data?.data?.prompt_zh ||
       "",
@@ -2039,11 +2866,12 @@ function extractPrompts(data){
       ""
 
   };
+
 }
 
 
 /* =========================================================
-   FALLBACK PROMPT
+   LOCAL FALLBACK
    ========================================================= */
 
 function buildLocalPromptFallback(){
@@ -2054,6 +2882,11 @@ function buildLocalPromptFallback(){
   const timeline =
     buildSecondTimeline();
 
+  const story =
+    videoProject.story ||
+    videoProject.request ||
+    videoProject.theme;
+
   const zhLines = [];
 
   zhLines.push(
@@ -2063,13 +2896,27 @@ function buildLocalPromptFallback(){
   zhLines.push("");
 
   zhLines.push(
+    `語言：${getLanguageLabel(videoProject.language)}`
+  );
+
+  zhLines.push(
     `主題：${videoProject.theme}`
   );
 
   if(videoProject.title){
+
     zhLines.push(
       `故事名稱：${videoProject.title}`
     );
+
+  }
+
+  if(videoProject.characters){
+
+    zhLines.push(
+      `主要角色：${videoProject.characters}`
+    );
+
   }
 
   zhLines.push("");
@@ -2078,11 +2925,7 @@ function buildLocalPromptFallback(){
     "故事內容："
   );
 
-  zhLines.push(
-    videoProject.story ||
-    videoProject.request ||
-    videoProject.theme
-  );
+  zhLines.push(story);
 
   zhLines.push("");
 
@@ -2108,39 +2951,57 @@ function buildLocalPromptFallback(){
     "每秒時間軸："
   );
 
-  timeline.forEach(item=>{
+  timeline.forEach(
+    item=>{
 
-    zhLines.push(
-      `${item.start_ms}ms-${item.end_ms}ms：${item.action}`
-    );
+      zhLines.push(
+        `${item.start_ms}ms-${item.end_ms}ms：${item.action}`
+      );
 
-  });
+    }
+  );
 
   const en = [
+
     "Seedance 2.5 Video Generation Prompt",
+
     "",
+
+    `Language: ${getLanguageLabel(videoProject.language)}`,
+
     `Theme: ${videoProject.theme}`,
-    `Story: ${
-      videoProject.story ||
-      videoProject.request ||
-      videoProject.theme
-    }`,
+
+    `Story: ${story}`,
+
     "",
+
     `Director settings: ${techniques}`,
+
     "",
+
     "Maintain strict character identity, face, hairstyle, clothing, body proportions, environment and visual style continuity. Prevent identity drift.",
+
     "",
+
     "Second-level timeline:",
+
     ...timeline.map(
       item =>
         `${item.start_ms}ms-${item.end_ms}ms: ${item.action}`
     )
+
   ];
 
   return {
-    zh:zhLines.join("\n"),
-    en:en.join("\n")
+
+    zh:
+      zhLines.join("\n"),
+
+    en:
+      en.join("\n")
+
   };
+
 }
 
 
@@ -2155,21 +3016,25 @@ $("generatePromptBtn").addEventListener(
     collectProject();
 
     /*
-     * 最重要的保護：
-     * 就算 AI 還沒寫故事，
-     * 使用者輸入的自訂主題仍然可以生成 Prompt。
+     * 即使 AI 沒有先寫故事，
+     * 使用者自己輸入的主題也一定保留。
      */
 
     if(!videoProject.theme){
 
-      toast("請先選擇或輸入故事主題");
+      toast(
+        "請先選擇或輸入故事主題"
+      );
 
       $("themeInput").focus();
 
       return;
+
     }
 
-    $("promptLoading").classList.add("on");
+    $("promptLoading")
+      .classList
+      .add("on");
 
     $("statusText").textContent =
       "Compiling Prompt…";
@@ -2179,7 +3044,8 @@ $("generatePromptBtn").addEventListener(
       const payload =
         buildPromptRequest();
 
-      let prompts = null;
+      let prompts =
+        null;
 
       try{
 
@@ -2198,21 +3064,19 @@ $("generatePromptBtn").addEventListener(
           backendError
         );
 
-        /*
-         * 後端暫時無法連線時，
-         * 不讓使用者的故事與主題消失。
-         *
-         * 使用本地結構化 fallback。
-         */
-
         prompts =
           buildLocalPromptFallback();
+
       }
 
-      if(!prompts.zh && !prompts.en){
+      if(
+        !prompts.zh &&
+        !prompts.en
+      ){
 
         prompts =
           buildLocalPromptFallback();
+
       }
 
       videoProject.prompt.zh =
@@ -2230,7 +3094,9 @@ $("generatePromptBtn").addEventListener(
       $("statusText").textContent =
         "Prompt Ready";
 
-      toast("影片提示詞生成完成");
+      toast(
+        "影片提示詞生成完成"
+      );
 
     }catch(error){
 
@@ -2246,7 +3112,10 @@ $("generatePromptBtn").addEventListener(
 
     }finally{
 
-      $("promptLoading").classList.remove("on");
+      $("promptLoading")
+        .classList
+        .remove("on");
+
     }
 
   }
@@ -2257,44 +3126,64 @@ $("generatePromptBtn").addEventListener(
    COPY
    ========================================================= */
 
-document.addEventListener("click", async e=>{
+document.addEventListener(
+  "click",
+  async e=>{
 
-  const btn =
-    e.target.closest("[data-copy]");
+    const btn =
+      e.target.closest(
+        "[data-copy]"
+      );
 
-  if(!btn) return;
+    if(!btn) return;
 
-  const id =
-    btn.dataset.copy;
+    const id =
+      btn.dataset.copy;
 
-  const el =
-    $(id);
+    const el =
+      $(id);
 
-  if(!el || !el.value){
+    if(
+      !el ||
+      !el.value
+    ){
 
-    toast("目前沒有可複製的提示詞");
+      toast(
+        "目前沒有可複製的提示詞"
+      );
 
-    return;
+      return;
+
+    }
+
+    try{
+
+      await navigator.clipboard.writeText(
+        el.value
+      );
+
+      toast(
+        "已複製到剪貼簿"
+      );
+
+    }catch{
+
+      el.focus();
+
+      el.select();
+
+      document.execCommand(
+        "copy"
+      );
+
+      toast(
+        "已複製"
+      );
+
+    }
+
   }
-
-  try{
-
-    await navigator.clipboard.writeText(
-      el.value
-    );
-
-    toast("已複製到剪貼簿");
-
-  }catch{
-
-    el.focus();
-    el.select();
-
-    document.execCommand("copy");
-
-    toast("已複製");
-  }
-});
+);
 
 
 /* =========================================================
@@ -2304,11 +3193,32 @@ document.addEventListener("click", async e=>{
 function escapeHTML(value){
 
   return String(value)
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
+
+    .replaceAll(
+      "&",
+      "&amp;"
+    )
+
+    .replaceAll(
+      "<",
+      "&lt;"
+    )
+
+    .replaceAll(
+      ">",
+      "&gt;"
+    )
+
+    .replaceAll(
+      '"',
+      "&quot;"
+    )
+
+    .replaceAll(
+      "'",
+      "&#039;"
+    );
+
 }
 
 
