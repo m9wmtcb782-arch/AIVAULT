@@ -1,1664 +1,2451 @@
+
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
-  <meta
-    name="viewport"
-    content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
-  />
-  <meta name="theme-color" content="#090909" />
-  <title>AIVAULT Video Studio</title>
-
-  <style>
-    :root{
-      --bg:#070707;
-      --panel:#101010;
-      --panel2:#151515;
-      --line:#282828;
-      --text:#f5f5f5;
-      --muted:#9b9b9b;
-      --accent:#f43f5e;
-      --accent2:#fb7185;
-      --green:#22c55e;
-      --yellow:#facc15;
-      --radius:16px;
-    }
-
-    *{
-      box-sizing:border-box;
-      -webkit-tap-highlight-color:transparent;
-    }
-
-    html{
-      width:100%;
-      min-height:100%;
-      overflow-x:hidden;
-      overscroll-behavior-x:none;
-    }
-
-    body{
-      width:100%;
-      min-height:100%;
-      margin:0;
-      background:
-        radial-gradient(circle at 50% -10%,rgba(244,63,94,.10),transparent 35%),
-        var(--bg);
-      color:var(--text);
-      font-family:
-        -apple-system,
-        BlinkMacSystemFont,
-        "SF Pro Display",
-        "Segoe UI",
-        "Noto Sans TC",
-        sans-serif;
-      overflow-x:hidden;
-      overscroll-behavior-x:none;
-      touch-action:pan-y;
-    }
-
-    button,
-    input,
-    textarea,
-    select{
-      font:inherit;
-    }
-
-    button,
-    a{
-      -webkit-user-select:none;
-      user-select:none;
-    }
-
-    button{
-      cursor:pointer;
-    }
-
-    a{
-      color:inherit;
-      text-decoration:none;
-    }
-
-    .app{
-      width:100%;
-      min-height:100vh;
-      padding-bottom:60px;
-    }
-
-    /* =========================
-       HEADER
-    ========================= */
-
-    .header{
-      position:sticky;
-      top:0;
-      z-index:50;
-      width:100%;
-      border-bottom:1px solid rgba(255,255,255,.08);
-      background:rgba(7,7,7,.92);
-      backdrop-filter:blur(18px);
-      -webkit-backdrop-filter:blur(18px);
-    }
-
-    .header-inner{
-      width:min(1180px,100%);
-      margin:auto;
-      min-height:72px;
-      padding:12px 18px;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:14px;
-    }
-
-    .brand{
-      display:flex;
-      align-items:center;
-      gap:11px;
-      min-width:0;
-    }
-
-    .brand-mark{
-      width:38px;
-      height:38px;
-      border-radius:12px;
-      display:grid;
-      place-items:center;
-      color:#fff;
-      background:
-        linear-gradient(135deg,#f43f5e,#881337);
-      box-shadow:0 0 25px rgba(244,63,94,.22);
-      font-weight:900;
-    }
-
-    .brand-text{
-      min-width:0;
-    }
-
-    .brand-title{
-      font-size:16px;
-      font-weight:800;
-      letter-spacing:.02em;
-    }
-
-    .brand-sub{
-      margin-top:2px;
-      color:var(--muted);
-      font-size:11px;
-    }
-
-    .header-right{
-      display:flex;
-      align-items:center;
-      gap:9px;
-      min-width:0;
-    }
-
-    .ai-info{
-      min-width:0;
-      max-width:310px;
-      display:flex;
-      align-items:center;
-      gap:7px;
-      padding:8px 11px;
-      border:1px solid rgba(244,63,94,.24);
-      border-radius:999px;
-      background:rgba(244,63,94,.06);
-      color:#fda4b4;
-      font-size:11px;
-      white-space:nowrap;
-      overflow:hidden;
-    }
-
-    .ai-info-icon{
-      flex:none;
-      color:var(--accent2);
-    }
-
-    #aiProviderText{
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-
-    .home-btn{
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      min-height:38px;
-      padding:0 13px;
-      border:1px solid var(--line);
-      border-radius:10px;
-      background:#111;
-      color:#ddd;
-      font-size:12px;
-      font-weight:700;
-      transition:.18s;
-    }
-
-    .home-btn:hover{
-      border-color:var(--accent);
-      color:#fff;
-    }
-
-    /* =========================
-       MAIN
-    ========================= */
-
-    .main{
-      width:min(1180px,100%);
-      margin:auto;
-      padding:22px 18px 60px;
-    }
-
-    .hero{
-      margin-bottom:20px;
-    }
-
-    .eyebrow{
-      color:var(--accent2);
-      font-size:11px;
-      font-weight:800;
-      letter-spacing:.12em;
-      text-transform:uppercase;
-      margin-bottom:7px;
-    }
-
-    h1{
-      margin:0;
-      font-size:clamp(27px,5vw,42px);
-      line-height:1.05;
-      letter-spacing:-.035em;
-    }
-
-    .hero-desc{
-      margin:10px 0 0;
-      max-width:760px;
-      color:var(--muted);
-      font-size:13px;
-      line-height:1.75;
-    }
-
-    /* =========================
-       CARDS
-    ========================= */
-
-    .card{
-      border:1px solid var(--line);
-      border-radius:var(--radius);
-      background:
-        linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.008)),
-        var(--panel);
-      box-shadow:0 20px 60px rgba(0,0,0,.25);
-      padding:18px;
-      margin-bottom:15px;
-    }
-
-    .section-title{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      margin-bottom:15px;
-    }
-
-    .section-title h2{
-      margin:0;
-      font-size:16px;
-    }
-
-    .section-title span{
-      color:var(--muted);
-      font-size:11px;
-    }
-
-    .grid{
-      display:grid;
-      gap:12px;
-    }
-
-    .grid-2{
-      grid-template-columns:repeat(2,minmax(0,1fr));
-    }
-
-    .grid-3{
-      grid-template-columns:repeat(3,minmax(0,1fr));
-    }
-
-    .field{
-      min-width:0;
-    }
-
-    .field-label{
-      display:block;
-      margin-bottom:7px;
-      color:#c8c8c8;
-      font-size:11px;
-      font-weight:700;
-    }
-
-    input,
-    textarea,
-    select{
-      width:100%;
-      border:1px solid var(--line);
-      outline:none;
-      border-radius:11px;
-      background:#0b0b0b;
-      color:#fff;
-      padding:11px 12px;
-      transition:.18s;
-    }
-
-    input:focus,
-    textarea:focus,
-    select:focus{
-      border-color:rgba(244,63,94,.7);
-      box-shadow:0 0 0 3px rgba(244,63,94,.08);
-    }
-
-    textarea{
-      min-height:100px;
-      resize:vertical;
-      line-height:1.65;
-    }
-
-    .small-textarea{
-      min-height:75px;
-    }
-
-    /* =========================
-       CHIPS
-    ========================= */
-
-    .chips{
-      display:flex;
-      flex-wrap:wrap;
-      gap:8px;
-    }
-
-    .chip{
-      min-height:38px;
-      padding:8px 12px;
-      border:1px solid var(--line);
-      border-radius:10px;
-      background:#0d0d0d;
-      color:#cfcfcf;
-      transition:
-        border-color .16s,
-        color .16s,
-        background .16s,
-        box-shadow .16s,
-        transform .08s;
-    }
-
-    .chip:active{
-      transform:scale(.97);
-    }
-
-    .chip:hover{
-      border-color:#555;
-      color:#fff;
-    }
-
-    /* 重要：選中後紅色 */
-    .chip.on{
-      border-color:var(--accent);
-      color:#fda4b4;
-      background:rgba(244,63,94,.13);
-      box-shadow:
-        0 0 0 1px rgba(244,63,94,.08) inset,
-        0 0 18px rgba(244,63,94,.07);
-    }
-
-    /* =========================
-       TABS
-    ========================= */
-
-    .tabs{
-      display:flex;
-      gap:7px;
-      margin-bottom:15px;
-      overflow:hidden;
-      touch-action:pan-y;
-    }
-
-    .tab{
-      flex:1;
-      min-width:0;
-      min-height:40px;
-      padding:8px 10px;
-      border:1px solid var(--line);
-      border-radius:10px;
-      background:#0c0c0c;
-      color:#aaa;
-      font-size:12px;
-      font-weight:700;
-    }
-
-    .tab.on{
-      color:#fff;
-      border-color:var(--accent);
-      background:rgba(244,63,94,.12);
-    }
-
-    .pane{
-      display:none;
-    }
-
-    .pane.active{
-      display:block;
-    }
-
-    /* =========================
-       DIRECTOR
-    ========================= */
-
-    .director-group{
-      padding:13px 0;
-      border-top:1px solid rgba(255,255,255,.06);
-    }
-
-    .director-group:first-child{
-      padding-top:0;
-      border-top:0;
-    }
-
-    .director-name{
-      margin-bottom:9px;
-      color:#eee;
-      font-size:12px;
-      font-weight:800;
-    }
-
-    /* =========================
-       CONTINUITY
-    ========================= */
-
-    .continuity-list{
-      display:grid;
-      grid-template-columns:repeat(2,minmax(0,1fr));
-      gap:8px;
-    }
-
-    .toggle{
-      min-height:42px;
-      padding:9px 11px;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      border:1px solid var(--line);
-      border-radius:10px;
-      background:#0c0c0c;
-      color:#ccc;
-      text-align:left;
-    }
-
-    .toggle.on{
-      border-color:var(--accent);
-      background:rgba(244,63,94,.10);
-      color:#fff;
-    }
-
-    .toggle-dot{
-      width:10px;
-      height:10px;
-      flex:none;
-      border-radius:50%;
-      background:#333;
-    }
-
-    .toggle.on .toggle-dot{
-      background:var(--accent);
-      box-shadow:0 0 10px rgba(244,63,94,.65);
-    }
-
-    /* =========================
-       ACTIONS
-    ========================= */
-
-    .actions{
-      display:flex;
-      flex-wrap:wrap;
-      gap:9px;
-      margin-top:15px;
-    }
-
-    .btn{
-      min-height:42px;
-      padding:9px 15px;
-      border:1px solid var(--line);
-      border-radius:11px;
-      background:#111;
-      color:#ddd;
-      font-weight:800;
-      font-size:12px;
-      transition:.18s;
-    }
-
-    .btn:hover{
-      border-color:#555;
-      color:#fff;
-    }
-
-    .btn-primary{
-      border-color:var(--accent);
-      background:var(--accent);
-      color:#fff;
-      box-shadow:0 8px 25px rgba(244,63,94,.18);
-    }
-
-    .btn-primary:hover{
-      background:#e11d48;
-      border-color:#e11d48;
-    }
-
-    .btn-danger{
-      border-color:#7f1d1d;
-      color:#fda4a4;
-    }
-
-    .btn:disabled{
-      opacity:.45;
-      cursor:not-allowed;
-    }
-
-    /* =========================
-       STATUS
-    ========================= */
-
-    .status-bar{
-      display:flex;
-      align-items:center;
-      gap:9px;
-      min-height:42px;
-      padding:10px 12px;
-      border:1px solid var(--line);
-      border-radius:11px;
-      background:#0b0b0b;
-      margin-top:12px;
-    }
-
-    .status-dot{
-      width:8px;
-      height:8px;
-      flex:none;
-      border-radius:50%;
-      background:var(--green);
-      box-shadow:0 0 10px rgba(34,197,94,.5);
-    }
-
-    .status-dot.busy{
-      background:var(--yellow);
-      box-shadow:0 0 10px rgba(250,204,21,.5);
-      animation:pulse 1s infinite;
-    }
-
-    .status-dot.error{
-      background:var(--accent);
-      box-shadow:0 0 10px rgba(244,63,94,.5);
-    }
-
-    #statusText{
-      color:#ccc;
-      font-size:11px;
-      line-height:1.4;
-    }
-
-    @keyframes pulse{
-      50%{opacity:.35}
-    }
-
-    /* =========================
-       AI PANEL
-    ========================= */
-
-    .ai-panel{
-      display:flex;
-      align-items:center;
-      gap:12px;
-      padding:12px;
-      margin-top:12px;
-      border:1px solid rgba(244,63,94,.2);
-      border-radius:12px;
-      background:
-        linear-gradient(90deg,rgba(244,63,94,.08),rgba(244,63,94,.015));
-    }
-
-    .ai-panel-icon{
-      width:34px;
-      height:34px;
-      flex:none;
-      display:grid;
-      place-items:center;
-      border-radius:10px;
-      background:rgba(244,63,94,.13);
-      color:var(--accent2);
-      font-weight:900;
-    }
-
-    .ai-panel-main{
-      min-width:0;
-    }
-
-    .ai-panel-label{
-      color:#999;
-      font-size:10px;
-      margin-bottom:2px;
-    }
-
-    .ai-panel-value{
-      overflow:hidden;
-      text-overflow:ellipsis;
-      white-space:nowrap;
-      color:#fff;
-      font-size:12px;
-      font-weight:800;
-    }
-
-    /* =========================
-       OUTPUT
-    ========================= */
-
-    .output{
-      min-height:120px;
-      padding:13px;
-      border:1px solid var(--line);
-      border-radius:11px;
-      background:#090909;
-      white-space:pre-wrap;
-      word-break:break-word;
-      color:#ddd;
-      font-size:12px;
-      line-height:1.75;
-    }
-
-    .empty{
-      color:#666;
-    }
-
-    .timeline{
-      display:grid;
-      gap:6px;
-      max-height:440px;
-      overflow:auto;
-      padding-right:2px;
-    }
-
-    .timeline-row{
-      display:grid;
-      grid-template-columns:58px 1fr;
-      gap:8px;
-      padding:8px;
-      border:1px solid rgba(255,255,255,.06);
-      border-radius:9px;
-      background:#0b0b0b;
-    }
-
-    .timeline-time{
-      color:var(--accent2);
-      font-size:11px;
-      font-weight:800;
-    }
-
-    .timeline-content{
-      color:#ccc;
-      font-size:11px;
-      line-height:1.55;
-    }
-
-    .prompt-box{
-      min-height:180px;
-      padding:13px;
-      border:1px solid rgba(244,63,94,.25);
-      border-radius:12px;
-      background:
-        linear-gradient(180deg,rgba(244,63,94,.035),rgba(0,0,0,.2));
-      white-space:pre-wrap;
-      word-break:break-word;
-      color:#eee;
-      font-size:12px;
-      line-height:1.75;
-    }
-
-    .footer-note{
-      margin-top:20px;
-      text-align:center;
-      color:#555;
-      font-size:10px;
-    }
-
-    /* =========================
-       MOBILE
-    ========================= */
-
-    @media(max-width:720px){
-      html,
-      body{
-        overflow-x:hidden !important;
-        overscroll-behavior-x:none !important;
-        touch-action:pan-y !important;
-      }
-
-      .header-inner{
-        padding:10px 12px;
-      }
-
-      .brand-sub{
-        display:none;
-      }
-
-      .brand-title{
-        font-size:14px;
-      }
-
-      .header-right{
-        gap:5px;
-      }
-
-      .ai-info{
-        max-width:125px;
-        padding:7px 8px;
-      }
-
-      .home-btn{
-        padding:0 9px;
-        font-size:11px;
-      }
-
-      .main{
-        padding:17px 12px 45px;
-      }
-
-      .card{
-        padding:14px;
-        border-radius:14px;
-      }
-
-      .grid-2,
-      .grid-3{
-        grid-template-columns:1fr;
-      }
-
-      .continuity-list{
-        grid-template-columns:1fr;
-      }
-
-      .tabs{
-        gap:5px;
-      }
-
-      .tab{
-        font-size:10px;
-        padding:7px 5px;
-      }
-
-      .chip{
-        min-height:36px;
-        padding:7px 10px;
-        font-size:11px;
-      }
-
-      .actions .btn{
-        flex:1;
-      }
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta
+  name="viewport"
+  content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
+/>
+<meta name="theme-color" content="#080808" />
+<title>AIVAULT Video Studio</title>
+<style>
+:root{
+  --bg:#070707;
+  --panel:#101010;
+  --panel-2:#151515;
+  --panel-3:#0b0b0b;
+  --line:#292929;
+  --line-soft:rgba(255,255,255,.07);
+  --text:#f5f5f5;
+  --muted:#969696;
+  --accent:#ef233c;
+  --accent-bright:#ff3650;
+  --accent-soft:rgba(239,35,60,.13);
+  --green:#22c55e;
+  --yellow:#facc15;
+  --danger:#ef4444;
+  --radius:16px;
+}
+
+*{
+  box-sizing:border-box;
+  -webkit-tap-highlight-color:transparent;
+}
+
+html{
+  width:100%;
+  min-height:100%;
+  overflow-x:hidden;
+  overscroll-behavior-x:none;
+}
+
+body{
+  width:100%;
+  min-height:100vh;
+  margin:0;
+  overflow-x:hidden;
+  overscroll-behavior-x:none;
+  touch-action:pan-y;
+
+  background:
+    radial-gradient(
+      circle at 50% -10%,
+      rgba(239,35,60,.11),
+      transparent 36%
+    ),
+    var(--bg);
+
+  color:var(--text);
+
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Display",
+    "Segoe UI",
+    "Noto Sans TC",
+    sans-serif;
+}
+
+button,
+input,
+textarea,
+select{
+  font:inherit;
+}
+
+button{
+  cursor:pointer;
+}
+
+button,
+a{
+  -webkit-user-select:none;
+  user-select:none;
+}
+
+a{
+  color:inherit;
+  text-decoration:none;
+}
+
+/* =========================================================
+   APP
+========================================================= */
+
+.app{
+  width:100%;
+  min-height:100vh;
+  padding-bottom:60px;
+}
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+.header{
+  position:sticky;
+  top:0;
+  z-index:100;
+
+  width:100%;
+
+  border-bottom:1px solid rgba(255,255,255,.08);
+
+  background:rgba(7,7,7,.93);
+
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+}
+
+.header-inner{
+  width:min(1180px,100%);
+  min-height:72px;
+
+  margin:0 auto;
+  padding:11px 18px;
+
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+
+  gap:14px;
+}
+
+/* =========================================================
+   DARK STAR BRAND
+========================================================= */
+
+.brand{
+  min-width:0;
+
+  display:flex;
+  align-items:center;
+
+  gap:11px;
+}
+
+.dark-star-logo{
+  position:relative;
+
+  width:40px;
+  height:40px;
+
+  flex:none;
+
+  display:grid;
+  place-items:center;
+
+  border-radius:12px;
+
+  background:
+    radial-gradient(
+      circle,
+      rgba(255,255,255,.13),
+      transparent 58%
+    ),
+    #090909;
+
+  border:1px solid rgba(239,35,60,.45);
+
+  box-shadow:
+    0 0 20px rgba(239,35,60,.16),
+    inset 0 0 16px rgba(239,35,60,.06);
+}
+
+.dark-star-logo svg{
+  width:25px;
+  height:25px;
+
+  fill:none;
+  stroke:#ff3650;
+  stroke-width:1.5;
+
+  filter:
+    drop-shadow(0 0 6px rgba(239,35,60,.75));
+}
+
+.brand-text{
+  min-width:0;
+}
+
+.brand-title{
+  font-size:16px;
+  font-weight:850;
+  letter-spacing:.015em;
+  white-space:nowrap;
+}
+
+.brand-sub{
+  margin-top:3px;
+
+  color:var(--muted);
+
+  font-size:10px;
+
+  letter-spacing:.04em;
+}
+
+/* =========================================================
+   HEADER RIGHT
+========================================================= */
+
+.header-right{
+  min-width:0;
+
+  display:flex;
+  align-items:center;
+
+  gap:8px;
+}
+
+.ai-info{
+  min-width:0;
+  max-width:300px;
+
+  display:flex;
+  align-items:center;
+
+  gap:7px;
+
+  padding:8px 11px;
+
+  border:
+    1px solid
+    rgba(239,35,60,.25);
+
+  border-radius:999px;
+
+  background:
+    rgba(239,35,60,.055);
+
+  color:#ff9dac;
+
+  font-size:11px;
+
+  white-space:nowrap;
+  overflow:hidden;
+}
+
+.ai-info-icon{
+  flex:none;
+
+  color:var(--accent-bright);
+
+  font-size:13px;
+}
+
+#aiProviderText{
+  min-width:0;
+
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.home-btn{
+  min-height:39px;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  padding:0 13px;
+
+  border:
+    1px solid
+    var(--line);
+
+  border-radius:10px;
+
+  background:#111;
+
+  color:#ddd;
+
+  font-size:12px;
+  font-weight:750;
+
+  transition:
+    border-color .18s,
+    background .18s,
+    color .18s,
+    transform .08s;
+}
+
+.home-btn:hover{
+  border-color:var(--accent);
+  color:#fff;
+  background:#151515;
+}
+
+.home-btn:active{
+  transform:scale(.97);
+}
+
+/* =========================================================
+   MAIN
+========================================================= */
+
+.main{
+  width:min(1180px,100%);
+
+  margin:0 auto;
+
+  padding:
+    22px
+    18px
+    60px;
+}
+
+/* =========================================================
+   HERO
+========================================================= */
+
+.hero{
+  margin-bottom:20px;
+}
+
+.eyebrow{
+  margin-bottom:7px;
+
+  color:#ff6a7b;
+
+  font-size:10px;
+  font-weight:850;
+
+  letter-spacing:.14em;
+
+  text-transform:uppercase;
+}
+
+h1{
+  margin:0;
+
+  font-size:
+    clamp(28px,5vw,43px);
+
+  line-height:1.04;
+
+  letter-spacing:-.04em;
+}
+
+.hero-desc{
+  max-width:780px;
+
+  margin:
+    10px
+    0
+    0;
+
+  color:var(--muted);
+
+  font-size:13px;
+
+  line-height:1.75;
+}
+
+/* =========================================================
+   CARD
+========================================================= */
+
+.card{
+  margin-bottom:15px;
+  padding:18px;
+
+  border:
+    1px solid
+    var(--line);
+
+  border-radius:var(--radius);
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,.025),
+      rgba(255,255,255,.008)
+    ),
+    var(--panel);
+
+  box-shadow:
+    0 20px 60px
+    rgba(0,0,0,.25);
+}
+
+.section-title{
+  margin-bottom:15px;
+
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+
+  gap:12px;
+}
+
+.section-title h2{
+  margin:0;
+
+  font-size:16px;
+  font-weight:800;
+}
+
+.section-title span{
+  color:#777;
+
+  font-size:10px;
+
+  letter-spacing:.04em;
+}
+
+/* =========================================================
+   FORM
+========================================================= */
+
+.grid{
+  display:grid;
+  gap:12px;
+}
+
+.grid-2{
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0,1fr)
+    );
+}
+
+.field{
+  min-width:0;
+}
+
+.field-label{
+  display:block;
+
+  margin-bottom:7px;
+
+  color:#c9c9c9;
+
+  font-size:11px;
+  font-weight:750;
+}
+
+input,
+textarea,
+select{
+  width:100%;
+
+  border:
+    1px solid
+    var(--line);
+
+  outline:none;
+
+  border-radius:11px;
+
+  background:#090909;
+
+  color:#fff;
+
+  padding:
+    11px
+    12px;
+
+  transition:
+    border-color .18s,
+    box-shadow .18s;
+}
+
+input::placeholder,
+textarea::placeholder{
+  color:#555;
+}
+
+input:focus,
+textarea:focus,
+select:focus{
+  border-color:
+    rgba(239,35,60,.7);
+
+  box-shadow:
+    0 0 0 3px
+    rgba(239,35,60,.08);
+}
+
+textarea{
+  min-height:105px;
+
+  resize:vertical;
+
+  line-height:1.7;
+}
+
+.small-textarea{
+  min-height:76px;
+}
+
+/* =========================================================
+   CHIPS
+========================================================= */
+
+.chips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+
+.chip{
+  min-height:38px;
+
+  padding:
+    8px
+    12px;
+
+  border:
+    1px solid
+    var(--line);
+
+  border-radius:10px;
+
+  background:#0c0c0c;
+
+  color:#cfcfcf;
+
+  transition:
+    border-color .16s,
+    color .16s,
+    background .16s,
+    box-shadow .16s,
+    transform .08s;
+}
+
+.chip:hover{
+  border-color:#555;
+  color:#fff;
+}
+
+.chip:active{
+  transform:scale(.97);
+}
+
+/* SELECTED = RED */
+
+.chip.on{
+  border-color:
+    var(--accent);
+
+  color:#fff;
+
+  background:
+    var(--accent-soft);
+
+  box-shadow:
+    0 0 0 1px
+    rgba(239,35,60,.13)
+    inset,
+    0 0 18px
+    rgba(239,35,60,.08);
+}
+
+/* =========================================================
+   TABS
+========================================================= */
+
+.tabs{
+  display:flex;
+
+  gap:7px;
+
+  margin-bottom:15px;
+
+  overflow:hidden;
+
+  touch-action:pan-y;
+}
+
+.tab{
+  flex:1;
+
+  min-width:0;
+  min-height:40px;
+
+  padding:
+    8px
+    9px;
+
+  border:
+    1px solid
+    var(--line);
+
+  border-radius:10px;
+
+  background:#0c0c0c;
+
+  color:#999;
+
+  font-size:11px;
+  font-weight:750;
+
+  transition:
+    border-color .16s,
+    background .16s,
+    color .16s;
+}
+
+.tab.on{
+  border-color:var(--accent);
+
+  background:
+    var(--accent-soft);
+
+  color:#fff;
+
+  box-shadow:
+    0 0 14px
+    rgba(239,35,60,.07);
+}
+
+.pane{
+  display:none;
+}
+
+.pane.active{
+  display:block;
+}
+
+/* =========================================================
+   DIRECTOR
+========================================================= */
+
+.director-group{
+  padding:
+    13px
+    0;
+
+  border-top:
+    1px solid
+    var(--line-soft);
+}
+
+.director-group:first-child{
+  padding-top:0;
+
+  border-top:0;
+}
+
+.director-name{
+  margin-bottom:9px;
+
+  color:#eee;
+
+  font-size:12px;
+  font-weight:800;
+}
+
+/* =========================================================
+   CONTINUITY
+========================================================= */
+
+.continuity-list{
+  display:grid;
+
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0,1fr)
+    );
+
+  gap:8px;
+}
+
+.toggle{
+  min-height:42px;
+
+  padding:
+    9px
+    11px;
+
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+
+  gap:10px;
+
+  border:
+    1px solid
+    var(--line);
+
+  border-radius:10px;
+
+  background:#0c0c0c;
+
+  color:#bbb;
+
+  text-align:left;
+
+  transition:
+    border-color .16s,
+    background .16s,
+    color .16s;
+}
+
+.toggle.on{
+  border-color:
+    var(--accent);
+
+  background:
+    rgba(239,35,60,.10);
+
+  color:#fff;
+}
+
+.toggle-dot{
+  width:10px;
+  height:10px;
+
+  flex:none;
+
+  border-radius:50%;
+
+  background:#333;
+
+  transition:
+    background .16s,
+    box-shadow .16s;
+}
+
+.toggle.on .toggle-dot{
+  background:
+    var(--accent);
+
+  box-shadow:
+    0 0 10px
+    rgba(239,35,60,.65);
+}
+
+/* =========================================================
+   BUTTONS
+========================================================= */
+
+.actions{
+  display:flex;
+  flex-wrap:wrap;
+
+  gap:9px;
+
+  margin-top:15px;
+}
+
+.btn{
+  min-height:42px;
+
+  padding:
+    9px
+    15px;
+
+  border:
+    1px solid
+    var(--line);
+
+  border-radius:11px;
+
+  background:#111;
+
+  color:#ddd;
+
+  font-size:12px;
+  font-weight:800;
+
+  transition:
+    border-color .18s,
+    background .18s,
+    color .18s,
+    transform .08s;
+}
+
+.btn:hover{
+  border-color:#555;
+  color:#fff;
+}
+
+.btn:active{
+  transform:scale(.97);
+}
+
+.btn-primary{
+  border-color:
+    var(--accent);
+
+  background:
+    var(--accent);
+
+  color:#fff;
+
+  box-shadow:
+    0 8px 25px
+    rgba(239,35,60,.18);
+}
+
+.btn-primary:hover{
+  border-color:
+    var(--accent-bright);
+
+  background:
+    var(--accent-bright);
+}
+
+.btn-danger{
+  border-color:
+    rgba(239,68,68,.4);
+
+  color:#ff9a9a;
+}
+
+.btn:disabled{
+  opacity:.45;
+  cursor:not-allowed;
+}
+
+/* =========================================================
+   STATUS
+========================================================= */
+
+.status-bar{
+  min-height:42px;
+
+  margin-top:12px;
+
+  padding:
+    10px
+    12px;
+
+  display:flex;
+  align-items:center;
+
+  gap:9px;
+
+  border:
+    1px solid
+    var(--line);
+
+  border-radius:11px;
+
+  background:#0b0b0b;
+}
+
+.status-dot{
+  width:8px;
+  height:8px;
+
+  flex:none;
+
+  border-radius:50%;
+
+  background:
+    var(--green);
+
+  box-shadow:
+    0 0 10px
+    rgba(34,197,94,.5);
+}
+
+.status-dot.busy{
+  background:
+    var(--yellow);
+
+  box-shadow:
+    0 0 10px
+    rgba(250,204,21,.5);
+
+  animation:
+    statusPulse 1s infinite;
+}
+
+.status-dot.error{
+  background:
+    var(--danger);
+
+  box-shadow:
+    0 0 10px
+    rgba(239,68,68,.5);
+}
+
+#statusText{
+  color:#ccc;
+
+  font-size:11px;
+
+  line-height:1.4;
+}
+
+@keyframes statusPulse{
+  50%{
+    opacity:.35;
+  }
+}
+
+/* =========================================================
+   AI PANEL
+========================================================= */
+
+.ai-panel{
+  min-width:0;
+
+  display:flex;
+  align-items:center;
+
+  gap:12px;
+
+  padding:12px;
+
+  border:
+    1px solid
+    rgba(239,35,60,.2);
+
+  border-radius:12px;
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(239,35,60,.08),
+      rgba(239,35,60,.015)
+    );
+}
+
+.ai-panel-icon{
+  width:35px;
+  height:35px;
+
+  flex:none;
+
+  display:grid;
+  place-items:center;
+
+  border-radius:10px;
+
+  background:
+    rgba(239,35,60,.13);
+
+  color:
+    var(--accent-bright);
+
+  font-size:17px;
+}
+
+.ai-panel-main{
+  min-width:0;
+}
+
+.ai-panel-label{
+  margin-bottom:2px;
+
+  color:#888;
+
+  font-size:10px;
+}
+
+.ai-panel-value{
+  overflow:hidden;
+
+  text-overflow:ellipsis;
+  white-space:nowrap;
+
+  color:#fff;
+
+  font-size:12px;
+  font-weight:800;
+}
+
+/* =========================================================
+   OUTPUT
+========================================================= */
+
+.output{
+  min-height:120px;
+
+  padding:13px;
+
+  border:
+    1px solid
+    var(--line);
+
+  border-radius:11px;
+
+  background:#090909;
+
+  white-space:pre-wrap;
+  word-break:break-word;
+
+  color:#ddd;
+
+  font-size:12px;
+
+  line-height:1.75;
+}
+
+.empty{
+  color:#555;
+}
+
+/* =========================================================
+   TIMELINE
+========================================================= */
+
+.timeline{
+  display:grid;
+
+  gap:6px;
+
+  max-height:450px;
+
+  overflow:auto;
+
+  padding-right:2px;
+}
+
+.timeline-row{
+  display:grid;
+
+  grid-template-columns:
+    58px
+    1fr;
+
+  gap:8px;
+
+  padding:8px;
+
+  border:
+    1px solid
+    rgba(255,255,255,.06);
+
+  border-radius:9px;
+
+  background:#0b0b0b;
+}
+
+.timeline-time{
+  color:#ff6a7b;
+
+  font-size:11px;
+  font-weight:850;
+}
+
+.timeline-content{
+  color:#ccc;
+
+  font-size:11px;
+
+  line-height:1.55;
+}
+
+/* =========================================================
+   PROMPT
+========================================================= */
+
+.prompt-box{
+  min-height:180px;
+
+  padding:13px;
+
+  border:
+    1px solid
+    rgba(239,35,60,.24);
+
+  border-radius:12px;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(239,35,60,.035),
+      rgba(0,0,0,.2)
+    );
+
+  white-space:pre-wrap;
+  word-break:break-word;
+
+  color:#eee;
+
+  font-size:12px;
+
+  line-height:1.75;
+}
+
+/* =========================================================
+   FOOTER
+========================================================= */
+
+.footer-note{
+  margin-top:20px;
+
+  text-align:center;
+
+  color:#505050;
+
+  font-size:10px;
+}
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media(max-width:720px){
+
+  html,
+  body{
+    overflow-x:hidden !important;
+    overscroll-behavior-x:none !important;
+    touch-action:pan-y !important;
+  }
+
+  .header-inner{
+    padding:
+      10px
+      11px;
+  }
+
+  .dark-star-logo{
+    width:36px;
+    height:36px;
+  }
+
+  .dark-star-logo svg{
+    width:22px;
+    height:22px;
+  }
+
+  .brand-title{
+    font-size:14px;
+  }
+
+  .brand-sub{
+    display:none;
+  }
+
+  .header-right{
+    gap:5px;
+  }
+
+  .ai-info{
+    max-width:125px;
+
+    padding:
+      7px
+      8px;
+
+    font-size:10px;
+  }
+
+  .home-btn{
+    min-height:36px;
+
+    padding:
+      0
+      9px;
+
+    font-size:10px;
+  }
+
+  .main{
+    padding:
+      17px
+      12px
+      45px;
+  }
+
+  .card{
+    padding:14px;
+
+    border-radius:14px;
+  }
+
+  .grid-2{
+    grid-template-columns:1fr;
+  }
+
+  .continuity-list{
+    grid-template-columns:1fr;
+  }
+
+  .tabs{
+    gap:5px;
+  }
+
+  .tab{
+    font-size:10px;
+
+    padding:
+      7px
+      4px;
+  }
+
+  .chip{
+    min-height:36px;
+
+    padding:
+      7px
+      10px;
+
+    font-size:11px;
+  }
+
+  .actions .btn{
+    flex:1;
+  }
+}
+</style>
 </head>
-
 <body>
 <div class="app">
-
-  <!-- =========================
-       HEADER
-  ========================== -->
-  <header class="header">
-    <div class="header-inner">
-
-      <div class="brand">
-        <div class="brand-mark">A</div>
-
-        <div class="brand-text">
-          <div class="brand-title">AIVAULT Video Studio</div>
-          <div class="brand-sub">AI Story → Director → Prompt → Seedance 2.5</div>
-        </div>
-      </div>
-
-      <div class="header-right">
-
-        <div class="ai-info">
-          <span class="ai-info-icon">✦</span>
-          <span id="aiProviderText">AI：尚未連線</span>
-        </div>
-
-        <a
-          id="homeBtn"
-          class="home-btn"
-          href="./index.html"
-        >
-          ⌂ 返回 Home
-        </a>
-
-      </div>
-    </div>
-  </header>
-
-
-  <main class="main">
-
-    <!-- =========================
-         HERO
-    ========================== -->
-
-    <section class="hero">
-      <div class="eyebrow">AIVAULT CREATIVE ENGINE</div>
-
-      <h1>Video Studio</h1>
-
-      <p class="hero-desc">
-        從故事創作、角色設定、導演技法、連續性控制，
-        到秒級時間軸與 Seedance 2.5 影片提示詞。
-      </p>
-    </section>
-
-
-    <!-- =========================
-         PROJECT SETTINGS
-    ========================== -->
-
-    <section class="card">
-
-      <div class="section-title">
-        <h2>影片設定</h2>
-        <span>Project Setup</span>
-      </div>
-
-      <div class="grid grid-2">
-
-        <div class="field">
-          <label class="field-label">故事名稱</label>
-          <input
-            id="storyTitle"
-            type="text"
-            placeholder="例如：最後一顆星星"
-          />
-        </div>
-
-        <div class="field">
-          <label class="field-label">主要角色</label>
-          <input
-            id="characters"
-            type="text"
-            placeholder="例如：小女孩、機器狗"
-          />
-        </div>
-
-      </div>
-
-      <div class="field" style="margin-top:12px">
-        <label class="field-label">故事主題</label>
-
-        <div class="chips" id="themeChips">
-
-          <button class="chip" data-theme="冒險">冒險</button>
-          <button class="chip" data-theme="科幻">科幻</button>
-          <button class="chip" data-theme="奇幻">奇幻</button>
-          <button class="chip" data-theme="愛情">愛情</button>
-          <button class="chip" data-theme="懸疑">懸疑</button>
-          <button class="chip" data-theme="恐怖">恐怖</button>
-          <button class="chip" data-theme="教育">教育</button>
-          <button class="chip" data-theme="兒童">兒童</button>
-
-        </div>
-
-        <input
-          id="customTheme"
-          type="text"
-          placeholder="或輸入自訂主題，例如：兒童安全"
-          style="margin-top:9px"
-        />
-      </div>
-
-      <div class="field" style="margin-top:12px">
-        <label class="field-label">故事要求</label>
-
-        <textarea
-          id="storyRequest"
-          class="small-textarea"
-          placeholder="告訴 AI 你希望故事有什麼內容、角色關係、情緒、結局或特殊要求。"
-        ></textarea>
-      </div>
-
-    </section>
-
-
-    <!-- =========================
-         MODE
-    ========================== -->
-
-    <section class="card">
-
-      <div class="section-title">
-        <h2>影片模式</h2>
-        <span>Mode</span>
-      </div>
-
-      <div class="chips" id="modeChips">
-
-        <button
-          class="chip on"
-          data-mode="單集"
-        >
-          單集
-        </button>
-
-        <button
-          class="chip"
-          data-mode="系列"
-        >
-          系列
-        </button>
-
-      </div>
-
-      <div class="section-title" style="margin-top:18px">
-        <h2>影片長度</h2>
-        <span>Duration</span>
-      </div>
-
-      <div class="chips" id="durationChips">
-
-        <button class="chip" data-duration="15">15 秒</button>
-
-        <button
-          class="chip on"
-          data-duration="30"
-        >
-          30 秒
-        </button>
-
-        <button class="chip" data-duration="60">60 秒</button>
-
-        <button class="chip" data-duration="90">90 秒</button>
-
-        <button class="chip" data-duration="120">120 秒</button>
-
-      </div>
-
-      <div class="field" style="margin-top:15px">
-        <label class="field-label">輸出語言</label>
-
-        <select id="language" class="select">
-          <option value="zh-TW">繁體中文</option>
-          <option value="zh-CN">简体中文</option>
-          <option value="zh-TW,en">繁體中文＋English</option>
-          <option value="zh-CN,en">简体中文＋English</option>
-          <option value="en">English</option>
-        </select>
-      </div>
-
-    </section>
-
-
-    <!-- =========================
-         AI STATUS
-    ========================== -->
-
-    <section class="card">
-
-      <div class="section-title">
-        <h2>AI 協助</h2>
-        <span>AI Assistance</span>
-      </div>
-
-      <div class="ai-panel">
-
-        <div class="ai-panel-icon">✦</div>
-
-        <div class="ai-panel-main">
-          <div class="ai-panel-label">
-            目前實際使用的 AI
-          </div>
-
-          <div
-            id="aiPanelValue"
-            class="ai-panel-value"
-          >
-            尚未呼叫 AI Gateway
-          </div>
-        </div>
-
-      </div>
-
-      <div class="status-bar">
-
-        <span
-          id="statusDot"
-          class="status-dot"
-        ></span>
-
-        <span id="statusText">
-          Studio Ready
-        </span>
-
-      </div>
-
-    </section>
-
-
-    <!-- =========================
-         WORKSPACE
-    ========================== -->
-
-    <section class="card">
-
-      <div class="section-title">
-        <h2>創作工作區</h2>
-        <span>Workspace</span>
-      </div>
-
-      <div class="tabs" id="workspaceTabs">
-
-        <button
-          class="tab on"
-          data-pane="storyPane"
-        >
-          Story
-        </button>
-
-        <button
-          class="tab"
-          data-pane="scriptPane"
-        >
-          Script
-        </button>
-
-        <button
-          class="tab"
-          data-pane="narrationPane"
-        >
-          Narration
-        </button>
-
-        <button
-          class="tab"
-          data-pane="storyboardPane"
-        >
-          Storyboard
-        </button>
-
-        <button
-          class="tab"
-          data-pane="reviewPane"
-        >
-          Review
-        </button>
-
-      </div>
-
-
-      <!-- STORY -->
-
-      <div
-        id="storyPane"
-        class="pane active"
-      >
-
-        <div class="field">
-          <label class="field-label">故事</label>
-
-          <div
-            id="storyOutput"
-            class="output"
-          >
-            <span class="empty">
-              尚未建立故事。
-            </span>
-          </div>
-        </div>
-
-        <div class="actions">
-
-          <button
-            id="generateStoryBtn"
-            class="btn btn-primary"
-          >
-            ✦ AI 創作故事
-          </button>
-
-          <button
-            id="clearStoryBtn"
-            class="btn btn-danger"
-          >
-            清除故事
-          </button>
-
-        </div>
-
-      </div>
-
-
-      <!-- SCRIPT -->
-
-      <div
-        id="scriptPane"
-        class="pane"
-      >
-
-        <textarea
-          id="scriptOutput"
-          placeholder="故事產生後，這裡會顯示劇本。你也可以直接修改。"
-        ></textarea>
-
-      </div>
-
-
-      <!-- NARRATION -->
-
-      <div
-        id="narrationPane"
-        class="pane"
-      >
-
-        <textarea
-          id="narrationOutput"
-          placeholder="故事產生後，這裡會顯示旁白。"
-        ></textarea>
-
-      </div>
-
-
-      <!-- STORYBOARD -->
-
-      <div
-        id="storyboardPane"
-        class="pane"
-      >
-
-        <textarea
-          id="storyboardOutput"
-          placeholder="故事產生後，這裡會顯示分鏡。"
-        ></textarea>
-
-      </div>
-
-
-      <!-- REVIEW -->
-
-      <div
-        id="reviewPane"
-        class="pane"
-      >
-
-        <div class="field">
-          <label class="field-label">事實查核</label>
-
-          <textarea
-            id="factCheckOutput"
-            class="small-textarea"
-            placeholder="AI 故事中的事實查核結果。"
-          ></textarea>
-        </div>
-
-        <div class="field" style="margin-top:12px">
-          <label class="field-label">討論 / 評估</label>
-
-          <textarea
-            id="discussionOutput"
-            class="small-textarea"
-            placeholder="故事品質、邏輯與創作評估。"
-          ></textarea>
-        </div>
-
-        <div class="field" style="margin-top:12px">
-          <label class="field-label">最終審查</label>
-
-          <textarea
-            id="reviewOutput"
-            class="small-textarea"
-            placeholder="最終影片內容審查。"
-          ></textarea>
-        </div>
-
-      </div>
-
-    </section>
-
-
-    <!-- =========================
-         DIRECTOR
-    ========================== -->
-
-    <section class="card">
-
-      <div class="section-title">
-        <h2>Director</h2>
-        <span>導演控制</span>
-      </div>
-
-      <div id="directorContainer">
-
-        <div class="director-group">
-
-          <div class="director-name">
-            Camera / 鏡頭
-          </div>
-
-          <div class="chips">
-
-            <button
-              class="chip"
-              data-director-group="camera"
-              data-director-value="close-up"
-            >
-              特寫
-            </button>
-
-            <button
-              class="chip"
-              data-director-group="camera"
-              data-director-value="medium-shot"
-            >
-              中景
-            </button>
-
-            <button
-              class="chip"
-              data-director-group="camera"
-              data-director-value="wide-shot"
-            >
-              廣角
-            </button>
-
-            <button
-              class="chip"
-              data-director-group="camera"
-              data-director-value="tracking-shot"
-            >
-              跟拍
-            </button>
-
-            <button
-              class="chip"
-              data-director-group="camera"
-              data-director-value="dolly-in"
-            >
-              推鏡
-            </button>
-
-            <button
-              class="chip"
-              data-director-group="camera"
-              data-director-value="dolly-out"
-            >
-              拉鏡
-            </button>
-
-            <button
-              class="chip"
-              data-director-group="camera"
-              data-director-value="orbit"
-            >
-              環繞
-            </button>
-
-          </div>
-
-        </div>
-
-
-        <div class="director-group">
-
-          <div class="director-name">
-            Movement / 運動
-          </div>
-
-          <div class="chips">
-
-            <button
-              class="chip"
-              data-director-group="movement"
-              data-director-value="slow-motion"
-            >
-              慢動作
-            </button>
-
-            <button
-              class="chip"
-              data-director-group="movement"
-              data-director-value="fast-motion"
-            >
-              快動作
-            </button>
-
-            <button
-              class="chip"
-              data-director-group="movement"
-              data-director-value="handheld"
-            >
-              手持感
-            </button>
-
-            <button
-              class="chip"
-              data-director-group="movement"
-              data-director-value="smooth-motion"
-            >
-              平滑運動
-            </button>
-
-            <button
-              class="chip"
-              data-director-group="movement"
-              data-director-value="dynamic"
-            >
-              動態鏡頭
-            </button>
-
-          </div>
-
-        </div>
-
-
-        <div class="director-group">
-
-          <div class="director-name">
-            Lighting / 光線
-          </div>
-
-          <div class="chips">
-
-            <button
-              class="chip"
-              data-director-group="lighting"
-              data-director-value="cinematic"
-            >
-              電影光
-            </button>
-
-            <button
-              class="chip"
-              data-director-group="lighting"
-              data-director-value="soft-light"
-            >
-              柔光
-            </button>
-
-            <button
-              class="chip"
-              data-director-group="lighting"
-              data-director-value="dramatic"
-            >
-              戲劇光
-            </button>
-
-            <button
-              class="chip"
-              data-director-group="lighting"
-              data-director-value="backlight"
-            >
-              逆光
-            </button>
-
-            <button
-              class="chip"
-              data-director-group="lighting"
-              data-director-value="neon"
-            >
-              霓虹光
-            </button>
-
-          </div>
-
-        </div>
-
-
-        <div class="director-group">
-
-          <div class="director-name">
-            Visual / 視覺
-          </div>
-
-          <div class="chips">
-
-            <button
-              class="chip"
-              data-director-group="visual"
-              data-director-value="photorealistic"
-            >
-              寫實
-            </button>
-
-            <button
-              class="chip"
-              data-director-group="visual"
-              data-director-value="cinematic"
-            >
-              電影感
-            </button>
-
-            <button
-              class="chip"
-              data-director-group="visual"
-              data-director-value="anime"
-            >
-              Anime
-            </button>
-
-            <button
-              class="chip"
-              data-director-group="visual"
-              data-director-value="3d-animation"
-            >
-              3D Animation
-            </button>
-
-            <button
-              class="chip"
-              data-director-group="visual"
-              data-director-value="dark-fantasy"
-            >
-              Dark Fantasy
-            </button>
-
-          </div>
-
-        </div>
-
-
-        <div class="director-group">
-
-          <div class="director-name">
-            Editing / 剪輯
-          </div>
-
-          <div class="chips">
-
-            <button
-              class="chip"
-              data-director-group="editing"
-              data-director-value="hard-cut"
-            >
-              硬切
-            </button>
-
-            <button
-              class="chip"
-              data-director-group="editing"
-              data-director-value="match-cut"
-            >
-              Match Cut
-            </button>
-
-            <button
-              class="chip"
-              data-director-group="editing"
-              data-director-value="crossfade"
-            >
-              淡入淡出
-            </button>
-
-            <button
-              class="chip"
-              data-director-group="editing"
-              data-director-value="montage"
-            >
-              蒙太奇
-            </button>
-
-          </div>
-
-        </div>
-
-      </div>
-
-    </section>
-
-
-    <!-- =========================
-         CONTINUITY
-    ========================== -->
-
-    <section class="card">
-
-      <div class="section-title">
-        <h2>Continuity</h2>
-        <span>角色與場景一致性</span>
-      </div>
-
-      <div
-        id="continuityList"
-        class="continuity-list"
-      >
-
-        <button class="toggle on" data-continuity="same_person">
-          <span>同一人物</span>
-          <span class="toggle-dot"></span>
-        </button>
-
-        <button class="toggle on" data-continuity="same_face">
-          <span>臉部一致</span>
-          <span class="toggle-dot"></span>
-        </button>
-
-        <button class="toggle on" data-continuity="same_hairstyle">
-          <span>髮型一致</span>
-          <span class="toggle-dot"></span>
-        </button>
-
-        <button class="toggle on" data-continuity="same_clothing">
-          <span>服裝一致</span>
-          <span class="toggle-dot"></span>
-        </button>
-
-        <button class="toggle on" data-continuity="same_body_proportions">
-          <span>身體比例一致</span>
-          <span class="toggle-dot"></span>
-        </button>
-
-        <button class="toggle on" data-continuity="same_environment">
-          <span>環境一致</span>
-          <span class="toggle-dot"></span>
-        </button>
-
-        <button class="toggle on" data-continuity="same_visual_style">
-          <span>視覺風格一致</span>
-          <span class="toggle-dot"></span>
-        </button>
-
-        <button class="toggle on" data-continuity="same_lighting_logic">
-          <span>光線邏輯一致</span>
-          <span class="toggle-dot"></span>
-        </button>
-
-        <button class="toggle on" data-continuity="prevent_identity_drift">
-          <span>防止 Identity Drift</span>
-          <span class="toggle-dot"></span>
-        </button>
-
-        <button class="toggle on" data-continuity="previous_end_state">
-          <span>延續上一鏡結尾狀態</span>
-          <span class="toggle-dot"></span>
-        </button>
-
-      </div>
-
-    </section>
-
-
-    <!-- =========================
-         TIMELINE
-    ========================== -->
-
-    <section class="card">
-
-      <div class="section-title">
-        <h2>Second Timeline</h2>
-        <span>秒級時間軸</span>
-      </div>
-
-      <div
-        id="timelineOutput"
-        class="timeline"
-      >
-        <div class="empty">
-          產生故事後，這裡會建立秒級時間軸。
-        </div>
-      </div>
-
-    </section>
-
-
-    <!-- =========================
-         PROMPT
-    ========================== -->
-
-    <section class="card">
-
-      <div class="section-title">
-        <h2>Seedance 2.5 Prompt</h2>
-        <span>Final Video Prompt</span>
-      </div>
-
-      <p
-        style="
-          margin:0 0 12px;
-          color:#888;
-          font-size:11px;
-          line-height:1.6;
+<!-- =======================================================
+     HEADER
+======================================================= -->
+<header class="header">
+  <div class="header-inner">
+<div class="brand">
+
+  <!-- Technical Dark Star icon -->
+  <div class="dark-star-logo" aria-label="Technical Dark Star">
+
+    <svg
+      viewBox="0 0 100 100"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        d="
+          M50 5
+          L57 39
+          L95 50
+          L57 61
+          L50 95
+          L43 61
+          L5 50
+          L43 39
+          Z
         "
-      >
-        Video Studio 會把故事、導演技法、Continuity、秒級時間軸與毫秒級關鍵幀整合，
-        再交給 AIVAULT Video Prompt Compiler。
-      </p>
+      />
 
-      <div
-        id="promptZh"
-        class="prompt-box"
-      >
-        <span class="empty">
-          尚未生成影片提示詞。
-        </span>
-      </div>
+      <circle
+        cx="50"
+        cy="50"
+        r="9"
+      />
+    </svg>
 
-      <div style="height:10px"></div>
+  </div>
 
-      <div
-        id="promptEn"
-        class="prompt-box"
-      >
-        <span class="empty">
-          English prompt 尚未生成。
-        </span>
-      </div>
+  <div class="brand-text">
 
-      <div class="actions">
-
-        <button
-          id="generatePromptBtn"
-          class="btn btn-primary"
-        >
-          ✦ 生成影片提示詞
-        </button>
-
-        <button
-          id="copyZhBtn"
-          class="btn"
-        >
-          複製中文 Prompt
-        </button>
-
-        <button
-          id="copyEnBtn"
-          class="btn"
-        >
-          Copy English Prompt
-        </button>
-
-      </div>
-
-    </section>
-
-
-    <div class="footer-note">
-      AIVAULT Video Studio · AI Gateway → Video Prompt Compiler → Seedance 2.5
+    <div class="brand-title">
+      AIVAULT Video Studio
     </div>
 
-  </main>
+    <div class="brand-sub">
+      TECHNICAL DARK STAR · CREATIVE ENGINE
+    </div>
+
+  </div>
+
+</div>
+
+<div class="header-right">
+
+  <div class="ai-info">
+
+    <span class="ai-info-icon">✦</span>
+
+    <span id="aiProviderText">
+      AI：尚未連線
+    </span>
+
+  </div>
+
+  <!-- IMPORTANT:
+       This is NOT a fixed href.
+       It returns to the previous page.
+  -->
+
+  <button
+    id="homeBtn"
+    class="home-btn"
+    type="button"
+  >
+    ← 返回 Home
+  </button>
+
+</div>
+  </div>
+</header>
+<!-- =======================================================
+     MAIN
+======================================================= -->
+<main class="main">
+  <!-- HERO -->
+  <section class="hero">
+<div class="eyebrow">
+  AIVAULT CREATIVE ENGINE
+</div>
+
+<h1>
+  Video Studio
+</h1>
+
+<p class="hero-desc">
+  從故事創作、角色設定、導演技法、角色與場景一致性，
+  到秒級時間軸、毫秒級關鍵幀與 Seedance 2.5 影片提示詞。
+</p>
+  </section>
+  <!-- =====================================================
+       PROJECT SETTINGS
+  ====================================================== -->
+  <section class="card">
+<div class="section-title">
+  <h2>影片設定</h2>
+  <span>Project Setup</span>
 </div>
 
 
+<div class="grid grid-2">
+
+  <div class="field">
+
+    <label class="field-label">
+      故事名稱
+    </label>
+
+    <input
+      id="storyTitle"
+      type="text"
+      placeholder="例如：最後一顆星星"
+    />
+
+  </div>
+
+
+  <div class="field">
+
+    <label class="field-label">
+      主要角色
+    </label>
+
+    <input
+      id="characters"
+      type="text"
+      placeholder="例如：小女孩、機器狗"
+    />
+
+  </div>
+
+</div>
+
+
+<div
+  class="field"
+  style="margin-top:12px"
+>
+
+  <label class="field-label">
+    故事主題
+  </label>
+
+  <div
+    class="chips"
+    id="themeChips"
+  >
+
+    <button
+      class="chip"
+      type="button"
+      data-theme="冒險"
+    >
+      冒險
+    </button>
+
+    <button
+      class="chip"
+      type="button"
+      data-theme="科幻"
+    >
+      科幻
+    </button>
+
+    <button
+      class="chip"
+      type="button"
+      data-theme="奇幻"
+    >
+      奇幻
+    </button>
+
+    <button
+      class="chip"
+      type="button"
+      data-theme="愛情"
+    >
+      愛情
+    </button>
+
+    <button
+      class="chip"
+      type="button"
+      data-theme="懸疑"
+    >
+      懸疑
+    </button>
+
+    <button
+      class="chip"
+      type="button"
+      data-theme="恐怖"
+    >
+      恐怖
+    </button>
+
+    <button
+      class="chip"
+      type="button"
+      data-theme="教育"
+    >
+      教育
+    </button>
+
+    <button
+      class="chip"
+      type="button"
+      data-theme="兒童"
+    >
+      兒童
+    </button>
+
+  </div>
+
+
+  <input
+    id="customTheme"
+    type="text"
+    placeholder="或輸入自訂主題，例如：兒童安全"
+    style="margin-top:9px"
+  />
+
+</div>
+
+
+<div
+  class="field"
+  style="margin-top:12px"
+>
+
+  <label class="field-label">
+    故事要求
+  </label>
+
+  <textarea
+    id="storyRequest"
+    class="small-textarea"
+    placeholder="告訴 AI 你希望故事有什麼內容、角色關係、情緒、結局或特殊要求。"
+  ></textarea>
+
+</div>
+  </section>
+  <!-- =====================================================
+       MODE + DURATION
+  ====================================================== -->
+  <section class="card">
+<div class="section-title">
+  <h2>影片模式</h2>
+  <span>Mode</span>
+</div>
+
+
+<div
+  class="chips"
+  id="modeChips"
+>
+
+  <button
+    class="chip on"
+    type="button"
+    data-mode="單集"
+  >
+    單集
+  </button>
+
+  <button
+    class="chip"
+    type="button"
+    data-mode="系列"
+  >
+    系列
+  </button>
+
+</div>
+
+
+<div
+  class="section-title"
+  style="margin-top:18px"
+>
+
+  <h2>影片長度</h2>
+
+  <span>
+    Duration
+  </span>
+
+</div>
+
+
+<div
+  class="chips"
+  id="durationChips"
+>
+
+  <!-- 10 SECONDS -->
+  <button
+    class="chip"
+    type="button"
+    data-duration="10"
+  >
+    10 秒
+  </button>
+
+  <button
+    class="chip"
+    type="button"
+    data-duration="15"
+  >
+    15 秒
+  </button>
+
+  <button
+    class="chip on"
+    type="button"
+    data-duration="30"
+  >
+    30 秒
+  </button>
+
+  <button
+    class="chip"
+    type="button"
+    data-duration="60"
+  >
+    60 秒
+  </button>
+
+  <button
+    class="chip"
+    type="button"
+    data-duration="90"
+  >
+    90 秒
+  </button>
+
+  <button
+    class="chip"
+    type="button"
+    data-duration="120"
+  >
+    120 秒
+  </button>
+
+</div>
+
+
+<div
+  class="field"
+  style="margin-top:15px"
+>
+
+  <label class="field-label">
+    輸出語言
+  </label>
+
+  <select id="language">
+
+    <option value="zh-TW">
+      繁體中文
+    </option>
+
+    <option value="zh-CN">
+      简体中文
+    </option>
+
+    <option value="zh-TW,en">
+      繁體中文＋English
+    </option>
+
+    <option value="zh-CN,en">
+      简体中文＋English
+    </option>
+
+    <option value="en">
+      English
+    </option>
+
+  </select>
+
+</div>
+  </section>
+  <!-- =====================================================
+       AI ASSISTANCE
+  ====================================================== -->
+  <section class="card">
+<div class="section-title">
+
+  <h2>
+    AI 協助
+  </h2>
+
+  <span>
+    AI Assistance
+  </span>
+
+</div>
+
+
+<div class="ai-panel">
+
+  <div class="ai-panel-icon">
+    ✦
+  </div>
+
+  <div class="ai-panel-main">
+
+    <div class="ai-panel-label">
+      目前實際使用的 AI
+    </div>
+
+    <div
+      id="aiPanelValue"
+      class="ai-panel-value"
+    >
+      尚未呼叫 AI Gateway
+    </div>
+
+  </div>
+
+</div>
+
+
+<div class="status-bar">
+
+  <span
+    id="statusDot"
+    class="status-dot"
+  ></span>
+
+  <span id="statusText">
+    Studio Ready
+  </span>
+
+</div>
+  </section>
+  <!-- =====================================================
+       WORKSPACE
+  ====================================================== -->
+  <section class="card">
+<div class="section-title">
+
+  <h2>
+    創作工作區
+  </h2>
+
+  <span>
+    Workspace
+  </span>
+
+</div>
+
+
+<div
+  class="tabs"
+  id="workspaceTabs"
+>
+
+  <button
+    class="tab on"
+    type="button"
+    data-pane="storyPane"
+  >
+    Story
+  </button>
+
+  <button
+    class="tab"
+    type="button"
+    data-pane="scriptPane"
+  >
+    Script
+  </button>
+
+  <button
+    class="tab"
+    type="button"
+    data-pane="narrationPane"
+  >
+    Narration
+  </button>
+
+  <button
+    class="tab"
+    type="button"
+    data-pane="storyboardPane"
+  >
+    Storyboard
+  </button>
+
+  <button
+    class="tab"
+    type="button"
+    data-pane="reviewPane"
+  >
+    Review
+  </button>
+
+</div>
+
+
+<!-- STORY -->
+
+<div
+  id="storyPane"
+  class="pane active"
+>
+
+  <div class="field">
+
+    <label class="field-label">
+      故事
+    </label>
+
+    <div
+      id="storyOutput"
+      class="output"
+    >
+      <span class="empty">
+        尚未建立故事。
+      </span>
+    </div>
+
+  </div>
+
+
+  <div class="actions">
+
+    <button
+      id="generateStoryBtn"
+      class="btn btn-primary"
+      type="button"
+    >
+      ✦ AI 創作故事
+    </button>
+
+    <button
+      id="clearStoryBtn"
+      class="btn btn-danger"
+      type="button"
+    >
+      清除故事
+    </button>
+
+  </div>
+
+</div>
+
+
+<!-- SCRIPT -->
+
+<div
+  id="scriptPane"
+  class="pane"
+>
+
+  <textarea
+    id="scriptOutput"
+    placeholder="故事產生後，這裡會顯示劇本。你也可以直接修改。"
+  ></textarea>
+
+</div>
+
+
+<!-- NARRATION -->
+
+<div
+  id="narrationPane"
+  class="pane"
+>
+
+  <textarea
+    id="narrationOutput"
+    placeholder="故事產生後，這裡會顯示旁白。"
+  ></textarea>
+
+</div>
+
+
+<!-- STORYBOARD -->
+
+<div
+  id="storyboardPane"
+  class="pane"
+>
+
+  <textarea
+    id="storyboardOutput"
+    placeholder="故事產生後，這裡會顯示分鏡。"
+  ></textarea>
+
+</div>
+
+
+<!-- REVIEW -->
+
+<div
+  id="reviewPane"
+  class="pane"
+>
+
+  <div class="field">
+
+    <label class="field-label">
+      事實查核
+    </label>
+
+    <textarea
+      id="factCheckOutput"
+      class="small-textarea"
+      placeholder="AI 故事中的事實查核結果。"
+    ></textarea>
+
+  </div>
+
+
+  <div
+    class="field"
+    style="margin-top:12px"
+  >
+
+    <label class="field-label">
+      討論 / 評估
+    </label>
+
+    <textarea
+      id="discussionOutput"
+      class="small-textarea"
+      placeholder="故事品質、邏輯與創作評估。"
+    ></textarea>
+
+  </div>
+
+
+  <div
+    class="field"
+    style="margin-top:12px"
+  >
+
+    <label class="field-label">
+      最終審查
+    </label>
+
+    <textarea
+      id="reviewOutput"
+      class="small-textarea"
+      placeholder="最終影片內容審查。"
+    ></textarea>
+
+  </div>
+
+</div>
+  </section>
+  <!-- =====================================================
+       DIRECTOR
+  ====================================================== -->
+  <section class="card">
+<div class="section-title">
+
+  <h2>
+    Director
+  </h2>
+
+  <span>
+    導演控制
+  </span>
+
+</div>
+
+
+<div id="directorContainer">
+
+
+  <!-- CAMERA -->
+
+  <div class="director-group">
+
+    <div class="director-name">
+      Camera / 鏡頭
+    </div>
+
+    <div class="chips">
+
+      <button
+        class="chip"
+        type="button"
+        data-director-group="camera"
+        data-director-value="close-up"
+      >
+        特寫
+      </button>
+
+      <button
+        class="chip"
+        type="button"
+        data-director-group="camera"
+        data-director-value="medium-shot"
+      >
+        中景
+      </button>
+
+      <button
+        class="chip"
+        type="button"
+        data-director-group="camera"
+        data-director-value="wide-shot"
+      >
+        廣角
+      </button>
+
+      <button
+        class="chip"
+        type="button"
+        data-director-group="camera"
+        data-director-value="tracking-shot"
+      >
+        跟拍
+      </button>
+
+      <button
+        class="chip"
+        type="button"
+        data-director-group="camera"
+        data-director-value="dolly-in"
+      >
+        推鏡
+      </button>
+
+      <button
+        class="chip"
+        type="button"
+        data-director-group="camera"
+        data-director-value="dolly-out"
+      >
+        拉鏡
+      </button>
+
+      <button
+        class="chip"
+        type="button"
+        data-director-group="camera"
+        data-director-value="orbit"
+      >
+        環繞
+      </button>
+
+    </div>
+
+  </div>
+
+
+  <!-- MOVEMENT -->
+
+  <div class="director-group">
+
+    <div class="director-name">
+      Movement / 運動
+    </div>
+
+    <div class="chips">
+
+      <button
+        class="chip"
+        type="button"
+        data-director-group="movement"
+        data-director-value="slow-motion"
+      >
+        慢動作
+      </button>
+
+      <button
+        class="chip"
+        type="button"
+        data-director-group="movement"
+        data-director-value="fast-motion"
+      >
+        快動作
+      </button>
+
+      <button
+        class="chip"
+        type="button"
+        data-director-group="movement"
+        data-director-value="handheld"
+      >
+        手持感
+      </button>
+
+      <button
+        class="chip"
+        type="button"
+        data-director-group="movement"
+        data-director-value="smooth-motion"
+      >
+        平滑運動
+      </button>
+
+      <button
+        class="chip"
+        type="button"
+        data-director-group="movement"
+        data-director-value="dynamic"
+      >
+        動態鏡頭
+      </button>
+
+    </div>
+
+  </div>
+
+
+  <!-- LIGHTING -->
+
+  <div class="director-group">
+
+    <div class="director-name">
+      Lighting / 光線
+    </div>
+
+    <div class="chips">
+
+      <button
+        class="chip"
+        type="button"
+        data-director-group="lighting"
+        data-director-value="cinematic"
+      >
+        電影光
+      </button>
+
+      <button
+        class="chip"
+        type="button"
+        data-director-group="lighting"
+        data-director-value="soft-light"
+      >
+        柔光
+      </button>
+
+      <button
+        class="chip"
+        type="button"
+        data-director-group="lighting"
+        data-director-value="dramatic"
+      >
+        戲劇光
+      </button>
+
+      <button
+        class="chip"
+        type="button"
+        data-director-group="lighting"
+        data-director-value="backlight"
+      >
+        逆光
+      </button>
+
+      <button
+        class="chip"
+        type="button"
+        data-director-group="lighting"
+        data-director-value="neon"
+      >
+        霓虹光
+      </button>
+
+    </div>
+
+  </div>
+
+
+  <!-- VISUAL -->
+
+  <div class="director-group">
+
+    <div class="director-name">
+      Visual / 視覺
+    </div>
+
+    <div class="chips">
+
+      <button
+        class="chip"
+        type="button"
+        data-director-group="visual"
+        data-director-value="photorealistic"
+      >
+        寫實
+      </button>
+
+      <button
+        class="chip"
+        type="button"
+        data-director-group="visual"
+        data-director-value="cinematic"
+      >
+        電影感
+      </button>
+
+      <button
+        class="chip"
+        type="button"
+        data-director-group="visual"
+        data-director-value="anime"
+      >
+        Anime
+      </button>
+
+      <button
+        class="chip"
+        type="button"
+        data-director-group="visual"
+        data-director-value="3d-animation"
+      >
+        3D Animation
+      </button>
+
+      <button
+        class="chip"
+        type="button"
+        data-director-group="visual"
+        data-director-value="dark-fantasy"
+      >
+        Dark Fantasy
+      </button>
+
+    </div>
+
+  </div>
+
+
+  <!-- EDITING -->
+
+  <div class="director-group">
+
+    <div class="director-name">
+      Editing / 剪輯
+    </div>
+
+    <div class="chips">
+
+      <button
+        class="chip"
+        type="button"
+        data-director-group="editing"
+        data-director-value="hard-cut"
+      >
+        硬切
+      </button>
+
+      <button
+        class="chip"
+        type="button"
+        data-director-group="editing"
+        data-director-value="match-cut"
+      >
+        Match Cut
+      </button>
+
+      <button
+        class="chip"
+        type="button"
+        data-director-group="editing"
+        data-director-value="crossfade"
+      >
+        淡入淡出
+      </button>
+
+      <button
+        class="chip"
+        type="button"
+        data-director-group="editing"
+        data-director-value="montage"
+      >
+        蒙太奇
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+  </section>
+  <!-- =====================================================
+       CONTINUITY
+  ====================================================== -->
+  <section class="card">
+<div class="section-title">
+
+  <h2>
+    Continuity
+  </h2>
+
+  <span>
+    角色與場景一致性
+  </span>
+
+</div>
+
+
+<div
+  id="continuityList"
+  class="continuity-list"
+>
+
+  <button
+    class="toggle on"
+    type="button"
+    data-continuity="same_person"
+  >
+    <span>同一人物</span>
+    <span class="toggle-dot"></span>
+  </button>
+
+  <button
+    class="toggle on"
+    type="button"
+    data-continuity="same_face"
+  >
+    <span>臉部一致</span>
+    <span class="toggle-dot"></span>
+  </button>
+
+  <button
+    class="toggle on"
+    type="button"
+    data-continuity="same_hairstyle"
+  >
+    <span>髮型一致</span>
+    <span class="toggle-dot"></span>
+  </button>
+
+  <button
+    class="toggle on"
+    type="button"
+    data-continuity="same_clothing"
+  >
+    <span>服裝一致</span>
+    <span class="toggle-dot"></span>
+  </button>
+
+  <button
+    class="toggle on"
+    type="button"
+    data-continuity="same_body_proportions"
+  >
+    <span>身體比例一致</span>
+    <span class="toggle-dot"></span>
+  </button>
+
+  <button
+    class="toggle on"
+    type="button"
+    data-continuity="same_environment"
+  >
+    <span>環境一致</span>
+    <span class="toggle-dot"></span>
+  </button>
+
+  <button
+    class="toggle on"
+    type="button"
+    data-continuity="same_visual_style"
+  >
+    <span>視覺風格一致</span>
+    <span class="toggle-dot"></span>
+  </button>
+
+  <button
+    class="toggle on"
+    type="button"
+    data-continuity="same_lighting_logic"
+  >
+    <span>光線邏輯一致</span>
+    <span class="toggle-dot"></span>
+  </button>
+
+  <button
+    class="toggle on"
+    type="button"
+    data-continuity="prevent_identity_drift"
+  >
+    <span>防止 Identity Drift</span>
+    <span class="toggle-dot"></span>
+  </button>
+
+  <button
+    class="toggle on"
+    type="button"
+    data-continuity="previous_end_state"
+  >
+    <span>延續上一鏡結尾狀態</span>
+    <span class="toggle-dot"></span>
+  </button>
+
+</div>
+  </section>
+  <!-- =====================================================
+       SECOND TIMELINE
+  ====================================================== -->
+  <section class="card">
+<div class="section-title">
+
+  <h2>
+    Second Timeline
+  </h2>
+
+  <span>
+    秒級時間軸
+  </span>
+
+</div>
+
+
+<div
+  id="timelineOutput"
+  class="timeline"
+>
+
+  <div class="empty">
+    產生故事後，這裡會建立秒級時間軸。
+  </div>
+
+</div>
+  </section>
+  <!-- =====================================================
+       SEEDANCE PROMPT
+  ====================================================== -->
+  <section class="card">
+<div class="section-title">
+
+  <h2>
+    Seedance 2.5 Prompt
+  </h2>
+
+  <span>
+    Final Video Prompt
+  </span>
+
+</div>
+
+
+<p
+  style="
+    margin:0 0 12px;
+    color:#888;
+    font-size:11px;
+    line-height:1.6;
+  "
+>
+  Video Studio 會把故事、導演技法、Continuity、
+  秒級時間軸與毫秒級關鍵幀整合，再交給
+  AIVAULT Video Prompt Compiler。
+</p>
+
+
+<div
+  id="promptZh"
+  class="prompt-box"
+>
+
+  <span class="empty">
+    尚未生成影片提示詞。
+  </span>
+
+</div>
+
+
+<div style="height:10px"></div>
+
+
+<div
+  id="promptEn"
+  class="prompt-box"
+>
+
+  <span class="empty">
+    English prompt 尚未生成。
+  </span>
+
+</div>
+
+
+<div class="actions">
+
+  <button
+    id="generatePromptBtn"
+    class="btn btn-primary"
+    type="button"
+  >
+    ✦ 生成影片提示詞
+  </button>
+
+  <button
+    id="copyZhBtn"
+    class="btn"
+    type="button"
+  >
+    複製中文 Prompt
+  </button>
+
+  <button
+    id="copyEnBtn"
+    class="btn"
+    type="button"
+  >
+    Copy English Prompt
+  </button>
+
+</div>
+  </section>
+  <div class="footer-note">
+    AIVAULT Video Studio · Technical Dark Star ·
+    AI Gateway → Video Prompt Compiler → Seedance 2.5
+  </div>
+</main>
+</div>
 <script>
-/* ============================================================
-   AIVAULT VIDEO STUDIO
-   Complete standalone frontend
-   ============================================================ */
-
-
-/* ============================================================
+/* =========================================================
    CONFIG
-   ============================================================ */
+========================================================= */
 
 const CONFIG = {
+
   AI_GATEWAY_URL:
     "https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/ai-gateway",
 
@@ -1666,140 +2453,104 @@ const CONFIG = {
     "https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/aivault-video-prompt",
 
   /*
-   * 只能放 Supabase ANON KEY。
+   * DO NOT PUT INTERNAL AI SECRETS HERE.
    *
-   * 不可以放：
-   * - SERVICE_ROLE_KEY
-   * - AI_GATEWAY_INTERNAL_SECRET
-   * - AIVAULT_VIDEO_PROMPT_SECRET
+   * If your Supabase Edge Function allows anon access,
+   * leave this as YOUR_SUPABASE_ANON_KEY.
    *
-   * 這些都必須留在 Supabase Edge Function Secrets。
+   * Internal gateway secrets stay inside Supabase.
    */
+
   SUPABASE_ANON_KEY:
     "YOUR_SUPABASE_ANON_KEY",
 
-  HOME_URL:
+  HOME_FALLBACK:
     "./index.html"
 };
 
 
-/* ============================================================
-   DOM
-   ============================================================ */
+/* =========================================================
+   DOM HELPER
+   IMPORTANT:
+   This must exist BEFORE any function uses $().
+========================================================= */
 
-/*
- * 這一行一定要在任何 $() 使用之前。
- *
- * 原版本最大的問題就是：
- *
- * $("homeBtn")
- *
- * 出現在
- *
- * const $ = ...
- *
- * 之前。
- *
- * 會直接造成整個 JS 停止。
- */
-
-const $ = id => document.getElementById(id);
+const $ = (id) =>
+  document.getElementById(id);
 
 
-/* ============================================================
+/* =========================================================
    PROJECT STATE
-   ============================================================ */
+========================================================= */
 
 const videoProject = {
 
-  theme: "",
+  theme:"",
+  title:"",
+  characters:"",
+  request:"",
 
-  title: "",
+  mode:"單集",
 
-  characters: "",
+  duration_seconds:30,
 
-  request: "",
+  language:"zh-TW",
 
-  mode: "單集",
+  story:"",
+  outline:"",
+  script:"",
+  narration:"",
+  storyboard:"",
+  fact_check:"",
+  discussion:"",
+  review:"",
 
-  duration_seconds: 30,
+  director_techniques:{},
 
-  language: "zh-TW",
+  continuity:{
 
-  story: "",
-
-  outline: "",
-
-  script: "",
-
-  narration: "",
-
-  storyboard: "",
-
-  fact_check: "",
-
-  discussion: "",
-
-  review: "",
-
-  director_techniques: {},
-
-  continuity: {
-
-    same_person: true,
-
-    same_face: true,
-
-    same_hairstyle: true,
-
-    same_clothing: true,
-
-    same_body_proportions: true,
-
-    same_environment: true,
-
-    same_visual_style: true,
-
-    same_lighting_logic: true,
-
-    prevent_identity_drift: true,
-
-    previous_end_state: true
+    same_person:true,
+    same_face:true,
+    same_hairstyle:true,
+    same_clothing:true,
+    same_body_proportions:true,
+    same_environment:true,
+    same_visual_style:true,
+    same_lighting_logic:true,
+    prevent_identity_drift:true,
+    previous_end_state:true
 
   },
 
-  prompt: {
-
-    zh: "",
-
-    en: ""
-
+  prompt:{
+    zh:"",
+    en:""
   },
 
-  timeline: [],
+  timeline:[],
 
-  ai: {
-
-    provider: "",
-
-    model: "",
-
-    raw: null
-
+  ai:{
+    provider:"",
+    model:"",
+    raw:null
   }
-
 };
 
 
-/* ============================================================
+/* =========================================================
    STATUS
-   ============================================================ */
+========================================================= */
 
-function setStatus(text, type = "ready"){
+function setStatus(
+  text,
+  type="ready"
+){
 
-  $("statusText").textContent = text;
+  $("statusText").textContent =
+    text;
 
-  const dot = $("statusDot");
+  const dot =
+    $("statusDot");
 
   dot.classList.remove(
     "busy",
@@ -1816,27 +2567,39 @@ function setStatus(text, type = "ready"){
 }
 
 
-/* ============================================================
-   AI INFORMATION
-   ============================================================ */
+/* =========================================================
+   AI RESPONSE PARSER
+========================================================= */
 
-function findNestedValue(data, paths){
+function findNestedValue(
+  data,
+  paths
+){
 
-  for(const path of paths){
+  for(
+    const path of paths
+  ){
 
-    let current = data;
+    let current =
+      data;
 
-    for(const key of path){
+    for(
+      const key of path
+    ){
 
       if(
         current === null ||
         current === undefined
       ){
-        current = undefined;
+
+        current =
+          undefined;
+
         break;
       }
 
-      current = current[key];
+      current =
+        current[key];
     }
 
     if(
@@ -1844,7 +2607,10 @@ function findNestedValue(data, paths){
       current !== null &&
       String(current).trim() !== ""
     ){
-      return String(current);
+
+      return String(
+        current
+      );
     }
   }
 
@@ -1852,39 +2618,57 @@ function findNestedValue(data, paths){
 }
 
 
-function extractAIInfo(data){
+function extractAIInfo(
+  data
+){
 
-  const provider = findNestedValue(
-    data,
-    [
-      ["provider"],
-      ["provider_name"],
-      ["model_provider"],
-      ["route","provider"],
-      ["routing","provider"],
-      ["ai","provider"],
-      ["result","provider"],
-      ["data","provider"],
-      ["meta","provider"],
-      ["metadata","provider"]
-    ]
-  );
+  const provider =
+    findNestedValue(
+      data,
+      [
 
-  const model = findNestedValue(
-    data,
-    [
-      ["model"],
-      ["model_name"],
-      ["model_id"],
-      ["route","model"],
-      ["routing","model"],
-      ["ai","model"],
-      ["result","model"],
-      ["data","model"],
-      ["meta","model"],
-      ["metadata","model"]
-    ]
-  );
+        ["provider"],
+        ["provider_name"],
+        ["model_provider"],
+
+        ["route","provider"],
+        ["routing","provider"],
+
+        ["ai","provider"],
+
+        ["result","provider"],
+        ["data","provider"],
+
+        ["meta","provider"],
+        ["metadata","provider"]
+
+      ]
+    );
+
+
+  const model =
+    findNestedValue(
+      data,
+      [
+
+        ["model"],
+        ["model_name"],
+        ["model_id"],
+
+        ["route","model"],
+        ["routing","model"],
+
+        ["ai","model"],
+
+        ["result","model"],
+        ["data","model"],
+
+        ["meta","model"],
+        ["metadata","model"]
+
+      ]
+    );
+
 
   return {
     provider,
@@ -1893,27 +2677,46 @@ function extractAIInfo(data){
 }
 
 
-function setAIInfo(data){
+function setAIInfo(
+  data
+){
 
-  const info = extractAIInfo(data);
+  const info =
+    extractAIInfo(
+      data
+    );
 
-  videoProject.ai.provider = info.provider;
-  videoProject.ai.model = info.model;
-  videoProject.ai.raw = data;
+  videoProject.ai.provider =
+    info.provider;
 
-  let label = "";
+  videoProject.ai.model =
+    info.model;
 
-  if(info.provider && info.model){
+  videoProject.ai.raw =
+    data;
+
+
+  let label;
+
+
+  if(
+    info.provider &&
+    info.model
+  ){
 
     label =
       `${info.provider} · ${info.model}`;
 
-  }else if(info.provider){
+  }else if(
+    info.provider
+  ){
 
     label =
       info.provider;
 
-  }else if(info.model){
+  }else if(
+    info.model
+  ){
 
     label =
       info.model;
@@ -1925,6 +2728,7 @@ function setAIInfo(data){
 
   }
 
+
   $("aiProviderText").textContent =
     `AI：${label}`;
 
@@ -1933,11 +2737,13 @@ function setAIInfo(data){
 }
 
 
-/* ============================================================
+/* =========================================================
    LANGUAGE
-   ============================================================ */
+========================================================= */
 
-function getLanguageLabel(language){
+function getLanguageLabel(
+  language
+){
 
   const map = {
 
@@ -1958,20 +2764,26 @@ function getLanguageLabel(language){
 
   };
 
-  return map[language] || language;
+  return (
+    map[language] ||
+    language
+  );
 }
 
 
-/* ============================================================
-   API HEADERS
-   ============================================================ */
+/* =========================================================
+   HEADERS
+========================================================= */
 
 function getPublicHeaders(){
 
   const headers = {
+
     "Content-Type":
       "application/json"
+
   };
+
 
   if(
     CONFIG.SUPABASE_ANON_KEY &&
@@ -1986,59 +2798,84 @@ function getPublicHeaders(){
       `Bearer ${CONFIG.SUPABASE_ANON_KEY}`;
   }
 
+
   return headers;
 }
 
 
-/* ============================================================
+/* =========================================================
    AI GATEWAY
-   ============================================================ */
+========================================================= */
 
-async function callAIGateway(payload){
+async function callAIGateway(
+  payload
+){
 
   const response =
     await fetch(
       CONFIG.AI_GATEWAY_URL,
       {
+
         method:"POST",
 
-        headers:getPublicHeaders(),
+        headers:
+          getPublicHeaders(),
 
-        body:JSON.stringify(payload)
+        body:
+          JSON.stringify(
+            payload
+          )
+
       }
     );
 
-  let data = null;
+
+  let data = {};
 
   try{
+
     data =
       await response.json();
+
   }catch{
+
     data = {};
+
   }
+
 
   if(!response.ok){
 
     throw new Error(
+
       data?.error ||
       data?.message ||
       `AI Gateway HTTP ${response.status}`
+
     );
   }
+
 
   return data;
 }
 
 
-/* ============================================================
-   TEXT EXTRACTION
-   ============================================================ */
+/* =========================================================
+   AI TEXT EXTRACTION
+========================================================= */
 
-function extractAIText(data){
+function extractAIText(
+  data
+){
 
-  if(typeof data === "string"){
+  if(
+    typeof data ===
+    "string"
+  ){
+
     return data;
   }
+
 
   return (
 
@@ -2072,9 +2909,9 @@ function extractAIText(data){
 }
 
 
-/* ============================================================
-   BUILD STORY REQUEST
-   ============================================================ */
+/* =========================================================
+   STORY REQUEST
+========================================================= */
 
 function buildStoryRequest(){
 
@@ -2085,14 +2922,17 @@ function buildStoryRequest(){
     messages:[
 
       {
+
         role:"system",
 
         content:`
+
 你是 AIVAULT Video Studio 的專業故事編劇。
 
 你的工作不是只產生影片 Prompt。
 
-你必須先真正創作一個完整、合理、具有因果關係、
+你必須先真正創作一個完整、
+合理、具有因果關係、
 角色動機、情緒與結局的故事。
 
 影片資料：
@@ -2109,22 +2949,26 @@ ${videoProject.mode}
 請輸出以下結構：
 
 【故事大綱】
-簡潔說明故事起點、衝突、發展與結局。
+說明故事起點、衝突、發展與結局。
 
 【完整故事】
 真正完整的故事內容。
 
 【劇本】
-依照影片可以實際拍攝的方式撰寫角色行動與對話。
+依照影片可以實際拍攝的方式，
+撰寫角色行動與對話。
 
 【旁白】
-如果故事需要旁白，提供可直接使用的旁白。
+如果故事需要旁白，
+提供可直接使用的旁白。
 
 【分鏡】
-依照影片時間順序說明畫面、角色、動作、鏡頭。
+依照影片時間順序說明：
+畫面、角色、動作、鏡頭。
 
 【事實查核】
-如果涉及現實世界資訊，指出需要注意的事實。
+如果涉及現實世界資訊，
+指出需要注意的事實。
 如果是純虛構，明確說明。
 
 【討論】
@@ -2137,15 +2981,23 @@ ${videoProject.mode}
 
 1. 不要只寫 Prompt。
 2. 不要省略故事。
-3. 自訂主題必須被保留。
+3. 自訂主題必須保留。
 4. 故事必須能被後續 Video Prompt Compiler 使用。
+5. 角色必須具有清楚身份。
+6. 行動必須具有前後因果。
+7. 避免突然改變人物外貌。
+8. 避免沒有原因的場景跳躍。
+
 `
+
       },
 
       {
+
         role:"user",
 
         content:`
+
 【主題】
 ${videoProject.theme || "未提供"}
 
@@ -2156,9 +3008,10 @@ ${videoProject.title || "請自動命名"}
 ${videoProject.characters || "請依故事需要設計"}
 
 【故事要求】
-${videoProject.request ||
-"請依主題創作一個完整、合理、可拍攝的故事。"}
+${videoProject.request || "請依主題創作一個完整、合理、可拍攝的故事。"}
+
 `
+
       }
 
     ],
@@ -2169,47 +3022,77 @@ ${videoProject.request ||
 }
 
 
-/* ============================================================
-   PARSE STORY
-   ============================================================ */
+/* =========================================================
+   SECTION PARSER
+========================================================= */
 
-function extractSection(text, start, nextHeaders){
+function extractSection(
+  text,
+  start,
+  nextHeaders
+){
 
   const startIndex =
     text.indexOf(start);
 
   if(startIndex < 0){
+
     return "";
   }
 
+
   const contentStart =
-    startIndex + start.length;
+    startIndex +
+    start.length;
+
 
   let endIndex =
     text.length;
 
-  for(const header of nextHeaders){
+
+  for(
+    const header
+    of nextHeaders
+  ){
 
     const index =
-      text.indexOf(header,contentStart);
+      text.indexOf(
+        header,
+        contentStart
+      );
+
 
     if(
       index >= 0 &&
       index < endIndex
     ){
-      endIndex = index;
+
+      endIndex =
+        index;
     }
   }
 
+
   return text
-    .slice(contentStart,endIndex)
+    .slice(
+      contentStart,
+      endIndex
+    )
     .trim();
 }
 
 
-function parseStoryText(text){
+/* =========================================================
+   PARSE STORY
+========================================================= */
 
-  videoProject.story = text;
+function parseStoryText(
+  text
+){
+
+  videoProject.story =
+    text;
+
 
   videoProject.outline =
     extractSection(
@@ -2226,6 +3109,7 @@ function parseStoryText(text){
       ]
     );
 
+
   videoProject.script =
     extractSection(
       text,
@@ -2239,6 +3123,7 @@ function parseStoryText(text){
       ]
     );
 
+
   videoProject.narration =
     extractSection(
       text,
@@ -2251,6 +3136,7 @@ function parseStoryText(text){
       ]
     );
 
+
   videoProject.storyboard =
     extractSection(
       text,
@@ -2262,6 +3148,7 @@ function parseStoryText(text){
       ]
     );
 
+
   videoProject.fact_check =
     extractSection(
       text,
@@ -2272,6 +3159,7 @@ function parseStoryText(text){
       ]
     );
 
+
   videoProject.discussion =
     extractSection(
       text,
@@ -2281,6 +3169,7 @@ function parseStoryText(text){
       ]
     );
 
+
   videoProject.review =
     extractSection(
       text,
@@ -2288,29 +3177,38 @@ function parseStoryText(text){
       []
     );
 
-  /*
-   * 如果 AI 沒有使用指定標籤，
-   * 不讓內容消失。
-   */
 
-  if(!videoProject.script){
-    videoProject.script = text;
+  if(
+    !videoProject.script
+  ){
+
+    videoProject.script =
+      text;
   }
 
-  if(!videoProject.storyboard){
-    videoProject.storyboard = text;
+
+  if(
+    !videoProject.storyboard
+  ){
+
+    videoProject.storyboard =
+      text;
   }
 
-  if(!videoProject.review){
+
+  if(
+    !videoProject.review
+  ){
+
     videoProject.review =
       "已取得 AI 故事內容，可進一步轉換為影片 Prompt。";
   }
 }
 
 
-/* ============================================================
+/* =========================================================
    RENDER STORY
-   ============================================================ */
+========================================================= */
 
 function renderStory(){
 
@@ -2318,34 +3216,120 @@ function renderStory(){
     videoProject.story ||
     "尚未建立故事。";
 
+
   $("scriptOutput").value =
-    videoProject.script || "";
+    videoProject.script ||
+    "";
+
 
   $("narrationOutput").value =
-    videoProject.narration || "";
+    videoProject.narration ||
+    "";
+
 
   $("storyboardOutput").value =
-    videoProject.storyboard || "";
+    videoProject.storyboard ||
+    "";
+
 
   $("factCheckOutput").value =
-    videoProject.fact_check || "";
+    videoProject.fact_check ||
+    "";
+
 
   $("discussionOutput").value =
-    videoProject.discussion || "";
+    videoProject.discussion ||
+    "";
+
 
   $("reviewOutput").value =
-    videoProject.review || "";
+    videoProject.review ||
+    "";
 }
 
 
-/* ============================================================
-   TIMELINE
-   ============================================================ */
+/* =========================================================
+   DIRECTOR SUMMARY
+========================================================= */
+
+function getDirectorSummary(){
+
+  const groups =
+    videoProject.director_techniques;
+
+  const parts = [];
+
+
+  for(
+    const key
+    of Object.keys(groups)
+  ){
+
+    const values =
+      groups[key];
+
+
+    if(
+      values &&
+      values.length
+    ){
+
+      parts.push(
+        `${key}: ${values.join(", ")}`
+      );
+    }
+  }
+
+
+  return parts.length
+    ? parts.join(" | ")
+    : "自然電影鏡頭";
+}
+
+
+/* =========================================================
+   CONTINUITY SUMMARY
+========================================================= */
+
+function getContinuitySummary(){
+
+  const active = [];
+
+
+  for(
+    const [
+      key,
+      value
+    ]
+    of Object.entries(
+      videoProject.continuity
+    )
+  ){
+
+    if(value){
+
+      active.push(
+        key
+      );
+    }
+  }
+
+
+  return active.join(", ");
+}
+
+
+/* =========================================================
+   SECOND TIMELINE
+========================================================= */
 
 function buildSecondTimeline(){
 
   const duration =
-    Number(videoProject.duration_seconds) || 30;
+    Number(
+      videoProject.duration_seconds
+    ) || 30;
+
 
   const source =
     videoProject.storyboard ||
@@ -2354,29 +3338,47 @@ function buildSecondTimeline(){
     videoProject.theme ||
     "影片內容";
 
+
   const cleanLines =
     source
       .split(/\n+/)
-      .map(x => x.trim())
+      .map(
+        x => x.trim()
+      )
       .filter(Boolean);
+
 
   const rows = [];
 
-  for(let second = 0; second < duration; second++){
+
+  /*
+   * EXACTLY one row per second.
+   *
+   * 10 sec = 10 rows
+   * 15 sec = 15 rows
+   * 30 sec = 30 rows
+   */
+
+  for(
+    let second = 0;
+    second < duration;
+    second++
+  ){
 
     const sourceLine =
       cleanLines.length
         ? cleanLines[
-            second % cleanLines.length
+            second %
+            cleanLines.length
           ]
         : source;
+
 
     rows.push({
 
       second,
 
-      duration_ms:
-        1000,
+      duration_ms:1000,
 
       scene:
         sourceLine,
@@ -2390,20 +3392,65 @@ function buildSecondTimeline(){
     });
   }
 
-  videoProject.timeline = rows;
+
+  videoProject.timeline =
+    rows;
+
 
   renderTimeline();
+
 
   return rows;
 }
 
+
+/* =========================================================
+   ESCAPE HTML
+========================================================= */
+
+function escapeHTML(
+  value
+){
+
+  return String(
+    value ?? ""
+  )
+  .replaceAll(
+    "&",
+    "&amp;"
+  )
+  .replaceAll(
+    "<",
+    "&lt;"
+  )
+  .replaceAll(
+    ">",
+    "&gt;"
+  )
+  .replaceAll(
+    '"',
+    "&quot;"
+  )
+  .replaceAll(
+    "'",
+    "&#039;"
+  );
+}
+
+
+/* =========================================================
+   RENDER TIMELINE
+========================================================= */
 
 function renderTimeline(){
 
   const container =
     $("timelineOutput");
 
-  if(!videoProject.timeline.length){
+
+  if(
+    !videoProject.timeline.length
+  ){
 
     container.innerHTML =
       `<div class="empty">
@@ -2413,126 +3460,147 @@ function renderTimeline(){
     return;
   }
 
+
   const fragment =
     document.createDocumentFragment();
 
-  for(const row of videoProject.timeline){
+
+  for(
+    const row
+    of videoProject.timeline
+  ){
 
     const el =
-      document.createElement("div");
+      document.createElement(
+        "div"
+      );
+
 
     el.className =
       "timeline-row";
 
+
     el.innerHTML = `
+
       <div class="timeline-time">
-        ${String(row.second).padStart(2,"0")}s
+
+        ${String(
+          row.second
+        ).padStart(2,"0")}s
+
       </div>
 
       <div class="timeline-content">
-        <strong>${escapeHTML(row.scene)}</strong>
+
+        <strong>
+          ${escapeHTML(
+            row.scene
+          )}
+        </strong>
+
         <br>
-        Camera：${escapeHTML(row.camera)}
+
+        Camera：
+        ${escapeHTML(
+          row.camera
+        )}
+
       </div>
+
     `;
 
-    fragment.appendChild(el);
+
+    fragment.appendChild(
+      el
+    );
   }
+
 
   container.innerHTML = "";
 
-  container.appendChild(fragment);
+  container.appendChild(
+    fragment
+  );
 }
 
 
-/* ============================================================
-   DIRECTOR
-   ============================================================ */
+/* =========================================================
+   MILLISECOND KEYFRAMES
+========================================================= */
 
-function getDirectorSummary(){
+function buildMillisecondKeyframes(){
 
-  const groups =
-    videoProject.director_techniques;
-
-  const parts = [];
-
-  for(const key of Object.keys(groups)){
-
-    const values =
-      groups[key];
-
-    if(values?.length){
-
-      parts.push(
-        `${key}: ${values.join(", ")}`
-      );
-    }
-  }
-
-  return parts.length
-    ? parts.join(" | ")
-    : "自然電影鏡頭";
-}
+  const duration =
+    Number(
+      videoProject.duration_seconds
+    ) || 30;
 
 
-function getContinuitySummary(){
+  const keyframes = [];
 
-  const active = [];
 
   for(
-    const [
-      key,
-      value
-    ]
-    of Object.entries(
-      videoProject.continuity
-    )
+    let second = 0;
+    second < duration;
+    second++
   ){
 
-    if(value){
-      active.push(key);
-    }
+    const row =
+      videoProject.timeline[
+        second
+      ];
+
+
+    keyframes.push({
+
+      time_ms:
+        second * 1000,
+
+      end_time_ms:
+        (second + 1) * 1000,
+
+      scene:
+        row?.scene || "",
+
+      camera:
+        row?.camera || "",
+
+      continuity:
+        row?.continuity || ""
+
+    });
   }
 
-  return active.join(", ");
+
+  return keyframes;
 }
 
 
-/* ============================================================
-   ESCAPE
-   ============================================================ */
-
-function escapeHTML(value){
-
-  return String(value ?? "")
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
-}
-
-
-/* ============================================================
+/* =========================================================
    LOCAL FALLBACK PROMPT
-   ============================================================ */
+========================================================= */
 
 function buildLocalPrompt(){
 
   const director =
     getDirectorSummary();
 
+
   const continuity =
     getContinuitySummary();
 
+
   const timeline =
     videoProject.timeline
-      .map(row =>
-        `${row.second}s-${row.second + 1}s: ${row.scene}`
+      .map(
+        row =>
+          `${row.second}s-${row.second + 1}s: ${row.scene}`
       )
       .join("\n");
 
+
   const zh = `
+
 Seedance 2.5 cinematic video generation prompt.
 
 【主題】
@@ -2556,21 +3624,36 @@ ${videoProject.duration_seconds} 秒
 【秒級時間軸】
 ${timeline}
 
+【毫秒級關鍵幀】
+每秒建立 1000ms 時間區段，
+保持動作與鏡頭連續。
+
 要求：
-保持角色身份、臉部、髮型、服裝、身體比例與環境的一致性，
+
+保持角色身份、臉部、髮型、
+服裝、身體比例與環境的一致性。
+
 避免 identity drift。
 
-所有鏡頭應具有電影級構圖、自然運動、
-合理光線與連續動作。
+避免突然變形、換裝、換臉、
+環境跳變或不合理的角色移動。
 
-角色動作必須具有前後因果，
-避免突然變形、換裝、換臉或環境跳變。
+所有動作必須具有前後因果。
+
+鏡頭運動必須連續。
+
+光線邏輯必須保持一致。
+
+畫面使用電影級構圖、
+合理景深、自然光線與物理合理運動。
 
 輸出適用於 Seedance 2.5。
+
 `.trim();
 
 
   const en = `
+
 Seedance 2.5 cinematic video generation prompt.
 
 Theme:
@@ -2594,19 +3677,35 @@ ${videoProject.duration_seconds} seconds
 Second-level timeline:
 ${timeline}
 
+Millisecond keyframes:
+Each second is represented as a 1000ms
+continuous time segment.
+
 Maintain strict character identity consistency,
 facial consistency, hairstyle, clothing,
 body proportions, environment and visual style.
 
-Prevent identity drift, sudden appearance changes,
-unmotivated costume changes, facial changes,
+Prevent identity drift.
+
+Prevent sudden facial changes,
+costume changes, body deformation,
 environment discontinuity and broken motion.
 
-Use cinematic composition, physically plausible movement,
-coherent lighting and continuous actions.
+All character actions must have
+clear temporal and causal continuity.
+
+Camera movement must remain coherent.
+
+Lighting logic must remain consistent.
+
+Use cinematic composition,
+physically plausible movement,
+natural depth of field and coherent lighting.
 
 Optimized for Seedance 2.5.
+
 `.trim();
+
 
   return {
     zh,
@@ -2615,57 +3714,78 @@ Optimized for Seedance 2.5.
 }
 
 
-/* ============================================================
+/* =========================================================
    VIDEO PROMPT BACKEND
-   ============================================================ */
+========================================================= */
 
-async function callVideoPromptBackend(payload){
+async function callVideoPromptBackend(
+  payload
+){
 
   const response =
     await fetch(
       CONFIG.VIDEO_PROMPT_URL,
       {
+
         method:"POST",
 
-        headers:getPublicHeaders(),
+        headers:
+          getPublicHeaders(),
 
-        body:JSON.stringify(payload)
+        body:
+          JSON.stringify(
+            payload
+          )
+
       }
     );
 
+
   let data = {};
 
+
   try{
+
     data =
       await response.json();
+
   }catch{
+
     data = {};
+
   }
+
 
   if(!response.ok){
 
     throw new Error(
+
       data?.error ||
       data?.message ||
       `Video Prompt HTTP ${response.status}`
+
     );
   }
+
 
   return data;
 }
 
 
-/* ============================================================
-   PROMPT EXTRACTION
-   ============================================================ */
+/* =========================================================
+   EXTRACT PROMPTS
+========================================================= */
 
-function extractPrompts(data){
+function extractPrompts(
+  data
+){
 
   const prompt =
     data?.prompt ||
     data?.data?.prompt ||
     data?.result?.prompt ||
     "";
+
 
   const zh =
     data?.prompt_zh ||
@@ -2675,12 +3795,14 @@ function extractPrompts(data){
     prompt ||
     "";
 
+
   const en =
     data?.prompt_en ||
     data?.data?.prompt_en ||
     data?.result?.prompt_en ||
     data?.en ||
     "";
+
 
   return {
     zh,
@@ -2689,23 +3811,19 @@ function extractPrompts(data){
 }
 
 
-/* ============================================================
-   BUILD PROMPT REQUEST
-   ============================================================ */
+/* =========================================================
+   PROMPT REQUEST
+========================================================= */
 
 function buildPromptRequest(){
 
-  /*
-   * 不重新叫使用者輸入故事。
-   *
-   * 直接使用目前 videoProject 裡已經完成的資料。
-   */
-
   return {
 
-    action:"compile_video_prompt",
+    action:
+      "compile_video_prompt",
 
-    target:"seedance-2.5",
+    target:
+      "seedance-2.5",
 
     language:[
       videoProject.language
@@ -2773,57 +3891,14 @@ function buildPromptRequest(){
 }
 
 
-/* ============================================================
-   MILLISECOND KEYFRAMES
-   ============================================================ */
-
-function buildMillisecondKeyframes(){
-
-  const duration =
-    Number(videoProject.duration_seconds) || 30;
-
-  const keyframes = [];
-
-  for(let second = 0; second < duration; second++){
-
-    const row =
-      videoProject.timeline[second];
-
-    keyframes.push({
-
-      time_ms:
-        second * 1000,
-
-      end_time_ms:
-        (second + 1) * 1000,
-
-      scene:
-        row?.scene || "",
-
-      camera:
-        row?.camera || "",
-
-      continuity:
-        row?.continuity || ""
-
-    });
-  }
-
-  return keyframes;
-}
-
-
-/* ============================================================
+/* =========================================================
    GENERATE STORY
-   ============================================================ */
+========================================================= */
 
 async function generateStory(){
 
   syncProjectFromInputs();
 
-  /*
-   * 自訂主題不能空掉。
-   */
 
   if(!videoProject.theme){
 
@@ -2837,21 +3912,28 @@ async function generateStory(){
     return;
   }
 
+
   const button =
     $("generateStoryBtn");
 
-  button.disabled = true;
+
+  button.disabled =
+    true;
+
 
   setStatus(
     "AI 正在創作故事…",
     "busy"
   );
 
+
   $("aiProviderText").textContent =
     "AI：正在連線…";
 
+
   $("aiPanelValue").textContent =
     "正在透過 AIVAULT AI Gateway 選擇 AI…";
+
 
   try{
 
@@ -2860,10 +3942,22 @@ async function generateStory(){
         buildStoryRequest()
       );
 
-    setAIInfo(data);
+
+    /*
+     * AI provider/model is taken
+     * from the REAL Gateway response.
+     */
+
+    setAIInfo(
+      data
+    );
+
 
     const text =
-      extractAIText(data);
+      extractAIText(
+        data
+      );
+
 
     if(!text){
 
@@ -2872,16 +3966,23 @@ async function generateStory(){
       );
     }
 
-    parseStoryText(text);
+
+    parseStoryText(
+      text
+    );
+
 
     renderStory();
 
+
     buildSecondTimeline();
+
 
     setStatus(
       "Story Ready · AI 創作完成",
       "ready"
     );
+
 
   }catch(error){
 
@@ -2890,36 +3991,37 @@ async function generateStory(){
       error
     );
 
+
     setStatus(
       `AI 故事創作失敗：${error.message}`,
       "error"
     );
 
+
     $("aiPanelValue").textContent =
       "AI Gateway 連線失敗";
+
 
     $("aiProviderText").textContent =
       "AI：連線失敗";
 
+
   }finally{
 
-    button.disabled = false;
+    button.disabled =
+      false;
   }
 }
 
 
-/* ============================================================
+/* =========================================================
    GENERATE PROMPT
-   ============================================================ */
+========================================================= */
 
 async function generatePrompt(){
 
   syncProjectFromInputs();
 
-  /*
-   * 即使沒有 AI 故事，
-   * 也允許使用自訂主題直接產生 Prompt。
-   */
 
   if(!videoProject.theme){
 
@@ -2933,20 +4035,28 @@ async function generatePrompt(){
     return;
   }
 
-  if(!videoProject.timeline.length){
+
+  if(
+    !videoProject.timeline.length
+  ){
 
     buildSecondTimeline();
   }
 
+
   const button =
     $("generatePromptBtn");
 
-  button.disabled = true;
+
+  button.disabled =
+    true;
+
 
   setStatus(
     "正在編譯 Seedance 2.5 Prompt…",
     "busy"
   );
+
 
   try{
 
@@ -2955,51 +4065,61 @@ async function generatePrompt(){
         buildPromptRequest()
       );
 
+
     const prompts =
-      extractPrompts(data);
+      extractPrompts(
+        data
+      );
 
-    /*
-     * Backend 有回傳就使用 Backend。
-     */
 
-    if(prompts.zh || prompts.en){
+    if(
+      prompts.zh ||
+      prompts.en
+    ){
+
+      const fallback =
+        buildLocalPrompt();
+
 
       videoProject.prompt.zh =
         prompts.zh ||
-        buildLocalPrompt().zh;
+        fallback.zh;
+
 
       videoProject.prompt.en =
         prompts.en ||
-        buildLocalPrompt().en;
+        fallback.en;
+
 
       setStatus(
         "Prompt Ready · Video Prompt Compiler 完成",
         "ready"
       );
 
-    }else{
 
-      /*
-       * Backend 沒有 prompt 時，
-       * 自動 fallback。
-       */
+    }else{
 
       const fallback =
         buildLocalPrompt();
 
+
       videoProject.prompt.zh =
         fallback.zh;
+
 
       videoProject.prompt.en =
         fallback.en;
 
+
       setStatus(
-        "Prompt Ready · 使用本地安全 fallback",
+        "Prompt Ready · 使用本地 fallback",
         "ready"
       );
     }
 
+
     renderPrompts();
+
 
   }catch(error){
 
@@ -3008,37 +4128,47 @@ async function generatePrompt(){
       error
     );
 
+
     /*
-     * 即使 Video Prompt Compiler 暫時失敗，
-     * 仍然讓使用者拿到可用 Prompt。
+     * Prompt compiler fails:
+     * the project does NOT disappear.
+     *
+     * Local prompt fallback keeps
+     * the completed story available.
      */
 
     const fallback =
       buildLocalPrompt();
 
+
     videoProject.prompt.zh =
       fallback.zh;
+
 
     videoProject.prompt.en =
       fallback.en;
 
+
     renderPrompts();
+
 
     setStatus(
       `Compiler 暫時無法連線，已使用本地 fallback：${error.message}`,
       "error"
     );
 
+
   }finally{
 
-    button.disabled = false;
+    button.disabled =
+      false;
   }
 }
 
 
-/* ============================================================
+/* =========================================================
    RENDER PROMPTS
-   ============================================================ */
+========================================================= */
 
 function renderPrompts(){
 
@@ -3046,56 +4176,71 @@ function renderPrompts(){
     videoProject.prompt.zh ||
     "尚未生成影片提示詞。";
 
+
   $("promptEn").textContent =
     videoProject.prompt.en ||
     "English prompt 尚未生成。";
 }
 
 
-/* ============================================================
-   SYNC INPUTS
-   ============================================================ */
+/* =========================================================
+   SYNC INPUT
+========================================================= */
 
 function syncProjectFromInputs(){
 
   videoProject.title =
-    $("storyTitle").value.trim();
+    $("storyTitle")
+      .value
+      .trim();
+
 
   videoProject.characters =
-    $("characters").value.trim();
+    $("characters")
+      .value
+      .trim();
+
 
   videoProject.request =
-    $("storyRequest").value.trim();
+    $("storyRequest")
+      .value
+      .trim();
+
 
   videoProject.language =
-    $("language").value;
+    $("language")
+      .value;
+
 
   const custom =
-    $("customTheme").value.trim();
+    $("customTheme")
+      .value
+      .trim();
 
-  /*
-   * 自訂主題優先。
-   */
 
   if(custom){
 
     videoProject.theme =
       custom;
 
+
     document
       .querySelectorAll(
         "#themeChips .chip"
       )
-      .forEach(chip =>
-        chip.classList.remove("on")
+      .forEach(
+        chip =>
+          chip.classList.remove(
+            "on"
+          )
       );
   }
 }
 
 
-/* ============================================================
+/* =========================================================
    CLEAR STORY
-   ============================================================ */
+========================================================= */
 
 function clearStory(){
 
@@ -3107,15 +4252,19 @@ function clearStory(){
   videoProject.fact_check = "";
   videoProject.discussion = "";
   videoProject.review = "";
+
   videoProject.timeline = [];
+
   videoProject.prompt.zh = "";
   videoProject.prompt.en = "";
+
 
   renderStory();
 
   renderTimeline();
 
   renderPrompts();
+
 
   setStatus(
     "Story 已清除",
@@ -3124,11 +4273,13 @@ function clearStory(){
 }
 
 
-/* ============================================================
+/* =========================================================
    COPY
-   ============================================================ */
+========================================================= */
 
-async function copyText(text){
+async function copyText(
+  text
+){
 
   if(!text){
 
@@ -3140,45 +4291,55 @@ async function copyText(text){
     return;
   }
 
+
   try{
 
     await navigator.clipboard.writeText(
       text
     );
 
+
     setStatus(
       "已複製到剪貼簿。",
       "ready"
     );
 
-  }catch(error){
 
-    /*
-     * fallback for older browsers
-     */
+  }catch{
 
     const textarea =
-      document.createElement("textarea");
+      document.createElement(
+        "textarea"
+      );
 
-    textarea.value = text;
+
+    textarea.value =
+      text;
+
 
     textarea.style.position =
       "fixed";
 
+
     textarea.style.opacity =
       "0";
+
 
     document.body.appendChild(
       textarea
     );
 
+
     textarea.select();
+
 
     document.execCommand(
       "copy"
     );
 
+
     textarea.remove();
+
 
     setStatus(
       "已複製到剪貼簿。",
@@ -3188,48 +4349,61 @@ async function copyText(text){
 }
 
 
-/* ============================================================
-   THEME EVENTS
-   ============================================================ */
+/* =========================================================
+   THEME BUTTONS
+========================================================= */
 
 document
   .querySelectorAll(
     "#themeChips .chip"
   )
-  .forEach(button => {
+  .forEach(
+    button => {
 
-    button.addEventListener(
-      "click",
-      () => {
+      button.addEventListener(
+        "click",
+        () => {
 
-        document
-          .querySelectorAll(
-            "#themeChips .chip"
-          )
-          .forEach(item =>
-            item.classList.remove("on")
+          document
+            .querySelectorAll(
+              "#themeChips .chip"
+            )
+            .forEach(
+              item =>
+                item.classList.remove(
+                  "on"
+                )
+            );
+
+
+          button.classList.add(
+            "on"
           );
 
-        button.classList.add("on");
 
-        videoProject.theme =
-          button.dataset.theme;
-
-        $("customTheme").value =
-          "";
-
-        setStatus(
-          `主題：${videoProject.theme}`,
-          "ready"
-        );
-      }
-    );
-  });
+          videoProject.theme =
+            button.dataset.theme;
 
 
-/* ============================================================
+          $("customTheme").value =
+            "";
+
+
+          setStatus(
+            `主題：${videoProject.theme}`,
+            "ready"
+          );
+
+        }
+      );
+
+    }
+  );
+
+
+/* =========================================================
    CUSTOM THEME
-   ============================================================ */
+========================================================= */
 
 $("customTheme")
   .addEventListener(
@@ -3237,103 +4411,146 @@ $("customTheme")
     event => {
 
       const value =
-        event.target.value.trim();
+        event.target.value
+          .trim();
+
 
       if(value){
 
         videoProject.theme =
           value;
 
+
         document
           .querySelectorAll(
             "#themeChips .chip"
           )
-          .forEach(item =>
-            item.classList.remove("on")
+          .forEach(
+            item =>
+              item.classList.remove(
+                "on"
+              )
           );
-
       }
 
     }
   );
 
 
-/* ============================================================
+/* =========================================================
    MODE
-   ============================================================ */
+========================================================= */
 
 document
   .querySelectorAll(
     "#modeChips .chip"
   )
-  .forEach(button => {
+  .forEach(
+    button => {
 
-    button.addEventListener(
-      "click",
-      () => {
+      button.addEventListener(
+        "click",
+        () => {
 
-        document
-          .querySelectorAll(
-            "#modeChips .chip"
-          )
-          .forEach(item =>
-            item.classList.remove("on")
+          document
+            .querySelectorAll(
+              "#modeChips .chip"
+            )
+            .forEach(
+              item =>
+                item.classList.remove(
+                  "on"
+                )
+            );
+
+
+          button.classList.add(
+            "on"
           );
 
-        button.classList.add("on");
 
-        videoProject.mode =
-          button.dataset.mode;
-      }
-    );
-  });
+          videoProject.mode =
+            button.dataset.mode;
 
 
-/* ============================================================
+          setStatus(
+            `模式：${videoProject.mode}`,
+            "ready"
+          );
+
+        }
+      );
+
+    }
+  );
+
+
+/* =========================================================
    DURATION
-   ============================================================ */
+========================================================= */
 
 document
   .querySelectorAll(
     "#durationChips .chip"
   )
-  .forEach(button => {
+  .forEach(
+    button => {
 
-    button.addEventListener(
-      "click",
-      () => {
+      button.addEventListener(
+        "click",
+        () => {
 
-        document
-          .querySelectorAll(
-            "#durationChips .chip"
-          )
-          .forEach(item =>
-            item.classList.remove("on")
+          document
+            .querySelectorAll(
+              "#durationChips .chip"
+            )
+            .forEach(
+              item =>
+                item.classList.remove(
+                  "on"
+                )
+            );
+
+
+          button.classList.add(
+            "on"
           );
 
-        button.classList.add("on");
 
-        videoProject.duration_seconds =
-          Number(
-            button.dataset.duration
+          videoProject.duration_seconds =
+            Number(
+              button.dataset.duration
+            );
+
+
+          /*
+           * If a story already exists,
+           * immediately rebuild timeline.
+           */
+
+          if(
+            videoProject.story
+          ){
+
+            buildSecondTimeline();
+          }
+
+
+          setStatus(
+            `影片長度：${videoProject.duration_seconds} 秒`,
+            "ready"
           );
 
-        /*
-         * 長度改變後重新建立時間軸。
-         */
-
-        if(videoProject.story){
-
-          buildSecondTimeline();
         }
-      }
-    );
-  });
+      );
+
+    }
+  );
 
 
-/* ============================================================
+/* =========================================================
    LANGUAGE
-   ============================================================ */
+========================================================= */
 
 $("language")
   .addEventListener(
@@ -3343,229 +4560,305 @@ $("language")
       videoProject.language =
         event.target.value;
 
+
       setStatus(
-        `輸出語言：${getLanguageLabel(
-          videoProject.language
-        )}`,
+        `輸出語言：${getLanguageLabel(videoProject.language)}`,
         "ready"
       );
+
     }
   );
 
 
-/* ============================================================
-   DIRECTOR EVENTS
-   ============================================================ */
+/* =========================================================
+   DIRECTOR BUTTONS
+========================================================= */
 
 document
   .querySelectorAll(
     "[data-director-group]"
   )
-  .forEach(button => {
+  .forEach(
+    button => {
 
-    button.addEventListener(
-      "click",
-      () => {
+      button.addEventListener(
+        "click",
+        () => {
 
-        const group =
-          button.dataset.directorGroup;
+          const group =
+            button.dataset.directorGroup;
 
-        const value =
-          button.dataset.directorValue;
 
-        if(!videoProject.director_techniques[group]){
+          const value =
+            button.dataset.directorValue;
 
-          videoProject.director_techniques[group] =
-            [];
+
+          if(
+            !videoProject
+              .director_techniques[group]
+          ){
+
+            videoProject
+              .director_techniques[group] =
+                [];
+          }
+
+
+          const list =
+            videoProject
+              .director_techniques[group];
+
+
+          const index =
+            list.indexOf(
+              value
+            );
+
+
+          if(index >= 0){
+
+            list.splice(
+              index,
+              1
+            );
+
+
+            button.classList.remove(
+              "on"
+            );
+
+
+          }else{
+
+            list.push(
+              value
+            );
+
+
+            button.classList.add(
+              "on"
+            );
+          }
+
+
+          if(
+            list.length === 0
+          ){
+
+            delete
+              videoProject
+                .director_techniques[group];
+          }
+
+
+          if(
+            videoProject.story
+          ){
+
+            buildSecondTimeline();
+          }
+
         }
+      );
 
-        const list =
-          videoProject.director_techniques[group];
-
-        const index =
-          list.indexOf(value);
-
-        if(index >= 0){
-
-          list.splice(index,1);
-
-          button.classList.remove("on");
-
-        }else{
-
-          list.push(value);
-
-          button.classList.add("on");
-        }
-
-        /*
-         * 清理空 group
-         */
-
-        if(list.length === 0){
-
-          delete videoProject
-            .director_techniques[group];
-        }
-
-        if(videoProject.story){
-
-          buildSecondTimeline();
-        }
-      }
-    );
-  });
+    }
+  );
 
 
-/* ============================================================
-   CONTINUITY EVENTS
-   ============================================================ */
+/* =========================================================
+   CONTINUITY
+========================================================= */
 
 document
   .querySelectorAll(
     "[data-continuity]"
   )
-  .forEach(button => {
+  .forEach(
+    button => {
 
-    button.addEventListener(
-      "click",
-      () => {
+      button.addEventListener(
+        "click",
+        () => {
 
-        const key =
-          button.dataset.continuity;
+          const key =
+            button.dataset.continuity;
 
-        videoProject.continuity[key] =
-          !videoProject.continuity[key];
 
-        button.classList.toggle(
-          "on",
-          videoProject.continuity[key]
-        );
+          videoProject
+            .continuity[key] =
+              !videoProject
+                .continuity[key];
 
-        if(videoProject.story){
 
-          buildSecondTimeline();
+          button.classList.toggle(
+            "on",
+            videoProject
+              .continuity[key]
+          );
+
+
+          if(
+            videoProject.story
+          ){
+
+            buildSecondTimeline();
+          }
+
         }
-      }
-    );
-  });
+      );
+
+    }
+  );
 
 
-/* ============================================================
+/* =========================================================
    WORKSPACE TABS
-   ============================================================ */
+========================================================= */
 
 document
   .querySelectorAll(
     "#workspaceTabs .tab"
   )
-  .forEach(tab => {
+  .forEach(
+    tab => {
 
-    tab.addEventListener(
-      "click",
-      () => {
+      tab.addEventListener(
+        "click",
+        () => {
 
-        const paneId =
-          tab.dataset.pane;
+          const paneId =
+            tab.dataset.pane;
 
-        document
-          .querySelectorAll(
-            "#workspaceTabs .tab"
-          )
-          .forEach(item =>
-            item.classList.remove("on")
+
+          document
+            .querySelectorAll(
+              "#workspaceTabs .tab"
+            )
+            .forEach(
+              item =>
+                item.classList.remove(
+                  "on"
+                )
+            );
+
+
+          document
+            .querySelectorAll(
+              ".pane"
+            )
+            .forEach(
+              pane =>
+                pane.classList.remove(
+                  "active"
+                )
+            );
+
+
+          tab.classList.add(
+            "on"
           );
 
-        document
-          .querySelectorAll(
-            ".pane"
-          )
-          .forEach(pane =>
-            pane.classList.remove("active")
-          );
 
-        tab.classList.add("on");
+          const pane =
+            $(paneId);
 
-        const pane =
-          $(paneId);
 
-        if(pane){
+          if(pane){
 
-          pane.classList.add("active");
+            pane.classList.add(
+              "active"
+            );
+          }
+
         }
-      }
-    );
-  });
+      );
+
+    }
+  );
 
 
-/* ============================================================
-   MANUAL TEXT EDIT SYNC
-   ============================================================ */
+/* =========================================================
+   EDITABLE FIELDS
+========================================================= */
 
 $("scriptOutput")
   .addEventListener(
     "input",
-    e => {
+    event => {
+
       videoProject.script =
-        e.target.value;
+        event.target.value;
     }
   );
+
 
 $("narrationOutput")
   .addEventListener(
     "input",
-    e => {
+    event => {
+
       videoProject.narration =
-        e.target.value;
+        event.target.value;
     }
   );
+
 
 $("storyboardOutput")
   .addEventListener(
     "input",
-    e => {
+    event => {
 
       videoProject.storyboard =
-        e.target.value;
+        event.target.value;
 
-      if(videoProject.storyboard){
+
+      if(
+        videoProject.storyboard
+      ){
 
         buildSecondTimeline();
       }
+
     }
   );
+
 
 $("factCheckOutput")
   .addEventListener(
     "input",
-    e => {
+    event => {
+
       videoProject.fact_check =
-        e.target.value;
+        event.target.value;
     }
   );
+
 
 $("discussionOutput")
   .addEventListener(
     "input",
-    e => {
+    event => {
+
       videoProject.discussion =
-        e.target.value;
+        event.target.value;
     }
   );
+
 
 $("reviewOutput")
   .addEventListener(
     "input",
-    e => {
+    event => {
+
       videoProject.review =
-        e.target.value;
+        event.target.value;
     }
   );
 
 
-/* ============================================================
-   BUTTON EVENTS
-   ============================================================ */
+/* =========================================================
+   MAIN ACTION BUTTONS
+========================================================= */
 
 $("generateStoryBtn")
   .addEventListener(
@@ -3573,17 +4866,20 @@ $("generateStoryBtn")
     generateStory
   );
 
+
 $("clearStoryBtn")
   .addEventListener(
     "click",
     clearStory
   );
 
+
 $("generatePromptBtn")
   .addEventListener(
     "click",
     generatePrompt
   );
+
 
 $("copyZhBtn")
   .addEventListener(
@@ -3593,6 +4889,7 @@ $("copyZhBtn")
         videoProject.prompt.zh
       )
   );
+
 
 $("copyEnBtn")
   .addEventListener(
@@ -3604,22 +4901,49 @@ $("copyEnBtn")
   );
 
 
-/* ============================================================
-   HOME
-   ============================================================ */
+/* =========================================================
+   RETURN HOME
+   =========================================================
 
-$("homeBtn").href =
-  CONFIG.HOME_URL;
+   User requested:
+   "返回 Home 直接回上一頁"
+
+   Therefore:
+   1. Try browser history.back()
+   2. If there is no usable history entry,
+      fallback to index.html.
+
+========================================================= */
+
+$("homeBtn")
+  .addEventListener(
+    "click",
+    () => {
+
+      if(
+        window.history.length > 1
+      ){
+
+        window.history.back();
+
+      }else{
+
+        window.location.href =
+          CONFIG.HOME_FALLBACK;
+      }
+
+    }
+  );
 
 
-/* ============================================================
-   INITIAL STATE
-   ============================================================ */
+/* =========================================================
+   INITIALIZE
+========================================================= */
 
 function initialize(){
 
   /*
-   * 確保預設選擇狀態與 state 一致。
+   * Read default selected mode.
    */
 
   videoProject.mode =
@@ -3630,6 +4954,13 @@ function initialize(){
       ?.dataset.mode ||
     "單集";
 
+
+  /*
+   * Read default duration.
+   *
+   * Current default = 30 sec.
+   */
+
   videoProject.duration_seconds =
     Number(
       document
@@ -3639,77 +4970,105 @@ function initialize(){
         ?.dataset.duration
     ) || 30;
 
+
+  /*
+   * Read language.
+   */
+
   videoProject.language =
     $("language").value;
 
+
   /*
-   * 初始 AI 狀態。
+   * Initial AI state.
    */
 
   $("aiProviderText").textContent =
     "AI：尚未連線";
 
+
   $("aiPanelValue").textContent =
     "尚未呼叫 AI Gateway";
+
 
   setStatus(
     "Studio Ready",
     "ready"
   );
 
+
   /*
-   * 建立初始 director state。
+   * Initialize director state
+   * from currently selected buttons.
    */
 
   document
     .querySelectorAll(
       "[data-director-group].on"
     )
-    .forEach(button => {
+    .forEach(
+      button => {
 
-      const group =
-        button.dataset.directorGroup;
+        const group =
+          button.dataset.directorGroup;
 
-      const value =
-        button.dataset.directorValue;
 
-      if(!videoProject.director_techniques[group]){
+        const value =
+          button.dataset.directorValue;
 
-        videoProject.director_techniques[group] =
-          [];
+
+        if(
+          !videoProject
+            .director_techniques[group]
+        ){
+
+          videoProject
+            .director_techniques[group] =
+              [];
+        }
+
+
+        videoProject
+          .director_techniques[group]
+          .push(value);
+
       }
+    );
 
-      videoProject
-        .director_techniques[group]
-        .push(value);
-    });
 
   /*
-   * 初始 continuity state
+   * Initialize continuity state.
    */
 
   document
     .querySelectorAll(
       "[data-continuity]"
     )
-    .forEach(button => {
+    .forEach(
+      button => {
 
-      const key =
-        button.dataset.continuity;
+        const key =
+          button.dataset.continuity;
 
-      videoProject.continuity[key] =
-        button.classList.contains("on");
-    });
+
+        videoProject
+          .continuity[key] =
+            button.classList.contains(
+              "on"
+            );
+
+      }
+    );
+
 }
 
 
-/* ============================================================
+/* =========================================================
    START
-   ============================================================ */
+========================================================= */
 
 initialize();
 
 </script>
-
 </body>
 </html>
