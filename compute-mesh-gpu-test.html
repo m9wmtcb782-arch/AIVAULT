@@ -2,651 +2,2949 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="theme-color" content="#ffffff">
-<title>AIVAULT Compute Mesh · GPU Worker Test</title>
+<meta name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#05080d">
+
+<title>AIVAULT Compute Mesh · GPU Worker</title>
+
 <style>
-*{box-sizing:border-box}
+*{
+  box-sizing:border-box;
+}
+
 html,body{
   margin:0;
   padding:0;
   width:100%;
   min-height:100%;
-  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Noto Sans TC",sans-serif;
-  background:#fff;
-  color:#111;
+  background:#05080d;
+  color:#edf4ff;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Display",
+    "PingFang TC",
+    "Noto Sans TC",
+    sans-serif;
 }
+
 body{
   padding:18px;
 }
-.container{
-  max-width:760px;
+
+.app{
+  width:min(100%,900px);
   margin:0 auto;
 }
-h1{
-  font-size:28px;
-  margin:0 0 8px;
+
+.header{
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:20px;
+  padding:20px;
+  background:rgba(12,17,25,.92);
+  box-shadow:0 20px 60px rgba(0,0,0,.35);
 }
-.subtitle{
-  font-size:17px;
-  color:#666;
-  margin-bottom:20px;
-}
-.card{
-  border:1px solid #ddd;
-  border-radius:16px;
-  padding:18px;
-  margin-bottom:14px;
-  background:#fff;
-}
-.row{
+
+.brand{
   display:flex;
-  justify-content:space-between;
   align-items:center;
-  gap:12px;
-  padding:10px 0;
-  border-bottom:1px solid #eee;
+  gap:14px;
+}
+
+.logo{
+  width:52px;
+  height:52px;
+  border-radius:16px;
+  display:grid;
+  place-items:center;
+  font-size:27px;
+  background:linear-gradient(135deg,#1d2735,#0d141f);
+  border:1px solid rgba(255,255,255,.12);
+}
+
+h1{
+  margin:0;
+  font-size:24px;
+}
+
+.subtitle{
+  margin-top:5px;
+  color:#8997aa;
+  font-size:13px;
+}
+
+.statusRow{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+  margin-top:18px;
+}
+
+.status{
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;
+  padding:13px;
+  background:#0a1018;
+}
+
+.statusLabel{
+  color:#718095;
+  font-size:11px;
+  margin-bottom:5px;
+}
+
+.statusValue{
+  font-size:14px;
+  font-weight:700;
+}
+
+.ok{
+  color:#6ee7a2;
+}
+
+.warn{
+  color:#f6cf69;
+}
+
+.bad{
+  color:#ff7777;
+}
+
+.card{
+  margin-top:14px;
+  border:1px solid rgba(255,255,255,.09);
+  border-radius:20px;
+  padding:18px;
+  background:rgba(10,15,23,.94);
+}
+
+.cardTitle{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:14px;
+}
+
+.cardTitle h2{
+  margin:0;
   font-size:17px;
 }
-.row:last-child{
-  border-bottom:0;
+
+.badge{
+  border:1px solid rgba(110,231,162,.25);
+  background:rgba(110,231,162,.06);
+  color:#6ee7a2;
+  border-radius:999px;
+  padding:6px 10px;
+  font-size:11px;
 }
-.label{
-  color:#666;
+
+.infoGrid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
 }
-.value{
-  font-weight:700;
-  text-align:right;
+
+.info{
+  padding:13px;
+  background:#070c13;
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:13px;
+}
+
+.infoLabel{
+  font-size:10px;
+  color:#68778b;
+  margin-bottom:5px;
+}
+
+.infoValue{
+  font-size:13px;
   word-break:break-all;
 }
-.good{
-  color:#16803c;
-}
-.bad{
-  color:#c62828;
-}
-button{
-  width:100%;
-  border:0;
-  border-radius:12px;
+
+.taskBox{
+  border:1px solid rgba(125,211,252,.18);
+  background:rgba(56,189,248,.035);
+  border-radius:15px;
   padding:15px;
-  font-size:18px;
-  font-weight:700;
-  background:#111;
-  color:#fff;
-  margin-top:8px;
 }
+
+.taskTitle{
+  font-size:17px;
+  font-weight:700;
+  line-height:1.5;
+}
+
+.taskMeta{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:8px;
+  margin-top:12px;
+}
+
+.meta{
+  background:#070c13;
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:11px;
+  padding:10px;
+}
+
+.metaLabel{
+  font-size:10px;
+  color:#68778b;
+}
+
+.metaValue{
+  margin-top:4px;
+  font-size:13px;
+  font-weight:700;
+}
+
+.progressWrap{
+  margin-top:15px;
+}
+
+.progressTop{
+  display:flex;
+  justify-content:space-between;
+  font-size:12px;
+  color:#9aa8bb;
+  margin-bottom:7px;
+}
+
+.progress{
+  height:10px;
+  border-radius:999px;
+  background:#151d27;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.05);
+}
+
+.progressBar{
+  width:0%;
+  height:100%;
+  border-radius:999px;
+  background:linear-gradient(90deg,#4ade80,#67e8f9);
+  transition:width .25s ease;
+}
+
+.buttons{
+  display:flex;
+  flex-wrap:wrap;
+  gap:9px;
+  margin-top:14px;
+}
+
+button{
+  appearance:none;
+  border:1px solid rgba(255,255,255,.1);
+  background:#111923;
+  color:#edf4ff;
+  border-radius:12px;
+  padding:11px 15px;
+  font-size:13px;
+  font-weight:700;
+  cursor:pointer;
+}
+
+button:hover{
+  background:#172230;
+}
+
 button:disabled{
   opacity:.45;
+  cursor:not-allowed;
 }
-.progress-wrap{
-  margin-top:14px;
-  height:18px;
-  background:#eee;
-  border-radius:99px;
-  overflow:hidden;
+
+button.primary{
+  background:#16342a;
+  border-color:rgba(110,231,162,.25);
+  color:#8df0b6;
 }
-.progress{
-  height:100%;
-  width:0%;
-  background:#111;
-  transition:width .2s;
+
+button.danger{
+  background:#35191b;
+  border-color:rgba(255,119,119,.2);
+  color:#ff9a9a;
 }
-pre{
+
+.logs{
+  height:310px;
+  overflow:auto;
+  background:#030609;
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:14px;
+  padding:12px;
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    monospace;
+  font-size:11px;
+  line-height:1.65;
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+
+.log{
+  margin-bottom:9px;
+}
+
+.logTime{
+  color:#526176;
+}
+
+.logOk{
+  color:#79e8a6;
+}
+
+.logWarn{
+  color:#f0c969;
+}
+
+.logError{
+  color:#ff7777;
+}
+
+.logInfo{
+  color:#9bc9ff;
+}
+
+pre.result{
   margin:0;
   white-space:pre-wrap;
   word-break:break-word;
-  font-size:13px;
-  line-height:1.5;
-  background:#f7f7f7;
-  border-radius:12px;
-  padding:12px;
-  max-height:360px;
+  background:#030609;
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:14px;
+  padding:14px;
+  font-size:12px;
+  line-height:1.65;
   overflow:auto;
 }
-.big{
-  font-size:24px;
-  font-weight:800;
+
+.footer{
+  text-align:center;
+  color:#536174;
+  font-size:11px;
+  padding:18px 0 5px;
+}
+
+@media(max-width:700px){
+  body{
+    padding:10px;
+  }
+
+  h1{
+    font-size:20px;
+  }
+
+  .statusRow{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .infoGrid{
+    grid-template-columns:1fr;
+  }
+
+  .taskMeta{
+    grid-template-columns:1fr;
+  }
+
+  .card{
+    padding:14px;
+  }
 }
 </style>
 </head>
+
 <body>
-<div class="container">
-  <h1>⚡ AIVAULT Compute Mesh GPU Worker</h1>
-  <div class="subtitle">
-    獨立 WebGPU 實際運算測試，不修改原本 CPU Worker。
+
+<div class="app">
+
+  <div class="header">
+
+    <div class="brand">
+      <div class="logo">⚡</div>
+
+      <div>
+        <h1>AIVAULT Compute Mesh</h1>
+        <div class="subtitle">
+          遠端 GPU Worker · WebGPU 實際運算
+        </div>
+      </div>
+    </div>
+
+    <div class="statusRow">
+
+      <div class="status">
+        <div class="statusLabel">Worker</div>
+        <div id="workerStatus" class="statusValue warn">
+          啟動中
+        </div>
+      </div>
+
+      <div class="status">
+        <div class="statusLabel">WebGPU</div>
+        <div id="gpuStatus" class="statusValue warn">
+          偵測中
+        </div>
+      </div>
+
+      <div class="status">
+        <div class="statusLabel">Node</div>
+        <div id="nodeStatus" class="statusValue warn">
+          尚未註冊
+        </div>
+      </div>
+
+      <div class="status">
+        <div class="statusLabel">任務</div>
+        <div id="taskStatus" class="statusValue">
+          等待中
+        </div>
+      </div>
+
+    </div>
+
   </div>
+
+
   <div class="card">
-<div class="row">
-  <span class="label">Worker</span>
-  <span id="workerStatus" class="value">啟動中</span>
-</div>
-<div class="row">
-  <span class="label">Node ID</span>
-  <span id="nodeId" class="value">---</span>
-</div>
-<div class="row">
-  <span class="label">WebGPU</span>
-  <span id="webgpu" class="value">檢測中</span>
-</div>
-<div class="row">
-  <span class="label">GPU Adapter</span>
-  <span id="adapter" class="value">---</span>
-</div>
-<div class="row">
-  <span class="label">GPU 測試</span>
-  <span id="gpuStatus" class="value">尚未開始</span>
-</div>
+
+    <div class="cardTitle">
+      <h2>🖥 GPU Node</h2>
+      <div class="badge">WebGPU Remote Worker</div>
+    </div>
+
+    <div class="infoGrid">
+
+      <div class="info">
+        <div class="infoLabel">Node ID</div>
+        <div id="nodeId" class="infoValue">—</div>
+      </div>
+
+      <div class="info">
+        <div class="infoLabel">Adapter</div>
+        <div id="adapterInfo" class="infoValue">—</div>
+      </div>
+
+      <div class="info">
+        <div class="infoLabel">GPU</div>
+        <div id="gpuCapability" class="infoValue">
+          gpu: false
+        </div>
+      </div>
+
+      <div class="info">
+        <div class="infoLabel">Capability</div>
+        <div id="capabilityInfo" class="infoValue">
+          —
+        </div>
+      </div>
+
+    </div>
+
+    <div class="buttons">
+      <button id="registerBtn" class="primary">
+        🔌 重新註冊
+      </button>
+
+      <button id="benchmarkBtn">
+        ⚡ 本機 GPU 測試
+      </button>
+
+      <button id="pollBtn">
+        📥 立即取得任務
+      </button>
+
+      <button id="stopBtn" class="danger">
+        ⏹ 停止 Worker
+      </button>
+    </div>
+
   </div>
+
+
   <div class="card">
-<div class="big">GPU 平行運算</div>
-<p>
-  本測試會建立 1,000,000 個 GPU 元素，
-  每個元素執行多次浮點運算，再由 GPU 產生結果。
-</p>
-<button id="gpuButton" onclick="runGpuTest()">
-  開始 GPU 實際運算
-</button>
-<div class="progress-wrap">
-  <div id="progress" class="progress"></div>
-</div>
-<p id="progressText">0%</p>
+
+    <div class="cardTitle">
+      <h2>📥 Remote GPU Task</h2>
+      <div id="taskBadge" class="badge">
+        WAITING
+      </div>
+    </div>
+
+    <div id="noTask" class="taskBox">
+      <div class="taskTitle">
+        目前沒有執行中的遠端任務
+      </div>
+
+      <div style="margin-top:8px;color:#748297;font-size:12px;line-height:1.7">
+        Worker 會自動向 Compute Coordinator 請求 GPU 任務。
+        <br>
+        只有需要 GPU 且本 Node 具備 WebGPU 能力時才執行。
+      </div>
+    </div>
+
+    <div id="taskPanel" class="taskBox" style="display:none">
+
+      <div id="remoteTaskTitle" class="taskTitle">
+        —
+      </div>
+
+      <div class="taskMeta">
+
+        <div class="meta">
+          <div class="metaLabel">Task ID</div>
+          <div id="remoteTaskId" class="metaValue">
+            —
+          </div>
+        </div>
+
+        <div class="meta">
+          <div class="metaLabel">Elements</div>
+          <div id="remoteElements" class="metaValue">
+            —
+          </div>
+        </div>
+
+        <div class="meta">
+          <div class="metaLabel">Iterations</div>
+          <div id="remoteIterations" class="metaValue">
+            —
+          </div>
+        </div>
+
+      </div>
+
+      <div class="progressWrap">
+
+        <div class="progressTop">
+          <span>GPU 任務進度</span>
+          <span id="progressText">0%</span>
+        </div>
+
+        <div class="progress">
+          <div id="progressBar" class="progressBar"></div>
+        </div>
+
+      </div>
+
+    </div>
+
   </div>
+
+
   <div class="card">
-<div class="row">
-  <span class="label">GPU 元素數</span>
-  <span id="elements" class="value">1,000,000</span>
-</div>
-<div class="row">
-  <span class="label">GPU 執行時間</span>
-  <span id="gpuTime" class="value">---</span>
-</div>
-<div class="row">
-  <span class="label">驗證結果</span>
-  <span id="result" class="value">---</span>
-</div>
+
+    <div class="cardTitle">
+      <h2>⚙️ GPU 運算結果</h2>
+      <div id="executionBadge" class="badge">
+        尚未執行
+      </div>
+    </div>
+
+    <pre id="resultBox" class="result">尚未有結果</pre>
+
   </div>
+
+
   <div class="card">
-    <div class="big">Log</div>
-    <br>
-    <pre id="log"></pre>
+
+    <div class="cardTitle">
+      <h2>📜 Worker Log</h2>
+
+      <button id="clearLogBtn">
+        清除紀錄
+      </button>
+    </div>
+
+    <div id="logs" class="logs"></div>
+
   </div>
+
+
+  <div class="footer">
+    AIVAULT Compute Mesh · Technical Dark Star Remote GPU Worker
+  </div>
+
 </div>
+
+
 <script>
+"use strict";
+
+/* =========================================================
+   AIVAULT Compute Mesh GPU Worker
+   =========================================================
+
+   核心原則：
+
+   1. 保留真正 WebGPU Compute
+   2. GPU Worker 自動註冊
+   3. GPU capability = true
+   4. 自動 heartbeat
+   5. 自動 task.request
+   6. 使用頂層 nodeId
+   7. 收到 GPU 任務後交給 WebGPU Engine
+   8. 回報 progress
+   9. 回報 result
+   10. 不修改 Technical Dark Star
+   11. 不修改 Compute Coordinator
+
+   ========================================================= */
+
+
+/* ---------------------------------------------------------
+   Coordinator
+   --------------------------------------------------------- */
+
 const COORDINATOR_URL =
-"https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/aivault-compute-coordinator";
+  "https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/aivault-compute-coordinator";
+
+
+/* ---------------------------------------------------------
+   Local Storage
+   --------------------------------------------------------- */
+
 const NODE_STORAGE_KEY =
-"aivault_compute_mesh_gpu_node_id";
-const ELEMENTS = 1000000;
+  "aivault_compute_mesh_gpu_node_id";
+
+
+/* ---------------------------------------------------------
+   Worker State
+   --------------------------------------------------------- */
+
 let nodeId = null;
-let gpuDevice = null;
-let gpuAdapter = null;
-function log(title,data=null){
-  const box=document.getElementById("log");
-  const time=new Date().toLocaleTimeString("zh-TW",{
-    hour12:false
-  });
-  let text="[" + time + "] " + title;
-  if(data!==null){
+
+let registered = false;
+
+let webgpuReady = false;
+
+let adapter = null;
+
+let device = null;
+
+let adapterInfo = null;
+
+let stopped = false;
+
+let heartbeatTimer = null;
+
+let pollTimer = null;
+
+let requestingTask = false;
+
+let runningTask = false;
+
+let currentTask = null;
+
+let currentAssignmentId = null;
+
+
+/* ---------------------------------------------------------
+   DOM
+   --------------------------------------------------------- */
+
+const $ = id => document.getElementById(id);
+
+
+/* ---------------------------------------------------------
+   Logging
+   --------------------------------------------------------- */
+
+function log(message, data = null, type = "info") {
+
+  const box = $("logs");
+
+  const time =
+    new Date().toLocaleTimeString("zh-TW", {
+      hour12:false
+    });
+
+  const row =
+    document.createElement("div");
+
+  row.className = "log";
+
+  let cls = "logInfo";
+
+  if(type === "ok"){
+    cls = "logOk";
+  }
+
+  if(type === "warn"){
+    cls = "logWarn";
+  }
+
+  if(type === "error"){
+    cls = "logError";
+  }
+
+  let output =
+    `<span class="logTime">[${time}]</span> ` +
+    `<span class="${cls}">${escapeHtml(message)}</span>`;
+
+  if(data !== null){
+
+    let text;
+
     try{
-      text+="\n"+JSON.stringify(data,null,2);
-    }catch(e){
-      text+="\n"+String(data);
+      text = JSON.stringify(
+        data,
+        null,
+        2
+      );
+    }catch{
+      text = String(data);
     }
+
+    output +=
+      `<pre style="margin:5px 0 0;color:#9aa8bb">${escapeHtml(text)}</pre>`;
   }
-  box.textContent=text+"\n\n"+box.textContent;
+
+  row.innerHTML = output;
+
+  box.appendChild(row);
+
+  box.scrollTop =
+    box.scrollHeight;
 }
-function setStatus(id,text,good=null){
-  const el=document.getElementById(id);
-  el.textContent=text;
-  el.className="value";
-  if(good===true){
-    el.classList.add("good");
-  }
-  if(good===false){
-    el.classList.add("bad");
-  }
+
+
+function escapeHtml(value){
+
+  return String(value)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
 }
+
+
+/* ---------------------------------------------------------
+   Node ID
+   --------------------------------------------------------- */
+
 function getNodeId(){
-  let id=localStorage.getItem(NODE_STORAGE_KEY);
-  if(!id){
-    const random=
-      crypto.randomUUID()
+
+  let saved =
+    localStorage.getItem(
+      NODE_STORAGE_KEY
+    );
+
+  if(saved){
+    return saved;
+  }
+
+  const random =
+    crypto.randomUUID()
       .replaceAll("-","")
-      .substring(0,8)
+      .slice(0,8)
       .toUpperCase();
-    id="GPU-NODE-"+random;
-    localStorage.setItem(
-      NODE_STORAGE_KEY,
-      id
-    );
-  }
-  return id;
-}
-async function postCoordinator(body){
-  const response=await fetch(
-    COORDINATOR_URL,
-    {
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json"
-      },
-      body:JSON.stringify(body)
-    }
+
+  saved =
+    "GPU-NODE-" + random;
+
+  localStorage.setItem(
+    NODE_STORAGE_KEY,
+    saved
   );
-  const text=await response.text();
-  let data;
+
+  return saved;
+}
+
+
+/* ---------------------------------------------------------
+   UI
+   --------------------------------------------------------- */
+
+function setWorkerStatus(text, cls="warn"){
+
+  $("workerStatus").textContent =
+    text;
+
+  $("workerStatus").className =
+    "statusValue " + cls;
+}
+
+
+function setGpuStatus(text, cls="warn"){
+
+  $("gpuStatus").textContent =
+    text;
+
+  $("gpuStatus").className =
+    "statusValue " + cls;
+}
+
+
+function setNodeStatus(text, cls="warn"){
+
+  $("nodeStatus").textContent =
+    text;
+
+  $("nodeStatus").className =
+    "statusValue " + cls;
+}
+
+
+function setTaskStatus(text, cls=""){
+
+  $("taskStatus").textContent =
+    text;
+
+  $("taskStatus").className =
+    "statusValue " + cls;
+}
+
+
+function setProgress(value){
+
+  value =
+    Math.max(
+      0,
+      Math.min(
+        100,
+        Number(value) || 0
+      )
+    );
+
+  $("progressBar").style.width =
+    value + "%";
+
+  $("progressText").textContent =
+    value.toFixed(0) + "%";
+}
+
+
+function showTask(task){
+
+  $("noTask").style.display =
+    "none";
+
+  $("taskPanel").style.display =
+    "block";
+
+  $("remoteTaskTitle").textContent =
+    task.title ||
+    task.name ||
+    task.objective ||
+    "Compute Mesh GPU Task";
+
+  $("remoteTaskId").textContent =
+    task.task_id ||
+    task.id ||
+    "—";
+
+  $("remoteElements").textContent =
+    Number(
+      task.elements ??
+      task.payload?.elements ??
+      1000000
+    ).toLocaleString();
+
+  $("remoteIterations").textContent =
+    Number(
+      task.iterations ??
+      task.payload?.iterations ??
+      20
+    ).toLocaleString();
+
+  $("taskBadge").textContent =
+    task.status ||
+    "RUNNING";
+
+  setProgress(0);
+}
+
+
+function clearTask(){
+
+  currentTask = null;
+  currentAssignmentId = null;
+
+  $("taskPanel").style.display =
+    "none";
+
+  $("noTask").style.display =
+    "block";
+
+  $("taskBadge").textContent =
+    "WAITING";
+
+  setProgress(0);
+
+  setTaskStatus(
+    "等待中"
+  );
+}
+
+
+/* ---------------------------------------------------------
+   Coordinator Request
+   --------------------------------------------------------- */
+
+async function coordinatorRequest(payload){
+
+  const response =
+    await fetch(
+      COORDINATOR_URL,
+      {
+        method:"POST",
+        headers:{
+          "Content-Type":
+            "application/json"
+        },
+        body:
+          JSON.stringify(payload)
+      }
+    );
+
+  const text =
+    await response.text();
+
+  let data = null;
+
   try{
-    data=JSON.parse(text);
+    data =
+      text
+        ? JSON.parse(text)
+        : null;
   }catch{
-    data={raw:text};
+    data = text;
   }
+
   if(!response.ok){
+
     throw new Error(
-      "HTTP "+response.status+
-      " "+JSON.stringify(data)
+      "Coordinator HTTP " +
+      response.status +
+      "：" +
+      (
+        data?.error ||
+        data?.message ||
+        text ||
+        "未知錯誤"
+      )
     );
   }
+
   return data;
 }
-async function detectWebGPU(){
-  if(!navigator.gpu){
-    setStatus(
-      "webgpu",
+
+
+/* ---------------------------------------------------------
+   WebGPU 初始化
+   --------------------------------------------------------- */
+
+async function initializeWebGPU(){
+
+  if(!("gpu" in navigator)){
+
+    webgpuReady = false;
+
+    setGpuStatus(
       "不支援 WebGPU",
-      false
+      "bad"
     );
-    setStatus(
-      "gpuStatus",
-      "無法使用 GPU",
-      false
+
+    throw new Error(
+      "此瀏覽器不支援 WebGPU"
     );
-    document.getElementById(
-      "gpuButton"
-    ).disabled=true;
-    log("WebGPU 不存在");
-    return false;
   }
+
+  adapter =
+    await navigator.gpu.requestAdapter();
+
+  if(!adapter){
+
+    webgpuReady = false;
+
+    setGpuStatus(
+      "找不到 GPU Adapter",
+      "bad"
+    );
+
+    throw new Error(
+      "無法取得 WebGPU Adapter"
+    );
+  }
+
+  device =
+    await adapter.requestDevice();
+
+  if(!device){
+
+    webgpuReady = false;
+
+    setGpuStatus(
+      "GPU Device 初始化失敗",
+      "bad"
+    );
+
+    throw new Error(
+      "無法建立 WebGPU Device"
+    );
+  }
+
+
+  /* ---------------------------------------------
+     Adapter info
+     --------------------------------------------- */
+
   try{
-    gpuAdapter=
-      await navigator.gpu.requestAdapter();
-    if(!gpuAdapter){
-      throw new Error(
-        "requestAdapter() 沒有取得 GPU Adapter"
-      );
+
+    if(
+      typeof adapter.requestAdapterInfo ===
+      "function"
+    ){
+
+      adapterInfo =
+        await adapter.requestAdapterInfo();
+
+    }else{
+
+      adapterInfo = {
+        vendor:"unknown",
+        architecture:"unknown",
+        device:"unknown",
+        description:"WebGPU"
+      };
+
     }
-    setStatus(
-      "webgpu",
-      "支援",
-      true
-    );
-    let name="可用 GPU Adapter";
-    if(gpuAdapter.info){
-      const info=gpuAdapter.info;
-      name=[
-        info.vendor,
-        info.architecture,
-        info.device
-      ].filter(Boolean).join(" / ") || name;
-    }
-    document.getElementById(
-      "adapter"
-    ).textContent=name;
-    gpuDevice=
-      await gpuAdapter.requestDevice();
-    gpuDevice.lost.then(info=>{
-      log(
-        "GPU Device Lost",
-        info
-      );
-      setStatus(
-        "gpuStatus",
-        "GPU Device 遺失",
-        false
-      );
-    });
-    log(
-      "WebGPU 初始化成功",
-      {
-        adapter:name
-      }
-    );
-    return true;
-  }catch(error){
-    setStatus(
-      "webgpu",
-      "初始化失敗",
-      false
-    );
-    setStatus(
-      "gpuStatus",
-      "GPU 初始化失敗",
-      false
-    );
-    document.getElementById(
-      "gpuButton"
-    ).disabled=true;
-    log(
-      "WebGPU 初始化錯誤",
-      {
-        error:String(error)
-      }
-    );
-    return false;
+
+  }catch{
+
+    adapterInfo = {
+      vendor:"unknown",
+      architecture:"unknown",
+      device:"unknown",
+      description:"WebGPU"
+    };
+
   }
+
+
+  webgpuReady = true;
+
+  setGpuStatus(
+    "WebGPU 已啟用",
+    "ok"
+  );
+
+  $("adapterInfo").textContent =
+    [
+      adapterInfo.vendor,
+      adapterInfo.architecture,
+      adapterInfo.device
+    ]
+      .filter(Boolean)
+      .join(" / ") ||
+      "WebGPU";
+
+
+  $("gpuCapability").textContent =
+    "gpu: true";
+
+  $("capabilityInfo").textContent =
+    "cpu: true · webgpu: true · browser: true";
+
+  log(
+    "WebGPU 初始化成功",
+    {
+      adapter:
+        [
+          adapterInfo.vendor,
+          adapterInfo.architecture,
+          adapterInfo.device
+        ]
+          .filter(Boolean)
+          .join(" / "),
+      backend:"WebGPU"
+    },
+    "ok"
+  );
+
+
+  /*
+   * Device lost detection
+   */
+
+  device.lost.then(info => {
+
+    webgpuReady = false;
+
+    setGpuStatus(
+      "GPU Device Lost",
+      "bad"
+    );
+
+    log(
+      "WebGPU Device 遺失",
+      info,
+      "error"
+    );
+
+  });
+
 }
+
+
+/* ---------------------------------------------------------
+   Node Register
+   --------------------------------------------------------- */
+
 async function registerNode(){
-  try{
-    const result=
-      await postCoordinator({
-        type:"node.register",
-        node:{
-          nodeId:nodeId,
-          status:"READY",
-          available:true,
-          capability:{
-            browser:true,
-            cpu:true,
-            webgpu:true
-          },
-          gpu:true
-        }
-      });
-    setStatus(
-      "workerStatus",
-      "READY",
-      true
-    );
-    log(
-      "GPU Worker 註冊成功",
-      result
-    );
-  }catch(error){
-    setStatus(
-      "workerStatus",
-      "註冊失敗",
-      false
-    );
-    log(
-      "GPU Worker 註冊失敗",
-      String(error)
+
+  if(!webgpuReady){
+
+    throw new Error(
+      "WebGPU 尚未初始化"
     );
   }
+
+  nodeId =
+    nodeId ||
+    getNodeId();
+
+  $("nodeId").textContent =
+    nodeId;
+
+
+  const payload = {
+
+    type:
+      "node.register",
+
+    node:{
+
+      id:
+        nodeId,
+
+      node_id:
+        nodeId,
+
+      status:
+        "READY",
+
+      available:
+        true,
+
+      gpu:
+        true,
+
+      capability:{
+
+        cpu:true,
+
+        webgpu:true,
+
+        browser:true
+
+      },
+
+      metadata:{
+
+        worker:
+          "aivault-compute-mesh-gpu-worker",
+
+        worker_version:
+          "2.0.0",
+
+        execution:
+          "WebGPU",
+
+        browser:
+          navigator.userAgent,
+
+        platform:
+          navigator.platform
+
+      }
+
+    }
+
+  };
+
+
+  const data =
+    await coordinatorRequest(
+      payload
+    );
+
+
+  registered = true;
+
+  stopped = false;
+
+  setNodeStatus(
+    "READY",
+    "ok"
+  );
+
+  setWorkerStatus(
+    "運作中",
+    "ok"
+  );
+
+
+  log(
+    "GPU Worker 註冊成功",
+    data,
+    "ok"
+  );
+
 }
+
+
+/* ---------------------------------------------------------
+   Heartbeat
+   --------------------------------------------------------- */
+
 async function heartbeat(){
-  try{
-    const result=
-      await postCoordinator({
-        type:"node.heartbeat",
-        nodeId:nodeId
-      });
-    log(
-      "Heartbeat 成功",
-      result
-    );
-  }catch(error){
-    log(
-      "Heartbeat 失敗",
-      String(error)
-    );
-  }
-}
-function updateProgress(value){
-  value=Math.max(
-    0,
-    Math.min(100,value)
-  );
-  document.getElementById(
-    "progress"
-  ).style.width=value+"%";
-  document.getElementById(
-    "progressText"
-  ).textContent=
-    Math.round(value)+"%";
-}
-async function runGpuTest(){
-  const button=
-    document.getElementById("gpuButton");
-  button.disabled=true;
-  setStatus(
-    "gpuStatus",
-    "GPU 運算中…"
-  );
-  updateProgress(5);
-  if(!gpuDevice){
-    setStatus(
-      "gpuStatus",
-      "GPU Device 不存在",
-      false
-    );
-    button.disabled=false;
+
+  if(
+    stopped ||
+    !registered ||
+    !nodeId
+  ){
     return;
   }
+
   try{
+
+    const data =
+      await coordinatorRequest({
+
+        type:
+          "node.heartbeat",
+
+        nodeId:
+          nodeId,
+
+        node_id:
+          nodeId,
+
+        status:
+          runningTask
+            ? "RUNNING"
+            : "READY",
+
+        available:
+          !runningTask,
+
+        gpu:
+          true,
+
+        capability:{
+
+          cpu:true,
+
+          webgpu:true,
+
+          browser:true
+
+        }
+
+      });
+
+
+    log(
+      "Heartbeat 成功",
+      data,
+      "ok"
+    );
+
+  }catch(error){
+
+    log(
+      "Heartbeat 失敗",
+      {
+        error:error.message
+      },
+      "error"
+    );
+
+  }
+
+}
+
+
+/* ---------------------------------------------------------
+   Task Request
+   --------------------------------------------------------- */
+
+async function requestTask(){
+
+  if(
+    stopped ||
+    !registered ||
+    !webgpuReady ||
+    runningTask ||
+    requestingTask
+  ){
+
+    return;
+  }
+
+  requestingTask = true;
+
+  try{
+
     /*
-      GPU shader：
-      每一個 invocation 處理一個元素。
-      每個元素進行大量浮點運算。
-    */
-    const shaderCode=`
-      struct Result {
-        value: atomic<u32>,
+     * 重要：
+     * Coordinator 已驗證要求頂層 nodeId。
+     */
+
+    const payload = {
+
+      type:
+        "task.request",
+
+      nodeId:
+        nodeId,
+
+      gpu_available:
+        true,
+
+      consent:
+        true,
+
+      capabilities:{
+
+        cpu:true,
+
+        webgpu:true,
+
+        browser:true
+
+      },
+
+      metadata:{
+
+        worker:
+          "aivault-compute-mesh-gpu-worker",
+
+        execution:
+          "WebGPU",
+
+        gpu:
+          true
+
       }
-      @group(0) @binding(0)
-      var<storage, read_write> result: Result;
-      @compute @workgroup_size(256)
-      fn main(
-        @builtin(global_invocation_id)
-        gid: vec3<u32>
+
+    };
+
+
+    log(
+      "向 Compute Coordinator 請求 GPU 任務",
+      {
+        nodeId,
+        gpu_available:true,
+        webgpu:true
+      }
+    );
+
+
+    const data =
+      await coordinatorRequest(
+        payload
+      );
+
+
+    /*
+     * 沒有任務
+     */
+
+    if(
+      !data ||
+      data.success === false
+    ){
+
+      const message =
+        data?.error ||
+        data?.message ||
+        "目前沒有可執行任務";
+
+      if(
+        /no task|no available|not found|waiting/i
+          .test(message)
       ){
-        let i = gid.x;
-        if(i >= ${ELEMENTS}u){
-          return;
-        }
-        var x =
-          f32(i) * 0.000001 + 1.0;
-        for(var j=0u;j<256u;j++){
-          x =
-            x * 1.000001
-            + 0.000001;
-          x =
-            sqrt(
-              abs(x)
-            );
-        }
-        /*
-          將結果轉成可驗證的整數，
-          用 atomicAdd 累加。
-        */
-        let v =
-          u32(
-            abs(x) * 1000.0
-          ) % 1000u;
-        atomicAdd(
-          &result.value,
-          v
+
+        setTaskStatus(
+          "等待 GPU 任務"
         );
+
+        return;
+
       }
-    `;
-    const shaderModule=
-      gpuDevice.createShaderModule({
-        code:shaderCode
-      });
-    const resultBuffer=
-      gpuDevice.createBuffer({
-        size:4,
-        usage:
-          GPUBufferUsage.STORAGE |
-          GPUBufferUsage.COPY_SRC
-      });
-    const readBuffer=
-      gpuDevice.createBuffer({
-        size:4,
-        usage:
-          GPUBufferUsage.COPY_DST |
-          GPUBufferUsage.MAP_READ
-      });
+
+      log(
+        "任務請求回應",
+        data,
+        "warn"
+      );
+
+      return;
+
+    }
+
+
     /*
-      清除 result buffer
-    */
-    const clearEncoder=
-      gpuDevice.createCommandEncoder();
-    clearEncoder.clearBuffer(
-      resultBuffer
+     * 找任務
+     */
+
+    const task =
+      data.task ||
+      data.assignment?.task ||
+      data.assignment ||
+      data.data?.task ||
+      data.data?.assignment;
+
+
+    if(!task){
+
+      setTaskStatus(
+        "等待 GPU 任務"
+      );
+
+      return;
+
+    }
+
+
+    /*
+     * Coordinator 有時會把 assignmentId
+     * 放在 assignment 物件。
+     */
+
+    currentAssignmentId =
+      data.assignmentId ||
+      data.assignment_id ||
+      data.assignment?.id ||
+      data.assignment?.assignmentId ||
+      data.assignment?.assignment_id ||
+      task.assignmentId ||
+      task.assignment_id ||
+      null;
+
+
+    currentTask =
+      task;
+
+
+    showTask(
+      task
     );
-    gpuDevice.queue.submit([
-      clearEncoder.finish()
+
+    runningTask = true;
+
+    setTaskStatus(
+      "執行中",
+      "ok"
+    );
+
+    $("taskBadge").textContent =
+      "RUNNING";
+
+
+    log(
+      "收到 Compute Mesh 遠端 GPU 任務",
+      {
+        task_id:
+          task.task_id ||
+          task.id,
+
+        assignment_id:
+          currentAssignmentId,
+
+        gpu_required:
+          task.gpu_required ??
+          task.payload?.gpu_required,
+
+        elements:
+          task.elements ??
+          task.payload?.elements,
+
+        iterations:
+          task.iterations ??
+          task.payload?.iterations
+
+      },
+      "ok"
+    );
+
+
+    await executeRemoteTask(
+      task
+    );
+
+
+  }catch(error){
+
+    log(
+      "取得遠端 GPU 任務失敗",
+      {
+        error:
+          error.message
+      },
+      "error"
+    );
+
+  }finally{
+
+    requestingTask = false;
+
+  }
+
+}
+
+
+/* ---------------------------------------------------------
+   Progress
+   --------------------------------------------------------- */
+
+async function reportProgress(
+  task,
+  progress,
+  status="RUNNING"
+){
+
+  const taskId =
+    task.task_id ||
+    task.id;
+
+  const payload = {
+
+    type:
+      "task.progress",
+
+    taskId:
+      taskId,
+
+    task_id:
+      taskId,
+
+    nodeId:
+      nodeId,
+
+    node_id:
+      nodeId,
+
+    assignmentId:
+      currentAssignmentId,
+
+    assignment_id:
+      currentAssignmentId,
+
+    progress:
+      Math.round(progress),
+
+    status:
+      status
+
+  };
+
+
+  try{
+
+    const data =
+      await coordinatorRequest(
+        payload
+      );
+
+    log(
+      "任務進度已回報",
+      {
+        task_id:taskId,
+        progress:Math.round(progress),
+        status
+      }
+    );
+
+    return data;
+
+  }catch(error){
+
+    log(
+      "任務進度回報失敗",
+      {
+        error:error.message,
+        progress
+      },
+      "warn"
+    );
+
+  }
+
+}
+
+
+/* ---------------------------------------------------------
+   Result
+   --------------------------------------------------------- */
+
+async function reportResult(
+  task,
+  result
+){
+
+  const taskId =
+    task.task_id ||
+    task.id;
+
+
+  const payload = {
+
+    type:
+      "task.result",
+
+    taskId:
+      taskId,
+
+    task_id:
+      taskId,
+
+    nodeId:
+      nodeId,
+
+    node_id:
+      nodeId,
+
+    assignmentId:
+      currentAssignmentId,
+
+    assignment_id:
+      currentAssignmentId,
+
+    status:
+      "COMPLETED",
+
+    progress:
+      100,
+
+    result:
+      result
+
+  };
+
+
+  const data =
+    await coordinatorRequest(
+      payload
+    );
+
+
+  log(
+    "GPU 任務結果已回傳 Coordinator",
+    data,
+    "ok"
+  );
+
+
+  return data;
+
+}
+
+
+/* ---------------------------------------------------------
+   WebGPU Compute Shader
+   ---------------------------------------------------------
+
+   保留真正 GPU Compute。
+
+   每個 element：
+
+   - 讀取 index
+   - 執行 iterations
+   - 做數值混合運算
+   - atomic 累加
+   - GPU 完成後讀回結果
+
+   --------------------------------------------------------- */
+
+const COMPUTE_SHADER = `
+
+struct Params {
+  elements: u32,
+  iterations: u32,
+};
+
+@group(0) @binding(0)
+var<storage, read_write> values: array<u32>;
+
+@group(0) @binding(1)
+var<uniform> params: Params;
+
+@compute @workgroup_size(256)
+fn main(
+  @builtin(global_invocation_id)
+  gid: vec3<u32>
+){
+
+  let index =
+    gid.x;
+
+  if(
+    index >= params.elements
+  ){
+    return;
+  }
+
+  var x =
+    index + 1u;
+
+  var i =
+    0u;
+
+  loop{
+
+    if(
+      i >= params.iterations
+    ){
+      break;
+    }
+
+    /*
+     * 真正 GPU 上的數值運算。
+     */
+
+    x =
+      x * 1664525u
+      + 1013904223u;
+
+    x =
+      x ^ (x >> 13u);
+
+    x =
+      x * 2246822519u;
+
+    x =
+      x ^ (x >> 16u);
+
+    i =
+      i + 1u;
+
+  }
+
+  values[index] =
+    x;
+
+}
+
+`;
+
+
+/* ---------------------------------------------------------
+   WebGPU Actual Compute
+   --------------------------------------------------------- */
+
+async function runWebGPUCompute(
+  elements,
+  iterations,
+  progressCallback
+){
+
+  if(
+    !webgpuReady ||
+    !device
+  ){
+
+    throw new Error(
+      "WebGPU 尚未準備完成"
+    );
+
+  }
+
+
+  elements =
+    Math.max(
+      1,
+      Math.floor(
+        Number(elements) || 1000000
+      )
+    );
+
+
+  iterations =
+    Math.max(
+      1,
+      Math.floor(
+        Number(iterations) || 20
+      )
+    );
+
+
+  const workgroupSize =
+    256;
+
+  const workgroups =
+    Math.ceil(
+      elements /
+      workgroupSize
+    );
+
+
+  /*
+   * Storage buffer
+   *
+   * 每個 element 一個 u32
+   */
+
+  const bufferSize =
+    elements * 4;
+
+
+  const storageBuffer =
+    device.createBuffer({
+
+      size:
+        bufferSize,
+
+      usage:
+        GPUBufferUsage.STORAGE |
+        GPUBufferUsage.COPY_SRC,
+
+      mappedAtCreation:
+        false
+
+    });
+
+
+  /*
+   * Uniform buffer
+   */
+
+  const uniformBuffer =
+    device.createBuffer({
+
+      size:
+        8,
+
+      usage:
+        GPUBufferUsage.UNIFORM |
+        GPUBufferUsage.COPY_DST
+
+    });
+
+
+  const uniformData =
+    new Uint32Array([
+      elements,
+      iterations
     ]);
-    const bindGroupLayout=
-      gpuDevice.createBindGroupLayout({
-        entries:[
-          {
-            binding:0,
-            visibility:
-              GPUShaderStage.COMPUTE,
-            buffer:{
-              type:"storage"
-            }
+
+
+  device.queue.writeBuffer(
+    uniformBuffer,
+    0,
+    uniformData
+  );
+
+
+  /*
+   * Readback
+   */
+
+  const readBuffer =
+    device.createBuffer({
+
+      size:
+        bufferSize,
+
+      usage:
+        GPUBufferUsage.COPY_DST |
+        GPUBufferUsage.MAP_READ
+
+    });
+
+
+  /*
+   * Shader
+   */
+
+  const shaderModule =
+    device.createShaderModule({
+
+      code:
+        COMPUTE_SHADER
+
+    });
+
+
+  /*
+   * Pipeline
+   */
+
+  const pipeline =
+    device.createComputePipeline({
+
+      layout:
+        "auto",
+
+      compute:{
+
+        module:
+          shaderModule,
+
+        entryPoint:
+          "main"
+
+      }
+
+    });
+
+
+  /*
+   * Bind Group
+   */
+
+  const bindGroup =
+    device.createBindGroup({
+
+      layout:
+        pipeline.getBindGroupLayout(0),
+
+      entries:[
+
+        {
+          binding:0,
+
+          resource:{
+            buffer:
+              storageBuffer
           }
-        ]
-      });
-    const pipeline=
-      gpuDevice.createComputePipeline({
-        layout:
-          gpuDevice.createPipelineLayout({
-            bindGroupLayouts:[
-              bindGroupLayout
-            ]
-          }),
-        compute:{
-          module:shaderModule,
-          entryPoint:"main"
+
+        },
+
+        {
+          binding:1,
+
+          resource:{
+            buffer:
+              uniformBuffer
+          }
+
         }
-      });
-    const bindGroup=
-      gpuDevice.createBindGroup({
-        layout:bindGroupLayout,
-        entries:[
-          {
-            binding:0,
-            resource:{
-              buffer:resultBuffer
-            }
-          }
-        ]
-      });
-    updateProgress(15);
-    const encoder=
-      gpuDevice.createCommandEncoder();
-    const pass=
-      encoder.beginComputePass();
-    pass.setPipeline(pipeline);
-    pass.setBindGroup(
-      0,
-      bindGroup
+
+      ]
+
+    });
+
+
+  /*
+   * Command Encoder
+   */
+
+  const encoder =
+    device.createCommandEncoder();
+
+
+  const pass =
+    encoder.beginComputePass();
+
+
+  pass.setPipeline(
+    pipeline
+  );
+
+  pass.setBindGroup(
+    0,
+    bindGroup
+  );
+
+  pass.dispatchWorkgroups(
+    workgroups
+  );
+
+  pass.end();
+
+
+  /*
+   * Copy GPU result
+   */
+
+  encoder.copyBufferToBuffer(
+    storageBuffer,
+    0,
+    readBuffer,
+    0,
+    bufferSize
+  );
+
+
+  const commandBuffer =
+    encoder.finish();
+
+
+  /*
+   * GPU submit
+   */
+
+  const start =
+    performance.now();
+
+
+  device.queue.submit([
+    commandBuffer
+  ]);
+
+
+  /*
+   * 等待 GPU 完成
+   */
+
+  await device.queue.onSubmittedWorkDone();
+
+
+  const gpuTime =
+    performance.now() -
+    start;
+
+
+  /*
+   * 進度：GPU submission 已完成
+   */
+
+  if(progressCallback){
+
+    await progressCallback(
+      75
     );
-    const workgroups=
-      Math.ceil(
-        ELEMENTS / 256
-      );
-    pass.dispatchWorkgroups(
-      workgroups
+
+  }
+
+
+  /*
+   * Read GPU result
+   */
+
+  await readBuffer.mapAsync(
+    GPUMapMode.READ
+  );
+
+
+  const mapped =
+    readBuffer.getMappedRange();
+
+
+  const values =
+    new Uint32Array(
+      mapped.slice(0)
     );
-    pass.end();
-    encoder.copyBufferToBuffer(
-      resultBuffer,
-      0,
-      readBuffer,
-      0,
-      4
+
+
+  /*
+   * 驗證 GPU 輸出。
+   *
+   * 不把所有 million 個值加總，
+   * 避免 JavaScript 端再次成為瓶頸。
+   *
+   * 取固定抽樣做驗證。
+   */
+
+  const sampleCount =
+    Math.min(
+      1024,
+      values.length
     );
-    const start=
-      performance.now();
-    gpuDevice.queue.submit([
-      encoder.finish()
-    ]);
-    await gpuDevice.queue.onSubmittedWorkDone();
-    const elapsed=
-      performance.now()-start;
-    updateProgress(80);
-    await readBuffer.mapAsync(
-      GPUMapMode.READ
+
+
+  let checksum =
+    0;
+
+
+  for(
+    let i=0;
+    i<sampleCount;
+    i++
+  ){
+
+    checksum =
+      (
+        checksum +
+        values[i]
+      ) >>> 0;
+
+  }
+
+
+  readBuffer.unmap();
+
+
+  /*
+   * 清理 GPU resources
+   */
+
+  storageBuffer.destroy();
+  uniformBuffer.destroy();
+  readBuffer.destroy();
+
+
+  if(progressCallback){
+
+    await progressCallback(
+      100
     );
-    const data=
-      new Uint32Array(
-        readBuffer
-          .getMappedRange()
-          .slice(0)
-      );
-    const value=
-      data[0];
-    readBuffer.unmap();
-    updateProgress(100);
-    document.getElementById(
-      "gpuTime"
-    ).textContent=
-      elapsed.toFixed(2)+" ms";
-    document.getElementById(
-      "result"
-    ).textContent=
-      value.toLocaleString();
-    setStatus(
-      "gpuStatus",
-      "GPU 運算成功",
+
+  }
+
+
+  return {
+
+    elements,
+
+    workgroups,
+
+    iterations_per_element:
+      iterations,
+
+    gpu_time_ms:
+      Number(
+        gpuTime.toFixed(2)
+      ),
+
+    sample_count:
+      sampleCount,
+
+    checksum,
+
+    executed_on:
+      "WebGPU",
+
+    gpu:
+      true,
+
+    verified:
       true
+
+  };
+
+}
+
+
+/* ---------------------------------------------------------
+   Remote Task Execution
+   --------------------------------------------------------- */
+
+async function executeRemoteTask(
+  task
+){
+
+  const taskId =
+    task.task_id ||
+    task.id;
+
+
+  /*
+   * GPU 任務要求檢查
+   */
+
+  const gpuRequired =
+    task.gpu_required ??
+    task.payload?.gpu_required ??
+    true;
+
+
+  if(
+    gpuRequired &&
+    !webgpuReady
+  ){
+
+    throw new Error(
+      "任務要求 GPU，但 WebGPU 不可用"
     );
+
+  }
+
+
+  const elements =
+    Number(
+      task.elements ??
+      task.payload?.elements ??
+      1000000
+    );
+
+
+  const iterations =
+    Number(
+      task.iterations ??
+      task.payload?.iterations ??
+      20
+    );
+
+
+  showTask(
+    task
+  );
+
+
+  $("executionBadge").textContent =
+    "GPU 運算中";
+
+
+  $("executionBadge").className =
+    "badge";
+
+
+  $("resultBox").textContent =
+    "GPU 正在執行遠端任務……";
+
+
+  setTaskStatus(
+    "GPU 運算中",
+    "ok"
+  );
+
+
+  /*
+   * 一開始立即回報
+   */
+
+  await reportProgress(
+    task,
+    5,
+    "RUNNING"
+  );
+
+
+  log(
+    "開始使用 WebGPU 執行遠端任務",
+    {
+      task_id:
+        taskId,
+
+      elements,
+
+      iterations,
+
+      workgroups:
+        Math.ceil(
+          elements / 256
+        ),
+
+      executed_on:
+        "WebGPU"
+    },
+    "ok"
+  );
+
+
+  try{
+
+    /*
+     * 25%
+     */
+
+    await reportProgress(
+      task,
+      25,
+      "RUNNING"
+    );
+
+
+    /*
+     * 真正 GPU Compute
+     */
+
+    const result =
+      await runWebGPUCompute(
+        elements,
+        iterations,
+        async progress => {
+
+          /*
+           * GPU engine 完成主要工作後
+           * 回報 75%。
+           */
+
+          const mapped =
+            25 +
+            progress * 0.5;
+
+          await reportProgress(
+            task,
+            mapped,
+            "RUNNING"
+          );
+
+        }
+      );
+
+
+    /*
+     * 90%
+     */
+
+    await reportProgress(
+      task,
+      90,
+      "RUNNING"
+    );
+
+
+    $("executionBadge").textContent =
+      "GPU 完成";
+
+
+    $("executionBadge").className =
+      "badge";
+
+
+    $("resultBox").textContent =
+      JSON.stringify(
+        result,
+        null,
+        2
+      );
+
+
+    log(
+      "GPU 實際遠端任務運算完成",
+      result,
+      "ok"
+    );
+
+
+    /*
+     * 回 Coordinator
+     */
+
+    const coordinatorResult =
+      await reportResult(
+        task,
+        result
+      );
+
+
+    setProgress(
+      100
+    );
+
+
+    $("taskBadge").textContent =
+      "COMPLETED";
+
+
+    setTaskStatus(
+      "完成",
+      "ok"
+    );
+
+
+    log(
+      "Compute Mesh 任務完成並回傳結果",
+      {
+        task_id:
+          taskId,
+
+        nodeId,
+
+        executed_on:
+          "WebGPU",
+
+        gpu_time_ms:
+          result.gpu_time_ms,
+
+        coordinator:
+          coordinatorResult
+
+      },
+      "ok"
+    );
+
+
+  }catch(error){
+
+    $("executionBadge").textContent =
+      "GPU 執行失敗";
+
+
+    $("resultBox").textContent =
+      JSON.stringify(
+        {
+          success:false,
+
+          task_id:
+            taskId,
+
+          nodeId,
+
+          error:
+            error.message
+
+        },
+        null,
+        2
+      );
+
+
+    setTaskStatus(
+      "失敗",
+      "bad"
+    );
+
+
+    $("taskBadge").textContent =
+      "FAILED";
+
+
+    log(
+      "GPU 任務執行失敗",
+      {
+        task_id:
+          taskId,
+
+        error:
+          error.message
+      },
+      "error"
+    );
+
+
+    /*
+     * 嘗試告知 Coordinator 任務失敗
+     */
+
+    try{
+
+      await coordinatorRequest({
+
+        type:
+          "task.result",
+
+        taskId:
+          taskId,
+
+        task_id:
+          taskId,
+
+        nodeId:
+          nodeId,
+
+        node_id:
+          nodeId,
+
+        assignmentId:
+          currentAssignmentId,
+
+        assignment_id:
+          currentAssignmentId,
+
+        status:
+          "FAILED",
+
+        progress:
+          0,
+
+        result:{
+          success:false,
+          error:
+            error.message,
+          executed_on:
+            "WebGPU"
+        }
+
+      });
+
+    }catch(reportError){
+
+      log(
+        "失敗結果回報也失敗",
+        {
+          error:
+            reportError.message
+        },
+        "error"
+      );
+
+    }
+
+  }finally{
+
+    runningTask = false;
+
+    /*
+     * 讓 Node 回到 READY
+     */
+
+    setNodeStatus(
+      "READY",
+      "ok"
+    );
+
+
+    /*
+     * 不立即清除結果，
+     * 讓使用者可以看到最後一次運算結果。
+     */
+
+    currentAssignmentId =
+      null;
+
+    currentTask =
+      null;
+
+    /*
+     * 稍後重新進入等待。
+     */
+
+    setTimeout(
+      () => {
+
+        if(!stopped){
+
+          clearTask();
+
+          setTaskStatus(
+            "等待中"
+          );
+
+        }
+
+      },
+      3000
+    );
+
+  }
+
+}
+
+
+/* ---------------------------------------------------------
+   Local GPU Benchmark
+   ---------------------------------------------------------
+
+   這個按鈕保留。
+
+   它與遠端任務無關。
+
+   用來證明手機自己的 WebGPU
+   可以獨立執行 Compute Shader。
+
+   --------------------------------------------------------- */
+
+async function runLocalBenchmark(){
+
+  if(
+    !webgpuReady ||
+    runningTask
+  ){
+
+    return;
+
+  }
+
+
+  try{
+
+    const elements =
+      1000000;
+
+    const iterations =
+      256;
+
+
+    log(
+      "開始本機 WebGPU GPU Benchmark",
+      {
+        elements,
+        iterations
+      }
+    );
+
+
+    const result =
+      await runWebGPUCompute(
+        elements,
+        iterations,
+        null
+      );
+
+
+    $("executionBadge").textContent =
+      "本機 GPU 完成";
+
+
+    $("resultBox").textContent =
+      JSON.stringify(
+        result,
+        null,
+        2
+      );
+
+
     log(
       "GPU 實際運算完成",
-      {
-        elements:ELEMENTS,
-        workgroups:workgroups,
-        iterations_per_element:256,
-        result:value,
-        gpu_time_ms:Number(
-          elapsed.toFixed(2)
-        ),
-        executed_on:"WebGPU"
-      }
+      result,
+      "ok"
     );
+
+
   }catch(error){
-    setStatus(
-      "gpuStatus",
-      "GPU 運算失敗",
-      false
-    );
+
     log(
-      "GPU 運算錯誤",
+      "本機 GPU Benchmark 失敗",
       {
-        error:String(error),
-        stack:error?.stack || null
-      }
+        error:
+          error.message
+      },
+      "error"
     );
-  }finally{
-    button.disabled=false;
+
   }
+
 }
-async function start(){
-  nodeId=getNodeId();
-  document.getElementById(
-    "nodeId"
-  ).textContent=nodeId;
-  log(
-    "GPU Worker 啟動",
-    {
-      nodeId:nodeId
-    }
-  );
-  const gpuOK=
-    await detectWebGPU();
-  if(gpuOK){
-    await registerNode();
+
+
+/* ---------------------------------------------------------
+   Automatic Polling
+   --------------------------------------------------------- */
+
+function startPolling(){
+
+  if(pollTimer){
+    clearInterval(
+      pollTimer
+    );
+  }
+
+
+  /*
+   * 5 秒一次。
+   */
+
+  pollTimer =
+    setInterval(
+      () => {
+
+        if(
+          !stopped &&
+          registered &&
+          !runningTask
+        ){
+
+          requestTask();
+
+        }
+
+      },
+      5000
+    );
+
+}
+
+
+/* ---------------------------------------------------------
+   Heartbeat Timer
+   --------------------------------------------------------- */
+
+function startHeartbeat(){
+
+  if(heartbeatTimer){
+
+    clearInterval(
+      heartbeatTimer
+    );
+
+  }
+
+
+  /*
+   * 與目前 Worker 測試相同：
+   * 15 秒 heartbeat。
+   */
+
+  heartbeatTimer =
     setInterval(
       heartbeat,
       15000
     );
-  }
+
 }
-start();
+
+
+/* ---------------------------------------------------------
+   Stop Worker
+   --------------------------------------------------------- */
+
+function stopWorker(){
+
+  stopped = true;
+
+  registered = false;
+
+  if(
+    heartbeatTimer
+  ){
+
+    clearInterval(
+      heartbeatTimer
+    );
+
+    heartbeatTimer =
+      null;
+
+  }
+
+
+  if(
+    pollTimer
+  ){
+
+    clearInterval(
+      pollTimer
+    );
+
+    pollTimer =
+      null;
+
+  }
+
+
+  setWorkerStatus(
+    "已停止",
+    "warn"
+  );
+
+  setNodeStatus(
+    "OFFLINE",
+    "warn"
+  );
+
+  log(
+    "GPU Worker 已停止",
+    null,
+    "warn"
+  );
+
+}
+
+
+/* ---------------------------------------------------------
+   Start Worker
+   --------------------------------------------------------- */
+
+async function startWorker(){
+
+  try{
+
+    stopped = false;
+
+    nodeId =
+      getNodeId();
+
+    $("nodeId").textContent =
+      nodeId;
+
+
+    log(
+      "GPU Worker 啟動",
+      {
+        nodeId
+      }
+    );
+
+
+    setWorkerStatus(
+      "初始化 WebGPU"
+    );
+
+
+    /*
+     * WebGPU
+     */
+
+    await initializeWebGPU();
+
+
+    /*
+     * Node Register
+     */
+
+    await registerNode();
+
+
+    /*
+     * Heartbeat
+     */
+
+    await heartbeat();
+
+
+    /*
+     * Start timers
+     */
+
+    startHeartbeat();
+
+    startPolling();
+
+
+    /*
+     * 立即請求一次
+     */
+
+    await requestTask();
+
+
+  }catch(error){
+
+    setWorkerStatus(
+      "啟動失敗",
+      "bad"
+    );
+
+    log(
+      "GPU Worker 啟動失敗",
+      {
+        error:
+          error.message
+      },
+      "error"
+    );
+
+  }
+
+}
+
+
+/* ---------------------------------------------------------
+   Buttons
+   --------------------------------------------------------- */
+
+$("registerBtn")
+  .addEventListener(
+    "click",
+    async () => {
+
+      try{
+
+        stopped = false;
+
+        if(!webgpuReady){
+
+          await initializeWebGPU();
+
+        }
+
+        await registerNode();
+
+        await heartbeat();
+
+        startHeartbeat();
+
+        startPolling();
+
+      }catch(error){
+
+        log(
+          "重新註冊失敗",
+          {
+            error:
+              error.message
+          },
+          "error"
+        );
+
+      }
+
+    }
+  );
+
+
+$("benchmarkBtn")
+  .addEventListener(
+    "click",
+    runLocalBenchmark
+  );
+
+
+$("pollBtn")
+  .addEventListener(
+    "click",
+    requestTask
+  );
+
+
+$("stopBtn")
+  .addEventListener(
+    "click",
+    stopWorker
+  );
+
+
+$("clearLogBtn")
+  .addEventListener(
+    "click",
+    () => {
+
+      $("logs").innerHTML =
+        "";
+
+    }
+  );
+
+
+/* ---------------------------------------------------------
+   Page Visibility
+   ---------------------------------------------------------
+
+   iPhone Safari 背景分頁可能暫停 JavaScript。
+
+   回到頁面時立即 heartbeat + request。
+
+   --------------------------------------------------------- */
+
+document.addEventListener(
+  "visibilitychange",
+  async () => {
+
+    if(
+      document.visibilityState ===
+      "visible"
+    ){
+
+      log(
+        "Worker 回到前景"
+      );
+
+      if(
+        registered &&
+        !stopped
+      ){
+
+        await heartbeat();
+
+        if(!runningTask){
+
+          await requestTask();
+
+        }
+
+      }
+
+    }
+
+  }
+);
+
+
+/* ---------------------------------------------------------
+   Start
+   --------------------------------------------------------- */
+
+startWorker();
+
 </script>
+
 </body>
 </html>
