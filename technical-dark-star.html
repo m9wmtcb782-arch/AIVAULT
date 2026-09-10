@@ -1268,6 +1268,10 @@ const DRAW_SANDBOX_URL =
   SUPABASE_URL +
   "/functions/v1/dark-star-draw-sandbox";
 
+const COMPUTE_COORDINATOR_URL =
+  SUPABASE_URL +
+  "/functions/v1/aivault-compute-coordinator";
+
 const ENGINE =
   "technical-dark-star";
 
@@ -5454,6 +5458,66 @@ async function callAIVAULT(
 
 
 /* =========================================================
+   COMPUTE MESH — task.create only
+   Does not change gateway / sandbox / draw / game.
+========================================================= */
+
+async function createComputeMeshGpuTask(opts){
+
+  const taskId =
+    "DS-GPU-" +
+    Date.now() +
+    "-" +
+    Math.random().toString(16).slice(2, 8);
+
+  const task = {
+    id: taskId,
+    name: (opts && opts.name) || "Dark Star WebGPU Task",
+    type: "webgpu-compute",
+    elements: Number((opts && opts.elements) || 1000000),
+    iterations: Number((opts && opts.iterations) || 256),
+    iters: Number((opts && opts.iterations) || 256),
+    nodesNeeded: 1,
+    priority: "NORMAL",
+    gpu_required: true
+  };
+
+  const response = await fetch(
+    COMPUTE_COORDINATOR_URL,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        type: "task.create",
+        task: task
+      })
+    }
+  );
+
+  const text = await response.text();
+  let data = null;
+
+  try{
+    data = text ? JSON.parse(text) : null;
+  }catch{
+    data = text;
+  }
+
+  if(!response.ok || data?.success === false){
+    throw new Error(
+      data?.error ||
+      data?.message ||
+      ("Coordinator HTTP " + response.status)
+    );
+  }
+
+  return data;
+}
+
+
+/* =========================================================
    SEND MESSAGE
    SINGLE ENTRY POINT
 ========================================================= */
@@ -5662,8 +5726,34 @@ async function sendMessage(){
 
     let result;
 
+    const gpuCommand =
+      /^\/gpu(\s|$)/i.test(text);
 
-    if(
+
+    if(gpuCommand){
+
+      const created =
+        await createComputeMeshGpuTask({
+          name: text,
+          elements: 1000000,
+          iterations: 256
+        });
+
+      result = {
+        ok: true,
+        kind: "compute-mesh",
+        text:
+          "已建立算力池 GPU 任務。\n" +
+          "task.id = " +
+          (created?.task?.task_id ||
+           created?.task?.id ||
+           "未知") +
+          "\nstatus = " +
+          (created?.task?.status || "WAITING") +
+          "\n\n手機 compute-mesh-gpu-test.html 必須開著且已註冊，才會領單跑 WebGPU。\n這不是暗星推論，只是 WebGPU compute。"
+      };
+
+    }else if(
       isDrawIntent(
         text,
         outgoingFiles
