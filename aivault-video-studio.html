@@ -1793,6 +1793,50 @@ function collectContinuity(){
 
 }
 
+
+function selectedDuration(){
+  const on = [...document.querySelectorAll("[data-duration].on")]
+    .map(btn => Number(btn.dataset.duration))
+    .filter(n => Number.isFinite(n) && n > 0);
+  if(on.length) return Math.max(...on);
+  const n = Number(videoProject.duration);
+  return Number.isFinite(n) && n > 0 ? n : 30;
+}
+
+function maxSecondInText(text){
+  let max = 0;
+  const re = /(?:第\s*)?(\d{1,4})\s*秒/g;
+  let m;
+  const raw = String(text || "");
+  while((m = re.exec(raw))){
+    max = Math.max(max, Number(m[1]));
+  }
+  return max;
+}
+
+function inferredDuration(){
+  return Math.max(
+    selectedDuration(),
+    maxSecondInText(videoProject.script),
+    maxSecondInText(videoProject.storyboard),
+    maxSecondInText(videoProject.narration),
+    Number(videoProject.duration || 0)
+  );
+}
+
+function parseScriptTalks(text){
+  const map = {};
+  String(text || "").split("\n").forEach(line => {
+    const m = line.match(/(\d{1,4})\s*秒/);
+    const q = line.match(/[「“"'『]([^」”"'』]+)[」”"'』]/);
+    if(m && q){
+      const sec = Number(m[1]);
+      map[sec] = (map[sec] ? map[sec] + " " : "") + q[0];
+    }
+  });
+  return map;
+}
+
 function syncProjectFromInputs(){
 
   videoProject.title =
@@ -1817,15 +1861,7 @@ function syncProjectFromInputs(){
       activeMode.dataset.mode;
   }
 
-  const activeDuration =
-    document.querySelector(
-      "[data-duration].on"
-    );
-
-  if(activeDuration){
-    videoProject.duration =
-      Number(activeDuration.dataset.duration);
-  }
+  videoProject.duration = selectedDuration();
 
   videoProject.narration_pace =
     Number($("narrationPace").value || 100);
@@ -2002,6 +2038,7 @@ function subtitleRuleText(){
 function buildStoryRequest(){
 
   syncProjectFromInputs();
+  videoProject.duration = inferredDuration();
 
   return {
     action:"chat",
@@ -2421,11 +2458,13 @@ function talkCharsAllowed(seconds, pace){
 
 function buildSecondTimeline(){
 
-  const duration =
-    Number(videoProject.duration || 30);
+  videoProject.duration = inferredDuration();
+  const duration = Number(videoProject.duration || 30);
 
   const blocks =
     parseSecondBlocks(videoProject.storyboard);
+  const talks =
+    parseScriptTalks(videoProject.script);
 
   const result = [];
   const talkPace = Number(videoProject.character_pace || 100);
@@ -2439,14 +2478,15 @@ function buildSecondTimeline(){
       videoProject.director_techniques[
         i % Math.max(videoProject.director_techniques.length, 1)
       ] || "電影級鏡頭";
+    const talk = (block.talk && block.talk !== "無" ? block.talk : "") || talks[sec] || "";
 
     result.push({
       second: sec,
       shot: `鏡頭 ${sec}`,
-      scene: block.scene || "承接上一秒畫面",
-      action: block.action || "動作連續",
+      scene: block.scene || (talks[sec] ? "對白畫面" : "承接上一秒畫面"),
+      action: block.action || (talks[sec] ? "角色開口" : "動作連續"),
       camera: shot,
-      talk: block.talk && block.talk !== "無" ? block.talk : "",
+      talk,
       maxChars: Math.max(1, Math.round(perSec))
     });
   }
@@ -2884,6 +2924,7 @@ No face swap, costume swap, scene jump, extra fingers or broken anatomy.
 async function generatePrompt(){
 
   syncProjectFromInputs();
+  videoProject.duration = inferredDuration();
 
   if(!videoProject.story &&
      !videoProject.storyboard){
