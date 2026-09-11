@@ -874,6 +874,8 @@ button:disabled{
       <button type="button" class="option-chip" data-mode="動漫動畫">動漫動畫</button>
       <button type="button" class="option-chip" data-mode="音樂舞蹈">音樂舞蹈</button>
       <button type="button" class="option-chip" data-mode="宣傳影片">宣傳影片</button>
+      <button type="button" class="option-chip" data-mode="人與人對話">人與人對話</button>
+      <button type="button" class="option-chip" data-mode="多人對話">多人對話</button>
     </div>
 
     <div class="section-title">⏱️ 影片時間（單選）</div>
@@ -1824,6 +1826,31 @@ function updateBadges(){
 
 }
 
+
+function isSimplifiedChinese(){
+  return videoProject.language === "简体中文";
+}
+
+function toSimplified(text){
+  const map = "體語詞類時長鏡導演畫動攝段超須描毫關鍵幀拍視要求寫髮裝場連續對白設定題名未依軸鏡頭跟隨自然推進保持人物場景風格一致上一段最後幀附承接重開述劇情超過不要用每一秒都要描述並拍攝第段外貌服裝身材比例道具光線色調風格運平滑嘴型同步換多餘手指錯誤肢體審完整查核討論最終".split("");
+  const to = "体语词类时长镜导演画动摄段超须描毫关键帧拍视要求写发装场连续对白设定题名未依轴镜头跟随自然推进保持人物场景风格一致上一段最后帧附承接重开述剧情超过不要用每一秒都要描述并拍摄第段外貌服装身材比例道具光线色调风格运平滑嘴型同步换多余手指错误肢体审完整查核讨论最终".split("");
+  const extra = {
+    "齣":"出","麼":"么","這":"这","來":"来","個":"个","們":"们","為":"为","於":"于","與":"与","從":"从","後":"后","當":"当","將":"将","對":"对","開":"开","關":"关","門":"门","問":"问","間":"间","東":"东","車":"车","氣":"气","點":"点","電":"电","話":"话","說":"说","讓":"让","麼":"么","麼":"么","還":"还","過":"过","進":"进","運":"运","動":"动","靜":"静","麼":"么","樂":"乐","歡":"欢","愛":"爱","戀":"恋","戰":"战","爭":"争","機":"机","會":"会","發":"发","現":"现","實":"实","際":"际","麼":"么","麼":"么","麼":"么","國":"国","區":"区","廣":"广","廠":"厂","場":"场","塊":"块","聲":"声","處":"处","數":"数","學":"学","醫":"医","藥":"药","經":"经","總":"总","麼":"么","麼":"么","麼":"么","麼":"么","麼":"么"
+  };
+  let out = String(text ?? "");
+  map.forEach((ch, i) => {
+    if(ch && to[i] && ch !== to[i]) out = out.split(ch).join(to[i]);
+  });
+  Object.keys(extra).forEach(k => {
+    out = out.split(k).join(extra[k]);
+  });
+  return out;
+}
+
+function localizeZh(text){
+  return isSimplifiedChinese() ? toSimplified(text) : text;
+}
+
 function buildStoryRequest(){
 
   syncProjectFromInputs();
@@ -1859,6 +1886,10 @@ function buildStoryRequest(){
 【討論】
 【最終審查】
 
+輸出語言規則：
+若使用者語言是「简体中文」，故事、劇本、旁白、分鏡、對白、字幕、審查必須全部使用简体字，禁止繁體字。
+若使用者語言是「繁體中文」，則全部使用繁體字。
+
 請注意：
 1. 角色要有清楚身份與行為。
 2. 故事要有開端、發展、衝突、高潮與結尾。
@@ -1869,6 +1900,8 @@ function buildStoryRequest(){
 7. 不要因為影片很短就把故事刪成一句話。
 8. 必須根據影片秒數調整內容密度。
 9. 導演拍攝手法必須融入分鏡。
+9-1. 若影片模式是「人與人對話」，必須設計兩人之間的對白與反應，不能只有旁白。
+9-2. 若影片模式是「多人對話」，必須設計三人或以上輪流說話、插話與反應。
 10. 分鏡分段規則：影片超過15秒時，每10秒為一段，不可用15秒一段。
 11. 每一段必須逐秒描述，每一秒都要有畫面、動作、鏡頭。`
       },
@@ -2412,7 +2445,7 @@ Camera: ${toEnglishLabel(item.camera)}`
 動作：${item.action}
 攝影：${item.camera}`
       ).join("\n\n");
-      parts.push(`【第${index}段｜${start + 1}-${end}秒】\n此段每一秒都要描述並拍攝。\n\n${lines}`);
+      parts.push(localizeZh(`【第${index}段｜${start + 1}-${end}秒】\n此段每一秒都要描述並拍攝。\n\n${lines}`));
     }
   }
 
@@ -2444,7 +2477,7 @@ function buildLocalPrompt(){
       )
       .join("\n");
 
-  return `
+  const zhPrompt = `
 【影片生成提示詞｜Seedance 2.5】
 
 片名：${videoProject.title || "未命名影片"}
@@ -2486,6 +2519,7 @@ ${keyframeText}
 旁白與對白依設定語速，嘴型同步。
 不要換臉、換裝、換場景、多餘手指或錯誤肢體。
 `;
+  return localizeZh(zhPrompt);
 }
 
 function toEnglishLabel(text){
@@ -2495,6 +2529,8 @@ function toEnglishLabel(text){
     "動漫動畫":"anime animation",
     "音樂舞蹈":"music and dance",
     "宣傳影片":"promotional film",
+    "人與人對話":"two-person dialogue",
+    "多人對話":"multi-person dialogue",
     "電影劇情":"cinematic drama",
     "繁體中文":"Traditional Chinese",
     "简体中文":"Simplified Chinese",
@@ -2738,30 +2774,31 @@ async function generateStory(){
     const parsed =
       parseStoryText(text);
 
+    const pack = (s) => isSimplifiedChinese() ? toSimplified(s || "") : (s || "");
+
     videoProject.outline =
-      parsed.outline;
+      pack(parsed.outline);
 
     videoProject.story =
-      parsed.story ||
-      text;
+      pack(parsed.story || text);
 
     videoProject.script =
-      parsed.script;
+      pack(parsed.script);
 
     videoProject.narration =
-      parsed.narration;
+      pack(parsed.narration);
 
     videoProject.storyboard =
-      parsed.storyboard;
+      pack(parsed.storyboard);
 
     videoProject.fact_check =
-      parsed.fact_check;
+      pack(parsed.fact_check);
 
     videoProject.discussion =
-      parsed.discussion;
+      pack(parsed.discussion);
 
     videoProject.review =
-      parsed.review;
+      pack(parsed.review);
 
     renderStory();
 
