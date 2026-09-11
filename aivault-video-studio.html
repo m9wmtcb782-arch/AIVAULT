@@ -905,7 +905,7 @@ button:disabled{
 
     <select id="language">
       <option value="繁體中文">繁體中文</option>
-      <option value="簡體字的">簡體字的</option>
+      <option value="简体中文">简体中文</option>
       <option value="英文">英文</option>
     </select>
 
@@ -943,18 +943,30 @@ button:disabled{
 
     <div class="tab-content on" id="tab-story">
       <div class="editor-box">
+        <div class="prompt-box-header">
+          <strong>故事</strong>
+          <button class="copy-btn" id="copyStoryBtn" type="button">📋 複製故事</button>
+        </div>
         <textarea id="storyText" placeholder="故事內容會顯示在這裡，也可以手動修改。"></textarea>
       </div>
     </div>
 
     <div class="tab-content" id="tab-script">
       <div class="editor-box">
+        <div class="prompt-box-header">
+          <strong>劇本</strong>
+          <button class="copy-btn" id="copyScriptBtn" type="button">📋 複製劇本</button>
+        </div>
         <textarea id="scriptText" placeholder="劇本內容。"></textarea>
       </div>
     </div>
 
     <div class="tab-content" id="tab-narration">
       <div class="editor-box">
+        <div class="prompt-box-header">
+          <strong>旁白</strong>
+          <button class="copy-btn" id="copyNarrationBtn" type="button">📋 複製旁白</button>
+        </div>
         <textarea id="narrationText" placeholder="旁白內容。"></textarea>
       </div>
     </div>
@@ -963,9 +975,7 @@ button:disabled{
       <div class="editor-box">
         <div class="prompt-box-header">
           <strong>分鏡</strong>
-          <button class="copy-btn" id="copyStoryboardBtn" type="button">
-            📋 複製分鏡
-          </button>
+          <button class="copy-btn" id="copyStoryboardBtn" type="button">📋 複製分鏡</button>
         </div>
         <textarea id="storyboardText" placeholder="分鏡內容。"></textarea>
       </div>
@@ -1217,6 +1227,30 @@ button:disabled{
       <button class="primary-btn" id="generatePromptBtn" type="button">
         🎬 生成影片提示詞
       </button>
+    </div>
+
+    <div class="prompt-box">
+      <div class="prompt-box-header">
+        <strong>劇本</strong>
+        <button class="copy-btn" id="copyPromptScriptBtn" type="button">📋 複製劇本</button>
+      </div>
+      <textarea id="promptScript" placeholder="劇本會顯示在這裡。"></textarea>
+    </div>
+
+    <div class="prompt-box">
+      <div class="prompt-box-header">
+        <strong>分鏡</strong>
+        <button class="copy-btn" id="copyPromptStoryboardBtn" type="button">📋 複製分鏡</button>
+      </div>
+      <textarea id="promptStoryboard" placeholder="分鏡會顯示在這裡。"></textarea>
+    </div>
+
+    <div class="prompt-box">
+      <div class="prompt-box-header">
+        <strong>旁白</strong>
+        <button class="copy-btn" id="copyPromptNarrationBtn" type="button">📋 複製旁白</button>
+      </div>
+      <textarea id="promptNarration" placeholder="旁白會顯示在這裡。"></textarea>
     </div>
 
     <div class="prompt-box">
@@ -1534,7 +1568,12 @@ function restoreProject(){
     $("creativeRequest").value =
       saved.request || "";
 
-    const lang = saved.language === "簡體中文" ? "簡體字的"
+    const lang = (
+      saved.language === "簡體中文" ||
+      saved.language === "簡體字的" ||
+      saved.language === "簡體中文的簡體字" ||
+      saved.language === "简体中文"
+    ) ? "简体中文"
       : saved.language === "日文" ? "繁體中文"
       : (saved.language || "繁體中文");
 
@@ -1569,6 +1608,8 @@ function restoreProject(){
 
     $("reviewText").value =
       saved.review || "";
+
+    fillPromptParts();
 
     $("promptZh").value =
       saved.prompt_zh || "";
@@ -1827,7 +1868,9 @@ function buildStoryRequest(){
 6. 如果主題包含動畫或日本動漫，要真的使用動畫式畫面描述。
 7. 不要因為影片很短就把故事刪成一句話。
 8. 必須根據影片秒數調整內容密度。
-9. 導演拍攝手法必須融入分鏡。`
+9. 導演拍攝手法必須融入分鏡。
+10. 分鏡分段規則：影片超過15秒時，每10秒為一段，不可用15秒一段。
+11. 每一段必須逐秒描述，每一秒都要有畫面、動作、鏡頭。`
       },
 
       {
@@ -2054,6 +2097,8 @@ function renderStory(){
 
   $("reviewText").value =
     videoProject.review || "";
+
+  fillPromptParts();
 }
 
 function splitStoryLines(text){
@@ -2336,6 +2381,51 @@ function escapeHTML(value){
     .replace(/'/g,"&#039;");
 }
 
+
+function segmentSize(){
+  return Number(videoProject.duration || 30) > 15 ? 10 : Number(videoProject.duration || 30);
+}
+
+function formatTimelineBySegments(lang){
+  const timeline = videoProject.timeline || [];
+  const duration = Number(videoProject.duration || timeline.length || 30);
+  const size = duration > 15 ? 10 : duration;
+  const parts = [];
+
+  for(let start = 0; start < duration; start += size){
+    const end = Math.min(start + size, duration);
+    const slice = timeline.filter(item => item.second > start && item.second <= end);
+    const index = Math.floor(start / size) + 1;
+
+    if(lang === "en"){
+      const lines = slice.map(item =>
+`${item.second}s:
+Visual: ${item.scene}
+Action: ${item.action}
+Camera: ${toEnglishLabel(item.camera)}`
+      ).join("\n\n");
+      parts.push(`SEGMENT ${index} (${start + 1}-${end}s)\nEach second must be shot as written.\n\n${lines}`);
+    }else{
+      const lines = slice.map(item =>
+`${item.second}秒：
+畫面：${item.scene}
+動作：${item.action}
+攝影：${item.camera}`
+      ).join("\n\n");
+      parts.push(`【第${index}段｜${start + 1}-${end}秒】\n此段每一秒都要描述並拍攝。\n\n${lines}`);
+    }
+  }
+
+  return parts.join("\n\n------------------------------\n\n");
+}
+
+
+function fillPromptParts(){
+  if($("promptScript")) $("promptScript").value = videoProject.script || $("scriptText").value || "";
+  if($("promptStoryboard")) $("promptStoryboard").value = videoProject.storyboard || $("storyboardText").value || "";
+  if($("promptNarration")) $("promptNarration").value = videoProject.narration || $("narrationText").value || "";
+}
+
 function buildLocalPrompt(){
 
   syncProjectFromInputs();
@@ -2345,14 +2435,7 @@ function buildLocalPrompt(){
   buildMillisecondKeyframes();
 
   const timelineText =
-    videoProject.timeline
-      .map(item =>
-`${item.second}秒：
-畫面：${item.scene}
-動作：${item.action}
-攝影：${item.camera}`
-      )
-      .join("\n\n");
+    formatTimelineBySegments("zh");
 
   const keyframeText =
     videoProject.keyframes
@@ -2386,7 +2469,10 @@ ${continuityText()}
 ${lastFrameText()}
 若有附圖，第一秒必須承接該畫面，不要重開場景，不要重述劇情。
 
-【秒級時間軸】
+【分段時間軸】
+超過15秒的影片，每10秒為一段，不要用15秒一段。
+每一段都必須逐秒描述。
+
 ${timelineText}
 
 【毫秒關鍵幀】
@@ -2411,7 +2497,7 @@ function toEnglishLabel(text){
     "宣傳影片":"promotional film",
     "電影劇情":"cinematic drama",
     "繁體中文":"Traditional Chinese",
-    "簡體字的":"Simplified Chinese",
+    "简体中文":"Simplified Chinese",
     "英文":"English",
     "人物外貌一致":"consistent character appearance",
     "人物服裝一致":"consistent costumes",
@@ -2441,14 +2527,7 @@ function buildEnglishPrompt(){
   buildSecondTimeline();
 
   const timelineText =
-    videoProject.timeline
-      .map(item =>
-`${item.second}s:
-Visual: ${item.scene}
-Action: ${item.action}
-Camera: ${toEnglishLabel(item.camera)}`
-      )
-      .join("\n\n");
+    formatTimelineBySegments("en");
 
   return `
 VIDEO GENERATION PROMPT — SEEDANCE 2.5
@@ -2476,7 +2555,10 @@ ${toEnglishLabel(continuityText())}
 LAST FRAME
 ${lastFrameTextEn()}
 
-SECOND-BY-SECOND TIMELINE
+SEGMENTED TIMELINE
+If the video is longer than 15 seconds, use 10-second segments, not 15-second segments.
+Describe every second inside each segment.
+
 ${timelineText}
 
 SHOOTING RULES
@@ -2572,6 +2654,8 @@ async function generatePrompt(){
 ------------------------------
 
 ${en}`;
+
+    fillPromptParts();
 
     $("promptZh").value =
       zh;
@@ -3317,16 +3401,22 @@ function bindEvents(){
       generatePrompt
     );
 
-  $("copyStoryboardBtn")
-    .addEventListener(
+  const copyPairs = [
+    ["copyStoryBtn","storyText","📋 複製故事"],
+    ["copyScriptBtn","scriptText","📋 複製劇本"],
+    ["copyNarrationBtn","narrationText","📋 複製旁白"],
+    ["copyStoryboardBtn","storyboardText","📋 複製分鏡"],
+    ["copyPromptScriptBtn","promptScript","📋 複製劇本"],
+    ["copyPromptStoryboardBtn","promptStoryboard","📋 複製分鏡"],
+    ["copyPromptNarrationBtn","promptNarration","📋 複製旁白"]
+  ];
+
+  copyPairs.forEach(([btn, field, label]) => {
+    $(btn).addEventListener(
       "click",
-      () =>
-        handleCopy(
-          "storyboardText",
-          "copyStoryboardBtn",
-          "📋 複製分鏡"
-        )
+      () => handleCopy(field, btn, label)
     );
+  });
 
   $("copyZhBtn")
     .addEventListener(
