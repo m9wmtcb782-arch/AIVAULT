@@ -1904,6 +1904,56 @@ function dialogueBudgetText(){
   ].join("\n");
 }
 
+
+function narrationAtSecond(sec){
+  const raw = String(videoProject.narration || ($("narrationText") && $("narrationText").value) || "");
+  const lines = raw.split(/\n/).map(x => x.trim()).filter(Boolean);
+  for(const line of lines){
+    const m = line.match(/(\d+)\s*[-~～到至]\s*(\d+)\s*秒[：:]?\s*(.*)/);
+    if(m){
+      const a = Number(m[1]), b = Number(m[2]);
+      if(sec >= a && sec <= b) return (m[3] || "").trim();
+    }
+    const m2 = line.match(/(\d+)\s*秒[：:]?\s*(.*)/);
+    if(m2 && Number(m2[1]) === sec) return (m2[2] || "").trim();
+  }
+  if(!lines.length) return "";
+  const duration = Number(videoProject.duration || 30);
+  const size = duration > 15 ? 10 : duration;
+  const idx = Math.floor((sec - 1) / size);
+  return lines[Math.min(idx, lines.length - 1)] || "";
+}
+
+function onScreenCueText(){
+  if(!hasMode("字幕") && !hasMode("旁白字幕")){
+    return "本片畫面不燒錄字幕。";
+  }
+  buildSecondTimeline();
+  const duration = Number(videoProject.duration || 30);
+  const rows = [];
+  for(let sec = 1; sec <= duration; sec++){
+    const item = (videoProject.timeline || []).find(x => x.second === sec) || {};
+    const talk = item.talk || "";
+    const narr = narrationAtSecond(sec);
+    const parts = [`${sec}秒`];
+    if(hasMode("旁白字幕")){
+      parts.push(narr ? `上層旁白字幕（較大，與旁白聲同步出現）：${narr}` : "上層旁白字幕：無");
+    }
+    if(hasMode("字幕")){
+      parts.push(talk ? `底部對白字幕（較小，與說話聲、嘴型同步出現）：${talk}` : "底部對白字幕：無");
+    }
+    parts.push("有聲音的那一秒字幕必須同時出現，聲音結束同時消失，不可整段一直掛在畫面上。");
+    rows.push(parts.join("\n"));
+  }
+  return [
+    "必須把下列字幕燒進畫面，看得見，不是只寫在提示裡。",
+    "旁白字幕在上、字較大；角色對白字幕在畫面底部、字較小。",
+    "字幕出現時間必須對齊該秒的說話聲／旁白聲。",
+    "",
+    ...rows
+  ].join("\n\n");
+}
+
 function subtitleRuleText(){
   const lines = [];
   if(hasMode("字幕")){
@@ -2628,6 +2678,10 @@ ${characterLockText()}
 
 【字幕規則】
 ${subtitleRuleText()}
+字幕必須燒進畫面並與聲音同步出現、同步消失。
+
+【畫面字幕（逐秒，必須看得見）】
+${onScreenCueText()}
 
 【對白字數】
 ${dialogueBudgetText()}
@@ -2666,6 +2720,7 @@ ${keyframeText}
 場景、道具、光線、色調、攝影風格保持連續。
 動作符合人體運動，鏡頭平滑。
 旁白與對白依設定語速，嘴型同步。
+若開啟字幕或旁白字幕，該秒有聲音就必須同時燒上對應字幕，聲音停字幕就消失。
 不要換臉、換裝、換場景、多餘手指或錯誤肢體。
 角色必須與照片人物相同。
 `;
@@ -2732,6 +2787,10 @@ Character speech pace: ${videoProject.character_pace || 100}%
 
 SUBTITLE RULES
 ${subtitleRuleText()}
+Burn subtitles onto the picture. They must appear and disappear with the voice.
+
+ON-SCREEN CUES
+${onScreenCueText()}
 
 SPEECH BUDGET
 ${dialogueBudgetText()}
@@ -2768,6 +2827,7 @@ Keep character identity, face, hair, costume and body proportions consistent.
 Keep space, props, lighting, color and camera style continuous.
 Use physically believable motion and smooth camera moves.
 Match lip sync. Use the set speech pace for narration and dialogue.
+If subtitles are on, burn them on screen in sync with speech. No hanging captions.
 No face swap, costume swap, scene jump, extra fingers or broken anatomy.
 `;
 }
