@@ -2040,7 +2040,8 @@ function buildStoryRequest(){
 
 【劇本】必須寫出完整人物對白，不可只寫動作或旁白。
 格式必須是：
-秒數 角色名：「對白」
+秒數 角色名（男／女／老／幼／怪）：「對白」
+每個角色第一次出現必須標性別與年紀：男、女、老、幼，鬼怪妖怪標「怪」。
 對白必須標明從第幾秒開口。
 字數用「開口秒到下一句開口或該段結束」的秒數換算：
 100%＝每秒2.5字（10秒25字），150%＝每秒3.8字，50%＝每秒1.3字。
@@ -2076,7 +2077,7 @@ function buildStoryRequest(){
 ${videoProject.characters || "由你設計適合故事的角色"}
 
 劇本要求：
-必須寫出每位角色的完整對白，格式為 秒數 角色名：「對白」。
+必須寫出每位角色的完整對白，格式為 秒數 角色名（男／女／老／幼／怪）：「對白」。
 不要用「他們交談」帶過。
 ${dialogueBudgetText()}
 
@@ -3366,14 +3367,55 @@ function speakLang(){
   return "zh-TW";
 }
 
+function pickVoice(kind){
+  const lang = speakLang();
+  const voices = speechSynthesis.getVoices() || [];
+  const same = voices.filter(v => (v.lang || "").toLowerCase().startsWith(lang.slice(0,2).toLowerCase()));
+  const pool = same.length ? same : voices;
+  const wantFemale = kind === "女" || kind === "幼";
+  const hit = pool.find(v => {
+    const n = (v.name || "").toLowerCase();
+    if(wantFemale) return /female|woman|girl|女/.test(n);
+    if(kind === "男" || kind === "老" || kind === "怪") return /male|man|boy|男/.test(n);
+    return false;
+  });
+  return hit || pool.find(v => (v.lang || "").toLowerCase().startsWith(lang.toLowerCase())) || pool[0] || null;
+}
+
+function voiceStyle(kind){
+  if(kind === "女") return { pitch: 1.2, rateMul: 1 };
+  if(kind === "老") return { pitch: 0.72, rateMul: 0.85 };
+  if(kind === "幼") return { pitch: 1.45, rateMul: 1.08 };
+  if(kind === "怪") return { pitch: 0.45, rateMul: 0.72 };
+  if(kind === "男") return { pitch: 0.88, rateMul: 0.98 };
+  return { pitch: 1, rateMul: 1 };
+}
+
+function scriptSpeechCues(text){
+  const cues = [];
+  String(text || "").split("\n").forEach(line => {
+    const clean = line.replace(/^\s*\d+\s*[-~到至]?\s*\d*\s*秒[：:]?\s*/, "").trim();
+    if(!clean) return;
+    if(/^(場次|場景|第\s*\d+\s*秒|影片總長度|分段規則)/.test(clean)) return;
+    const kindM = clean.match(/[（(](男|女|老|幼|怪)[）)]/);
+    const kind = kindM ? kindM[1] : "";
+    const qm = clean.match(/[「“"'『]([^」”"'』]+)[」”"'』]/);
+    if(qm){
+      cues.push({ talk: qm[1].trim(), kind });
+      return;
+    }
+  });
+  return cues;
+}
+
 function speakText(fieldId, btnId, label){
-  const text = ($(fieldId) && $(fieldId).value || "").trim();
+  const raw = ($(fieldId) && $(fieldId).value || "").trim();
   const btn = $(btnId);
   if(!window.speechSynthesis){
     setStatus("此裝置不能朗讀。", "error");
     return;
   }
-  if(!text){
+  if(!raw){
     setStatus("沒有可播放的文字。", "error");
     return;
   }
@@ -3384,12 +3426,64 @@ function speakText(fieldId, btnId, label){
     return;
   }
   speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = speakLang();
-  const pace = fieldId === "narrationText"
+
+  const basePace = fieldId === "narrationText"
     ? Number(videoProject.narration_pace || 100)
     : Number(videoProject.character_pace || 100);
-  u.rate = Math.max(0.5, Math.min(1.5, pace / 100));
+  const baseRate = Math.max(0.5, Math.min(1.5, basePace / 100));
+  const lang = speakLang();
+
+  let parts;
+  if(fieldId === "scriptText"){
+    const cues = scriptSpeechCues(raw);
+    parts = cues.length
+      ? cues
+      : [{ talk: raw, kind: "" }];
+  }else{
+    parts = [{ talk: raw, kind: "" }];
+  }
+
+  const queue = parts.filter(p => p.talk);
+  if(!queue.length){
+    setStatus("劇本裡沒抓到對白。", "error");
+    return;
+  }
+
+  speakingField = fieldId;
+  if(btn) btn.textContent = "⏹ 停止";
+
+  const speakNext = (i) => {
+    if(i >= queue.length || speakingField !== fieldId){
+      speakingField = "";
+      if(btn) btn.textContent = label;
+      return;
+    }
+    const item = queue[i];
+    const style = voiceStyle(item.kind);
+    const u = new SpeechSynthesisUtterance(item.talk);
+    u.lang = lang;
+    u.rate = Math.max(0.4, Math.min(1.6, baseRate * style.rateMul));
+    u.pitch = style.pitch;
+    const voice = pickVoice(item.kind);
+    if(voice) u.voice = voice;
+    u.onend = () => speakNext(i + 1);
+    u.onerror = () => speakNext(i + 1);
+    speechSynthesis.speak(u);
+  };
+
+  const start = () => speakNext(0);
+  if(!(speechSynthesis.getVoices() || []).length){
+    speechSynthesis.onvoiceschanged = start;
+    speechSynthesis.getVoices();
+    setTimeout(start, 250);
+  }else{
+    start();
+  }
+  return;
+  const u = new SpeechSynthesisUtterance(raw);
+  u.lang = speakLang();
+  const pace = basePace;
+  u.rate = baseRate;
   u.onend = () => {
     speakingField = "";
     if(btn) btn.textContent = label;
