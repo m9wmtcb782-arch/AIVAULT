@@ -1899,6 +1899,7 @@ function dialogueBudgetText(){
     `角色語速 ${b.talkPace}%：每10秒對白 ${b.talk10} 字，本片單人最多約 ${b.talkSolo} 字。`,
     `旁白語速 ${b.narrPace}%：每10秒旁白 ${b.narr10} 字，本片最多約 ${b.narrSolo} 字。`,
     `多人可聲音重疊，各說短句；單行字幕不超過該語速的每10秒字數。`,
+    `必須寫開口秒數。只剩幾秒就只能說幾字，例如100%時2秒最多5字。`,
     `不要把10秒寫成唸不完的台詞。`
   ].join("\n");
 }
@@ -1963,9 +1964,10 @@ function buildStoryRequest(){
 【劇本】必須寫出完整人物對白，不可只寫動作或旁白。
 格式必須是：
 秒數 角色名：「對白」
-對白必須依影片秒數寫，每10秒一個人最多25個字。
-多人可以同一時間說話（聲音重疊），此時各說短句，不要每人輪流唸長段。
-對白要能直接當字幕，單行不超過目前語速換算的字數（100%=25字/10秒，150%=38字，50%=13字）。
+對白必須標明從第幾秒開口。
+字數用「開口秒到下一句開口或該段結束」的秒數換算：
+100%＝每秒2.5字（10秒25字），150%＝每秒3.8字，50%＝每秒1.3字。
+只剩2秒就不能說超過約5字（100%）。長咒、長句必須拆到後面幾秒，或改短句。
 
 請注意：
 1. 角色要有清楚身份與行為。
@@ -2308,70 +2310,63 @@ function continuityText(){
     : "保持人物、場景與攝影風格一致";
 }
 
+function parseSecondBlocks(text){
+  const raw = String(text || "");
+  const blocks = {};
+  const re = /第\s*(\d+)\s*秒[：:]([\s\S]*?)(?=第\s*\d+\s*秒[：:]|$)/g;
+  let m;
+  while((m = re.exec(raw))){
+    const sec = Number(m[1]);
+    const body = m[2].trim();
+    const scene = (body.match(/畫面[：:]\s*(.+)/) || [])[1] || body.split("\n")[0] || "";
+    const action = (body.match(/動作[：:]\s*(.+)/) || [])[1] || "";
+    const camera = (body.match(/鏡頭[：:]\s*(.+)/) || [])[1] || "";
+    const talk = (body.match(/對白[：:]\s*(.+)/) || [])[1] || "";
+    blocks[sec] = {
+      scene: scene.replace(/^[-•●]\s*/, "").trim(),
+      action: action.replace(/^[-•●]\s*/, "").trim(),
+      camera: camera.replace(/^[-•●]\s*/, "").trim(),
+      talk: talk.replace(/^[-•●]\s*/, "").trim()
+    };
+  }
+  return blocks;
+}
+
+function talkCharsAllowed(seconds, pace){
+  return Math.max(1, Math.round(charsPer10(pace) * seconds / 10));
+}
+
 function buildSecondTimeline(){
 
   const duration =
     Number(videoProject.duration || 30);
 
-  const storyboardLines =
-    splitStoryLines(
-      videoProject.storyboard
-    );
-
-  const scriptLines =
-    splitStoryLines(
-      videoProject.script
-    );
-
-  const storyLines =
-    splitStoryLines(
-      videoProject.story
-    );
-
-  const sourceLines =
-    storyboardLines.length
-      ? storyboardLines
-      : scriptLines.length
-        ? scriptLines
-        : storyLines;
+  const blocks =
+    parseSecondBlocks(videoProject.storyboard);
 
   const result = [];
+  const talkPace = Number(videoProject.character_pace || 100);
+  const perSec = charsPer10(talkPace) / 10;
 
   for(let i=0;i<duration;i++){
-
-    const current =
-      sourceLines.length
-        ? sourceLines[
-            i % sourceLines.length
-          ]
-        : "依故事發展自然推進";
-
-    let shot =
+    const sec = i + 1;
+    const block = blocks[sec] || {};
+    const shot =
+      block.camera ||
       videoProject.director_techniques[
-        i %
-        Math.max(
-          videoProject.director_techniques.length,
-          1
-        )
+        i % Math.max(videoProject.director_techniques.length, 1)
       ] || "電影級鏡頭";
 
-    let action =
-      current;
-
-    if(videoProject.mode === "音樂舞蹈" ||
-       videoProject.theme.includes("舞蹈")){
-
-      action +=
-        "，角色依節拍完成舞蹈動作與隊形變化";
-    }
-
     result.push({
-      second:i+1,
-      shot:`鏡頭 ${i+1}`,
-      scene:current,
-      action,
-      camera:shot
+      second: sec,
+      shot: `鏡頭 ${sec}`,
+      scene: block.scene || "承接上一秒畫面",
+      action: block.action || "動作連續",
+      camera: shot,
+      talk: block.talk && block.talk !== "無" ? block.talk : "",
+      maxChars: Math.max(1, Math.round(perSec))
     });
+  }
 
   }
 
@@ -2396,17 +2391,10 @@ function buildMillisecondKeyframes(){
       ? 500
       : 1000;
 
-  const storyboardLines =
-    splitStoryLines(
-      videoProject.storyboard
-    );
-
-  const source =
-    storyboardLines.length
-      ? storyboardLines
-      : splitStoryLines(
-          videoProject.story
-        );
+  const timeline =
+    videoProject.timeline && videoProject.timeline.length
+      ? videoProject.timeline
+      : buildSecondTimeline();
 
   for(
     let ms=0;
@@ -2414,15 +2402,16 @@ function buildMillisecondKeyframes(){
     ms+=interval
   ){
 
-    const index =
-      Math.floor(ms / interval);
+    const sec =
+      Math.min(duration, Math.floor(ms / 1000) + 1);
+
+    const item =
+      timeline.find(x => x.second === sec) || {};
 
     const text =
-      source.length
-        ? source[
-            index % source.length
-          ]
-        : "鏡頭持續推進";
+      [item.scene, item.action, item.talk]
+        .filter(Boolean)
+        .join("；") || "鏡頭持續推進";
 
     result.push({
       ms,
@@ -2590,7 +2579,9 @@ Camera: ${toEnglishLabel(item.camera)}`
 `${item.second}秒：
 畫面：${item.scene}
 動作：${item.action}
-攝影：${item.camera}`
+攝影：${item.camera}
+對白：${item.talk || "無"}
+本秒可說字數：${item.maxChars || talkCharsAllowed(1, videoProject.character_pace)}字`
       ).join("\n\n");
       parts.push(localizeZh(`【第${index}段｜${start + 1}-${end}秒】\n此段每一秒都要描述並拍攝。\n\n${lines}`));
     }
