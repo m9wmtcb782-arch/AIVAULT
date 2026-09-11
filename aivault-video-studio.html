@@ -868,7 +868,7 @@ button:disabled{
       </div>
     </div>
 
-    <div class="section-title">🎞️ 影片模式</div>
+    <div class="section-title">🎞️ 影片模式（可複選）</div>
 
     <div class="option-grid" id="modeOptions">
       <button type="button" class="option-chip on" data-mode="電影敘事">電影敘事</button>
@@ -876,6 +876,8 @@ button:disabled{
       <button type="button" class="option-chip" data-mode="動漫動畫">動漫動畫</button>
       <button type="button" class="option-chip" data-mode="音樂舞蹈">音樂舞蹈</button>
       <button type="button" class="option-chip" data-mode="宣傳影片">宣傳影片</button>
+      <button type="button" class="option-chip" data-mode="字幕">字幕</button>
+      <button type="button" class="option-chip" data-mode="旁白字幕">旁白字幕</button>
     </div>
 
     <div class="section-title">⏱️ 影片時間（單選）</div>
@@ -1851,6 +1853,38 @@ function localizeZh(text){
   return isSimplifiedChinese() ? toSimplified(text) : text;
 }
 
+
+function hasMode(name){
+  const list = videoProject.modes || String(videoProject.mode || "").split("、");
+  return list.includes(name);
+}
+
+function characterLockText(){
+  const n = (videoProject.last_frames || []).length;
+  const who = videoProject.characters || "畫面中的人物";
+  if(n){
+    return `角色固定描述：${who}。外貌必須與上傳照片／最後一幀完全相同，包含臉、五官、髮型、膚色、年齡感、體型與服裝，不可換成其他人。`;
+  }
+  return `角色固定描述：${who}。全片同一人，臉、五官、髮型、膚色、年齡感、體型與服裝從頭到尾不可改變。`;
+}
+
+function subtitleRuleText(){
+  const lines = [];
+  if(hasMode("字幕")){
+    lines.push("開啟字幕：畫面底部只顯示角色對白字幕，不要顯示其他文字。");
+  }
+  if(hasMode("旁白字幕")){
+    lines.push("開啟旁白字幕：旁白文字顯示在角色對白字幕上方，字級大於角色對白字幕。");
+    if(hasMode("字幕")){
+      lines.push("雙層字幕：上層旁白（較大），下層角色對白（較小，貼底部）。");
+    }
+  }
+  if(!lines.length){
+    return "本片不燒錄字幕。";
+  }
+  return lines.join("\n");
+}
+
 function buildStoryRequest(){
 
   syncProjectFromInputs();
@@ -1937,6 +1971,12 @@ ${videoProject.theme || "電影劇情"}
 
 影片模式：
 ${videoProject.mode}
+
+角色固定描述：
+${characterLockText()}
+
+字幕規則：
+${subtitleRuleText()}
 
 影片長度：
 ${videoProject.duration} 秒
@@ -2547,8 +2587,12 @@ function buildLocalPrompt(){
 語言：${videoProject.language}
 主題：${videoProject.theme || "電影劇情"}
 角色：${videoProject.characters || "依分鏡設定"}
+${characterLockText()}
 旁白語速：${videoProject.narration_pace || 100}%
 角色語速：${videoProject.character_pace || 100}%
+
+【字幕】
+${subtitleRuleText()}
 
 【分鏡】
 ${videoProject.storyboard || "依時間軸拍攝"}
@@ -2579,6 +2623,7 @@ ${keyframeText}
 動作符合人體運動，鏡頭平滑。
 旁白與對白依設定語速，嘴型同步。
 不要換臉、換裝、換場景、多餘手指或錯誤肢體。
+角色必須與照片人物相同。
 `;
   return localizeZh(zhPrompt);
 }
@@ -2590,6 +2635,8 @@ function toEnglishLabel(text){
     "動漫動畫":"anime animation",
     "音樂舞蹈":"music and dance",
     "宣傳影片":"promotional film",
+    "字幕":"dialogue subtitles",
+    "旁白字幕":"narration subtitles",
     "電影劇情":"cinematic drama",
     "穿越":"time travel",
     "古裝":"period costume drama",
@@ -2635,8 +2682,13 @@ Duration: ${videoProject.duration} seconds
 Language: ${toEnglishLabel(videoProject.language)}
 Theme: ${toEnglishLabel(videoProject.theme || "cinematic drama")}
 Characters: ${videoProject.characters || "as defined by the storyboard"}
+Character lock: appearance must match the uploaded photo / last frame. Same face, features, hair, skin, age, body and costume.
 Narration pace: ${videoProject.narration_pace || 100}%
 Character speech pace: ${videoProject.character_pace || 100}%
+
+SUBTITLES
+${hasMode("字幕") ? "Show dialogue subtitles only at the bottom. No other on-screen text." : "No burnt-in dialogue subtitles."}
+${hasMode("旁白字幕") ? "Show narration subtitles above the dialogue subtitles, in a larger font than character speech." : ""}
 
 STORYBOARD
 Shoot only the shots below. Do not retell the plot.
@@ -3335,23 +3387,18 @@ function bindEvents(){
         "click",
         () => {
 
-          document
-            .querySelectorAll(
-              "[data-mode]"
-            )
-            .forEach(
-              other =>
-                other.classList.remove(
-                  "on"
-                )
-            );
+          btn.classList.toggle("on");
 
-          btn.classList.add(
-            "on"
-          );
+          videoProject.modes =
+            [...document.querySelectorAll("[data-mode].on")]
+              .map(item => item.dataset.mode);
 
-          videoProject.mode =
-            btn.dataset.mode;
+          if(!videoProject.modes.length){
+            btn.classList.add("on");
+            videoProject.modes = [btn.dataset.mode];
+          }
+
+          videoProject.mode = videoProject.modes.join("、");
 
           saveProject();
 
