@@ -1868,10 +1868,46 @@ function characterLockText(){
   return `角色固定描述：${who}。全片同一人，臉、五官、髮型、膚色、年齡感、體型與服裝從頭到尾不可改變。`;
 }
 
+
+function charsPer10(pace){
+  const p = Number(pace || 100);
+  return Math.max(8, Math.round(25 * p / 100));
+}
+
+function dialogueBudget(){
+  const duration = Number(videoProject.duration || 30);
+  const talkPace = Number(videoProject.character_pace || 100);
+  const narrPace = Number(videoProject.narration_pace || 100);
+  const talk10 = charsPer10(talkPace);
+  const narr10 = charsPer10(narrPace);
+  return {
+    duration,
+    talkPace,
+    narrPace,
+    talk10,
+    narr10,
+    talkSolo: Math.max(talk10, Math.round(duration / 10 * talk10)),
+    narrSolo: Math.max(narr10, Math.round(duration / 10 * narr10))
+  };
+}
+
+function dialogueBudgetText(){
+  const b = dialogueBudget();
+  return [
+    `字數基準：語速 100% 時，每10秒 25 字。`,
+    `語速 150%＝每10秒 38 字；語速 50%＝每10秒 13 字。`,
+    `角色語速 ${b.talkPace}%：每10秒對白 ${b.talk10} 字，本片單人最多約 ${b.talkSolo} 字。`,
+    `旁白語速 ${b.narrPace}%：每10秒旁白 ${b.narr10} 字，本片最多約 ${b.narrSolo} 字。`,
+    `多人可聲音重疊，各說短句；單行字幕不超過該語速的每10秒字數。`,
+    `不要把10秒寫成唸不完的台詞。`
+  ].join("\n");
+}
+
 function subtitleRuleText(){
   const lines = [];
   if(hasMode("字幕")){
     lines.push("開啟字幕：畫面底部只顯示角色對白字幕，不要顯示其他文字。");
+    lines.push("對白字數依角色語速：100%每10秒25字，150%每10秒38字，50%每10秒13字。");
   }
   if(hasMode("旁白字幕")){
     lines.push("開啟旁白字幕：旁白文字顯示在角色對白字幕上方，字級大於角色對白字幕。");
@@ -1926,9 +1962,10 @@ function buildStoryRequest(){
 
 【劇本】必須寫出完整人物對白，不可只寫動作或旁白。
 格式必須是：
-角色名：「對白」
-每一場都要有人說話。對白要能直接當字幕用。
-即使沒選對話模式，只要有角色出現，劇本裡也要把對白寫出來。
+秒數 角色名：「對白」
+對白必須依影片秒數寫，每10秒一個人最多25個字。
+多人可以同一時間說話（聲音重疊），此時各說短句，不要每人輪流唸長段。
+對白要能直接當字幕，單行不超過目前語速換算的字數（100%=25字/10秒，150%=38字，50%=13字）。
 
 請注意：
 1. 角色要有清楚身份與行為。
@@ -1939,7 +1976,7 @@ function buildStoryRequest(){
 5. 如果主題包含音樂，要描述音樂與節奏。
 6. 如果主題包含動畫或日本動漫，要真的使用動畫式畫面描述。
 7. 不要因為影片很短就把故事刪成一句話。
-8. 必須根據影片秒數調整內容密度。
+8. 必須根據影片秒數與語速調整內容密度。對白用角色語速、旁白用旁白語速換算字數。
 9. 導演拍攝手法必須融入分鏡。
 12. 【劇本】不可空白。沒有人物對白的劇本視為失敗，必須重寫到有對白為止。
 13. 【旁白】不可空白。旁白必須依照影片秒數撰寫，長度要夠唸完整段影片。
@@ -1958,13 +1995,15 @@ function buildStoryRequest(){
 ${videoProject.characters || "由你設計適合故事的角色"}
 
 劇本要求：
-必須寫出每位角色的完整對白，格式為 角色名：「對白」。
+必須寫出每位角色的完整對白，格式為 秒數 角色名：「對白」。
 不要用「他們交談」帶過。
+${dialogueBudgetText()}
 
 旁白要求：
 【旁白】必須有內容，不可空白。
-旁白長度必須配合影片 ${videoProject.duration} 秒與旁白語速 ${videoProject.narration_pace || 100}%。
-超過15秒時，旁白每10秒寫一段，每段都要能唸。
+旁白長度必須配合影片 ${videoProject.duration} 秒。
+旁白字數依旁白語速：100%每10秒25字，150%每10秒38字，50%每10秒13字，不要寫到唸不完。
+超過15秒時，旁白每10秒寫一段。
 
 主題：
 ${videoProject.theme || "電影劇情"}
@@ -2174,8 +2213,8 @@ function parseStoryText(text){
 
 function fallbackNarration(source){
   const duration = Number(videoProject.duration || 30);
-  const pace = Number(videoProject.narration_pace || 100) / 100;
-  const budget = Math.max(24, Math.round(duration * 4 * pace));
+  const per10 = charsPer10(videoProject.narration_pace);
+  const budget = Math.max(per10, Math.round(duration / 10 * per10));
   const base = String(source || videoProject.story || "")
     .replace(/\s+/g, " ")
     .trim() || ((videoProject.title || "這部影片") + "把眼前這段故事說完。");
@@ -2188,7 +2227,7 @@ function fallbackNarration(source){
   let cursor = 0;
   for(let start = 0; start < duration; start += size){
     const end = Math.min(start + size, duration);
-    const take = Math.max(12, Math.round(budget * (end - start) / duration));
+    const take = Math.max(8, Math.round(per10 * (end - start) / 10));
     let piece = pool.slice(cursor, cursor + take).trim();
     cursor += take;
     if(!piece) piece = base.slice(0, take);
@@ -2203,15 +2242,22 @@ function fallbackScript(story){
     .map(x => x.trim())
     .filter(Boolean);
   const a = names[0] || "角色A";
-  const b = names[1] || "角色B";
-  const theme = videoProject.theme || "這段故事";
-  return [
-    "場次一",
-    a + "：「我們現在就照這條線走。」",
-    b + "：「好，我聽你的，先把眼前這件事說清楚。」",
-    a + "：「" + theme + "這件事，不能再拖。」",
-    b + "：「那你看下一句怎麼接。」"
-  ].join("\n");
+  const b = names[1] || names[0] || "角色B";
+  const duration = Number(videoProject.duration || 30);
+  const multi = names.length > 1;
+  const parts = [];
+  for(let start = 0; start < duration; start += 10){
+    const end = Math.min(start + 10, duration);
+    if(multi){
+      parts.push(`${start + 1}-${end}秒（可重疊）`);
+      parts.push(a + "：「這段先看清楚。」");
+      parts.push(b + "：「我跟著你。」");
+    }else{
+      parts.push(`${start + 1}-${end}秒`);
+      parts.push(a + "：「這十秒把話說完。」");
+    }
+  }
+  return parts.join("\n");
 }
 
 
@@ -2591,8 +2637,17 @@ ${characterLockText()}
 旁白語速：${videoProject.narration_pace || 100}%
 角色語速：${videoProject.character_pace || 100}%
 
-【字幕】
+【字幕規則】
 ${subtitleRuleText()}
+
+【對白字數】
+${dialogueBudgetText()}
+
+【旁白】
+${videoProject.narration || $("narrationText").value || "無旁白"}
+
+【對白字幕】
+${videoProject.script || $("scriptText").value || "無對白"}
 
 【分鏡】
 ${videoProject.storyboard || "依時間軸拍攝"}
@@ -2686,9 +2741,17 @@ Character lock: appearance must match the uploaded photo / last frame. Same face
 Narration pace: ${videoProject.narration_pace || 100}%
 Character speech pace: ${videoProject.character_pace || 100}%
 
-SUBTITLES
-${hasMode("字幕") ? "Show dialogue subtitles only at the bottom. No other on-screen text." : "No burnt-in dialogue subtitles."}
-${hasMode("旁白字幕") ? "Show narration subtitles above the dialogue subtitles, in a larger font than character speech." : ""}
+SUBTITLE RULES
+${subtitleRuleText()}
+
+SPEECH BUDGET
+${dialogueBudgetText()}
+
+NARRATION
+${videoProject.narration || "None"}
+
+DIALOGUE SUBTITLES
+${videoProject.script || "None"}
 
 STORYBOARD
 Shoot only the shots below. Do not retell the plot.
