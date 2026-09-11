@@ -905,9 +905,6 @@ button:disabled{
       <button type="button" class="option-chip" data-duration="90">90 秒</button>
       <button type="button" class="option-chip" data-duration="120">120 秒</button>
       <button type="button" class="option-chip" data-duration="180">180 秒</button>
-      <button type="button" class="option-chip" data-duration="300">300 秒</button>
-      <button type="button" class="option-chip" data-duration="600">600 秒</button>
-      <button type="button" class="option-chip" data-duration="900">900 秒</button>
     </div>
 
 
@@ -1799,7 +1796,12 @@ function selectedDuration(){
     .map(btn => Number(btn.dataset.duration))
     .filter(n => Number.isFinite(n) && n > 0);
   if(on.length) return Math.max(...on);
+  const allowed = [...document.querySelectorAll("[data-duration]")]
+    .map(btn => Number(btn.dataset.duration))
+    .filter(n => Number.isFinite(n) && n > 0);
   const n = Number(videoProject.duration);
+  if(allowed.length && Number.isFinite(n) && allowed.includes(n)) return n;
+  if(allowed.length) return allowed.includes(30) ? 30 : allowed[0];
   return Number.isFinite(n) && n > 0 ? n : 30;
 }
 
