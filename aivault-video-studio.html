@@ -799,6 +799,7 @@ button:disabled{
         <button type="button" class="option-chip" data-theme="犯罪">犯罪</button>
         <button type="button" class="option-chip" data-theme="戰爭">戰爭</button>
         <button type="button" class="option-chip" data-theme="歷史劇">歷史劇</button>
+        <button type="button" class="option-chip" data-theme="穿越">穿越</button>
         <button type="button" class="option-chip" data-theme="喜劇">喜劇</button>
         <button type="button" class="option-chip" data-theme="悲劇">悲劇</button>
         <button type="button" class="option-chip" data-theme="舞蹈">舞蹈</button>
@@ -1906,6 +1907,8 @@ function buildStoryRequest(){
 8. 必須根據影片秒數調整內容密度。
 9. 導演拍攝手法必須融入分鏡。
 12. 【劇本】不可空白。沒有人物對白的劇本視為失敗，必須重寫到有對白為止。
+13. 【旁白】不可空白。旁白必須依照影片秒數撰寫，長度要夠唸完整段影片。
+14. 旁白請依時間分段寫，超過15秒時每10秒一段，每段都要有可唸的旁白句子。
 10. 分鏡分段規則：影片超過15秒時，每10秒為一段，不可用15秒一段。
 11. 每一段必須逐秒描述，每一秒都要有畫面、動作、鏡頭。`
       },
@@ -1922,6 +1925,11 @@ ${videoProject.characters || "由你設計適合故事的角色"}
 劇本要求：
 必須寫出每位角色的完整對白，格式為 角色名：「對白」。
 不要用「他們交談」帶過。
+
+旁白要求：
+【旁白】必須有內容，不可空白。
+旁白長度必須配合影片 ${videoProject.duration} 秒與旁白語速 ${videoProject.narration_pace || 100}%。
+超過15秒時，旁白每10秒寫一段，每段都要能唸。
 
 主題：
 ${videoProject.theme || "電影劇情"}
@@ -2072,7 +2080,7 @@ function parseStoryText(text){
     outline:["故事大綱","故事大纲"],
     story:["完整故事"],
     script:["劇本","剧本"],
-    narration:["旁白"],
+    narration:["旁白","旁白稿","旁白內容"],
     storyboard:["分鏡","分镜"],
     fact_check:["事實查核","事实查核"],
     discussion:["討論","讨论"],
@@ -2121,6 +2129,31 @@ function parseStoryText(text){
   }
 
   return result;
+}
+
+function fallbackNarration(source){
+  const duration = Number(videoProject.duration || 30);
+  const pace = Number(videoProject.narration_pace || 100) / 100;
+  const budget = Math.max(24, Math.round(duration * 4 * pace));
+  const base = String(source || videoProject.story || "")
+    .replace(/\s+/g, " ")
+    .trim() || ((videoProject.title || "這部影片") + "把眼前這段故事說完。");
+  let pool = base;
+  while(pool.length < budget) pool += " " + base;
+  pool = pool.slice(0, budget);
+
+  const size = duration > 15 ? 10 : duration;
+  const parts = [];
+  let cursor = 0;
+  for(let start = 0; start < duration; start += size){
+    const end = Math.min(start + size, duration);
+    const take = Math.max(12, Math.round(budget * (end - start) / duration));
+    let piece = pool.slice(cursor, cursor + take).trim();
+    cursor += take;
+    if(!piece) piece = base.slice(0, take);
+    parts.push(`${start + 1}-${end}秒：${piece}`);
+  }
+  return parts.join("\n");
 }
 
 function fallbackScript(story){
@@ -2557,6 +2590,7 @@ function toEnglishLabel(text){
     "音樂舞蹈":"music and dance",
     "宣傳影片":"promotional film",
     "電影劇情":"cinematic drama",
+    "穿越":"time travel",
     "繁體中文":"Traditional Chinese",
     "简体中文":"Simplified Chinese",
     "英文":"English",
@@ -2811,7 +2845,7 @@ async function generateStory(){
       pack(parsed.script || fallbackScript(parsed.story || text));
 
     videoProject.narration =
-      pack(parsed.narration);
+      pack(parsed.narration || fallbackNarration(parsed.story || text));
 
     videoProject.storyboard =
       pack(parsed.storyboard);
@@ -2929,9 +2963,7 @@ function buildFallbackStory(){
 場景五：主角完成關鍵選擇並留下電影式結尾。`;
 
   const narration =
-`這是一個關於選擇、勇氣與改變的故事。
-當熟悉的世界突然發生變化，
-真正重要的不是逃避，而是決定自己要成為誰。`;
+    fallbackNarration(story);
 
   const storyboard =
 `遠景建立環境，介紹${character}與故事世界。
