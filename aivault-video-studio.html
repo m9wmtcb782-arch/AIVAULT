@@ -961,6 +961,12 @@ button:disabled{
 
     <div class="tab-content" id="tab-storyboard">
       <div class="editor-box">
+        <div class="prompt-box-header">
+          <strong>分鏡</strong>
+          <button class="copy-btn" id="copyStoryboardBtn" type="button">
+            📋 複製分鏡
+          </button>
+        </div>
         <textarea id="storyboardText" placeholder="分鏡內容。"></textarea>
       </div>
     </div>
@@ -2356,71 +2362,76 @@ function buildLocalPrompt(){
       .join("\n");
 
   return `
-【AIVAULT VIDEO PROMPT｜Seedance 2.5】
+【影片生成提示詞｜Seedance 2.5】
 
-影片名稱：
-${videoProject.title || "未命名影片"}
-
-影片類型：
-${videoProject.mode}
-
-影片長度：
-${videoProject.duration} 秒
-
-旁白語速：
-${videoProject.narration_pace || 100}%
-
-角色語速：
-${videoProject.character_pace || 100}%
-
-主題：
-${videoProject.theme || "電影劇情"}
-
-主要角色：
-${videoProject.characters || "依故事設定"}
-
-創作需求：
-${videoProject.request || "電影級完整敘事"}
-
-【故事】
-${videoProject.story}
-
-【劇本】
-${videoProject.script}
-
-【旁白】
-${videoProject.narration}
+片名：${videoProject.title || "未命名影片"}
+類型：${videoProject.mode}
+時長：${videoProject.duration} 秒
+語言：${videoProject.language}
+主題：${videoProject.theme || "電影劇情"}
+角色：${videoProject.characters || "依分鏡設定"}
+旁白語速：${videoProject.narration_pace || 100}%
+角色語速：${videoProject.character_pace || 100}%
 
 【分鏡】
-${videoProject.storyboard}
+${videoProject.storyboard || "依時間軸拍攝"}
 
-【導演拍攝手法】
+【導演手法】
 ${directorText()}
 
-【影片一致性】
+【一致性】
 ${continuityText()}
 
 【上一段最後一幀】
 ${lastFrameText()}
-下一段第一秒必須承接附圖畫面，不可重開場景。
+若有附圖，第一秒必須承接該畫面，不要重開場景，不要重述劇情。
 
 【秒級時間軸】
 ${timelineText}
 
-【毫秒級 Keyframe】
+【毫秒關鍵幀】
 ${keyframeText}
 
-【生成要求】
-電影級視覺品質，角色身份、臉部特徵、髮型、服裝、身材比例保持一致。
-場景空間保持連續，重要道具保持一致。
-動作自然、符合人體運動規律。
-鏡頭運動必須平滑且具有電影攝影邏輯。
-光線、色調、景深、構圖與角色情緒保持一致。
-對話與嘴型同步。
-舞蹈動作必須符合音樂節拍與身體重心。
-動畫角色保持角色設計一致。
-不要產生突然換臉、換裝、換場景、錯誤肢體、額外手指或不合理物件。
+【拍攝要求】
+只依分鏡與時間軸拍下去，不要再寫一次故事。
+角色外貌、髮型、服裝、身材比例保持一致。
+場景、道具、光線、色調、攝影風格保持連續。
+動作符合人體運動，鏡頭平滑。
+旁白與對白依設定語速，嘴型同步。
+不要換臉、換裝、換場景、多餘手指或錯誤肢體。
 `;
+}
+
+function toEnglishLabel(text){
+  const map = {
+    "電影敘事":"cinematic narrative",
+    "故事短片":"short story film",
+    "動漫動畫":"anime animation",
+    "音樂舞蹈":"music and dance",
+    "宣傳影片":"promotional film",
+    "電影劇情":"cinematic drama",
+    "繁體中文":"Traditional Chinese",
+    "簡體字的":"Simplified Chinese",
+    "英文":"English",
+    "人物外貌一致":"consistent character appearance",
+    "人物服裝一致":"consistent costumes",
+    "場景空間一致":"consistent spatial layout",
+    "光線與色調一致":"consistent lighting and color",
+    "攝影風格一致":"consistent cinematography",
+    "重要道具一致":"consistent key props",
+    "電影級自然攝影語言":"natural cinematic camera language"
+  };
+  return String(text || "")
+    .split("、")
+    .map(x => map[x.trim()] || x.trim())
+    .filter(Boolean)
+    .join(", ");
+}
+
+function lastFrameTextEn(){
+  const n = (videoProject.last_frames || []).length;
+  if(!n) return "No previous last-frame image provided.";
+  return n + " last-frame image(s) attached. The first second must continue from that image. Do not restart the scene or change faces.";
 }
 
 function buildEnglishPrompt(){
@@ -2433,75 +2444,48 @@ function buildEnglishPrompt(){
     videoProject.timeline
       .map(item =>
 `${item.second}s:
-Scene: ${item.scene}
+Visual: ${item.scene}
 Action: ${item.action}
-Camera: ${item.camera}`
+Camera: ${toEnglishLabel(item.camera)}`
       )
       .join("\n\n");
 
   return `
-AIVAULT VIDEO PROMPT — SEEDANCE 2.5 STYLE
+VIDEO GENERATION PROMPT — SEEDANCE 2.5
 
-TITLE:
-${videoProject.title || "Untitled"}
+Title: ${videoProject.title || "Untitled"}
+Type: ${toEnglishLabel(videoProject.mode)}
+Duration: ${videoProject.duration} seconds
+Language: ${toEnglishLabel(videoProject.language)}
+Theme: ${toEnglishLabel(videoProject.theme || "cinematic drama")}
+Characters: ${videoProject.characters || "as defined by the storyboard"}
+Narration pace: ${videoProject.narration_pace || 100}%
+Character speech pace: ${videoProject.character_pace || 100}%
 
-MODE:
-${videoProject.mode}
+STORYBOARD
+Shoot only the shots below. Do not retell the plot.
 
-DURATION:
-${videoProject.duration} seconds
+${videoProject.storyboard || "Follow the second-by-second timeline."}
 
-NARRATION PACE:
-${videoProject.narration_pace || 100}%
+CINEMATOGRAPHY
+${toEnglishLabel(directorText())}
 
-CHARACTER SPEECH PACE:
-${videoProject.character_pace || 100}%
+CONTINUITY
+${toEnglishLabel(continuityText())}
 
-THEMES:
-${videoProject.theme || "cinematic narrative"}
+LAST FRAME
+${lastFrameTextEn()}
 
-MAIN CHARACTERS:
-${videoProject.characters || "As defined by the story"}
-
-CREATIVE REQUIREMENTS:
-${videoProject.request || "Create a complete cinematic narrative."}
-
-STORY:
-${videoProject.story}
-
-SCRIPT:
-${videoProject.script}
-
-NARRATION:
-${videoProject.narration}
-
-STORYBOARD:
-${videoProject.storyboard}
-
-DIRECTOR CINEMATOGRAPHY:
-${directorText()}
-
-CONTINUITY:
-${continuityText()}
-
-LAST FRAME CONTINUATION:
-${lastFrameText()}
-The first second of the next clip must continue from the uploaded last frame.
-
-SECOND-BY-SECOND TIMELINE:
+SECOND-BY-SECOND TIMELINE
 ${timelineText}
 
-CINEMATIC REQUIREMENTS:
-Maintain strict character identity consistency.
-Maintain clothing, hairstyle, facial features and body proportions.
-Maintain spatial continuity and prop continuity.
-Use physically believable movement and natural body mechanics.
-Use cinematic camera language and smooth camera movement.
-Maintain consistent lighting, color grading, depth of field and composition.
-Synchronize dialogue with lip movement.
-For dance scenes, synchronize choreography with rhythm and maintain body balance.
-For anime or animated scenes, preserve the character design consistently.
-Avoid face changes, costume changes, random objects, malformed anatomy, extra fingers and discontinuous environments.
+SHOOTING RULES
+Follow the storyboard and timeline only. Do not rewrite or summarize the story.
+Keep character identity, face, hair, costume and body proportions consistent.
+Keep space, props, lighting, color and camera style continuous.
+Use physically believable motion and smooth camera moves.
+Match lip sync. Use the set speech pace for narration and dialogue.
+No face swap, costume swap, scene jump, extra fingers or broken anatomy.
 `;
 }
 
@@ -2571,7 +2555,6 @@ async function generatePrompt(){
     }
 
     const zh =
-      remotePrompt ||
       buildLocalPrompt();
 
     const en =
@@ -3332,6 +3315,17 @@ function bindEvents(){
     .addEventListener(
       "click",
       generatePrompt
+    );
+
+  $("copyStoryboardBtn")
+    .addEventListener(
+      "click",
+      () =>
+        handleCopy(
+          "storyboardText",
+          "copyStoryboardBtn",
+          "📋 複製分鏡"
+        )
     );
 
   $("copyZhBtn")
