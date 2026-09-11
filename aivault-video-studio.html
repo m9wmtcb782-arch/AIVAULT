@@ -967,7 +967,10 @@ button:disabled{
       <div class="editor-box">
         <div class="prompt-box-header">
           <strong>故事</strong>
-          <button class="copy-btn" id="copyStoryBtn" type="button">📋 複製故事</button>
+          <span>
+            <button class="copy-btn" id="speakStoryBtn" type="button">🔊 播放</button>
+            <button class="copy-btn" id="copyStoryBtn" type="button">📋 複製故事</button>
+          </span>
         </div>
         <textarea id="storyText" placeholder="故事內容會顯示在這裡，也可以手動修改。"></textarea>
       </div>
@@ -977,7 +980,10 @@ button:disabled{
       <div class="editor-box">
         <div class="prompt-box-header">
           <strong>劇本</strong>
-          <button class="copy-btn" id="copyScriptBtn" type="button">📋 複製劇本</button>
+          <span>
+            <button class="copy-btn" id="speakScriptBtn" type="button">🔊 播放</button>
+            <button class="copy-btn" id="copyScriptBtn" type="button">📋 複製劇本</button>
+          </span>
         </div>
         <textarea id="scriptText" placeholder="劇本內容。"></textarea>
       </div>
@@ -987,7 +993,10 @@ button:disabled{
       <div class="editor-box">
         <div class="prompt-box-header">
           <strong>旁白</strong>
-          <button class="copy-btn" id="copyNarrationBtn" type="button">📋 複製旁白</button>
+          <span>
+            <button class="copy-btn" id="speakNarrationBtn" type="button">🔊 播放</button>
+            <button class="copy-btn" id="copyNarrationBtn" type="button">📋 複製旁白</button>
+          </span>
         </div>
         <textarea id="narrationText" placeholder="旁白內容。"></textarea>
       </div>
@@ -2048,6 +2057,7 @@ function buildStoryRequest(){
 6. 如果主題包含動畫或日本動漫，要真的使用動畫式畫面描述。
 7. 不要因為影片很短就把故事刪成一句話。
 8. 必須根據影片秒數與語速調整內容密度。對白用角色語速、旁白用旁白語速換算字數。
+8-1. 影片長度是幾秒，故事、劇本、旁白、分鏡就要寫滿幾秒。選900秒就要寫到第900秒，禁止只寫到180秒或300秒就結束。
 9. 導演拍攝手法必須融入分鏡。
 12. 【劇本】不可空白。沒有人物對白的劇本視為失敗，必須重寫到有對白為止。
 13. 【旁白】不可空白。旁白必須依照影片秒數撰寫，長度要夠唸完整段影片。
@@ -2090,6 +2100,9 @@ ${subtitleRuleText()}
 
 影片長度：
 ${videoProject.duration} 秒
+必須寫滿 ${videoProject.duration} 秒。
+故事、劇本、對白、旁白、分鏡都要到第 ${videoProject.duration} 秒才結束。
+不可在第300秒提前收尾。
 
 語言：
 ${videoProject.language}
@@ -3343,6 +3356,53 @@ async function copyText(text){
   );
 }
 
+
+let speakingField = "";
+
+function speakLang(){
+  const lang = videoProject.language || ($("language") && $("language").value) || "繁體中文";
+  if(lang === "英文") return "en-US";
+  if(lang === "简体中文") return "zh-CN";
+  return "zh-TW";
+}
+
+function speakText(fieldId, btnId, label){
+  const text = ($(fieldId) && $(fieldId).value || "").trim();
+  const btn = $(btnId);
+  if(!window.speechSynthesis){
+    setStatus("此裝置不能朗讀。", "error");
+    return;
+  }
+  if(!text){
+    setStatus("沒有可播放的文字。", "error");
+    return;
+  }
+  if(speechSynthesis.speaking && speakingField === fieldId){
+    speechSynthesis.cancel();
+    speakingField = "";
+    if(btn) btn.textContent = label;
+    return;
+  }
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = speakLang();
+  const pace = fieldId === "narrationText"
+    ? Number(videoProject.narration_pace || 100)
+    : Number(videoProject.character_pace || 100);
+  u.rate = Math.max(0.5, Math.min(1.5, pace / 100));
+  u.onend = () => {
+    speakingField = "";
+    if(btn) btn.textContent = label;
+  };
+  u.onerror = () => {
+    speakingField = "";
+    if(btn) btn.textContent = label;
+  };
+  speakingField = fieldId;
+  if(btn) btn.textContent = "⏹ 停止";
+  speechSynthesis.speak(u);
+}
+
 async function handleCopy(
   textareaId,
   buttonId,
@@ -3690,6 +3750,14 @@ function bindEvents(){
       "click",
       generatePrompt
     );
+
+  [
+    ["speakStoryBtn","storyText","🔊 播放"],
+    ["speakScriptBtn","scriptText","🔊 播放"],
+    ["speakNarrationBtn","narrationText","🔊 播放"]
+  ].forEach(([btn, field, label]) => {
+    $(btn).addEventListener("click", () => speakText(field, btn, label));
+  });
 
   const copyPairs = [
     ["copyStoryBtn","storyText","📋 複製故事"],
