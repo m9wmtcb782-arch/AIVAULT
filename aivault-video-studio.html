@@ -643,6 +643,19 @@ button:disabled{
   font-weight:800;
 }
 
+
+.pace-row{
+  margin-bottom:14px;
+}
+.pace-row input[type="range"]{
+  width:100%;
+  accent-color:var(--red);
+  height:28px;
+}
+.pace-row label span{
+  color:var(--red);
+}
+
 @media(max-width:720px){
   .app{
     padding-left:12px;
@@ -875,13 +888,25 @@ button:disabled{
       <button type="button" class="option-chip" data-duration="180">180 秒</button>
     </div>
 
+
+    <div class="section-title">🗣️ 語速</div>
+
+    <div class="pace-row">
+      <label for="narrationPace">旁白語速 <span id="narrationPaceValue">100%</span></label>
+      <input id="narrationPace" type="range" min="50" max="150" step="1" value="100" />
+    </div>
+
+    <div class="pace-row">
+      <label for="characterPace">角色語速 <span id="characterPaceValue">100%</span></label>
+      <input id="characterPace" type="range" min="50" max="150" step="1" value="100" />
+    </div>
+
     <div class="section-title">🌐 語言</div>
 
     <select id="language">
       <option value="繁體中文">繁體中文</option>
-      <option value="簡體中文">簡體中文</option>
+      <option value="簡體字的">簡體字的</option>
       <option value="英文">英文</option>
-      <option value="日文">日文</option>
     </select>
 
     <div class="info-row">
@@ -1298,6 +1323,8 @@ const videoProject = {
   mode: "電影敘事",
   duration: 30,
   language: "繁體中文",
+  narration_pace: 100,
+  character_pace: 100,
 
   story: "",
   outline: "",
@@ -1436,6 +1463,28 @@ function deleteLastFrame(index){
   saveProject();
 }
 
+
+function normalizePace(value){
+  const map = {
+    "很慢": 60,
+    "慢": 80,
+    "正常": 100,
+    "快": 120,
+    "很快": 140
+  };
+  if(value in map) return map[value];
+  const n = Number(value);
+  if(!Number.isFinite(n)) return 100;
+  return Math.min(150, Math.max(50, Math.round(n)));
+}
+
+function updatePaceLabels(){
+  $("narrationPaceValue").textContent =
+    (videoProject.narration_pace || 100) + "%";
+  $("characterPaceValue").textContent =
+    (videoProject.character_pace || 100) + "%";
+}
+
 function saveProject(){
 
   syncProjectFromInputs();
@@ -1479,8 +1528,26 @@ function restoreProject(){
     $("creativeRequest").value =
       saved.request || "";
 
-    $("language").value =
-      saved.language || "繁體中文";
+    const lang = saved.language === "簡體中文" ? "簡體字的"
+      : saved.language === "日文" ? "繁體中文"
+      : (saved.language || "繁體中文");
+
+    $("language").value = lang;
+    videoProject.language = lang;
+
+    videoProject.narration_pace =
+      normalizePace(saved.narration_pace);
+
+    videoProject.character_pace =
+      normalizePace(saved.character_pace);
+
+    $("narrationPace").value =
+      videoProject.narration_pace;
+
+    $("characterPace").value =
+      videoProject.character_pace;
+
+    updatePaceLabels();
 
     $("storyText").value =
       saved.story || "";
@@ -1682,6 +1749,12 @@ function syncProjectFromInputs(){
       Number(activeDuration.dataset.duration);
   }
 
+  videoProject.narration_pace =
+    Number($("narrationPace").value || 100);
+
+  videoProject.character_pace =
+    Number($("characterPace").value || 100);
+
   syncThemeSelection();
 
   collectDirectorTechniques();
@@ -1771,6 +1844,12 @@ ${videoProject.duration} 秒
 
 語言：
 ${videoProject.language}
+
+旁白語速：
+${videoProject.narration_pace || 100}%
+
+角色語速：
+${videoProject.character_pace || 100}%
 
 創作需求：
 ${videoProject.request || "請自由發揮，建立具有電影感的完整故事"}
@@ -2288,6 +2367,12 @@ ${videoProject.mode}
 影片長度：
 ${videoProject.duration} 秒
 
+旁白語速：
+${videoProject.narration_pace || 100}%
+
+角色語速：
+${videoProject.character_pace || 100}%
+
 主題：
 ${videoProject.theme || "電影劇情"}
 
@@ -2365,6 +2450,12 @@ ${videoProject.mode}
 
 DURATION:
 ${videoProject.duration} seconds
+
+NARRATION PACE:
+${videoProject.narration_pace || 100}%
+
+CHARACTER SPEECH PACE:
+${videoProject.character_pace || 100}%
 
 THEMES:
 ${videoProject.theme || "cinematic narrative"}
@@ -3105,6 +3196,16 @@ function bindEvents(){
       );
 
     });
+
+
+  ["narrationPace","characterPace"].forEach(id => {
+    $(id).addEventListener("input", () => {
+      videoProject.narration_pace = Number($("narrationPace").value);
+      videoProject.character_pace = Number($("characterPace").value);
+      updatePaceLabels();
+      saveProject();
+    });
+  });
 
   document
     .querySelectorAll("[data-duration]")
