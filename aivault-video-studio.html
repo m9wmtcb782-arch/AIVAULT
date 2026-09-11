@@ -1826,6 +1826,36 @@ function inferredDuration(){
   );
 }
 
+
+function stripSecParens(text){
+  return String(text || "")
+    .replace(/\d{1,2}:\d{2}\s*[-~～到至]+\s*\d{1,2}:\d{2}/g, "")
+    .replace(/[（(][^）)]{0,20}秒[^）)]*[）)]/g, "")
+    .replace(/[（(]\s*[）)]/g, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+
+function allSpokenLines(text){
+  const rows = [];
+  String(text || "").split("\n").forEach(line => {
+    const s = spokenLine(line);
+    if(s) rows.push(s);
+  });
+  return rows.join("\n");
+}
+function spokenLine(text){
+  const raw = stripSecParens(text);
+  const q = raw.match(/[「“"'『]([^」”"'』]+)[」”"'』]/);
+  let s = q ? q[1] : raw;
+  s = stripSecParens(s)
+    .replace(/(?:第\s*)?\d{1,4}\s*秒[：:]?/g, "")
+    .replace(/^[—\-：:\s]+/, "")
+    .trim();
+  return s;
+}
+
 function parseScriptTalks(text){
   const map = {};
   String(text || "").split("\n").forEach(line => {
@@ -1833,7 +1863,10 @@ function parseScriptTalks(text){
     const q = line.match(/[「“"'『]([^」”"'』]+)[」”"'』]/);
     if(m && q){
       const sec = Number(m[1]);
-      map[sec] = (map[sec] ? map[sec] + " " : "") + q[0];
+      const line = "「" + spokenLine(q[1]) + "」";
+      if(spokenLine(q[1])){
+        map[sec] = (map[sec] ? map[sec] + " " : "") + line;
+      }
     }
   });
   return map;
@@ -1919,9 +1952,38 @@ function localizeZh(text){
 }
 
 
+function liveModes(){
+  return [...document.querySelectorAll("[data-mode].on")]
+    .map(btn => btn.dataset.mode);
+}
+
 function hasMode(name){
-  const list = videoProject.modes || String(videoProject.mode || "").split("、");
-  return list.includes(name);
+  const list = liveModes();
+  if(list.length) return list.includes(name);
+  const saved = videoProject.modes || String(videoProject.mode || "").split("、");
+  return saved.includes(name);
+}
+
+function subtitlePromptBlock(){
+  if(hasMode("字幕") || hasMode("旁白字幕")){
+    return [
+      "【字幕規則】",
+      subtitleRuleText(),
+      "字幕必須燒進畫面並與聲音同步出現、同步消失。",
+      "畫面禁止出現時間碼與秒數。旁白字幕開頭必須是「旁白：」。",
+      "",
+      "【畫面字幕】",
+      onScreenCueText(),
+      hasMode("字幕") ? ("【對白字幕】\n" + (allSpokenLines(videoProject.script || "") || "無對白")) : "",
+      hasMode("旁白字幕") ? ("【旁白字幕】\n旁白：" + (videoProject.narration || "無")) : ""
+    ].filter(Boolean).join("\n");
+  }
+  return [
+    "【字幕規則】",
+    "使用者沒有開啟字幕或旁白字幕。",
+    "畫面禁止出現任何字幕、對白字、旁白字、時間碼、00:00、（20秒）、角色名。",
+    "對白與旁白只出聲音，不要燒進畫面。"
+  ].join("\n");
 }
 
 function characterLockText(){
@@ -1989,6 +2051,12 @@ function narrationAtSecond(sec){
   return lines[Math.min(idx, lines.length - 1)] || "";
 }
 
+function screenNarration(sec){
+  let n = spokenLine(narrationAtSecond(sec));
+  n = n.replace(/^旁白[：:]/, "").trim();
+  return n;
+}
+
 function onScreenCueText(){
   if(!hasMode("字幕") && !hasMode("旁白字幕")){
     return "本片畫面不燒錄字幕。";
@@ -1998,35 +2066,36 @@ function onScreenCueText(){
   const rows = [];
   for(let sec = 1; sec <= duration; sec++){
     const item = (videoProject.timeline || []).find(x => x.second === sec) || {};
-    const talk = item.talk || "";
-    const narr = narrationAtSecond(sec);
-    const parts = [`${sec}秒`];
-    if(hasMode("旁白字幕")){
-      parts.push(narr ? `上層旁白字幕（較大，與旁白聲同步出現）：${narr}` : "上層旁白字幕：無");
+    const talk = spokenLine(item.talk || "");
+    const narr = screenNarration(sec);
+    const shown = [];
+    if(hasMode("旁白字幕") && narr){
+      shown.push("畫面上層只准出現這句：" + "旁白：" + narr);
     }
-    if(hasMode("字幕")){
-      parts.push(talk ? `底部對白字幕（較小，與說話聲、嘴型同步出現）：${talk}` : "底部對白字幕：無");
+    if(hasMode("字幕") && talk){
+      shown.push("畫面底部只准出現這句：" + talk);
     }
-    parts.push("有聲音的那一秒字幕必須同時出現，聲音結束同時消失，不可整段一直掛在畫面上。");
-    rows.push(parts.join("\n"));
+    if(!shown.length) continue;
+    rows.push("時間點第" + sec + "秒（時間點只給生成器用，禁止燒進畫面）\n" + shown.join("\n"));
   }
   return [
-    "必須把下列字幕燒進畫面，看得見，不是只寫在提示裡。",
-    "旁白字幕在上、字較大；角色對白字幕在畫面底部、字較小。",
-    "字幕出現時間必須對齊該秒的說話聲／旁白聲。",
+    "畫面字幕禁止出現任何秒數、時間碼、00:00、20秒、00:20-00:30、（20秒）。",
+    "旁白字幕必須保留「旁白：」三個字，讓觀眾知道這是旁白，不要拿掉。",
+    "旁白字幕在上、字較大；角色對白字幕在底部、字較小，只顯示台詞。",
+    "有聲音才出現字幕，聲音停字幕消失。",
     "",
-    ...rows
-  ].join("\n\n");
+    rows.join("\n\n") || "本段無須字幕。"
+  ].join("\n");
 }
 
 function subtitleRuleText(){
   const lines = [];
   if(hasMode("字幕")){
-    lines.push("開啟字幕：畫面底部只顯示角色對白字幕，不要顯示其他文字。");
+    lines.push("開啟字幕：畫面底部只顯示角色台詞，不要顯示秒數、時間碼、角色名、括號。");
     lines.push("對白字數依角色語速：100%每10秒25字，150%每10秒38字，50%每10秒13字。");
   }
   if(hasMode("旁白字幕")){
-    lines.push("開啟旁白字幕：旁白文字顯示在角色對白字幕上方，字級大於角色對白字幕。");
+    lines.push("開啟旁白字幕：上層顯示「旁白：」加上旁白台詞，字級大於角色對白。禁止拿掉「旁白：」。禁止顯示秒數或時間碼。");
     if(hasMode("字幕")){
       lines.push("雙層字幕：上層旁白（較大），下層角色對白（較小，貼底部）。");
     }
@@ -2081,6 +2150,7 @@ function buildStoryRequest(){
 格式必須是：
 秒數 角色名（男／女／老／幼／怪）：「對白」
 每個角色第一次出現必須標性別與年紀：男、女、老、幼，鬼怪妖怪標「怪」。
+「」裡面只寫台詞，不要寫秒數，不要加（4秒）或任何括號秒數。
 對白必須標明從第幾秒開口。
 字數用「開口秒到下一句開口或該段結束」的秒數換算：
 100%＝每秒2.5字（10秒25字），150%＝每秒3.8字，50%＝每秒1.3字。
@@ -2480,7 +2550,8 @@ function buildSecondTimeline(){
       videoProject.director_techniques[
         i % Math.max(videoProject.director_techniques.length, 1)
       ] || "電影級鏡頭";
-    const talk = (block.talk && block.talk !== "無" ? block.talk : "") || talks[sec] || "";
+    const talkRaw = (block.talk && block.talk !== "無" ? block.talk : "") || talks[sec] || "";
+    const talk = spokenLine(talkRaw) ? ("「" + spokenLine(talkRaw) + "」") : "";
 
     result.push({
       second: sec,
@@ -2751,21 +2822,13 @@ ${characterLockText()}
 旁白語速：${videoProject.narration_pace || 100}%
 角色語速：${videoProject.character_pace || 100}%
 
-【字幕規則】
-${subtitleRuleText()}
-字幕必須燒進畫面並與聲音同步出現、同步消失。
-
-【畫面字幕（逐秒，必須看得見）】
-${onScreenCueText()}
+${subtitlePromptBlock()}
 
 【對白字數】
 ${dialogueBudgetText()}
 
-【旁白】
-${videoProject.narration || $("narrationText").value || "無旁白"}
-
-【對白字幕】
-${videoProject.script || $("scriptText").value || "無對白"}
+【旁白（只出聲，沒開旁白字幕就不要燒字）】
+${videoProject.narration || ($("narrationText") && $("narrationText").value) || "無旁白"}
 
 【分鏡】
 ${videoProject.storyboard || "依時間軸拍攝"}
@@ -2795,7 +2858,9 @@ ${keyframeText}
 場景、道具、光線、色調、攝影風格保持連續。
 動作符合人體運動，鏡頭平滑。
 旁白與對白依設定語速，嘴型同步。
-若開啟字幕或旁白字幕，該秒有聲音就必須同時燒上對應字幕，聲音停字幕就消失。
+${(hasMode("字幕") || hasMode("旁白字幕"))
+  ? "有開字幕才燒字。沒開字幕就禁止畫面出現任何字。"
+  : "沒有開啟字幕按鈕。畫面禁止出現任何字幕或時間碼。"}
 不要換臉、換裝、換場景、多餘手指或錯誤肢體。
 角色必須與照片人物相同。
 `;
@@ -2876,12 +2941,7 @@ Character lock: appearance must match the uploaded photo / last frame. Same face
 Narration pace: ${videoProject.narration_pace || 100}%
 Character speech pace: ${videoProject.character_pace || 100}%
 
-SUBTITLE RULES
-${subtitleRuleText()}
-Burn subtitles onto the picture. They must appear and disappear with the voice.
-
-ON-SCREEN CUES
-${onScreenCueText()}
+${subtitlePromptBlock()}
 
 SPEECH BUDGET
 ${dialogueBudgetText()}
@@ -3100,10 +3160,10 @@ async function generateStory(){
       pack(parsed.story || text);
 
     videoProject.script =
-      pack(parsed.script || fallbackScript(parsed.story || text));
+      pack(stripSecParens(parsed.script || fallbackScript(parsed.story || text)));
 
     videoProject.narration =
-      pack(parsed.narration || fallbackNarration(parsed.story || text));
+      pack(stripSecParens(parsed.narration || fallbackNarration(parsed.story || text)));
 
     videoProject.storyboard =
       pack(parsed.storyboard);
