@@ -858,6 +858,8 @@ button:disabled{
       <div class="option-group-title">🎤 娛樂／生活</div>
       <div class="option-grid">
         <button type="button" class="option-chip" data-theme="娛樂">娛樂</button>
+        <button type="button" class="option-chip" data-theme="人與人對話">人與人對話</button>
+        <button type="button" class="option-chip" data-theme="多人對話">多人對話</button>
         <button type="button" class="option-chip" data-theme="綜藝">綜藝</button>
         <button type="button" class="option-chip" data-theme="旅遊">旅遊</button>
         <button type="button" class="option-chip" data-theme="美食">美食</button>
@@ -874,8 +876,6 @@ button:disabled{
       <button type="button" class="option-chip" data-mode="動漫動畫">動漫動畫</button>
       <button type="button" class="option-chip" data-mode="音樂舞蹈">音樂舞蹈</button>
       <button type="button" class="option-chip" data-mode="宣傳影片">宣傳影片</button>
-      <button type="button" class="option-chip" data-mode="人與人對話">人與人對話</button>
-      <button type="button" class="option-chip" data-mode="多人對話">多人對話</button>
     </div>
 
     <div class="section-title">⏱️ 影片時間（單選）</div>
@@ -1907,8 +1907,9 @@ function buildStoryRequest(){
 7. 不要因為影片很短就把故事刪成一句話。
 8. 必須根據影片秒數調整內容密度。
 9. 導演拍攝手法必須融入分鏡。
-9-1. 若影片模式是「人與人對話」，必須設計兩人之間的對白與反應，不能只有旁白。
-9-2. 若影片模式是「多人對話」，必須設計三人或以上輪流說話、插話與反應。
+9-1. 若主題包含「人與人對話」，必須設計兩人之間的對白與反應，不能只有旁白。
+9-2. 若主題包含「多人對話」，必須設計三人或以上輪流說話、插話與反應。
+12. 【劇本】不可空白。沒有人物對白的劇本視為失敗，必須重寫到有對白為止。
 10. 分鏡分段規則：影片超過15秒時，每10秒為一段，不可用15秒一段。
 11. 每一段必須逐秒描述，每一秒都要有畫面、動作、鏡頭。`
       },
@@ -2058,6 +2059,8 @@ function extractAIText(data){
 
 function parseStoryText(text){
 
+  const raw = String(text || "");
+
   const result = {
     outline:"",
     story:"",
@@ -2069,63 +2072,78 @@ function parseStoryText(text){
     review:""
   };
 
-  const markers = [
-    ["outline","故事大綱"],
-    ["story","完整故事"],
-    ["script","劇本"],
-    ["script","剧本"],
-    ["narration","旁白"],
-    ["storyboard","分鏡"],
-    ["storyboard","分镜"],
-    ["fact_check","事實查核"],
-    ["discussion","討論"],
-    ["review","最終審查"]
-  ];
+  const aliases = {
+    outline:["故事大綱","故事大纲"],
+    story:["完整故事"],
+    script:["劇本","剧本"],
+    narration:["旁白"],
+    storyboard:["分鏡","分镜"],
+    fact_check:["事實查核","事实查核"],
+    discussion:["討論","讨论"],
+    review:["最終審查","最终审查"]
+  };
 
-  for(let i=0;i<markers.length;i++){
+  const allTitles = Object.values(aliases).flat();
 
-    const key =
-      markers[i][0];
+  Object.keys(aliases).forEach(key => {
+    let found = -1;
+    let used = "";
+    aliases[key].forEach(title => {
+      [
+        "【" + title + "】",
+        "## " + title,
+        "# " + title,
+        title + "：",
+        title + ":"
+      ].forEach(token => {
+        const i = raw.indexOf(token);
+        if(i !== -1 && (found === -1 || i < found)){
+          found = i;
+          used = token;
+        }
+      });
+    });
+    if(found === -1) return;
+    const contentStart = found + used.length;
+    let end = raw.length;
+    allTitles.forEach(title => {
+      ["【" + title + "】", "## " + title, "# " + title].forEach(token => {
+        const n = raw.indexOf(token, contentStart);
+        if(n !== -1) end = Math.min(end, n);
+      });
+    });
+    result[key] = raw.slice(contentStart, end).trim();
+  });
 
-    const title =
-      markers[i][1];
-
-    const start =
-      text.indexOf(`【${title}】`);
-
-    if(start === -1) continue;
-
-    const contentStart =
-      start + title.length + 2;
-
-    let end =
-      text.length;
-
-    for(let j=i+1;j<markers.length;j++){
-
-      const next =
-        text.indexOf(
-          `【${markers[j][1]}】`,
-          contentStart
-        );
-
-      if(next !== -1){
-        end = Math.min(
-          end,
-          next
-        );
-      }
-
+  if(!result.script){
+    const talks = raw.split(/\n/).filter(line =>
+      /[「“"『].+[」”"』]/.test(line)
+    );
+    if(talks.length){
+      result.script = talks.join("\n");
     }
-
-    result[key] =
-      text
-        .slice(contentStart,end)
-        .trim();
   }
 
   return result;
 }
+
+function fallbackScript(story){
+  const names = String(videoProject.characters || "")
+    .split(/[、,，/\s]+/)
+    .map(x => x.trim())
+    .filter(Boolean);
+  const a = names[0] || "角色A";
+  const b = names[1] || "角色B";
+  const theme = videoProject.theme || "這段故事";
+  return [
+    "場次一",
+    a + "：「我們現在就照這條線走。」",
+    b + "：「好，我聽你的，先把眼前這件事說清楚。」",
+    a + "：「" + theme + "這件事，不能再拖。」",
+    b + "：「那你看下一句怎麼接。」"
+  ].join("\n");
+}
+
 
 function renderStory(){
 
@@ -2796,7 +2814,7 @@ async function generateStory(){
       pack(parsed.story || text);
 
     videoProject.script =
-      pack(parsed.script);
+      pack(parsed.script || fallbackScript(parsed.story || text));
 
     videoProject.narration =
       pack(parsed.narration);
