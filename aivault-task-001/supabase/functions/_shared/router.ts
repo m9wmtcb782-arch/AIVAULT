@@ -8,7 +8,10 @@ function rejectReason(cap: Cap, task: Record<string, unknown>, failedProviders: 
   if (cap.task_type !== TASK_TYPE || !versions.includes(CONTRACT)) return "unsupported_task_version";
   const tier = String(cap.capability_tier);
   if (tier === "disabled") return "tier_too_low";
-  if (String(cap.verification_level) === "none") return "verification_level_too_low";
+  const vlevel = String(cap.verification_level);
+  if (vlevel !== "resample" && vlevel !== "dual_model" && vlevel !== "human") {
+    return "verification_level_invalid";
+  }
   const sampleN = Number(cap.sample_n ?? 0);
   const observedAvailable = sampleN >= 10;
   if (observedAvailable) {
