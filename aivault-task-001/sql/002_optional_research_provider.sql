@@ -35,7 +35,7 @@ INSERT INTO aivault_compute_capabilities (
   100,
   400,
   0,
-  'own_weight',
+  'resample',
   'untrusted',
   'research',
   0,

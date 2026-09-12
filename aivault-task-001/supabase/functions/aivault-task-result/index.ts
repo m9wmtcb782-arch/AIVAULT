@@ -1,8 +1,11 @@
 import { json } from "../_shared/contract.ts";
+import { requireInternal } from "../_shared/auth.ts";
 import { serviceClient, snapshotLedger, transition } from "../_shared/db.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return json({ ok: true });
+  const denied = requireInternal(req);
+  if (denied) return denied;
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
   const sb = serviceClient();
   const body = await req.json();
