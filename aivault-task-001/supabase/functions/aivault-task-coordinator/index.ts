@@ -18,12 +18,6 @@ Deno.serve(async (req) => {
   let task = task0;
 
   if (task.state === "queued") {
-    if (task.attempt_count >= task.max_attempts) {
-      task = await transition(sb, taskId, "queued", "settlement_blocked", "coordinator", "max_attempts");
-      await snapshotLedger(sb, task, "max_attempts_block");
-      return json({ ok: true, task, blocked: true });
-    }
-
     const { provider } = await selectProvider(sb, task);
     if (!provider) {
       task = await transition(sb, taskId, "queued", "unmatched_no_provider", "coordinator", "unmatched_no_provider");
@@ -36,6 +30,8 @@ Deno.serve(async (req) => {
     const sc = sampleCount(n, Number(task.resample_fraction));
     const needVerify = sc * Number(task.verification_compute_units_per_item);
 
+    // Budget mutation lives only in aivault_reserve_attempt (FOR UPDATE).
+    // Coordinator must not INSERT attempt or UPDATE reserved here.
     const { data: reserved, error: rerr } = await sb.rpc("aivault_reserve_attempt", {
       p_task_id: taskId,
       p_provider_id: provider.provider_id,
@@ -47,14 +43,13 @@ Deno.serve(async (req) => {
     if (rerr) return json({ error: rerr.message }, 500);
 
     if (!reserved?.ok) {
-      if (reserved?.block || reserved?.reason === "insufficient_remaining" || reserved?.reason === "max_attempts") {
-        if (task.state === "queued") {
-          task = await transition(sb, taskId, "queued", "settlement_blocked", "coordinator", reserved.reason);
-          await snapshotLedger(sb, task, reserved.reason);
-        }
-        return json({ ok: true, task, blocked: true, reserve: reserved });
-      }
-      return json({ ok: false, reserve: reserved }, 409);
+      const { data: after } = await sb.from("aivault_tasks").select("*").eq("task_id", taskId).single();
+      return json({
+        ok: true,
+        task: after ?? task,
+        blocked: Boolean(reserved?.block),
+        reserve: reserved,
+      });
     }
 
     const attempt = reserved.attempt;
