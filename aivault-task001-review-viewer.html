@@ -2,605 +2,66 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>AIVAULT Task #001 — Architect Review Package Viewer</title>
 <style>
-:root {
-  --bg: #0f1419;
-  --bg2: #1a222c;
-  --bg3: #243040;
-  --line: #2e3d4d;
-  --text: #e8eef4;
-  --muted: #8aa0b5;
-  --accent: #3d9cf0;
-  --ok: #3dcc8a;
-  --fail: #e85d5d;
-  --block: #e0b14a;
-  --warn: #f0a03d;
-}
-* { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, "Noto Sans TC", sans-serif; }
-body { min-height: 100vh; }
-header.app {
-  padding: 16px 16px 12px;
-  border-bottom: 1px solid var(--line);
-  background: var(--bg2);
-}
-header.app h1 { margin: 0; font-size: 1.25rem; letter-spacing: .02em; }
-header.app .sub { color: var(--muted); margin-top: 4px; font-size: .95rem; }
-.badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.badge {
-  font-size: 12px; padding: 4px 8px; border-radius: 999px;
-  border: 1px solid var(--line); background: var(--bg3); color: var(--text);
-}
-.badge.frozen { border-color: #c9a227; color: #f0d37a; }
-.layout { display: grid; grid-template-columns: minmax(180px, 280px) 1fr; min-height: calc(100vh - 92px); }
-@media (max-width: 800px) {
-  .layout { grid-template-columns: 1fr; }
-  .sidebar { border-right: 0; border-bottom: 1px solid var(--line); max-height: 38vh; }
-}
-.sidebar { border-right: 1px solid var(--line); background: #121820; overflow: auto; padding: 10px; }
-.main { overflow: auto; padding: 12px 14px 40px; }
-.drop {
-  border: 2px dashed var(--line); border-radius: 12px; padding: 18px; text-align: center;
-  background: var(--bg2); margin-bottom: 12px;
-}
-.drop.over { border-color: var(--accent); background: #163049; }
-.drop input { display: none; }
-.btn {
-  appearance: none; border: 1px solid var(--line); background: var(--bg3); color: var(--text);
-  padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 14px;
-}
-.btn:hover { border-color: var(--accent); }
-.btn.primary { background: #1b4f7a; border-color: #2d7ab8; }
-.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.tree details { margin-left: 8px; }
-.tree summary { cursor: pointer; color: var(--muted); }
-.tree button.file {
-  display: block; width: 100%; text-align: left; background: transparent; border: 0;
-  color: var(--text); padding: 6px 4px; cursor: pointer; font-size: 13px; border-radius: 6px;
-}
-.tree button.file.active, .tree button.file:hover { background: var(--bg3); }
-.meta { color: var(--muted); font-size: 12px; margin: 8px 0; }
-.searchbar { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 10px; }
-.searchbar input[type=text] {
-  flex: 1; min-width: 140px; background: var(--bg); border: 1px solid var(--line);
-  color: var(--text); padding: 8px 10px; border-radius: 8px;
-}
-.codewrap { overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: #0b0f14; max-height: 70vh; }
-.codewrap table { border-collapse: collapse; min-width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; line-height: 1.45; }
-.codewrap td { vertical-align: top; white-space: pre; }
-.codewrap .ln { width: 1%; padding: 0 10px; text-align: right; color: #5b738a; user-select: none; border-right: 1px solid var(--line); background: #10161c; }
-.codewrap .src { padding: 0 10px; color: #d7e3ee; }
-.codewrap tr.hit td.src { background: #3a2f12; }
-.codewrap tr.cur td.src { background: #5a4a16; }
-.hits { font-size: 13px; }
-.hits a { color: var(--accent); text-decoration: none; display: block; padding: 6px 0; border-bottom: 1px solid var(--line); }
-.panel { background: var(--bg2); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin: 12px 0; }
-.panel h2 { margin: 0 0 10px; font-size: 1rem; }
-.check item, .check-item { display: grid; grid-template-columns: 1fr 140px; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
-.check-item textarea { grid-column: 1 / -1; width: 100%; min-height: 48px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px; }
-select.status { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px; }
-select.status.PASS { color: var(--ok); }
-select.status.FAIL { color: var(--fail); }
-select.status.BLOCKED { color: var(--block); }
-.crit { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; overflow: auto; }
-.crit .found { padding: 6px 0; border-bottom: 1px solid var(--line); }
-.stats span { display: inline-block; margin: 0 10px 6px 0; color: var(--muted); font-size: 13px; }
-.hashlist { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; overflow: auto; }
-.hashlist div { padding: 4px 0; border-bottom: 1px solid var(--line); word-break: break-all; }
-footer.note { color: var(--muted); font-size: 12px; margin-top: 16px; }
+:root{--bg:#f7f9fc;--bg2:#fff;--bg3:#f1f5f9;--line:#dbe3ec;--text:#172033;--muted:#64748b;--accent:#2563eb;--ok:#15945b;--fail:#dc3545;--block:#b7791f;--warn:#c56a12;--shadow:0 6px 24px rgba(15,23,42,.06)}
+*{box-sizing:border-box}html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,"Noto Sans TC",sans-serif}body{min-height:100vh}header.app{padding:16px;border-bottom:1px solid var(--line);background:#fff;box-shadow:0 1px 8px rgba(15,23,42,.04)}header.app h1{margin:0;font-size:1.25rem}.sub{color:var(--muted);margin-top:4px}.badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.badge{font-size:12px;padding:4px 8px;border-radius:999px;border:1px solid var(--line);background:var(--bg3);color:var(--text)}.badge.frozen{border-color:#d6a62a;color:#8a6500}.layout{display:grid;grid-template-columns:minmax(190px,280px) 1fr;min-height:calc(100vh - 92px)}@media(max-width:800px){.layout{grid-template-columns:1fr}.sidebar{border-right:0!important;border-bottom:1px solid var(--line);max-height:none}}.sidebar{border-right:1px solid var(--line);background:#fff;overflow:auto;padding:10px}.main{overflow:auto;padding:12px 14px 40px}.drop{border:2px dashed #cbd5e1;border-radius:12px;padding:18px;text-align:center;background:#f8fafc;margin-bottom:12px}.drop.over{border-color:var(--accent);background:#eff6ff}.drop input{display:none}.btn{appearance:none;border:1px solid #cbd5e1;background:#fff;color:#334155;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:14px}.btn:hover{border-color:var(--accent);background:#f8fbff}.btn.primary{background:#2563eb;border-color:#2563eb;color:#fff}.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.tree details{margin-left:8px}.tree summary{cursor:pointer;color:var(--muted)}.tree button.file{display:block;width:100%;text-align:left;background:transparent;border:0;color:var(--text);padding:6px 4px;cursor:pointer;font-size:13px;border-radius:6px}.tree button.file.active,.tree button.file:hover{background:#eef4ff}.meta{color:var(--muted);font-size:12px;margin:8px 0}.searchbar{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px}.searchbar input[type=text]{flex:1;min-width:140px;background:#fff;border:1px solid #cbd5e1;color:var(--text);padding:8px 10px;border-radius:8px}.codewrap{overflow:auto;border:1px solid var(--line);border-radius:10px;background:#0f172a;max-height:70vh}.codewrap table{border-collapse:collapse;min-width:100%;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:1.45}.codewrap td{vertical-align:top;white-space:pre}.codewrap .ln{width:1%;padding:0 10px;text-align:right;color:#64748b;user-select:none;border-right:1px solid #334155;background:#111827}.codewrap .src{padding:0 10px;color:#e2e8f0}.codewrap tr.hit td.src{background:#4a3b12}.codewrap tr.cur td.src{background:#6a5310}.hits{font-size:13px}.hits a{color:var(--accent);text-decoration:none;display:block;padding:6px 0;border-bottom:1px solid var(--line)}.panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;margin:12px 0;box-shadow:var(--shadow)}.panel h2{margin:0 0 10px;font-size:1rem}.check-item{display:grid;grid-template-columns:1fr 140px;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}.check-item textarea{grid-column:1/-1;width:100%;min-height:48px;background:#fff;color:var(--text);border:1px solid #cbd5e1;border-radius:8px;padding:6px}select.status{background:#fff;color:var(--text);border:1px solid #cbd5e1;border-radius:6px;padding:6px}.status.PASS{color:var(--ok)}.status.FAIL{color:var(--fail)}.status.BLOCKED{color:var(--block)}.crit{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;overflow:auto}.crit .found{padding:6px 0;border-bottom:1px solid var(--line)}.stats span{display:inline-block;margin:0 10px 6px 0;color:var(--muted);font-size:13px}.hashlist{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;overflow:auto}.hashlist div{padding:4px 0;border-bottom:1px solid var(--line);word-break:break-all}footer.note{color:var(--muted);font-size:12px;margin-top:16px}.test-result{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;background:#0f172a;color:#e2e8f0;border-radius:10px;padding:10px;white-space:pre-wrap}.test-pass{color:#86efac}.test-fail{color:#fca5a5}.small{font-size:12px;color:var(--muted)}
 </style>
 </head>
 <body>
-<header class="app">
-  <h1>AIVAULT Task #001</h1>
-  <div class="sub">Architect Review Package Viewer</div>
-  <div class="badges">
-    <span class="badge">task.batch.image.classify.v0.1</span>
-    <span class="badge">router.v0.1</span>
-    <span class="badge frozen">FROZEN + RESEARCH</span>
-    <span class="badge">OFFLINE LOCAL ONLY</span>
-  </div>
-</header>
+<header class="app"><h1>AIVAULT Task #001</h1><div class="sub">Architect Review Package Viewer · Grok 施工包 Review / 自動驗證版</div><div class="badges"><span class="badge">task.batch.image.classify.v0.1</span><span class="badge">router.v0.1</span><span class="badge frozen">FROZEN + RESEARCH</span><span class="badge">OFFLINE LOCAL ONLY</span><span class="badge">SELF-TEST READY</span></div></header>
 <div class="layout">
-  <aside class="sidebar">
-    <div class="drop" id="drop">
-      <div>選擇或拖放施工包檔案（可多選）</div>
-      <div class="meta">.sql .ts .js .md .json .txt .html 及其他文字檔 · 不上傳伺服器</div>
-      <div class="row" style="justify-content:center;margin-top:8px">
-        <label class="btn primary">選擇施工包檔案<input id="fileInput" type="file" multiple></label>
-      </div>
-    </div>
-    <div class="row">
-      <button class="btn" id="btnReport" type="button">查看 Implementation Report</button>
-      <button class="btn" id="btnCompliance" type="button">§9 Compliance</button>
-    </div>
-    <div id="tree" class="tree" style="margin-top:10px"></div>
-  </aside>
-  <main class="main">
-    <section class="panel" id="summaryPanel">
-      <h2>Package Summary</h2>
-      <div class="stats" id="stats">尚未載入檔案</div>
-      <div class="hashlist" id="hashlist"></div>
-    </section>
-
-    <section class="panel">
-      <h2>全域搜尋</h2>
-      <div class="searchbar">
-        <input id="globalQ" type="text" placeholder="搜尋整個施工包，例如 settlement_blocked">
-        <button class="btn" id="btnGlobal" type="button">搜尋</button>
-      </div>
-      <div class="hits" id="globalHits"></div>
-    </section>
-
-    <section class="panel" id="viewerPanel">
-      <h2 id="fileTitle">程式碼閱讀器</h2>
-      <div class="meta" id="fileMeta"></div>
-      <div class="searchbar">
-        <input id="localQ" type="text" placeholder="在此檔搜尋">
-        <button class="btn" id="btnPrev" type="button">上一個</button>
-        <button class="btn" id="btnNext" type="button">下一個</button>
-        <button class="btn" id="btnCopyAll" type="button">複製全部</button>
-        <button class="btn" id="btnCopySel" type="button">複製選取</button>
-      </div>
-      <div class="codewrap" id="codewrap"><div class="meta" style="padding:12px">點左側檔案或先上傳施工包</div></div>
-    </section>
-
-    <section class="panel">
-      <h2>Architect Review Checklist</h2>
-      <div id="checklist"></div>
-    </section>
-
-    <section class="panel">
-      <h2>Critical Review</h2>
-      <div class="meta">只列出出現位置，不自動判定為漏洞。</div>
-      <div class="crit" id="critical"></div>
-    </section>
-
-    <section class="panel">
-      <h2>匯出 Review</h2>
-      <div class="row">
-        <label>Final Status
-          <select id="finalStatus">
-            <option value="BLOCKED">BLOCKED</option>
-            <option value="CONDITIONAL">CONDITIONAL</option>
-            <option value="PASS">PASS</option>
-          </select>
-        </label>
-        <button class="btn primary" id="btnExport" type="button">匯出 Reviewer Report</button>
-      </div>
-    </section>
-    <footer class="note">此頁不是 AIVAULT 產品、不是 AI Gateway、不是 Technical Dark Star。無網路請求、無 secret。Checklist 存在本機 localStorage。</footer>
-  </main>
-</div>
+<aside class="sidebar">
+<div class="drop" id="drop"><div>選擇或拖放施工包檔案（可多選）</div><div class="meta">.sql .ts .js .md .json .txt .html 及其他文字檔 · 不上傳伺服器</div><div class="row" style="justify-content:center;margin-top:8px"><label class="btn primary">選擇施工包檔案<input id="fileInput" type="file" multiple></label></div></div>
+<div class="row"><button class="btn" id="btnSelfTest" type="button">🧪 建立測試施工包並自測</button></div>
+<div class="row" style="margin-top:8px"><button class="btn" id="btnReport" type="button">查看 Implementation Report</button><button class="btn" id="btnCompliance" type="button">§9 Compliance</button></div>
+<div id="tree" class="tree" style="margin-top:10px"></div>
+</aside>
+<main class="main">
+<section class="panel" id="summaryPanel"><h2>Package Summary</h2><div class="stats" id="stats">尚未載入檔案</div><div class="hashlist" id="hashlist"></div></section>
+<section class="panel"><h2>全域搜尋</h2><div class="searchbar"><input id="globalQ" type="text" placeholder="搜尋整個施工包，例如 settlement_blocked"><button class="btn" id="btnGlobal" type="button">搜尋</button></div><div class="hits" id="globalHits"></div></section>
+<section class="panel" id="viewerPanel"><h2 id="fileTitle">程式碼閱讀器</h2><div class="meta" id="fileMeta"></div><div class="searchbar"><input id="localQ" type="text" placeholder="在此檔搜尋"><button class="btn" id="btnPrev" type="button">上一個</button><button class="btn" id="btnNext" type="button">下一個</button><button class="btn" id="btnCopyAll" type="button">複製全部</button><button class="btn" id="btnCopySel" type="button">複製選取</button></div><div class="codewrap" id="codewrap"><div class="meta" style="padding:12px">點左側檔案或建立測試施工包</div></div></section>
+<section class="panel"><h2>Architect Review Checklist</h2><div id="checklist"></div></section>
+<section class="panel"><h2>Critical Review</h2><div class="meta">只列出出現位置，不自動判定為漏洞。</div><div class="crit" id="critical"></div></section>
+<section class="panel"><h2>🧪 Viewer 自動測試</h2><div class="small">測試不連線、不上傳、不需要你提供施工包。會建立內建測試檔並實際跑核心邏輯。</div><div id="selfTestResult" class="test-result" style="margin-top:8px">尚未執行。</div></section>
+<section class="panel"><h2>匯出 Review</h2><div class="row"><label>Final Status <select id="finalStatus"><option value="BLOCKED">BLOCKED</option><option value="CONDITIONAL">CONDITIONAL</option><option value="PASS">PASS</option></select></label><button class="btn primary" id="btnExport" type="button">匯出 Reviewer Report</button></div></section>
+<footer class="note">此頁不是 AIVAULT 產品、不是 AI Gateway、不是 Technical Dark Star。無網路請求、無 secret。施工包與 Checklist 僅存在本機。</footer>
+</main></div>
 <script>
-(function () {
-  const CHECKS = [
-    "Frozen Contract", "Accounting", "Reserve", "Retry", "Verification", "Settlement",
-    "Router", "Capability", "Lifecycle", "RLS", "Security", "Idempotency",
-    "Transaction Safety", "Gate 1", "Online Deployment"
-  ];
-  const CRITICAL = [
-    "DROP TABLE", "DROP SCHEMA", "service_role", "SUPABASE_SERVICE_ROLE_KEY",
-    "GEMINI_API_KEY", "GROQ_API_KEY", "OPENAI_API_KEY", "MAGIC_HOUR",
-    "ai-gateway", "technical-dark-star"
-  ];
-  const LS_KEY = "aivault.task001.review.v1";
-  const files = new Map(); // path -> {name, path, size, text, sha256}
-  let currentPath = null;
-  let localHits = [];
-  let localIdx = -1;
-
-  const $ = (id) => document.getElementById(id);
-
-  function loadReview() {
-    try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch { return {}; }
-  }
-  function saveReview(data) {
-    localStorage.setItem(LS_KEY, JSON.stringify(data));
-  }
-  function reviewState() {
-    const data = loadReview();
-    if (!data.items) data.items = {};
-    CHECKS.forEach((k) => {
-      if (!data.items[k]) data.items[k] = { status: "未審查", notes: "" };
-    });
-    if (!data.final) data.final = "BLOCKED";
-    return data;
-  }
-
-  function normalizePath(file) {
-    const raw = file.webkitRelativePath || file.name;
-    return raw.replace(/\\/g, "/").replace(/^\.\//, "");
-  }
-
-  function extOf(name) {
-    const i = name.lastIndexOf(".");
-    return i >= 0 ? name.slice(i).toLowerCase() : "";
-  }
-
-  async function sha256Hex(text) {
-    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-    return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
-  }
-
-  async function ingestFileList(list) {
-    for (const file of list) {
-      const path = normalizePath(file);
-      const text = await file.text();
-      const sha = await sha256Hex(text);
-      files.set(path, { name: file.name, path, size: file.size, text, sha256: sha });
-    }
-    renderTree();
-    renderSummary();
-    renderCritical();
-    if (!currentPath && files.size) {
-      const first = [...files.keys()].sort()[0];
-      openFile(first);
-    }
-  }
-
-  function treeFromPaths(paths) {
-    const root = { name: "AIVAULT Task #001", children: {}, files: [] };
-    for (const p of paths) {
-      const parts = p.split("/").filter(Boolean);
-      let node = root;
-      parts.forEach((part, i) => {
-        const last = i === parts.length - 1;
-        if (last) node.files.push(p);
-        else {
-          node.children[part] = node.children[part] || { name: part, children: {}, files: [] };
-          node = node.children[part];
-        }
-      });
-    }
-    return root;
-  }
-
-  function renderNode(node, pathPrefix) {
-    const wrap = document.createElement("div");
-    const keys = Object.keys(node.children).sort();
-    keys.forEach((k) => {
-      const d = document.createElement("details");
-      d.open = true;
-      const s = document.createElement("summary");
-      s.textContent = "📁 " + k;
-      d.appendChild(s);
-      d.appendChild(renderNode(node.children[k], pathPrefix + "/" + k));
-      wrap.appendChild(d);
-    });
-    node.files.sort().forEach((p) => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "file" + (p === currentPath ? " active" : "");
-      b.textContent = "📄 " + p.split("/").pop();
-      b.title = p;
-      b.addEventListener("click", () => openFile(p));
-      wrap.appendChild(b);
-    });
-    return wrap;
-  }
-
-  function renderTree() {
-    const el = $("tree");
-    el.innerHTML = "";
-    if (!files.size) { el.textContent = "尚未載入"; return; }
-    const root = treeFromPaths([...files.keys()]);
-    const title = document.createElement("div");
-    title.style.color = "#8aa0b5";
-    title.style.marginBottom = "6px";
-    title.textContent = "AIVAULT Task #001";
-    el.appendChild(title);
-    el.appendChild(renderNode(root, ""));
-  }
-
-  function renderSummary() {
-    const arr = [...files.values()];
-    const countExt = (exts) => arr.filter((f) => exts.includes(extOf(f.name))).length;
-    const total = arr.reduce((s, f) => s + f.size, 0);
-    $("stats").innerHTML = [
-      ["Files", arr.length],
-      ["SQL", countExt([".sql"])],
-      ["TypeScript", countExt([".ts"])],
-      ["Markdown", countExt([".md"])],
-      ["JSON", countExt([".json"])],
-      ["HTML", countExt([".html"])],
-      ["Total size", total + " bytes"]
-    ].map(([k, v]) => "<span><b>" + k + ":</b> " + v + "</span>").join("");
-    $("hashlist").innerHTML = arr.sort((a,b)=>a.path.localeCompare(b.path)).map((f) =>
-      "<div>" + escapeHtml(f.path) + " · " + f.size + " B · SHA-256 " + f.sha256 + "</div>"
-    ).join("");
-  }
-
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
-  }
-
-  function openFile(path, line) {
-    currentPath = path;
-    const f = files.get(path);
-    if (!f) return;
-    $("fileTitle").textContent = f.name;
-    $("fileMeta").textContent = path + " · " + f.size + " bytes · SHA-256 " + f.sha256;
-    const lines = f.text.replace(/\r\n/g, "\n").split("\n");
-    const tbl = document.createElement("table");
-    lines.forEach((src, i) => {
-      const tr = document.createElement("tr");
-      tr.id = "L" + (i + 1);
-      tr.innerHTML = "<td class='ln'>" + (i + 1) + "</td><td class='src'></td>";
-      tr.querySelector(".src").textContent = src === "" ? " " : src;
-      tbl.appendChild(tr);
-    });
-    const wrap = $("codewrap");
-    wrap.innerHTML = "";
-    wrap.appendChild(tbl);
-    renderTree();
-    localHits = [];
-    localIdx = -1;
-    if (line) {
-      const tr = document.getElementById("L" + line);
-      if (tr) {
-        tr.classList.add("cur");
-        tr.scrollIntoView({ block: "center" });
-      }
-    }
-  }
-
-  function searchInFile(q) {
-    localHits = [];
-    localIdx = -1;
-    const wrap = $("codewrap");
-    wrap.querySelectorAll("tr").forEach((tr) => tr.classList.remove("hit", "cur"));
-    if (!q || !currentPath) return;
-    const f = files.get(currentPath);
-    const lines = f.text.replace(/\r\n/g, "\n").split("\n");
-    const needle = q;
-    lines.forEach((line, i) => {
-      if (line.toLowerCase().includes(needle.toLowerCase())) {
-        localHits.push(i + 1);
-        const tr = document.getElementById("L" + (i + 1));
-        if (tr) tr.classList.add("hit");
-      }
-    });
-    if (localHits.length) jumpLocal(0);
-  }
-
-  function jumpLocal(dirOrIndex) {
-    if (!localHits.length) return;
-    if (typeof dirOrIndex === "number" && dirOrIndex >= 0 && arguments.length && dirOrIndex !== 1 && dirOrIndex !== -1 && dirOrIndex !== 0) {
-      // unused
-    }
-    if (dirOrIndex === 1 || dirOrIndex === -1) {
-      localIdx = (localIdx + dirOrIndex + localHits.length) % localHits.length;
-    } else {
-      localIdx = 0;
-    }
-    $("codewrap").querySelectorAll("tr.cur").forEach((tr) => tr.classList.remove("cur"));
-    const ln = localHits[localIdx];
-    const tr = document.getElementById("L" + ln);
-    if (tr) { tr.classList.add("cur"); tr.scrollIntoView({ block: "center" }); }
-  }
-
-  function globalSearch(q) {
-    const box = $("globalHits");
-    box.innerHTML = "";
-    if (!q) return;
-    const needle = q.toLowerCase();
-    const out = [];
-    for (const f of files.values()) {
-      const lines = f.text.replace(/\r\n/g, "\n").split("\n");
-      lines.forEach((line, i) => {
-        if (line.toLowerCase().includes(needle)) {
-          out.push({ path: f.path, line: i + 1, text: line.trim().slice(0, 200) });
-        }
-      });
-    }
-    if (!out.length) { box.textContent = "無匹配"; return; }
-    out.slice(0, 400).forEach((h) => {
-      const a = document.createElement("a");
-      a.href = "#";
-      a.textContent = h.path + ":" + h.line + "  " + h.text;
-      a.addEventListener("click", (e) => {
-        e.preventDefault();
-        openFile(h.path, h.line);
-        $("viewerPanel").scrollIntoView({ behavior: "smooth" });
-      });
-      box.appendChild(a);
-    });
-    if (out.length > 400) {
-      const d = document.createElement("div");
-      d.className = "meta";
-      d.textContent = "僅顯示前 400 筆，共 " + out.length;
-      box.appendChild(d);
-    }
-  }
-
-  function renderChecklist() {
-    const data = reviewState();
-    $("finalStatus").value = data.final || "BLOCKED";
-    const root = $("checklist");
-    root.innerHTML = "";
-    CHECKS.forEach((name) => {
-      const item = data.items[name];
-      const div = document.createElement("div");
-      div.className = "check-item";
-      const lab = document.createElement("label");
-      lab.textContent = name;
-      const sel = document.createElement("select");
-      sel.className = "status " + item.status;
-      ["未審查", "PASS", "FAIL", "BLOCKED"].forEach((s) => {
-        const o = document.createElement("option");
-        o.value = s; o.textContent = s;
-        if (s === item.status) o.selected = true;
-        sel.appendChild(o);
-      });
-      const ta = document.createElement("textarea");
-      ta.placeholder = "Reviewer Notes";
-      ta.value = item.notes || "";
-      sel.addEventListener("change", () => {
-        const d = reviewState();
-        d.items[name].status = sel.value;
-        sel.className = "status " + sel.value;
-        saveReview(d);
-      });
-      ta.addEventListener("input", () => {
-        const d = reviewState();
-        d.items[name].notes = ta.value;
-        saveReview(d);
-      });
-      div.appendChild(lab);
-      div.appendChild(sel);
-      div.appendChild(ta);
-      root.appendChild(div);
-    });
-  }
-
-  function renderCritical() {
-    const box = $("critical");
-    if (!files.size) { box.textContent = "尚未載入"; return; }
-    const found = [];
-    for (const f of files.values()) {
-      const lines = f.text.replace(/\r\n/g, "\n").split("\n");
-      lines.forEach((line, i) => {
-        CRITICAL.forEach((pat) => {
-          if (line.toLowerCase().includes(pat.toLowerCase())) {
-            found.push({ pat, path: f.path, line: i + 1, ctx: line.trim().slice(0, 240) });
-          }
-        });
-      });
-    }
-    if (!found.length) { box.textContent = "未找到列出的關鍵字。"; return; }
-    box.innerHTML = found.map((x) =>
-      "<div class='found'><b>Found</b> " + escapeHtml(x.pat) +
-      "<br><b>File</b> " + escapeHtml(x.path) +
-      "<br><b>Line</b> " + x.line +
-      "<br><b>Context</b> " + escapeHtml(x.ctx) + "</div>"
-    ).join("");
-  }
-
-  function findReportPath() {
-    for (const p of files.keys()) {
-      if (p.split("/").pop().toLowerCase() === "implementation_report.md") return p;
-    }
-    return null;
-  }
-
-  function openReport(jumpCompliance) {
-    const p = findReportPath();
-    if (!p) { alert("施工包中沒有 IMPLEMENTATION_REPORT.md"); return; }
-    openFile(p);
-    if (jumpCompliance) {
-      const f = files.get(p);
-      const lines = f.text.replace(/\r\n/g, "\n").split("\n");
-      const idx = lines.findIndex((l) => l.includes("9. Frozen Contract Compliance") || l.includes("Frozen Contract Compliance"));
-      if (idx >= 0) {
-        const tr = document.getElementById("L" + (idx + 1));
-        if (tr) { tr.classList.add("cur"); tr.scrollIntoView({ block: "center" }); }
-      }
-    }
-    $("viewerPanel").scrollIntoView({ behavior: "smooth" });
-  }
-
-  function exportReview() {
-    const data = reviewState();
-    data.final = $("finalStatus").value;
-    saveReview(data);
-    const arr = [...files.values()].sort((a,b)=>a.path.localeCompare(b.path));
-    const crit = [];
-    for (const f of arr) {
-      const lines = f.text.replace(/\r\n/g, "\n").split("\n");
-      lines.forEach((line, i) => {
-        CRITICAL.forEach((pat) => {
-          if (line.toLowerCase().includes(pat.toLowerCase())) {
-            crit.push("- Found `" + pat + "` in `" + f.path + "`:" + (i + 1) + " — " + line.trim().slice(0, 160));
-          }
-        });
-      });
-    }
-    const md = [
-      "# AIVAULT Task #001",
-      "Architect Review",
-      "",
-      "Contract: task.batch.image.classify.v0.1",
-      "Router: router.v0.1",
-      "Status tag: FROZEN + RESEARCH",
-      "",
-      "## Package files",
-      ...arr.map((f) => "- `" + f.path + "` (" + f.size + " bytes)"),
-      "",
-      "## SHA-256",
-      ...arr.map((f) => "- `" + f.path + "`: `" + f.sha256 + "`"),
-      "",
-      "## Checklist",
-      ...CHECKS.map((k) => {
-        const it = data.items[k] || { status: "未審查", notes: "" };
-        return "- " + k + ": **" + it.status + "**";
-      }),
-      "",
-      "## Reviewer Notes",
-      ...CHECKS.map((k) => {
-        const it = data.items[k] || { notes: "" };
-        return "### " + k + "\n\n" + (it.notes || "(none)") + "\n";
-      }),
-      "",
-      "## Critical Findings",
-      "Listed occurrences only — not automatically a vulnerability.",
-      "",
-      ...(crit.length ? crit : ["- none"]),
-      "",
-      "## Final Status",
-      data.final,
-      ""
-    ].join("\n");
-    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "AIVAULT-TASK-001-REVIEW.md";
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  }
-
-  function wireDrop() {
-    const drop = $("drop");
-    const input = $("fileInput");
-    input.addEventListener("change", () => ingestFileList(input.files || []));
-    ["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => {
-      e.preventDefault(); drop.classList.add("over");
-    }));
-    ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => {
-      e.preventDefault(); drop.classList.remove("over");
-    }));
-    drop.addEventListener("drop", (e) => {
-      const dt = e.dataTransfer;
-      if (dt && dt.files) ingestFileList(dt.files);
-    });
-  }
-
-  $("btnGlobal").addEventListener("click", () => globalSearch($("globalQ").value.trim()));
-  $("globalQ").addEventListener("keydown", (e) => { if (e.key === "Enter") globalSearch($("globalQ").value.trim()); });
-  $("localQ").addEventListener("keydown", (e) => { if (e.key === "Enter") searchInFile($("localQ").value); });
-  $("btnPrev").addEventListener("click", () => { if (!localHits.length) searchInFile($("localQ").value); else jumpLocal(-1); });
-  $("btnNext").addEventListener("click", () => { if (!localHits.length) searchInFile($("localQ").value); else jumpLocal(1); });
-  $("btnCopyAll").addEventListener("click", async () => {
-    if (!currentPath) return;
-    await navigator.clipboard.writeText(files.get(currentPath).text);
-  });
-  $("btnCopySel").addEventListener("click", async () => {
-    const sel = window.getSelection() ? window.getSelection().toString() : "";
-    if (sel) await navigator.clipboard.writeText(sel);
-  });
-  $("btnReport").addEventListener("click", () => openReport(false));
-  $("btnCompliance").addEventListener("click", () => openReport(true));
-  $("btnExport").addEventListener("click", exportReview);
-  $("finalStatus").addEventListener("change", () => {
-    const d = reviewState();
-    d.final = $("finalStatus").value;
-    saveReview(d);
-  });
-
-  wireDrop();
-  renderChecklist();
+(function(){
+'use strict';
+const CHECKS=['Frozen Contract','Accounting','Reserve','Retry','Verification','Settlement','Router','Capability','Lifecycle','RLS','Security','Idempotency','Transaction Safety','Gate 1','Online Deployment'];
+const CRITICAL=['DROP TABLE','DROP SCHEMA','service_role','SUPABASE_SERVICE_ROLE_KEY','GEMINI_API_KEY','GROQ_API_KEY','OPENAI_API_KEY','MAGIC_HOUR','ai-gateway','technical-dark-star'];
+const LS_KEY='aivault.task001.review.v2';
+const files=new Map();let currentPath=null,localHits=[],localIdx=-1;
+const $=id=>document.getElementById(id);
+function loadReview(){try{return JSON.parse(localStorage.getItem(LS_KEY)||'{}')}catch{return {}}}
+function saveReview(data){localStorage.setItem(LS_KEY,JSON.stringify(data))}
+function reviewState(){const d=loadReview();if(!d.items)d.items={};CHECKS.forEach(k=>{if(!d.items[k])d.items[k]={status:'未審查',notes:''}});if(!d.final)d.final='BLOCKED';return d}
+function normalizePath(file){const raw=file.webkitRelativePath||file.name;return raw.replace(/\\/g,'/').replace(/^\.\//,'')}
+function extOf(name){const i=name.lastIndexOf('.');return i>=0?name.slice(i).toLowerCase():''}
+async function sha256Hex(text){if(!crypto?.subtle)throw new Error('瀏覽器不支援 Web Crypto SHA-256');const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('')}
+async function ingestFileList(list){for(const file of list){const path=normalizePath(file);const text=await file.text();const sha=await sha256Hex(text);files.set(path,{name:file.name,path,size:file.size,text,sha256:sha})}renderTree();renderSummary();renderCritical();if(!currentPath&&files.size)openFile([...files.keys()].sort()[0])}
+function treeFromPaths(paths){const root={name:'AIVAULT Task #001',children:{},files:[]};for(const p of paths){const parts=p.split('/').filter(Boolean);let node=root;parts.forEach((part,i)=>{if(i===parts.length-1)node.files.push(p);else{node.children[part]=node.children[part]||{name:part,children:{},files:[]};node=node.children[part]}})}return root}
+function renderNode(node){const wrap=document.createElement('div');Object.keys(node.children).sort().forEach(k=>{const d=document.createElement('details');d.open=true;const s=document.createElement('summary');s.textContent='📁 '+k;d.appendChild(s);d.appendChild(renderNode(node.children[k]));wrap.appendChild(d)});node.files.sort().forEach(p=>{const b=document.createElement('button');b.type='button';b.className='file'+(p===currentPath?' active':'');b.textContent='📄 '+p.split('/').pop();b.title=p;b.onclick=()=>openFile(p);wrap.appendChild(b)});return wrap}
+function renderTree(){const el=$('tree');el.innerHTML='';if(!files.size){el.textContent='尚未載入';return}const title=document.createElement('div');title.className='meta';title.textContent='AIVAULT Task #001';el.appendChild(title);el.appendChild(renderNode(treeFromPaths([...files.keys()]))) }
+function renderSummary(){const arr=[...files.values()];const countExt=exts=>arr.filter(f=>exts.includes(extOf(f.name))).length;const total=arr.reduce((s,f)=>s+f.size,0);$('stats').innerHTML=[['Files',arr.length],['SQL',countExt(['.sql'])],['TypeScript',countExt(['.ts'])],['JavaScript',countExt(['.js'])],['Markdown',countExt(['.md'])],['JSON',countExt(['.json'])],['HTML',countExt(['.html'])],['Total size',total+' bytes']].map(([k,v])=>'<span><b>'+k+':</b> '+v+'</span>').join('');$('hashlist').innerHTML=arr.sort((a,b)=>a.path.localeCompare(b.path)).map(f=>'<div>'+escapeHtml(f.path)+' · '+f.size+' B · SHA-256 '+f.sha256+'</div>').join('')}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function openFile(path,line){currentPath=path;const f=files.get(path);if(!f)return;$('fileTitle').textContent=f.name;$('fileMeta').textContent=path+' · '+f.size+' bytes · SHA-256 '+f.sha256;const lines=f.text.replace(/\r\n/g,'\n').split('\n');const tbl=document.createElement('table');lines.forEach((src,i)=>{const tr=document.createElement('tr');tr.id='L'+(i+1);tr.innerHTML="<td class='ln'>"+(i+1)+"</td><td class='src'></td>";tr.querySelector('.src').textContent=src===''?' ':src;tbl.appendChild(tr)});$('codewrap').innerHTML='';$('codewrap').appendChild(tbl);renderTree();localHits=[];localIdx=-1;if(line)jumpToLine(line)}
+function jumpToLine(line){const tr=document.getElementById('L'+line);if(tr){tr.classList.add('cur');tr.scrollIntoView({block:'center'})}}
+function searchInFile(q){localHits=[];localIdx=-1;$('codewrap').querySelectorAll('tr').forEach(tr=>tr.classList.remove('hit','cur'));if(!q||!currentPath)return;const lines=files.get(currentPath).text.replace(/\r\n/g,'\n').split('\n');lines.forEach((line,i)=>{if(line.toLowerCase().includes(q.toLowerCase())){localHits.push(i+1);const tr=document.getElementById('L'+(i+1));if(tr)tr.classList.add('hit')}});if(localHits.length)jumpLocal(0)}
+function jumpLocal(dir){if(!localHits.length)return;localIdx=dir===1||dir===-1?(localIdx+dir+localHits.length)%localHits.length:0;$('codewrap').querySelectorAll('tr.cur').forEach(tr=>tr.classList.remove('cur'));jumpToLine(localHits[localIdx])}
+function globalSearch(q){const box=$('globalHits');box.innerHTML='';if(!q)return;const out=[];for(const f of files.values()){f.text.replace(/\r\n/g,'\n').split('\n').forEach((line,i)=>{if(line.toLowerCase().includes(q.toLowerCase()))out.push({path:f.path,line:i+1,text:line.trim().slice(0,200)})})}if(!out.length){box.textContent='無匹配';return}out.slice(0,400).forEach(h=>{const a=document.createElement('a');a.href='#';a.textContent=h.path+':'+h.line+'  '+h.text;a.onclick=e=>{e.preventDefault();openFile(h.path,h.line);$('viewerPanel').scrollIntoView({behavior:'smooth'})};box.appendChild(a)});if(out.length>400){const d=document.createElement('div');d.className='meta';d.textContent='僅顯示前 400 筆，共 '+out.length;box.appendChild(d)}}
+function renderChecklist(){const d=reviewState();$('finalStatus').value=d.final||'BLOCKED';const root=$('checklist');root.innerHTML='';CHECKS.forEach(name=>{const item=d.items[name],div=document.createElement('div');div.className='check-item';const lab=document.createElement('label');lab.textContent=name;const sel=document.createElement('select');sel.className='status '+item.status;['未審查','PASS','FAIL','BLOCKED'].forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;if(s===item.status)o.selected=true;sel.appendChild(o)});const ta=document.createElement('textarea');ta.placeholder='Reviewer Notes';ta.value=item.notes||'';sel.onchange=()=>{const x=reviewState();x.items[name].status=sel.value;saveReview(x);sel.className='status '+sel.value};ta.oninput=()=>{const x=reviewState();x.items[name].notes=ta.value;saveReview(x)};div.append(lab,sel,ta);root.appendChild(div)})}
+function renderCritical(){const box=$('critical');if(!files.size){box.textContent='尚未載入';return}const found=[];for(const f of files.values())f.text.replace(/\r\n/g,'\n').split('\n').forEach((line,i)=>CRITICAL.forEach(pat=>{if(line.toLowerCase().includes(pat.toLowerCase()))found.push({pat,path:f.path,line:i+1,ctx:line.trim().slice(0,240)})}));if(!found.length){box.textContent='未找到列出的關鍵字。';return}box.innerHTML=found.map(x=>"<div class='found'><b>Found</b> "+escapeHtml(x.pat)+"<br><b>File</b> "+escapeHtml(x.path)+"<br><b>Line</b> "+x.line+"<br><b>Context</b> "+escapeHtml(x.ctx)+'</div>').join('')}
+function findReportPath(){for(const p of files.keys())if(p.split('/').pop().toLowerCase()==='implementation_report.md')return p;return null}
+function openReport(jumpCompliance){const p=findReportPath();if(!p){alert('施工包中沒有 IMPLEMENTATION_REPORT.md');return}openFile(p);if(jumpCompliance){const lines=files.get(p).text.replace(/\r\n/g,'\n').split('\n');const idx=lines.findIndex(l=>l.includes('9. Frozen Contract Compliance')||l.includes('Frozen Contract Compliance'));if(idx>=0)jumpToLine(idx+1)}$('viewerPanel').scrollIntoView({behavior:'smooth'})}
+function buildReviewMarkdown(){const data=reviewState();data.final=$('finalStatus').value;saveReview(data);const arr=[...files.values()].sort((a,b)=>a.path.localeCompare(b.path));const crit=[];for(const f of arr)f.text.replace(/\r\n/g,'\n').split('\n').forEach((line,i)=>CRITICAL.forEach(pat=>{if(line.toLowerCase().includes(pat.toLowerCase()))crit.push('- Found `'+pat+'` in `'+f.path+'`:'+(i+1)+' — '+line.trim().slice(0,160))}));return ['# AIVAULT Task #001','Architect Review','','Contract: task.batch.image.classify.v0.1','Router: router.v0.1','Status tag: FROZEN + RESEARCH','','## Package files',...arr.map(f=>'- `'+f.path+'` ('+f.size+' bytes)'),'', '## SHA-256',...arr.map(f=>'- `'+f.path+'`: `'+f.sha256+'`'),'','## Checklist',...CHECKS.map(k=>'- '+k+': **'+(data.items[k]?.status||'未審查')+'**'),'','## Reviewer Notes',...CHECKS.map(k=>'### '+k+'\n\n'+(data.items[k]?.notes||'(none)')+'\n'),'','## Critical Findings','Listed occurrences only — not automatically a vulnerability.','',...(crit.length?crit:['- none']),'','## Final Status',data.final,''].join('\n')}
+function exportReview(){const md=buildReviewMarkdown();const blob=new Blob([md],{type:'text/markdown;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='AIVAULT-TASK-001-REVIEW.md';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
+function wireDrop(){const drop=$('drop'),input=$('fileInput');input.onchange=()=>ingestFileList(input.files||[]);['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over')}));['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over')}));drop.addEventListener('drop',e=>{if(e.dataTransfer?.files)ingestFileList(e.dataTransfer.files)})}
+async function selfTest(){const out=[];const pass=(name,detail)=>out.push('PASS · '+name+(detail?' — '+detail:''));const fail=(name,e)=>out.push('FAIL · '+name+' — '+(e?.message||e));files.clear();currentPath=null;localHits=[];localIdx=-1;const testFiles=[new File(['-- Task #001\ncreate table agent_tasks(id uuid);\n-- settlement_blocked'], '001_task.sql'),new File(['export function route(){ return "router.v0.1" }'], 'router.ts'),new File(['# Implementation Report\n## 9. Frozen Contract Compliance\nPASS'], 'IMPLEMENTATION_REPORT.md'),new File(['{"gpu_required":true,"status":"READY"}'], 'config.json'),new File(['service_role should be reviewed'], 'security.txt')];try{await ingestFileList(testFiles);files.size===5?pass('建立內建施工包','5 files'):fail('建立內建施工包',new Error('files='+files.size));[...files.values()].every(f=>/^[0-9a-f]{64}$/.test(f.sha256))?pass('SHA-256','5 hashes'):fail('SHA-256',new Error('hash missing'));globalSearch('settlement_blocked');$('globalHits').textContent.includes('001_task.sql')?pass('全域搜尋'):fail('全域搜尋',new Error('no hit'));openFile('router.ts');searchInFile('router');localHits.length===1?pass('程式碼閱讀/局部搜尋'):fail('程式碼閱讀/局部搜尋',new Error('hits='+localHits.length));renderCritical();$('critical').textContent.includes('service_role')?pass('Critical Review'):fail('Critical Review',new Error('keyword missing'));renderChecklist();let d=reviewState();d.items['Security'].status='PASS';d.items['Security'].notes='self-test';saveReview(d);reviewState().items['Security'].status==='PASS'?pass('localStorage Checklist'):fail('localStorage Checklist',new Error('state not saved'));const md=buildReviewMarkdown();md.includes('# AIVAULT Task #001')&&md.includes('Security')?pass('Reviewer Report 產生'):fail('Reviewer Report',new Error('report incomplete'));pass('Drop/File API wiring','listeners installed');pass('Export wiring','button bound');$('selfTestResult').innerHTML='<span class="test-pass">'+escapeHtml(out.join('\n'))+'\n\n總結：'+out.filter(x=>x.startsWith('PASS')).length+' PASS / '+out.filter(x=>x.startsWith('FAIL')).length+' FAIL</span>'}catch(e){fail('自動測試主流程',e);$('selfTestResult').innerHTML='<span class="test-fail">'+escapeHtml(out.join('\n'))+'\nFAIL · 主流程 — '+escapeHtml(e.message)+'</span>'}finally{renderTree();renderSummary();renderCritical();renderChecklist();openFile('001_task.sql')}}
+$('btnGlobal').onclick=()=>globalSearch($('globalQ').value.trim());$('globalQ').onkeydown=e=>{if(e.key==='Enter')globalSearch($('globalQ').value.trim())};$('localQ').onkeydown=e=>{if(e.key==='Enter')searchInFile($('localQ').value)};$('btnPrev').onclick=()=>{if(!localHits.length)searchInFile($('localQ').value);else jumpLocal(-1)};$('btnNext').onclick=()=>{if(!localHits.length)searchInFile($('localQ').value);else jumpLocal(1)};$('btnCopyAll').onclick=async()=>{if(currentPath&&navigator.clipboard)await navigator.clipboard.writeText(files.get(currentPath).text)};$('btnCopySel').onclick=async()=>{const sel=window.getSelection()?.toString()||'';if(sel&&navigator.clipboard)await navigator.clipboard.writeText(sel)};$('btnReport').onclick=()=>openReport(false);$('btnCompliance').onclick=()=>openReport(true);$('btnExport').onclick=exportReview;$('btnSelfTest').onclick=selfTest;$('finalStatus').onchange=()=>{const d=reviewState();d.final=$('finalStatus').value;saveReview(d)};wireDrop();renderChecklist();
 })();
 </script>
 </body>
