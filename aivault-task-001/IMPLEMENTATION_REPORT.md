@@ -50,9 +50,9 @@ Edge (additive):
 - aivault-task-verify
 - aivault-task-settle
 
-SQL helper: `aivault_assert_transition`
+SQL helpers: `aivault_assert_transition`, `aivault_reserve_attempt`, `aivault_claim_settlement`
 
-Shared: `_shared/contract.ts`, `_shared/db.ts`, `_shared/router.ts`
+Shared: `_shared/contract.ts`, `_shared/db.ts`, `_shared/router.ts`, `_shared/auth.ts`, `_shared/hash.ts`
 
 Verifier model: `aivault.own.system_model.v0.1` (deterministic hash→label; **no Gemini/Groq/Grok/Magic Hour**)
 
@@ -60,8 +60,11 @@ Verifier model: `aivault.own.system_model.v0.1` (deterministic hash→label; **n
 
 ## 4. SQL Migration
 
-File: `artifacts/aivault-task-001/sql/001_task001_additive.sql`  
-Optional seed: `sql/002_optional_research_provider.sql`
+Files:
+- `sql/001_task001_additive.sql`
+- `sql/003_p0_p1_fixes.sql`
+- `sql/004_p0_p1_hardening.sql`
+- optional `sql/002_optional_research_provider.sql`
 
 ---
 
@@ -85,6 +88,9 @@ Complete `index.ts` under:
 | SUPABASE_URL | Edge runtime | existing |
 | SUPABASE_SERVICE_ROLE_KEY | Edge runtime | existing; never frontend |
 | SUPABASE_ANON_KEY | client public only | not used to write ledger |
+| AIVAULT_INTERNAL_SECRET | Edge secrets only | required by all six functions; never HTML/GitHub |
+| AIVAULT_CAS_BASE_URL | Edge secrets optional | https resolver prefix for aivault-cas:// |
+| AIVAULT_CAS_BUCKET | Edge secrets optional | default `aivault-cas` via Supabase Storage |
 
 No commercial model keys required for Gate 1.
 
@@ -94,14 +100,7 @@ No commercial model keys required for Gate 1.
 
 See `DEPLOY.md`.
 
-```
-supabase functions deploy aivault-task-submit --no-verify-jwt
-supabase functions deploy aivault-task-coordinator --no-verify-jwt
-supabase functions deploy aivault-task-router --no-verify-jwt
-supabase functions deploy aivault-task-result --no-verify-jwt
-supabase functions deploy aivault-task-verify --no-verify-jwt
-supabase functions deploy aivault-task-settle --no-verify-jwt
-```
+JWT verification stays ON. Deploy without `--no-verify-jwt`. All six functions also require `x-aivault-internal`. See `DEPLOY.md`.
 
 ---
 
@@ -109,8 +108,8 @@ supabase functions deploy aivault-task-settle --no-verify-jwt
 
 | test | expected | actual |
 |---|---|---|
-| contract reject bad hash | 400 content_hash_invalid | PASS local unit (`tests/contract_unit_test.ts`) |
-| unsorted labels | reject, no silent sort | PASS local unit |
+| contract reject bad hash | 400 content_hash_invalid | local unit (`tests/contract_unit_test.ts`) |
+| unsorted labels | reject, no silent sort | local unit |
 | client task_id | reject | implemented in submit; online not run here |
 | unmatched | unmatched_no_provider | implemented; online not run |
 | happy path | settle → capability_updated → closed | implemented; online not run |
@@ -118,8 +117,8 @@ supabase functions deploy aivault-task-settle --no-verify-jwt
 | verification failure | failed + accounting of verify units | implemented; online not run |
 | settlement | only verified_passed; research currency 0 | implemented; online not run |
 | retry | max 3; re-reserve; different provider | implemented; online not run |
-| budget block 20/200 | second attempt not created | PASS local arithmetic unit; online not run |
-| external API off | own verifier still runs | verifier has zero external fetch |
+| budget block 20/200 | second attempt not created | local arithmetic unit; online not run |
+| commercial AI API off | own verifier still runs | label model is local; image fetch is https/CAS only |
 | event replay | task_events append-only | schema + emitEvent on transitions |
 
 Online Actual column is **NOT RUN** in this sandbox (no project URL). Mark online suite **BLOCKED** until deploy + curl against live project.
@@ -128,23 +127,20 @@ Online Actual column is **NOT RUN** in this sandbox (no project URL). Mark onlin
 
 ## 9. Frozen Contract Compliance
 
-| item | verdict |
+| item | implementer note (Architect decides) |
 |---|---|
-| accounting remaining=max-spent-reserved | PASS (generated column + ledger snapshots) |
-| reserve before attempt | PASS (coordinator checks need_exec+need_verify <= remaining then insert attempt) |
-| retry max 3 / no budget increase | PASS |
-| verification resample/dual_model only; own weights | PASS (mode enum; ownWeightClassify) |
-| settlement only verified_passed; failed provider 0; verifier still paid | PASS (settle 409 otherwise; verify units spent even on fail) |
-| router weights 0.5/0.3/0.2; single provider; reject order | PASS (order encoded in rejectReason) |
-| capability id provider:task:contract deterministic | PASS (CHECK constraint) |
-| lifecycle + events + guard table | PASS |
-| RLS enabled, no anon write | PASS |
-| security no service role in frontend | PASS (not added to any HTML) |
-| Gate 1 external APIs off | PASS design (no fetch to commercial APIs in verify) |
-| Gate 2/3/4 live evidence | FAIL / not executed |
-| no fake GPU/TOPS/provider results auto-generated | PASS (unmatched if none online) |
-| did not touch Gateway / Dark Star | PASS |
-| did not create Task #002 | PASS |
+| accounting remaining=max-spent-reserved | generated column + CHECK spent+reserved<=max |
+| reserve before attempt | RPC `aivault_reserve_attempt` FOR UPDATE; no attempt row if reserve fails |
+| retry max 3 / no budget increase | max_attempts CHECK = 3; budget not increased on retry |
+| verification_level | capability CHECK resample / dual_model / human |
+| settlement idempotency | UNIQUE(task_id,attempt) + `aivault_claim_settlement` |
+| content hash | fetch image bytes then SHA-256 vs task.content_hash |
+| auth | `x-aivault-internal` on all six functions; secret in Edge env only |
+| payer_id | nonempty required; rejected_invalid_contract if missing |
+| latency_budget_ms | required 1..86400000; deadline_at = created + latency |
+| router weights 0.5/0.3/0.2 | encoded in `_shared/router.ts` |
+| Gate 2/3/4 live evidence | not executed |
+| did not touch Gateway / Dark Star / Task #002 | not touched |
 
 ---
 
@@ -154,11 +150,11 @@ Online Actual column is **NOT RUN** in this sandbox (no project URL). Mark onlin
 2. **BLOCKED: functions not deployed** from this environment (no supabase link).
 3. **BLOCKED: online integration tests not executed.** Local unit tests only cover contract math + validation.
 4. Coordinator imports router helper; heartbeat 60s will unmatched any stale seed row.
-5. `--no-verify-jwt` means anyone who can hit the URL can call functions unless extra gateway auth is added. Reviewer should require a shared function secret header.
-6. Own verifier is deterministic hash modulo labels — sufficient for Gate 1 lifecycle, **not** a real image model. Do not advertise it as phone-NPU proof.
-7. `require_different_provider` currently excludes every prior provider on the task (including success). Fine for retry-after-fail; if a task is re-coordinated after success it would exclude. Lifecycle closes after settle so OK.
-8. Verification samples first N items, not random. Frozen spec did not mandate RNG; Reviewer may want hash-based sample indices.
-9. Provider result ingestion does not fetch image bytes from `image_uri` (CAS/https). Hash integrity uses submitted item hash + optional result hash field. Full byte fetch would need storage access not in this additive module.
-10. Capability CHECK assumes `contract_versions[1]` is the v0.1 string used in id. Insert must put v0.1 first.
+5. Own verifier is deterministic hash modulo labels — lifecycle only, not a real image model. Do not advertise it as phone-NPU proof.
+6. `require_different_provider` excludes every prior provider on the task.
+7. Verification samples first N items, not random.
+8. Image byte fetch for hash requires reachable `https://` or configured CAS. Fetch failure is hash mismatch / verified_failed.
+9. Capability CHECK assumes `contract_versions[1]` is the v0.1 string used in id.
+10. Concurrent reserve / double-settle arguments are by SQL construction. Online race tests are BLOCKED (no live project).
 
 Hand-off to Architect / Reviewer / Gatekeeper with this report + SQL + functions.
