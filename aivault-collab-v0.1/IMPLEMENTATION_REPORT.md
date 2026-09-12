@@ -1,117 +1,69 @@
-# AIVAULT Multi-Agent Collaboration Pool v0.1 — Implementation Report
+# AIVAULT Collaboration Pool v0.1.1 — Implementation Report
 
-Implementer / Builder output. Additive module only.
+Additive Collaboration Engine data layer. Not Production.
 
-Did not modify: AI Gateway, Technical Dark Star, Task #001 Frozen Contract, Compute Mesh core, existing HTML pages.
+Did not modify: AI Gateway, Technical Dark Star core, Task #001 Frozen Contract, Compute Mesh core, existing verified HTML pages.
 
 Repo: `m9wmtcb782-arch/AIVAULT`
-No production deploy.
 
----
+## 1. Files
 
-## 1. Files added
+- `aivault-agent-collaboration.html` — v0.1.1 badges + connection panel + learning fields
+- `aivault-collab-v0.1/collab-app.js` — runtime rewrite: syntax-safe, Supabase REST CRUD
+- `aivault-collab-v0.1/sql/005_agent_collaboration.sql` — new additive engine tables
+- `aivault-collab-v0.1/IMPLEMENTATION_REPORT.md` — this report
 
-| path | purpose |
-|---|---|
-| `aivault-agent-collaboration.html` | Offline collaboration workspace UI |
-| `aivault-collab-v0.1/sql/001_collab_additive.sql` | Additive Postgres schema + honest Task #001 seed |
-| `aivault-collab-v0.1/IMPLEMENTATION_REPORT.md` | This report |
+`sql/001_collab_additive.sql` left in place. Task #001 SQL not edited.
 
-No existing page rewritten or deleted.
+## 2. New SQL
 
----
+`aivault-collab-v0.1/sql/005_agent_collaboration.sql`
 
-## 2. Data model
+Tables: agent_registry, agent_tasks, agent_task_members, agent_messages, agent_reviews, agent_actions, agent_code_refs, agent_test_results, agent_decisions, agent_learning_candidates, agent_task_gates.
 
-Tables (all `IF NOT EXISTS`):
+RLS on. Policies: authenticated ALL. Anon denied. Service role not used by the page.
 
-- `aivault_agent_registry`
-- `aivault_agent_tasks` (parent_task_id = subtask link)
-- `aivault_agent_task_members`
-- `aivault_agent_messages`
-- `aivault_agent_reviews`
-- `aivault_agent_actions`
-- `aivault_agent_code_refs`
-- `aivault_agent_test_results`
-- `aivault_agent_decisions`
-- `aivault_agent_learning_candidates`
-- `aivault_agent_task_gates`
+Apply on Owner-designated TEST project only.
 
-Enums created with `duplicate_object` guards.
+## 3. Connected vs not connected
 
-RLS enabled on all new tables. v0.1 adds **no** anon/authenticated policies, so public roles cannot read or write. Service role bypasses RLS and must stay server-side.
+Real in this commit:
 
----
+- JS parses and boots with 0 SyntaxError (node --check + mock DOM boot)
+- UI surfaces CONNECTED / WAITING / NOT CONNECTED
+- Persistence path is PostgREST INSERT / SELECT / UPDATE
+- Agent Registry is a table, not a hardcoded-only list
+- Review workflow rows: requested to pass / need_fix / reject
+- Learning Candidate fields exist; promoted stays false
+- Owner-only controls refuse Agent identity
+- Task #001 labeled WAITING FOR LIVE EXECUTION
+- No Gemini / Grok / ChatGPT API calls
+- No service_role in HTML/JS
 
-## 3. What is real vs stub
+Not connected in this environment:
 
-### Real (local)
+- SQL 005 not applied (no service-role / CLI here)
+- Live REST against existing public project returns table-not-found (PGRST205)
+- Tests B-F against live DB are BLOCKED until Owner applies 005 on a TEST project and connects
+- No live Agent execution
+- Production not deployed
 
-- Task list, Agent Registry (seed + Owner-addable)
-- Conversation pool persistence in `localStorage` key `aivault.collab.v0.1`
-- Message types, @role / @name parse, reply_to
-- Code / commit links to real GitHub paths on `3892d482549357083ef811ad1baa26c36d7d4556`
-- Review request → PASS / NEED FIX / REJECT recorded locally
-- Subtask create + parent link
-- Gate display mapped from Task #001 report (not invented PASS)
-- Owner controls recorded as OWNER messages + decisions
-- Learning Candidate flag (`promoted = false` always in v0.1)
-- Responsive 3-pane / mobile tabs
-- JSON export / local reset
+localStorage is not the data store. sessionStorage only keeps the Owner-pasted connection target for the tab. Same-origin authenticated session can be reused. Keys are not committed in this module.
 
-### Stub / NOT CONNECTED
+## 4. Tests
 
-- No Supabase client
-- No live agent model calls (ChatGPT / Grok / Gemini / Dark Star / Auditor)
-- Owner “代記為 Agent” is `OWNER_PROXY / DEMO / NOT CONNECTED`
-- SQL migration **not applied** to any project from this environment
-- Production approve records intent only; gate stays BLOCKED; no deploy
-- Learning candidates are never promoted into Dark Star
+- A JS 0 SyntaxError / mock boot: PASS
+- B create Task + reload: BLOCKED pending SQL apply + connected session
+- C create Message + reload: BLOCKED pending SQL apply + connected session
+- D create Review + reload: BLOCKED pending SQL apply + connected session
+- E create Learning Candidate + reload: BLOCKED pending SQL apply + connected session
+- F create Subtask + reload: BLOCKED pending SQL apply + connected session
+- G no fake completion / commit / test PASS / agent reply: PASS
 
-### Intentionally empty
+## 5. Known issues
 
-- `aivault_agent_messages` seed = none
-- UI conversation pool starts empty
-- No fake Agent dialogue, fake commits, or fake test PASS
+1. Until 005 is applied and an authenticated TEST session is used, the page stays NOT CONNECTED and write buttons refuse.
+2. Anon key alone is not enough after RLS (authenticated policy only).
+3. Collaboration Engine data model is ready; runtime Agent execution is not.
 
----
-
-## 4. Task #001 used as reference only
-
-Seeded as `task-001` with status `blocked`, current gate `gate2`.
-
-Honest gates:
-
-| key | state |
-|---|---|
-| contract / coordinator / router / reserve / settlement / gate1 | waiting |
-| execution / verification / gate3 | not_started |
-| gate2 / production | blocked |
-
-Planned subtasks (draft, not executed):
-
-- `task-001-A` Concurrent Reserve Test → Grok
-- `task-001-B` Timeout Release Test → Dark Star
-- `task-001-C` Security Review → Auditor
-
-Seeded test row: `online_integration = BLOCKED` (submit function 404). Frozen contract files not edited.
-
----
-
-## 5. Security
-
-No API keys, service role, passwords, or internal secrets in HTML, JS, SQL, or this report.
-
-Owner-only actions cannot be self-approved by an Agent identity. Production confirm path does not flip Production to PASS.
-
----
-
-## 6. Online tests
-
-**BLOCKED.** Same environment limits as Task #001 report: no Supabase CLI, no service-role, no Owner-designated test project. Collaboration SQL was not applied. Do not treat this module as online-ready.
-
----
-
-## 7. Architect review wait
-
-Builder complete for v0.1 local module. Waiting Owner + Architect / Gatekeeper review. Do not deploy.
+READY FOR ARCHITECT REVIEW. Do not treat as PASS / Production.

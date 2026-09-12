@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>AIVAULT — Multi-Agent Collaboration Pool v0.1</title>
+<title>AIVAULT — Multi-Agent Collaboration Pool v0.1.1</title>
 <style>
 :root {
   --bg:#070b12; --panel:#101826; --panel2:#162033; --line:#2a3b52;
@@ -67,13 +67,12 @@ textarea { min-height:88px; resize:vertical; }
 </head>
 <body>
 <header class="app">
-  <h1>AIVAULT Collaboration Pool v0.1</h1>
-  <div class="sub">AI 團隊工作空間 · Additive Module · 非一對一聊天室 · Agent Registry 可擴充</div>
-  <div class="badges">
-    <span class="badge">LOCAL STORE</span>
-    <span class="badge warn">NOT CONNECTED TO SUPABASE</span>
+  <h1>AIVAULT Collaboration Pool v0.1.1</h1>
+  <div class="sub">AI 團隊工作空間 · Collaboration Engine data layer · 非一對一聊天室 · Agent Registry 可擴充</div>
+  <div class="badges" id="connBadges">
+    <span class="badge warn" id="badgeConn">NOT CONNECTED</span>
     <span class="badge warn">NO AUTO AGENT CALLS</span>
-    <span class="badge warn">DEMO / OWNER PROXY ONLY</span>
+    <span class="badge warn">NO FAKE AGENT COMPLETION</span>
     <span class="badge">NO PRODUCTION DEPLOY</span>
   </div>
 </header>
@@ -92,7 +91,7 @@ textarea { min-height:88px; resize:vertical; }
     <h2>B. Agent Status</h2>
     <div id="agentList"></div>
     <div class="card">
-      <div class="muted">新增 Agent（寫入本機 Registry，不呼叫外部模型）</div>
+      <div class="muted">新增 Agent（寫入 Agent Registry，不呼叫外部模型）</div>
       <input id="newAgentId" placeholder="agent_id 例如 claude">
       <input id="newAgentName" placeholder="display_name">
       <input id="newAgentRole" placeholder="role 例如 researcher">
@@ -118,6 +117,9 @@ textarea { min-height:88px; resize:vertical; }
       <input id="codePath" placeholder="Code path 選填，例如 aivault-task-001/sql/001_task001_additive.sql">
       <input id="codeSha" placeholder="Commit SHA 選填（真實 SHA，不要填假的）">
       <label class="muted"><input type="checkbox" id="asLearning"> 標記 LEARNING_CANDIDATE（不會自動升級為 Dark Star 能力）</label>
+      <input id="learnProblem" placeholder="problem（選填）">
+      <input id="learnProposal" placeholder="proposals（選填）">
+      <input id="learnReason" placeholder="reason / chosen_solution（選填）">
       <div class="btn-row">
         <button class="btn primary" id="btnSend" type="button">送出</button>
         <button class="btn" id="btnReviewReq" type="button">建立 Review Request</button>
@@ -137,6 +139,17 @@ textarea { min-height:88px; resize:vertical; }
     <div id="reviews"></div>
     <h2>Tests</h2>
     <div id="tests"></div>
+    <h2>Supabase 連線</h2>
+    <div class="card">
+      <div class="muted">不把金鑰寫進 repo。貼上 TEST project URL + anon key，或沿用同網域已登入 session。Service role 禁止。</div>
+      <input id="sbUrl" placeholder="https://xxxx.supabase.co">
+      <input id="sbKey" placeholder="anon key（不要貼 service_role）" type="password" autocomplete="off">
+      <div class="btn-row">
+        <button class="btn primary" id="btnConnect" type="button">連線並載入</button>
+        <button class="btn" id="btnReloadDb" type="button">從資料庫重新載入</button>
+      </div>
+      <div class="muted" id="connNote">WAITING FOR DATABASE CONNECTION</div>
+    </div>
     <h2>Owner 控制</h2>
     <div class="btn-row">
       <button class="btn" data-own="start">開始工作</button>
@@ -150,10 +163,9 @@ textarea { min-height:88px; resize:vertical; }
     <div class="muted">Production / Frozen Contract / 重大架構變更：僅 Owner。本頁不部署、不呼叫 Gateway、不改 Dark Star。</div>
     <h2>Learning Candidates</h2>
     <div id="learn"></div>
-    <h2>本機資料</h2>
+    <h2>資料</h2>
     <div class="btn-row">
       <button class="btn" id="btnExport" type="button">匯出 JSON</button>
-      <button class="btn danger" id="btnReset" type="button">重置本機庫</button>
     </div>
   </aside>
 </div>
