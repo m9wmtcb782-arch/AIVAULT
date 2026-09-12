@@ -17,6 +17,16 @@ Deno.serve(async (req) => {
     const closed = await transition(sb, taskId, "settlement_blocked", "closed", "settle", "blocked_close");
     return json({ ok: true, task: closed, settled: false });
   }
+  if (task.state === "settled" || task.state === "capability_updated" || task.state === "closed") {
+    const { data: existing } = await sb
+      .from("aivault_task_settlements")
+      .select("*")
+      .eq("task_id", taskId)
+      .eq("attempt", task.attempt_count)
+      .maybeSingle();
+    if (existing) return json({ ok: true, duplicate: true, settlement: existing, task });
+    return json({ error: "settlement_only_on_verified_passed", state: task.state }, 409);
+  }
   if (task.state !== "verified_passed") {
     return json({ error: "settlement_only_on_verified_passed", state: task.state }, 409);
   }
@@ -60,7 +70,8 @@ Deno.serve(async (req) => {
     return json({ ok: true, duplicate: true, settlement: claim.settlement, task });
   }
 
-  let next = await transition(sb, taskId, "verified_passed", "settled", "settle", "settled", task.attempt_count);
+  const { data: settledRow } = await sb.from("aivault_tasks").select("*").eq("task_id", taskId).single();
+  let next = settledRow ?? task;
   await snapshotLedger(sb, next, "settled", task.attempt_count);
 
   if (result?.provider_id) {

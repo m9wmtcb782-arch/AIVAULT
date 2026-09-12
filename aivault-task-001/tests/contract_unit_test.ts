@@ -99,10 +99,14 @@ Deno.test("payer_id nonempty required", () => {
 });
 
 Deno.test("recompute hash of known bytes", async () => {
+  const { sha256Bytes, parseCas } = await import("../supabase/functions/_shared/hash.ts");
   const bytes = new TextEncoder().encode("aivault-task001-hash-fixture");
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
-  assert(hex.length === 64, "sha256 hex length");
+  const digest = await sha256Bytes(bytes);
+  assert(digest.startsWith("sha256:") && digest.length === 71, "sha256 prefix+hex");
+  const cas = parseCas("aivault-cas://bucket/path/img.jpg");
+  assert(cas && cas.bucket === "bucket" && cas.key === "path/img.jpg", "cas resolver");
+  const httpsRejected = parseCas("https://example.com/a.jpg");
+  assert(httpsRejected === null, "https is not cas");
 });
 
 Deno.test("verification_level frozen set", () => {

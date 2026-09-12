@@ -46,8 +46,11 @@ Deno.serve(async (req) => {
     let recomputed = "";
     let hashMatch = false;
     try {
+      // Integrity = fetch bytes from image_uri (https:// or aivault-cas://) then SHA-256.
+      // Compare to the task item content_hash. Provider-reported hash is never trusted.
+      // Fetch failure or missing hash => mismatch => verified_failed path.
       recomputed = await recomputeContentHash(it.image_uri);
-      hashMatch = recomputed === it.content_hash;
+      hashMatch = Boolean(it.content_hash) && recomputed === it.content_hash;
     } catch (e) {
       hashMatch = false;
       details.push({ item_id: it.item_id, hash_error: String(e) });
