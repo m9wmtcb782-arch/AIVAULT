@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>AIVAULT — Multi-Agent Collaboration Pool v0.1.1</title>
+<title>AIVAULT — Multi-Agent Collaboration Pool v0.2</title>
 <style>
 :root {
   --bg:#070b12; --panel:#101826; --panel2:#162033; --line:#2a3b52;
@@ -40,7 +40,7 @@ h2 { font-size:.92rem; margin:8px 0; color:#c5d6ea; }
 .msg { background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:10px; margin:0 0 8px; }
 .msg .meta { font-size:12px; color:var(--muted); margin-bottom:6px; }
 .tag { display:inline-block; font-size:10px; letter-spacing:.04em; padding:2px 6px; border-radius:6px; margin-right:4px; border:1px solid var(--line); }
-.tag.REVIEW,.tag.WARNING { color:var(--wait); }
+.tag.REVIEW,.tag.WARNING,.tag.REVIEW_REQUEST { color:var(--wait); }
 .tag.PASS,.tag.TEST { color:var(--ok); }
 .tag.FAIL,.tag.GATE { color:var(--fail); }
 .tag.OWNER,.tag.DECISION { color:var(--owner); }
@@ -67,10 +67,10 @@ textarea { min-height:88px; resize:vertical; }
 </head>
 <body>
 <header class="app">
-  <h1>AIVAULT Collaboration Pool v0.1.1</h1>
-  <div class="sub">AI 團隊工作空間 · Collaboration Engine data layer · 非一對一聊天室 · Agent Registry 可擴充</div>
+  <h1>AIVAULT Collaboration Pool v0.2</h1>
+  <div class="sub">AI 團隊工作現場 · Task / Message / Action / Review / Test / Decision / Event / Gate · 非聊天室 · Agent Registry 可擴充</div>
   <div class="badges" id="connBadges">
-    <span class="badge warn" id="badgeConn">NOT CONNECTED</span>
+    <span class="badge warn" id="badgeConn">LOCAL DEMO / SUPABASE NOT CONNECTED</span>
     <span class="badge warn">NO AUTO AGENT CALLS</span>
     <span class="badge warn">NO FAKE AGENT COMPLETION</span>
     <span class="badge">NO PRODUCTION DEPLOY</span>
@@ -95,25 +95,25 @@ textarea { min-height:88px; resize:vertical; }
       <input id="newAgentId" placeholder="agent_id 例如 claude">
       <input id="newAgentName" placeholder="display_name">
       <input id="newAgentRole" placeholder="role 例如 researcher">
-      <input id="newAgentCap" placeholder="capability">
+      <input id="newAgentCap" placeholder="capability / abilities">
       <button class="btn" id="btnAddAgent" type="button">加入 Registry</button>
     </div>
   </aside>
   <main class="col mid" id="pane-mid">
     <h2>C. Agent Conversation Pool</h2>
-    <div class="muted" id="poolMeta">選擇任務後顯示協作訊息。不會自動產生假對話。</div>
+    <div class="muted" id="poolMeta">選擇任務後顯示協作紀錄。不會自動產生假對話。</div>
     <div class="btn-row">
       <select id="filterType"><option value="">全部類型</option></select>
     </div>
     <div class="pool" id="pool"></div>
     <div class="card">
-      <div class="muted">發佈訊息（預設 sender = Owner）。若選 Agent，標記 OWNER_PROXY / DEMO / NOT CONNECTED。</div>
+      <div class="muted">發佈工作紀錄（預設 sender = Owner）。若選 Agent，標記 OWNER_PROXY / DEMO / NOT CONNECTED。</div>
       <select id="msgType"></select>
       <select id="msgTo"></select>
       <select id="msgAs"></select>
       <input id="replyTo" placeholder="reply_to message_id（選填）">
       <div class="chips" id="mentionChips"></div>
-      <textarea id="msgBody" placeholder="@Architect 請 Review Reserve RPC。"></textarea>
+      <textarea id="msgBody" placeholder="@ChatGPT 請 Review reserve RPC"></textarea>
       <input id="codePath" placeholder="Code path 選填，例如 aivault-task-001/sql/001_task001_additive.sql">
       <input id="codeSha" placeholder="Commit SHA 選填（真實 SHA，不要填假的）">
       <label class="muted"><input type="checkbox" id="asLearning"> 標記 LEARNING_CANDIDATE（不會自動升級為 Dark Star 能力）</label>
@@ -125,11 +125,12 @@ textarea { min-height:88px; resize:vertical; }
         <button class="btn" id="btnReviewReq" type="button">建立 Review Request</button>
         <button class="btn" id="btnSubtask" type="button">建立 Subtask</button>
         <button class="btn" id="btnTest" type="button">記錄 Test Result</button>
+        <button class="btn" id="btnDecision" type="button">建立 Decision</button>
       </div>
     </div>
   </main>
   <aside class="col" id="pane-right">
-    <h2>Task State</h2>
+    <h2>Task State / Gates</h2>
     <div id="gates"></div>
     <h2>Subtasks</h2>
     <div id="subs"></div>
@@ -139,14 +140,18 @@ textarea { min-height:88px; resize:vertical; }
     <div id="reviews"></div>
     <h2>Tests</h2>
     <div id="tests"></div>
+    <h2>Actions</h2>
+    <div id="actions"></div>
+    <h2>Events</h2>
+    <div id="events"></div>
     <h2>Supabase 連線</h2>
     <div class="card">
-      <div class="muted">不把金鑰寫進 repo。貼上 TEST project URL + anon key，或沿用同網域已登入 session。Service role 禁止。</div>
+      <div class="muted">不把金鑰寫進 repo / localStorage。貼上 TEST project URL + anon key 只留在記憶體。Service role 禁止。</div>
       <input id="sbUrl" placeholder="https://xxxx.supabase.co">
       <input id="sbKey" placeholder="anon key（不要貼 service_role）" type="password" autocomplete="off">
       <div class="btn-row">
         <button class="btn primary" id="btnConnect" type="button">連線並載入</button>
-        <button class="btn" id="btnReloadDb" type="button">從資料庫重新載入</button>
+        <button class="btn" id="btnReloadDb" type="button">從本機 Store 重新載入</button>
       </div>
       <div class="muted" id="connNote">WAITING FOR DATABASE CONNECTION</div>
     </div>
@@ -154,6 +159,7 @@ textarea { min-height:88px; resize:vertical; }
     <div class="btn-row">
       <button class="btn" data-own="start">開始工作</button>
       <button class="btn" data-own="pause">暫停協作</button>
+      <button class="btn" data-own="resume">恢復</button>
       <button class="btn" data-own="rereview">要求重新 Review</button>
       <button class="btn" data-own="approve_change">批准修改</button>
       <button class="btn danger" data-own="reject">拒絕方案</button>
@@ -169,6 +175,6 @@ textarea { min-height:88px; resize:vertical; }
     </div>
   </aside>
 </div>
-<script src="aivault-collab-v0.1/collab-app.js"></script>
+<script src="aivault-collab-v0.2/app.js"></script>
 </body>
 </html>
