@@ -1,0 +1,66 @@
+name: AIVAULT Light Theme
+
+on:
+  push:
+    branches:
+      - feat/aivault-light-theme
+
+permissions:
+  contents: write
+
+jobs:
+  apply-light-theme:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply white background theme
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('aivault-home.html')
+          s = p.read_text(encoding='utf-8')
+          marker = '</style>'
+          css = r'''
+
+    /* AIVAULT Light Theme — visual-only override */
+    :root { --bg:#ffffff; --card:#ffffff; --card-hover:#f8fafc; --border:#e2e8f0; --text:#0f172a; --text-muted:#64748b; }
+    body { background:#ffffff !important; color:#0f172a !important; }
+    .header { background:rgba(255,255,255,.94) !important; border-bottom-color:#e2e8f0 !important; }
+    .tabs { background:#ffffff !important; border-bottom-color:#e2e8f0 !important; }
+    .gear-btn { background:#f8fafc !important; color:#334155 !important; border-color:#e2e8f0 !important; }
+    .account-panel { background:#ffffff !important; border-color:#e2e8f0 !important; color:#0f172a !important; }
+    .account-panel input { background:#ffffff !important; color:#0f172a !important; border-color:#cbd5e1 !important; }
+    .agent-card,.task-item,.chat-container,.workflow,.registry-item,.room-ask { background:#ffffff !important; border-color:#e2e8f0 !important; color:#0f172a !important; }
+    .agent-card:hover { background:#f8fafc !important; }
+    .msg.agent .msg-bubble { background:#f1f5f9 !important; color:#0f172a !important; }
+    .chat-input,.room-ask textarea { background:#ffffff !important; color:#0f172a !important; border-color:#cbd5e1 !important; }
+    .agent-pick-bar { background:#ffffff !important; }
+    .agent-chip { background:#f8fafc !important; color:#64748b !important; border-color:#cbd5e1 !important; }
+    .agent-chip.selected { background:#eff6ff !important; color:#2563eb !important; }
+    .workflow-step:not(:last-child)::after { background:#e2e8f0 !important; }
+    .step-num { background:#e2e8f0 !important; color:#334155 !important; }
+    .demo-note { border-top-color:#e2e8f0 !important; }
+    .toast { background:#ffffff !important; color:#0f172a !important; border-color:#cbd5e1 !important; box-shadow:0 8px 30px rgba(15,23,42,.12); }
+    #proposalLibraryOverlay,#proposalOverlay,#roomOverlay { background:#ffffff !important; }
+    .proposal-bar,.room-bar { background:rgba(255,255,255,.96) !important; border-bottom-color:#e2e8f0 !important; color:#0f172a !important; }
+    .stat-card,.chart-card,.proposal-doc,.library-item { background:#ffffff !important; border-color:#e2e8f0 !important; color:#0f172a !important; }
+    .chart-card canvas { background:#f8fafc !important; }
+    .book-chip { background:#f8fafc !important; color:#64748b !important; border-color:#cbd5e1 !important; }
+    .studio { background:radial-gradient(circle at 15% 20%,#dbeafe 0%,transparent 40%),radial-gradient(circle at 90% 10%,#dcfce7 0%,transparent 35%),#ffffff !important; border-color:#e2e8f0 !important; }
+    .anchor { background:rgba(248,250,252,.95) !important; border-color:#e2e8f0 !important; }
+    .approval-card { background:linear-gradient(135deg,#ffffff,#f5f3ff) !important; border-color:#c4b5fd !important; color:#0f172a !important; }
+'''
+          if '/* AIVAULT Light Theme — visual-only override */' not in s:
+              s = s.replace(marker, css + '\n  ' + marker, 1)
+          s = s.replace('<meta name="theme-color" content="#0f172a" />', '<meta name="theme-color" content="#ffffff" />')
+          s = s.replace('<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />', '<meta name="apple-mobile-web-app-status-bar-style" content="default" />')
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit
+        run: |
+          git config user.name "AIVAULT Light Theme Bot"
+          git config user.email "actions@github.com"
+          git add aivault-home.html
+          git commit -m "style: switch AIVAULT home to light theme" || exit 0
+          git push
