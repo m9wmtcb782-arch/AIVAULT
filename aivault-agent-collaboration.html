@@ -3,179 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>AIVAULT — Multi-Agent Collaboration Pool v0.2</title>
+<title>AIVAULT — Multi-Agent Collaboration Pool v0.3</title>
 <style>
-:root {
-  --bg:#070b12; --panel:#101826; --panel2:#162033; --line:#2a3b52;
-  --text:#e8f0fa; --muted:#8aa0b8; --accent:#5ec8ff; --ok:#3dcc8a;
-  --wait:#e0b14a; --fail:#e85d5d; --owner:#c9a227;
-}
-* { box-sizing:border-box; }
-html,body { margin:0; background:var(--bg); color:var(--text); font-family:ui-sans-serif,system-ui,"Noto Sans TC",sans-serif; }
-header.app { padding:14px 16px; border-bottom:1px solid var(--line); background:#0c1420; }
-header.app h1 { margin:0; font-size:1.15rem; letter-spacing:.04em; }
-.sub { color:var(--muted); font-size:.86rem; margin-top:4px; }
-.badges { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
-.badge { font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
-.badge.warn { color:var(--wait); border-color:#7a5a18; }
-.layout { display:grid; grid-template-columns:280px 1fr 300px; min-height:calc(100vh - 108px); }
-@media (max-width:980px) {
-  .layout { grid-template-columns:1fr; }
-  .col { border-right:0 !important; border-bottom:1px solid var(--line); }
-  .tabs { display:flex; }
-}
-.tabs { display:none; gap:6px; padding:8px 10px; background:#0c1420; }
-.tabs button { flex:1; background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:8px; }
-.col { overflow:auto; padding:10px; }
-.col.mid { border-left:1px solid var(--line); border-right:1px solid var(--line); }
-h2 { font-size:.92rem; margin:8px 0; color:#c5d6ea; }
-.card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px; margin:0 0 8px; }
-.card.active { outline:1px solid var(--accent); }
-.row { display:flex; justify-content:space-between; gap:8px; align-items:center; }
-.muted { color:var(--muted); font-size:12px; }
-.name { font-weight:700; }
-.status { font-size:11px; }
-.ok { color:var(--ok); } .wait { color:var(--wait); } .fail { color:var(--fail); } .idle { color:var(--muted); }
-.pool { min-height:36vh; }
-.msg { background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:10px; margin:0 0 8px; }
-.msg .meta { font-size:12px; color:var(--muted); margin-bottom:6px; }
-.tag { display:inline-block; font-size:10px; letter-spacing:.04em; padding:2px 6px; border-radius:6px; margin-right:4px; border:1px solid var(--line); }
-.tag.REVIEW,.tag.WARNING,.tag.REVIEW_REQUEST { color:var(--wait); }
-.tag.PASS,.tag.TEST { color:var(--ok); }
-.tag.FAIL,.tag.GATE { color:var(--fail); }
-.tag.OWNER,.tag.DECISION { color:var(--owner); }
-.tag.CODE,.tag.FIX { color:var(--accent); }
-.empty { padding:24px; text-align:center; color:var(--muted); border:1px dashed var(--line); border-radius:12px; }
-textarea, input, select {
-  width:100%; background:#0b1220; color:var(--text); border:1px solid var(--line);
-  border-radius:8px; padding:8px; margin:4px 0; font:inherit;
-}
-textarea { min-height:88px; resize:vertical; }
-.btn { appearance:none; border:1px solid var(--line); background:var(--panel2); color:var(--text); border-radius:8px; padding:8px 10px; cursor:pointer; font-size:13px; }
-.btn.primary { background:#16324a; border-color:#2d7ab8; }
-.btn.danger { border-color:#7a2e2e; color:#ffb4b4; }
-.btn-row { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0; }
-.gate { display:flex; justify-content:space-between; font-size:13px; padding:5px 0; border-bottom:1px solid var(--line); }
-.links a { color:var(--accent); font-size:12px; margin-right:8px; }
-.proxy { font-size:11px; color:var(--wait); }
-.dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
-.mention { color:var(--accent); }
-.chips { display:flex; flex-wrap:wrap; gap:4px; margin:4px 0; }
-.chip { font-size:11px; border:1px solid var(--line); border-radius:999px; padding:3px 8px; cursor:pointer; background:#0b1220; color:var(--text); }
-.tree { font-size:13px; line-height:1.45; }
+:root{--bg:#070b12;--panel:#101826;--panel2:#162033;--line:#2a3b52;--text:#e8f0fa;--muted:#8aa0b8;--accent:#5ec8ff;--ok:#3dcc8a;--wait:#e0b14a;--fail:#e85d5d;--owner:#c9a227}*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,"Noto Sans TC",sans-serif}header.app{padding:14px 16px;border-bottom:1px solid var(--line);background:#0c1420}header.app h1{margin:0;font-size:1.15rem;letter-spacing:.04em}.sub{color:var(--muted);font-size:.86rem;margin-top:4px}.badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.badge{font-size:11px;padding:3px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}.badge.warn{color:var(--wait);border-color:#7a5a18}.layout{display:grid;grid-template-columns:280px 1fr 300px;min-height:calc(100vh - 108px)}@media(max-width:980px){.layout{grid-template-columns:1fr}.col{border-right:0!important;border-bottom:1px solid var(--line)}.tabs{display:flex}}.tabs{display:none;gap:6px;padding:8px 10px;background:#0c1420}.tabs button{flex:1;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px}.col{overflow:auto;padding:10px}.col.mid{border-left:1px solid var(--line);border-right:1px solid var(--line)}h2{font-size:.92rem;margin:8px 0;color:#c5d6ea}.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;margin:0 0 8px}.card.active{outline:1px solid var(--accent)}.row{display:flex;justify-content:space-between;gap:8px;align-items:center}.muted{color:var(--muted);font-size:12px}.name{font-weight:700}.status{font-size:11px}.ok{color:var(--ok)}.wait{color:var(--wait)}.fail{color:var(--fail)}.idle{color:var(--muted)}.pool{min-height:36vh}.msg{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px;margin:0 0 8px}.msg .meta{font-size:12px;color:var(--muted);margin-bottom:6px}.tag{display:inline-block;font-size:10px;letter-spacing:.04em;padding:2px 6px;border-radius:6px;margin-right:4px;border:1px solid var(--line)}.tag.REVIEW,.tag.WARNING,.tag.REVIEW_REQUEST{color:var(--wait)}.tag.PASS,.tag.TEST{color:var(--ok)}.tag.FAIL,.tag.GATE{color:var(--fail)}.tag.OWNER,.tag.DECISION{color:var(--owner)}.tag.CODE,.tag.FIX{color:var(--accent)}.empty{padding:24px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:12px}textarea,input,select{width:100%;background:#0b1220;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px;margin:4px 0;font:inherit}textarea{min-height:88px;resize:vertical}.btn{appearance:none;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:8px;padding:8px 10px;cursor:pointer;font-size:13px}.btn.primary{background:#16324a;border-color:#2d7ab8}.btn.danger{border-color:#7a2e2e;color:#ffb4b4}.btn-row{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.gate{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px solid var(--line)}.chips{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0}.chip{font-size:11px;border:1px solid var(--line);border-radius:999px;padding:3px 8px;cursor:pointer;background:#0b1220;color:var(--text)}
 </style>
 </head>
 <body>
-<header class="app">
-  <h1>AIVAULT Collaboration Pool v0.2</h1>
-  <div class="sub">AI 團隊工作現場 · Task / Message / Action / Review / Test / Decision / Event / Gate · 非聊天室 · Agent Registry 可擴充</div>
-  <div class="badges" id="connBadges">
-    <span class="badge warn" id="badgeConn">LOCAL DEMO / SUPABASE NOT CONNECTED</span>
-    <span class="badge warn">NO AUTO AGENT CALLS</span>
-    <span class="badge warn">NO FAKE AGENT COMPLETION</span>
-    <span class="badge">NO PRODUCTION DEPLOY</span>
-  </div>
-</header>
-<div class="tabs" id="tabs">
-  <button type="button" data-pane="left">任務 / Agent</button>
-  <button type="button" data-pane="mid">協作池</button>
-  <button type="button" data-pane="right">狀態 / Owner</button>
-</div>
+<header class="app"><h1>AIVAULT Collaboration Pool v0.3</h1><div class="sub">AI 團隊工作現場 · Task / Message / Action / Review / Test / Decision / Event / Gate · 非聊天室 · Agent Registry 可擴充</div><div class="badges" id="connBadges"><span class="badge warn" id="badgeConn">LOCAL STORE / SUPABASE NOT CONNECTED</span><span class="badge warn">NO AUTO AGENT CALLS</span><span class="badge warn">NO FAKE AGENT COMPLETION</span><span class="badge">NO PRODUCTION DEPLOY</span></div></header>
+<div class="tabs" id="tabs"><button type="button" data-pane="left">任務 / Agent</button><button type="button" data-pane="mid">協作池</button><button type="button" data-pane="right">狀態 / Owner</button></div>
 <div class="layout">
-  <aside class="col" id="pane-left">
-    <h2>A. 任務列表</h2>
-    <div id="taskList"></div>
-    <div class="btn-row">
-      <button class="btn primary" id="btnNewTask" type="button">建立 Task</button>
-    </div>
-    <h2>B. Agent Status</h2>
-    <div id="agentList"></div>
-    <div class="card">
-      <div class="muted">新增 Agent（寫入 Agent Registry，不呼叫外部模型）</div>
-      <input id="newAgentId" placeholder="agent_id 例如 claude">
-      <input id="newAgentName" placeholder="display_name">
-      <input id="newAgentRole" placeholder="role 例如 researcher">
-      <input id="newAgentCap" placeholder="capability / abilities">
-      <button class="btn" id="btnAddAgent" type="button">加入 Registry</button>
-    </div>
-  </aside>
-  <main class="col mid" id="pane-mid">
-    <h2>C. Agent Conversation Pool</h2>
-    <div class="muted" id="poolMeta">選擇任務後顯示協作紀錄。不會自動產生假對話。</div>
-    <div class="btn-row">
-      <select id="filterType"><option value="">全部類型</option></select>
-    </div>
-    <div class="pool" id="pool"></div>
-    <div class="card">
-      <div class="muted">發佈工作紀錄（預設 sender = Owner）。若選 Agent，標記 OWNER_PROXY / DEMO / NOT CONNECTED。</div>
-      <select id="msgType"></select>
-      <select id="msgTo"></select>
-      <select id="msgAs"></select>
-      <input id="replyTo" placeholder="reply_to message_id（選填）">
-      <div class="chips" id="mentionChips"></div>
-      <textarea id="msgBody" placeholder="@ChatGPT 請 Review reserve RPC"></textarea>
-      <input id="codePath" placeholder="Code path 選填，例如 aivault-task-001/sql/001_task001_additive.sql">
-      <input id="codeSha" placeholder="Commit SHA 選填（真實 SHA，不要填假的）">
-      <label class="muted"><input type="checkbox" id="asLearning"> 標記 LEARNING_CANDIDATE（不會自動升級為 Dark Star 能力）</label>
-      <input id="learnProblem" placeholder="problem（選填）">
-      <input id="learnProposal" placeholder="proposals（選填）">
-      <input id="learnReason" placeholder="reason / chosen_solution（選填）">
-      <div class="btn-row">
-        <button class="btn primary" id="btnSend" type="button">送出</button>
-        <button class="btn" id="btnReviewReq" type="button">建立 Review Request</button>
-        <button class="btn" id="btnSubtask" type="button">建立 Subtask</button>
-        <button class="btn" id="btnTest" type="button">記錄 Test Result</button>
-        <button class="btn" id="btnDecision" type="button">建立 Decision</button>
-      </div>
-    </div>
-  </main>
-  <aside class="col" id="pane-right">
-    <h2>Task State / Gates</h2>
-    <div id="gates"></div>
-    <h2>Subtasks</h2>
-    <div id="subs"></div>
-    <h2>Code refs</h2>
-    <div id="codes"></div>
-    <h2>Reviews</h2>
-    <div id="reviews"></div>
-    <h2>Tests</h2>
-    <div id="tests"></div>
-    <h2>Actions</h2>
-    <div id="actions"></div>
-    <h2>Events</h2>
-    <div id="events"></div>
-    <h2>Supabase 連線</h2>
-    <div class="card">
-      <div class="muted">不把金鑰寫進 repo / localStorage。貼上 TEST project URL + anon key 只留在記憶體。Service role 禁止。</div>
-      <input id="sbUrl" placeholder="https://xxxx.supabase.co">
-      <input id="sbKey" placeholder="anon key（不要貼 service_role）" type="password" autocomplete="off">
-      <div class="btn-row">
-        <button class="btn primary" id="btnConnect" type="button">連線並載入</button>
-        <button class="btn" id="btnReloadDb" type="button">從本機 Store 重新載入</button>
-      </div>
-      <div class="muted" id="connNote">WAITING FOR DATABASE CONNECTION</div>
-    </div>
-    <h2>Owner 控制</h2>
-    <div class="btn-row">
-      <button class="btn" data-own="start">開始工作</button>
-      <button class="btn" data-own="pause">暫停協作</button>
-      <button class="btn" data-own="resume">恢復</button>
-      <button class="btn" data-own="rereview">要求重新 Review</button>
-      <button class="btn" data-own="approve_change">批准修改</button>
-      <button class="btn danger" data-own="reject">拒絕方案</button>
-      <button class="btn" data-own="approve_gate">批准 Gate</button>
-      <button class="btn danger" data-own="approve_prod">批准 Production</button>
-    </div>
-    <div class="muted">Production / Frozen Contract / 重大架構變更：僅 Owner。本頁不部署、不呼叫 Gateway、不改 Dark Star。</div>
-    <h2>Learning Candidates</h2>
-    <div id="learn"></div>
-    <h2>資料</h2>
-    <div class="btn-row">
-      <button class="btn" id="btnExport" type="button">匯出 JSON</button>
-    </div>
-  </aside>
+<aside class="col" id="pane-left"><h2>A. 任務列表</h2><div id="taskList"></div><div class="btn-row"><button class="btn primary" id="btnNewTask" type="button">建立 Task</button></div><h2>B. Agent Status</h2><div id="agentList"></div><div class="card"><div class="muted">新增 Agent（寫入 Agent Registry，不呼叫外部模型）</div><input id="newAgentId" placeholder="agent_id 例如 claude"><input id="newAgentName" placeholder="display_name"><input id="newAgentRole" placeholder="role 例如 researcher"><input id="newAgentCap" placeholder="capability / abilities"><button class="btn" id="btnAddAgent" type="button">加入 Registry</button></div></aside>
+<main class="col mid" id="pane-mid"><h2>C. Agent Conversation Pool</h2><div class="muted" id="poolMeta">選擇任務後顯示協作紀錄。不會自動產生假對話。</div><div class="btn-row"><select id="filterType"><option value="">全部類型</option></select></div><div class="pool" id="pool"></div><div class="card"><div class="muted">發佈工作紀錄。選 Agent 發佈時明確標記 OWNER_PROXY，不冒充外部模型。</div><select id="msgType"></select><select id="msgTo"></select><select id="msgAs"></select><input id="replyTo" placeholder="reply_to message_id（選填）"><div class="chips" id="mentionChips"></div><textarea id="msgBody" placeholder="@ChatGPT 請 Review reserve RPC"></textarea><input id="codePath" placeholder="Code path 選填，例如 aivault-task-001/sql/001_task001_additive.sql"><input id="codeSha" placeholder="Commit SHA 選填（真實 SHA，不要填假的）"><label class="muted"><input type="checkbox" id="asLearning"> 標記 LEARNING_CANDIDATE（不會自動升級為 Dark Star 能力）</label><input id="learnProblem" placeholder="problem（選填）"><input id="learnProposal" placeholder="proposals（選填）"><input id="learnReason" placeholder="reason / chosen_solution（選填）"><div class="btn-row"><button class="btn primary" id="btnSend" type="button">送出</button><button class="btn" id="btnReviewReq" type="button">建立 Review Request</button><button class="btn" id="btnSubtask" type="button">建立 Subtask</button><button class="btn" id="btnTest" type="button">記錄 Test Result</button><button class="btn" id="btnDecision" type="button">建立 Decision</button></div></div></main>
+<aside class="col" id="pane-right"><h2>Task State / Gates</h2><div id="gates"></div><h2>Subtasks</h2><div id="subs"></div><h2>Code refs</h2><div id="codes"></div><h2>Reviews</h2><div id="reviews"></div><h2>Tests</h2><div id="tests"></div><h2>Actions</h2><div id="actions"></div><h2>Events</h2><div id="events"></div><h2>Supabase 連線</h2><div class="card"><div class="muted">TEST project URL + anon key 只留在記憶體。Service role 禁止。</div><input id="sbUrl" placeholder="https://xxxx.supabase.co"><input id="sbKey" placeholder="anon key（不要貼 service_role）" type="password" autocomplete="off"><div class="btn-row"><button class="btn primary" id="btnConnect" type="button">連線並載入</button><button class="btn" id="btnReloadDb" type="button">從本機 Store 重新載入</button></div><div class="muted" id="connNote">WAITING FOR DATABASE CONNECTION</div></div><h2>Owner 控制</h2><div class="btn-row"><button class="btn" data-own="start">開始工作</button><button class="btn" data-own="pause">暫停協作</button><button class="btn" data-own="resume">恢復</button><button class="btn" data-own="rereview">要求重新 Review</button><button class="btn" data-own="approve_change">批准修改</button><button class="btn danger" data-own="reject">拒絕方案</button><button class="btn" data-own="approve_gate">批准 Gate</button><button class="btn danger" data-own="approve_prod">批准 Production</button></div><div class="muted">Production / Frozen Contract / 重大架構變更：僅 Owner。本頁不部署、不呼叫 Gateway、不改 Dark Star。</div><h2>Learning Candidates</h2><div id="learn"></div><h2>資料</h2><div class="btn-row"><button class="btn" id="btnExport" type="button">匯出 JSON</button></div></aside>
 </div>
-<script src="aivault-collab-v0.2/engine.js"></script>
-<script src="aivault-collab-v0.2/ui.js"></script>
+<script src="aivault-collab-v0.2/app.js"></script>
 </body>
 </html>
