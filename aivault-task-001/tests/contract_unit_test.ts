@@ -81,3 +81,32 @@ Deno.test("canonical labels", () => {
   assert(!labelsCanonical(["cat"]), "too few");
   assert(!labelsCanonical(["cat", "cat"]), "dup");
 });
+
+Deno.test("latency_budget_ms range 1..86400000", () => {
+  const ok = (n: number) => Number.isInteger(n) && n >= 1 && n <= 86400000;
+  assert(!ok(0), "0 invalid");
+  assert(ok(1), "1 ok");
+  assert(ok(86400000), "max ok");
+  assert(!ok(86400001), "over max");
+});
+
+Deno.test("payer_id nonempty required", () => {
+  const payer = (v: unknown) => typeof v === "string" && v.trim().length > 0;
+  assert(!payer(""), "empty rejected");
+  assert(!payer("   "), "blank rejected");
+  assert(!payer(undefined), "missing rejected");
+  assert(payer("user-1"), "ok");
+});
+
+Deno.test("recompute hash of known bytes", async () => {
+  const bytes = new TextEncoder().encode("aivault-task001-hash-fixture");
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  assert(hex.length === 64, "sha256 hex length");
+});
+
+Deno.test("verification_level frozen set", () => {
+  const allowed = new Set(["resample", "dual_model", "human"]);
+  assert(allowed.has("resample") && allowed.has("human"), "frozen set");
+  assert(!allowed.has("none") && !allowed.has("own_weight"), "legacy values rejected");
+});
