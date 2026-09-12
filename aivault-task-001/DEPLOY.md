@@ -11,6 +11,7 @@ Supabase Dashboard → SQL Editor → run in order:
 
 - `sql/001_task001_additive.sql`
 - `sql/003_p0_p1_fixes.sql`
+- `sql/004_p0_p1_hardening.sql`
 - optional `sql/002_optional_research_provider.sql`
 
 If any CREATE TYPE / TABLE name already exists with a different shape: STOP, report collision. Do not DROP.
@@ -35,9 +36,18 @@ Do not put SERVICE_ROLE or AIVAULT_INTERNAL_SECRET in HTML / Technical Dark Star
 
 ## 3. Deploy functions
 
-Prefer JWT verification ON. All six functions also require header:
+Keep JWT verification ON. All six functions also require header:
 
 `x-aivault-internal: $AIVAULT_INTERNAL_SECRET`
+
+Protected functions:
+
+- aivault-task-submit
+- aivault-task-coordinator
+- aivault-task-router
+- aivault-task-result
+- aivault-task-verify
+- aivault-task-settle
 
 ```bash
 supabase secrets set AIVAULT_INTERNAL_SECRET="generate-offline-do-not-commit"
@@ -51,7 +61,9 @@ supabase functions deploy aivault-task-verify
 supabase functions deploy aivault-task-settle
 ```
 
-Do not deploy these six with `--no-verify-jwt` as the only control. The internal header is mandatory even if JWT is also enabled.
+Do not deploy these six with `--no-verify-jwt`. The internal header is mandatory in addition to JWT.
+
+RPCs `aivault_reserve_attempt` and `aivault_claim_settlement` are granted to `service_role` only.
 
 ## 4. Heartbeat
 

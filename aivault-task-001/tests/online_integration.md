@@ -1,7 +1,11 @@
 # Task #001 Online Integration Tests
 
 Base: `$SUPABASE_URL/functions/v1`
-Auth: `Authorization: Bearer $SERVICE_ROLE` (server only; never frontend)
+Auth (both required; server only; never frontend / HTML / GitHub):
+- `Authorization: Bearer $SERVICE_ROLE` (JWT verify on)
+- `x-aivault-internal: $AIVAULT_INTERNAL_SECRET`
+
+Online tests against a live project are BLOCKED until Owner provides project URL + applies SQL 001/003/004 + sets the internal secret. Do not treat this file as a passed Gate.
 
 Helper hash: `sha256:` + 64 hex
 Labels must be lexicographically sorted unique: `["cat","dog"]`
@@ -43,6 +47,7 @@ Set `resample_fraction` so `ceil(20*frac)*2 = 20` → frac=0.5 if units/item=2.
 curl -s "$SUPABASE_URL/functions/v1/aivault-task-submit" \
   -H "Authorization: Bearer $SERVICE_ROLE" \
   -H "apikey: $ANON_OR_SERVICE" \
+  -H "x-aivault-internal: $AIVAULT_INTERNAL_SECRET" \
   -H "Content-Type: application/json" \
-  -d '{"payer_id":"research","items":[...]}'
+  -d '{"payer_id":"research","latency_budget_ms":3600000,"items":[...]}'
 ```

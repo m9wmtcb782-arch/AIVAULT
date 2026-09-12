@@ -112,7 +112,8 @@ export function ownWeightClassify(contentHash: string, allowed: string[]): { lab
 export function corsHeaders(): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type, x-aivault-internal",
     "Content-Type": "application/json",
   };
 }
