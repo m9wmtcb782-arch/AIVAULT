@@ -13,7 +13,7 @@ This sandbox has **no live Supabase project credentials and no dumped production
 
 | existing object | collision | action |
 |---|---|---|
-| unknown production `aivault_tasks` | possible name collision | run `\dt aivault_*` / information_schema before SQL; if exists with different columns → STOP, additive rename only after Owner |
+| unknown production `aivault_tasks` | possible name collision | run `\\dt aivault_*` / information_schema before SQL; if exists with different columns → STOP, additive rename only after Owner |
 | unknown `aivault_compute_capabilities` | possible | same |
 | enums `aivault_task_state` etc. | possible | SQL uses `DO $$ CREATE TYPE ... EXCEPTION duplicate_object` |
 | ai-gateway tables | none intended | not touched |
@@ -104,12 +104,92 @@ JWT verification stays ON. Deploy without `--no-verify-jwt`. All six functions a
 
 ---
 
-## 8. Integration Tests
+## 8. Acceptance matrix (do not equate code presence with online pass)
+
+### CODE REVIEW
+
+Architect previous pass on P0 RPC shape stands as code review only.
+
+SQL in `sql/001_task001_additive.sql` contains `aivault_reserve_attempt` and `aivault_claim_settlement`. TypeScript calls those RPCs. This is **not** online evidence.
+
+### LOCAL TEST
+
+| item | result |
+|---|---|
+| lock-serialization model two 180-need reserves on budget 200 | LOCAL_MODEL_OK (Node, not Postgres) |
+| settlement unique claim model | LOCAL_MODEL_OK (in-memory, not Postgres) |
+| `deno test tests/contract_unit_test.ts` | NOT RUN (no deno in this environment) |
+| `tests/rpc_concurrent_reserve_settle.sql` against live DB | NOT RUN |
+
+### ONLINE INTEGRATION TEST
+
+**BLOCKED.** Not executed.
+
+Probe against public project host only (anon, no deploy):
+
+```
+POST https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/aivault-task-submit
+status 404
+body {"code":"NOT_FOUND","message":"Requested function was not found"}
+```
+
+Missing in this environment:
+
+- Supabase CLI
+- service role key
+- Owner-designated **test** project (must not reuse production AI Gateway project)
+- `AIVAULT_INTERNAL_SECRET`
+- applied 001 SQL
+- deployed six functions
+
+Therefore these requested cases have **no task_id / attempt_id / events / ledger / settlements / capability rows**:
+
+1. Happy path submitted → closed
+2. Atomic reserve concurrent coordinators with DB rows
+3. Settlement race with DB rows
+4. Timeout / retry reservation release
+5. Hash integrity fetch-bytes pass and fail
+6. Contract validation HTTP 400s on live submit
+7. Settlement failure (verified_failed, no provider success credit)
+
+### CONCURRENCY TEST
+
+**BLOCKED online.** SQL file `tests/rpc_concurrent_reserve_settle.sql` exists and is written to run after 001 is applied. It was not executed on a database.
+
+### PRODUCTION READINESS
+
+**NOT READY.**
+
+- Functions not deployed
+- Schema not applied to a test project from this session
+- No collision check against production `aivault_*`
+- Do not apply 001 to the login/gateway project without Owner collision review
+- Do not treat the public anon key in frontend HTML as deploy credentials
+
+Owner must provide a test project URL + service role (out of band, never commit) then: apply `sql/001_task001_additive.sql`, `supabase secrets set AIVAULT_INTERNAL_SECRET`, deploy the six functions, run `tests/online_integration.md` and `tests/rpc_concurrent_reserve_settle.sql`.
+
+## 8b. Requested evidence fields
+
+| field | value |
+|---|---|
+| task_id | none (not created) |
+| attempt_id | none |
+| task_events | none |
+| ledger before/after | none |
+| settlements | none |
+| capability update | none |
+| RPC responses | 404 function not found on submit probe |
+| happy path | BLOCKED |
+| failure cases | BLOCKED |
+
+---
+
+## 8c. Integration Tests (code-level only)
 
 | test | expected | actual |
 |---|---|---|
-| contract reject bad hash | 400 content_hash_invalid | local unit (`tests/contract_unit_test.ts`) |
-| unsorted labels | reject, no silent sort | local unit |
+| contract reject bad hash | 400 content_hash_invalid | local unit file exists; deno not run here |
+| unsorted labels | reject, no silent sort | local unit file exists; deno not run here |
 | client task_id | reject | implemented in submit; online not run here |
 | unmatched | unmatched_no_provider | implemented; online not run |
 | happy path | settle → capability_updated → closed | implemented; online not run |
@@ -117,11 +197,11 @@ JWT verification stays ON. Deploy without `--no-verify-jwt`. All six functions a
 | verification failure | failed + accounting of verify units | implemented; online not run |
 | settlement | only verified_passed; research currency 0 | implemented; online not run |
 | retry | max 3; re-reserve; different provider | implemented; online not run |
-| budget block 20/200 | second attempt not created | local arithmetic unit; online not run |
+| budget block 20/200 | second attempt not created | local Node model LOCAL_MODEL_OK; online not run |
 | commercial AI API off | own verifier still runs | label model is local; image fetch is https/CAS only |
 | event replay | task_events append-only | schema + emitEvent on transitions |
 
-Online Actual column is **NOT RUN** in this sandbox (no project URL). Mark online suite **BLOCKED** until deploy + curl against live project.
+Online Actual column is **NOT RUN**. Mark online suite **BLOCKED** until deploy + curl against a test project.
 
 ---
 
