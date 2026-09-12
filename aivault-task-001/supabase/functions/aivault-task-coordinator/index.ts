@@ -1,9 +1,12 @@
-import { json } from "../_shared/contract.ts";
+import { json, sampleCount } from "../_shared/contract.ts";
+import { requireInternal } from "../_shared/auth.ts";
 import { serviceClient, snapshotLedger, transition } from "../_shared/db.ts";
 import { selectProvider } from "../_shared/router.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return json({ ok: true });
+  const denied = requireInternal(req);
+  if (denied) return denied;
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
   const sb = serviceClient();
   const body = await req.json();
@@ -32,47 +35,31 @@ Deno.serve(async (req) => {
     const needExec = Math.min(quoted, n * Number(provider.reward_units_per_item ?? 8));
     const sc = sampleCount(n, Number(task.resample_fraction));
     const needVerify = sc * Number(task.verification_compute_units_per_item);
-    const remaining = Number(task.remaining);
 
-    if (needExec + needVerify > remaining) {
-      task = await transition(sb, taskId, "queued", "settlement_blocked", "coordinator", "insufficient_remaining");
-      await snapshotLedger(sb, task, "retry_blocked_budget", task.attempt_count);
-      return json({ ok: true, task, blocked: true, need_exec: needExec, need_verify: needVerify, remaining });
+    const { data: reserved, error: rerr } = await sb.rpc("aivault_reserve_attempt", {
+      p_task_id: taskId,
+      p_provider_id: provider.provider_id,
+      p_capability_id: provider.capability_id,
+      p_quoted: quoted,
+      p_need_exec: needExec,
+      p_need_verify: needVerify,
+    });
+    if (rerr) return json({ error: rerr.message }, 500);
+
+    if (!reserved?.ok) {
+      if (reserved?.block || reserved?.reason === "insufficient_remaining" || reserved?.reason === "max_attempts") {
+        if (task.state === "queued") {
+          task = await transition(sb, taskId, "queued", "settlement_blocked", "coordinator", reserved.reason);
+          await snapshotLedger(sb, task, reserved.reason);
+        }
+        return json({ ok: true, task, blocked: true, reserve: reserved });
+      }
+      return json({ ok: false, reserve: reserved }, 409);
     }
 
-    const attemptNo = Number(task.attempt_count) + 1;
-    const reservedExec = needExec;
-    const reservedVerify = needVerify;
-    const newReserved = Number(task.reserved) + reservedExec + reservedVerify;
-
-    const { data: attempt, error: aerr } = await sb
-      .from("aivault_task_attempts")
-      .insert({
-        task_id: taskId,
-        attempt: attemptNo,
-        provider_id: provider.provider_id,
-        capability_id: provider.capability_id,
-        state: "matched",
-        quoted_estimate: quoted,
-        need_exec: needExec,
-        need_verify: needVerify,
-        reserved_exec: reservedExec,
-        reserved_verify: reservedVerify,
-      })
-      .select("*")
-      .single();
-    if (aerr) return json({ error: aerr.message }, 500);
-
-    task = await transition(sb, taskId, "queued", "matched", "coordinator", "matched", attemptNo, {
-      reserved: newReserved,
-      reserved_exec: reservedExec,
-      reserved_verify: reservedVerify,
-      attempt_count: attemptNo,
-    });
-    await snapshotLedger(sb, task, "reserve_before_dispatch", attemptNo);
-
-    task = await transition(sb, taskId, "matched", "accepted", "coordinator", "auto_accept", attemptNo);
-    task = await transition(sb, taskId, "accepted", "executing", "coordinator", "dispatch", attemptNo);
+    const attempt = reserved.attempt;
+    task = await transition(sb, taskId, "matched", "accepted", "coordinator", "auto_accept", attempt.attempt);
+    task = await transition(sb, taskId, "accepted", "executing", "coordinator", "dispatch", attempt.attempt);
 
     await sb.from("aivault_task_attempts").update({
       state: "executing",
@@ -87,15 +74,14 @@ Deno.serve(async (req) => {
       dispatch: {
         provider_id: provider.provider_id,
         items: task.items,
-        reserved_exec: reservedExec,
-        reserved_verify: reservedVerify,
+        reserved_exec: needExec,
+        reserved_verify: needVerify,
       },
     });
   }
 
   if (body.action === "timeout_exec" && task.state === "executing") {
     task = await transition(sb, taskId, "executing", "exec_timeout", "coordinator", "exec_timeout");
-    const rel = Number(task.reserved);
     task = await sb.from("aivault_tasks").update({
       reserved: 0,
       reserved_exec: 0,
