@@ -1,8 +1,12 @@
-import { OWN_VERIFIER_MODEL, json, ownWeightClassify, sampleCount, sha256HexOk } from "../_shared/contract.ts";
+import { OWN_VERIFIER_MODEL, json, ownWeightClassify, sampleCount } from "../_shared/contract.ts";
+import { requireInternal } from "../_shared/auth.ts";
+import { recomputeContentHash } from "../_shared/hash.ts";
 import { serviceClient, snapshotLedger, transition } from "../_shared/db.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return json({ ok: true });
+  const denied = requireInternal(req);
+  if (denied) return denied;
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
   const sb = serviceClient();
   const body = await req.json();
@@ -24,7 +28,7 @@ Deno.serve(async (req) => {
     .single();
   if (!result) return json({ error: "result_missing" }, 409);
 
-  const inputItems = current.items as Array<{ item_id: string; content_hash: string; allowed_labels: string[] }>;
+  const inputItems = current.items as Array<{ item_id: string; image_uri: string; content_hash: string; allowed_labels: string[] }>;
   const outItems = result.items as Array<{ item_id: string; label?: string; confidence?: number; content_hash?: string }>;
   const map = new Map(outItems.map((x) => [x.item_id, x]));
 
@@ -39,7 +43,15 @@ Deno.serve(async (req) => {
   const details: unknown[] = [];
   for (const it of sampled) {
     const out = map.get(it.item_id);
-    const hashMatch = !!(out && (out.content_hash ? out.content_hash === it.content_hash : true) && sha256HexOk(it.content_hash));
+    let recomputed = "";
+    let hashMatch = false;
+    try {
+      recomputed = await recomputeContentHash(it.image_uri);
+      hashMatch = recomputed === it.content_hash;
+    } catch (e) {
+      hashMatch = false;
+      details.push({ item_id: it.item_id, hash_error: String(e) });
+    }
     if (!hashMatch) hashOk = false;
     if (!out || typeof out.label !== "string" || typeof out.confidence !== "number") schemaOk = false;
     const allowed = it.allowed_labels;
@@ -48,7 +60,7 @@ Deno.serve(async (req) => {
     const own = ownWeightClassify(it.content_hash, allowed);
     const matchLabel = out && out.label === own.label;
     if (matchLabel) agree += 1;
-    details.push({ item_id: it.item_id, hashMatch, own, provider: out ?? null, matchLabel });
+    details.push({ item_id: it.item_id, hashMatch, recomputed, expected: it.content_hash, own, provider: out ?? null, matchLabel });
   }
   const ratio = sampled.length ? agree / sampled.length : 0;
   const pass =
@@ -79,7 +91,6 @@ Deno.serve(async (req) => {
 
   const spentAdd = verifyUnits + Number(current.reserved_exec);
   const nextSpent = Number(current.spent) + spentAdd;
-  const released = Number(current.reserved);
 
   const extra = {
     spent: nextSpent,
