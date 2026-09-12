@@ -1,8 +1,11 @@
 import { CONTRACT, ROUTER, TASK_TYPE, defaultBudget, json, validateItems } from "../_shared/contract.ts";
+import { requireInternal } from "../_shared/auth.ts";
 import { emitEvent, serviceClient } from "../_shared/db.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return json({ ok: true });
+  const denied = requireInternal(req);
+  if (denied) return denied;
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
   const sb = serviceClient();
@@ -34,8 +37,16 @@ Deno.serve(async (req) => {
     return json({ error: "rejected_invalid_contract", reason_code: "max_compute_units_too_small" }, 400);
   }
 
-  const payerId = (body.payer_id as string) || "anonymous-research";
-  const deadline = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  const payerId = typeof body.payer_id === "string" ? body.payer_id.trim() : "";
+  if (!payerId) {
+    return json({ error: "rejected_invalid_contract", reason_code: "payer_id_required" }, 400);
+  }
+  const latency = Number(body.latency_budget_ms);
+  if (!Number.isInteger(latency) || latency < 1 || latency > 86400000) {
+    return json({ error: "rejected_invalid_contract", reason_code: "latency_budget_ms_invalid" }, 400);
+  }
+  const createdMs = Date.now();
+  const deadline = new Date(createdMs + latency).toISOString();
   const allowed = v.items[0].allowed_labels;
 
   const { data: task, error } = await sb
@@ -58,6 +69,7 @@ Deno.serve(async (req) => {
       verification_mode: body.verification_mode === "dual_model" ? "dual_model" : "resample",
       resample_fraction: typeof body.resample_fraction === "number" ? body.resample_fraction : 0.1,
       require_different_provider: body.require_different_provider !== false,
+      latency_budget_ms: latency,
       deadline_at: deadline,
       research_currency: true,
       max_currency_minor: 0,

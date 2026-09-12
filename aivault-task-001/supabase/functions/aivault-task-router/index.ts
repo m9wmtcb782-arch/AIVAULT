@@ -1,9 +1,12 @@
 import { json, sampleCount } from "../_shared/contract.ts";
+import { requireInternal } from "../_shared/auth.ts";
 import { serviceClient } from "../_shared/db.ts";
 import { selectProvider } from "../_shared/router.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return json({ ok: true });
+  const denied = requireInternal(req);
+  if (denied) return denied;
   const sb = serviceClient();
   const body = await req.json();
   const taskId = body.task_id as string;
