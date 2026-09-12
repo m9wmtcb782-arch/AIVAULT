@@ -1,8 +1,11 @@
 import { PROVIDER_REWARD_PER_PASSED, VERIFIER_UNITS_PER_SAMPLED, json } from "../_shared/contract.ts";
+import { requireInternal } from "../_shared/auth.ts";
 import { serviceClient, snapshotLedger, transition } from "../_shared/db.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return json({ ok: true });
+  const denied = requireInternal(req);
+  if (denied) return denied;
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
   const sb = serviceClient();
   const body = await req.json();
@@ -40,19 +43,22 @@ Deno.serve(async (req) => {
   const verifierCredit = sampled * VERIFIER_UNITS_PER_SAMPLED;
   const payerDebit = acceptedProvider + verifyUnits;
 
-  await sb.from("aivault_task_settlements").insert({
-    task_id: taskId,
-    attempt: task.attempt_count,
-    status: "settled",
-    passed_items: passedItems,
-    sampled_items: sampled,
-    provider_credit_units: providerCredit,
-    verifier_credit_units: verifierCredit,
-    payer_debit_units: payerDebit,
-    accepted_provider_units: acceptedProvider,
-    verification_units: verifyUnits,
-    currency_minor: 0,
+  const { data: claim, error: cerr } = await sb.rpc("aivault_claim_settlement", {
+    p_task_id: taskId,
+    p_attempt: task.attempt_count,
+    p_passed_items: passedItems,
+    p_sampled_items: sampled,
+    p_provider_credit: providerCredit,
+    p_verifier_credit: verifierCredit,
+    p_payer_debit: payerDebit,
+    p_accepted_provider: acceptedProvider,
+    p_verification_units: verifyUnits,
   });
+  if (cerr) return json({ error: cerr.message }, 500);
+  if (!claim?.ok) return json({ error: claim?.reason ?? "claim_failed", state: claim?.state }, 409);
+  if (claim.duplicate) {
+    return json({ ok: true, duplicate: true, settlement: claim.settlement, task });
+  }
 
   let next = await transition(sb, taskId, "verified_passed", "settled", "settle", "settled", task.attempt_count);
   await snapshotLedger(sb, next, "settled", task.attempt_count);
