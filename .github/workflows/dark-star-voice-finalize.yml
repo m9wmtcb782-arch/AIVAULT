@@ -19,25 +19,31 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
+          import re
           p = Path('technical-dark-star.html')
           s = p.read_text(encoding='utf-8')
           if 'AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V2' not in s:
               raise SystemExit('voice additive module missing; refusing to modify core')
-          s = s.replace('realtimeInput:{mediaChunks:[{mimeType:"audio/pcm;rate=16000",data:b64}]}','realtimeInput:{audio:{mimeType:"audio/pcm;rate=16000",data:b64}}')
-          s = s.replace("realtimeInput:{mediaChunks:[{mimeType:'audio/pcm;rate=16000',data:b64}]}","realtimeInput:{audio:{mimeType:'audio/pcm;rate=16000',data:b64}}")
+          pattern = r'realtimeInput:\s*\{\s*mediaChunks:\s*\[\s*\{\s*mimeType:\s*["\']audio/pcm;rate=16000["\']\s*,\s*data:\s*b64\s*\}\s*\]\s*\}'
+          replacement = 'realtimeInput:{audio:{mimeType:"audio/pcm;rate=16000",data:b64}}'
+          s2, count = re.subn(pattern, replacement, s, flags=re.S)
+          if count:
+              print(f'REPAIRED obsolete mediaChunks transport: {count}')
+          s = s2
           p.write_text(s, encoding='utf-8')
       - name: Validate exact invariants
         shell: python
         run: |
           from pathlib import Path
+          import re
           s = Path('technical-dark-star.html').read_text(encoding='utf-8')
           if '\\n/* AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V2 */' in s:
               raise SystemExit('literal escaped newline remains at additive marker')
           if 'AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V2' not in s:
               raise SystemExit('additive marker missing')
-          if 'realtimeInput:{mediaChunks:' in s:
+          if re.search(r'realtimeInput:\s*\{\s*mediaChunks\s*:', s):
               raise SystemExit('obsolete mediaChunks transport remains')
-          if 'realtimeInput:{audio:{mimeType:"audio/pcm;rate=16000",data:b64}}' not in s and "realtimeInput:{audio:{mimeType:'audio/pcm;rate=16000',data:b64}}" not in s:
+          if not re.search(r'realtimeInput:\s*\{\s*audio:\s*\{\s*mimeType:\s*["\']audio/pcm;rate=16000["\']\s*,\s*data:\s*b64\s*\}\s*\}', s):
               raise SystemExit('correct PCM transport missing')
           if '<button id="micButton"' not in s or '<button id="sendButton"' not in s:
               raise SystemExit('original composer buttons missing')
