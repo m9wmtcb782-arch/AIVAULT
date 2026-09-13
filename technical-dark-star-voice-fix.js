@@ -30,6 +30,8 @@
       .ds-fix-menu{position:absolute;left:0;top:41px;width:285px;max-height:60vh;overflow:auto;padding:7px;background:#fff;border:1px solid #e5e5e5;border-radius:14px;box-shadow:0 12px 36px rgba(0,0,0,.14);display:none}
       .ds-fix-menu.show{display:block}.ds-fix-voice{width:100%;border:0;background:#fff;border-radius:9px;padding:9px 10px;display:flex;justify-content:space-between;gap:8px;text-align:left;font-size:12px;color:#333}.ds-fix-voice:hover{background:#f3f3f3}.ds-fix-voice.active{background:#f0f0f0;font-weight:600}.ds-fix-voice small{color:#888;font-size:10px}
       .ds-fix-row{display:flex;gap:13px;margin-bottom:30px;align-items:flex-start}.ds-fix-row.user{justify-content:flex-end}.ds-fix-row .message-avatar{flex:none}.ds-fix-row .message-body{min-width:0;max-width:690px}.ds-fix-row.user .message-body{max-width:min(600px,82%)}.ds-fix-row .message-text{font-size:16px;line-height:1.75;white-space:pre-wrap;word-break:break-word}.ds-fix-row.user .message-text{background:#f4f4f4;border-radius:18px;padding:10px 15px}
+      .composer-send{background:#2563eb !important;color:#fff !important}
+      .composer-send:hover:not(:disabled){background:#1d4ed8 !important}
       @media(max-width:700px){.ds-fix-tools{margin-left:4px}.ds-fix-btn{padding:0 7px}.ds-fix-menu{width:250px}}
     `;document.head.appendChild(st);
   }
@@ -90,4 +92,3 @@
   function boot(){addStyle();addUI()}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
-
