@@ -25,11 +25,57 @@ jobs:
           marker = 'AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V2'
           if marker not in s:
               raise SystemExit('voice additive module missing; refusing to modify core')
+
           pattern = r'realtimeInput:\s*\{\s*mediaChunks\s*:\s*\[\s*\{\s*mimeType\s*:\s*["\']audio/pcm;rate=16000["\']\s*,\s*data\s*:\s*b64\([^)]*\)\s*\}\s*\]\s*\}'
           replacement = 'realtimeInput:{audio:{mimeType:"audio/pcm;rate=16000",data:b64(o)}}'
-          s2, count = re.subn(pattern, replacement, s, flags=re.S)
-          print(f'PCM transport matches repaired: {count}')
-          s = s2
+          s, count = re.subn(pattern, replacement, s, flags=re.S)
+          print(f'PCM transport repaired: {count}')
+
+          # Backend start returns { session: { id: ... } }.
+          s, count = re.subn(
+              r'voice\.session=sj\.session_id;',
+              'voice.session=sj.session?.id||sj.session_id||sj.session?.session_id;',
+              s,
+          )
+          print(f'session response repair: {count}')
+
+          # Backend token response uses "websocket".
+          s, count = re.subn(
+              r'tj\.websocket_url\|\|tj\.url\|\|',
+              'tj.websocket||tj.websocket_url||tj.url||',
+              s,
+          )
+          print(f'websocket field repair: {count}')
+
+          # Surface connection failures/status on the existing small voice status UI.
+          old = 'function st(x){if(state)state.textContent=x}'
+          new = 'function st(x){if(state)state.textContent=x;const vs=document.getElementById("voiceStatus");if(vs){vs.textContent=x;vs.classList.toggle("show",x!=="準備就緒")}}'
+          if old in s:
+              s = s.replace(old, new, 1)
+          else:
+              print('status function pattern not found')
+
+          # iOS: use the already-resumed AudioContext for capture/playback instead of creating a second suspended context.
+          old = 'const ac=new(window.AudioContext||window.webkitAudioContext)();voice.source=ac.createMediaStreamSource(voice.stream);voice.processor=ac.createScriptProcessor(4096,1,1);voice.source.connect(voice.processor);voice.processor.connect(ac.destination);'
+          new = 'const ac=voice.ctx;await ac.resume();voice.source=ac.createMediaStreamSource(voice.stream);voice.processor=ac.createScriptProcessor(4096,1,1);voice.source.connect(voice.processor);voice.processor.connect(ac.destination);'
+          if old in s:
+              s = s.replace(old, new, 1)
+          else:
+              print('capture AudioContext pattern not found')
+
+          old = 'const ac=voice.play||(voice.play=new(window.AudioContext||window.webkitAudioContext)());const ab=ac.createBuffer(1,f.length,24000);'
+          new = 'const ac=voice.play||(voice.play=voice.ctx||(new(window.AudioContext||window.webkitAudioContext)()));ac.resume();const ab=ac.createBuffer(1,f.length,24000);'
+          if old in s:
+              s = s.replace(old, new, 1)
+          else:
+              print('playback AudioContext pattern not found')
+
+          # Add a capture-phase fallback for the original chat-history button. This is additive and does not remove the existing handler.
+          anchor = 'send.addEventListener("click",e=>{if(!voice.on&&!input.value.trim()){e.preventDefault();start();return}if(voice.on){e.preventDefault();stop();return}} ,true);'
+          addition = anchor + '\ndocument.getElementById("menuButton")?.addEventListener("click",()=>{document.getElementById("drawer")?.classList.add("show");document.getElementById("drawerBackdrop")?.classList.add("show")},true);'
+          if anchor in s and 'classList.add("show")},true);' not in s:
+              s = s.replace(anchor, addition, 1)
+
           p.write_text(s, encoding='utf-8')
       - name: Validate exact invariants
         shell: python
@@ -45,9 +91,15 @@ jobs:
               raise SystemExit('obsolete mediaChunks transport remains')
           if not re.search(r'realtimeInput:\s*\{\s*audio:\s*\{\s*mimeType:\s*["\']audio/pcm;rate=16000["\']\s*,\s*data:\s*b64\([^)]*\)\s*\}\s*\}', s):
               raise SystemExit('correct PCM transport missing')
+          if 'voice.session=sj.session?.id||sj.session_id||sj.session?.session_id;' not in s:
+              raise SystemExit('voice session id repair missing')
+          if 'tj.websocket||tj.websocket_url||tj.url||' not in s:
+              raise SystemExit('websocket response field repair missing')
+          if 'document.getElementById("menuButton")?.addEventListener("click"' not in s:
+              raise SystemExit('drawer fallback missing')
           if '<button id="micButton"' not in s or '<button id="sendButton"' not in s:
               raise SystemExit('original composer buttons missing')
-          print('DARK STAR VOICE VALIDATION PASSED')
+          print('DARK STAR VOICE + DRAWER VALIDATION PASSED')
       - name: Commit repaired HTML
         shell: bash
         run: |
@@ -55,5 +107,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add technical-dark-star.html
           git diff --cached --quiet && exit 0
-          git commit -m 'Repair Dark Star live voice transport without core reset'
+          git commit -m 'Fix Dark Star live voice session and drawer interactions'
           git push
