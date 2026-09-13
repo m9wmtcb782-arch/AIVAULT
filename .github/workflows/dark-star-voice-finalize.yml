@@ -20,13 +20,11 @@ jobs:
         run: |
           import subprocess
           from pathlib import Path
-          import re
 
           target = Path('technical-dark-star.html')
           subprocess.run(['git','show','ce196ffb244a8eff31d11ab33184c102cbb3f613:technical-dark-star.html'], check=True, stdout=target.open('wb'))
 
-          wf = Path('.github/workflows/dark-star-additive-v2.yml')
-          raw = wf.read_text(encoding='utf-8')
+          raw = subprocess.check_output(['git','show','3abbae35f22f69796423752be644807c5bdf80b6:.github/workflows/dark-star-additive-v2.yml'], text=True)
 
           def extract(name):
               start = raw.index(name + ' = r\'\'\'') + len(name + ' = r\'\'\'')
@@ -62,8 +60,6 @@ jobs:
               raise SystemExit('obsolete mediaChunks transport remains')
           if 'realtimeInput:{audio:{mimeType:"audio/pcm;rate=16000",data:b64}}' not in s and "realtimeInput:{audio:{mimeType:'audio/pcm;rate=16000',data:b64}}" not in s:
               raise SystemExit('correct PCM transport not found')
-          if '檔案處理失敗：\\n' not in s:
-              print('core escaped newline invariant check: OK')
           print('FINAL VALIDATION PASSED')
 
       - name: Commit final repaired HTML
