@@ -22,13 +22,13 @@ jobs:
           import re
           p = Path('technical-dark-star.html')
           s = p.read_text(encoding='utf-8')
-          if 'AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V2' not in s:
+          marker = 'AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V2'
+          if marker not in s:
               raise SystemExit('voice additive module missing; refusing to modify core')
-          pattern = r'realtimeInput:\s*\{\s*mediaChunks:\s*\[\s*\{\s*mimeType:\s*["\']audio/pcm;rate=16000["\']\s*,\s*data:\s*b64\s*\}\s*\]\s*\}'
-          replacement = 'realtimeInput:{audio:{mimeType:"audio/pcm;rate=16000",data:b64}}'
+          pattern = r'realtimeInput:\s*\{\s*mediaChunks\s*:\s*\[\s*\{\s*mimeType\s*:\s*["\']audio/pcm;rate=16000["\']\s*,\s*data\s*:\s*b64\([^)]*\)\s*\}\s*\]\s*\}'
+          replacement = 'realtimeInput:{audio:{mimeType:"audio/pcm;rate=16000",data:b64(o)}}'
           s2, count = re.subn(pattern, replacement, s, flags=re.S)
-          if count:
-              print(f'REPAIRED obsolete mediaChunks transport: {count}')
+          print(f'PCM transport matches repaired: {count}')
           s = s2
           p.write_text(s, encoding='utf-8')
       - name: Validate exact invariants
@@ -43,7 +43,7 @@ jobs:
               raise SystemExit('additive marker missing')
           if re.search(r'realtimeInput:\s*\{\s*mediaChunks\s*:', s):
               raise SystemExit('obsolete mediaChunks transport remains')
-          if not re.search(r'realtimeInput:\s*\{\s*audio:\s*\{\s*mimeType:\s*["\']audio/pcm;rate=16000["\']\s*,\s*data:\s*b64\s*\}\s*\}', s):
+          if not re.search(r'realtimeInput:\s*\{\s*audio:\s*\{\s*mimeType:\s*["\']audio/pcm;rate=16000["\']\s*,\s*data:\s*b64\([^)]*\)\s*\}\s*\}', s):
               raise SystemExit('correct PCM transport missing')
           if '<button id="micButton"' not in s or '<button id="sendButton"' not in s:
               raise SystemExit('original composer buttons missing')
