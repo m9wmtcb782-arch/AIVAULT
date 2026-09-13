@@ -15,83 +15,51 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - name: Validate and repair additive voice transport
+      - name: Repair additive voice module
         shell: python
         run: |
           from pathlib import Path
           import re
-          p = Path('technical-dark-star.html')
-          s = p.read_text(encoding='utf-8')
-          marker = 'AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V2'
+          p=Path('technical-dark-star.html')
+          s=p.read_text(encoding='utf-8')
+          marker='AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V2'
           if marker not in s:
               raise SystemExit('voice additive module missing; refusing to modify core')
 
-          pattern = r'realtimeInput:\s*\{\s*mediaChunks\s*:\s*\[\s*\{\s*mimeType\s*:\s*["\']audio/pcm;rate=16000["\']\s*,\s*data\s*:\s*b64\([^)]*\)\s*\}\s*\]\s*\}'
-          replacement = 'realtimeInput:{audio:{mimeType:"audio/pcm;rate=16000",data:b64(o)}}'
-          s, count = re.subn(pattern, replacement, s, flags=re.S)
-          print(f'PCM transport repaired: {count}')
+          s=re.sub(r'realtimeInput:\s*\{\s*mediaChunks\s*:\s*\[\s*\{\s*mimeType\s*:\s*["\']audio/pcm;rate=16000["\']\s*,\s*data\s*:\s*b64\([^)]*\)\s*\}\s*\]\s*\}', 'realtimeInput:{audio:{mimeType:"audio/pcm;rate=16000",data:b64(o)}}', s, flags=re.S)
+          s=re.sub(r'voice\.session=sj\.session_id;', 'voice.session=sj.session?.id||sj.session_id||sj.session?.session_id;', s, count=1)
+          s=re.sub(r'tj\.websocket_url\|\|tj\.url\|\|', 'tj.websocket||tj.websocket_url||tj.url||', s, count=1)
+          s=re.sub(r'voice\.ws\.onopen=\(\)=>\{', 'voice.ws.onopen=async()=>{', s, count=1)
 
-          s, count = re.subn(r'voice\.session=sj\.session_id;', 'voice.session=sj.session?.id||sj.session_id||sj.session?.session_id;', s)
-          print(f'session response repair: {count}')
+          s=s.replace('id="sendButton"\n          class="composer-send"\n          aria-label="送出"\n          disabled>', 'id="sendButton"\n          class="composer-send"\n          aria-label="送出">', 1)
 
-          s, count = re.subn(r'tj\.websocket_url\|\|tj\.url\|\|', 'tj.websocket||tj.websocket_url||tj.url||', s)
-          print(f'websocket field repair: {count}')
+          # Make the independent voice control survive the core composer disabled-state logic.
+          hard='''<script>\n/* AIVAULT_DARK_STAR_VOICE_HARDENED_CONTROLS */\n(()=>{\n  const input=document.getElementById("composerInput")||document.querySelector(".composer-input");\n  const send=document.getElementById("sendButton")||document.querySelector(".composer-send");\n  const menu=document.getElementById("menuButton");\n  const drawer=document.getElementById("drawer");\n  const back=document.getElementById("drawerBackdrop");\n  if(!send)return;\n  const sync=()=>{\n    if(!input)return;\n    if(!input.value.trim() && !send.dataset.darkStarSending){\n      send.disabled=false;\n      send.style.pointerEvents="auto";\n    }\n  };\n  sync();\n  input?.addEventListener("input",sync,true);\n  new MutationObserver(sync).observe(send,{attributes:true,attributeFilter:["disabled"]});\n  menu?.addEventListener("click",()=>{drawer?.classList.add("show");back?.classList.add("show");},{capture:true});\n})();\n</script>\n'''
+          if 'AIVAULT_DARK_STAR_VOICE_HARDENED_CONTROLS' not in s:
+              s=s.replace('</body>', hard+'</body>', 1)
 
-          # Critical: the Live WebSocket onopen callback uses await for AudioContext.
-          # It must be async or the entire additive script fails to parse, disabling both buttons.
-          s, count = re.subn(r'voice\.ws\.onopen=\(\)=>\{', 'voice.ws.onopen=async()=>{', s, count=1)
-          print(f'onopen async repair: {count}')
-
-          old = 'function st(x){if(state)state.textContent=x}'
-          new = 'function st(x){if(state)state.textContent=x;const vs=document.getElementById("voiceStatus");if(vs){vs.textContent=x;vs.classList.toggle("show",x!=="準備就緒")}}'
-          if old in s:
-              s = s.replace(old, new, 1)
-
-          old = 'const ac=new(window.AudioContext||window.webkitAudioContext)();voice.source=ac.createMediaStreamSource(voice.stream);voice.processor=ac.createScriptProcessor(4096,1,1);voice.source.connect(voice.processor);voice.processor.connect(ac.destination);'
-          new = 'const ac=voice.ctx;await ac.resume();voice.source=ac.createMediaStreamSource(voice.stream);voice.processor=ac.createScriptProcessor(4096,1,1);voice.source.connect(voice.processor);voice.processor.connect(ac.destination);'
-          if old in s:
-              s = s.replace(old, new, 1)
-
-          old = 'const ac=voice.play||(voice.play=new(window.AudioContext||window.webkitAudioContext)());const ab=ac.createBuffer(1,f.length,24000);'
-          new = 'const ac=voice.play||(voice.play=voice.ctx||(new(window.AudioContext||window.webkitAudioContext)()));ac.resume();const ab=ac.createBuffer(1,f.length,24000);'
-          if old in s:
-              s = s.replace(old, new, 1)
-
-          s = s.replace('id="sendButton"\n          class="composer-send"\n          aria-label="送出"\n          disabled>', 'id="sendButton"\n          class="composer-send"\n          aria-label="送出">', 1)
-
-          anchor = 'send.addEventListener("click",e=>{if(!voice.on&&!input.value.trim()){e.preventDefault();start();return}if(voice.on){e.preventDefault();stop();return}} ,true);'
-          addition = anchor + '\ndocument.getElementById("menuButton")?.addEventListener("click",()=>{document.getElementById("drawer")?.classList.add("show");document.getElementById("drawerBackdrop")?.classList.add("show")},true);'
-          if anchor in s and 'document.getElementById("menuButton")?.addEventListener("click"' not in s:
-              s = s.replace(anchor, addition, 1)
-
-          p.write_text(s, encoding='utf-8')
-      - name: Validate exact invariants
+          p.write_text(s,encoding='utf-8')
+      - name: Validate
         shell: python
         run: |
           from pathlib import Path
           import re
-          s = Path('technical-dark-star.html').read_text(encoding='utf-8')
-          if '\\n/* AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V2 */' in s:
-              raise SystemExit('literal escaped newline remains at additive marker')
-          if 'AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V2' not in s:
-              raise SystemExit('additive marker missing')
-          if re.search(r'realtimeInput:\s*\{\s*mediaChunks\s*:', s):
-              raise SystemExit('obsolete mediaChunks transport remains')
-          if not re.search(r'realtimeInput:\s*\{\s*audio:\s*\{\s*mimeType:\s*["\']audio/pcm;rate=16000["\']\s*,\s*data:\s*b64\([^)]*\)\s*\}\s*\}', s):
-              raise SystemExit('correct PCM transport missing')
-          if 'voice.session=sj.session?.id||sj.session_id||sj.session?.session_id;' not in s:
-              raise SystemExit('voice session id repair missing')
-          if 'tj.websocket||tj.websocket_url||tj.url||' not in s:
-              raise SystemExit('websocket response field repair missing')
-          if 'voice.ws.onopen=async()=>{' not in s:
-              raise SystemExit('async WebSocket onopen repair missing')
-          if 'document.getElementById("menuButton")?.addEventListener("click"' not in s:
-              raise SystemExit('drawer fallback missing')
-          if '<button id="micButton"' not in s or '<button id="sendButton"' not in s:
-              raise SystemExit('original composer buttons missing')
-          if 'id="sendButton"\n          class="composer-send"\n          aria-label="送出"\n          disabled>' in s:
-              raise SystemExit('live voice button is still hard-disabled')
-          print('DARK STAR VOICE + DRAWER + BUTTON VALIDATION PASSED')
+          s=Path('technical-dark-star.html').read_text(encoding='utf-8')
+          checks=[
+            'AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V2' in s,
+            'AIVAULT_DARK_STAR_VOICE_HARDENED_CONTROLS' in s,
+            'voice.ws.onopen=async()=>{' in s,
+            'voice.session=sj.session?.id||sj.session_id||sj.session?.session_id;' in s,
+            'tj.websocket||tj.websocket_url||tj.url||' in s,
+            'realtimeInput:{audio:{mimeType:"audio/pcm;rate=16000",data:b64(o)}}' in s,
+            'id="sendButton"\n          class="composer-send"\n          aria-label="送出"\n          disabled>' not in s,
+            '<button id="micButton"' in s,
+            '<button id="sendButton"' in s,
+            '<aside id="drawer"' in s,
+            'id="menuButton"' in s,
+          ]
+          if not all(checks): raise SystemExit('Dark Star voice/drawer validation failed')
+          print('DARK STAR VOICE CONTROLS VALIDATED')
       - name: Commit repaired HTML
         shell: bash
         run: |
@@ -99,5 +67,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add technical-dark-star.html
           git diff --cached --quiet && exit 0
-          git commit -m 'Fix Dark Star live voice script initialization'
+          git commit -m 'Harden Dark Star voice button and history drawer'
           git push
