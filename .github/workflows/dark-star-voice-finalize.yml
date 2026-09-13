@@ -23,46 +23,29 @@ jobs:
           s=p.read_text(encoding='utf-8')
           if 'AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V2' not in s:
               raise SystemExit('voice additive module missing; refusing to modify core')
-
           old='''voice.ws.send(JSON.stringify({setup:{model:tj.model||"models/gemini-3.1-flash-live-preview",generationConfig:{responseModalities:["AUDIO"],thinkingConfig:{thinkingLevel:"minimal"}},inputAudioTranscription:{},outputAudioTranscription:{},speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice.profile}}}}}));'''
           new='''voice.ws.send(JSON.stringify({setup:{model:tj.model||"models/gemini-3.1-flash-live-preview",responseModalities:["AUDIO"],inputAudioTranscription:{},outputAudioTranscription:{},speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice.profile}}},thinkingConfig:{thinkingLevel:"minimal"},systemInstruction:{parts:[{text:"你是 AIVAULT 的即時語音對話引擎。使用繁體中文，回答自然、簡短、像真人對話。不要自我介紹，不要重複回答，不要提及模型或內部系統。"}]}}}));'''
           if old in s:
               s=s.replace(old,new,1)
-
           s=s.replace('voice.ws.onclose=()=>stop(false)', 'voice.ws.onclose=e=>{voice.ready=false;st("語音連線中斷"+(e?.code?" ["+e.code+"]":""));console.warn("AIVAULT Live WS close",e?.code,e?.reason,e);stop(false)}',1)
           s=s.replace('voice.ws.onerror=()=>{voice.ready=false;st("語音連線錯誤，請重試");};', 'voice.ws.onerror=e=>{voice.ready=false;st("語音連線錯誤");console.error("AIVAULT Live WS error",e)};',1)
           s=s.replace('if(m.setupComplete){voice.ready=true;st("正在聆聽…");return}', 'if(m.setupComplete){voice.ready=true;st("正在聆聽…");console.log("AIVAULT Live setupComplete",m);return}if(m.error){voice.ready=false;st("Gemini 語音設定錯誤");console.error("AIVAULT Live server error",m.error);return}',1)
-
           old_refresh='''function refresh(){if(voice.on)return stopIcon();if(input.value.trim()) {send.classList.remove("aivault-live-button","active");send.disabled=false}else wave()}'''
           new_refresh='''function textIcon(){send.innerHTML='<svg class="aivault-send-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg>';send.classList.add("aivault-live-button","aivault-text-button");send.classList.remove("active");send.disabled=false}
 function refresh(){if(voice.on)return stopIcon();if(input.value.trim())textIcon();else wave()}'''
           if old_refresh in s:
               s=s.replace(old_refresh,new_refresh,1)
-
           marker='''.aivault-live-button{background:#0a84ff!important;color:#fff!important;opacity:1!important;cursor:pointer!important}'''
           css='''.aivault-live-button{background:#0a84ff!important;color:#fff!important;opacity:1!important;cursor:pointer!important}\n.aivault-send-arrow{width:18px;height:18px;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}\n.aivault-text-button:hover{background:#0879eb!important}'''
           if marker in s and '.aivault-send-arrow{' not in s:
               s=s.replace(marker,css,1)
-
           p.write_text(s,encoding='utf-8')
       - name: Validate
         shell: python
         run: |
           from pathlib import Path
           s=Path('technical-dark-star.html').read_text(encoding='utf-8')
-          checks=[
-            'responseModalities:["AUDIO"]' in s,
-            'generationConfig:{responseModalities:["AUDIO"]' not in s,
-            'voice.ws.onclose=e=>' in s,
-            'if(m.error)' in s,
-            'voice.ready=false' in s,
-            'if(m.setupComplete){voice.ready=true' in s,
-            'realtimeInput:{audio:{mimeType:"audio/pcm;rate=16000",data:b64(o)}}' in s,
-            'access_token=' in s,
-            'function textIcon()' in s,
-            'if(input.value.trim())textIcon();else wave()' in s,
-            '.aivault-send-arrow{' in s,
-          ]
+          checks=['responseModalities:["AUDIO"]' in s,'generationConfig:{responseModalities:["AUDIO"]' not in s,'voice.ws.onclose=e=>' in s,'if(m.error)' in s,'if(m.setupComplete){voice.ready=true' in s,'realtimeInput:{audio:{mimeType:"audio/pcm;rate=16000",data:b64(o)}}' in s,'access_token=' in s,'function textIcon()' in s,'if(input.value.trim())textIcon();else wave()' in s,'.aivault-send-arrow{' in s]
           if not all(checks): raise SystemExit('Dark Star Live validation failed')
           print('DARK STAR LIVE VOICE + COMPOSER STATE VALIDATED')
       - name: Commit repaired HTML
@@ -76,3 +59,4 @@ function refresh(){if(voice.on)return stopIcon();if(input.value.trim())textIcon(
           git push
 
 # additive repair only
+# trigger typed-button verification
