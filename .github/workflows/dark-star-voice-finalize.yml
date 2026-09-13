@@ -15,59 +15,39 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - name: Restore known-good Dark Star core and install clean additive voice module
+      - name: Validate and repair additive voice transport
         shell: python
         run: |
-          import subprocess
           from pathlib import Path
-
-          target = Path('technical-dark-star.html')
-          subprocess.run(['git','show','ce196ffb244a8eff31d11ab33184c102cbb3f613:technical-dark-star.html'], check=True, stdout=target.open('wb'))
-
-          raw = subprocess.check_output(['git','show','3abbae35f22f69796423752be644807c5bdf80b6:.github/workflows/dark-star-additive-v2.yml'], text=True)
-
-          def extract(name):
-              start = raw.index(name + ' = r\'\'\'') + len(name + ' = r\'\'\'')
-              end = raw.index("'''", start)
-              value = raw[start:end]
-              return value.replace('\\n', '\n')
-
-          css = extract('css')
-          body = extract('body')
-          script = extract('script')
-          script = script.replace('realtimeInput:{mediaChunks:[{mimeType:"audio/pcm;rate=16000",data:b64}]}', 'realtimeInput:{audio:{mimeType:"audio/pcm;rate=16000",data:b64}}')
-          script = script.replace("realtimeInput:{mediaChunks:[{mimeType:'audio/pcm;rate=16000',data:b64}]}", "realtimeInput:{audio:{mimeType:'audio/pcm;rate=16000',data:b64}}")
-
-          s = target.read_text(encoding='utf-8')
-          if 'AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V2' in s:
-              raise SystemExit('unexpected additive marker in restored core')
-          if '</style>' not in s or '</body>' not in s:
-              raise SystemExit('unsafe target: core HTML markers missing')
-          s = s.replace('</style>', css + '\n</style>', 1)
-          s = s.replace('</body>', body + script + '\n</body>', 1)
-          target.write_text(s, encoding='utf-8')
-
+          p = Path('technical-dark-star.html')
+          s = p.read_text(encoding='utf-8')
+          if 'AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V2' not in s:
+              raise SystemExit('voice additive module missing; refusing to modify core')
+          s = s.replace('realtimeInput:{mediaChunks:[{mimeType:"audio/pcm;rate=16000",data:b64}]}','realtimeInput:{audio:{mimeType:"audio/pcm;rate=16000",data:b64}}')
+          s = s.replace("realtimeInput:{mediaChunks:[{mimeType:'audio/pcm;rate=16000',data:b64}]}","realtimeInput:{audio:{mimeType:'audio/pcm;rate=16000',data:b64}}")
+          p.write_text(s, encoding='utf-8')
       - name: Validate exact invariants
         shell: python
         run: |
           from pathlib import Path
           s = Path('technical-dark-star.html').read_text(encoding='utf-8')
           if '\\n/* AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V2 */' in s:
-              raise SystemExit('literal escaped newline remains at additive CSS marker')
+              raise SystemExit('literal escaped newline remains at additive marker')
           if 'AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V2' not in s:
               raise SystemExit('additive marker missing')
           if 'realtimeInput:{mediaChunks:' in s:
               raise SystemExit('obsolete mediaChunks transport remains')
           if 'realtimeInput:{audio:{mimeType:"audio/pcm;rate=16000",data:b64}}' not in s and "realtimeInput:{audio:{mimeType:'audio/pcm;rate=16000',data:b64}}" not in s:
-              raise SystemExit('correct PCM transport not found')
-          print('FINAL VALIDATION PASSED')
-
-      - name: Commit final repaired HTML
+              raise SystemExit('correct PCM transport missing')
+          if '<button id="micButton"' not in s or '<button id="sendButton"' not in s:
+              raise SystemExit('original composer buttons missing')
+          print('DARK STAR VOICE VALIDATION PASSED')
+      - name: Commit repaired HTML
         shell: bash
         run: |
           git config user.name 'aivault-additive-bot'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add technical-dark-star.html
           git diff --cached --quiet && exit 0
-          git commit -m 'Restore Dark Star core and cleanly install live voice'
+          git commit -m 'Repair Dark Star live voice transport without core reset'
           git push
