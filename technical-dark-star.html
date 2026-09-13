@@ -6775,7 +6775,7 @@ if(!input||!send||!top)return;
 const a=document.createElement("div");a.className="aivault-top-actions";a.innerHTML=`<button id="aivaultNewTopic" class="aivault-top-action" aria-label="開新話題"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button><button id="aivaultMore" class="aivault-top-action" aria-label="更多"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg></button>`;
 const home=top.querySelector(".brand-home");home?home.before(a):top.appendChild(a);
 const menu=document.getElementById("aivaultMoreMenu"),panel=document.getElementById("aivaultVoicePanel"),state=document.getElementById("aivaultVoiceState");
-const voice={on:false,ws:null,stream:null,ctx:null,source:null,processor:null,play:null,session:null,seq:0,profile:localStorage.getItem("aivault_voice_profile")||"Kore",q:[],playing:false};
+const voice={on:false,ready:false,ws:null,stream:null,ctx:null,source:null,processor:null,play:null,session:null,seq:0,profile:localStorage.getItem("aivault_voice_profile")||"Kore",q:[],playing:false};
 function wave(){send.innerHTML='<span class="aivault-wave"><i></i><i></i><i></i><i></i></span>';send.classList.add("aivault-live-button");send.classList.remove("active");send.disabled=false}
 function stopIcon(){send.innerHTML='<span class="aivault-stop-icon"></span>';send.classList.add("aivault-live-button","active");send.disabled=false}
 function refresh(){if(voice.on)return stopIcon();if(input.value.trim()) {send.classList.remove("aivault-live-button","active");send.disabled=false}else wave()}
@@ -6784,9 +6784,9 @@ function b64(x){let u=new Uint8Array(x.buffer,x.byteOffset,x.byteLength),s="";fo
 function u8(s){let b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u}
 async function save(role,text){if(!voice.session||!text)return;await fetch(T,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"turn",session_id:voice.session,sequence_no:++voice.seq,role,content:text})}).catch(()=>{})}
 async function start(){if(voice.on)return;try{st("連線中…");voice.ctx=new(window.AudioContext||window.webkitAudioContext)();await voice.ctx.resume();const sr=await fetch(T,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"start",voice_profile:voice.profile})});const sj=await sr.json();voice.session=sj.session?.id||sj.session_id||sj.session?.session_id;const tr=await fetch(T,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({voice_name:voice.profile})});const tj=await tr.json();voice.stream=await navigator.mediaDevices.getUserMedia({audio:true});const url=(tj.websocket||tj.websocket_url||tj.url||"wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained")+(tj.token?("?access_token="+encodeURIComponent(tj.token)):"");voice.ws=new WebSocket(url);
-voice.ws.onopen=async()=>{voice.on=true;stopIcon();st("正在聆聽…");voice.ws.send(JSON.stringify({setup:{model:tj.model||"models/gemini-3.1-flash-live-preview",generationConfig:{responseModalities:["AUDIO"],thinkingConfig:{thinkingLevel:"minimal"}},inputAudioTranscription:{},outputAudioTranscription:{},speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice.profile}}}}}));const ac=voice.ctx;await ac.resume();voice.source=ac.createMediaStreamSource(voice.stream);voice.processor=ac.createScriptProcessor(4096,1,1);voice.source.connect(voice.processor);voice.processor.connect(ac.destination);voice.processor.onaudioprocess=e=>{if(!voice.on||voice.ws.readyState!==1)return;const f=e.inputBuffer.getChannelData(0),ratio=e.inputBuffer.sampleRate/16000,n=Math.floor(f.length/ratio),o=new Int16Array(n);for(let i=0;i<n;i++){const v=Math.max(-1,Math.min(1,f[Math.floor(i*ratio)]));o[i]=v<0?v*32768:v*32767}voice.ws.send(JSON.stringify({realtimeInput:{audio:{mimeType:"audio/pcm;rate=16000",data:b64(o)}}}))}};
-voice.ws.onmessage=async e=>{let m;try{m=JSON.parse(e.data)}catch{return};const c=m.serverContent||m;const ot=c.outputTranscription?.text||c.outputAudioTranscription?.text;if(ot)await save("assistant",ot);const it=c.inputTranscription?.text||c.inputAudioTranscription?.text;if(it)await save("user",it);if(c.interrupted){voice.q=[]}const parts=c.modelTurn?.parts||[];for(const p of parts)if(p.inlineData?.data){const u=u8(p.inlineData.data),pcm=new Int16Array(u.buffer),f=new Float32Array(pcm.length);for(let i=0;i<pcm.length;i++)f[i]=pcm[i]/32768;const ac=voice.play||(voice.play=voice.ctx||(new(window.AudioContext||window.webkitAudioContext)()));ac.resume();const ab=ac.createBuffer(1,f.length,24000);ab.copyToChannel(f,0);const src=ac.createBufferSource();src.buffer=ab;src.connect(ac.destination);src.start()}};voice.ws.onerror=()=>st("語音連線錯誤");voice.ws.onclose=()=>stop(false)}catch(e){console.error(e);st("語音啟動失敗");stop(false)}}
-async function stop(end=true){voice.on=false;try{voice.processor?.disconnect();voice.source?.disconnect()}catch{}voice.stream?.getTracks().forEach(x=>x.stop());try{voice.ws?.close()}catch{}try{voice.ctx?.close()}catch{}if(end&&voice.session)fetch(T,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"end",session_id:voice.session})}).catch(()=>{});voice.session=null;voice.seq=0;refresh();st("準備就緒")}
+voice.ws.onopen=async()=>{voice.on=true;voice.ready=false;stopIcon();st("建立語音連線…");voice.ws.send(JSON.stringify({setup:{model:tj.model||"models/gemini-3.1-flash-live-preview",generationConfig:{responseModalities:["AUDIO"],thinkingConfig:{thinkingLevel:"minimal"}},inputAudioTranscription:{},outputAudioTranscription:{},speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice.profile}}}}}));const ac=voice.ctx;await ac.resume();voice.source=ac.createMediaStreamSource(voice.stream);voice.processor=ac.createScriptProcessor(4096,1,1);voice.source.connect(voice.processor);voice.processor.connect(ac.destination);voice.processor.onaudioprocess=e=>{if(!voice.on||!voice.ready||voice.ws.readyState!==1)return;const f=e.inputBuffer.getChannelData(0),ratio=e.inputBuffer.sampleRate/16000,n=Math.floor(f.length/ratio),o=new Int16Array(n);for(let i=0;i<n;i++){const v=Math.max(-1,Math.min(1,f[Math.floor(i*ratio)]));o[i]=v<0?v*32768:v*32767}voice.ws.send(JSON.stringify({realtimeInput:{audio:{mimeType:"audio/pcm;rate=16000",data:b64(o)}}}))}};
+voice.ws.onmessage=async e=>{let m;try{m=JSON.parse(e.data)}catch{return};if(m.setupComplete){voice.ready=true;st("正在聆聽…");return}const c=m.serverContent||m;const ot=c.outputTranscription?.text||c.outputAudioTranscription?.text;if(ot)await save("assistant",ot);const it=c.inputTranscription?.text||c.inputAudioTranscription?.text;if(it)await save("user",it);if(c.interrupted){voice.q=[]}const parts=c.modelTurn?.parts||[];for(const p of parts)if(p.inlineData?.data){const u=u8(p.inlineData.data),pcm=new Int16Array(u.buffer),f=new Float32Array(pcm.length);for(let i=0;i<pcm.length;i++)f[i]=pcm[i]/32768;const ac=voice.play||(voice.play=voice.ctx||(new(window.AudioContext||window.webkitAudioContext)()));ac.resume();const ab=ac.createBuffer(1,f.length,24000);ab.copyToChannel(f,0);const src=ac.createBufferSource();src.buffer=ab;src.connect(ac.destination);src.start()}};voice.ws.onerror=()=>{voice.ready=false;st("語音連線錯誤，請重試");};voice.ws.onclose=()=>stop(false)}catch(e){console.error(e);st("語音啟動失敗");stop(false)}}
+async function stop(end=true){voice.on=false;voice.ready=false;try{voice.processor?.disconnect();voice.source?.disconnect()}catch{}voice.stream?.getTracks().forEach(x=>x.stop());try{voice.ws?.close()}catch{}try{voice.ctx?.close()}catch{}if(end&&voice.session)fetch(T,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"end",session_id:voice.session})}).catch(()=>{});voice.session=null;voice.seq=0;refresh();st("準備就緒")}
 send.addEventListener("click",e=>{if(!voice.on&&!input.value.trim()){e.preventDefault();start();return}if(voice.on){e.preventDefault();stop();return}} ,true);
 document.getElementById("menuButton")?.addEventListener("click",()=>{document.getElementById("drawer")?.classList.add("show");document.getElementById("drawerBackdrop")?.classList.add("show")},true);
 input.addEventListener("input",refresh);
@@ -6803,44 +6803,20 @@ document.addEventListener("click",e=>{if(!e.target.closest("#aivaultMore")&&!e.t
 })();
 </script>
 <script>
-/* AIVAULT_DARK_STAR_VOICE_HARDENED_CONTROLS */
+/* AIVAULT_DARK_STAR_VOICE_HARDENED_CONTROLS_V3 */
 (()=>{
-  const input=document.getElementById("composerInput")||document.querySelector(".composer-input");
-  const send=document.getElementById("sendButton")||document.querySelector(".composer-send");
-  const menu=document.getElementById("menuButton");
-  const drawer=document.getElementById("drawer");
-  const back=document.getElementById("drawerBackdrop");
-  const close=document.getElementById("drawerClose");
-  const panel=document.getElementById("aivaultVoicePanel");
-  if(!send)return;
-  const sync=()=>{
-    if(!input)return;
-    if(!input.value.trim() && !send.dataset.darkStarSending){
-      send.disabled=false;
-      send.style.pointerEvents="auto";
-    }
-  };
-  const closeDrawer=()=>{drawer?.classList.remove("show");back?.classList.remove("show")};
-  sync();
-  input?.addEventListener("input",sync,true);
-  new MutationObserver(sync).observe(send,{attributes:true,attributeFilter:["disabled"]});
-  menu?.addEventListener("click",()=>{drawer?.classList.add("show");back?.classList.add("show")},{capture:true});
-  close?.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();closeDrawer()},{capture:true});
-  back?.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();closeDrawer()},{capture:true});
-  document.addEventListener("keydown",e=>{if(e.key==="Escape")closeDrawer()});
-
-  // Add simple voice selection to the drawer without changing the existing layout.
-  const bottom=document.querySelector(".drawer-bottom");
-  if(bottom && !document.getElementById("aivaultDrawerVoice")){
-    const box=document.createElement("div");
-    box.id="aivaultDrawerVoice";
-    box.style.cssText="border-top:1px solid #eee;margin-top:4px;padding:10px 4px 4px";
-    box.innerHTML=`<div style="font-size:12px;color:#777;margin:0 6px 7px">即時語音</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><button type="button" data-drawer-voice="Kore" style="border:1px solid #0a84ff;background:#f1f7ff;color:#0a84ff;border-radius:8px;padding:7px 4px;font-size:11px">女聲</button><button type="button" data-drawer-voice="Puck" style="border:1px solid #e4e4e4;background:#fff;color:#333;border-radius:8px;padding:7px 4px;font-size:11px">男聲</button><button type="button" data-drawer-voice="Charon" style="border:1px solid #e4e4e4;background:#fff;color:#333;border-radius:8px;padding:7px 4px;font-size:11px">成熟聲</button><button type="button" data-drawer-voice="Leda" style="border:1px solid #e4e4e4;background:#fff;color:#333;border-radius:8px;padding:7px 4px;font-size:11px">年輕聲</button></div>`;
-    bottom.appendChild(box);
-    const setVoice=(name)=>{localStorage.setItem("aivault_voice_profile",name);document.querySelectorAll("[data-drawer-voice]").forEach(x=>{const on=x.dataset.drawerVoice===name;x.style.borderColor=on?"#0a84ff":"#e4e4e4";x.style.background=on?"#f1f7ff":"#fff";x.style.color=on?"#0a84ff":"#333"});document.querySelectorAll(".aivault-voice-choice").forEach(x=>x.classList.toggle("active",x.dataset.voice===name));if(panel)panel.classList.remove("show")};
-    box.querySelectorAll("[data-drawer-voice]").forEach(b=>b.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();setVoice(b.dataset.drawerVoice)}));
-    setVoice(localStorage.getItem("aivault_voice_profile")||"Kore");
-  }
+const input=document.getElementById("composerInput")||document.querySelector(".composer-input"),send=document.getElementById("sendButton")||document.querySelector(".composer-send"),menuButton=document.getElementById("menuButton"),drawer=document.getElementById("drawer"),back=document.getElementById("drawerBackdrop"),close=document.getElementById("drawerClose"),voicePanel=document.getElementById("aivaultVoicePanel"),drawerBottom=drawer?.querySelector(".drawer-bottom");
+if(!send)return;
+const closeDrawer=()=>{drawer?.classList.remove("show");back?.classList.remove("show")};
+close?.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();closeDrawer()},{capture:true});
+back?.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();closeDrawer()},{capture:true});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeDrawer()});
+menuButton?.addEventListener("click",()=>{drawer?.classList.add("show");back?.classList.add("show")},true);
+if(voicePanel&&drawerBottom){drawerBottom.prepend(voicePanel);voicePanel.classList.remove("show");voicePanel.style.position="static";voicePanel.style.width="100%";voicePanel.style.margin="0 0 10px";voicePanel.style.boxShadow="none";voicePanel.style.border="1px solid #e5e5e5";}
+const sync=()=>{if(!input)return;if(!input.value.trim()&&!send.dataset.darkStarSending){send.disabled=false;send.style.pointerEvents="auto"}};
+sync();input?.addEventListener("input",sync,true);new MutationObserver(sync).observe(send,{attributes:true,attributeFilter:["disabled"]});
+const bottom=document.querySelector(".drawer-bottom");
+if(bottom&&!document.getElementById("aivaultDrawerVoice")){const box=document.createElement("div");box.id="aivaultDrawerVoice";box.style.cssText="border-top:1px solid #eee;margin-top:4px;padding:10px 4px 4px";box.innerHTML='<div style="font-size:12px;color:#777;margin:0 6px 7px">即時語音</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><button type="button" data-drawer-voice="Kore" style="border:1px solid #0a84ff;background:#f1f7ff;color:#0a84ff;border-radius:8px;padding:7px 4px;font-size:11px">女聲</button><button type="button" data-drawer-voice="Puck" style="border:1px solid #e4e4e4;background:#fff;color:#333;border-radius:8px;padding:7px 4px;font-size:11px">男聲</button><button type="button" data-drawer-voice="Charon" style="border:1px solid #e4e4e4;background:#fff;color:#333;border-radius:8px;padding:7px 4px;font-size:11px">成熟聲</button><button type="button" data-drawer-voice="Leda" style="border:1px solid #e4e4e4;background:#fff;color:#333;border-radius:8px;padding:7px 4px;font-size:11px">年輕聲</button></div>';bottom.appendChild(box);const setVoice=name=>{localStorage.setItem("aivault_voice_profile",name);document.querySelectorAll("[data-drawer-voice]").forEach(x=>{const on=x.dataset.drawerVoice===name;x.style.borderColor=on?"#0a84ff":"#e4e4e4";x.style.background=on?"#f1f7ff":"#fff";x.style.color=on?"#0a84ff":"#333"});document.querySelectorAll(".aivault-voice-choice").forEach(x=>x.classList.toggle("active",x.dataset.voice===name));if(voicePanel)voicePanel.classList.remove("show")};box.querySelectorAll("[data-drawer-voice]").forEach(b=>b.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();setVoice(b.dataset.drawerVoice)}));setVoice(localStorage.getItem("aivault_voice_profile")||"Kore")}
 })();
 </script>
 </body>
