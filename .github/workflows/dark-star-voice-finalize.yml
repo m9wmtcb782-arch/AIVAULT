@@ -37,6 +37,11 @@ jobs:
           s, count = re.subn(r'tj\.websocket_url\|\|tj\.url\|\|', 'tj.websocket||tj.websocket_url||tj.url||', s)
           print(f'websocket field repair: {count}')
 
+          # Critical: the Live WebSocket onopen callback uses await for AudioContext.
+          # It must be async or the entire additive script fails to parse, disabling both buttons.
+          s, count = re.subn(r'voice\.ws\.onopen=\(\)=>\{', 'voice.ws.onopen=async()=>{', s, count=1)
+          print(f'onopen async repair: {count}')
+
           old = 'function st(x){if(state)state.textContent=x}'
           new = 'function st(x){if(state)state.textContent=x;const vs=document.getElementById("voiceStatus");if(vs){vs.textContent=x;vs.classList.toggle("show",x!=="準備就緒")}}'
           if old in s:
@@ -52,8 +57,6 @@ jobs:
           if old in s:
               s = s.replace(old, new, 1)
 
-          # The normal composer code owns disabled state. Live voice must override that state when the composer is empty.
-          # Remove the initial disabled attribute only; the normal text-send path still manages disabled dynamically.
           s = s.replace('id="sendButton"\n          class="composer-send"\n          aria-label="送出"\n          disabled>', 'id="sendButton"\n          class="composer-send"\n          aria-label="送出">', 1)
 
           anchor = 'send.addEventListener("click",e=>{if(!voice.on&&!input.value.trim()){e.preventDefault();start();return}if(voice.on){e.preventDefault();stop();return}} ,true);'
@@ -80,6 +83,8 @@ jobs:
               raise SystemExit('voice session id repair missing')
           if 'tj.websocket||tj.websocket_url||tj.url||' not in s:
               raise SystemExit('websocket response field repair missing')
+          if 'voice.ws.onopen=async()=>{' not in s:
+              raise SystemExit('async WebSocket onopen repair missing')
           if 'document.getElementById("menuButton")?.addEventListener("click"' not in s:
               raise SystemExit('drawer fallback missing')
           if '<button id="micButton"' not in s or '<button id="sendButton"' not in s:
@@ -94,5 +99,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add technical-dark-star.html
           git diff --cached --quiet && exit 0
-          git commit -m 'Fix Dark Star live voice button initialization'
+          git commit -m 'Fix Dark Star live voice script initialization'
           git push
