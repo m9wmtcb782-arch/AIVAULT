@@ -19,18 +19,17 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
           html_path = Path('technical-dark-star.html')
           html = html_path.read_text(encoding='utf-8')
 
-          start = '<style id="aivaultDarkStarVoiceFixV1Style">'
-          end = '<!-- AIVAULT_DARK_STAR_VOICE_UI_V4_END -->'
-          if start in html:
-              head = html.split(start, 1)[0]
-              tail = html[html.index(end):] if end in html else '</body>\n</html>\n'
-              html = head + tail
+          # Remove only our previous fix blocks; preserve the tested V4 voice module itself.
+          html = re.sub(r'<style id="aivaultDarkStarVoiceFixV1Style">.*?</script>\s*', '', html, count=1, flags=re.S)
+          html = re.sub(r'<style id="aivaultDarkStarVoiceFixV2Style">.*?</script>\s*', '', html, count=1, flags=re.S)
+          html = html.replace('<!-- AIVAULT_DARK_STAR_VOICE_UI_V4_END -->\n<!-- AIVAULT_DARK_STAR_VOICE_UI_V4_END -->', '<!-- AIVAULT_DARK_STAR_VOICE_UI_V4_END -->')
 
-          fix = r'''<style id="aivaultDarkStarVoiceFixV2Style">
-          /* AIVAULT V2: text send button becomes blue when text is ready. */
+          fix = r'''<style id="aivaultDarkStarVoiceFixV3Style">
+          /* Text composer: blue send button whenever normal text is ready. */
           .composer-send.ds-text-ready{
             background:#0a84ff!important;
             color:#fff!important;
@@ -39,7 +38,7 @@ jobs:
           .composer-send.ds-text-ready:hover{
             background:#0077ed!important;
           }
-          /* Keep the 30 Google voice choices and their Traditional Chinese descriptions. */
+          /* Keep all 30 voice choices and their Traditional Chinese descriptions. */
           .ds-v4-voice small{
             display:block!important;
             color:#888!important;
@@ -65,17 +64,11 @@ jobs:
             max-height:min(70vh,520px);
             overflow-y:auto;
           }
-          #aivaultDrawerVoice,[data-drawer-voice],[data-aivault-action="voice"]{
-            display:none!important;
-          }
-          #aivaultVoicePanel{
-            display:none!important;
-          }
-          #dsV4VoiceBtn{
-            min-width:92px;
-          }
+          #aivaultDrawerVoice,[data-drawer-voice],[data-aivault-action="voice"]{display:none!important;}
+          #aivaultVoicePanel{display:none!important;}
+          #dsV4VoiceBtn{min-width:92px;}
           </style>
-          <script id="aivaultDarkStarVoiceFixV2">
+          <script id="aivaultDarkStarVoiceFixV3">
           (()=>{
             function syncSend(){
               const input=document.getElementById('composerInput')||document.querySelector('.composer-input');
@@ -84,28 +77,19 @@ jobs:
               const has=String(input.value||'').trim().length>0;
               const live=send.classList.contains('aivault-live-button')||send.classList.contains('ds-live-button');
               send.classList.toggle('ds-text-ready',has&&!live);
-              if(has&&!live){
-                send.style.opacity='1';
-              }
-            }
-            function cleanOldVoiceFix(){
-              document.getElementById('aivaultDrawerVoice')?.remove();
-              document.querySelectorAll('[data-drawer-voice]').forEach(x=>x.remove());
-              document.querySelectorAll('[data-aivault-action="voice"]').forEach(x=>x.remove());
-              document.getElementById('aivaultVoicePanel')?.style.setProperty('display','none','important');
+              if(has&&!live)send.style.opacity='1';
             }
             function apply(){
-              cleanOldVoiceFix();
               syncSend();
               const input=document.getElementById('composerInput')||document.querySelector('.composer-input');
               const send=document.getElementById('composerSend')||document.querySelector('.composer-send');
-              if(input&&!input.dataset.dsVoiceFixV2){
-                input.dataset.dsVoiceFixV2='1';
+              if(input&&!input.dataset.dsVoiceFixV3){
+                input.dataset.dsVoiceFixV3='1';
                 input.addEventListener('input',syncSend,true);
                 input.addEventListener('keyup',syncSend,true);
               }
-              if(send&&!send.dataset.dsVoiceFixV2){
-                send.dataset.dsVoiceFixV2='1';
+              if(send&&!send.dataset.dsVoiceFixV3){
+                send.dataset.dsVoiceFixV3='1';
                 new MutationObserver(syncSend).observe(send,{attributes:true,attributeFilter:['class','disabled','style']});
               }
               const voice=document.getElementById('dsV4VoiceBtn');
@@ -128,5 +112,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add technical-dark-star.html
           git diff --cached --quiet && exit 0
-          git commit -m 'Fix text send button and restore 30 voice descriptions'
+          git commit -m 'Keep 30 voice descriptions and blue text send button'
           git push
