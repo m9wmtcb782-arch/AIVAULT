@@ -1,0 +1,172 @@
+name: Dark Star Additive Voice UI
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Additive integration
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          path = Path('technical-dark-star.html')
+          text = path.read_text(encoding='utf-8')
+          marker = 'AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V1'
+          if marker in text:
+              print('Additive voice UI already installed; nothing to do.')
+              raise SystemExit(0)
+
+          css = r'''
+/* AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V1 */
+.aivault-top-actions{margin-left:auto;display:flex;align-items:center;gap:2px}
+.aivault-top-action{width:38px;height:38px;border:0;background:transparent;color:#303030;border-radius:10px;display:flex;align-items:center;justify-content:center}
+.aivault-top-action:hover{background:#f3f3f3}
+.aivault-top-action svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.aivault-more-menu{position:fixed;right:14px;top:54px;width:245px;padding:7px;background:#fff;border:1px solid #e5e5e5;border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,.13);display:none;z-index:200}
+.aivault-more-menu.show{display:block}
+.aivault-menu-item{width:100%;border:0;background:transparent;color:#222;border-radius:9px;padding:10px 11px;display:flex;align-items:center;gap:11px;text-align:left;font-size:13px}
+.aivault-menu-item:hover{background:#f3f3f3}
+.aivault-menu-item svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.aivault-menu-item.danger{color:#dc2626}
+.aivault-live-button{background:#0a84ff!important;color:#fff!important;opacity:1!important;cursor:pointer!important}
+.aivault-live-button:hover{background:#0879eb!important}
+.aivault-wave{width:18px;height:18px;display:flex;align-items:center;justify-content:center;gap:2px}
+.aivault-wave i{display:block;width:2px;background:#fff;border-radius:2px;animation:aivaultWave 1s ease-in-out infinite;animation-play-state:paused}
+.aivault-wave i:nth-child(1){height:7px}.aivault-wave i:nth-child(2){height:14px;animation-delay:.12s}.aivault-wave i:nth-child(3){height:11px;animation-delay:.24s}.aivault-wave i:nth-child(4){height:6px;animation-delay:.36s}
+.aivault-live-button.active .aivault-wave i{animation-play-state:running}
+@keyframes aivaultWave{0%,100%{transform:scaleY(.65)}50%{transform:scaleY(1.12)}}
+.aivault-stop-icon{width:12px;height:12px;border-radius:3px;background:#fff}
+.aivault-voice-panel{position:fixed;right:14px;top:102px;width:260px;padding:14px;background:#fff;border:1px solid #e5e5e5;border-radius:15px;box-shadow:0 10px 34px rgba(0,0,0,.13);display:none;z-index:190}
+.aivault-voice-panel.show{display:block}
+.aivault-voice-title{font-size:13px;font-weight:600;margin-bottom:11px}
+.aivault-voice-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.aivault-voice-choice{border:1px solid #e4e4e4;background:#fff;color:#333;border-radius:9px;padding:9px 8px;font-size:12px}
+.aivault-voice-choice.active{border-color:#0a84ff;background:#f1f7ff;color:#0a84ff}
+.aivault-voice-state{margin-top:10px;font-size:11px;color:#888;line-height:1.5}
+'''
+
+          body = r'''
+<!-- AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V1 -->
+<div id="aivaultMoreMenu" class="aivault-more-menu" aria-hidden="true">
+  <button class="aivault-menu-item" data-aivault-action="voice"><svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><path d="M12 18v3"/><path d="M8 21h8"/></svg><span>加入即時語音</span></button>
+  <button class="aivault-menu-item" data-aivault-action="share"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="m8.2 10.9 7.6-4.7M8.2 13.1l7.6 4.7"/></svg><span>分享</span></button>
+  <button class="aivault-menu-item" data-aivault-action="pin"><svg viewBox="0 0 24 24"><path d="m15 4 5 5-3 3 1 5-2 2-4-4-4 4-2-2 4-4-4-4 2-2 5 1 3-3Z"/></svg><span>釘選</span></button>
+  <button class="aivault-menu-item" data-aivault-action="project"><svg viewBox="0 0 24 24"><path d="M4 7h6l2 2h8v10H4z"/><path d="M12 13v6M9 16h6"/></svg><span>新增至專案</span></button>
+  <button class="aivault-menu-item" data-aivault-action="files"><svg viewBox="0 0 24 24"><path d="M5 4h9l5 5v11H5z"/><path d="M14 4v6h6"/><path d="M8 14h8M8 17h6"/></svg><span>已上傳的檔案</span></button>
+  <button class="aivault-menu-item" data-aivault-action="search"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><span>在對話中搜尋</span></button>
+  <button class="aivault-menu-item" data-aivault-action="archive"><svg viewBox="0 0 24 24"><path d="M4 7h16l-1 13H5L4 7Z"/><path d="M3 4h18v3H3zM9 11h6"/></svg><span>封存</span></button>
+  <button class="aivault-menu-item danger" data-aivault-action="delete"><svg viewBox="0 0 24 24"><path d="M5 7h14M10 11v6M14 11v6M8 7l1-3h6l1 3M7 7l1 14h8l1-14"/></svg><span>刪除</span></button>
+</div>
+<div id="aivaultVoicePanel" class="aivault-voice-panel" aria-hidden="true">
+  <div class="aivault-voice-title">即時語音</div>
+  <div class="aivault-voice-grid">
+    <button class="aivault-voice-choice active" data-voice="Kore">女聲</button>
+    <button class="aivault-voice-choice" data-voice="Puck">男聲</button>
+    <button class="aivault-voice-choice" data-voice="Charon">成熟聲</button>
+    <button class="aivault-voice-choice" data-voice="Leda">年輕聲</button>
+  </div>
+  <div id="aivaultVoiceState" class="aivault-voice-state">準備就緒</div>
+</div>
+'''
+
+          script = r'''
+<script>
+/* AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V1 */
+(()=>{
+  'use strict';
+  const TOKEN_URL='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-voice-session';
+  const input=document.querySelector('.composer-input');
+  const send=document.querySelector('.composer-send');
+  if(!input||!send)return;
+
+  const topbar=document.querySelector('.topbar');
+  const actions=document.createElement('div'); actions.className='aivault-top-actions';
+  actions.innerHTML=`<button id="aivaultNewTopic" class="aivault-top-action" title="開新話題" aria-label="開新話題"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/><path d="M5 5h5M5 5v5"/></svg></button><button id="aivaultMore" class="aivault-top-action" title="更多" aria-label="更多"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg></button>`;
+  if(topbar){
+    const home=topbar.querySelector('.brand-home');
+    if(home) home.before(actions); else topbar.appendChild(actions);
+  }
+  const more=document.getElementById('aivaultMore');
+  const menu=document.getElementById('aivaultMoreMenu');
+  const panel=document.getElementById('aivaultVoicePanel');
+  const state=document.getElementById('aivaultVoiceState');
+  const newTopic=document.getElementById('aivaultNewTopic');
+
+  const voice={running:false,ws:null,stream:null,ctx:null,processor:null,source:null,playCtx:null,queue:[],playing:false,sessionId:null,seq:0,inputText:'',outputText:'',profile:localStorage.getItem('aivault_voice_profile')||'Kore'};
+
+  function iconWave(){send.innerHTML='<span class="aivault-wave"><i></i><i></i><i></i><i></i></span>'}
+  function iconStop(){send.innerHTML='<span class="aivault-stop-icon"></span>'}
+  function hasText(){return input.value.trim().length>0}
+  function setIdle(){send.classList.remove('aivault-live-button','active'); iconWave(); send.disabled=false}
+  function setRunning(){send.classList.add('aivault-live-button','active');send.disabled=false;iconStop()}
+  function updateButton(){if(voice.running)return setRunning(); if(hasText()){send.classList.remove('aivault-live-button','active');send.disabled=false;return} setIdle()}
+  function showState(t){if(state)state.textContent=t}
+  function toggleMenu(){const on=!menu.classList.contains('show');menu.classList.toggle('show',on);menu.setAttribute('aria-hidden',String(!on));if(on)panel.classList.remove('show')}
+  more?.addEventListener('click',e=>{e.stopPropagation();toggleMenu()});
+  document.addEventListener('click',e=>{if(!menu.contains(e.target)&&e.target!==more)menu.classList.remove('show');if(!panel.contains(e.target)&&!e.target.closest('[data-voice]')&&e.target!==more)panel.classList.remove('show')});
+
+  document.querySelectorAll('.aivault-voice-choice').forEach(b=>b.addEventListener('click',()=>{voice.profile=b.dataset.voice;localStorage.setItem('aivault_voice_profile',voice.profile);document.querySelectorAll('.aivault-voice-choice').forEach(x=>x.classList.toggle('active',x===b));showState('語音：'+b.textContent)}));
+
+  function pcm16FromFloat(float32,inRate){const ratio=inRate/16000;const len=Math.floor(float32.length/ratio);const out=new Int16Array(len);for(let i=0;i<len;i++){let idx=Math.floor(i*ratio),sum=0,count=0;for(let j=0;j<Math.ceil(ratio)&&idx+j<float32.length;j++){sum+=float32[idx+j];count++}let s=Math.max(-1,Math.min(1,sum/count));out[i]=s<0?s*32768:s*32767}return out}
+  function b64(buf){let bytes=new Uint8Array(buf.buffer,buf.byteOffset,buf.byteLength),s='';const step=0x8000;for(let i=0;i<bytes.length;i+=step)s+=String.fromCharCode(...bytes.subarray(i,i+step));return btoa(s)}
+  function fromB64(s){const bin=atob(s),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u}
+  async function saveTurn(role,text){if(!voice.sessionId||!text.trim())return;try{await fetch(TOKEN_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'turn',session_id:voice.sessionId,sequence_no:++voice.seq,role,content:text.trim()})})}catch(e){console.warn('voice turn save failed',e)}}
+  async function startSession(){const r=await fetch(TOKEN_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'start',voice_profile:voice.profile})});if(!r.ok)throw new Error('voice session start failed');const j=await r.json();voice.sessionId=j.session_id||j.id||j.session?.id||null}
+  async function getToken(){const r=await fetch(TOKEN_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({voice_name:voice.profile})});if(!r.ok)throw new Error('voice token failed');return r.json()}
+  function queueAudio(b64pcm){if(!voice.playCtx)return;const u=fromB64(b64pcm);const pcm=new Int16Array(u.buffer,u.byteOffset,Math.floor(u.byteLength/2));const f=new Float32Array(pcm.length);for(let i=0;i<pcm.length;i++)f[i]=pcm[i]/32768;const ab=voice.playCtx.createBuffer(1,f.length,24000);ab.copyToChannel(f,0);voice.queue.push(ab);playNext()}
+  function playNext(){if(voice.playing||!voice.queue.length||!voice.playCtx)return;voice.playing=true;const src=voice.playCtx.createBufferSource();src.buffer=voice.queue.shift();src.connect(voice.playCtx.destination);src.onended=()=>{voice.playing=false;playNext()};src.start()}
+  function clearAudio(){voice.queue=[];voice.playing=false}
+  async function startVoice(){if(voice.running)return;try{
+    showState('連線中…');
+    // iOS requires AudioContext activation from the user gesture before async work completes.
+    voice.playCtx=new (window.AudioContext||window.webkitAudioContext)({sampleRate:24000});await voice.playCtx.resume();
+    await startSession();const token=await getToken();
+    voice.stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+    const wsUrl=token.websocket_url||token.websocketUrl||token.url||'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?access_token='+encodeURIComponent(token.token||token.access_token||'');
+    voice.ws=new WebSocket(wsUrl);voice.ws.binaryType='arraybuffer';
+    voice.ws.onopen=async()=>{
+      voice.running=true;setRunning();showState('正在聆聽…');
+      voice.ws.send(JSON.stringify({setup:{model:token.model||'models/gemini-3.1-flash-live-preview',generationConfig:{responseModalities:['AUDIO'],thinkingConfig:{thinkingLevel:'minimal'}},inputAudioTranscription:{},outputAudioTranscription:{},speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice.profile}}},systemInstruction:{parts:[{text:'請使用繁體中文自然對話。簡短、直接、像真人聊天。不要自我介紹，不要重複。使用者可以隨時插話。這是即時語音，不要提及模型、Gemini、API 或內部系統。'}]}}}));
+      voice.ctx=new (window.AudioContext||window.webkitAudioContext)();await voice.ctx.resume();voice.source=voice.ctx.createMediaStreamSource(voice.stream);voice.processor=voice.ctx.createScriptProcessor(4096,1,1);voice.processor.onaudioprocess=e=>{if(!voice.running||!voice.ws||voice.ws.readyState!==1)return;const pcm=pcm16FromFloat(e.inputBuffer.getChannelData(0),voice.ctx.sampleRate);if(pcm.length)voice.ws.send(JSON.stringify({realtimeInput:{mediaChunks:[{mimeType:'audio/pcm;rate=16000',data:b64(pcm)}]}}))};voice.source.connect(voice.processor);voice.processor.connect(voice.ctx.destination)
+    };
+    voice.ws.onmessage=async e=>{let m;try{m=JSON.parse(e.data)}catch{return};const sc=m.serverContent||{};if(sc.interrupted){clearAudio();showState('聆聽中…')}if(sc.modelTurn?.parts)for(const part of sc.modelTurn.parts){if(part.inlineData?.data)queueAudio(part.inlineData.data);if(part.text)voice.outputText+=part.text}if(sc.inputTranscription?.text)voice.inputText+=sc.inputTranscription.text;if(sc.outputTranscription?.text)voice.outputText+=sc.outputTranscription.text;if(sc.turnComplete){if(voice.inputText.trim())await saveTurn('user',voice.inputText);if(voice.outputText.trim())await saveTurn('assistant',voice.outputText);voice.inputText='';voice.outputText='';showState('正在聆聽…')}};
+    voice.ws.onerror=()=>showState('語音連線發生問題');voice.ws.onclose=()=>{if(voice.running)stopVoice(false)};
+  }catch(e){console.error(e);showState('無法啟動即時語音');await stopVoice(false)}}
+  async function stopVoice(show=true){voice.running=false;if(voice.processor){try{voice.processor.disconnect()}catch{}}if(voice.source){try{voice.source.disconnect()}catch{}}if(voice.ctx){try{await voice.ctx.close()}catch{}}voice.processor=null;voice.source=null;if(voice.stream){voice.stream.getTracks().forEach(t=>t.stop());voice.stream=null}if(voice.ws){try{voice.ws.close()}catch{}voice.ws=null}clearAudio();if(voice.sessionId){try{await fetch(TOKEN_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'end',session_id:voice.sessionId})})}catch{}voice.sessionId=null}if(show)showState('已結束');updateButton()}
+
+  send.addEventListener('click',e=>{if(!hasText()&&!voice.running){e.preventDefault();e.stopImmediatePropagation();startVoice();return}if(voice.running){e.preventDefault();e.stopImmediatePropagation();stopVoice();return}},true);
+  input.addEventListener('input',updateButton);input.addEventListener('focus',updateButton);updateButton();
+
+  menu.addEventListener('click',async e=>{const item=e.target.closest('[data-aivault-action]');if(!item)return;const action=item.dataset.aivaultAction;menu.classList.remove('show');if(action==='voice'){panel.classList.add('show');showState('準備就緒');return}if(action==='share'){if(navigator.share){try{await navigator.share({title:document.title,url:location.href})}catch{}}else{try{await navigator.clipboard.writeText(location.href);showState('已複製分享連結')}catch{}}return}if(action==='search'){input.focus();return}if(action==='files'){document.querySelector('.composer-plus')?.click();return}if(action==='delete'){if(confirm('確定要刪除目前對話嗎？')){window.dispatchEvent(new CustomEvent('aivault:delete-conversation'));showState('已要求刪除目前對話')}return}window.dispatchEvent(new CustomEvent('aivault:'+action));});
+  newTopic?.addEventListener('click',()=>{menu.classList.remove('show');panel.classList.remove('show');window.dispatchEvent(new CustomEvent('aivault:new-topic'));showState('準備開新話題')});
+})();
+</script>
+'''
+
+          if '</style>' not in text or '</body>' not in text:
+              raise SystemExit('Expected HTML markers not found; aborting to protect original file.')
+          text = text.replace('</style>', css + '\n</style>', 1)
+          text = text.replace('</body>', body + '\n' + script + '\n</body>', 1)
+          path.write_text(text, encoding='utf-8')
+          print('Additive integration applied:', len(text), 'bytes')
+      - name: Commit additive change
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add technical-dark-star.html
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Additive: Dark Star voice button and conversation menu"
+            git push
+          fi
