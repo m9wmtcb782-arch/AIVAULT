@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Technical Dark Star｜SDK Live Voice Relay Test</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#fff;color:#111;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:20px}h1{font-size:26px;margin:0 0 8px}.sub{color:#666;margin-bottom:18px}.row{display:flex;gap:10px;flex-wrap:wrap}button{font-size:20px;padding:14px 18px;border:1px solid #222;border-radius:12px;background:#fff}button:disabled{opacity:.45}.status{margin:16px 0;padding:14px;border-radius:12px;background:#f3f3f3;font-size:18px}.bubble{margin:10px 0;padding:12px 14px;border-radius:12px;white-space:pre-wrap}.user{background:#eef5ff}.ai{background:#f2f2f2}.log{margin-top:16px;background:#111;color:#0f0;padding:12px;border-radius:10px;height:220px;overflow:auto;font:13px ui-monospace,monospace;white-space:pre-wrap}.small{font-size:14px;color:#777;margin-top:12px}
+</style>
+</head>
+<body>
+<h1>🎙️ Technical Dark Star</h1>
+<div class="sub">Google GenAI SDK → Supabase WebSocket Relay → Gemini Live</div>
+<div class="row"><button id="start">開始即時語音</button><button id="stop" disabled>停止</button></div>
+<div id="status" class="status">尚未連線</div>
+<div id="chat"></div>
+<div class="log" id="log"></div>
+<div class="small">這是獨立測試頁，不修改 technical-dark-star.html。</div>
+<script>
+const SUPA='https://clcddygkaaqqtsbswgdf.supabase.co';
+const SESSION=SUPA+'/functions/v1/technical-dark-star-voice-session';
+const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-voice-sdk-relay';
+let ws=null,stream=null,ctx=null,processor=null,source=null,sessionKey=null,seq=0;
+let inputText='',outputText='',playAt=0;
+const $=id=>document.getElementById(id);
+function log(x){$('log').textContent+=new Date().toLocaleTimeString()+' '+x+'\n';$('log').scrollTop=$('log').scrollHeight}
+function status(x){$('status').textContent=x;log(x)}
+function add(role,text){if(!text)return;const d=document.createElement('div');d.className='bubble '+(role==='user'?'user':'ai');d.textContent=(role==='user'?'你：':'暗星：')+text;$('chat').appendChild(d)}
+function b64(u8){let s='';const n=0x8000;for(let i=0;i<u8.length;i+=n)s+=String.fromCharCode(...u8.subarray(i,i+n));return btoa(s)}
+function resample(input,inRate,outRate){if(inRate===outRate)return input;const ratio=inRate/outRate;const len=Math.round(input.length/ratio),out=new Float32Array(len);for(let i=0;i<len;i++){const p=i*ratio,ip=Math.floor(p),f=p-ip;const a=input[ip]||0,b=input[ip+1]||a;out[i]=a+(b-a)*f}return out}
+function pcm16(f){const out=new Int16Array(f.length);for(let i=0;i<f.length;i++){const x=Math.max(-1,Math.min(1,f[i]));out[i]=x<0?x*32768:x*32767}return new Uint8Array(out.buffer)}
+function playPCM(base64){if(!ctx)return;const bin=atob(base64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);const pcm=new Int16Array(u.buffer);const buf=ctx.createBuffer(1,pcm.length,24000),ch=buf.getChannelData(0);for(let i=0;i<pcm.length;i++)ch[i]=pcm[i]/32768;const src=ctx.createBufferSource();src.buffer=buf;src.connect(ctx.destination);const now=ctx.currentTime;if(playAt<now)playAt=now+.03;src.start(playAt);playAt+=buf.duration}
+async function api(action,body={}){const r=await fetch(SESSION,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...body})});return await r.json()}
+async function saveTurn(role,content){if(!sessionKey||!content.trim())return;seq++;const r=await api('turn',{session_key:sessionKey,role,content:content.trim(),sequence_no:seq});log('SAVE '+role+' HTTP '+(r?.success===false?'FAIL':'OK'))}
+async function start(){
+ $('start').disabled=true;$('stop').disabled=false; $('chat').innerHTML='';inputText='';outputText='';seq=0;
+ try{
+  status('建立 AIVAULT 語音工作階段…');
+  const s=await api('start',{voice_name:'Kore',metadata:{transport:'sdk-relay-test'}});sessionKey=s.session?.session_key||s.session_key;if(!sessionKey)throw new Error('session_key missing');
+  ctx=new (window.AudioContext||window.webkitAudioContext)();await ctx.resume();
+  ws=new WebSocket(RELAY+'?session_key='+encodeURIComponent(sessionKey));
+  ws.onopen=()=>{status('Relay 已連線，等待 Gemini Live…')};
+  ws.onmessage=async e=>{let m;try{m=JSON.parse(e.data)}catch{return}
+   if(m.type==='relay_open')log('RELAY OPEN');
+   else if(m.type==='live_open')status('Gemini Live 已連線');
+   else if(m.type==='sdk_connected')status('SDK Session 已建立，準備開啟麥克風');
+   else if(m.type==='setup_complete'){status('🟢 可以說話');await mic()}
+   else if(m.type==='input_transcription'){inputText+=m.text||'';log('USER TRANSCRIPT '+(m.text||''))}
+   else if(m.type==='output_transcription'){outputText+=m.text||'';log('AI TRANSCRIPT '+(m.text||''))}
+   else if(m.type==='audio'){playPCM(m.data)}
+   else if(m.type==='turn_complete'){const u=inputText.trim(),a=outputText.trim();if(u)add('user',u);if(a)add('ai',a);await saveTurn('user',u);await saveTurn('assistant',a);inputText='';outputText='';status('🟢 繼續說話')}
+   else if(m.type==='relay_error'){status('❌ '+m.stage+': '+m.error)}
+   else if(m.type==='live_close'){log('LIVE CLOSE '+m.code+' '+m.reason)}
+  };
+  ws.onerror=()=>status('❌ Relay WebSocket 錯誤');
+  ws.onclose=()=>{log('RELAY CLOSE');stop(false)};
+ }catch(e){status('❌ '+e.message);stop(false)}
+}
+async function mic(){if(stream)return;stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});ctx.resume();const rate=ctx.sampleRate;log('MIC '+rate+'Hz → 16000Hz');source=ctx.createMediaStreamSource(stream);processor=ctx.createScriptProcessor(4096,1,1);processor.onaudioprocess=e=>{if(!ws||ws.readyState!==1)return;const f=resample(e.inputBuffer.getChannelData(0),rate,16000);const p=pcm16(f);ws.send(JSON.stringify({type:'audio',data:b64(p),mimeType:'audio/pcm;rate=16000'}))};source.connect(processor);processor.connect(ctx.destination)}
+function stop(sendClose=true){try{if(processor)processor.disconnect();if(source)source.disconnect();if(stream)stream.getTracks().forEach(t=>t.stop());if(sendClose&&ws&&ws.readyState===1)ws.send(JSON.stringify({type:'close'}));if(ws)ws.close()}catch{}processor=null;source=null;stream=null;ws=null;$('start').disabled=false;$('stop').disabled=true;status('已停止')}
+$('start').onclick=start;$('stop').onclick=()=>stop(true);
+</script>
+</body>
+</html>
