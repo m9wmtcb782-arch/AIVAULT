@@ -28,22 +28,24 @@ jobs:
 
           s=re.sub(r'realtimeInput:\s*\{\s*mediaChunks\s*:\s*\[\s*\{\s*mimeType\s*:\s*["\']audio/pcm;rate=16000["\']\s*,\s*data\s*:\s*b64\([^)]*\)\s*\}\s*\]\s*\}', 'realtimeInput:{audio:{mimeType:"audio/pcm;rate=16000",data:b64(o)}}', s, flags=re.S)
           s=re.sub(r'voice\.session=sj\.session_id;', 'voice.session=sj.session?.id||sj.session_id||sj.session?.session_id;', s, count=1)
-          s=re.sub(r'tj\.websocket_url\|\|tj\.url\|\|', 'tj.websocket||tj.websocket_url||tj.url||', s, count=1)
+          s=re.sub(r'const url=tj\.websocket\|\|tj\.websocket\|\|tj\.websocket\|\|tj\.websocket\|\|tj\.websocket_url\|\|tj\.url\|\|\("wss://generativelanguage\.googleapis\.com/ws/google\.ai\.generativelanguage\.v1beta\.GenerativeService\.BidiGenerateContentConstrained\?access_token="\+encodeURIComponent\(tj\.token\)\);', 'const url=(tj.websocket||tj.websocket_url||tj.url||"wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained")+(tj.token?("?access_token="+encodeURIComponent(tj.token)):"");', s, count=1)
           s=re.sub(r'voice\.ws\.onopen=\(\)=>\{', 'voice.ws.onopen=async()=>{', s, count=1)
 
           s=s.replace('id="sendButton"\n          class="composer-send"\n          aria-label="送出"\n          disabled>', 'id="sendButton"\n          class="composer-send"\n          aria-label="送出">', 1)
 
-          # Make the independent voice control survive the core composer disabled-state logic.
-          hard='''<script>\n/* AIVAULT_DARK_STAR_VOICE_HARDENED_CONTROLS */\n(()=>{\n  const input=document.getElementById("composerInput")||document.querySelector(".composer-input");\n  const send=document.getElementById("sendButton")||document.querySelector(".composer-send");\n  const menu=document.getElementById("menuButton");\n  const drawer=document.getElementById("drawer");\n  const back=document.getElementById("drawerBackdrop");\n  if(!send)return;\n  const sync=()=>{\n    if(!input)return;\n    if(!input.value.trim() && !send.dataset.darkStarSending){\n      send.disabled=false;\n      send.style.pointerEvents="auto";\n    }\n  };\n  sync();\n  input?.addEventListener("input",sync,true);\n  new MutationObserver(sync).observe(send,{attributes:true,attributeFilter:["disabled"]});\n  menu?.addEventListener("click",()=>{drawer?.classList.add("show");back?.classList.add("show");},{capture:true});\n})();\n</script>\n'''
+          # Keep the independent live-voice button enabled when the text composer is empty.
+          hard='''<script>\n/* AIVAULT_DARK_STAR_VOICE_HARDENED_CONTROLS */\n(()=>{\n  const input=document.getElementById("composerInput")||document.querySelector(".composer-input");\n  const send=document.getElementById("sendButton")||document.querySelector(".composer-send");\n  const menu=document.getElementById("menuButton");\n  const drawer=document.getElementById("drawer");\n  const back=document.getElementById("drawerBackdrop");\n  const close=document.getElementById("drawerClose");\n  const panel=document.getElementById("aivaultVoicePanel");\n  if(!send)return;\n  const sync=()=>{\n    if(!input)return;\n    if(!input.value.trim() && !send.dataset.darkStarSending){\n      send.disabled=false;\n      send.style.pointerEvents="auto";\n    }\n  };\n  const closeDrawer=()=>{drawer?.classList.remove("show");back?.classList.remove("show")};\n  sync();\n  input?.addEventListener("input",sync,true);\n  new MutationObserver(sync).observe(send,{attributes:true,attributeFilter:["disabled"]});\n  menu?.addEventListener("click",()=>{drawer?.classList.add("show");back?.classList.add("show")},{capture:true});\n  close?.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();closeDrawer()},{capture:true});\n  back?.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();closeDrawer()},{capture:true});\n  document.addEventListener("keydown",e=>{if(e.key==="Escape")closeDrawer()});\n\n  // Add simple voice selection to the drawer without changing the existing layout.\n  const bottom=document.querySelector(".drawer-bottom");\n  if(bottom && !document.getElementById("aivaultDrawerVoice")){\n    const box=document.createElement("div");\n    box.id="aivaultDrawerVoice";\n    box.style.cssText="border-top:1px solid #eee;margin-top:4px;padding:10px 4px 4px";\n    box.innerHTML=`<div style="font-size:12px;color:#777;margin:0 6px 7px">即時語音</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><button type="button" data-drawer-voice="Kore" style="border:1px solid #0a84ff;background:#f1f7ff;color:#0a84ff;border-radius:8px;padding:7px 4px;font-size:11px">女聲</button><button type="button" data-drawer-voice="Puck" style="border:1px solid #e4e4e4;background:#fff;color:#333;border-radius:8px;padding:7px 4px;font-size:11px">男聲</button><button type="button" data-drawer-voice="Charon" style="border:1px solid #e4e4e4;background:#fff;color:#333;border-radius:8px;padding:7px 4px;font-size:11px">成熟聲</button><button type="button" data-drawer-voice="Leda" style="border:1px solid #e4e4e4;background:#fff;color:#333;border-radius:8px;padding:7px 4px;font-size:11px">年輕聲</button></div>`;\n    bottom.appendChild(box);\n    const setVoice=(name)=>{localStorage.setItem("aivault_voice_profile",name);document.querySelectorAll("[data-drawer-voice]").forEach(x=>{const on=x.dataset.drawerVoice===name;x.style.borderColor=on?"#0a84ff":"#e4e4e4";x.style.background=on?"#f1f7ff":"#fff";x.style.color=on?"#0a84ff":"#333"});document.querySelectorAll(".aivault-voice-choice").forEach(x=>x.classList.toggle("active",x.dataset.voice===name));if(panel)panel.classList.remove("show")};\n    box.querySelectorAll("[data-drawer-voice]").forEach(b=>b.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();setVoice(b.dataset.drawerVoice)}));\n    setVoice(localStorage.getItem("aivault_voice_profile")||"Kore");\n  }\n})();\n</script>\n'''
           if 'AIVAULT_DARK_STAR_VOICE_HARDENED_CONTROLS' not in s:
               s=s.replace('</body>', hard+'</body>', 1)
+          else:
+              # Replace the previous hardened block with the corrected one.
+              s=re.sub(r'<script>\s*/\* AIVAULT_DARK_STAR_VOICE_HARDENED_CONTROLS \*/.*?</script>\s*</body>', hard+'</body>', s, count=1, flags=re.S)
 
           p.write_text(s,encoding='utf-8')
       - name: Validate
         shell: python
         run: |
           from pathlib import Path
-          import re
           s=Path('technical-dark-star.html').read_text(encoding='utf-8')
           checks=[
             'AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V2' in s,
@@ -53,6 +55,8 @@ jobs:
             'tj.websocket||tj.websocket_url||tj.url||' in s,
             'realtimeInput:{audio:{mimeType:"audio/pcm;rate=16000",data:b64(o)}}' in s,
             'id="sendButton"\n          class="composer-send"\n          aria-label="送出"\n          disabled>' not in s,
+            'closeDrawer=()=>{drawer?.classList.remove("show");back?.classList.remove("show")}' in s,
+            'data-drawer-voice="Kore"' in s,
             '<button id="micButton"' in s,
             '<button id="sendButton"' in s,
             '<aside id="drawer"' in s,
@@ -67,5 +71,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add technical-dark-star.html
           git diff --cached --quiet && exit 0
-          git commit -m 'Harden Dark Star voice button and history drawer'
+          git commit -m 'Fix Dark Star live voice websocket and drawer controls'
           git push
