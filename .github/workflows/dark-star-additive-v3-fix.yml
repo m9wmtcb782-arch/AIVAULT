@@ -1,0 +1,43 @@
+name: Dark Star Additive V3 Fix
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Normalize additive module
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('technical-dark-star.html')
+          s = p.read_text(encoding='utf-8')
+          marker = 'AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V2'
+          if marker not in s:
+              raise SystemExit('V2 marker missing')
+          start = s.index('/* AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V2 */')
+          style_end = s.index('</style>', start)
+          css = s[start:style_end]
+          css = css.replace('\\n', '\n')
+          s = s[:start] + css + s[style_end:]
+          body_start = s.index('<!-- AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V2 -->')
+          body_end = s.index('</body>', body_start)
+          body = s[body_start:body_end].replace('\\n', '\n')
+          s = s[:body_start] + body + s[body_end:]
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit fix
+        run: |
+          git config user.name "aivault-additive-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add technical-dark-star.html
+          git diff --cached --quiet && exit 0
+          git commit -m "Fix: normalize additive Dark Star UI"
+          git push
