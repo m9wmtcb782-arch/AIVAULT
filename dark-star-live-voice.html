@@ -3,54 +3,36 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Dark Star Live Voice</title>
+<title>Technical Dark Star｜即時語音</title>
 <style>
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif}
-#frame{position:fixed;inset:0;width:100%;height:100%;border:0}
-#voiceState{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);z-index:9999;background:rgba(20,20,20,.92);color:#fff;border-radius:18px;padding:8px 14px;font-size:13px;display:none;box-shadow:0 6px 24px rgba(0,0,0,.18)}
-#voiceState.show{display:block}
-#voicePanel{position:fixed;top:58px;left:12px;z-index:10000;background:#fff;border:1px solid #e8e8e8;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.12);padding:10px;display:none;min-width:190px}
-#voicePanel.show{display:block}
-#voicePanel button{display:block;width:100%;border:0;background:#fff;text-align:left;padding:10px 12px;border-radius:9px;font-size:14px}
-#voicePanel button:hover{background:#f4f4f4}
-#voicePanel .title{font-size:12px;color:#888;padding:4px 10px 7px}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif}#frame{position:fixed;inset:0;width:100%;height:100%;border:0;z-index:1}.voice-bar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:99999;display:flex;gap:8px;align-items:center}.voice-btn,.settings-btn{border:1px solid #ddd;background:#fff;color:#222;border-radius:14px;padding:11px 16px;font-size:14px;box-shadow:0 5px 22px rgba(0,0,0,.12)}.voice-btn.active{background:#111;color:#fff;border-color:#111}.settings-btn{position:fixed;left:10px;top:10px;z-index:99999;padding:9px 12px}.state{position:fixed;left:50%;bottom:72px;transform:translateX(-50%);z-index:99999;background:rgba(20,20,20,.92);color:#fff;border-radius:18px;padding:8px 14px;font-size:13px;display:none}.state.show{display:block}.panel{position:fixed;left:10px;top:54px;z-index:100000;background:#fff;border:1px solid #e5e5e5;border-radius:14px;box-shadow:0 10px 35px rgba(0,0,0,.16);padding:8px;width:190px;display:none}.panel.show{display:block}.panel-title{font-size:12px;color:#888;padding:6px 10px}.panel button{display:block;width:100%;border:0;background:#fff;text-align:left;padding:11px 12px;border-radius:9px;font-size:14px}.panel button:hover{background:#f4f4f4}.hint{font-size:11px;color:#999;padding:7px 10px 5px}
 </style>
 </head>
 <body>
 <iframe id="frame" src="technical-dark-star.html" allow="microphone; autoplay"></iframe>
-<div id="voiceState"></div>
-<div id="voicePanel"><div class="title">語音聲音</div><button data-v="Kore">女聲</button><button data-v="Puck">男聲</button><button data-v="Charon">成熟聲</button><button data-v="Leda">年輕聲</button></div>
+<button id="settings" class="settings-btn">☰ 語音設定</button>
+<div id="panel" class="panel"><div class="panel-title">選擇聲音</div><button data-v="Kore">♀ 女聲</button><button data-v="Puck">♂ 男聲</button><button data-v="Charon">◉ 成熟聲</button><button data-v="Leda">○ 年輕聲</button><div class="hint">聲音選擇會在下一次連線使用。</div></div>
+<div id="state" class="state"></div>
+<div class="voice-bar"><button id="voice" class="voice-btn">🎙️ 語音模式</button></div>
 <script>
-const SUPABASE="https://clcddygkaaqqtsbswgdf.supabase.co";
-const VOICE_FN=SUPABASE+"/functions/v1/technical-dark-star-voice-session";
-const MODEL="gemini-3.1-flash-live-preview";
-const frame=document.getElementById('frame');
-const state=document.getElementById('voiceState');
-const panel=document.getElementById('voicePanel');
-let doc=null,input=null,send=null,mic=null,voiceBtn=null,voiceSettingsBtn=null;
-let ws=null,audioCtx=null,processor=null,source=null,stream=null,sessionId=null,seq=0;
-let running=false,starting=false,selectedVoice=localStorage.getItem('ds_voice')||'Kore';
-let playbackTime=0,activeSources=new Set();
-const show=(t)=>{state.textContent=t;state.classList.add('show')};
-const hide=()=>state.classList.remove('show');
-function b64(buf){let bytes=new Uint8Array(buf),s='';for(let i=0;i<bytes.length;i+=0x8000)s+=String.fromCharCode(...bytes.subarray(i,i+0x8000));return btoa(s)}
-function bytes(b64s){const s=atob(b64s),a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);return a}
-function pcm16ToFloat(u8){const dv=new DataView(u8.buffer,u8.byteOffset,u8.byteLength);const out=new Float32Array(Math.floor(u8.byteLength/2));for(let i=0;i<out.length;i++)out[i]=dv.getInt16(i*2,true)/32768;return out}
-function resampleFloat(data,from,to){if(from===to)return data;const n=Math.round(data.length*to/from),out=new Float32Array(n);const r=(data.length-1)/(n-1||1);for(let i=0;i<n;i++){const x=i*r,a=Math.floor(x),b=Math.min(a+1,data.length-1),f=x-a;out[i]=data[a]*(1-f)+data[b]*f}return out}
-function floatToPcm16(data){const out=new Int16Array(data.length);for(let i=0;i<data.length;i++){const x=Math.max(-1,Math.min(1,data[i]));out[i]=x<0?x*32768:x*32767}return out.buffer}
-async function api(body){const r=await fetch(VOICE_FN,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json().catch(()=>({}));if(!r.ok||!d.success)throw new Error(d.error||('HTTP '+r.status));return d}
-async function saveTurn(role,text){text=(text||'').trim();if(!sessionId||!text)return;try{await api({action:'turn',session_id:sessionId,sequence_no:++seq,role,content:text})}catch(e){console.warn('voice turn save failed',e)}}
-async function startVoice(){if(running||starting)return;starting=true;show('正在連接語音…');try{const start=await api({action:'start',voice_profile:selectedVoice,metadata:{source:'dark-star-live-voice'}});sessionId=start.session?.id||null;const auth=await api({voice_name:selectedVoice});ws=new WebSocket(auth.websocket+'?access_token='+encodeURIComponent(auth.token));ws.onopen=()=>{const setup={setup:{model:'models/'+MODEL,generationConfig:{responseModalities:['AUDIO']},inputAudioTranscription:{},outputAudioTranscription:{},speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:selectedVoice}}},thinkingConfig:{thinkingLevel:'minimal'},systemInstruction:{parts:[{text:'使用繁體中文。自然、簡短、像真人對話；不要自我介紹，不要重複回答；可以被使用者打斷。'}]}}};ws.send(JSON.stringify(setup));running=true;starting=false;show('可以說話了');startMic()};
-ws.onmessage=handleMessage;ws.onerror=()=>{show('語音連線錯誤');stopVoice()};ws.onclose=()=>{if(running)stopVoice(true)};
-}catch(e){console.error(e);starting=false;show('啟動失敗：'+e.message);setTimeout(hide,3500)}}
-function handleMessage(ev){let m;try{m=JSON.parse(ev.data)}catch{return}const c=m.serverContent;if(!c)return;if(c.inputTranscription?.text)saveTurn('user',c.inputTranscription.text);if(c.outputTranscription?.text)saveTurn('assistant',c.outputTranscription.text);if(c.interrupted)clearPlayback();if(c.turnComplete)show('請繼續說話');for(const p of (c.modelTurn?.parts||[])){if(p.inlineData?.data)playPcm(bytes(p.inlineData.data))}}
-function clearPlayback(){for(const s of activeSources){try{s.stop()}catch{}}activeSources.clear();if(audioCtx)playbackTime=audioCtx.currentTime}
-async function playPcm(u8){if(!audioCtx)audioCtx=new AudioContext({sampleRate:24000});if(audioCtx.state==='suspended')await audioCtx.resume();const f=pcm16ToFloat(u8),buf=audioCtx.createBuffer(1,f.length,24000);buf.copyToChannel(f,0);const node=audioCtx.createBufferSource();node.buffer=buf;node.connect(audioCtx.destination);const now=audioCtx.currentTime;playbackTime=Math.max(playbackTime,now);node.start(playbackTime);playbackTime+=buf.duration;activeSources.add(node);node.onended=()=>activeSources.delete(node)}
-async function startMic(){stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});audioCtx=audioCtx||new AudioContext();await audioCtx.resume();source=audioCtx.createMediaStreamSource(stream);processor=audioCtx.createScriptProcessor(2048,1,1);processor.onaudioprocess=e=>{if(!ws||ws.readyState!==1)return;const x=e.inputBuffer.getChannelData(0);const pcm=resampleFloat(x,audioCtx.sampleRate,16000);ws.send(JSON.stringify({realtimeInput:{audio:{data:b64(floatToPcm16(pcm)),mimeType:'audio/pcm;rate=16000'}}}))};source.connect(processor);processor.connect(audioCtx.destination)}
-async function stopVoice(fromSocket){if(!running&&!starting)return;running=false;starting=false;try{if(processor)processor.disconnect()}catch{}try{if(source)source.disconnect()}catch{}try{stream?.getTracks().forEach(t=>t.stop())}catch{}processor=source=stream=null;clearPlayback();if(ws&&!fromSocket){try{ws.close()}catch{}}ws=null;if(sessionId){try{await api({action:'end',session_id:sessionId})}catch{}}sessionId=null;hide();}
-function setup(){doc=frame.contentDocument||frame.contentWindow.document;input=doc.querySelector('textarea');send=[...doc.querySelectorAll('button')].find(b=>/發送|送出/.test(b.textContent||''));mic=[...doc.querySelectorAll('button')].find(b=>/🎤|麥克風|語音輸入/.test(b.textContent||''));if(!input||!send)return false;voiceBtn=document.createElement('button');voiceBtn.textContent='語音模式';voiceBtn.style.cssText='margin-left:8px;border:0;border-radius:10px;padding:9px 13px;background:#111;color:#fff;font-size:13px';send.parentNode.insertBefore(voiceBtn,send.nextSibling);send.style.display='none';voiceBtn.onclick=()=>{if(running){stopVoice();voiceBtn.textContent='語音模式'}else{startVoice();voiceBtn.textContent='退出語音'}};input.addEventListener('input',()=>{if(!running){send.style.display=input.value.trim()?'':'none';voiceBtn.style.display=input.value.trim()?'none':''}});voiceSettingsBtn=document.createElement('button');voiceSettingsBtn.textContent='🔊 語音設定';voiceSettingsBtn.style.cssText='position:fixed;top:8px;left:60px;z-index:9999;border:1px solid #e5e5e5;background:#fff;border-radius:9px;padding:7px 10px;font-size:12px';voiceSettingsBtn.onclick=()=>panel.classList.toggle('show');document.body.appendChild(voiceSettingsBtn);return true}
-frame.addEventListener('load',()=>{let n=0;const timer=setInterval(()=>{if(setup()||++n>30)clearInterval(timer)},300)});
-panel.querySelectorAll('button[data-v]').forEach(b=>b.onclick=()=>{selectedVoice=b.dataset.v;localStorage.setItem('ds_voice',selectedVoice);panel.classList.remove('show');show('已選擇：'+b.textContent);setTimeout(hide,1200)});
+const FN='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-voice-session';
+const MODEL='gemini-3.1-flash-live-preview';
+let ws=null,stream=null,ctx=null,processor=null,source=null,sessionId=null,running=false,starting=false,voice=localStorage.getItem('ds_live_voice')||'Kore',playAt=0,sources=new Set();
+const $=id=>document.getElementById(id),state=$('state'),panel=$('panel'),voiceBtn=$('voice');
+function status(t,keep=false){state.textContent=t;state.classList.add('show');if(!keep)setTimeout(()=>state.classList.remove('show'),1800)}
+async function api(body){const r=await fetch(FN,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json().catch(()=>({}));if(!r.ok||!d.success)throw Error(d.error||('HTTP '+r.status));return d}
+function b64(buf){const a=new Uint8Array(buf);let s='';for(let i=0;i<a.length;i+=32768)s+=String.fromCharCode(...a.subarray(i,i+32768));return btoa(s)}
+function floatTo16(x){const a=new Int16Array(x.length);for(let i=0;i<x.length;i++){let v=Math.max(-1,Math.min(1,x[i]));a[i]=v<0?v*32768:v*32767}return a.buffer}
+function resample(x,from,to){if(from===to)return x;const n=Math.round(x.length*to/from),o=new Float32Array(n),r=(x.length-1)/(n-1||1);for(let i=0;i<n;i++){const p=i*r,a=Math.floor(p),b=Math.min(a+1,x.length-1),f=p-a;o[i]=x[a]*(1-f)+x[b]*f}return o}
+function decode(b){const s=atob(b),a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);return a}
+function pcmFloat(a){const d=new DataView(a.buffer,a.byteOffset,a.byteLength),o=new Float32Array(Math.floor(a.byteLength/2));for(let i=0;i<o.length;i++)o[i]=d.getInt16(i*2,true)/32768;return o}
+async function play(data){ctx=ctx||new AudioContext({sampleRate:24000});if(ctx.state==='suspended')await ctx.resume();const f=pcmFloat(data),b=ctx.createBuffer(1,f.length,24000);b.copyToChannel(f,0);const n=ctx.createBufferSource();n.buffer=b;n.connect(ctx.destination);playAt=Math.max(playAt,ctx.currentTime);n.start(playAt);playAt+=b.duration;sources.add(n);n.onended=()=>sources.delete(n)}
+function clearAudio(){for(const s of sources){try{s.stop()}catch{}}sources.clear();if(ctx)playAt=ctx.currentTime}
+async function save(role,text){text=(text||'').trim();if(!sessionId||!text)return;try{await api({action:'turn',session_id:sessionId,sequence_no:Date.now(),role,content:text})}catch(e){console.warn(e)}}
+async function startMic(){stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});ctx=ctx||new AudioContext();await ctx.resume();source=ctx.createMediaStreamSource(stream);processor=ctx.createScriptProcessor(2048,1,1);processor.onaudioprocess=e=>{if(!ws||ws.readyState!==1)return;const x=resample(e.inputBuffer.getChannelData(0),ctx.sampleRate,16000);ws.send(JSON.stringify({realtimeInput:{audio:{data:b64(floatTo16(x)),mimeType:'audio/pcm;rate=16000'}}}))};source.connect(processor);processor.connect(ctx.destination)}
+async function start(){if(running||starting)return;starting=true;status('正在連接語音…',true);try{const s=await api({action:'start',voice_profile:voice,metadata:{source:'dark-star-live-voice'}});sessionId=s.session?.id||null;const a=await api({voice_name:voice});ws=new WebSocket(a.websocket+'?access_token='+encodeURIComponent(a.token));ws.onopen=async()=>{ws.send(JSON.stringify({setup:{model:'models/'+MODEL,responseModalities:['AUDIO'],inputAudioTranscription:{},outputAudioTranscription:{},speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice}}},thinkingConfig:{thinkingLevel:'minimal'},systemInstruction:{parts:[{text:'你是即時語音對話引擎。使用繁體中文，自然、簡短、像真人對話。不要自我介紹，不要重複回答。使用者可以隨時打斷你。'}]}}}));running=true;starting=false;voiceBtn.classList.add('active');voiceBtn.textContent='⏹ 結束語音';await startMic();status('🎙️ 可以說話了')};ws.onmessage=async e=>{let m;try{m=JSON.parse(e.data)}catch{return}const c=m.serverContent;if(!c)return;if(c.inputTranscription?.text)save('user',c.inputTranscription.text);if(c.outputTranscription?.text)save('assistant',c.outputTranscription.text);if(c.interrupted)clearAudio();if(c.modelTurn?.parts)for(const p of c.modelTurn.parts)if(p.inlineData?.data)await play(decode(p.inlineData.data));if(c.turnComplete)status('請繼續說話')};ws.onerror=()=>{status('語音連線錯誤');stop()};ws.onclose=()=>{if(running)stop(true)}}catch(e){starting=false;status('啟動失敗：'+e.message);console.error(e)}}
+async function stop(fromSocket=false){if(!running&&!starting)return;running=false;starting=false;try{processor?.disconnect()}catch{}try{source?.disconnect()}catch{}try{stream?.getTracks().forEach(t=>t.stop())}catch{}processor=source=stream=null;clearAudio();if(ws&&!fromSocket)try{ws.close()}catch{}ws=null;if(sessionId)try{await api({action:'end',session_id:sessionId})}catch{}sessionId=null;voiceBtn.classList.remove('active');voiceBtn.textContent='🎙️ 語音模式';status('已離開語音模式')}
+voiceBtn.onclick=()=>running?stop():start();$('settings').onclick=()=>panel.classList.toggle('show');panel.querySelectorAll('button[data-v]').forEach(b=>b.onclick=()=>{voice=b.dataset.v;localStorage.setItem('ds_live_voice',voice);panel.classList.remove('show');status('已選擇 '+b.textContent)});
 </script>
 </body>
 </html>
