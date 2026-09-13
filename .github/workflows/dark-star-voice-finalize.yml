@@ -31,49 +31,34 @@ jobs:
           s, count = re.subn(pattern, replacement, s, flags=re.S)
           print(f'PCM transport repaired: {count}')
 
-          # Backend start returns { session: { id: ... } }.
-          s, count = re.subn(
-              r'voice\.session=sj\.session_id;',
-              'voice.session=sj.session?.id||sj.session_id||sj.session?.session_id;',
-              s,
-          )
+          s, count = re.subn(r'voice\.session=sj\.session_id;', 'voice.session=sj.session?.id||sj.session_id||sj.session?.session_id;', s)
           print(f'session response repair: {count}')
 
-          # Backend token response uses "websocket".
-          s, count = re.subn(
-              r'tj\.websocket_url\|\|tj\.url\|\|',
-              'tj.websocket||tj.websocket_url||tj.url||',
-              s,
-          )
+          s, count = re.subn(r'tj\.websocket_url\|\|tj\.url\|\|', 'tj.websocket||tj.websocket_url||tj.url||', s)
           print(f'websocket field repair: {count}')
 
-          # Surface connection failures/status on the existing small voice status UI.
           old = 'function st(x){if(state)state.textContent=x}'
           new = 'function st(x){if(state)state.textContent=x;const vs=document.getElementById("voiceStatus");if(vs){vs.textContent=x;vs.classList.toggle("show",x!=="準備就緒")}}'
           if old in s:
               s = s.replace(old, new, 1)
-          else:
-              print('status function pattern not found')
 
-          # iOS: use the already-resumed AudioContext for capture/playback instead of creating a second suspended context.
           old = 'const ac=new(window.AudioContext||window.webkitAudioContext)();voice.source=ac.createMediaStreamSource(voice.stream);voice.processor=ac.createScriptProcessor(4096,1,1);voice.source.connect(voice.processor);voice.processor.connect(ac.destination);'
           new = 'const ac=voice.ctx;await ac.resume();voice.source=ac.createMediaStreamSource(voice.stream);voice.processor=ac.createScriptProcessor(4096,1,1);voice.source.connect(voice.processor);voice.processor.connect(ac.destination);'
           if old in s:
               s = s.replace(old, new, 1)
-          else:
-              print('capture AudioContext pattern not found')
 
           old = 'const ac=voice.play||(voice.play=new(window.AudioContext||window.webkitAudioContext)());const ab=ac.createBuffer(1,f.length,24000);'
           new = 'const ac=voice.play||(voice.play=voice.ctx||(new(window.AudioContext||window.webkitAudioContext)()));ac.resume();const ab=ac.createBuffer(1,f.length,24000);'
           if old in s:
               s = s.replace(old, new, 1)
-          else:
-              print('playback AudioContext pattern not found')
 
-          # Add a capture-phase fallback for the original chat-history button. This is additive and does not remove the existing handler.
+          # The normal composer code owns disabled state. Live voice must override that state when the composer is empty.
+          # Remove the initial disabled attribute only; the normal text-send path still manages disabled dynamically.
+          s = s.replace('id="sendButton"\n          class="composer-send"\n          aria-label="送出"\n          disabled>', 'id="sendButton"\n          class="composer-send"\n          aria-label="送出">', 1)
+
           anchor = 'send.addEventListener("click",e=>{if(!voice.on&&!input.value.trim()){e.preventDefault();start();return}if(voice.on){e.preventDefault();stop();return}} ,true);'
           addition = anchor + '\ndocument.getElementById("menuButton")?.addEventListener("click",()=>{document.getElementById("drawer")?.classList.add("show");document.getElementById("drawerBackdrop")?.classList.add("show")},true);'
-          if anchor in s and 'classList.add("show")},true);' not in s:
+          if anchor in s and 'document.getElementById("menuButton")?.addEventListener("click"' not in s:
               s = s.replace(anchor, addition, 1)
 
           p.write_text(s, encoding='utf-8')
@@ -99,7 +84,9 @@ jobs:
               raise SystemExit('drawer fallback missing')
           if '<button id="micButton"' not in s or '<button id="sendButton"' not in s:
               raise SystemExit('original composer buttons missing')
-          print('DARK STAR VOICE + DRAWER VALIDATION PASSED')
+          if 'id="sendButton"\n          class="composer-send"\n          aria-label="送出"\n          disabled>' in s:
+              raise SystemExit('live voice button is still hard-disabled')
+          print('DARK STAR VOICE + DRAWER + BUTTON VALIDATION PASSED')
       - name: Commit repaired HTML
         shell: bash
         run: |
@@ -107,5 +94,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add technical-dark-star.html
           git diff --cached --quiet && exit 0
-          git commit -m 'Fix Dark Star live voice session and drawer interactions'
+          git commit -m 'Fix Dark Star live voice button initialization'
           git push
