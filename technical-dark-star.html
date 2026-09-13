@@ -6950,5 +6950,34 @@ if(bottom&&!document.getElementById("aivaultDrawerVoice")){const box=document.cr
 </script>
 
 <!-- AIVAULT_DARK_STAR_VOICE_UI_V4_END -->
+<style id="aivaultDarkStarVoiceFixV1Style">
+/* Voice menu: show voice names only; remove gender/age labels. */
+#aivaultDrawerVoice,[data-aivault-action="voice"]{display:none!important}
+.ds-v4-voice small{display:none!important}
+.ds-v4-voice{justify-content:flex-start!important}
+#dsV4VoiceBtn{min-width:92px}
+#dsV4VoiceStatus{font-size:11px;color:#888;white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:680px){#dsV4VoiceStatus{display:none}}
+</style>
+<script id="aivaultDarkStarVoiceFixV1">
+(()=>{
+  function apply(){
+    document.getElementById('aivaultDrawerVoice')?.remove();
+    document.querySelectorAll('[data-drawer-voice]').forEach(x=>x.remove());
+    document.querySelectorAll('[data-aivault-action="voice"]').forEach(x=>x.remove());
+    document.getElementById('aivaultVoicePanel')?.style.setProperty('display','none','important');
+    const menu=document.getElementById('dsV4VoiceMenu');
+    if(menu)menu.querySelectorAll('.ds-v4-voice small').forEach(x=>x.remove());
+    const live=document.getElementById('dsV4LiveBtn');
+    if(live&&!document.getElementById('dsV4VoiceStatus')){
+      const s=document.createElement('span');s.id='dsV4VoiceStatus';s.textContent='準備就緒';live.insertAdjacentElement('afterend',s);
+    }
+    const voice=document.getElementById('dsV4VoiceBtn');
+    if(voice){voice.setAttribute('aria-label','人物聲音');voice.title='人物聲音';}
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply,{once:true});else apply();
+  new MutationObserver(apply).observe(document.documentElement,{childList:true,subtree:true});
+})();
+</script>
 </body>
 </html>
