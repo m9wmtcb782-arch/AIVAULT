@@ -6783,7 +6783,7 @@ function st(x){if(state)state.textContent=x;const vs=document.getElementById("vo
 function b64(x){let u=new Uint8Array(x.buffer,x.byteOffset,x.byteLength),s="";for(let i=0;i<u.length;i+=32768)s+=String.fromCharCode(...u.subarray(i,i+32768));return btoa(s)}
 function u8(s){let b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u}
 async function save(role,text){if(!voice.session||!text)return;await fetch(T,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"turn",session_id:voice.session,sequence_no:++voice.seq,role,content:text})}).catch(()=>{})}
-async function start(){if(voice.on)return;try{st("連線中…");voice.ctx=new(window.AudioContext||window.webkitAudioContext)();await voice.ctx.resume();const sr=await fetch(T,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"start",voice_profile:voice.profile})});const sj=await sr.json();voice.session=sj.session?.id||sj.session_id||sj.session?.session_id;const tr=await fetch(T,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({voice_name:voice.profile})});const tj=await tr.json();voice.stream=await navigator.mediaDevices.getUserMedia({audio:true});const url=tj.websocket||tj.websocket||tj.websocket||tj.websocket_url||tj.url||("wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?access_token="+encodeURIComponent(tj.token));voice.ws=new WebSocket(url);
+async function start(){if(voice.on)return;try{st("連線中…");voice.ctx=new(window.AudioContext||window.webkitAudioContext)();await voice.ctx.resume();const sr=await fetch(T,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"start",voice_profile:voice.profile})});const sj=await sr.json();voice.session=sj.session?.id||sj.session_id||sj.session?.session_id;const tr=await fetch(T,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({voice_name:voice.profile})});const tj=await tr.json();voice.stream=await navigator.mediaDevices.getUserMedia({audio:true});const url=tj.websocket||tj.websocket||tj.websocket||tj.websocket||tj.websocket_url||tj.url||("wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?access_token="+encodeURIComponent(tj.token));voice.ws=new WebSocket(url);
 voice.ws.onopen=async()=>{voice.on=true;stopIcon();st("正在聆聽…");voice.ws.send(JSON.stringify({setup:{model:tj.model||"models/gemini-3.1-flash-live-preview",generationConfig:{responseModalities:["AUDIO"],thinkingConfig:{thinkingLevel:"minimal"}},inputAudioTranscription:{},outputAudioTranscription:{},speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice.profile}}}}}));const ac=voice.ctx;await ac.resume();voice.source=ac.createMediaStreamSource(voice.stream);voice.processor=ac.createScriptProcessor(4096,1,1);voice.source.connect(voice.processor);voice.processor.connect(ac.destination);voice.processor.onaudioprocess=e=>{if(!voice.on||voice.ws.readyState!==1)return;const f=e.inputBuffer.getChannelData(0),ratio=e.inputBuffer.sampleRate/16000,n=Math.floor(f.length/ratio),o=new Int16Array(n);for(let i=0;i<n;i++){const v=Math.max(-1,Math.min(1,f[Math.floor(i*ratio)]));o[i]=v<0?v*32768:v*32767}voice.ws.send(JSON.stringify({realtimeInput:{audio:{mimeType:"audio/pcm;rate=16000",data:b64(o)}}}))}};
 voice.ws.onmessage=async e=>{let m;try{m=JSON.parse(e.data)}catch{return};const c=m.serverContent||m;const ot=c.outputTranscription?.text||c.outputAudioTranscription?.text;if(ot)await save("assistant",ot);const it=c.inputTranscription?.text||c.inputAudioTranscription?.text;if(it)await save("user",it);if(c.interrupted){voice.q=[]}const parts=c.modelTurn?.parts||[];for(const p of parts)if(p.inlineData?.data){const u=u8(p.inlineData.data),pcm=new Int16Array(u.buffer),f=new Float32Array(pcm.length);for(let i=0;i<pcm.length;i++)f[i]=pcm[i]/32768;const ac=voice.play||(voice.play=voice.ctx||(new(window.AudioContext||window.webkitAudioContext)()));ac.resume();const ab=ac.createBuffer(1,f.length,24000);ab.copyToChannel(f,0);const src=ac.createBufferSource();src.buffer=ab;src.connect(ac.destination);src.start()}};voice.ws.onerror=()=>st("語音連線錯誤");voice.ws.onclose=()=>stop(false)}catch(e){console.error(e);st("語音啟動失敗");stop(false)}}
 async function stop(end=true){voice.on=false;try{voice.processor?.disconnect();voice.source?.disconnect()}catch{}voice.stream?.getTracks().forEach(x=>x.stop());try{voice.ws?.close()}catch{}try{voice.ctx?.close()}catch{}if(end&&voice.session)fetch(T,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"end",session_id:voice.session})}).catch(()=>{});voice.session=null;voice.seq=0;refresh();st("準備就緒")}
@@ -6800,6 +6800,28 @@ document.querySelector('[data-aivault-action="search"]')?.addEventListener("clic
 document.querySelector('[data-aivault-action="files"]')?.addEventListener("click",()=>document.querySelector(".attachment-preview")?.scrollIntoView({behavior:"smooth",block:"center"}));
 document.querySelector('[data-aivault-action="delete"]')?.addEventListener("click",()=>document.getElementById("clearMessagesButton")?.click());
 document.addEventListener("click",e=>{if(!e.target.closest("#aivaultMore")&&!e.target.closest("#aivaultMoreMenu"))menu.classList.remove("show")});
+})();
+</script>
+<script>
+/* AIVAULT_DARK_STAR_VOICE_HARDENED_CONTROLS */
+(()=>{
+  const input=document.getElementById("composerInput")||document.querySelector(".composer-input");
+  const send=document.getElementById("sendButton")||document.querySelector(".composer-send");
+  const menu=document.getElementById("menuButton");
+  const drawer=document.getElementById("drawer");
+  const back=document.getElementById("drawerBackdrop");
+  if(!send)return;
+  const sync=()=>{
+    if(!input)return;
+    if(!input.value.trim() && !send.dataset.darkStarSending){
+      send.disabled=false;
+      send.style.pointerEvents="auto";
+    }
+  };
+  sync();
+  input?.addEventListener("input",sync,true);
+  new MutationObserver(sync).observe(send,{attributes:true,attributeFilter:["disabled"]});
+  menu?.addEventListener("click",()=>{drawer?.classList.add("show");back?.classList.add("show");},{capture:true});
 })();
 </script>
 </body>
