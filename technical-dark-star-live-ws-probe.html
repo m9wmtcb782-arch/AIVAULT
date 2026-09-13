@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gemini Live WebSocket 探針</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang TC",sans-serif;margin:0;padding:24px;background:#fff;color:#111}
+h1{font-size:24px;margin:0 0 12px}
+p{line-height:1.6}
+button{font-size:18px;padding:14px 18px;border:0;border-radius:10px;background:#111;color:#fff}
+pre{margin-top:20px;padding:16px;background:#f3f3f3;border-radius:10px;white-space:pre-wrap;word-break:break-word;min-height:220px}
+.ok{color:#087a32}.bad{color:#b00020}
+</style>
+</head>
+<body>
+<h1>Gemini Live WebSocket 探針</h1>
+<p>只測試：Supabase Token → iPhone 瀏覽器 → Gemini Live WebSocket。<br>不開麥克風、不播放音訊、不啟動完整語音頁。</p>
+<button id="btn">開始測試</button>
+<pre id="log"></pre>
+<script>
+const FN='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-voice-session';
+const LIVE='wss://generativelanguage.googleapis.com/ws/google.ai.google.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained';
+const MODEL='models/gemini-3.1-flash-live-preview';
+const logEl=document.getElementById('log');
+function log(s){logEl.textContent+=new Date().toLocaleTimeString()+'  '+s+'\n';}
+async function getToken(){
+ const r=await fetch(FN,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'token',voice_name:'Kore'})});
+ const t=await r.text();
+ log('TOKEN HTTP '+r.status);
+ if(!r.ok) throw new Error(t);
+ const j=JSON.parse(t);
+ if(!j.token) throw new Error('Token missing');
+ log('TOKEN OK model='+j.model);
+ return j.token;
+}
+async function run(){
+ logEl.textContent='';
+ log('START');
+ let token;
+ try{token=await getToken();}catch(e){log('TOKEN ERROR '+e.message);return;}
+ let ws;
+ try{
+   ws=new WebSocket(LIVE+'?access_token='+encodeURIComponent(token));
+   ws.onopen=()=>{
+     log('WS OPEN');
+     ws.send(JSON.stringify({setup:{model:MODEL,generationConfig:{responseModalities:['AUDIO']},systemInstruction:{parts:[{text:'使用繁體中文。'}]}}}));
+     log('SETUP SENT');
+   };
+   ws.onmessage=e=>{
+     try{
+       const d=JSON.parse(e.data);
+       if(d.setupComplete){log('SETUP COMPLETE');log('RESULT: GEMINI LIVE CONNECTION OK');ws.close(1000,'probe complete');return;}
+       if(d.serverContent) log('SERVER CONTENT RECEIVED');
+       else log('SERVER MESSAGE '+JSON.stringify(d).slice(0,500));
+     }catch{log('SERVER MESSAGE '+String(e.data).slice(0,500));}
+   };
+   ws.onerror=()=>log('WS ERROR');
+   ws.onclose=e=>log('WS CLOSE code='+e.code+' reason='+e.reason);
+ }catch(e){log('WS CONSTRUCTOR ERROR '+e.message);}
+}
+document.getElementById('btn').onclick=run;
+</script>
+</body>
+</html>
