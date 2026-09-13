@@ -1,0 +1,70 @@
+name: AIVAULT Voice Fix
+
+on:
+  push:
+    paths:
+      - '.github/voice-fix-request.json'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply additive voice UI fix
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          html_path = Path('technical-dark-star.html')
+          html = html_path.read_text(encoding='utf-8')
+          marker = '<script id="aivaultDarkStarVoiceFixV1">'
+          if marker in html:
+              html = html.split(marker)[0] + '</script>\n</body>\n</html>\n'
+          fix = r'''<style id="aivaultDarkStarVoiceFixV1Style">
+          /* Voice menu: show voice names only; remove gender/age labels. */
+          #aivaultDrawerVoice,[data-aivault-action="voice"]{display:none!important}
+          .ds-v4-voice small{display:none!important}
+          .ds-v4-voice{justify-content:flex-start!important}
+          #dsV4VoiceBtn{min-width:92px}
+          #dsV4VoiceStatus{font-size:11px;color:#888;white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis}
+          @media(max-width:680px){#dsV4VoiceStatus{display:none}}
+          </style>
+          <script id="aivaultDarkStarVoiceFixV1">
+          (()=>{
+            function apply(){
+              document.getElementById('aivaultDrawerVoice')?.remove();
+              document.querySelectorAll('[data-drawer-voice]').forEach(x=>x.remove());
+              document.querySelectorAll('[data-aivault-action="voice"]').forEach(x=>x.remove());
+              document.getElementById('aivaultVoicePanel')?.style.setProperty('display','none','important');
+              const menu=document.getElementById('dsV4VoiceMenu');
+              if(menu)menu.querySelectorAll('.ds-v4-voice small').forEach(x=>x.remove());
+              const live=document.getElementById('dsV4LiveBtn');
+              if(live&&!document.getElementById('dsV4VoiceStatus')){
+                const s=document.createElement('span');s.id='dsV4VoiceStatus';s.textContent='準備就緒';live.insertAdjacentElement('afterend',s);
+              }
+              const voice=document.getElementById('dsV4VoiceBtn');
+              if(voice){voice.setAttribute('aria-label','人物聲音');voice.title='人物聲音';}
+            }
+            if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply,{once:true});else apply();
+            new MutationObserver(apply).observe(document.documentElement,{childList:true,subtree:true});
+          })();
+          </script>
+          </body>
+          </html>
+          '''
+          html = html.replace('</body>\n</html>\n', fix)
+          html_path.write_text(html, encoding='utf-8')
+          PY
+
+      - name: Commit
+        run: |
+          git config user.name 'AIVAULT Voice Fix'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add technical-dark-star.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'Fix Dark Star voice menu and live voice UI'
+          git push
