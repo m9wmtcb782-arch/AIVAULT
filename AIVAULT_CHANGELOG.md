@@ -68,7 +68,75 @@
 - Function 版本標記：`1.5.0`。
 - 新 migration：`dark_star_self_learning_loop_v1`。
 
+## 2026-09-13 — Technical Dark Star Model Training Loop v1.6.0
+
+### 核心目標
+把「記憶／策略學習」正式接到「模型訓練」層，形成第二個可驗證閉環：
+
+`Observe → Training Example → Quality/Compliance Gate → Dataset Version → Compute Training → Candidate Model → Benchmark Evaluation → Sandbox → Owner Approval → Production Promotion → Monitor/Rollback`
+
+### 新增資料結構
+- `dark_star_training_examples`
+  - 保存訓練輸入、目標、來源任務、品質分數、合規狀態。
+  - 未通過品質與合規 Gate 的資料不得進入訓練資料集。
+- `dark_star_datasets`
+  - Dataset 版本、狀態與 train/validation/test 數量。
+- `dark_star_dataset_items`
+  - Dataset 與訓練範例的版本化關聯及 provenance。
+- `dark_star_training_runs`
+  - 真正的訓練工作、Compute Task、模型基線、候選版本、進度與結果。
+- `dark_star_model_versions`
+  - candidate / evaluating / approved / production / rejected / rolled_back 模型生命週期。
+- `dark_star_evaluations`
+  - candidate 與 baseline 的 benchmark、分數、回歸與安全評測。
+- `dark_star_model_promotions`
+  - Sandbox、合規、Owner approval 與 production promotion Gate。
+
+### 暗星 Model Training API
+- `POST /training/example`：建立訓練範例。
+- `POST /training/dataset/build`：從通過品質／合規 Gate 的範例建立 Dataset version。
+- `POST /training/start`：把 Dataset 交給 AIVAULT Compute Coordinator 執行真實模型訓練。
+- `GET /training/status/:id`：查詢 Training Run。
+- `POST /training/result`：接收真實 Compute 訓練結果。
+- `POST /training/evaluate`：執行 candidate vs baseline 評測 Gate。
+- `POST /training/promote`：通過所有 Gate 後才允許 production promotion。
+- `POST /training/rollback`：候選模型出現回歸時可回滾。
+- `GET /training/health`：查看訓練閉環狀態。
+
+### 強制 Gate
+Production 模型不得只因「訓練完成」就自動上線。
+
+必須同時通過：
+- Quality Gate
+- Compliance Gate
+- Evaluation Gate
+- Safety Gate
+- Sandbox Gate
+- Owner Approval Gate
+- Promotion Gate
+
+### 重要技術界線
+- v1.5.0 是記憶／策略學習閉環。
+- v1.6.0 是模型資料集與模型權重訓練閉環。
+- `/training/start` 只負責建立真實 Compute Coordinator 訓練任務，不假造 GPU 訓練進度。
+- 只有 Compute Mesh 回傳真實訓練結果後，才會進入模型評測。
+- Production model promotion 保留 Owner approval，不允許暗星自行取代正式模型。
+- Model rollback 保留，以避免候選模型造成能力退化。
+
+### 部署
+- Supabase Function：`technical-dark-star` v4 ACTIVE。
+- Function 版本標記：`1.6.0`。
+- 新 migration：`dark_star_model_training_loop_v1`。
+- Function deployment SHA：`4d7ae63c223ee14645f905ee373884948c845dc79e78a103653821cc4c3a747c`。
+
+### 安全備註
+Supabase 官方目前建議 Edge Functions 使用 secret key／`@supabase/server` 的後端模式，secret key 不得進入瀏覽器；legacy `service_role` 將在 2026 年底前逐步淘汰。AIVAULT 前端仍不得放任何 secret/service_role key。
+
+### 後續
+下一階段不是再做「假訓練」，而是讓 Compute Mesh 真正接受 `model.train` 任務、回傳 progress/result，然後暗星執行 benchmark、Sandbox 與 Owner approval。
+
 ### Git 記錄
 - Dynamic Bridge UI / Registry / Bridge：已保留先前版本紀錄。
-- 本次 Self-Learning Loop schema + Function：本紀錄對應 commit。
+- Self-Learning Loop v1.5.0：已保留。
+- Model Training Loop v1.6.0：本紀錄新增。
 - 所有後續重大變更應繼續追加到本文件，避免失去架構脈絡。
