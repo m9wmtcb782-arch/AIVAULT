@@ -1,0 +1,57 @@
+name: Dark Star Voice Clean
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+concurrency:
+  group: dark-star-voice-clean
+  cancel-in-progress: true
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Repair only known additive markers
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('technical-dark-star.html')
+          s = p.read_text(encoding='utf-8')
+          marker = 'AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V2'
+          exact = '\\n/* AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V2 */'
+          if exact in s:
+              s = s.replace(exact, '\n/* AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V2 */', 1)
+          exact_html = '\\n<!-- AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V2 -->'
+          if exact_html in s:
+              s = s.replace(exact_html, '\n<!-- AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V2 -->', 1)
+          old = "realtimeInput:{mediaChunks:[{mimeType:'audio/pcm;rate=16000',data:b64}]}"
+          new = "realtimeInput:{audio:{mimeType:'audio/pcm;rate=16000',data:b64}}"
+          s = s.replace(old, new)
+          if marker not in s:
+              raise SystemExit('voice additive marker missing')
+          p.write_text(s, encoding='utf-8')
+      - name: Validate without global newline replacement
+        shell: python
+        run: |
+          from pathlib import Path
+          s = Path('technical-dark-star.html').read_text(encoding='utf-8')
+          if '\\n/* AIVAULT_DARK_STAR_ADDITIVE_VOICE_UI_V2 */' in s:
+              raise SystemExit('literal escaped newline remains at additive CSS marker')
+          if "realtimeInput:{mediaChunks:" in s:
+              raise SystemExit('obsolete mediaChunks transport remains')
+          if "realtimeInput:{audio:{mimeType:'audio/pcm;rate=16000',data:b64}}" not in s:
+              raise SystemExit('correct PCM transport not found')
+          print('VALID: marker/newline/PCM transport')
+      - name: Commit repaired HTML
+        shell: bash
+        run: |
+          git config user.name 'aivault-additive-bot'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add technical-dark-star.html
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Fix Dark Star live voice markup and PCM transport'
+          git push
