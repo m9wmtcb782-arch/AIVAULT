@@ -14,9 +14,16 @@
     ['Autonoe','明亮女聲'],['Erinome','清晰女聲'],['Callirrhoe','輕鬆女聲'],['Iapetus','清晰男聲'],['Despina','柔和女聲'],
     ['Rasalgethi','資訊型男聲'],['Alnilam','堅定男聲'],['Pulcherrima','前進感女聲'],['Vindemiatrix','溫柔女聲'],['Sulafat','溫暖女聲']
   ];
-  const state={active:false,ready:false,ws:null,stream:null,ctx:null,source:null,processor:null,sessionId:null,sessionKey:null,seq:0,voice:localStorage.getItem('aivault_voice_profile')||'Kore',inputText:'',outputText:'',userBubble:null,assistantBubble:null,sources:new Set(),nextAudioTime:0};
+  const languages=[
+    ['普通話','mandarin'],['台灣閩南語（台語）','taiwanese'],['廣東話','cantonese'],['上海話','shanghainese'],['河南話','henan'],
+    ['English','english'],['法語','french'],['德語','german'],['越南語','vietnamese'],['泰語','thai'],['義大利語','italian'],
+    ['俄語','russian'],['西班牙語','spanish'],['日語','japanese'],['韓語','korean'],['葡萄牙語','portuguese'],['印地語','hindi'],
+    ['阿拉伯語','arabic'],['烏爾都語','urdu'],['維吾爾語','uyghur'],['藏語','tibetan'],['蒙古語','mongolian'],['奧地利德語','austrian_german'],['緬甸語','burmese']
+  ];
+  const state={active:false,ready:false,ws:null,stream:null,ctx:null,source:null,processor:null,sessionId:null,sessionKey:null,seq:0,voice:localStorage.getItem('aivault_voice_profile')||'Kore',language:localStorage.getItem('aivault_voice_language')||'mandarin',inputText:'',outputText:'',userBubble:null,assistantBubble:null,sources:new Set(),nextAudioTime:0};
   const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
   const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const languageLabel=()=>languages.find(x=>x[1]===state.language)?.[0]||'普通話';
   const scroll=()=>{const m=$('#messages');if(m)m.scrollTop=m.scrollHeight};
   const b64=buf=>{const u=new Uint8Array(buf.buffer,buf.byteOffset,buf.byteLength);let s='';for(let i=0;i<u.length;i+=32768)s+=String.fromCharCode(...u.subarray(i,i+32768));return btoa(s)};
   const u8=s=>{const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u};
@@ -29,23 +36,32 @@
       .ds-fix-btn:hover{background:#f4f4f4}.ds-fix-btn.live{background:#171717;color:#fff;border-color:#171717}
       .ds-fix-menu{position:absolute;left:0;top:41px;width:285px;max-height:60vh;overflow:auto;padding:7px;background:#fff;border:1px solid #e5e5e5;border-radius:14px;box-shadow:0 12px 36px rgba(0,0,0,.14);display:none}
       .ds-fix-menu.show{display:block}.ds-fix-voice{width:100%;border:0;background:#fff;border-radius:9px;padding:9px 10px;display:flex;justify-content:flex-start;align-items:center;gap:8px;text-align:left;font-size:12px;color:#333}.ds-fix-voice:hover{background:#f3f3f3}.ds-fix-voice.active{background:#f0f0f0;font-weight:600}.ds-fix-voice small{color:#888;font-size:10px}
-      .ds-fix-row{display:flex;gap:13px;margin-bottom:30px;align-items:flex-start}.ds-fix-row.user{justify-content:flex-end}.ds-fix-row .message-avatar{flex:none}.ds-fix-row .message-body{min-width:0;max-width:690px}.ds-fix-row.user .message-body{max-width:min(600px,82%)}.ds-fix-row .message-text{font-size:16px;line-height:1.75;white-space:pre-wrap;word-break:break-word}.ds-fix-row.user .message-text{background:#f4f4f4;border-radius:18px;padding:10px 15px}
+      .ds-fix-language-menu{position:absolute;left:0;top:41px;width:220px;max-height:60vh;overflow:auto;padding:7px;background:#fff;border:1px solid #e5e5e5;border-radius:14px;box-shadow:0 12px 36px rgba(0,0,0,.14);display:none}
+      .ds-fix-language-menu.show{display:block}.ds-fix-language{width:100%;border:0;background:#fff;border-radius:9px;padding:9px 10px;text-align:left;font-size:12px;color:#333}.ds-fix-language:hover{background:#f3f3f3}.ds-fix-language.active{background:#f0f0f0;font-weight:600}
       .composer-send{background:#2563eb !important;color:#fff !important}
       .composer-send:hover:not(:disabled){background:#1d4ed8 !important}
-      @media(max-width:700px){.ds-fix-tools{margin-left:4px}.ds-fix-btn{padding:0 7px}.ds-fix-menu{width:250px}}
+      .ds-fix-row{display:flex;gap:13px;margin-bottom:30px;align-items:flex-start}.ds-fix-row.user{justify-content:flex-end}.ds-fix-row .message-avatar{flex:none}.ds-fix-row .message-body{min-width:0;max-width:690px}.ds-fix-row.user .message-body{max-width:min(600px,82%)}.ds-fix-row .message-text{font-size:16px;line-height:1.75;white-space:pre-wrap;word-break:break-word}.ds-fix-row.user .message-text{background:#f4f4f4;border-radius:18px;padding:10px 15px}
+      @media(max-width:700px){.ds-fix-tools{margin-left:4px}.ds-fix-btn{padding:0 7px}.ds-fix-menu{width:250px}.ds-fix-language-menu{width:210px}}
     `;document.head.appendChild(st);
   }
 
   function addUI(){
     const top=$('.topbar'),brand=$('.brand');if(!top||$('#dsFixTools'))return;
     const wrap=document.createElement('div');wrap.id='dsFixTools';wrap.className='ds-fix-tools';
+    const langWrap=document.createElement('div');langWrap.style.position='relative';
+    const lang=document.createElement('button');lang.type='button';lang.className='ds-fix-btn';lang.id='dsFixLanguage';
+    const langMenu=document.createElement('div');langMenu.className='ds-fix-language-menu';langMenu.id='dsFixLanguageMenu';
+    languages.forEach(([label,id])=>{const b=document.createElement('button');b.type='button';b.className='ds-fix-language';b.dataset.language=id;b.textContent=label;b.onclick=async e=>{e.stopPropagation();await chooseLanguage(id)};langMenu.appendChild(b)});
+    langWrap.append(lang,langMenu);
+    const voiceWrap=document.createElement('div');voiceWrap.style.position='relative';
     const voice=document.createElement('button');voice.type='button';voice.className='ds-fix-btn';voice.id='dsFixVoice';
-    const live=document.createElement('button');live.type='button';live.className='ds-fix-btn';live.id='dsFixLive';
     const menu=document.createElement('div');menu.className='ds-fix-menu';menu.id='dsFixMenu';
     voices.forEach(([name,label])=>{const b=document.createElement('button');b.type='button';b.className='ds-fix-voice';b.dataset.voice=name;b.innerHTML=`<span>🔊 ${esc(name)}</span><small>${esc(label)}</small>`;b.onclick=async e=>{e.stopPropagation();await chooseVoice(name)};menu.appendChild(b)});
-    wrap.append(voice,menu,live);brand?brand.after(wrap):top.appendChild(wrap);
-    const update=()=>{voice.textContent='🔊 '+state.voice;live.textContent=state.active?'⏹ 結束語音':'🎙 即時語音';live.classList.toggle('live',state.active);$$('.ds-fix-voice').forEach(b=>b.classList.toggle('active',b.dataset.voice===state.voice))};
-    voice.onclick=e=>{e.stopPropagation();menu.classList.toggle('show')};live.onclick=e=>{e.stopPropagation();state.active?stopVoice():startVoice()};document.addEventListener('click',()=>menu.classList.remove('show'));update();
+    voiceWrap.append(voice,menu);
+    const live=document.createElement('button');live.type='button';live.className='ds-fix-btn';live.id='dsFixLive';
+    wrap.append(langWrap,voiceWrap,live);brand?brand.after(wrap):top.appendChild(wrap);
+    const update=()=>{lang.textContent='語言：'+languageLabel();voice.textContent='🔊 '+state.voice;live.textContent=state.active?'⏹ 結束語音':'🎙 即時語音';live.classList.toggle('live',state.active);$$('.ds-fix-voice').forEach(b=>b.classList.toggle('active',b.dataset.voice===state.voice));$$('.ds-fix-language').forEach(b=>b.classList.toggle('active',b.dataset.language===state.language))};
+    lang.onclick=e=>{e.stopPropagation();langMenu.classList.toggle('show');menu.classList.remove('show')};voice.onclick=e=>{e.stopPropagation();menu.classList.toggle('show');langMenu.classList.remove('show')};live.onclick=e=>{e.stopPropagation();state.active?stopVoice():startVoice()};document.addEventListener('click',()=>{menu.classList.remove('show');langMenu.classList.remove('show')});update();
   }
 
   function bubble(role){const inner=$('#messagesInner');if(!inner)return null;const row=document.createElement('div');row.className='ds-fix-row '+role;row.innerHTML=`<div class="message-avatar">${role==='user'?'你':'✦'}</div><div class="message-body"><div class="message-text"></div></div>`;inner.appendChild(row);scroll();return row.querySelector('.message-text')}
@@ -59,11 +75,11 @@
     try{
       const AC=window.AudioContext||window.webkitAudioContext;if(!AC)throw Error('此瀏覽器不支援音訊播放');
       state.ctx=new AC();await state.ctx.resume();
-      const sr=await fetch(SESSION,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'start',voice_profile:state.voice})});
+      const sr=await fetch(SESSION,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'start',voice_profile:state.voice,language_profile:state.language})});
       const sj=await sr.json();if(!sr.ok||!sj.session)throw Error(sj.error||'語音工作階段建立失敗');
       state.sessionId=sj.session.id;state.sessionKey=sj.session.session_key;state.seq=0;
       state.stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
-      state.ws=new WebSocket(RELAY+'?voice='+encodeURIComponent(state.voice)+'&session_key='+encodeURIComponent(state.sessionKey||''));
+      state.ws=new WebSocket(RELAY+'?voice='+encodeURIComponent(state.voice)+'&language='+encodeURIComponent(state.language)+'&session_key='+encodeURIComponent(state.sessionKey||''));
       state.ws.onopen=()=>{state.active=true;state.ready=false;$('#dsFixLive')?.classList.add('live');$('#dsFixLive').textContent='⏹ 結束語音'};
       state.ws.onmessage=async ev=>{
         let m;try{m=JSON.parse(ev.data)}catch{return};
@@ -88,6 +104,7 @@
     state.active=false;state.ready=false;try{state.processor?.disconnect();state.source?.disconnect()}catch{};state.stream?.getTracks().forEach(t=>t.stop());stopAudio();try{state.ws?.send(JSON.stringify({type:'close'}))}catch{};try{state.ws?.close()}catch{};try{await state.ctx?.close()}catch{};if(closeSession&&state.sessionId)fetch(SESSION,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'end',session_id:state.sessionId})}).catch(()=>{});state.ws=null;state.stream=null;state.ctx=null;state.source=null;state.processor=null;state.sessionId=null;state.sessionKey=null;state.seq=0;$('#dsFixLive')?.classList.remove('live');if($('#dsFixLive'))$('#dsFixLive').textContent='🎙 即時語音';
   }
   async function chooseVoice(v){const running=state.active;state.voice=v;localStorage.setItem('aivault_voice_profile',v);$$('.ds-fix-voice').forEach(b=>b.classList.toggle('active',b.dataset.voice===v));if(running){await stopVoice();await startVoice()}}
+  async function chooseLanguage(v){const running=state.active;state.language=v;localStorage.setItem('aivault_voice_language',v);$$('.ds-fix-language').forEach(b=>b.classList.toggle('active',b.dataset.language===v));if(running){await stopVoice();await startVoice()}}
 
   function boot(){addStyle();addUI()}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
