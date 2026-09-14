@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>AIVAULT 檔案庫</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:#f5f6f8;color:#111;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",Arial,sans-serif}
+body{min-height:100vh}
+header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid #ddd;padding:16px 18px}
+h1{margin:0;font-size:24px}
+.sub{margin-top:4px;color:#666;font-size:13px}
+.wrap{max-width:1100px;margin:auto;padding:18px}
+.drop{background:#fff;border:2px dashed #aaa;border-radius:16px;padding:28px;text-align:center;cursor:pointer;transition:.15s}
+.drop.drag{border-color:#111;background:#fafafa}
+.drop strong{font-size:18px}
+.drop p{margin:8px 0;color:#666}
+button{border:0;border-radius:10px;padding:10px 14px;background:#111;color:#fff;font-size:15px;cursor:pointer}
+button.secondary{background:#eee;color:#111}
+button.danger{background:#c62828}
+input[type=file]{display:none}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}
+#status{color:#666;font-size:14px;align-self:center}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.card{background:#fff;border:1px solid #ddd;border-radius:14px;overflow:hidden}
+.thumb{height:170px;background:#111;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.thumb img,.thumb video{width:100%;height:100%;object-fit:contain}
+.icon{font-size:48px;color:#fff}
+.info{padding:12px}
+.name{font-weight:700;word-break:break-all}
+.meta{color:#777;font-size:12px;margin-top:5px}
+.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.actions button{font-size:13px;padding:8px 10px}
+.empty{text-align:center;color:#777;padding:50px;background:#fff;border-radius:14px;border:1px solid #ddd}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:30;padding:20px}
+.modal.show{display:flex;align-items:center;justify-content:center}
+.panel{background:#fff;width:min(1000px,100%);height:min(90vh,900px);border-radius:16px;display:flex;flex-direction:column;overflow:hidden}
+.panelhead{padding:12px 16px;border-bottom:1px solid #ddd;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.panelbody{padding:16px;overflow:auto;flex:1}
+.preview-img{max-width:100%;max-height:70vh;display:block;margin:auto}
+.preview-video{width:100%;max-height:70vh}
+.preview-audio{width:100%;margin-top:20px}
+pre{white-space:pre-wrap;word-break:break-word;background:#f3f3f3;padding:14px;border-radius:10px}
+iframe{width:100%;height:70vh;border:0}
+canvas{max-width:100%;display:block;margin:0 auto 16px;background:#fff}
+audio,video{outline:none}
+@media(max-width:600px){.wrap{padding:12px}.drop{padding:22px 12px}.grid{grid-template-columns:1fr}.thumb{height:200px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>🌑 AIVAULT 檔案庫</h1>
+  <div class="sub">獨立檔案上傳、儲存、預覽、播放與刪除</div>
+</header>
+
+<main class="wrap">
+  <div id="drop" class="drop">
+    <strong>拖曳檔案到這裡，或點擊選擇檔案</strong>
+    <p>支援 JPG、PNG、GIF、WEBP、JSON、TXT、Word、PDF、MP4、WEBM、MOV、WAV、MP3、M4A 等</p>
+    <button type="button" onclick="fileInput.click()">選擇檔案</button>
+    <input id="fileInput" type="file" multiple
+      accept=".jpg,.jpeg,.png,.gif,.webp,.json,.txt,.csv,.md,.doc,.docx,.pdf,.mp4,.webm,.mov,.m4v,.wav,.mp3,.m4a,.aac,.ogg">
+  </div>
+
+  <div class="toolbar">
+    <button type="button" onclick="fileInput.click()">＋ 上傳檔案</button>
+    <button class="secondary" type="button" onclick="refresh()">重新整理</button>
+    <button class="danger" type="button" onclick="deleteAll()">刪除全部</button>
+    <span id="status"></span>
+  </div>
+
+  <div id="list" class="grid"></div>
+</main>
+
+<div id="modal" class="modal">
+  <div class="panel">
+    <div class="panelhead">
+      <strong id="modalTitle">預覽</strong>
+      <button class="secondary" onclick="closeModal()">關閉</button>
+    </div>
+    <div id="modalBody" class="panelbody"></div>
+  </div>
+</div>
+
+<script>
+const DB_NAME="aivault_file_vault";
+const STORE="files";
+let db;
+
+const $=id=>document.getElementById(id);
+const fileInput=$("fileInput"), drop=$("drop"), list=$("list"), status=$("status");
+
+function initDB(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open(DB_NAME,1);
+    req.onupgradeneeded=e=>{
+      const d=e.target.result;
+      if(!d.objectStoreNames.contains(STORE)){
+        const s=d.createObjectStore(STORE,{keyPath:"id",autoIncrement:true});
+        s.createIndex("created","created");
+      }
+    };
+    req.onsuccess=e=>{db=e.target.result;resolve()};
+    req.onerror=()=>reject(req.error);
+  });
+}
+function tx(mode="readonly"){
+  return db.transaction(STORE,mode).objectStore(STORE);
+}
+function addFile(file){
+  return new Promise((resolve,reject)=>{
+    const r=tx("readwrite").add({
+      name:file.name,type:file.type||guessType(file.name),
+      size:file.size,created:Date.now(),blob:file
+    });
+    r.onsuccess=resolve;r.onerror=()=>reject(r.error);
+  });
+}
+function allFiles(){
+  return new Promise((resolve,reject)=>{
+    const r=tx().getAll();
+    r.onsuccess=()=>resolve(r.result.sort((a,b)=>b.created-a.created));
+    r.onerror=()=>reject(r.error);
+  });
+}
+function getFile(id){
+  return new Promise((resolve,reject)=>{
+    const r=tx().get(Number(id));
+    r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);
+  });
+}
+function removeFile(id){
+  return new Promise((resolve,reject)=>{
+    const r=tx("readwrite").delete(Number(id));
+    r.onsuccess=resolve;r.onerror=()=>reject(r.error);
+  });
+}
+function clearFiles(){
+  return new Promise((resolve,reject)=>{
+    const r=tx("readwrite").clear();
+    r.onsuccess=resolve;r.onerror=()=>reject(r.error);
+  });
+}
+function guessType(name){
+  const ext=name.split(".").pop().toLowerCase();
+  const m={jpg:"image/jpeg",jpeg:"image/jpeg",png:"image/png",gif:"image/gif",webp:"image/webp",
+    json:"application/json",txt:"text/plain",csv:"text/csv",md:"text/markdown",pdf:"application/pdf",
+    mp4:"video/mp4",webm:"video/webm",mov:"video/quicktime",m4v:"video/mp4",
+    wav:"audio/wav",mp3:"audio/mpeg",m4a:"audio/mp4",aac:"audio/aac",ogg:"audio/ogg",
+    doc:"application/msword",docx:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"};
+  return m[ext]||"application/octet-stream";
+}
+function fmtSize(n){
+  if(n<1024)return n+" B";
+  if(n<1024**2)return (n/1024).toFixed(1)+" KB";
+  if(n<1024**3)return (n/1024**2).toFixed(1)+" MB";
+  return (n/1024**3).toFixed(2)+" GB";
+}
+function icon(type,name){
+  if(type.startsWith("image/"))return "🖼️";
+  if(type.startsWith("video/"))return "🎬";
+  if(type.startsWith("audio/"))return "🎵";
+  if(type.includes("pdf"))return "📕";
+  if(type.includes("word")||/\.docx?$/i.test(name))return "📘";
+  if(type.includes("json")||/\.json$/i.test(name))return "🧩";
+  return "📄";
+}
+function esc(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+
+async function refresh(){
+  const files=await allFiles();
+  status.textContent=`共 ${files.length} 個檔案`;
+  if(!files.length){
+    list.innerHTML='<div class="empty" style="grid-column:1/-1">目前沒有檔案。上傳後會保存在這個瀏覽器的 AIVAULT 檔案庫。</div>';
+    return;
+  }
+  list.innerHTML="";
+  for(const f of files){
+    const card=document.createElement("div"); card.className="card";
+    const thumb=document.createElement("div"); thumb.className="thumb";
+    if(f.type.startsWith("image/")){
+      const img=document.createElement("img"); img.src=URL.createObjectURL(f.blob); thumb.appendChild(img);
+    }else if(f.type.startsWith("video/")){
+      const v=document.createElement("video"); v.src=URL.createObjectURL(f.blob); v.muted=true; v.preload="metadata"; thumb.appendChild(v);
+    }else{const d=document.createElement("div");d.className="icon";d.textContent=icon(f.type,f.name);thumb.appendChild(d)}
+    const info=document.createElement("div");info.className="info";
+    info.innerHTML=`<div class="name">${esc(f.name)}</div><div class="meta">${esc(f.type||"未知格式")} · ${fmtSize(f.size)} · ${new Date(f.created).toLocaleString()}</div>`;
+    const acts=document.createElement("div");acts.className="actions";
+    const p=document.createElement("button");p.textContent="預覽 / 播放";p.onclick=()=>preview(f.id);
+    const dl=document.createElement("button");dl.className="secondary";dl.textContent="儲存到裝置";dl.onclick=()=>downloadFile(f.id);
+    const del=document.createElement("button");del.className="danger";del.textContent="刪除";del.onclick=()=>deleteOne(f.id,f.name);
+    acts.append(p,dl,del);info.appendChild(acts);card.append(thumb,info);list.appendChild(card);
+  }
+}
+async function handleFiles(files){
+  const arr=[...files];
+  if(!arr.length)return;
+  status.textContent="正在儲存...";
+  for(const f of arr){try{await addFile(f)}catch(e){alert("無法儲存："+f.name+"\n"+e)}}
+  await refresh();
+}
+fileInput.addEventListener("change",e=>{handleFiles(e.target.files);fileInput.value=""});
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("drag")}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("drag")}));
+drop.addEventListener("drop",e=>handleFiles(e.dataTransfer.files));
+
+async function preview(id){
+  const f=await getFile(id); if(!f)return;
+  const url=URL.createObjectURL(f.blob);
+  $("modalTitle").textContent=f.name;
+  const b=$("modalBody");b.innerHTML="";
+  if(f.type.startsWith("image/")){
+    const img=document.createElement("img");img.className="preview-img";img.src=url;b.appendChild(img);
+  }else if(f.type.startsWith("video/")){
+    const v=document.createElement("video");v.className="preview-video";v.controls=true;v.autoplay=false;v.src=url;b.appendChild(v);
+  }else if(f.type.startsWith("audio/")){
+    const a=document.createElement("audio");a.className="preview-audio";a.controls=true; a.src=url;b.appendChild(a);
+  }else if(f.type==="application/pdf"||/\.pdf$/i.test(f.name)){
+    const iframe=document.createElement("iframe");iframe.src=url;b.appendChild(iframe);
+  }else if(f.type.includes("json")||/\.(txt|json|csv|md)$/i.test(f.name)){
+    const pre=document.createElement("pre");pre.textContent=await f.blob.text();b.appendChild(pre);
+  }else if(f.type.includes("word")||/\.docx?$/i.test(f.name)){
+    if(window.mammoth){
+      const ab=await f.blob.arrayBuffer();
+      const result=await mammoth.convertToHtml({arrayBuffer:ab});
+      const div=document.createElement("div");div.innerHTML=result.value;b.appendChild(div);
+    }else{
+      const p=document.createElement("p");p.textContent="Word 預覽元件尚未載入。你仍可按「儲存到裝置」開啟 Word 檔案。";b.appendChild(p);
+    }
+  }else{
+    const p=document.createElement("p");p.textContent="此格式可以儲存，但瀏覽器無法直接預覽。";b.appendChild(p);
+  }
+  $("modal").classList.add("show");
+}
+function closeModal(){
+  $("modal").classList.remove("show");
+  $("modalBody").innerHTML="";
+}
+$("modal").addEventListener("click",e=>{if(e.target===$("modal"))closeModal()});
+
+async function downloadFile(id){
+  const f=await getFile(id);if(!f)return;
+  const a=document.createElement("a");a.href=URL.createObjectURL(f.blob);a.download=f.name;a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+async function deleteOne(id,name){
+  if(!confirm(`確定刪除「${name}」？`))return;
+  await removeFile(id);await refresh();
+}
+async function deleteAll(){
+  const files=await allFiles();if(!files.length)return;
+  if(!confirm(`確定刪除全部 ${files.length} 個檔案？此動作無法復原。`))return;
+  await clearFiles();await refresh();
+}
+
+(async()=>{
+  try{await initDB();await refresh()}
+  catch(e){status.textContent="檔案庫初始化失敗";console.error(e)}
+})();
+</script>
+<!-- Word .docx 預覽：使用 Mammoth；沒有網路時仍可上傳與儲存 -->
+<script src="https://unpkg.com/mammoth@1.9.1/mammoth.browser.min.js"></script>
+</body>
+</html>
