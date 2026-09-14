@@ -22,6 +22,17 @@ button.danger{background:#c62828}
 input[type=file]{display:none}
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}
 #status{color:#666;font-size:14px;align-self:center}
+.textbox{background:#fff;border:1px solid #ddd;border-radius:16px;padding:16px;margin:16px 0}
+.textbox h2{margin:0 0 6px;font-size:20px}
+.textbox .hint{color:#666;font-size:13px;margin:0 0 12px;line-height:1.6}
+.textname{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.textname input{flex:1;min-width:0;border:1px solid #ccc;border-radius:10px;padding:11px 12px;font-size:15px}
+.textname span{color:#666;font-size:14px;white-space:nowrap}
+#largeText{display:block;width:100%;min-height:420px;resize:vertical;border:1px solid #ccc;border-radius:12px;padding:14px;font:15px/1.6 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Noto Sans TC",monospace;background:#fafafa;color:#111;outline:none}
+#largeText:focus{border-color:#777;background:#fff}
+.textbar{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.counter{color:#666;font-size:13px}
+.textactions{display:flex;gap:8px;flex-wrap:wrap}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
 .card{background:#fff;border:1px solid #ddd;border-radius:14px;overflow:hidden}
 .thumb{height:170px;background:#111;display:flex;align-items:center;justify-content:center;overflow:hidden}
@@ -45,7 +56,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#f3f3f3;padding:14px;b
 iframe{width:100%;height:70vh;border:0}
 canvas{max-width:100%;display:block;margin:0 auto 16px;background:#fff}
 audio,video{outline:none}
-@media(max-width:600px){.wrap{padding:12px}.drop{padding:22px 12px}.grid{grid-template-columns:1fr}.thumb{height:200px}}
+@media(max-width:600px){.wrap{padding:12px}.drop{padding:22px 12px}.grid{grid-template-columns:1fr}.thumb{height:200px}.textname{align-items:stretch}.textname{flex-direction:column}.textname input{width:100%}#largeText{min-height:360px}}
 </style>
 </head>
 <body>
@@ -70,6 +81,24 @@ audio,video{outline:none}
     <span id="status"></span>
   </div>
 
+  <section class="textbox">
+    <h2>📝 大型文字 → TXT</h2>
+    <p class="hint">可以直接把大型文字、程式碼、文件內容貼進來。輸入框不設定 100,000 字元硬上限；可依裝置瀏覽器可用記憶體持續輸入。儲存後會進入下方檔案庫，仍可即時預覽與下載。</p>
+    <div class="textname">
+      <input id="textFileName" type="text" value="aivault-text" placeholder="輸入檔案名稱">
+      <span>.txt</span>
+    </div>
+    <textarea id="largeText" spellcheck="false" placeholder="在這裡貼上或輸入大型文字內容……"></textarea>
+    <div class="textbar">
+      <div id="textCounter" class="counter">字元：0　｜　約 0 KB</div>
+      <div class="textactions">
+        <button type="button" onclick="saveLargeText()">💾 儲存 TXT</button>
+        <button type="button" class="secondary" onclick="downloadLargeText()">⬇️ 下載 TXT</button>
+        <button type="button" class="secondary" onclick="clearLargeText()">清空</button>
+      </div>
+    </div>
+  </section>
+
   <div id="list" class="grid"></div>
 </main>
 
@@ -90,6 +119,7 @@ let db;
 
 const $=id=>document.getElementById(id);
 const fileInput=$("fileInput"), drop=$("drop"), list=$("list"), status=$("status");
+const largeText=$("largeText"), textFileName=$("textFileName"), textCounter=$("textCounter");
 
 function initDB(){
   return new Promise((resolve,reject)=>{
@@ -105,15 +135,10 @@ function initDB(){
     req.onerror=()=>reject(req.error);
   });
 }
-function tx(mode="readonly"){
-  return db.transaction(STORE,mode).objectStore(STORE);
-}
+function tx(mode="readonly"){return db.transaction(STORE,mode).objectStore(STORE)}
 function addFile(file){
   return new Promise((resolve,reject)=>{
-    const r=tx("readwrite").add({
-      name:file.name,type:file.type||guessType(file.name),
-      size:file.size,created:Date.now(),blob:file
-    });
+    const r=tx("readwrite").add({name:file.name,type:file.type||guessType(file.name),size:file.size,created:Date.now(),blob:file});
     r.onsuccess=resolve;r.onerror=()=>reject(r.error);
   });
 }
@@ -144,7 +169,7 @@ function clearFiles(){
 }
 function guessType(name){
   const ext=name.split(".").pop().toLowerCase();
-  const m={jpg:"image/jpeg",jpeg:"image/jpeg",png:"image/png",gif:"image/gif",webp:"image/webp",
+  const m={jpg:"image/jpeg",jpeg:"image/jpeg",png:"image/png",gif:"image/gif",webp:"image/webp",svg:"image/svg+xml",
     json:"application/json",txt:"text/plain",csv:"text/csv",md:"text/markdown",pdf:"application/pdf",
     mp4:"video/mp4",webm:"video/webm",mov:"video/quicktime",m4v:"video/mp4",
     wav:"audio/wav",mp3:"audio/mpeg",m4a:"audio/mp4",aac:"audio/aac",ogg:"audio/ogg",
@@ -166,23 +191,60 @@ function icon(type,name){
   if(type.includes("json")||/\.json$/i.test(name))return "🧩";
   return "📄";
 }
-function esc(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function safeTxtName(){
+  let n=(textFileName.value||"aivault-text").trim().replace(/[\\/:*?"<>|]/g,"_");
+  if(!n)n="aivault-text";
+  if(!/\.txt$/i.test(n))n+=".txt";
+  return n;
+}
+function updateTextCounter(){
+  const n=largeText.value.length;
+  const bytes=new Blob([largeText.value]).size;
+  textCounter.textContent=`字元：${n.toLocaleString()}　｜　UTF-8 大小：約 ${fmtSize(bytes)}`;
+}
+largeText.addEventListener("input",updateTextCounter);
+
+async function saveLargeText(){
+  const text=largeText.value;
+  if(!text.length){alert("請先輸入文字內容。");largeText.focus();return}
+  const name=safeTxtName();
+  status.textContent="正在建立 TXT...";
+  try{
+    const blob=new Blob([text],{type:"text/plain;charset=utf-8"});
+    const file=new File([blob],name,{type:"text/plain",lastModified:Date.now()});
+    await addFile(file);
+    await refresh();
+    status.textContent=`已儲存：${name}`;
+  }catch(e){
+    console.error(e);status.textContent="TXT 儲存失敗";alert("TXT 儲存失敗：\n"+(e?.message||e));
+  }
+}
+function downloadLargeText(){
+  const text=largeText.value;
+  if(!text.length){alert("請先輸入文字內容。");largeText.focus();return}
+  const blob=new Blob([text],{type:"text/plain;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=url;a.download=safeTxtName();document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function clearLargeText(){
+  if(!largeText.value)return;
+  if(confirm("確定清空目前文字內容？此動作不會刪除已經儲存的 TXT。")){largeText.value="";updateTextCounter();}
+}
 
 async function refresh(){
   const files=await allFiles();
   status.textContent=`共 ${files.length} 個檔案`;
-  if(!files.length){
-    list.innerHTML='<div class="empty" style="grid-column:1/-1">目前沒有檔案。上傳後會保存在這個瀏覽器的 AIVAULT 檔案庫。</div>';
-    return;
-  }
+  if(!files.length){list.innerHTML='<div class="empty" style="grid-column:1/-1">目前沒有檔案。上傳或建立 TXT 後會保存在這個瀏覽器的 AIVAULT 檔案庫。</div>';return}
   list.innerHTML="";
   for(const f of files){
-    const card=document.createElement("div"); card.className="card";
-    const thumb=document.createElement("div"); thumb.className="thumb";
+    const card=document.createElement("div");card.className="card";
+    const thumb=document.createElement("div");thumb.className="thumb";
     if(f.type.startsWith("image/")){
-      const img=document.createElement("img"); img.src=URL.createObjectURL(f.blob); thumb.appendChild(img);
+      const img=document.createElement("img");img.src=URL.createObjectURL(f.blob);thumb.appendChild(img);
     }else if(f.type.startsWith("video/")){
-      const v=document.createElement("video"); v.src=URL.createObjectURL(f.blob); v.muted=true; v.preload="metadata"; thumb.appendChild(v);
+      const v=document.createElement("video");v.src=URL.createObjectURL(f.blob);v.muted=true;v.preload="metadata";thumb.appendChild(v);
     }else{const d=document.createElement("div");d.className="icon";d.textContent=icon(f.type,f.name);thumb.appendChild(d)}
     const info=document.createElement("div");info.className="info";
     info.innerHTML=`<div class="name">${esc(f.name)}</div><div class="meta">${esc(f.type||"未知格式")} · ${fmtSize(f.size)} · ${new Date(f.created).toLocaleString()}</div>`;
@@ -194,8 +256,7 @@ async function refresh(){
   }
 }
 async function handleFiles(files){
-  const arr=[...files];
-  if(!arr.length)return;
+  const arr=[...files];if(!arr.length)return;
   status.textContent="正在儲存...";
   for(const f of arr){try{await addFile(f)}catch(e){alert("無法儲存："+f.name+"\n"+e)}}
   await refresh();
@@ -206,16 +267,16 @@ fileInput.addEventListener("change",e=>{handleFiles(e.target.files);fileInput.va
 drop.addEventListener("drop",e=>handleFiles(e.dataTransfer.files));
 
 async function preview(id){
-  const f=await getFile(id); if(!f)return;
+  const f=await getFile(id);if(!f)return;
   const url=URL.createObjectURL(f.blob);
   $("modalTitle").textContent=f.name;
   const b=$("modalBody");b.innerHTML="";
   if(f.type.startsWith("image/")){
-    const img=document.createElement("img");img.className="preview-img";img.src=url;b.appendChild(img);
+    const img=document.createElement("img");img.className="preview-img";img.src=url;img.alt=f.name;b.appendChild(img);
   }else if(f.type.startsWith("video/")){
-    const v=document.createElement("video");v.className="preview-video";v.controls=true;v.autoplay=false;v.src=url;b.appendChild(v);
+    const v=document.createElement("video");v.className="preview-video";v.controls=true;v.playsInline=true;v.preload="metadata";v.src=url;b.appendChild(v);
   }else if(f.type.startsWith("audio/")){
-    const a=document.createElement("audio");a.className="preview-audio";a.controls=true; a.src=url;b.appendChild(a);
+    const a=document.createElement("audio");a.className="preview-audio";a.controls=true;a.src=url;b.appendChild(a);
   }else if(f.type==="application/pdf"||/\.pdf$/i.test(f.name)){
     const iframe=document.createElement("iframe");iframe.src=url;b.appendChild(iframe);
   }else if(f.type.includes("json")||/\.(txt|json|csv|md)$/i.test(f.name)){
@@ -233,33 +294,16 @@ async function preview(id){
   }
   $("modal").classList.add("show");
 }
-function closeModal(){
-  $("modal").classList.remove("show");
-  $("modalBody").innerHTML="";
-}
+function closeModal(){$("modal").classList.remove("show");$("modalBody").innerHTML=""}
 $("modal").addEventListener("click",e=>{if(e.target===$("modal"))closeModal()});
-
 async function downloadFile(id){
   const f=await getFile(id);if(!f)return;
-  const a=document.createElement("a");a.href=URL.createObjectURL(f.blob);a.download=f.name;a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  const url=URL.createObjectURL(f.blob);const a=document.createElement("a");a.href=url;a.download=f.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
-async function deleteOne(id,name){
-  if(!confirm(`確定刪除「${name}」？`))return;
-  await removeFile(id);await refresh();
-}
-async function deleteAll(){
-  const files=await allFiles();if(!files.length)return;
-  if(!confirm(`確定刪除全部 ${files.length} 個檔案？此動作無法復原。`))return;
-  await clearFiles();await refresh();
-}
-
-(async()=>{
-  try{await initDB();await refresh()}
-  catch(e){status.textContent="檔案庫初始化失敗";console.error(e)}
-})();
+async function deleteOne(id,name){if(!confirm(`確定刪除「${name}」？`))return;await removeFile(id);await refresh()}
+async function deleteAll(){const files=await allFiles();if(!files.length)return;if(!confirm(`確定刪除全部 ${files.length} 個檔案？此動作無法復原。`))return;await clearFiles();await refresh()}
+(async()=>{try{await initDB();updateTextCounter();await refresh()}catch(e){status.textContent="檔案庫初始化失敗";console.error(e)}})();
 </script>
-<!-- Word .docx 預覽：使用 Mammoth；沒有網路時仍可上傳與儲存 -->
 <script src="https://unpkg.com/mammoth@1.9.1/mammoth.browser.min.js"></script>
 </body>
 </html>
