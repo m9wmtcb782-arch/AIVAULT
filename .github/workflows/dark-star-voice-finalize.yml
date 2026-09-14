@@ -19,22 +19,17 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
-          import re
           h=Path('technical-dark-star.html')
           j=Path('technical-dark-star-voice-fix.js')
           s=h.read_text(encoding='utf-8')
           v=j.read_text(encoding='utf-8')
 
-          # The voice module previously assigned to a const named home during boot,
-          # which throws before the rest of the UI can initialize.
           v=v.replace("if(home=$('#homeButton')){home.before(langTop);langTop.after(wrap)}else{top.append(langTop,wrap)}",
                       "if(home){home.before(langTop);langTop.after(wrap)}else{top.append(langTop,wrap)}")
 
-          # Make the original top-left menu explicitly clickable and keep it above
-          # any additive header controls. Do not replace the existing drawer logic.
-          marker='AIVAULT_DARK_STAR_MENU_CLICK_FIX_20260914'
+          marker='AIVAULT_DARK_STAR_MENU_CLICK_FIX_20260914_V2'
           if marker not in s:
-              patch='''\n<style id="AIVAULT_DARK_STAR_MENU_CLICK_FIX_20260914">\n/* AIVAULT_DARK_STAR_MENU_CLICK_FIX_20260914 */\n#menuButton{position:relative!important;z-index:99999!important;pointer-events:auto!important;touch-action:manipulation!important;cursor:pointer!important}\n#menuButton *{pointer-events:none!important}\n</style>\n<script>\n(()=>{\n  const bind=()=>{\n    const b=document.getElementById('menuButton');\n    const d=document.getElementById('drawer');\n    const back=document.getElementById('drawerBackdrop');\n    if(!b||!d||!back)return false;\n    b.style.pointerEvents='auto';\n    b.style.zIndex='99999';\n    b.onclick=(e)=>{e.preventDefault();e.stopPropagation();d.classList.add('show');back.classList.add('show');};\n    return true;\n  };\n  if(!bind()){\n    const mo=new MutationObserver(()=>{if(bind())mo.disconnect()});\n    mo.observe(document.documentElement,{childList:true,subtree:true});\n    setTimeout(()=>mo.disconnect(),20000);\n  }\n})();\n</script>\n'''
+              patch='''\n<style id="AIVAULT_DARK_STAR_MENU_CLICK_FIX_20260914_V2">\n/* AIVAULT_DARK_STAR_MENU_CLICK_FIX_20260914_V2 */\n#menuButton{position:relative!important;z-index:999999!important;pointer-events:auto!important;touch-action:manipulation!important;cursor:pointer!important}\n#menuButton svg,#menuButton *{pointer-events:none!important}\n</style>\n<script>\n(()=>{\n  const bind=()=>{\n    const b=document.getElementById('menuButton');\n    const d=document.getElementById('drawer');\n    const back=document.getElementById('drawerBackdrop');\n    if(!b||!d||!back)return false;\n    b.style.pointerEvents='auto';\n    b.style.zIndex='999999';\n    b.onclick=null;\n    b.addEventListener('click',(e)=>{\n      e.preventDefault();\n      e.stopPropagation();\n      d.classList.add('show');\n      back.classList.add('show');\n      if(typeof renderHistory==='function')renderHistory();\n    },false);\n    return true;\n  };\n  if(!bind()){\n    const mo=new MutationObserver(()=>{if(bind())mo.disconnect()});\n    mo.observe(document.documentElement,{childList:true,subtree:true});\n    setTimeout(()=>mo.disconnect(),20000);\n  }\n})();\n</script>\n'''
               pos=s.lower().rfind('</body>')
               if pos<0: raise SystemExit('body marker not found')
               s=s[:pos]+patch+s[pos:]
@@ -47,7 +42,7 @@ jobs:
           from pathlib import Path
           h=Path('technical-dark-star.html').read_text(encoding='utf-8')
           j=Path('technical-dark-star-voice-fix.js').read_text(encoding='utf-8')
-          assert 'AIVAULT_DARK_STAR_MENU_CLICK_FIX_20260914' in h
+          assert 'AIVAULT_DARK_STAR_MENU_CLICK_FIX_20260914_V2' in h
           assert "if(home){home.before(langTop);langTop.after(wrap)}" in j
           print('DARK STAR MENU + VOICE HEADER FIX VALIDATED')
       - name: Commit
@@ -57,5 +52,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add technical-dark-star.html technical-dark-star-voice-fix.js
           git diff --cached --quiet && exit 0
-          git commit -m 'Fix Dark Star top-left menu and voice header clickability'
+          git commit -m 'Force restore Dark Star menu click fix'
           git push
