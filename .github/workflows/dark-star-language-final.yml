@@ -1,0 +1,35 @@
+name: Dark Star Language Final
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Move language beside teaching assistant
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('technical-dark-star.html')
+          s=p.read_text(encoding='utf-8')
+          marker='AIVAULT_DARK_STAR_LANGUAGE_TOP_FINAL'
+          if marker in s:
+              print('already patched')
+          else:
+              css='''\n<style id="AIVAULT_DARK_STAR_LANGUAGE_TOP_FINAL">\n.ds-language-top-final{display:inline-flex!important;align-items:center!important;position:relative!important;flex:0 0 auto!important;margin-left:8px!important;z-index:90!important}\n.ds-language-top-final .ds-fix-btn{height:36px!important;white-space:nowrap!important}\n</style>\n<script>\n(()=>{\n const run=()=>{\n   const lang=document.getElementById('dsFixLanguage');\n   if(!lang)return false;\n   const teaching=[...document.querySelectorAll('button,a,[role="button"]')].find(el=>el!==lang && el.textContent.trim().includes('教學助理'));\n   if(!teaching || !teaching.parentNode)return false;\n   let box=lang.parentElement;\n   if(!box)return false;\n   if(!box.classList.contains('ds-language-top-final')) box.classList.add('ds-language-top-final');\n   teaching.parentNode.insertBefore(box,teaching.nextSibling);\n   const top=document.querySelector('.topbar');\n   if(top){top.style.display='flex';top.style.alignItems='center';}\n   return true;\n };\n if(!run()){const mo=new MutationObserver(()=>{if(run())mo.disconnect()});mo.observe(document.documentElement,{childList:true,subtree:true});setTimeout(()=>mo.disconnect(),15000)}\n})();\n</script>\n'''
+              pos=s.lower().rfind('</body>')
+              if pos<0: raise SystemExit('body marker not found')
+              s=s[:pos]+css+s[pos:]
+              p.write_text(s,encoding='utf-8')
+      - name: Commit
+        shell: bash
+        run: |
+          git config user.name 'aivault-ui-bot'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add technical-dark-star.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'Place Dark Star language beside teaching assistant'
+          git push
