@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Technical Dark Star｜即時視訊測試</title>
+<title>Technical Dark Star｜無痕視訊測試</title>
 <style>
-*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif;background:#fff;color:#202123}body{overflow:hidden}.app{height:100dvh;display:flex;flex-direction:column}.top{height:58px;display:flex;align-items:center;padding:0 14px;border-bottom:1px solid #eee;gap:10px}.logo{width:30px;height:30px;border-radius:9px;background:#171717;color:#fff;display:flex;align-items:center;justify-content:center}.title{font-weight:600}.engine{font-size:12px;color:#888}.back{margin-left:auto;border:1px solid #ddd;background:#fff;border-radius:9px;padding:7px 10px}.main{flex:1;min-height:0;overflow:auto;padding:18px}.card{max-width:760px;margin:0 auto;border:1px solid #e5e5e5;border-radius:16px;padding:16px}.modes{display:flex;gap:8px;margin-bottom:14px}.mode{flex:1;border:1px solid #ddd;background:#fff;border-radius:11px;padding:11px;font-weight:600}.mode.active{background:#171717;color:#fff;border-color:#171717}.status{padding:10px 12px;background:#f6f6f6;border-radius:10px;font-size:13px;margin-bottom:12px}.video-wrap{position:relative;background:#111;border-radius:14px;overflow:hidden;aspect-ratio:4/3}.video{width:100%;height:100%;object-fit:cover;display:block}.mirror{transform:scaleX(-1)}.controls{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.btn{border:1px solid #ddd;background:#fff;border-radius:10px;padding:12px;font-weight:600}.btn.primary{background:#171717;color:#fff;border-color:#171717}.btn:disabled{opacity:.45}.log{margin-top:12px;min-height:100px;max-height:190px;overflow:auto;background:#fafafa;border:1px solid #eee;border-radius:10px;padding:10px;font-size:12px;line-height:1.6;white-space:pre-wrap}.hint{font-size:12px;color:#777;line-height:1.6;margin-top:10px}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif;background:#fff;color:#202123}body{overflow:hidden}.app{height:100dvh;display:flex;flex-direction:column}.top{height:58px;display:flex;align-items:center;padding:0 14px;border-bottom:1px solid #eee;gap:10px}.logo{width:30px;height:30px;border-radius:9px;background:#171717;color:#fff;display:flex;align-items:center;justify-content:center}.title{font-weight:600}.engine{font-size:12px;color:#888}.back{margin-left:auto;border:1px solid #ddd;background:#fff;border-radius:9px;padding:7px 10px}.main{flex:1;min-height:0;overflow:auto;padding:18px}.card{max-width:760px;margin:0 auto;border:1px solid #e5e5e5;border-radius:16px;padding:16px}.modes{display:flex;gap:8px;margin-bottom:14px}.mode{flex:1;border:1px solid #ddd;background:#fff;border-radius:11px;padding:11px;font-weight:600}.mode.active{background:#171717;color:#fff;border-color:#171717}.status{padding:10px 12px;background:#f6f6f6;border-radius:10px;font-size:13px;margin-bottom:12px}.video-wrap{position:relative;background:#111;border-radius:14px;overflow:hidden;aspect-ratio:4/3}.video{width:100%;height:100%;object-fit:cover;display:block}.mirror{transform:scaleX(-1)}.controls{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.btn{border:1px solid #ddd;background:#fff;border-radius:10px;padding:12px;font-weight:600}.btn.primary{background:#171717;color:#fff;border-color:#171717}.btn:disabled{opacity:.45}.log{margin-top:12px;min-height:120px;max-height:230px;overflow:auto;background:#fafafa;border:1px solid #eee;border-radius:10px;padding:10px;font-size:12px;line-height:1.6;white-space:pre-wrap}.hint{font-size:12px;color:#777;line-height:1.6;margin-top:10px}
 </style>
 </head>
 <body>
 <div class="app">
-<header class="top"><div class="logo">✦</div><div><div class="title">Technical Dark Star</div><div class="engine">即時視訊測試</div></div><button class="back" onclick="history.back()">← 回上一頁</button></header>
+<header class="top"><div class="logo">✦</div><div><div class="title">Technical Dark Star</div><div class="engine">無痕 Session 視訊測試</div></div><button class="back" onclick="history.back()">← 回上一頁</button></header>
 <main class="main"><section class="card">
 <div class="modes"><button id="voiceBtn" class="mode" onclick="setMode('voice')">🎤 即時語音</button><button id="videoBtn" class="mode active" onclick="setMode('video')">🎥 即時視訊</button></div>
 <div id="status" class="status">尚未連線</div>
@@ -21,7 +21,7 @@
 <button id="startBtn" class="btn" onclick="start()">▶ 開始</button>
 <button id="stopBtn" class="btn" onclick="stop()" disabled>■ 停止</button>
 </div>
-<div class="hint">第一次按「自動連接」會主動向 iPhone 要求攝影機與麥克風權限。鏡頭可在前鏡頭（自己）與後鏡頭（別人／書）之間切換。此頁先做獨立測試，不改動原本已測試的暗星主頁。</div>
+<div class="hint">本輪只測無痕銜接。後端測試版會在約 30 秒自動用上一個 Session Handle 建立下一個連線，保留上下文並禁止重新開場白。正式版再改成 1:45 預備、1:55 切換。</div>
 <pre id="log" class="log"></pre>
 </section></main>
 </div>
@@ -31,20 +31,27 @@ let ws=null,stream=null,auto=false,running=false,facing='user',videoTimer=null,a
 const $=id=>document.getElementById(id);
 function log(s){$('log').textContent+='['+new Date().toLocaleTimeString('zh-TW')+'] '+s+'\n';$('log').scrollTop=$('log').scrollHeight}
 function status(s){$('status').textContent=s}
-function setMode(m){$('voiceBtn').classList.toggle('active',m==='voice');$('videoBtn').classList.toggle('active',m==='video');log(m==='video'?'已選擇即時視訊':'即時語音按鈕保留，視訊測試不會改動語音核心')}
-async function openMedia(){
- if(stream) return;
- stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing,width:{ideal:1280},height:{ideal:720}},audio:true});
- $('preview').srcObject=stream; $('cameraBtn').disabled=false; log('攝影機＋麥克風權限已取得');
-}
-function connect(){return new Promise((resolve,reject)=>{if(ws&&ws.readyState===1)return resolve();ws=new WebSocket(FN+'?voice=Kore');ws.binaryType='arraybuffer';ws.onopen=()=>{running=true;status('🟢 已連線｜即時視訊');log('WebSocket 已連線');resolve()};ws.onerror=e=>{status('🔴 連線錯誤');reject(e)};ws.onclose=()=>{running=false;status(auto?'🟡 自動重連中…':'⚪ 已斷線');if(auto)setTimeout(()=>connect().catch(()=>{}),1200)};ws.onmessage=e=>{try{const d=JSON.parse(e.data);if(d.type==='transcript')log('暗星：'+d.text);else if(d.type==='error')log('錯誤：'+d.message);else if(d.type==='status')log(d.message)}catch(_){}}})}
-async function start(){try{await openMedia();await connect();startVideo();startAudio();$('startBtn').disabled=true;$('stopBtn').disabled=false;status('🟢 暗星正在看／聽');}catch(e){status('🔴 無法啟動');log('啟動失敗：'+(e.message||e))}}
+function setMode(m){$('voiceBtn').classList.toggle('active',m==='voice');$('videoBtn').classList.toggle('active',m==='video');log(m==='video'?'已選擇即時視訊':'即時語音按鈕保留，現在只測無痕視訊銜接')}
+async function openMedia(){if(stream)return;stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing,width:{ideal:1280},height:{ideal:720}},audio:true});$('preview').srcObject=stream;$('cameraBtn').disabled=false;log('攝影機＋麥克風權限已取得')}
+function connect(){return new Promise((resolve,reject)=>{if(ws&&ws.readyState===1)return resolve();ws=new WebSocket(FN+'?voice=Kore');ws.binaryType='arraybuffer';ws.onopen=()=>{running=true;status('🟢 已連線｜等待無痕銜接');log('WebSocket 已連線');resolve()};ws.onerror=e=>{status('🔴 連線錯誤');reject(e)};ws.onclose=()=>{running=false;status(auto?'🟡 自動重連中…':'⚪ 已斷線');if(auto)setTimeout(()=>connect().catch(()=>{}),1200)};ws.onmessage=e=>{try{const d=JSON.parse(e.data);
+if(d.type==='live_open')log('Session A 已建立');
+else if(d.type==='session_handle')log('✓ 已取得可續接 Session Handle');
+else if(d.type==='handoff_start'){status('🟡 無痕銜接中…');log('→ 開始建立下一個 Session（不應重新打招呼）')}
+else if(d.type==='handoff_complete'){status('🟢 無痕銜接完成');log('✓ Session B 已接手｜同一段對話繼續')}
+else if(d.type==='session_resumed'){status('🟢 Session 已續接');log('✓ Gemini Session Resumption 成功｜沒有建立新對話')}
+else if(d.serverContent?.inputTranscription?.text)log('你：'+d.serverContent.inputTranscription.text);
+else if(d.serverContent?.outputTranscription?.text)log('暗星：'+d.serverContent.outputTranscription.text);
+else if(d.type==='go_away')log('⚠️ GoAway：'+d.timeLeft);
+else if(d.type==='handoff_failed')log('❌ 無痕銜接失敗：'+d.message);
+else if(d.type==='error'||d.error)log('錯誤：'+(d.message||d.error?.message||JSON.stringify(d.error)));
+}catch(_){}}})}
+async function start(){try{await openMedia();await connect();startVideo();startAudio();$('startBtn').disabled=true;$('stopBtn').disabled=false;status('🟢 暗星正在看／聽｜約 30 秒後測試無痕銜接')}catch(e){status('🔴 無法啟動');log('啟動失敗：'+(e.message||e))}}
 function startVideo(){clearInterval(videoTimer);const c=document.createElement('canvas');const x=c.getContext('2d');videoTimer=setInterval(()=>{if(!ws||ws.readyState!==1||!$('preview').videoWidth)return;c.width=640;c.height=Math.round(640*$('preview').videoHeight/$('preview').videoWidth);x.drawImage($('preview'),0,0,c.width,c.height);const b=c.toDataURL('image/jpeg',.72).split(',')[1];ws.send(JSON.stringify({type:'video',data:b,mimeType:'image/jpeg'}));},1000)}
 function startAudio(){if(!stream)return;audioCtx=new AudioContext({sampleRate:16000});source=audioCtx.createMediaStreamSource(stream);processor=audioCtx.createScriptProcessor(4096,1,1);processor.onaudioprocess=e=>{if(!ws||ws.readyState!==1)return;const a=e.inputBuffer.getChannelData(0);const pcm=new Int16Array(a.length);for(let i=0;i<a.length;i++)pcm[i]=Math.max(-1,Math.min(1,a[i]))*32767;let bin='';const u=new Uint8Array(pcm.buffer);for(let i=0;i<u.length;i++)bin+=String.fromCharCode(u[i]);ws.send(JSON.stringify({type:'audio',data:btoa(bin),mimeType:'audio/pcm;rate=16000'}))};source.connect(processor);processor.connect(audioCtx.destination)}
 async function stop(){auto=false;clearInterval(videoTimer);if(processor)processor.disconnect();if(source)source.disconnect();if(audioCtx)await audioCtx.close().catch(()=>{});if(ws){try{ws.send(JSON.stringify({type:'close'}))}catch(_){}ws.close();ws=null}if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$('preview').srcObject=null;$('startBtn').disabled=false;$('stopBtn').disabled=true;$('cameraBtn').disabled=true;status('⚪ 已停止');log('已停止')}
-async function toggleAuto(){auto=!auto;$('autoBtn').textContent=auto?'⏸ 停止自動連接':'⚡ 自動連接';if(auto){log('開始自動連接測試');await start()}else{log('停止自動連接');await stop()}}
-async function switchCamera(){if(!stream)return;facing=facing==='user'?'environment':'user';const old=stream;const newStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing,width:{ideal:1280},height:{ideal:720}},audio:true});old.getTracks().forEach(t=>t.stop());stream=newStream;$('preview').srcObject=stream;$('preview').classList.toggle('mirror',facing==='user');log(facing==='user'?'已切換：前鏡頭／自己':'已切換：後鏡頭／別人或書');}
-window.addEventListener('beforeunload',()=>{try{ws&&ws.close()}catch(_){} });
+async function toggleAuto(){auto=!auto;$('autoBtn').textContent=auto?'⏸ 停止自動連接':'⚡ 自動連接';if(auto){log('開始自動連接＋無痕銜接測試');await start()}else{log('停止自動連接');await stop()}}
+async function switchCamera(){if(!stream)return;facing=facing==='user'?'environment':'user';const old=stream;const newStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing,width:{ideal:1280},height:{ideal:720}},audio:true});old.getTracks().forEach(t=>t.stop());stream=newStream;$('preview').srcObject=stream;$('preview').classList.toggle('mirror',facing==='user');log(facing==='user'?'已切換：前鏡頭／自己':'已切換：後鏡頭／別人或書')}
+window.addEventListener('beforeunload',()=>{try{ws&&ws.close()}catch(_){}});
 </script>
 </body>
 </html>
