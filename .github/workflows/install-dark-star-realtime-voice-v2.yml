@@ -1,0 +1,29 @@
+name: Install Dark Star Realtime Voice v2
+on:
+  push:
+    branches:
+      - voice-live-reinstall
+permissions:
+  contents: write
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install realtime voice
+        run: python3 tools/install_dark_star_realtime_voice.py
+      - name: Validate
+        run: |
+          grep -q 'AIVAULT_DARK_STAR_REALTIME_VOICE_V1' technical-dark-star.html
+          grep -q 'technical-dark-star-live-voice' technical-dark-star.html
+          grep -q 'audio/pcm;rate=16000' technical-dark-star.html
+          echo 'Dark Star realtime voice validation passed'
+      - name: Commit HTML
+        run: |
+          git config user.name 'aivault-voice-installer'
+          git config user.email '41898282+aivault-voice-installer@users.noreply.github.com'
+          git add technical-dark-star.html
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Add clean Technical Dark Star realtime voice'
+          git push
