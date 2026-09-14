@@ -6,7 +6,7 @@
 
   const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-voice-sdk-relay';
   const SESSION='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-voice-session';
-  const TRANSLATION_VERSION='3';
+  const TRANSLATION_VERSION='4';
 
   if(localStorage.getItem('aivault_translation_settings_version')!==TRANSLATION_VERSION){
     localStorage.removeItem('aivault_voice_translate');
@@ -22,11 +22,19 @@
     ['Autonoe','明亮女聲'],['Erinome','清晰女聲'],['Callirrhoe','輕鬆女聲'],['Iapetus','清晰男聲'],['Despina','柔和女聲'],
     ['Rasalgethi','資訊型男聲'],['Alnilam','堅定男聲'],['Pulcherrima','前進感女聲'],['Vindemiatrix','溫柔女聲'],['Sulafat','溫暖女聲']
   ];
+
   const languages=[
     ['english','English'],['japanese','日語'],['korean','韓語'],['french','法語'],['german','德語'],['spanish','西班牙語'],
     ['italian','義大利語'],['portuguese','葡萄牙語'],['russian','俄語'],['vietnamese','越南語'],['thai','泰語'],['hindi','印地語'],
-    ['arabic','阿拉伯語'],['urdu','烏爾都語'],['cantonese','廣東話'],['mandarin','普通話'],['taiwanese','台灣閩南語（台語）'],
-    ['shanghainese','上海話'],['henan','河南話'],['uyghur','維吾爾語'],['tibetan','藏語'],['mongolian','蒙古語'],
+    ['arabic','阿拉伯語'],['urdu','烏爾都語'],
+    ['mandarin','普通話'],['taiwanese','台語'],['cantonese','廣東話'],['hakka','客家話'],['chaozhou','潮州話'],['hainanese','海南話'],
+    ['shanghainese','上海話'],['sichuan','四川話'],['chongqing','重慶話'],['zhejiang','浙江話'],['hangzhou','杭州話'],['ningbo','寧波話'],['wenzhou','溫州話'],
+    ['suzhou','蘇州話'],['nanjing','南京話'],['henan','河南話'],['shandong','山東話'],['tianjin','天津話'],['northeastern_mandarin','東北話'],
+    ['shaanxi','陝西話'],['shanxi','山西話'],['hubei','湖北話'],['hunan','湖南話'],['jiangxi','江西話'],['anhui','安徽話'],['fujian','福建話'],
+    ['uyghur','維吾爾語'],['tibetan','藏語'],['mongolian','蒙古語'],['kazakh','哈薩克語'],['kyrgyz','吉爾吉斯語'],['zhuang','壯語'],['yi','彝語'],
+    ['miao','苗語'],['dong','侗語'],['yao','瑤語'],['bouyei','布依語'],['dai','傣語'],['bai','白語'],['naxi','納西語'],['hani','哈尼語'],
+    ['korean_china','中國朝鮮語'],['manchu','滿語'],['xibe','錫伯語'],['tu','土族語'],['salar','撒拉語'],['bonan','保安語'],['dongxiang','東鄉語'],
+    ['tatar','塔塔爾語'],['tajik','塔吉克語'],['russian_china','中國俄語'],
     ['austrian_german','奧地利德語'],['burmese','緬甸語']
   ];
 
@@ -64,7 +72,7 @@
       .ds-fix-translate summary{list-style:none;cursor:pointer;padding:11px 12px;font-size:13px;color:#333;display:flex;align-items:center;justify-content:space-between}
       .ds-fix-translate summary::-webkit-details-marker{display:none}.ds-fix-translate summary:after{content:'›';font-size:18px;color:#999;transform:rotate(90deg);transition:.15s}.ds-fix-translate:not([open]) summary:after{transform:rotate(0deg)}
       .ds-fix-translate-body{padding:0 11px 11px;border-top:1px solid #eee}.ds-fix-translate-label{display:block;margin:9px 0 5px;font-size:11px;color:#888}
-      .ds-fix-translate-list{max-height:220px;overflow:auto;border:1px solid #ddd;border-radius:9px;padding:4px;background:#fff}
+      .ds-fix-translate-list{max-height:300px;overflow:auto;border:1px solid #ddd;border-radius:9px;padding:4px;background:#fff}
       .ds-fix-translate-option{display:flex;align-items:center;gap:8px;padding:8px;border-radius:7px;font-size:12px;color:#333;cursor:pointer}.ds-fix-translate-option:hover{background:#f4f4f4}.ds-fix-translate-option input{width:16px;height:16px;accent-color:#171717}
       .ds-fix-translate-actions{display:flex;gap:7px;margin-top:9px}.ds-fix-translate-toggle{flex:1;height:36px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#333;font-size:12px}.ds-fix-translate-toggle.on{background:#171717;color:#fff;border-color:#171717}
       .ds-fix-translate-note{margin-top:7px;color:#999;font-size:10px;line-height:1.5}.ds-fix-translate-count{font-size:10px;color:#999;margin-top:6px}
@@ -77,39 +85,18 @@
     const drawer=$('#drawer'),bottom=drawer?.querySelector('.drawer-bottom');
     if(!drawer||!bottom)return;
     const details=document.createElement('details');details.className='ds-fix-translate';details.id='dsFixTranslation';
-    details.innerHTML=`
-      <summary>🌐 翻譯</summary>
-      <div class="ds-fix-translate-body">
-        <label class="ds-fix-translate-label">翻譯成（可複選）</label>
-        <div class="ds-fix-translate-list" id="dsTranslateList"></div>
-        <div class="ds-fix-translate-count" id="dsTranslateCount"></div>
-        <div class="ds-fix-translate-actions"><button type="button" class="ds-fix-translate-toggle" id="dsTranslateToggle">啟用翻譯</button></div>
-        <div class="ds-fix-translate-note">正常即時語音固定辨識繁體中文；只有你明確啟用翻譯後，才會把中文翻譯成你勾選的語言。可同時勾選多種語言。</div>
-      </div>`;
+    details.innerHTML=`<summary>🌐 翻譯</summary><div class="ds-fix-translate-body"><label class="ds-fix-translate-label">翻譯成（可複選）</label><div class="ds-fix-translate-list" id="dsTranslateList"></div><div class="ds-fix-translate-count" id="dsTranslateCount"></div><div class="ds-fix-translate-actions"><button type="button" class="ds-fix-translate-toggle" id="dsTranslateToggle">啟用翻譯</button></div><div class="ds-fix-translate-note">正常即時語音固定辨識繁體中文；只有你明確啟用翻譯後，才會把中文翻譯成你勾選的語言。可同時勾選多種語言。</div></div>`;
     bottom.insertBefore(details,bottom.firstElementChild||null);
-
     const list=$('#dsTranslateList'),count=$('#dsTranslateCount'),toggle=$('#dsTranslateToggle');
     languages.forEach(([id,label])=>{
       const labelEl=document.createElement('label');labelEl.className='ds-fix-translate-option';
       const input=document.createElement('input');input.type='checkbox';input.value=id;input.checked=state.translateTargets.includes(id);
-      input.onchange=()=>{
-        state.translateTargets=$$('#dsTranslateList input:checked').map(x=>x.value);
-        if(!state.translateTargets.length){input.checked=true;state.translateTargets=[id]}
-        localStorage.setItem('aivault_translate_targets',JSON.stringify(state.translateTargets));
-        count.textContent=`已選 ${state.translateTargets.length} 種語言`;
-        if(state.active&&state.translate)restartVoice();
-      };
+      input.onchange=()=>{state.translateTargets=$$('#dsTranslateList input:checked').map(x=>x.value);if(!state.translateTargets.length){input.checked=true;state.translateTargets=[id]}localStorage.setItem('aivault_translate_targets',JSON.stringify(state.translateTargets));count.textContent=`已選 ${state.translateTargets.length} 種語言`;if(state.active&&state.translate)restartVoice()};
       labelEl.append(input,document.createTextNode(label));list.appendChild(labelEl);
     });
     count.textContent=`已選 ${state.translateTargets.length} 種語言`;
     toggle.classList.toggle('on',state.translate);toggle.textContent=state.translate?'已啟用翻譯':'啟用翻譯';
-    toggle.onclick=async e=>{
-      e.preventDefault();e.stopPropagation();
-      state.translate=!state.translate;
-      localStorage.setItem('aivault_voice_translate',state.translate?'1':'0');
-      toggle.classList.toggle('on',state.translate);toggle.textContent=state.translate?'已啟用翻譯':'啟用翻譯';
-      if(state.active)await restartVoice();
-    };
+    toggle.onclick=async e=>{e.preventDefault();e.stopPropagation();state.translate=!state.translate;localStorage.setItem('aivault_voice_translate',state.translate?'1':'0');toggle.classList.toggle('on',state.translate);toggle.textContent=state.translate?'已啟用翻譯':'啟用翻譯';if(state.active)await restartVoice()};
   }
 
   function addUI(){
@@ -139,29 +126,43 @@
       const sj=await sr.json();if(!sr.ok||!sj.session)throw Error(sj.error||'語音工作階段建立失敗');
       state.sessionId=sj.session.id;state.sessionKey=sj.session.session_key;state.seq=0;
       state.stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
-      const params=new URLSearchParams();params.set('voice',state.voice);params.set('session_key',state.sessionKey||'');
+      const params=new URLSearchParams();params.set('voice',state.voice);params.set('session_key',state.sessionKey||'');params.set('language','mandarin');
       if(state.translate){params.set('translate','1');params.set('languages',state.translateTargets.join(','));}
       state.ws=new WebSocket(RELAY+'?'+params.toString());
-      state.ws.onopen=()=>{state.active=true;state.ready=false;$('#dsFixLive')?.classList.add('live');$('#dsFixLive').textContent='⏹ 結束語音'};
-      state.ws.onmessage=async ev=>{let m;try{m=JSON.parse(ev.data)}catch{return};if(m.type==='setupComplete'||m.setupComplete){state.ready=true;startCapture();return}if(m.error){console.error('[DarkStar voice relay]',m);return}const c=m.serverContent||{};if(c.inputTranscription?.text){state.inputText+=c.inputTranscription.text;updateBubble('user',state.inputText)}if(c.outputTranscription?.text){state.outputText+=c.outputTranscription.text;updateBubble('assistant',state.outputText)}if(c.interrupted)stopAudio();for(const p of c.modelTurn?.parts||[]){if(p?.inlineData?.data)playPCM(p.inlineData.data)}if(c.turnComplete){await saveTurn('user',state.inputText);await saveTurn('assistant',state.outputText);state.inputText='';state.outputText='';state.userBubble=null;state.assistantBubble=null}};
-      state.ws.onerror=e=>console.error('[DarkStar voice WS]',e);state.ws.onclose=()=>{if(state.active)stopVoice(false)};
-    }catch(e){console.error('[DarkStar voice start]',e);await stopVoice(false);alert('即時語音啟動失敗：\n'+e.message)}
+      state.ws.onopen=()=>{state.active=true;state.ready=true;addUI();const ac=state.ctx;const src=ac.createMediaStreamSource(state.stream);const p=ac.createScriptProcessor(4096,1,1);state.source=src;state.processor=p;src.connect(p);p.connect(ac.destination);p.onaudioprocess=e=>{if(!state.active||!state.ws||state.ws.readyState!==WebSocket.OPEN)return;state.ws.send(JSON.stringify({type:'audio',data:b64(e.inputBuffer.getChannelData(0)),mimeType:'audio/pcm;rate=16000'}))};addUI()};
+      state.ws.onmessage=async e=>{try{const m=JSON.parse(e.data);const c=m.serverContent||{};if(m.setupComplete){state.ready=true;return}if(c.inputTranscription?.text){state.inputText+=c.inputTranscription.text;updateBubble('user',state.inputText)}if(c.outputTranscription?.text){state.outputText+=c.outputTranscription.text;updateBubble('assistant',state.outputText)}if(c.modelTurn?.parts)for(const part of c.modelTurn.parts){if(part.inlineData?.data)playPCM(part.inlineData.data)}if(c.interrupted)stopAudio();if(c.turnComplete){await saveTurn('user',state.inputText);await saveTurn('assistant',state.outputText);state.inputText='';state.outputText='';state.userBubble=null;state.assistantBubble=null}}catch(err){console.warn('[DarkStar voice] message',err)}};
+      state.ws.onerror=()=>{};state.ws.onclose=()=>stopVoice();
+    }catch(e){console.error('[DarkStar voice] start',e);stopVoice();alert(e?.message||'即時語音啟動失敗')}
   }
 
-  function startCapture(){
-    if(!state.active||!state.ready||!state.stream||!state.ctx)return;
-    try{
-      state.source=state.ctx.createMediaStreamSource(state.stream);state.processor=state.ctx.createScriptProcessor(4096,1,1);state.source.connect(state.processor);state.processor.connect(state.ctx.destination);
-      state.processor.onaudioprocess=e=>{if(!state.active||!state.ready||!state.ws||state.ws.readyState!==WebSocket.OPEN)return;const f=e.inputBuffer.getChannelData(0),ratio=e.inputBuffer.sampleRate/16000,n=Math.floor(f.length/ratio),out=new Int16Array(n);for(let i=0;i<n;i++){const v=Math.max(-1,Math.min(1,f[Math.floor(i*ratio)]));out[i]=v<0?v*32768:v*32767}state.ws.send(JSON.stringify({type:'audio',data:b64(out),mimeType:'audio/pcm;rate=16000'}));};
-    }catch(e){console.error('[DarkStar voice capture]',e)}
+  async function restartVoice(){if(!state.active)return;const wasActive=state.active;stopVoice();if(wasActive)await startVoice()}
+  async function chooseVoice(name){state.voice=name;localStorage.setItem('aivault_voice_profile',name);if(state.active)await restartVoice();addUI()}
+
+  function stopVoice(){state.active=false;state.ready=false;try{state.ws?.close()}catch{}state.ws=null;try{state.processor?.disconnect()}catch{}try{state.source?.disconnect()}catch{}try{state.stream?.getTracks().forEach(t=>t.stop())}catch{}state.processor=null;state.source=null;state.stream=null;stopAudio();try{state.ctx?.close()}catch{}state.ctx=null;state.sessionId=null;state.sessionKey=null;state.inputText='';state.outputText='';state.userBubble=null;state.assistantBubble=null;addUI()}
+
+  function connectTypedInput(){
+    const input=$('.composer-input'),send=$('.composer-send');
+    if(!input||!send||send.dataset.dsVoiceBound==='1')return;
+    send.dataset.dsVoiceBound='1';
+    send.addEventListener('click',e=>{
+      if(!state.active||!state.ready||!state.ws||state.ws.readyState!==WebSocket.OPEN)return;
+      const text=String(input.value||'').trim();
+      if(!text)return;
+      e.preventDefault();e.stopImmediatePropagation();
+      input.value='';
+      state.inputText='';state.outputText='';state.userBubble=null;state.assistantBubble=null;
+      updateBubble('user',text);
+      state.ws.send(JSON.stringify({type:'text',text}));
+    },true);
+    input.addEventListener('keydown',e=>{
+      if(e.key!=='Enter'||e.shiftKey||!state.active||!state.ready||!state.ws||state.ws.readyState!==WebSocket.OPEN)return;
+      const text=String(input.value||'').trim();
+      if(!text)return;
+      e.preventDefault();e.stopImmediatePropagation();
+      send.click();
+    },true);
   }
 
-  async function stopVoice(closeSession=true){
-    state.active=false;state.ready=false;try{state.processor?.disconnect();state.source?.disconnect()}catch{}state.stream?.getTracks().forEach(t=>t.stop());stopAudio();try{state.ws?.send(JSON.stringify({type:'close'}))}catch{}try{state.ws?.close()}catch{}try{await state.ctx?.close()}catch{}if(closeSession&&state.sessionId)fetch(SESSION,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'end',session_id:state.sessionId})}).catch(()=>{});state.ws=null;state.stream=null;state.ctx=null;state.source=null;state.processor=null;state.sessionId=null;state.sessionKey=null;state.seq=0;$('#dsFixLive')?.classList.remove('live');if($('#dsFixLive'))$('#dsFixLive').textContent='🎙 即時語音';
-  }
-  async function restartVoice(){await stopVoice();await startVoice()}
-  async function chooseVoice(v){const running=state.active;state.voice=v;localStorage.setItem('aivault_voice_profile',v);$$('.ds-fix-voice').forEach(b=>b.classList.toggle('active',b.dataset.voice===v));if(running)await restartVoice()}
-
-  function boot(){addStyle();addUI();addTranslationToDrawer()}
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+  function boot(){addStyle();addUI();addTranslationToDrawer();connectTypedInput();let n=0;const t=setInterval(()=>{addUI();addTranslationToDrawer();connectTypedInput();if(++n>30)clearInterval(t)},500)}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
