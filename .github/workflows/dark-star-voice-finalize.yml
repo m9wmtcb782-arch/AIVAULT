@@ -34,10 +34,10 @@ jobs:
     aria-label="回上一頁"
     title="回上一頁"
     onclick="history.back(); return false;">
-    ←
+    🔙
   </a>'''
-          if old not in s: raise SystemExit('Back button target not found; refusing UI patch')
-          s=s.replace(old,new,1)
+          if old in s:
+              s=s.replace(old,new,1)
           old=''' .brand{
   margin-left:7px;
   display:flex;
@@ -53,11 +53,16 @@ jobs:
   min-width:0;
   flex:1 1 auto;
 }'''.lstrip()
-          if old not in s: raise SystemExit('Brand target not found; refusing UI patch')
-          s=s.replace(old,new,1)
-          old='.ds-fix-tools{display:flex;align-items:center;gap:6px;margin-left:10px;position:relative;z-index:80}'
-          new='.ds-fix-tools{display:flex;align-items:center;gap:6px;margin-left:10px;position:relative;z-index:80;flex-shrink:0}'
-          if old not in v: raise SystemExit('Language/teaching-assistant tool row target not found; refusing voice patch')
+          if old in s:
+              s=s.replace(old,new,1)
+          old='.ds-fix-tools{display:flex;align-items:center;gap:6px;margin-left:10px;position:relative;z-index:80;flex-shrink:0}'
+          new='.ds-fix-tools{display:flex;align-items:center;gap:6px;margin-left:10px;position:relative;z-index:80;flex-shrink:0}.ds-fix-language-top{display:inline-flex;align-items:center;position:relative;margin-left:8px;flex-shrink:0}.ds-fix-language-top .ds-fix-language-menu{top:41px;left:0}'
+          if old in v:
+              v=v.replace(old,new,1)
+          old="const live=document.createElement('button');live.type='button';live.className='ds-fix-btn';live.id='dsFixLive';wrap.append(langWrap,voiceWrap,transWrap,live);\nconst teaching=[...document.querySelectorAll('button,a,[role=\"button\"]')].find(el=>el.textContent.trim().includes('教學助理'));\nif(teaching&&teaching.parentNode){teaching.parentNode.insertBefore(wrap,teaching.nextSibling)}else{brand?brand.after(wrap):top.appendChild(wrap)}"
+          new="const live=document.createElement('button');live.type='button';live.className='ds-fix-btn';live.id='dsFixLive';wrap.append(voiceWrap,transWrap,live);\nconst languageTop=document.createElement('div');languageTop.className='ds-fix-language-top';languageTop.appendChild(langWrap);\nconst teaching=[...document.querySelectorAll('button,a,[role=\"button\"]')].find(el=>el.textContent.trim().includes('教學助理'));\nif(teaching&&teaching.parentNode){teaching.parentNode.insertBefore(languageTop,teaching.nextSibling);teaching.parentNode.insertBefore(wrap,languageTop.nextSibling)}else{brand?brand.after(languageTop,wrap):top.append(languageTop,wrap)}"
+          if old not in v:
+              raise SystemExit('Dark Star header insertion target not found; refusing patch')
           v=v.replace(old,new,1)
           h.write_text(s,encoding='utf-8')
           j.write_text(v,encoding='utf-8')
@@ -68,7 +73,7 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add technical-dark-star.html technical-dark-star-voice-fix.js
           git diff --cached --quiet && exit 0
-          git commit -m 'Adjust Dark Star header controls only'
+          git commit -m 'Move Dark Star language beside teaching assistant'
           git push
       - name: Fix Gemini Live WebSocket handshake and composer state
         shell: python
