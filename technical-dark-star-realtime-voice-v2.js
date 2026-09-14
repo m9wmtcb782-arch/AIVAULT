@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
-if(window.__AIVAULT_DARK_STAR_REALTIME_VOICE_V7__) return;
-window.__AIVAULT_DARK_STAR_REALTIME_VOICE_V7__=true;
+if(window.__AIVAULT_DARK_STAR_REALTIME_VOICE_V8__) return;
+window.__AIVAULT_DARK_STAR_REALTIME_VOICE_V8__=true;
 const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-voice';
 const SESSION='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-voice-session';
 const VOICES=[
@@ -9,26 +9,38 @@ const VOICES=[
 ];
 const state={active:false,starting:false,expanded:false,ws:null,stream:null,ctx:null,source:null,processor:null,sink:null,nextAudioTime:0,sessionId:null,voice:'Kore'};
 function css(){const s=document.createElement('style');s.textContent=`
-.dark-star-live-controls{margin-left:auto;display:flex;align-items:center;gap:5px;min-width:0;position:relative;flex:0 0 auto;overflow:visible}
-.dark-star-sound-button{height:34px;border:1px solid #dedede;border-radius:9px;background:#fff;color:#222;padding:0 10px;font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:center;white-space:nowrap}
-.dark-star-sound-button:hover{background:#f5f5f5}
-.dark-star-live-button{height:34px;border:1px solid #dedede;border-radius:9px;background:#fff;color:#222;font-size:12px;font-weight:500;padding:0 10px;display:flex;align-items:center;justify-content:center;white-space:nowrap}
-.dark-star-live-button:hover{background:#f5f5f5}
+.dark-star-live-controls{display:flex;align-items:center;gap:4px;min-width:0;position:relative;flex:0 0 auto;overflow:visible;margin-left:3px}
+.dark-star-sound-button,.dark-star-live-button{height:30px;border:1px solid #dedede;border-radius:8px;background:#fff;color:#222;font-size:11px;font-weight:500;padding:0 7px;display:flex;align-items:center;justify-content:center;white-space:nowrap}
+.dark-star-sound-button:hover,.dark-star-live-button:hover{background:#f5f5f5}
 .dark-star-live-button.active{background:#171717;color:#fff;border-color:#171717}
-.dark-star-voice-select{position:absolute;top:39px;right:0;width:220px;max-width:calc(100vw - 28px);height:34px;border:1px solid #dedede;border-radius:9px;background:#fff;color:#222;font-size:12px;font-weight:400;padding:0 8px;display:none;z-index:1001;box-shadow:0 4px 16px rgba(0,0,0,.10)}
+.dark-star-voice-select{position:absolute;top:34px;left:0;right:auto;width:210px;max-width:calc(100vw - 24px);height:32px;border:1px solid #dedede;border-radius:8px;background:#fff;color:#222;font-size:11px;font-weight:400;padding:0 7px;display:none;z-index:1001;box-shadow:0 4px 16px rgba(0,0,0,.10)}
 .dark-star-live-controls.expanded .dark-star-voice-select{display:block}
 .dark-star-live-status{position:fixed;top:66px;right:14px;z-index:1000;background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:7px 10px;font-size:12px;color:#555;box-shadow:0 4px 18px rgba(0,0,0,.10);display:none}
 .dark-star-live-status.show{display:block}
 .composer-mic{display:none!important}
-.brand-home{font-size:0!important;width:36px;height:36px;padding:0!important;display:flex;align-items:center;justify-content:center}
+.brand-home{font-size:0!important;width:34px;height:34px;padding:0!important;display:flex;align-items:center;justify-content:center}
 .brand-home::before{content:'‹';font-size:28px;line-height:1;font-weight:300;color:#333}
-@media(max-width:520px){.dark-star-live-controls{gap:4px}.dark-star-sound-button,.dark-star-live-button{height:32px;padding:0 8px;font-size:11px}.dark-star-voice-select{top:37px;width:190px;font-size:11px}.brand-home{width:34px;height:34px}}
+.brand{flex:1;min-width:0;gap:6px}
+.brand-title{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.brand-engine{min-width:0;max-width:86px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:520px){
+ .topbar{padding:0 8px}
+ .brand{margin-left:4px;gap:4px}
+ .brand-mark{width:26px;height:26px;min-width:26px}
+ .brand-title{font-size:13px;max-width:96px}
+ .brand-engine{font-size:10px;max-width:72px}
+ .dark-star-live-controls{gap:3px;margin-left:2px}
+ .dark-star-sound-button,.dark-star-live-button{height:29px;padding:0 6px;font-size:10px}
+ .dark-star-voice-select{top:33px;width:190px;font-size:10px}
+ .brand-home{width:30px;height:30px}
+}
 `;document.head.appendChild(s)}
 function ui(){if(document.getElementById('darkStarLiveControls'))return;css();const top=document.querySelector('.topbar');if(!top)return;const controls=document.createElement('div');controls.id='darkStarLiveControls';controls.className='dark-star-live-controls';
 const sound=document.createElement('button');sound.id='darkStarSoundButton';sound.type='button';sound.className='dark-star-sound-button';sound.textContent='聲音';sound.title='展開聲音設定';sound.setAttribute('aria-label','聲音');sound.setAttribute('aria-expanded','false');
 const live=document.createElement('button');live.id='darkStarLiveButton';live.type='button';live.className='dark-star-live-button';live.textContent='即時語音';live.title='開始即時語音';live.setAttribute('aria-label','即時語音');
 const select=document.createElement('select');select.id='darkStarVoiceSelect';select.className='dark-star-voice-select';select.title='選擇人物聲音';VOICES.forEach(([value,label],i)=>{const o=document.createElement('option');o.value=value;o.textContent=`${i+1}. ${label}`;select.appendChild(o)});select.value=state.voice;
-controls.append(sound,live,select);top.appendChild(controls);const status=document.createElement('div');status.id='darkStarLiveStatus';status.className='dark-star-live-status';document.body.appendChild(status);
+const brand=document.querySelector('.brand');const engine=brand?.querySelector('.brand-engine');if(brand&&engine)brand.insertBefore(controls,engine.nextSibling);else top.appendChild(controls);
+controls.append(sound,live,select);const status=document.createElement('div');status.id='darkStarLiveStatus';status.className='dark-star-live-status';document.body.appendChild(status);
 const home=document.querySelector('.brand-home');if(home){home.textContent='';home.title='回上一頁';home.setAttribute('aria-label','回上一頁');home.href='javascript:history.back()'}
 sound.addEventListener('click',()=>{state.expanded=!state.expanded;controls.classList.toggle('expanded',state.expanded);sound.setAttribute('aria-expanded',String(state.expanded));sound.title=state.expanded?'收合聲音設定':'展開聲音設定'});
 select.addEventListener('change',()=>{state.voice=select.value;if(state.active||state.starting)stopVoice().then(()=>startVoice())});live.addEventListener('click',()=>state.active||state.starting?stopVoice():startVoice())}
