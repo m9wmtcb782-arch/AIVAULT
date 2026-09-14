@@ -1,0 +1,25 @@
+name: Install Dark Star Realtime Voice Button
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'technical-dark-star-realtime-voice-v2.js'
+      - 'tools/install_dark_star_voice_button_v2.py'
+      - '.github/workflows/install-dark-star-voice-button.yml'
+permissions:
+  contents: write
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install button script
+        run: python3 tools/install_dark_star_voice_button_v2.py
+      - name: Commit HTML
+        run: |
+          git config user.name 'aivault-voice-installer'
+          git config user.email '41898282+aivault-voice-installer@users.noreply.github.com'
+          git add technical-dark-star.html
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Install visible Dark Star realtime voice button'
+          git push
