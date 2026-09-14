@@ -1,4 +1,4 @@
-/* AIVAULT Technical Dark Star - additive voice fix */
+/* AIVAULT Technical Dark Star - additive voice fix + collapsed translation */
 (()=>{
   'use strict';
   if(window.__AIVAULT_DARK_STAR_VOICE_FIX__) return;
@@ -14,7 +14,21 @@
     ['Autonoe','明亮女聲'],['Erinome','清晰女聲'],['Callirrhoe','輕鬆女聲'],['Iapetus','清晰男聲'],['Despina','柔和女聲'],
     ['Rasalgethi','資訊型男聲'],['Alnilam','堅定男聲'],['Pulcherrima','前進感女聲'],['Vindemiatrix','溫柔女聲'],['Sulafat','溫暖女聲']
   ];
-  const state={active:false,ready:false,ws:null,stream:null,ctx:null,source:null,processor:null,sessionId:null,sessionKey:null,seq:0,voice:localStorage.getItem('aivault_voice_profile')||'Kore',inputText:'',outputText:'',userBubble:null,assistantBubble:null,sources:new Set(),nextAudioTime:0};
+  const languages=[
+    ['mandarin','普通話'],['taiwanese','台灣閩南語（台語）'],['cantonese','廣東話'],['shanghainese','上海話'],['henan','河南話'],
+    ['english','English'],['french','法語'],['german','德語'],['vietnamese','越南語'],['thai','泰語'],['italian','義大利語'],
+    ['russian','俄語'],['spanish','西班牙語'],['japanese','日語'],['korean','韓語'],['portuguese','葡萄牙語'],['hindi','印地語'],
+    ['arabic','阿拉伯語'],['urdu','烏爾都語'],['uyghur','維吾爾語'],['tibetan','藏語'],['mongolian','蒙古語'],
+    ['austrian_german','奧地利德語'],['burmese','緬甸語']
+  ];
+  const state={
+    active:false,ready:false,ws:null,stream:null,ctx:null,source:null,processor:null,
+    sessionId:null,sessionKey:null,seq:0,voice:localStorage.getItem('aivault_voice_profile')||'Kore',
+    inputText:'',outputText:'',userBubble:null,assistantBubble:null,sources:new Set(),nextAudioTime:0,
+    translate:localStorage.getItem('aivault_voice_translate')==='1',
+    languageA:localStorage.getItem('aivault_translate_a')||'mandarin',
+    languageB:localStorage.getItem('aivault_translate_b')||'english'
+  };
   const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
   const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const scroll=()=>{const m=$('#messages');if(m)m.scrollTop=m.scrollHeight};
@@ -30,8 +44,56 @@
       .ds-fix-menu{position:absolute;left:0;top:41px;width:285px;max-height:60vh;overflow:auto;padding:7px;background:#fff;border:1px solid #e5e5e5;border-radius:14px;box-shadow:0 12px 36px rgba(0,0,0,.14);display:none}
       .ds-fix-menu.show{display:block}.ds-fix-voice{width:100%;border:0;background:#fff;border-radius:9px;padding:9px 10px;display:flex;justify-content:space-between;gap:8px;text-align:left;font-size:12px;color:#333}.ds-fix-voice:hover{background:#f3f3f3}.ds-fix-voice.active{background:#f0f0f0;font-weight:600}.ds-fix-voice small{color:#888;font-size:10px}
       .ds-fix-row{display:flex;gap:13px;margin-bottom:30px;align-items:flex-start}.ds-fix-row.user{justify-content:flex-end}.ds-fix-row .message-avatar{flex:none}.ds-fix-row .message-body{min-width:0;max-width:690px}.ds-fix-row.user .message-body{max-width:min(600px,82%)}.ds-fix-row .message-text{font-size:16px;line-height:1.75;white-space:pre-wrap;word-break:break-word}.ds-fix-row.user .message-text{background:#f4f4f4;border-radius:18px;padding:10px 15px}
+      .ds-fix-translate{margin:0 0 9px;padding:0;border:1px solid #e7e7e7;border-radius:11px;background:#fff;overflow:hidden}
+      .ds-fix-translate summary{list-style:none;cursor:pointer;padding:11px 12px;font-size:13px;color:#333;display:flex;align-items:center;justify-content:space-between}
+      .ds-fix-translate summary::-webkit-details-marker{display:none}
+      .ds-fix-translate summary:after{content:'›';font-size:18px;color:#999;transform:rotate(90deg);transition:.15s}
+      .ds-fix-translate:not([open]) summary:after{transform:rotate(0deg)}
+      .ds-fix-translate-body{padding:0 11px 11px;border-top:1px solid #eee}
+      .ds-fix-translate-label{display:block;margin:9px 0 5px;font-size:11px;color:#888}
+      .ds-fix-translate-select{width:100%;height:36px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#333;padding:0 9px;font-size:12px}
+      .ds-fix-translate-actions{display:flex;gap:7px;margin-top:9px}
+      .ds-fix-translate-toggle{flex:1;height:36px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#333;font-size:12px}
+      .ds-fix-translate-toggle.on{background:#171717;color:#fff;border-color:#171717}
+      .ds-fix-translate-note{margin-top:7px;color:#999;font-size:10px;line-height:1.5}
       @media(max-width:700px){.ds-fix-tools{margin-left:4px}.ds-fix-btn{padding:0 7px}.ds-fix-menu{width:250px}}
     `;document.head.appendChild(st);
+  }
+
+  function addTranslationToDrawer(){
+    if($('#dsFixTranslation'))return;
+    const drawer=$('.drawer');
+    if(!drawer)return;
+    const details=document.createElement('details');
+    details.className='ds-fix-translate';
+    details.id='dsFixTranslation';
+    details.innerHTML=`
+      <summary>🌐 翻譯</summary>
+      <div class="ds-fix-translate-body">
+        <label class="ds-fix-translate-label">語言 A</label>
+        <select class="ds-fix-translate-select" id="dsTranslateA"></select>
+        <label class="ds-fix-translate-label">語言 B</label>
+        <select class="ds-fix-translate-select" id="dsTranslateB"></select>
+        <div class="ds-fix-translate-actions">
+          <button type="button" class="ds-fix-translate-toggle" id="dsTranslateToggle">啟用翻譯</button>
+        </div>
+        <div class="ds-fix-translate-note">只在即時語音模式中啟用；一般語音維持原本的暗星對話。</div>
+      </div>`;
+    const close=drawer.querySelector('.drawer-close');
+    const head=drawer.querySelector('.drawer-head');
+    if(head&&head.parentNode)head.parentNode.insertBefore(details,head.nextSibling);
+    else if(close&&close.parentNode)close.parentNode.insertBefore(details,close.nextSibling);
+    else drawer.prepend(details);
+
+    const a=$('#dsTranslateA'),b=$('#dsTranslateB'),toggle=$('#dsTranslateToggle');
+    languages.forEach(([id,label])=>{
+      const oa=document.createElement('option');oa.value=id;oa.textContent=label;a.appendChild(oa);
+      const ob=document.createElement('option');ob.value=id;ob.textContent=label;b.appendChild(ob);
+    });
+    a.value=state.languageA;b.value=state.languageB;toggle.classList.toggle('on',state.translate);toggle.textContent=state.translate?'已啟用翻譯':'啟用翻譯';
+    a.onchange=()=>{state.languageA=a.value;localStorage.setItem('aivault_translate_a',state.languageA);if(state.active&&state.translate)restartVoice()};
+    b.onchange=()=>{state.languageB=b.value;localStorage.setItem('aivault_translate_b',state.languageB);if(state.active&&state.translate)restartVoice()};
+    toggle.onclick=async e=>{e.preventDefault();e.stopPropagation();state.translate=!state.translate;localStorage.setItem('aivault_voice_translate',state.translate?'1':'0');toggle.classList.toggle('on',state.translate);toggle.textContent=state.translate?'已啟用翻譯':'啟用翻譯';if(state.active)await restartVoice()};
   }
 
   function addUI(){
@@ -61,7 +123,9 @@
       const sj=await sr.json();if(!sr.ok||!sj.session)throw Error(sj.error||'語音工作階段建立失敗');
       state.sessionId=sj.session.id;state.sessionKey=sj.session.session_key;state.seq=0;
       state.stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
-      state.ws=new WebSocket(RELAY+'?voice='+encodeURIComponent(state.voice)+'&session_key='+encodeURIComponent(state.sessionKey||''));
+      const params=new URLSearchParams();params.set('voice',state.voice);params.set('session_key',state.sessionKey||'');
+      if(state.translate){params.set('translate','1');params.set('languages',state.languageA+','+state.languageB)}
+      state.ws=new WebSocket(RELAY+'?'+params.toString());
       state.ws.onopen=()=>{state.active=true;state.ready=false;$('#dsFixLive')?.classList.add('live');$('#dsFixLive').textContent='⏹ 結束語音'};
       state.ws.onmessage=async ev=>{
         let m;try{m=JSON.parse(ev.data)}catch{return};
@@ -85,8 +149,9 @@
   async function stopVoice(closeSession=true){
     state.active=false;state.ready=false;try{state.processor?.disconnect();state.source?.disconnect()}catch{};state.stream?.getTracks().forEach(t=>t.stop());stopAudio();try{state.ws?.send(JSON.stringify({type:'close'}))}catch{};try{state.ws?.close()}catch{};try{await state.ctx?.close()}catch{};if(closeSession&&state.sessionId)fetch(SESSION,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'end',session_id:state.sessionId})}).catch(()=>{});state.ws=null;state.stream=null;state.ctx=null;state.source=null;state.processor=null;state.sessionId=null;state.sessionKey=null;state.seq=0;$('#dsFixLive')?.classList.remove('live');if($('#dsFixLive'))$('#dsFixLive').textContent='🎙 即時語音';
   }
-  async function chooseVoice(v){const running=state.active;state.voice=v;localStorage.setItem('aivault_voice_profile',v);$$('.ds-fix-voice').forEach(b=>b.classList.toggle('active',b.dataset.voice===v));if(running){await stopVoice();await startVoice()}}
+  async function restartVoice(){await stopVoice();await startVoice()}
+  async function chooseVoice(v){const running=state.active;state.voice=v;localStorage.setItem('aivault_voice_profile',v);$$('.ds-fix-voice').forEach(b=>b.classList.toggle('active',b.dataset.voice===v));if(running)await restartVoice()}
 
-  function boot(){addStyle();addUI()}
+  function boot(){addStyle();addUI();addTranslationToDrawer();}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
