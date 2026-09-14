@@ -1,0 +1,29 @@
+name: Restore Technical Dark Star Original
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/restore-dark-star-original.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restore original Dark Star page
+        run: |
+          git fetch origin 29b2df9c753604f6e310a0de1ca830e8f9e4d945 --depth=1
+          git checkout 29b2df9c753604f6e310a0de1ca830e8f9e4d945 -- technical-dark-star.html
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add technical-dark-star.html
+          git diff --cached --quiet || git commit -m 'Restore Technical Dark Star original layout with voice and translation'
+          git push
