@@ -1,56 +1,34 @@
-name: Dark Star Voice Finalize
+name: Restore Dark Star Baseline
 on:
   push:
     branches: [main]
 permissions:
   contents: write
-concurrency:
-  group: dark-star-voice-finalize
-  cancel-in-progress: true
 jobs:
-  finalize:
+  restore:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
-      - name: Fix header controls without changing core
-        shell: python
-        run: |
-          from pathlib import Path
-          h=Path('technical-dark-star.html')
-          j=Path('technical-dark-star-voice-fix.js')
-          s=h.read_text(encoding='utf-8')
-          v=j.read_text(encoding='utf-8')
-
-          v=v.replace("if(home=$('#homeButton')){home.before(langTop);langTop.after(wrap)}else{top.append(langTop,wrap)}",
-                      "if(home){home.before(langTop);langTop.after(wrap)}else{top.append(langTop,wrap)}")
-
-          marker='AIVAULT_DARK_STAR_MENU_CLICK_FIX_20260914_V2'
-          if marker not in s:
-              patch='''\n<style id="AIVAULT_DARK_STAR_MENU_CLICK_FIX_20260914_V2">\n/* AIVAULT_DARK_STAR_MENU_CLICK_FIX_20260914_V2 */\n#menuButton{position:relative!important;z-index:999999!important;pointer-events:auto!important;touch-action:manipulation!important;cursor:pointer!important}\n#menuButton svg,#menuButton *{pointer-events:none!important}\n</style>\n<script>\n(()=>{\n  const bind=()=>{\n    const b=document.getElementById('menuButton');\n    const d=document.getElementById('drawer');\n    const back=document.getElementById('drawerBackdrop');\n    if(!b||!d||!back)return false;\n    b.style.pointerEvents='auto';\n    b.style.zIndex='999999';\n    b.onclick=null;\n    b.addEventListener('click',(e)=>{\n      e.preventDefault();\n      e.stopPropagation();\n      d.classList.add('show');\n      back.classList.add('show');\n      if(typeof renderHistory==='function')renderHistory();\n    },false);\n    return true;\n  };\n  if(!bind()){\n    const mo=new MutationObserver(()=>{if(bind())mo.disconnect()});\n    mo.observe(document.documentElement,{childList:true,subtree:true});\n    setTimeout(()=>mo.disconnect(),20000);\n  }\n})();\n</script>\n'''
-              pos=s.lower().rfind('</body>')
-              if pos<0: raise SystemExit('body marker not found')
-              s=s[:pos]+patch+s[pos:]
-
-          h.write_text(s,encoding='utf-8')
-          j.write_text(v,encoding='utf-8')
-      - name: Validate
-        shell: python
-        run: |
-          from pathlib import Path
-          h=Path('technical-dark-star.html').read_text(encoding='utf-8')
-          j=Path('technical-dark-star-voice-fix.js').read_text(encoding='utf-8')
-          assert 'AIVAULT_DARK_STAR_MENU_CLICK_FIX_20260914_V2' in h
-          assert "if(home){home.before(langTop);langTop.after(wrap)}" in j
-          print('DARK STAR MENU + VOICE HEADER FIX VALIDATED')
-      - name: Commit
+          fetch-depth: 0
+      - name: Restore exact successful live-voice baseline
         shell: bash
         run: |
-          git config user.name 'aivault-ui-bot'
+          git checkout 29b2df9c753604f6e310a0de1ca830e8f9e4d945 -- technical-dark-star.html
+      - name: Validate baseline
+        shell: bash
+        run: |
+          grep -q 'technical-dark-star-voice-fix.js' technical-dark-star.html
+          ! grep -q 'AIVAULT_DARK_STAR_MOBILE_MENU_FIX_20260914' technical-dark-star.html
+          ! grep -q 'AIVAULT_DARK_STAR_MENU_CLICK_FIX_20260914_V2' technical-dark-star.html
+          grep -q 'menuButton.addEventListener' technical-dark-star.html
+      - name: Commit restored page
+        shell: bash
+        run: |
+          git config user.name 'aivault-restore-bot'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add technical-dark-star.html technical-dark-star-voice-fix.js
+          git add technical-dark-star.html
           git diff --cached --quiet && exit 0
-          git commit -m 'Force restore Dark Star menu click fix'
+          git commit -m 'Restore Technical Dark Star successful live voice baseline'
           git push
