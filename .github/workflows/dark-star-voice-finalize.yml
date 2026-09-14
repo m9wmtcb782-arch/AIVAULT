@@ -15,84 +15,47 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - name: Apply exact header UI only
+      - name: Fix header controls without changing core
         shell: python
         run: |
           from pathlib import Path
           import re
-
           h=Path('technical-dark-star.html')
           j=Path('technical-dark-star-voice-fix.js')
           s=h.read_text(encoding='utf-8')
           v=j.read_text(encoding='utf-8')
 
-          # 1. Back icon: only change the visible home control, preserving history.back().
-          pattern=re.compile(r'<a id="homeButton"[\s\S]*?</a>')
-          replacement='''<a id="homeButton"
-    class="brand-home"
-    href="#"
-    aria-label="回上一頁"
-    title="回上一頁"
-    onclick="history.back(); return false;">
-    🔙
-  </a>'''
-          s,n=pattern.subn(replacement,s,count=1)
-          if n!=1:
-              raise SystemExit('homeButton not found; refusing patch')
+          # The voice module previously assigned to a const named home during boot,
+          # which throws before the rest of the UI can initialize.
+          v=v.replace("if(home=$('#homeButton')){home.before(langTop);langTop.after(wrap)}else{top.append(langTop,wrap)}",
+                      "if(home){home.before(langTop);langTop.after(wrap)}else{top.append(langTop,wrap)}")
 
-          # 2. Put ONLY the language control beside the upper header brand.
-          marker='AIVAULT_DARK_STAR_HEADER_DIRECT_20260914'
-          if marker not in v:
-              old="const live=document.createElement('button');live.type='button';live.className='ds-fix-btn';live.id='dsFixLive';wrap.append(langWrap,voiceWrap,transWrap,live);"
-              new="const live=document.createElement('button');live.type='button';live.className='ds-fix-btn';live.id='dsFixLive';wrap.append(voiceWrap,transWrap,live);\nconst languageTop=document.createElement('div');languageTop.className='ds-fix-language-top';languageTop.appendChild(langWrap);\n/* AIVAULT_DARK_STAR_HEADER_DIRECT_20260914 */"
-              if old not in v:
-                  raise SystemExit('language insertion target not found; refusing patch')
-              v=v.replace(old,new,1)
-
-              old2="const teaching=[...document.querySelectorAll('button,a,[role=\"button\"]')].find(el=>el.textContent.trim().includes('教學助理'));\nif(teaching&&teaching.parentNode){teaching.parentNode.insertBefore(wrap,teaching.nextSibling)}else{brand?brand.after(wrap):top.appendChild(wrap)}"
-              new2="const teaching=[...document.querySelectorAll('button,a,[role=\"button\"]')].find(el=>el.textContent.trim().includes('教學助理'));\nif(teaching&&teaching.parentNode){teaching.parentNode.insertBefore(languageTop,teaching.nextSibling);teaching.parentNode.insertBefore(wrap,languageTop.nextSibling)}else{brand?brand.after(languageTop,wrap):top.append(languageTop,wrap)}"
-              if old2 in v:
-                  v=v.replace(old2,new2,1)
-              else:
-                  # Current page has no 教學助理 element in source; brand is the actual upper-header anchor.
-                  old3="if(teaching&&teaching.parentNode){teaching.parentNode.insertBefore(wrap,teaching.nextSibling)}else{brand?brand.after(wrap):top.appendChild(wrap)}"
-                  new3="if(teaching&&teaching.parentNode){teaching.parentNode.insertBefore(languageTop,teaching.nextSibling);teaching.parentNode.insertBefore(wrap,languageTop.nextSibling)}else{brand?brand.after(languageTop,wrap):top.append(languageTop,wrap)}"
-                  if old3 not in v:
-                      raise SystemExit('header insertion target not found; refusing patch')
-                  v=v.replace(old3,new3,1)
-
-              # 3. Keep the language button visually in the same top row.
-              css=".ds-fix-language-top{display:inline-flex;align-items:center;position:relative;flex:0 0 auto;margin-left:8px;z-index:100}.ds-fix-language-top .ds-fix-btn{height:36px;white-space:nowrap}"
-              anchor='.ds-fix-tools{'
-              if css not in v:
-                  idx=v.find(anchor)
-                  if idx>=0:
-                      end=v.find('}',idx)
-                      if end>=0:v=v[:end+1]+css+v[end+1:]
+          # Make the original top-left menu explicitly clickable and keep it above
+          # any additive header controls. Do not replace the existing drawer logic.
+          marker='AIVAULT_DARK_STAR_MENU_CLICK_FIX_20260914'
+          if marker not in s:
+              patch='''\n<style id="AIVAULT_DARK_STAR_MENU_CLICK_FIX_20260914">\n/* AIVAULT_DARK_STAR_MENU_CLICK_FIX_20260914 */\n#menuButton{position:relative!important;z-index:99999!important;pointer-events:auto!important;touch-action:manipulation!important;cursor:pointer!important}\n#menuButton *{pointer-events:none!important}\n</style>\n<script>\n(()=>{\n  const bind=()=>{\n    const b=document.getElementById('menuButton');\n    const d=document.getElementById('drawer');\n    const back=document.getElementById('drawerBackdrop');\n    if(!b||!d||!back)return false;\n    b.style.pointerEvents='auto';\n    b.style.zIndex='99999';\n    b.onclick=(e)=>{e.preventDefault();e.stopPropagation();d.classList.add('show');back.classList.add('show');};\n    return true;\n  };\n  if(!bind()){\n    const mo=new MutationObserver(()=>{if(bind())mo.disconnect()});\n    mo.observe(document.documentElement,{childList:true,subtree:true});\n    setTimeout(()=>mo.disconnect(),20000);\n  }\n})();\n</script>\n'''
+              pos=s.lower().rfind('</body>')
+              if pos<0: raise SystemExit('body marker not found')
+              s=s[:pos]+patch+s[pos:]
 
           h.write_text(s,encoding='utf-8')
           j.write_text(v,encoding='utf-8')
-      - name: Validate exact UI patch
+      - name: Validate
         shell: python
         run: |
           from pathlib import Path
           h=Path('technical-dark-star.html').read_text(encoding='utf-8')
           j=Path('technical-dark-star-voice-fix.js').read_text(encoding='utf-8')
-          checks=[
-            'onclick="history.back(); return false;"' in h,
-            '🔙' in h,
-            'AIVAULT_DARK_STAR_HEADER_DIRECT_20260914' in j,
-            "wrap.append(voiceWrap,transWrap,live)" in j,
-            'languageTop.appendChild(langWrap)' in j,
-          ]
-          if not all(checks): raise SystemExit('Exact Dark Star header validation failed')
-          print('DARK STAR HEADER EXACT PATCH VALIDATED')
-      - name: Commit UI-only patch
+          assert 'AIVAULT_DARK_STAR_MENU_CLICK_FIX_20260914' in h
+          assert "if(home){home.before(langTop);langTop.after(wrap)}" in j
+          print('DARK STAR MENU + VOICE HEADER FIX VALIDATED')
+      - name: Commit
         shell: bash
         run: |
           git config user.name 'aivault-ui-bot'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add technical-dark-star.html technical-dark-star-voice-fix.js
           git diff --cached --quiet && exit 0
-          git commit -m 'Place language beside header and use back icon'
+          git commit -m 'Fix Dark Star top-left menu and voice header clickability'
           git push
