@@ -1,0 +1,43 @@
+name: Fix Dark Star voice controls placement
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-dark-star-voice-controls.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Move voice and translation controls to the rear and restore clickability
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('technical-dark-star-voice-fix.js')
+          s=p.read_text(encoding='utf-8')
+          old=".topbar{display:flex!important;align-items:center!important}.topbar .brand{flex:0 0 auto!important}.topbar #dsFixLanguage,.topbar #dsFixTools{position:static!important}.topbar #homeButton{margin-left:auto!important;flex:0 0 auto!important}"
+          new=".topbar{display:flex!important;align-items:center!important;position:relative!important;z-index:100!important;overflow:visible!important}.topbar .brand{flex:0 0 auto!important}.topbar #dsFixLanguage,.topbar #dsFixTools{position:relative!important;z-index:200!important;pointer-events:auto!important}.topbar #homeButton{margin-left:auto!important;flex:0 0 auto!important;position:relative!important;z-index:300!important}.ds-fix-tools{pointer-events:auto!important}.ds-fix-language-top{pointer-events:auto!important}.ds-fix-btn{position:relative!important;z-index:210!important;pointer-events:auto!important;touch-action:manipulation!important}.ds-fix-menu,.ds-fix-language-menu,.ds-fix-translate-menu{z-index:500!important;pointer-events:auto!important}"
+          if old not in s:
+            raise SystemExit('expected header CSS not found')
+          s=s.replace(old,new,1)
+          old2="if(brand&&lang&&lang.parentElement!==top)brand.after(lang);if(lang&&tools&&tools.parentElement!==top)lang.after(tools);if(home){home.textContent='🔙';"
+          new2="if(brand&&lang&&lang.parentElement!==top)brand.after(lang);if(home&&lang&&lang.parentElement===top)home.after(lang);if(home&&tools&&tools.parentElement!==top)home.after(tools);else if(lang&&tools&&tools.parentElement!==top)lang.after(tools);if(home){home.textContent='🔙';"
+          if old2 not in s:
+            raise SystemExit('expected header placement code not found')
+          s=s.replace(old2,new2,1)
+          p.write_text(s,encoding='utf-8')
+      - name: Remove this one-time workflow
+        run: rm -f .github/workflows/fix-dark-star-voice-controls.yml
+      - name: Commit
+        run: |
+          git config user.name 'AIVAULT Fix Bot'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add technical-dark-star-voice-fix.js .github/workflows/fix-dark-star-voice-controls.yml
+          git commit -m 'Fix Dark Star voice and translation controls placement and clicks'
+          git push
