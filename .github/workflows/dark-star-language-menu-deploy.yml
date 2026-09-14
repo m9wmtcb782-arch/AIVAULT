@@ -1,0 +1,43 @@
+name: Dark Star Language Menu
+
+on:
+  push:
+    paths:
+      - '.github/workflows/dark-star-language-menu-deploy.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Inject language menu script
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('technical-dark-star.html')
+          s=p.read_text(encoding='utf-8')
+          tag='<script src="technical-dark-star-language-menu.js"></script>'
+          if tag not in s:
+              marker='</body>'
+              if marker not in s:
+                  raise SystemExit('Missing </body>')
+              s=s.replace(marker, tag+'\n'+marker, 1)
+              p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit HTML update
+        shell: bash
+        run: |
+          git config user.name 'AIVAULT Bot'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add technical-dark-star.html
+          if git diff --cached --quiet; then
+            echo 'No HTML change required.'
+            exit 0
+          fi
+          git commit -m 'feat: place language button in hamburger menu'
+          git push
