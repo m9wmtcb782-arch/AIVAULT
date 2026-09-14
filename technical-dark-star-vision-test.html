@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#ffffff">
+<title>Technical Dark Star｜視覺測試</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:#fff;color:#202123;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC","PingFang TC",sans-serif}
+body{min-height:100dvh}
+button,input,textarea{font:inherit}
+button{cursor:pointer}
+.app{max-width:920px;margin:0 auto;padding:16px}
+.top{display:flex;align-items:center;gap:10px;border-bottom:1px solid #eee;padding:4px 0 14px;margin-bottom:14px}
+.mark{width:38px;height:38px;border-radius:11px;background:#171717;color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px}
+h1{font-size:18px;margin:0;font-weight:650}
+.sub{font-size:12px;color:#888;margin-top:3px}
+.badge{margin-left:auto;padding:6px 9px;border-radius:999px;background:#f4f4f4;color:#666;font-size:11px}
+.card{border:1px solid #e5e5e5;border-radius:16px;padding:14px;margin-bottom:12px;background:#fff}
+.card h2{font-size:14px;margin:0 0 10px}
+.video-wrap{position:relative;background:#111;border-radius:14px;overflow:hidden;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center}
+video{width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1)}
+video.raw{transform:none}
+#canvas{display:none}
+.status{position:absolute;left:10px;top:10px;padding:7px 10px;border-radius:999px;background:rgba(0,0,0,.68);color:#fff;font-size:11px}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.btn{border:1px solid #ddd;background:#fff;border-radius:10px;padding:10px 13px;color:#333}
+.btn.primary{background:#171717;color:#fff;border-color:#171717}
+.btn.danger{border-color:#e8caca;color:#b42318}
+.btn:disabled{opacity:.4;cursor:default}
+.prompt{width:100%;min-height:76px;border:1px solid #ddd;border-radius:11px;padding:10px;resize:vertical;outline:none}
+.prompt:focus{border-color:#999}
+.result{min-height:130px;white-space:pre-wrap;word-break:break-word;line-height:1.7;font-size:15px}
+.result.empty{color:#999;font-size:13px}
+.log{max-height:180px;overflow:auto;background:#111;color:#ddd;border-radius:11px;padding:10px;font:11px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.metric{background:#f7f7f7;border-radius:11px;padding:10px}
+.metric b{display:block;font-size:16px;margin-top:3px}
+.metric span{font-size:11px;color:#777}
+.notice{font-size:12px;color:#666;line-height:1.7}
+.ok{color:#15803d}.bad{color:#b42318}
+@media(max-width:620px){.app{padding:11px}.grid{grid-template-columns:1fr}.badge{display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="mark">🌑</div>
+    <div>
+      <h1>Technical Dark Star｜視覺測試</h1>
+      <div class="sub">獨立測試頁，不修改暗星正式頁面</div>
+    </div>
+    <div class="badge" id="connectionBadge">尚未連線</div>
+  </div>
+
+  <section class="card">
+    <h2>📷 1. 啟動 iPhone 攝像頭</h2>
+    <div class="video-wrap">
+      <video id="video" playsinline muted></video>
+      <div class="status" id="cameraStatus">攝像頭尚未啟動</div>
+    </div>
+    <canvas id="canvas"></canvas>
+    <div class="controls">
+      <button class="btn primary" id="cameraBtn">📷 開啟攝像頭</button>
+      <button class="btn" id="shotBtn" disabled>📸 拍一張給暗星看</button>
+      <button class="btn" id="liveBtn" disabled>👁️ 開始即時視覺</button>
+      <button class="btn danger" id="stopBtn" disabled>⏹ 停止</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>🧠 2. 告訴暗星你要它看什麼</h2>
+    <textarea class="prompt" id="prompt">暗星，請描述你現在看到的畫面。請只說你能從影像確認的內容；如果不確定就明確說不確定。</textarea>
+    <div class="controls">
+      <button class="btn primary" id="connectBtn">🔌 連接視覺測試核心</button>
+      <button class="btn" id="askBtn" disabled>🔎 要求暗星分析目前畫面</button>
+    </div>
+    <p class="notice">這一頁透過 AIVAULT 後端連接 Gemini Live，不把 Gemini API Key 放在網頁。Gemini Live 支援文字、圖片、音訊與影片輸入；本測試目前先驗證「攝像頭 → 視覺理解」。</p>
+  </section>
+
+  <section class="card">
+    <h2>🌑 暗星視覺回答</h2>
+    <div id="result" class="result empty">尚未收到視覺分析。</div>
+  </section>
+
+  <section class="card">
+    <h2>📊 測試狀態</h2>
+    <div class="grid">
+      <div class="metric"><span>攝像頭</span><b id="mCamera">未啟動</b></div>
+      <div class="metric"><span>Live WebSocket</span><b id="mSocket">未連線</b></div>
+      <div class="metric"><span>已送影格</span><b id="mFrames">0</b></div>
+      <div class="metric"><span>最後回答</span><b id="mReply">—</b></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>🧪 技術事件</h2>
+    <div id="log" class="log">等待測試…</div>
+  </section>
+</div>
+<script>
+const SUPABASE_URL="https://clcddygkaaqqtsbswgdf.supabase.co";
+const WS_URL=SUPABASE_URL.replace(/^https:/,"wss:")+"/functions/v1/technical-dark-star-vision-test";
+const $=id=>document.getElementById(id);
+const video=$("video"),canvas=$("canvas"),cameraBtn=$("cameraBtn"),shotBtn=$("shotBtn"),liveBtn=$("liveBtn"),stopBtn=$("stopBtn"),connectBtn=$("connectBtn"),askBtn=$("askBtn");
+const result=$("result"),log=$("log"),prompt=$("prompt"),connectionBadge=$("connectionBadge"),cameraStatus=$("cameraStatus");
+let stream=null,ws=null,liveTimer=null,frames=0,lastReplyAt=0,frameBusy=false;
+function logMsg(s){const t=new Date().toLocaleTimeString();log.textContent+=`\n[${t}] ${s}`;log.scrollTop=log.scrollHeight}
+function setSocket(s){$("mSocket").textContent=s;connectionBadge.textContent=s;connectionBadge.className="badge"+(s.includes("已")?" ok":s.includes("失")?" bad":"")}
+function setResult(text){if(!text)return;result.classList.remove("empty");result.textContent+=text;$("mReply").textContent=new Date().toLocaleTimeString()}
+function resetResult(){result.classList.add("empty");result.textContent=""}
+function b64FromBlob(blob){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result).split(",")[1]||"");r.onerror=reject;r.readAsDataURL(blob)})}
+async function startCamera(){
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}},audio:false});
+    video.srcObject=stream;video.classList.add("raw");await video.play();
+    cameraStatus.textContent="攝像頭已啟動";$("mCamera").textContent="已啟動";cameraBtn.disabled=true;shotBtn.disabled=false;stopBtn.disabled=false;logMsg("Camera OK");
+  }catch(e){cameraStatus.textContent="攝像頭啟動失敗";logMsg("Camera ERROR: "+(e?.message||e));alert("無法取得攝像頭。請確認 Safari/GitHub Pages 已允許攝像頭權限。")}
+}
+function stopCamera(){
+  if(liveTimer){clearInterval(liveTimer);liveTimer=null}
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+  video.srcObject=null;cameraStatus.textContent="攝像頭已停止";$("mCamera").textContent="已停止";shotBtn.disabled=true;liveBtn.disabled=true;stopBtn.disabled=true;logMsg("Camera stopped");
+}
+function connect(){
+  if(ws&&ws.readyState===WebSocket.OPEN)return;
+  resetResult();logMsg("Connecting: "+WS_URL);setSocket("連線中…");
+  ws=new WebSocket(WS_URL);
+  ws.onopen=()=>{setSocket("已連線");askBtn.disabled=false;liveBtn.disabled=!stream;logMsg("WebSocket OPEN");sendText("這是 Technical Dark Star 視覺能力測試。先準備接收攝像頭畫面。")};
+  ws.onmessage=e=>{try{const m=JSON.parse(e.data);if(m.type==="live_open"){logMsg("Gemini Live OPEN / "+m.model);return}if(m.setupComplete){logMsg("Gemini setup complete");return}if(m.error){logMsg("ERROR: "+JSON.stringify(m.error));setSocket("錯誤");return}if(m.serverContent?.outputTranscription?.text){setResult(m.serverContent.outputTranscription.text);lastReplyAt=Date.now()}if(m.serverContent?.turnComplete){logMsg("turn complete")}if(m.usageMetadata)logMsg("usage: "+JSON.stringify(m.usageMetadata));if(m.type==="live_close")setSocket("已關閉")}catch(err){logMsg("Message parse error: "+err)}};
+  ws.onerror=()=>{setSocket("連線錯誤");logMsg("WebSocket ERROR")};
+  ws.onclose=()=>{setSocket("已關閉");askBtn.disabled=true;liveBtn.disabled=true;logMsg("WebSocket CLOSED")};
+}
+function sendText(text){if(!ws||ws.readyState!==WebSocket.OPEN)return false;ws.send(JSON.stringify({type:"text",text}));return true}
+async function captureAndSend(){
+  if(!stream||!ws||ws.readyState!==WebSocket.OPEN||frameBusy||video.readyState<2)return false;
+  frameBusy=true;
+  try{
+    const w=Math.min(768,video.videoWidth||768),h=Math.round(w*((video.videoHeight||576)/(video.videoWidth||768)));
+    canvas.width=w;canvas.height=h;const ctx=canvas.getContext("2d");ctx.drawImage(video,0,0,w,h);
+    const blob=await new Promise(r=>canvas.toBlob(r,"image/jpeg",.72));if(!blob)throw new Error("JPEG capture failed");
+    const data=await b64FromBlob(blob);ws.send(JSON.stringify({type:"video",data,mimeType:"image/jpeg"}));frames++;$("mFrames").textContent=String(frames);return true;
+  }catch(e){logMsg("Frame ERROR: "+(e?.message||e));return false}finally{frameBusy=false}
+}
+async function singleShot(){if(!ws||ws.readyState!==WebSocket.OPEN){alert("請先連接視覺測試核心。");return}resetResult();await captureAndSend();sendText(prompt.value.trim()||"暗星，請分析你剛才收到的畫面。");logMsg("Single frame sent");}
+function startLive(){
+  if(liveTimer||!stream||!ws||ws.readyState!==WebSocket.OPEN)return;
+  resetResult();liveBtn.textContent="👁️ 即時視覺中";liveBtn.disabled=true;logMsg("Realtime vision START / 1 FPS");captureAndSend();liveTimer=setInterval(()=>{captureAndSend()},1000);stopBtn.disabled=false;
+  sendText(prompt.value.trim()||"暗星，持續觀察畫面；只有在看見重要變化時告訴我。");
+}
+function stopAll(){if(liveTimer){clearInterval(liveTimer);liveTimer=null;liveBtn.textContent="👁️ 開始即時視覺";liveBtn.disabled=!stream}if(ws){try{ws.send(JSON.stringify({type:"close"}))}catch{}try{ws.close()}catch{}ws=null}stopCamera();setSocket("未連線");askBtn.disabled=true;logMsg("Test stopped")}
+cameraBtn.onclick=startCamera;connectBtn.onclick=connect;shotBtn.onclick=singleShot;liveBtn.onclick=startLive;stopBtn.onclick=stopAll;askBtn.onclick=()=>{resetResult();sendText(prompt.value.trim()||"暗星，請分析目前畫面。")};
+window.addEventListener("beforeunload",()=>{try{if(ws)ws.close()}catch{}try{if(stream)stream.getTracks().forEach(t=>t.stop())}catch{}});
+</script>
+</body>
+</html>
