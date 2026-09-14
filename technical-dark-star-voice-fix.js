@@ -1,4 +1,4 @@
-/* AIVAULT Technical Dark Star - additive voice fix + collapsed translation */
+/* AIVAULT Technical Dark Star - realtime voice + hidden translation */
 (()=>{
   'use strict';
   if(window.__AIVAULT_DARK_STAR_VOICE_FIX__) return;
@@ -6,6 +6,15 @@
 
   const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-voice-sdk-relay';
   const SESSION='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-voice-session';
+  const TRANSLATION_VERSION='2';
+
+  /* 重要：這次版本升級後，翻譯預設關閉。
+     避免上一版測試留下的 localStorage 狀態，讓即時語音自行進入翻譯模式。 */
+  if(localStorage.getItem('aivault_translation_settings_version')!==TRANSLATION_VERSION){
+    localStorage.removeItem('aivault_voice_translate');
+    localStorage.setItem('aivault_translation_settings_version',TRANSLATION_VERSION);
+  }
+
   const voices=[
     ['Kore','沉穩女聲'],['Puck','活潑男聲'],['Charon','知性男聲'],['Leda','年輕女聲'],['Gacrux','成熟女聲'],
     ['Aoede','自然女聲'],['Orus','沉穩男聲'],['Zephyr','明亮女聲'],['Fenrir','有力男聲'],['Achird','親切男聲'],
@@ -21,15 +30,20 @@
     ['arabic','阿拉伯語'],['urdu','烏爾都語'],['uyghur','維吾爾語'],['tibetan','藏語'],['mongolian','蒙古語'],
     ['austrian_german','奧地利德語'],['burmese','緬甸語']
   ];
+
   const state={
     active:false,ready:false,ws:null,stream:null,ctx:null,source:null,processor:null,
-    sessionId:null,sessionKey:null,seq:0,voice:localStorage.getItem('aivault_voice_profile')||'Kore',
+    sessionId:null,sessionKey:null,seq:0,
+    voice:localStorage.getItem('aivault_voice_profile')||'Kore',
     inputText:'',outputText:'',userBubble:null,assistantBubble:null,sources:new Set(),nextAudioTime:0,
+    /* 即時語音預設永遠維持一般模式；只有使用者從左上角功能頁明確開啟才翻譯 */
     translate:localStorage.getItem('aivault_voice_translate')==='1',
     languageA:localStorage.getItem('aivault_translate_a')||'mandarin',
     languageB:localStorage.getItem('aivault_translate_b')||'english'
   };
-  const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+
+  const $=s=>document.querySelector(s);
+  const $$=s=>Array.from(document.querySelectorAll(s));
   const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const scroll=()=>{const m=$('#messages');if(m)m.scrollTop=m.scrollHeight};
   const b64=buf=>{const u=new Uint8Array(buf.buffer,buf.byteOffset,buf.byteLength);let s='';for(let i=0;i<u.length;i+=32768)s+=String.fromCharCode(...u.subarray(i,i+32768));return btoa(s)};
@@ -62,8 +76,10 @@
 
   function addTranslationToDrawer(){
     if($('#dsFixTranslation'))return;
-    const drawer=$('.drawer');
-    if(!drawer)return;
+    const drawer=$('#drawer');
+    const bottom=drawer?.querySelector('.drawer-bottom');
+    if(!drawer||!bottom)return;
+
     const details=document.createElement('details');
     details.className='ds-fix-translate';
     details.id='dsFixTranslation';
@@ -77,23 +93,41 @@
         <div class="ds-fix-translate-actions">
           <button type="button" class="ds-fix-translate-toggle" id="dsTranslateToggle">啟用翻譯</button>
         </div>
-        <div class="ds-fix-translate-note">只在即時語音模式中啟用；一般語音維持原本的暗星對話。</div>
+        <div class="ds-fix-translate-note">預設關閉。只有你從這裡啟用後，即時語音才會進入口譯模式。</div>
       </div>`;
-    const close=drawer.querySelector('.drawer-close');
-    const head=drawer.querySelector('.drawer-head');
-    if(head&&head.parentNode)head.parentNode.insertBefore(details,head.nextSibling);
-    else if(close&&close.parentNode)close.parentNode.insertBefore(details,close.nextSibling);
-    else drawer.prepend(details);
+
+    /* 明確放進左上角功能抽屜的「功能區」，不插到頂部標題區 */
+    bottom.insertBefore(details,bottom.firstElementChild||null);
 
     const a=$('#dsTranslateA'),b=$('#dsTranslateB'),toggle=$('#dsTranslateToggle');
     languages.forEach(([id,label])=>{
       const oa=document.createElement('option');oa.value=id;oa.textContent=label;a.appendChild(oa);
       const ob=document.createElement('option');ob.value=id;ob.textContent=label;b.appendChild(ob);
     });
-    a.value=state.languageA;b.value=state.languageB;toggle.classList.toggle('on',state.translate);toggle.textContent=state.translate?'已啟用翻譯':'啟用翻譯';
-    a.onchange=()=>{state.languageA=a.value;localStorage.setItem('aivault_translate_a',state.languageA);if(state.active&&state.translate)restartVoice()};
-    b.onchange=()=>{state.languageB=b.value;localStorage.setItem('aivault_translate_b',state.languageB);if(state.active&&state.translate)restartVoice()};
-    toggle.onclick=async e=>{e.preventDefault();e.stopPropagation();state.translate=!state.translate;localStorage.setItem('aivault_voice_translate',state.translate?'1':'0');toggle.classList.toggle('on',state.translate);toggle.textContent=state.translate?'已啟用翻譯':'啟用翻譯';if(state.active)await restartVoice()};
+    a.value=state.languageA;
+    b.value=state.languageB;
+    toggle.classList.toggle('on',state.translate);
+    toggle.textContent=state.translate?'已啟用翻譯':'啟用翻譯';
+
+    a.onchange=()=>{
+      state.languageA=a.value;
+      localStorage.setItem('aivault_translate_a',state.languageA);
+      if(state.active&&state.translate)restartVoice();
+    };
+    b.onchange=()=>{
+      state.languageB=b.value;
+      localStorage.setItem('aivault_translate_b',state.languageB);
+      if(state.active&&state.translate)restartVoice();
+    };
+    toggle.onclick=async e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      state.translate=!state.translate;
+      localStorage.setItem('aivault_voice_translate',state.translate?'1':'0');
+      toggle.classList.toggle('on',state.translate);
+      toggle.textContent=state.translate?'已啟用翻譯':'啟用翻譯';
+      if(state.active)await restartVoice();
+    };
   }
 
   function addUI(){
@@ -102,10 +136,23 @@
     const voice=document.createElement('button');voice.type='button';voice.className='ds-fix-btn';voice.id='dsFixVoice';
     const live=document.createElement('button');live.type='button';live.className='ds-fix-btn';live.id='dsFixLive';
     const menu=document.createElement('div');menu.className='ds-fix-menu';menu.id='dsFixMenu';
-    voices.forEach(([name,label])=>{const b=document.createElement('button');b.type='button';b.className='ds-fix-voice';b.dataset.voice=name;b.innerHTML=`<span>🔊 ${esc(name)}</span><small>${esc(label)}</small>`;b.onclick=async e=>{e.stopPropagation();await chooseVoice(name)};menu.appendChild(b)});
+    voices.forEach(([name,label])=>{
+      const b=document.createElement('button');b.type='button';b.className='ds-fix-voice';b.dataset.voice=name;
+      b.innerHTML=`<span>🔊 ${esc(name)}</span><small>${esc(label)}</small>`;
+      b.onclick=async e=>{e.stopPropagation();await chooseVoice(name)};
+      menu.appendChild(b);
+    });
     wrap.append(voice,menu,live);brand?brand.after(wrap):top.appendChild(wrap);
-    const update=()=>{voice.textContent='🔊 '+state.voice;live.textContent=state.active?'⏹ 結束語音':'🎙 即時語音';live.classList.toggle('live',state.active);$$('.ds-fix-voice').forEach(b=>b.classList.toggle('active',b.dataset.voice===state.voice))};
-    voice.onclick=e=>{e.stopPropagation();menu.classList.toggle('show')};live.onclick=e=>{e.stopPropagation();state.active?stopVoice():startVoice()};document.addEventListener('click',()=>menu.classList.remove('show'));update();
+    const update=()=>{
+      voice.textContent='🔊 '+state.voice;
+      live.textContent=state.active?'⏹ 結束語音':'🎙 即時語音';
+      live.classList.toggle('live',state.active);
+      $$('.ds-fix-voice').forEach(b=>b.classList.toggle('active',b.dataset.voice===state.voice));
+    };
+    voice.onclick=e=>{e.stopPropagation();menu.classList.toggle('show')};
+    live.onclick=e=>{e.stopPropagation();state.active?stopVoice():startVoice()};
+    document.addEventListener('click',()=>menu.classList.remove('show'));
+    update();
   }
 
   function bubble(role){const inner=$('#messagesInner');if(!inner)return null;const row=document.createElement('div');row.className='ds-fix-row '+role;row.innerHTML=`<div class="message-avatar">${role==='user'?'你':'✦'}</div><div class="message-body"><div class="message-text"></div></div>`;inner.appendChild(row);scroll();return row.querySelector('.message-text')}
@@ -123,8 +170,14 @@
       const sj=await sr.json();if(!sr.ok||!sj.session)throw Error(sj.error||'語音工作階段建立失敗');
       state.sessionId=sj.session.id;state.sessionKey=sj.session.session_key;state.seq=0;
       state.stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
-      const params=new URLSearchParams();params.set('voice',state.voice);params.set('session_key',state.sessionKey||'');
-      if(state.translate){params.set('translate','1');params.set('languages',state.languageA+','+state.languageB)}
+      const params=new URLSearchParams();
+      params.set('voice',state.voice);
+      params.set('session_key',state.sessionKey||'');
+      /* 只有使用者明確啟用翻譯，才把翻譯參數送給後端 */
+      if(state.translate){
+        params.set('translate','1');
+        params.set('languages',state.languageA+','+state.languageB);
+      }
       state.ws=new WebSocket(RELAY+'?'+params.toString());
       state.ws.onopen=()=>{state.active=true;state.ready=false;$('#dsFixLive')?.classList.add('live');$('#dsFixLive').textContent='⏹ 結束語音'};
       state.ws.onmessage=async ev=>{
@@ -138,20 +191,49 @@
         for(const p of c.modelTurn?.parts||[]){if(p?.inlineData?.data)playPCM(p.inlineData.data)}
         if(c.turnComplete){await saveTurn('user',state.inputText);await saveTurn('assistant',state.outputText);state.inputText='';state.outputText='';state.userBubble=null;state.assistantBubble=null}
       };
-      state.ws.onerror=e=>console.error('[DarkStar voice WS]',e);state.ws.onclose=()=>{if(state.active)stopVoice(false)};
+      state.ws.onerror=e=>console.error('[DarkStar voice WS]',e);
+      state.ws.onclose=()=>{if(state.active)stopVoice(false)};
     }catch(e){console.error('[DarkStar voice start]',e);await stopVoice(false);alert('即時語音啟動失敗：\n'+e.message)}
   }
 
   function startCapture(){
     if(!state.active||!state.ready||!state.stream||!state.ctx)return;
-    try{state.source=state.ctx.createMediaStreamSource(state.stream);state.processor=state.ctx.createScriptProcessor(4096,1,1);state.source.connect(state.processor);state.processor.connect(state.ctx.destination);state.processor.onaudioprocess=e=>{if(!state.active||!state.ready||!state.ws||state.ws.readyState!==WebSocket.OPEN)return;const f=e.inputBuffer.getChannelData(0),ratio=e.inputBuffer.sampleRate/16000,n=Math.floor(f.length/ratio),out=new Int16Array(n);for(let i=0;i<n;i++){const v=Math.max(-1,Math.min(1,f[Math.floor(i*ratio)]));out[i]=v<0?v*32768:v*32767}state.ws.send(JSON.stringify({type:'audio',data:b64(out),mimeType:'audio/pcm;rate=16000'}))}}catch(e){console.error('[DarkStar voice capture]',e)}}
+    try{
+      state.source=state.ctx.createMediaStreamSource(state.stream);
+      state.processor=state.ctx.createScriptProcessor(4096,1,1);
+      state.source.connect(state.processor);
+      state.processor.connect(state.ctx.destination);
+      state.processor.onaudioprocess=e=>{
+        if(!state.active||!state.ready||!state.ws||state.ws.readyState!==WebSocket.OPEN)return;
+        const f=e.inputBuffer.getChannelData(0),ratio=e.inputBuffer.sampleRate/16000,n=Math.floor(f.length/ratio),out=new Int16Array(n);
+        for(let i=0;i<n;i++){const v=Math.max(-1,Math.min(1,f[Math.floor(i*ratio)]));out[i]=v<0?v*32768:v*32767}
+        state.ws.send(JSON.stringify({type:'audio',data:b64(out),mimeType:'audio/pcm;rate=16000'}));
+      };
+    }catch(e){console.error('[DarkStar voice capture]',e)}
+  }
 
   async function stopVoice(closeSession=true){
-    state.active=false;state.ready=false;try{state.processor?.disconnect();state.source?.disconnect()}catch{};state.stream?.getTracks().forEach(t=>t.stop());stopAudio();try{state.ws?.send(JSON.stringify({type:'close'}))}catch{};try{state.ws?.close()}catch{};try{await state.ctx?.close()}catch{};if(closeSession&&state.sessionId)fetch(SESSION,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'end',session_id:state.sessionId})}).catch(()=>{});state.ws=null;state.stream=null;state.ctx=null;state.source=null;state.processor=null;state.sessionId=null;state.sessionKey=null;state.seq=0;$('#dsFixLive')?.classList.remove('live');if($('#dsFixLive'))$('#dsFixLive').textContent='🎙 即時語音';
+    state.active=false;state.ready=false;
+    try{state.processor?.disconnect();state.source?.disconnect()}catch{}
+    state.stream?.getTracks().forEach(t=>t.stop());
+    stopAudio();
+    try{state.ws?.send(JSON.stringify({type:'close'}))}catch{}
+    try{state.ws?.close()}catch{}
+    try{await state.ctx?.close()}catch{}
+    if(closeSession&&state.sessionId)fetch(SESSION,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'end',session_id:state.sessionId})}).catch(()=>{});
+    state.ws=null;state.stream=null;state.ctx=null;state.source=null;state.processor=null;state.sessionId=null;state.sessionKey=null;state.seq=0;
+    $('#dsFixLive')?.classList.remove('live');
+    if($('#dsFixLive'))$('#dsFixLive').textContent='🎙 即時語音';
   }
+
   async function restartVoice(){await stopVoice();await startVoice()}
   async function chooseVoice(v){const running=state.active;state.voice=v;localStorage.setItem('aivault_voice_profile',v);$$('.ds-fix-voice').forEach(b=>b.classList.toggle('active',b.dataset.voice===v));if(running)await restartVoice()}
 
-  function boot(){addStyle();addUI();addTranslationToDrawer();}
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+  function boot(){
+    addStyle();
+    addUI();
+    addTranslationToDrawer();
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
+  else boot();
 })();
