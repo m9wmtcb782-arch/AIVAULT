@@ -1,11 +1,96 @@
 <!doctype html>
 <html lang="zh-Hant">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Technical Dark Star｜原生 GLB Morph GPU 測試</title><style>html,body{margin:0;width:100%;height:100%;background:#050812;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif;overflow:hidden}#app{position:fixed;inset:0}#panel{position:fixed;left:12px;right:12px;top:12px;z-index:5;background:rgba(8,13,24,.92);backdrop-filter:blur(12px);border:1px solid #273451;border-radius:14px;padding:12px;max-height:42vh;overflow:auto;box-shadow:0 10px 30px #0008}h2{font-size:18px;margin:0 0 7px}.status{line-height:1.55;font-size:14px}.ok{color:#62e6ae}.err{color:#ff788b}.warn{color:#ffd166}.muted{color:#aab4cc}.controls{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}button{border:0;border-radius:9px;padding:9px 12px;background:#31558f;color:#fff;font-size:14px}button:active{transform:scale(.97)}#face{position:fixed;left:12px;right:12px;bottom:12px;z-index:5;background:rgba(8,13,24,.9);border:1px solid #273451;border-radius:14px;padding:10px;display:none}.row{display:flex;align-items:center;gap:8px;margin:5px 0}.row span{width:70px;font-size:12px}.row input{flex:1}.value{width:42px;text-align:right;font-size:12px;color:#b9c7e5}</style></head>
-<body><div id="app"></div><div id="panel"><h2>Technical Dark Star｜原生 GLB + Meshopt + Morph GPU 測試</h2><div id="status" class="status">正在載入 Three.js、Meshopt Decoder 與 GLB…</div><div id="info" class="status muted"></div><div class="controls"><button id="prev">上一個 Morph</button><button id="next">下一個 Morph</button><button id="auto">自動測試</button><button id="reset">歸零</button></div></div><div id="face"></div>
-<script type="module">
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
-import {GLTFLoader} from 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js';
-import {MeshoptDecoder} from 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/libs/meshopt_decoder.module.js';
-const MODEL='./assets/dark-star/technical-dark-star-avatar.glb';const $=id=>document.getElementById(id);let scene,camera,renderer,modelRoot,morphMeshes=[],morphTargets=[],current=-1,autoTimer=null;
-function status(html){$('status').innerHTML=html}function collectMorphs(root){morphMeshes=[];morphTargets=[];root.traverse(o=>{if(!o.isMesh||!o.morphTargetInfluences||!o.morphTargetDictionary)return;morphMeshes.push(o);for(const[name,index]of Object.entries(o.morphTargetDictionary))morphTargets.push({mesh:o,name,index,global:morphTargets.length})})}function clearMorphs(){for(const x of morphTargets)x.mesh.morphTargetInfluences[x.index]=0}function setMorph(i,value){clearMorphs();if(!morphTargets[i])return;const x=morphTargets[i];x.mesh.morphTargetInfluences[x.index]=value;current=i;$('info').textContent=`Morph ${i+1}/${morphTargets.length}｜${x.name}｜strength=${value.toFixed(2)}`}function buildFacePanel(){const f=$('face');f.style.display=morphTargets.length?'block':'none';f.innerHTML='';morphTargets.slice(0,96).forEach((x,i)=>{const r=document.createElement('div');r.className='row';const s=document.createElement('span');s.textContent=(i+1)+'. '+x.name.slice(0,10);const inp=document.createElement('input');inp.type='range';inp.min=0;inp.max=1;inp.step=.01;inp.value=0;const v=document.createElement('div');v.className='value';v.textContent='0.00';inp.oninput=()=>{clearMorphs();x.mesh.morphTargetInfluences[x.index]=+inp.value;v.textContent=(+inp.value).toFixed(2);current=i};r.append(s,inp,v);f.append(r)})}function init3D(){scene=new THREE.Scene();scene.background=new THREE.Color(0x050812);camera=new THREE.PerspectiveCamera(35,innerWidth/innerHeight,.01,100);camera.position.set(0,1.45,3.4);renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;$('app').appendChild(renderer.domElement);scene.add(new THREE.HemisphereLight(0xbfd8ff,0x182033,2.2));const key=new THREE.DirectionalLight(0xffffff,3.2);key.position.set(2,3,4);scene.add(key);const fill=new THREE.DirectionalLight(0x8fb8ff,1.4);fill.position.set(-3,1,2);scene.add(fill);addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});function loop(){requestAnimationFrame(loop);if(modelRoot)modelRoot.rotation.y=Math.sin(performance.now()/7000)*.08;renderer.render(scene,camera)}loop()}async function main(){try{init3D();status('<span class="warn">① 取得 GLB…</span>');const r=await fetch(MODEL,{cache:'no-store'});if(!r.ok)throw Error('GLB HTTP '+r.status);const buf=await r.arrayBuffer();status('<span class="ok">① GLB 取得成功：'+buf.byteLength.toLocaleString()+' bytes</span><br><span class="warn">② Meshopt 解碼器初始化…</span>');const loader=new GLTFLoader();loader.setMeshoptDecoder(MeshoptDecoder);status('<span class="ok">① GLB 取得成功</span><br><span class="ok">② Meshopt Decoder 已設定</span><br><span class="warn">③ 正在解析 GLB + EXT_meshopt_compression…</span>');const gltf=await new Promise((resolve,reject)=>loader.parse(buf,'./assets/dark-star/',resolve,reject));modelRoot=gltf.scene;scene.add(modelRoot);const box=new THREE.Box3().setFromObject(modelRoot),center=box.getCenter(new THREE.Vector3()),size=box.getSize(new THREE.Vector3());modelRoot.position.x=-center.x;modelRoot.position.y=-center.y+1.0;modelRoot.position.z=-center.z;const max=Math.max(size.x,size.y,size.z);camera.position.set(0,max*.35,max*2.2);camera.lookAt(0,max*.35,0);collectMorphs(modelRoot);buildFacePanel();status('<span class="ok">④ ✅ GLB + Meshopt 載入成功</span>');$('info').textContent=`Scene 已建立｜Mesh=${morphMeshes.length} 個含 Morph 的 Mesh｜Morph Targets=${morphTargets.length}｜Animations=${gltf.animations?.length||0}`;if(morphTargets.length)setMorph(0,.5)}catch(e){status('<span class="err">❌ '+(e.stack||e.message||e)+'</span>');console.error(e)}}$('prev').onclick=()=>{if(!morphTargets.length)return;setMorph((current-1+morphTargets.length)%morphTargets.length,.6)};$('next').onclick=()=>{if(!morphTargets.length)return;setMorph((current+1)%morphTargets.length,.6)};$('reset').onclick=()=>{clearMorphs();$('info').textContent='所有 Morph 已歸零'};$('auto').onclick=()=>{if(autoTimer){clearInterval(autoTimer);autoTimer=null;$('auto').textContent='自動測試';return}$('auto').textContent='停止自動';let i=0;autoTimer=setInterval(()=>{setMorph(i,.65);i=(i+1)%Math.min(morphTargets.length,96)},700)};main();
-</script></body></html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Technical Dark Star｜Morph GPU V12</title>
+<style>
+html,body{margin:0;width:100%;height:100%;background:#08111f;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif;overflow:auto}
+#app{position:fixed;inset:0;z-index:0}
+#fallback{position:fixed;inset:0;z-index:1;display:flex;align-items:center;justify-content:center;background:#08111f;color:#fff;font-size:34px;font-weight:800}
+#panel{position:fixed;left:12px;right:12px;top:12px;z-index:10;background:rgba(5,10,20,.96);border:2px solid #3b82f6;border-radius:16px;padding:16px;box-shadow:0 12px 40px #000b}
+#title{font-size:21px;font-weight:900;margin-bottom:10px}
+#build{font-size:13px;color:#8fb8ff;margin-bottom:10px}
+#status{font-size:16px;line-height:1.7;white-space:pre-wrap;word-break:break-word;max-height:45vh;overflow:auto}
+.ok{color:#63e6be}.err{color:#ff6b81}.warn{color:#ffd166}
+#cube{margin-top:12px;font-size:14px;color:#b9c7e5}
+#face{position:fixed;left:12px;right:12px;bottom:12px;z-index:11;max-height:32vh;overflow:auto;background:rgba(5,10,20,.94);border:1px solid #334155;border-radius:14px;padding:10px;display:none}
+.row{display:flex;align-items:center;gap:8px;margin:5px 0}.row span{width:100px;font-size:11px;overflow:hidden;white-space:nowrap}.row input{flex:1}.value{width:42px;text-align:right;font-size:12px;color:#b9c7e5}
+</style>
+</head>
+<body>
+<div id="fallback">DARK STAR MORPH V12</div>
+<div id="app"></div>
+<div id="panel">
+  <div id="title">Technical Dark Star｜原生 GLB + Meshopt + Morph GPU</div>
+  <div id="build">BUILD V12｜此頁只測試暗星頭像，不修改正式暗星</div>
+  <div id="status">A. HTML 已載入，等待 JavaScript…</div>
+  <div id="cube">GPU 測試：等待 WebGLRenderer</div>
+</div>
+<div id="face"></div>
+<script>
+const S=document.getElementById('status');
+const F=document.getElementById('fallback');
+const C=document.getElementById('cube');
+function log(t,c){S.innerHTML+='<div class="'+(c||'')+'">'+String(t).replace(/</g,'&lt;')+'</div>';}
+function fail(e){log('❌ '+(e&&e.stack?e.stack:(e&&e.message?e.message:e)),'err');}
+F.style.display='none';
+log('B. JavaScript 已執行','ok');
+(async()=>{
+ try{
+  log('C. 開始載入 Three.js…','warn');
+  const THREE=await import('https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js');
+  log('C. Three.js 載入成功｜REV '+(THREE.REVISION||'?'),'ok');
+  log('D. 開始載入 GLTFLoader…','warn');
+  const GLTF=await import('https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js');
+  log('D. GLTFLoader 載入成功','ok');
+  log('E. 開始載入 MeshoptDecoder…','warn');
+  const M=await import('https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/libs/meshopt_decoder.module.js');
+  log('E. MeshoptDecoder 載入成功','ok');
+  log('F. 建立 WebGLRenderer…','warn');
+  const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.setClearColor(0x08111f,1);
+  document.getElementById('app').appendChild(renderer.domElement);
+  C.textContent='GPU 測試：WebGLRenderer 已建立，開始繪製固定測試立方體。';
+  const scene=new THREE.Scene();
+  const camera=new THREE.PerspectiveCamera(45,innerWidth/innerHeight,.01,100);
+  camera.position.set(0,0,4);
+  const light=new THREE.DirectionalLight(0xffffff,3);light.position.set(2,3,4);scene.add(light);scene.add(new THREE.AmbientLight(0xffffff,1.5));
+  const cube=new THREE.Mesh(new THREE.BoxGeometry(1.5,1.5,1.5),new THREE.MeshStandardMaterial({color:0x28a9ff,roughness:.35,metalness:.15}));scene.add(cube);
+  let root=null;
+  function frame(){cube.rotation.x+=.008;cube.rotation.y+=.012;if(root)root.rotation.y=Math.sin(performance.now()/7000)*.04;renderer.render(scene,camera);requestAnimationFrame(frame)}
+  frame();
+  log('F. WebGLRenderer 建立成功｜如果看到藍色立方體，代表 GPU/Three.js 正常','ok');
+  const MODEL='./assets/dark-star/technical-dark-star-avatar.glb';
+  log('G. Fetch GLB：'+MODEL,'warn');
+  const r=await fetch(MODEL,{cache:'no-store'});
+  log('G. GLB HTTP '+r.status+'｜'+(r.headers.get('content-type')||'unknown'),'ok');
+  if(!r.ok)throw new Error('GLB HTTP '+r.status);
+  const buf=await r.arrayBuffer();
+  const dv=new DataView(buf);const magic=String.fromCharCode(dv.getUint8(0),dv.getUint8(1),dv.getUint8(2),dv.getUint8(3));const ver=dv.getUint32(4,true);const total=dv.getUint32(8,true);
+  log('H. GLB '+magic+'｜version='+ver+'｜bytes='+buf.byteLength.toLocaleString()+'｜declared='+total.toLocaleString(),'ok');
+  if(magic!=='glTF'||ver!==2)throw new Error('GLB header invalid');
+  log('I. 建立 GLTFLoader + Meshopt Decoder','warn');
+  const loader=new GLTF.GLTFLoader();loader.setMeshoptDecoder(M.MeshoptDecoder);
+  log('I. Meshopt Decoder 已註冊','ok');
+  log('J. loader.parse(ArrayBuffer) 開始…','warn');
+  const gltf=await loader.parseAsync(buf,'./assets/dark-star/');
+  root=gltf.scene;scene.remove(cube);scene.add(root);
+  const box=new THREE.Box3().setFromObject(root);const center=box.getCenter(new THREE.Vector3());const size=box.getSize(new THREE.Vector3());
+  root.position.sub(center);const max=Math.max(size.x,size.y,size.z)||1;camera.position.set(0,max*.08,max*2.4);camera.lookAt(0,0,0);
+  let meshCount=0,morphCount=0;const morphs=[];
+  root.traverse(o=>{if(o.isMesh){meshCount++;if(o.morphTargetInfluences&&o.morphTargetDictionary){for(const [name,index] of Object.entries(o.morphTargetDictionary)){morphs.push({mesh:o,name,index})}}}});
+  log('K. ✅ GLB 解析成功｜Mesh='+meshCount+'｜Morph Targets='+morphs.length+'｜Animations='+(gltf.animations?.length||0),'ok');
+  C.textContent='GPU 測試：固定立方體已成功繪製；現在已切換成暗星 GLB。';
+  const face=document.getElementById('face');face.style.display=morphs.length?'block':'none';
+  morphs.slice(0,96).forEach((x,i)=>{const row=document.createElement('div');row.className='row';const label=document.createElement('span');label.textContent=(i+1)+'. '+x.name;const input=document.createElement('input');input.type='range';input.min=0;input.max=1;input.step=.01;input.value=0;const value=document.createElement('div');value.className='value';value.textContent='0.00';input.oninput=()=>{for(const y of morphs)y.mesh.morphTargetInfluences[y.index]=0;x.mesh.morphTargetInfluences[x.index]=Number(input.value);value.textContent=Number(input.value).toFixed(2)};row.append(label,input,value);face.append(row)});
+  if(morphs.length){morphs[0].mesh.morphTargetInfluences[morphs[0].index]=.5;log('L. 第一個 Morph 已設為 0.5，可在底部滑桿直接測試','ok')}
+  log('完成：現在不是空白頁，畫面應該有暗星模型。','ok');
+ }catch(e){fail(e)}
+})().catch(fail);
+addEventListener('resize',()=>{const c=document.querySelector('canvas');if(c){c.style.width='100%';c.style.height='100%'}});
+</script>
+</body>
+</html>
