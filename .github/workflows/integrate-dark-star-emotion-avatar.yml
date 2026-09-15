@@ -1,0 +1,103 @@
+name: Integrate Dark Star Emotion Avatar
+on:
+  push:
+    branches: [main]
+jobs:
+  integrate:
+    if: ${{ !contains(github.event.head_commit.message, '[emotion-avatar]') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Append emotion avatar to realtime voice loader
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('technical-dark-star-realtime-voice-v2.js')
+          s=p.read_text(encoding='utf-8')
+          marker='/* AIVAULT_DARK_STAR_EMOTION_AVATAR_V1 */'
+          if marker not in s:
+              s += r'''
+
+/* AIVAULT_DARK_STAR_EMOTION_AVATAR_V1 */
+(()=>{
+'use strict';
+if(window.__AIVAULT_DARK_STAR_EMOTION_AVATAR_V1__) return;
+window.__AIVAULT_DARK_STAR_EMOTION_AVATAR_V1__=true;
+const EMOTIONS={
+  neutral:{label:'平靜',brow:'0 0',eyes:'1',mouth:'0',face:'0deg'},
+  touched:{label:'感動',brow:'0 -2px',eyes:'1.05',mouth:'0.55',face:'0deg'},
+  angry:{label:'憤怒',brow:'0 4px',eyes:'0.92',mouth:'0.12',face:'-1deg'},
+  sad:{label:'悲傷',brow:'0 3px',eyes:'0.92',mouth:'0.15',face:'1deg'},
+  fear:{label:'恐懼',brow:'0 -5px',eyes:'1.12',mouth:'0.65',face:'0deg'},
+  nostalgia:{label:'懷念',brow:'0 1px',eyes:'0.96',mouth:'0.28',face:'1deg'},
+  regret:{label:'遺憾',brow:'0 2px',eyes:'0.94',mouth:'0.20',face:'1deg'},
+  happy:{label:'開心',brow:'0 -2px',eyes:'1.02',mouth:'0.7',face:'0deg'},
+  surprised:{label:'驚訝',brow:'0 -6px',eyes:'1.16',mouth:'0.8',face:'0deg'},
+  thinking:{label:'思考',brow:'0 1px',eyes:'0.97',mouth:'0.3',face:'-2deg'}
+};
+function addStyle(){
+ if(document.getElementById('dsEmotionAvatarStyle')) return;
+ const s=document.createElement('style');s.id='dsEmotionAvatarStyle';s.textContent=`
+#dsEmotionAvatar{margin:10px auto 0;width:min(760px,calc(100% - 32px));border:1px solid #e8e8e8;border-radius:18px;background:linear-gradient(180deg,#fff,#fafafa);overflow:hidden;box-shadow:0 3px 16px rgba(0,0,0,.05)}
+#dsEmotionAvatar .ea-head{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:1px solid #eee;font-size:12px;font-weight:600}
+#dsEmotionAvatar .ea-link{font-size:10px;color:#777;font-weight:400}.ea-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#bbb;margin-right:5px}.ea-dot.on{background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.12)}
+#dsEmotionAvatar .ea-stage{height:210px;display:flex;align-items:center;justify-content:center;position:relative;background:radial-gradient(circle at 50% 35%,#fff 0,#f7f7f7 65%,#f1f1f1 100%)}
+#dsEmotionAvatar .ea-face{width:128px;height:150px;border-radius:48% 48% 44% 44%;background:#ffe0c2;border:2px solid #efc3a0;position:relative;transform:rotate(0);transition:.32s ease;box-shadow:0 8px 18px rgba(0,0,0,.08)}
+#dsEmotionAvatar .ea-hair{position:absolute;left:-5px;right:-5px;top:-13px;height:64px;border-radius:55% 55% 28% 28%;background:#49372f;z-index:2}
+#dsEmotionAvatar .ea-eye{position:absolute;top:61px;width:22px;height:15px;border-radius:50%;background:#fff;border:1px solid #d9b69c;transition:.25s}.ea-eye.l{left:27px}.ea-eye.r{right:27px}.ea-pupil{position:absolute;left:7px;top:3px;width:8px;height:8px;border-radius:50%;background:#49372f;transition:.25s}
+#dsEmotionAvatar .ea-brow{position:absolute;top:48px;width:28px;height:5px;border-radius:5px;background:#49372f;transition:.3s}.ea-brow.l{left:24px;transform:rotate(-7deg)}.ea-brow.r{right:24px;transform:rotate(7deg)}
+#dsEmotionAvatar .ea-mouth{position:absolute;left:50%;top:105px;transform:translateX(-50%);width:27px;height:9px;border-bottom:3px solid #a34d55;border-radius:0 0 50% 50%;transition:.28s;transform-origin:center}
+#dsEmotionAvatar .ea-label{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);padding:5px 10px;border-radius:12px;background:rgba(255,255,255,.88);border:1px solid #e5e5e5;font-size:11px;color:#555;white-space:nowrap}
+#dsEmotionAvatar[data-emotion="happy"] .ea-mouth,#dsEmotionAvatar[data-emotion="touched"] .ea-mouth{height:13px;width:32px;border-bottom-width:4px}
+#dsEmotionAvatar[data-emotion="angry"] .ea-brow.l{transform:rotate(16deg)}#dsEmotionAvatar[data-emotion="angry"] .ea-brow.r{transform:rotate(-16deg)}
+#dsEmotionAvatar[data-emotion="sad"] .ea-brow.l,#dsEmotionAvatar[data-emotion="regret"] .ea-brow.l{transform:rotate(18deg)}#dsEmotionAvatar[data-emotion="sad"] .ea-brow.r,#dsEmotionAvatar[data-emotion="regret"] .ea-brow.r{transform:rotate(-18deg)}
+#dsEmotionAvatar[data-emotion="fear"] .ea-eye,#dsEmotionAvatar[data-emotion="surprised"] .ea-eye{height:19px;width:25px;top:59px}.ea-speaking .ea-mouth{animation:eaTalk .18s infinite alternate}@keyframes eaTalk{from{height:5px}to{height:18px}}
+@media(max-width:700px){#dsEmotionAvatar{width:calc(100% - 24px)}#dsEmotionAvatar .ea-stage{height:185px}.ea-face{transform:scale(.9)}}
+`;
+ document.head.appendChild(s)
+}
+function emotionFromText(t){
+ const s=String(t||'').toLowerCase();
+ if(/感動|感謝|珍惜|欣慰|太好了|真的很棒|很溫暖|感人/.test(s))return'touched';
+ if(/憤怒|生氣|火大|荒謬|不可接受|惱火|憤慨/.test(s))return'angry';
+ if(/悲傷|難過|傷心|失落|痛苦|哭|心疼/.test(s))return'sad';
+ if(/恐懼|害怕|危險|可怕|擔心|恐慌/.test(s))return'fear';
+ if(/懷念|想念|回憶|曾經|以前|往事/.test(s))return'nostalgia';
+ if(/遺憾|可惜|後悔|沒能|未能|錯過/.test(s))return'regret';
+ if(/驚訝|竟然|沒想到|哇|原來如此/.test(s))return'surprised';
+ if(/哈哈|開心|高興|太讚|喜歡|成功|恭喜/.test(s))return'happy';
+ if(/思考|分析|首先|其次|原因|因此|判斷|考慮/.test(s))return'thinking';
+ return'neutral';
+}
+function mount(){
+ addStyle();
+ if(document.getElementById('dsEmotionAvatar'))return;
+ const box=document.createElement('section');box.id='dsEmotionAvatar';box.dataset.emotion='neutral';
+ box.innerHTML=`<div class="ea-head"><span>🌟 暗星情緒數字人</span><span class="ea-link"><span id="eaDot" class="ea-dot"></span><span id="eaLinkText">等待暗星說話</span></span></div><div class="ea-stage"><div class="ea-face"><div class="ea-hair"></div><div class="ea-brow l"></div><div class="ea-brow r"></div><div class="ea-eye l"><div class="ea-pupil"></div></div><div class="ea-eye r"><div class="ea-pupil"></div></div><div class="ea-mouth"></div></div><div id="eaLabel" class="ea-label">平靜</div></div>`;
+ const main=document.querySelector('.chat');const composer=document.querySelector('.composer-area');if(main&&composer)main.insertBefore(box,composer);else document.body.appendChild(box);
+ const messages=document.getElementById('messages');if(messages){new MutationObserver(()=>{const nodes=messages.querySelectorAll('.message.ai .message-text');const last=nodes[nodes.length-1];if(last&&last.textContent.trim())setEmotion(emotionFromText(last.textContent),true)}).observe(messages,{subtree:true,childList:true,characterData:true})}
+}
+function setEmotion(key,speaking=false){const box=document.getElementById('dsEmotionAvatar');if(!box)return;const e=EMOTIONS[key]||EMOTIONS.neutral;box.dataset.emotion=key;const label=document.getElementById('eaLabel');if(label)label.textContent=e.label;const dot=document.getElementById('eaDot');const lt=document.getElementById('eaLinkText');if(dot)dot.classList.toggle('on',speaking);if(lt)lt.textContent=speaking?'暗星正在表達 · '+e.label:'暗星情緒 · '+e.label;box.classList.toggle('ea-speaking',speaking);}
+function observeSpeech(){
+ const original=window.speechSynthesis?.speak;
+ if(!original||window.__DS_EMOTION_SPEECH_PATCH__)return;
+ window.__DS_EMOTION_SPEECH_PATCH__=true;
+ const ss=window.speechSynthesis;
+ const proto=window.SpeechSynthesisUtterance;
+ const oldSpeak=ss.speak.bind(ss);
+ ss.speak=u=>{setEmotion(emotionFromText(u?.text),true);u.addEventListener('end',()=>setEmotion(emotionFromText(u?.text),false));oldSpeak(u)};
+}
+function init(){mount();observeSpeech();setEmotion('neutral',false)}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
+'''
+              p.write_text(s,encoding='utf-8')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add technical-dark-star-realtime-voice-v2.js
+          git commit -m 'feat: add Dark Star emotion avatar [emotion-avatar]' || exit 0
+          git push
