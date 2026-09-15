@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Technical Dark Star｜真人模型載入測試</title>
+<script src="https://aframe.io/releases/1.8.0/aframe.min.js"></script>
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif}
+#info{position:fixed;z-index:10;top:12px;left:12px;right:12px;padding:12px 14px;border-radius:14px;background:rgba(0,0,0,.72);backdrop-filter:blur(10px);font-size:14px;line-height:1.5}
+#info b{font-size:17px}.ok{color:#8ee6bd}.warn{color:#ffd27a}
+#file{display:none}.upload{display:inline-block;margin-top:8px;padding:9px 12px;border:1px solid #566078;border-radius:10px;background:#202638}
+</style>
+</head>
+<body>
+<div id="info"><b>Technical Dark Star｜真人 3D 模型載入測試</b><br><span id="status" class="warn">模型載入中……</span><br><label class="upload">載入自己的 VRM / GLB<input id="file" type="file" accept=".vrm,.glb"></label></div>
+<a-scene renderer="colorManagement:true; physicallyCorrectLights:true" background="color:#10131a" vr-mode-ui="enabled:false" loading-screen="enabled:false">
+<a-assets timeout="60000"><a-asset-item id="avatar" src="https://cdn.jsdelivr.net/gh/c-frame/valid-avatars-glb@c539a28/avatars/Asian/Asian_F_2_Casual.glb"></a-asset-item></a-assets>
+<a-entity light="type:hemisphere;color:#ffffff;groundColor:#334455;intensity:2.5"></a-entity>
+<a-entity light="type:directional;color:#ffffff;intensity:3" position="2 4 5"></a-entity>
+<a-entity id="model" gltf-model="#avatar" position="0 -1.05 -2.8" scale="1 1 1"></a-entity>
+<a-entity camera position="0 1.15 3.4" look-controls="enabled:true"></a-entity>
+</a-scene>
+<script>
+const status=document.getElementById('status');
+const model=document.getElementById('model');
+model.addEventListener('model-loaded',()=>{status.textContent='✅ 真人 3D 模型已成功載入。下一階段再接眉毛／眼睛／嘴型控制。';status.className='ok';});
+model.addEventListener('model-error',e=>{console.error(e);status.textContent='❌ 真人模型載入失敗，請使用下面的「載入自己的 VRM / GLB」測試。';status.className='warn';});
+document.getElementById('file').onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const url=URL.createObjectURL(f);model.setAttribute('gltf-model',url);status.textContent='正在載入你選擇的模型……';status.className='warn';};
+</script>
+</body>
+</html>
