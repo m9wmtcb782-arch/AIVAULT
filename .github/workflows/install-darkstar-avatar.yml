@@ -1,0 +1,104 @@
+name: Install Dark Star Digital Human
+
+on:
+  push:
+    paths-ignore:
+      - '.github/workflows/install-darkstar-avatar.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    if: "!contains(github.event.head_commit.message, '[darkstar-avatar-installed]')"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Inject avatar into Technical Dark Star
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('technical-dark-star.html')
+          s = p.read_text(encoding='utf-8')
+          marker = 'id="aivault-darkstar-avatar"'
+          if marker in s:
+              print('avatar already installed')
+              raise SystemExit(0)
+
+          css = r'''
+<style id="aivault-darkstar-avatar-css">
+#aivault-darkstar-avatar{position:fixed;right:14px;top:72px;width:190px;z-index:80;border:1px solid #e8e4f5;border-radius:18px;background:rgba(255,255,255,.96);box-shadow:0 10px 32px rgba(40,30,80,.14);backdrop-filter:blur(12px);overflow:hidden}
+#aivault-darkstar-avatar .dsah{display:flex;align-items:center;justify-content:space-between;padding:9px 11px;border-bottom:1px solid #eeeaf7;font-size:12px;font-weight:700}
+#aivault-darkstar-avatar .dslink{font-size:10px;color:#777;display:flex;gap:5px;align-items:center}
+#aivault-darkstar-avatar .dsdot{width:7px;height:7px;border-radius:50%;background:#bbb}.dsdot.on{background:#42b96b;box-shadow:0 0 0 3px #e9f8ee}
+#aivault-darkstar-avatar .dsfacebox{height:190px;position:relative;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 38%,#fff,#f3efff 68%,#ebe6ff)}
+#aivault-darkstar-avatar .dsface{position:relative;width:128px;height:145px;border:2px solid #ddd6fa;border-radius:50% 50% 47% 47%;background:linear-gradient(145deg,#fff,#f0edff);box-shadow:0 10px 24px rgba(60,40,110,.14)}
+#aivault-darkstar-avatar .dshair{position:absolute;left:-4px;top:-10px;width:132px;height:60px;border-radius:55% 55% 42% 42%;background:#29263b}.dshair:after{content:"";position:absolute;right:7px;top:29px;width:34px;height:43px;border-radius:0 0 50% 50%;background:#29263b;transform:rotate(12deg)}
+#aivault-darkstar-avatar .dsstar{position:absolute;right:13px;top:12px;font-size:17px;z-index:4}
+#aivault-darkstar-avatar .dsbrow{position:absolute;top:55px;width:32px;height:8px;border-top:4px solid #403a55;border-radius:50%;transition:.16s}.dsbrow.l{left:20px;transform:rotate(7deg)}.dsbrow.r{right:20px;transform:rotate(-7deg)}
+#aivault-darkstar-avatar .dseye{position:absolute;top:64px;width:31px;height:23px;border:2px solid #d9d3e9;border-radius:50%;background:#fff;overflow:hidden;transition:height .11s}.dseye.l{left:19px}.dseye.r{right:19px}
+#aivault-darkstar-avatar .dspupil{position:absolute;left:50%;top:50%;width:12px;height:12px;border-radius:50%;background:#28243a;transform:translate(-50%,-50%);transition:.12s}.dspupil:after{content:"";position:absolute;left:2px;top:2px;width:3px;height:3px;border-radius:50%;background:#fff}
+#aivault-darkstar-avatar .dsmouth{position:absolute;left:50%;top:111px;width:34px;height:11px;border:3px solid #633f5d;border-top:0;border-radius:0 0 20px 20px;background:#f29bb6;transform:translateX(-50%) scaleY(.35);transform-origin:center top;transition:transform .055s linear}
+#aivault-darkstar-avatar .dscheek{position:absolute;top:100px;width:20px;height:8px;border-radius:50%;background:rgba(255,140,175,.25);filter:blur(2px)}.dscheek.l{left:10px}.dscheek.r{right:10px}
+#aivault-darkstar-avatar .dsstate{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);white-space:nowrap;padding:3px 7px;border-radius:99px;background:rgba(255,255,255,.84);font-size:9px;color:#70697c}
+#aivault-darkstar-avatar .dsfoot{display:flex;gap:6px;padding:8px}.dsbtn{flex:1;border:1px solid #ddd7ed;background:#fff;border-radius:8px;padding:6px 5px;font-size:10px;color:#444}.dsbtn.primary{background:#171717;color:#fff;border-color:#171717}
+@media(max-width:700px){#aivault-darkstar-avatar{right:9px;top:auto;bottom:92px;width:164px}#aivault-darkstar-avatar .dsfacebox{height:166px}#aivault-darkstar-avatar .dsface{transform:scale(.88)}#aivault-darkstar-avatar .dsah{padding:7px 9px}.dsbtn{padding:5px 3px}}
+</style>
+'''
+
+          html = r'''
+<div id="aivault-darkstar-avatar" aria-label="暗星數字人">
+  <div class="dsah"><span>🌟 暗星數字人</span><span class="dslink"><i id="dsdot" class="dsdot"></i><span id="dstxt">未連結</span></span></div>
+  <div class="dsfacebox" id="dsfacebox">
+    <div class="dsface">
+      <div class="dshair"></div><div class="dsstar">✦</div>
+      <div id="dsbl" class="dsbrow l"></div><div id="dsbr" class="dsbrow r"></div>
+      <div id="dsel" class="dseye l"><div id="dspl" class="dspupil"></div></div><div id="dser" class="dseye r"><div id="dspr" class="dspupil"></div></div>
+      <div class="dscheek l"></div><div class="dscheek r"></div><div id="dsmouth" class="dsmouth"></div>
+    </div>
+    <div id="dsstate" class="dsstate">等待暗星說話</div>
+  </div>
+  <div class="dsfoot"><button id="dsconnect" class="dsbtn primary">🔗 連結即時暗星</button><button id="dsdemo" class="dsbtn">▶ 表情測試</button></div>
+</div>
+'''
+
+          js = r'''
+<script id="aivault-darkstar-avatar-js">
+(()=>{
+  const q=id=>document.getElementById(id); let level=0,target=0,raf=0,linked=false,blinkTimer=0;
+  const set=(on,text)=>{linked=on;q('dsdot').classList.toggle('on',on);q('dstxt').textContent=text||'未連結'};
+  const speak=(v)=>{target=Math.max(0,Math.min(1,v));if(target>.035)q('dsstate').textContent='🗣️ 暗星正在說話';else q('dsstate').textContent=linked?'👂 暗星正在聆聽':'等待暗星說話'};
+  const expr=t=>{const b1=q('dsbl'),b2=q('dsbr');if(t==='happy'){b1.style.transform='rotate(-3deg)';b2.style.transform='rotate(3deg)';q('dsstate').textContent='😊 暗星很開心'}else if(t==='surprise'){b1.style.transform='rotate(-14deg) translateY(-4px)';b2.style.transform='rotate(14deg) translateY(-4px)';q('dsstate').textContent='😮 暗星有點驚訝'}else if(t==='think'){b1.style.transform='rotate(12deg)';b2.style.transform='rotate(-4deg)';q('dsstate').textContent='🤔 暗星正在思考'}else{b1.style.transform='rotate(7deg)';b2.style.transform='rotate(-7deg)'}};
+  const loop=()=>{level+=(target-level)*.3;q('dsmouth').style.transform='translateX(-50%) scaleY('+(0.35+level*2.05).toFixed(3)+')';raf=requestAnimationFrame(loop)};loop();
+  const blink=()=>{const a=q('dsel'),b=q('dser');a.style.height='4px';b.style.height='4px';setTimeout(()=>{a.style.height='23px';b.style.height='23px'},110);blinkTimer=setTimeout(blink,2800+Math.random()*3400)};blinkTimer=setTimeout(blink,2200);
+  q('dsconnect').onclick=()=>{set(true,'已連結');q('dsstate').textContent='👂 暗星正在聆聽';window.open('technical-dark-star-live-video-test.html','_blank','noopener');};
+  q('dsdemo').onclick=async()=>{set(true,'表情測試');expr('happy');for(let i=0;i<26;i++){speak(Math.abs(Math.sin(i*.72))*.8);await new Promise(r=>setTimeout(r,75))}speak(0);setTimeout(()=>expr('neutral'),500)};
+  // Drive the face from speech/audio activity already present on the page.
+  const hookAudio=()=>{document.querySelectorAll('audio,video').forEach(el=>{if(el.__dsHook)return;el.__dsHook=1;el.addEventListener('play',()=>{set(true,'已連結');q('dsstate').textContent='🗣️ 暗星正在說話';});el.addEventListener('pause',()=>speak(0));el.addEventListener('ended',()=>speak(0));});};
+  new MutationObserver(hookAudio).observe(document.documentElement,{childList:true,subtree:true});hookAudio();
+  // Text-response emotion cue: only visual expression; it never changes Dark Star's reply.
+  const obs=new MutationObserver(()=>{const nodes=[...document.querySelectorAll('.message-text')];const last=nodes[nodes.length-1];if(!last)return;const t=last.textContent||'';if(/哈哈|開心|太好了|成功|很棒/.test(t))expr('happy');else if(/等等|真的嗎|驚訝|沒想到/.test(t))expr('surprise');else if(/思考|分析|考慮|應該/.test(t))expr('think');});obs.observe(document.body,{childList:true,subtree:true});
+})();
+</script>
+'''
+
+          s = s.replace('</head>', css + '\n</head>', 1)
+          s = s.replace('</body>', html + '\n' + js + '\n</body>', 1)
+          p.write_text(s, encoding='utf-8')
+      - name: Commit changes
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add technical-dark-star.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'feat: add cute Dark Star digital human [darkstar-avatar-installed]'
+          git push
+      - name: Remove installer workflow
+        shell: bash
+        run: |
+          git rm .github/workflows/install-darkstar-avatar.yml
+          git commit -m 'chore: remove one-time Dark Star avatar installer'
+          git push
