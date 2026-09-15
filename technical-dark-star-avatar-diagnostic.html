@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Technical Dark Star｜真人模型診斷</title>
+<style>
+html,body{margin:0;background:#10131a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif}
+main{max-width:760px;margin:0 auto;padding:20px}.card{background:#1b2130;border:1px solid #39445b;border-radius:16px;padding:16px;margin:12px 0}h1{font-size:20px}pre{white-space:pre-wrap;word-break:break-word;font-size:13px;line-height:1.55}.ok{color:#7ee2b3}.bad{color:#ff8d8d}.wait{color:#ffd27a}button{padding:12px 16px;border:0;border-radius:10px;font-weight:700}
+</style>
+</head>
+<body><main>
+<h1>Technical Dark Star｜AIVAULT 真人模型診斷</h1>
+<div class="card"><div id="status" class="wait">正在直接檢查 AIVAULT 自有 GLB……</div><pre id="log"></pre></div>
+<button id="retry">重新檢查</button>
+</main>
+<script>
+const MODEL='./assets/dark-star/technical-dark-star-avatar.glb';
+const status=document.getElementById('status');
+const log=document.getElementById('log');
+function write(s){log.textContent+=s+'\n';}
+async function check(){
+ status.textContent='正在檢查……';status.className='wait';log.textContent='';
+ write('模型：'+new URL(MODEL,location.href).href);
+ try{
+  const r=await fetch(MODEL,{method:'HEAD',cache:'no-store'});
+  write('HTTP：'+r.status+' '+r.statusText);
+  write('Content-Type：'+(r.headers.get('content-type')||'(沒有)'));
+  write('Content-Length：'+(r.headers.get('content-length')||'(沒有)'));
+  if(!r.ok) throw new Error('GitHub Pages 回傳 '+r.status);
+  const g=await fetch(MODEL,{headers:{Range:'bytes=0-11'},cache:'no-store'});
+  write('Range HTTP：'+g.status+' '+g.statusText);
+  const b=new Uint8Array(await g.arrayBuffer());
+  const magic=b.length>=4?String.fromCharCode(...b.slice(0,4)):'(不足4 bytes)';
+  const version=b.length>=8?new DataView(b.buffer).getUint32(4,true):null;
+  write('GLB Magic：'+magic);
+  write('GLB Version：'+(version===null?'(無法讀取)':version));
+  if(magic!=='glTF') throw new Error('檔案不是有效 GLB 標頭');
+  status.textContent='✅ AIVAULT 自有 GLB 已經可以由瀏覽器直接取得';status.className='ok';
+  write('結論：模型檔案本身已經由 AIVAULT Pages 正常提供。下一步只需處理 3D 引擎解析。');
+ }catch(e){
+  status.textContent='❌ AIVAULT GLB 取得或解析檢查失敗';status.className='bad';
+  write('錯誤：'+(e&&e.message?e.message:e));
+  write('結論：目前先不要碰正式 Technical Dark Star。');
+ }
+}
+document.getElementById('retry').onclick=check;check();
+</script>
+</body></html>
