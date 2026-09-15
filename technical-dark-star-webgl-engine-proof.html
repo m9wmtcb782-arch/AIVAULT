@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>AIVAULT｜3D Engine Proof</title><style>html,body{margin:0;height:100%;background:#05070b;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif}body{display:flex;flex-direction:column}.top{padding:14px;border-bottom:1px solid #222}.title{font-weight:700}.status{font-size:13px;color:#8fd3ff;margin-top:6px}.stage{position:relative;flex:1;min-height:0}canvas{width:100%;height:100%;display:block}.panel{position:absolute;left:12px;right:12px;bottom:12px;background:rgba(5,8,13,.9);padding:12px;border-radius:14px;font-size:13px;line-height:1.6}.ok{color:#70e6a0}.bad{color:#ff7185}.step{display:flex;justify-content:space-between;border-bottom:1px solid #222;padding:3px 0}.btn{margin-top:10px;padding:9px 12px;border:1px solid #445;border-radius:9px;background:#151b25;color:#fff}</style></head>
+<body><div class="top"><div class="title">AIVAULT｜暗星 3D 引擎最小證明測試</div><div id="status" class="status">正在檢查瀏覽器 3D 能力…</div></div><div class="stage"><canvas id="c"></canvas><div class="panel" id="panel"></div></div>
+<script>
+const c=document.getElementById('c'),p=document.getElementById('panel'),s=document.getElementById('status');
+function row(a,b,ok){return `<div class="step"><span>${a}</span><span class="${ok?'ok':'bad'}">${b}</span></div>`}
+function fail(msg){s.className='status bad';s.textContent='❌ '+msg;p.innerHTML+=row(msg,'失敗',false)}
+try{
+ const gl=c.getContext('webgl2',{antialias:true});
+ p.innerHTML=row('WebGL 2',gl?'可用':'不可用',!!gl);
+ if(!gl){const old=c.getContext('webgl');p.innerHTML+=row('WebGL 1',old?'可用':'不可用',!!old);fail('瀏覽器沒有提供 WebGL 2，Three.js WebGL 渲染器無法進入。');throw new Error('No WebGL2');}
+ s.textContent='WebGL 2 已真正建立，正在建立最小 3D 渲染器…';
+ const vs=`#version 300 es\nin vec3 position;in vec3 color;uniform mat4 mvp;out vec3 v;void main(){gl_Position=mvp*vec4(position,1.0);v=color;}`;
+ const fs=`#version 300 es\nprecision highp float;in vec3 v;out vec4 outColor;void main(){outColor=vec4(v,1.0);}`;
+ function shader(t,src){const q=gl.createShader(t);gl.shaderSource(q,src);gl.compileShader(q);if(!gl.getShaderParameter(q,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(q));return q}
+ const prog=gl.createProgram();gl.attachShader(prog,shader(gl.VERTEX_SHADER,vs));gl.attachShader(prog,shader(gl.FRAGMENT_SHADER,fs));gl.linkProgram(prog);if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(prog));
+ const verts=new Float32Array([-.55,-.55,-.55,1,0,0,.55,-.55,-.55,0,1,0,.55,.55,-.55,0,0,1,-.55,.55,-.55,1,1,0,-.55,-.55,.55,1,0,1,.55,-.55,.55,0,1,1,.55,.55,.55,1,1,1,-.55,.55,.55,.5,.5,.5]);
+ const idx=new Uint16Array([0,1,2,0,2,3,4,6,5,4,7,6,0,4,5,0,5,1,2,6,7,2,7,3,0,7,4,0,3,7,1,5,6,1,6,2]);
+ const vb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vb);gl.bufferData(gl.ARRAY_BUFFER,verts,gl.STATIC_DRAW);const ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,idx,gl.STATIC_DRAW);
+ const pos=gl.getAttribLocation(prog,'position'),col=gl.getAttribLocation(prog,'color');gl.enableVertexAttribArray(pos);gl.vertexAttribPointer(pos,3,gl.FLOAT,false,24,0);gl.enableVertexAttribArray(col);gl.vertexAttribPointer(col,3,gl.FLOAT,false,24,12);const mvp=gl.getUniformLocation(prog,'mvp');
+ p.innerHTML+=row('WebGL 2 Context','建立成功',true)+row('Shader','編譯成功',true)+row('GPU Buffer','建立成功',true)+row('3D Cube','準備渲染',true);
+ function mul(a,b){const r=new Float32Array(16);for(let i=0;i<4;i++)for(let j=0;j<4;j++)r[i*4+j]=a[i*4]*b[j]+a[i*4+1]*b[4+j]+a[i*4+2]*b[8+j]+a[i*4+3]*b[12+j];return r}
+ function rotY(a){let c=Math.cos(a),s=Math.sin(a);return new Float32Array([c,0,-s,0,0,1,0,0,s,0,c,0,0,0,0,1])}
+ function rotX(a){let c=Math.cos(a),s=Math.sin(a);return new Float32Array([1,0,0,0,0,c,s,0,0,-s,c,0,0,0,0,1])}
+ function persp(fov,asp,n,f){let t=1/Math.tan(fov/2),q=1/(n-f);return new Float32Array([t/asp,0,0,0,0,t,0,0,0,0,(f+n)*q,-1,0,0,2*f*n*q,0])}
+ let angle=0,last=performance.now();function draw(now){angle+=(now-last)*.001;last=now;const d=Math.min(devicePixelRatio,2);c.width=c.clientWidth*d;c.height=c.clientHeight*d;gl.viewport(0,0,c.width,c.height);gl.enable(gl.DEPTH_TEST);gl.clearColor(.02,.03,.05,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);const pr=persp(Math.PI/4,c.width/c.height,.1,10);const view=new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,0,-2.8,1]);const m=mul(rotY(angle),rotX(angle*.65));gl.useProgram(prog);gl.uniformMatrix4fv(mvp,false,mul(pr,mul(view,m)));gl.drawElements(gl.TRIANGLES,idx.length,gl.UNSIGNED_SHORT,0);requestAnimationFrame(draw)}
+ requestAnimationFrame(draw);s.className='status ok';s.textContent='✅ 真正的瀏覽器 3D 渲染已啟動：旋轉 Cube 正在使用 GPU/WebGL 2。';
+}catch(e){console.error(e);fail('3D 渲染器啟動錯誤：'+e.message)}
+</script></body></html>
