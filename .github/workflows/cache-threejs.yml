@@ -23,14 +23,11 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          p=Path('vendor/three/examples/jsm/loaders/GLTFLoader.js')
-          s=p.read_text()
-          s=s.replace("from '../../three.module.js';", "from '../../../three.module.js';")
-          p.write_text(s)
-          p=Path('vendor/three/examples/jsm/utils/BufferGeometryUtils.js')
-          s=p.read_text()
-          s=s.replace("from 'three';", "from '../../../three.module.js';")
-          p.write_text(s)
+          for name in ['vendor/three/examples/jsm/loaders/GLTFLoader.js', 'vendor/three/examples/jsm/utils/BufferGeometryUtils.js']:
+              p=Path(name)
+              s=p.read_text()
+              s=s.replace("from 'three';", "from '../../../three.module.js';")
+              p.write_text(s)
           PY
       - name: Commit runtime
         run: |
