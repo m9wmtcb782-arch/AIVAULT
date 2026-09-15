@@ -1,35 +1,103 @@
-<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>Technical Dark Star｜Face Control Lab</title><style>*{box-sizing:border-box}body{margin:0;background:#050812;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif}main{max-width:1100px;margin:auto;padding:12px}.stage{height:58vh;min-height:360px;background:#090d16;border:1px solid #29466f;border-radius:18px;overflow:hidden;position:relative}canvas{width:100%;height:100%;display:block}.status{position:absolute;left:12px;top:12px;padding:8px 12px;border-radius:10px;background:#07101dcc;border:1px solid #31558f;font-size:13px}.panel{margin-top:12px;background:#0b1220;border:1px solid #29466f;border-radius:18px;padding:14px}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.group{margin-top:12px;padding-top:12px;border-top:1px solid #20334f}.group h3{margin:0 0 8px;font-size:16px}.btn{border:0;border-radius:10px;padding:10px 13px;background:#31558f;color:white;font-size:14px}.btn:active{transform:scale(.98)}label{display:block;margin:8px 0;font-size:13px}input[type=range]{width:100%}.small{font-size:12px;color:#9fb1cb}.ok{color:#63e6be}.err{color:#ff6b81}.warn{color:#ffd166}</style></head><body><main><div class="stage"><canvas id="c"></canvas><div id="status" class="status warn">正在載入暗星 3D…</div></div><div class="panel"><b>Technical Dark Star｜Face Control V21</b><div id="meta" class="small" style="margin-top:6px">自然站立 Pose + 96 Morph Targets</div><div class="group"><h3>身體姿勢</h3><div class="row"><button class="btn" onclick="applyNaturalPose()">自然站立</button><button class="btn" onclick="resetPose()">原始姿勢</button></div><div id="poseInfo" class="small" style="margin-top:8px">載入後自動套用自然站立姿勢</div></div><div class="group"><h3>嘴巴</h3><div class="row"><button class="btn" onclick="setM('h_expressions.MouthOpen_h',.8)">張嘴</button><button class="btn" onclick="setM('h_expressions.Shout_h',.8)">大喊</button><button class="btn" onclick="setM('h_expressions.Kiss_h',.8)">嘟嘴</button><button class="btn" onclick="setM('h_expressions.RsmileOpen_h',.7);setM('h_expressions.LsmileOpen_h',.7)">微笑</button><button class="btn" onclick="clearFace()">還原</button></div><label>MouthOpen <input id="mouth" type="range" min="0" max="1" step=".01" value="0" oninput="setM('h_expressions.MouthOpen_h',+this.value)"></label></div><div class="group"><h3>眼睛</h3><div class="row"><button class="btn" onclick="blink('L')">左眼眨</button><button class="btn" onclick="blink('R')">右眼眨</button><button class="btn" onclick="blink('B')">雙眼眨</button><button class="btn" onclick="setM('h_expressions.Lsquint_h',.7);setM('h_expressions.Rsquint_h',.7)">瞇眼</button><button class="btn" onclick="setM('h_expressions.LeyeOpen_h',.8);setM('h_expressions.ReyeOpen_h',.8)">睜大</button></div></div><div class="group"><h3>眉毛</h3><div class="row"><button class="btn" onclick="setM('h_expressions.LbrowUp_h',.7);setM('h_expressions.RbrowUp_h',.7)">挑眉</button><button class="btn" onclick="setM('h_expressions.LbrowDown_h',.7);setM('h_expressions.RbrowDown_h',.7)">壓眉</button><button class="btn" onclick="setM('h_expressions.LLbrowUp_h',.7);setM('h_expressions.RRbrowUp_h',.7)">外側挑眉</button><button class="btn" onclick="clearFace()">還原表情</button></div></div><div class="group"><h3>自動眨眼</h3><div class="row"><button id="auto" class="btn" onclick="toggleBlink()">啟用自然眨眼</button><span id="autoText" class="small">目前關閉</span></div></div><div class="group"><h3>已發現的 Morph</h3><div id="found" class="small"></div></div></div></main><script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script><script type="module">
-import * as THREE from 'three';import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';import {OrbitControls} from 'three/addons/controls/OrbitControls.js';import {MeshoptDecoder} from 'three/addons/libs/meshopt_decoder.module.js';
-const MODEL='./assets/dark-star/technical-dark-star-avatar.glb';let scene,camera,renderer,controls,avatar,meshes=[],weights=new Map(),blinkTimer=null,blinking=false,originalRotations=[];
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Technical Dark Star｜Face Control Lab</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#050812;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif}main{max-width:1100px;margin:auto;padding:12px}.stage{height:58vh;min-height:360px;background:#090d16;border:1px solid #29466f;border-radius:18px;overflow:hidden;position:relative}canvas{width:100%;height:100%;display:block}.status{position:absolute;left:12px;top:12px;padding:8px 12px;border-radius:10px;background:#07101dcc;border:1px solid #31558f;font-size:13px}.panel{margin-top:12px;background:#0b1220;border:1px solid #29466f;border-radius:18px;padding:14px}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.group{margin-top:12px;padding-top:12px;border-top:1px solid #20334f}.group h3{margin:0 0 8px;font-size:16px}.btn{border:0;border-radius:10px;padding:10px 13px;background:#31558f;color:white;font-size:14px}.btn:active{transform:scale(.98)}label{display:block;margin:8px 0;font-size:13px}input[type=range]{width:100%}.small{font-size:12px;color:#9fb1cb}.ok{color:#63e6be}.err{color:#ff6b81}.warn{color:#ffd166}
+</style>
+</head>
+<body>
+<main>
+<div class="stage"><canvas id="c"></canvas><div id="status" class="status warn">正在載入暗星 3D…</div></div>
+<div class="panel">
+<b>Technical Dark Star｜Face Control V22</b>
+<div id="meta" class="small" style="margin-top:6px">自然站立 Pose + 協調待機動作 + 96 Morph Targets</div>
+<div class="group"><h3>身體姿勢</h3><div class="row"><button class="btn" onclick="applyNaturalPose()">自然站立</button><button class="btn" onclick="resetPose()">原始姿勢</button><button class="btn" onclick="toggleIdle()" id="idleBtn">啟用自然待機</button></div><div id="poseInfo" class="small" style="margin-top:8px">載入後自動套用自然站立與微幅人體待機動作</div></div>
+<div class="group"><h3>嘴巴</h3><div class="row"><button class="btn" onclick="setM('h_expressions.MouthOpen_h',.8)">張嘴</button><button class="btn" onclick="setM('h_expressions.Shout_h',.8)">大喊</button><button class="btn" onclick="setM('h_expressions.Kiss_h',.8)">嘟嘴</button><button class="btn" onclick="setM('h_expressions.RsmileOpen_h',.7);setM('h_expressions.LsmileOpen_h',.7)">微笑</button><button class="btn" onclick="clearFace()">還原</button></div><label>MouthOpen <input id="mouth" type="range" min="0" max="1" step=".01" value="0" oninput="setM('h_expressions.MouthOpen_h',+this.value)"></label></div>
+<div class="group"><h3>眼睛</h3><div class="row"><button class="btn" onclick="blink('L')">左眼眨</button><button class="btn" onclick="blink('R')">右眼眨</button><button class="btn" onclick="blink('B')">雙眼眨</button><button class="btn" onclick="setM('h_expressions.Lsquint_h',.7);setM('h_expressions.Rsquint_h',.7)">瞇眼</button><button class="btn" onclick="setM('h_expressions.LeyeOpen_h',.8);setM('h_expressions.ReyeOpen_h',.8)">睜大</button></div></div>
+<div class="group"><h3>眉毛</h3><div class="row"><button class="btn" onclick="setM('h_expressions.LbrowUp_h',.7);setM('h_expressions.RbrowUp_h',.7)">挑眉</button><button class="btn" onclick="setM('h_expressions.LbrowDown_h',.7);setM('h_expressions.RbrowDown_h',.7)">壓眉</button><button class="btn" onclick="setM('h_expressions.LLbrowUp_h',.7);setM('h_expressions.RRbrowUp_h',.7)">外側挑眉</button><button class="btn" onclick="clearFace()">還原表情</button></div></div>
+<div class="group"><h3>自動眨眼</h3><div class="row"><button id="auto" class="btn" onclick="toggleBlink()">啟用自然眨眼</button><span id="autoText" class="small">目前關閉</span></div></div>
+<div class="group"><h3>已發現的 Morph</h3><div id="found" class="small"></div></div>
+</div>
+</main>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {MeshoptDecoder} from 'three/addons/libs/meshopt_decoder.module.js';
+
+const MODEL='./assets/dark-star/technical-dark-star-avatar.glb';
+let scene,camera,renderer,controls,avatar,meshes=[],weights=new Map(),blinkTimer=null,blinking=false;
+let originalRotations=[],poseBones={},idleEnabled=true,idleClock=new THREE.Clock();
 const status=document.getElementById('status'),found=document.getElementById('found'),poseInfo=document.getElementById('poseInfo');
 function msg(t,c='warn'){status.textContent=t;status.className='status '+c}
 function collect(o){o.traverse(x=>{if(x.isMesh&&x.morphTargetDictionary&&x.morphTargetInfluences){meshes.push(x);Object.entries(x.morphTargetDictionary).forEach(([n,i])=>{if(!weights.has(n))weights.set(n,[]);weights.get(n).push({mesh:x,index:i})})}})}
 function setM(n,v){const a=weights.get(n);if(!a)return;a.forEach(x=>x.mesh.morphTargetInfluences[x.index]=THREE.MathUtils.clamp(v,0,1))}
-window.setM=setM;window.clearFace=()=>{meshes.forEach(m=>m.morphTargetInfluences.fill(0));document.getElementById('mouth').value=0};
+window.setM=setM;
+window.clearFace=()=>{meshes.forEach(m=>m.morphTargetInfluences.fill(0));document.getElementById('mouth').value=0};
 window.blink=async side=>{const ns=side==='L'?['h_expressions.LeyeClose_h']:side==='R'?['h_expressions.ReyeClose_h']:['h_expressions.LeyeClose_h','h_expressions.ReyeClose_h'];ns.forEach(n=>setM(n,1));await new Promise(r=>setTimeout(r,130));ns.forEach(n=>setM(n,0))};
 window.toggleBlink=()=>{blinking=!blinking;document.getElementById('autoText').textContent=blinking?'目前開啟':'目前關閉';document.getElementById('auto').textContent=blinking?'停止自然眨眼':'啟用自然眨眼';if(blinking)scheduleBlink();else clearTimeout(blinkTimer)};
 function scheduleBlink(){if(!blinking)return;blinkTimer=setTimeout(async()=>{await window.blink('B');scheduleBlink()},2800+Math.random()*3200)}
-function saveBones(){originalRotations=[];if(!avatar)return;avatar.traverse(o=>{if(o.isBone)originalRotations.push({bone:o,rot:o.rotation.clone()})})}
+function saveBones(){originalRotations=[];if(!avatar)return;avatar.traverse(o=>{if(o.isBone)originalRotations.push({bone:o,rot:o.rotation.clone(),pos:o.position.clone()})})}
 function findBone(patterns){let hit=null;avatar?.traverse(o=>{if(hit||!o.isBone)return;const n=o.name.toLowerCase();if(patterns.some(p=>n===p||n.includes(p)))hit=o});return hit}
-function rotateBone(bone,x=0,y=0,z=0){if(!bone)return;bone.rotation.x+=x;bone.rotation.y+=y;bone.rotation.z+=z}
-function applyNaturalPose(){if(!avatar)return;resetPose();
-  const lUpper=findBone(['leftarm','left_arm','upperarm.l','arm.l','l_upperarm','larm']);
-  const rUpper=findBone(['rightarm','right_arm','upperarm.r','arm.r','r_upperarm','rarm']);
-  const lFore=findBone(['leftforearm','left_forearm','forearm.l','lowerarm.l','l_forearm']);
-  const rFore=findBone(['rightforearm','right_forearm','forearm.r','lowerarm.r','r_forearm']);
-  const lHand=findBone(['lefthand','left_hand','hand.l','l_hand']);
-  const rHand=findBone(['righthand','right_hand','hand.r','r_hand']);
-  // GLB bind pose is a T-pose. These are conservative pose corrections only;
-  // exact axis is model-dependent, so keep the rotations small and readable.
-  rotateBone(lUpper,0,0,-1.05); rotateBone(rUpper,0,0,1.05);
-  rotateBone(lFore,0,0,-0.12); rotateBone(rFore,0,0,0.12);
-  rotateBone(lHand,0,0,-0.08); rotateBone(rHand,0,0,0.08);
-  poseInfo.textContent='已套用自然站立：雙臂下降、手肘微彎；可用「原始姿勢」比較。';
+function firstBoneChild(b){return b?.children?.find(x=>x.isBone)||null}
+function setBoneWorldRotation(bone,qWorld){if(!bone)return;const parent=bone.parent;if(!parent){bone.quaternion.copy(qWorld);return}const pq=new THREE.Quaternion();parent.getWorldQuaternion(pq);bone.quaternion.copy(pq.invert().multiply(qWorld))}
+function aimBoneSegment(bone,targetDir){const child=firstBoneChild(bone);if(!bone||!child)return false;avatar.updateMatrixWorld(true);const p0=bone.getWorldPosition(new THREE.Vector3());const p1=child.getWorldPosition(new THREE.Vector3());const dir=p1.sub(p0).normalize();const target=targetDir.clone().normalize();const delta=new THREE.Quaternion().setFromUnitVectors(dir,target);const currentWorld=new THREE.Quaternion();bone.getWorldQuaternion(currentWorld);const desired=delta.multiply(currentWorld);setBoneWorldRotation(bone,desired);avatar.updateMatrixWorld(true);return true}
+function findBodyBones(){
+ poseBones={
+  lUpper:findBone(['leftupperarm','left_upper_arm','leftarm','left_arm','upperarm.l','upper_arm.l','arm.l','l_upperarm','larm']),
+  rUpper:findBone(['rightupperarm','right_upper_arm','rightarm','right_arm','upperarm.r','upper_arm.r','arm.r','r_upperarm','rarm']),
+  lFore:findBone(['leftforearm','left_forearm','leftlowerarm','left_lower_arm','forearm.l','lowerarm.l','l_forearm']),
+  rFore:findBone(['rightforearm','right_forearm','rightlowerarm','right_lower_arm','forearm.r','lowerarm.r','r_forearm']),
+  lHand:findBone(['lefthand','left_hand','hand.l','l_hand']),
+  rHand:findBone(['righthand','right_hand','hand.r','r_hand']),
+  head:findBone(['head','head_jnt','headbone']),
+  neck:findBone(['neck','neck1','neck_jnt']),
+  spine:findBone(['spine2','spine_02','chest','upperchest','spine']),
+  lThigh:findBone(['leftupleg','leftupperleg','leftthigh','thigh.l','upperleg.l','l_thigh']),
+  rThigh:findBone(['rightupleg','rightupperleg','rightthigh','thigh.r','upperleg.r','r_thigh'])
+ };
 }
-function resetPose(){originalRotations.forEach(x=>x.bone.rotation.copy(x.rot));poseInfo.textContent='目前為模型原始綁定姿勢。'}
+function applyNaturalPose(){
+ if(!avatar)return;
+ resetPose();
+ findBodyBones();
+ const L=poseBones.lUpper,R=poseBones.rUpper,LF=poseBones.lFore,RF=poseBones.rFore,LH=poseBones.lHand,RH=poseBones.rHand;
+ // Do not guess a fixed Euler axis. Aim each arm segment in world space so the bind pose is converted to a human-like hanging arm.
+ aimBoneSegment(L,new THREE.Vector3(-0.12,-0.99,0.03));
+ aimBoneSegment(R,new THREE.Vector3(0.12,-0.99,0.03));
+ // elbows slightly forward: relaxed, not straight like a mannequin.
+ aimBoneSegment(LF,new THREE.Vector3(-0.10,-0.94,0.28));
+ aimBoneSegment(RF,new THREE.Vector3(0.10,-0.94,0.28));
+ aimBoneSegment(LH,new THREE.Vector3(-0.03,-0.98,0.10));
+ aimBoneSegment(RH,new THREE.Vector3(0.03,-0.98,0.10));
+ avatar.updateMatrixWorld(true);
+ poseInfo.textContent='已改為以骨骼世界方向求解：手臂向下、手肘微彎、手掌靠近身體；另加入微幅人體待機協調動作。';
+}
+function resetPose(){if(!avatar)return;originalRotations.forEach(x=>{x.bone.rotation.copy(x.rot);x.bone.position.copy(x.pos)});poseInfo.textContent='目前為模型原始綁定姿勢。';}
 window.applyNaturalPose=applyNaturalPose;window.resetPose=resetPose;
+window.toggleIdle=()=>{idleEnabled=!idleEnabled;document.getElementById('idleBtn').textContent=idleEnabled?'停止自然待機':'啟用自然待機';poseInfo.textContent=idleEnabled?'自然待機已開啟：呼吸、肩膀、手臂與頭部會做低幅度協調動作。':'自然待機已停止。'};
+function applyIdle(t){if(!idleEnabled||!avatar)return;const s=Math.sin(t*1.15),c=Math.cos(t*0.72),d=Math.sin(t*0.55);const b=poseBones;
+ // Very small, deterministic human-like motion. Face morphs remain independent.
+ if(b.spine)b.spine.rotation.z+=s*0.008;
+ if(b.neck)b.neck.rotation.z+=s*0.010;
+ if(b.head)b.head.rotation.y+=c*0.012;
+ if(b.lUpper)b.lUpper.rotation.z+=s*0.010;
+ if(b.rUpper)b.rUpper.rotation.z-=s*0.010;
+ if(b.lFore)b.lFore.rotation.x+=d*0.014;
+ if(b.rFore)b.rFore.rotation.x-=d*0.014;
+ if(b.lHand)b.lHand.rotation.z+=d*0.012;
+ if(b.rHand)b.rHand.rotation.z-=d*0.012;
+ if(b.lThigh)b.lThigh.rotation.z+=s*0.003;
+ if(b.rThigh)b.rThigh.rotation.z-=s*0.003;
+}
 function init(){scene=new THREE.Scene();scene.background=new THREE.Color(0x090d16);camera=new THREE.PerspectiveCamera(35,1,.01,100);renderer=new THREE.WebGLRenderer({canvas:document.getElementById('c'),antialias:true,alpha:false});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputColorSpace=THREE.SRGBColorSpace;scene.add(new THREE.HemisphereLight(0xffffff,0x334455,2));const key=new THREE.DirectionalLight(0xffffff,3);key.position.set(2,3,4);scene.add(key);controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;resize();addEventListener('resize',resize);load()}
 function resize(){const el=document.querySelector('.stage');const w=el.clientWidth,h=el.clientHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false)}
-async function load(){try{const r=await fetch(MODEL,{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);const buf=await r.arrayBuffer();const loader=new GLTFLoader();loader.setMeshoptDecoder(MeshoptDecoder);const gltf=await loader.parseAsync(buf,new URL('./assets/dark-star/',location.href).href);avatar=gltf.scene;scene.add(avatar);collect(avatar);saveBones();const box=new THREE.Box3().setFromObject(avatar),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());avatar.position.sub(center);camera.position.set(0,size.y*.18,size.y*1.65);controls.target.set(0,0,0);controls.update();applyNaturalPose();msg('✅ 3D 暗星已載入：自然站立 + 96 Morph Target','ok');found.textContent=[...weights.keys()].join('　');}catch(e){console.error(e);msg('❌ 載入/解碼失敗：'+(e.message||e),'err')}}
-function animate(){requestAnimationFrame(animate);controls?.update();renderer?.render(scene,camera)}init();animate();
-</script></body></html>
+async function load(){try{const r=await fetch(MODEL,{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);const buf=await r.arrayBuffer();const loader=new GLTFLoader();loader.setMeshoptDecoder(MeshoptDecoder);const gltf=await loader.parseAsync(buf,new URL('./assets/dark-star/',location.href).href);avatar=gltf.scene;scene.add(avatar);collect(avatar);saveBones();findBodyBones();const box=new THREE.Box3().setFromObject(avatar),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());avatar.position.sub(center);camera.position.set(0,size.y*.18,size.y*1.65);controls.target.set(0,0,0);controls.update();applyNaturalPose();msg('✅ 3D 暗星已載入：自然站立 + 協調待機 + 96 Morph Target','ok');found.textContent=[...weights.keys()].join('　');}catch(e){console.error(e);msg('❌ 載入/解碼失敗：'+(e.message||e),'err')}}
+function animate(){requestAnimationFrame(animate);const t=idleClock.getElapsedTime();applyIdle(t);controls?.update();renderer?.render(scene,camera)}
+init();animate();
+</script>
+</body>
+</html>
