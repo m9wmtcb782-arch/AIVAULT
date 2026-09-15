@@ -9,11 +9,11 @@
 </style>
 </head>
 <body>
-<div class="top"><div class="title">AIVAULT｜Technical Dark Star 自有 GLB 3D 引擎解析</div><div class="sub">獨立測試頁｜不修改正式暗星介面</div></div>
-<div class="main"><div id="stage"></div><div class="panel"><div id="status" class="warn">正在載入 Three.js 與 AIVAULT GLB…</div><div id="info"></div><div class="buttons"><button id="front">正面</button><button id="left">左轉</button><button id="right">右轉</button><button id="reset">重置</button></div></div></div>
+<div class="top"><div class="title">AIVAULT｜Technical Dark Star 自有 GLB 3D 引擎解析</div><div class="sub">獨立測試頁｜Three.js 已改為 AIVAULT 自有本地檔案，不依賴外部 CDN</div></div>
+<div class="main"><div id="stage"></div><div class="panel"><div id="status" class="warn">正在載入 AIVAULT 本地 Three.js 與 GLB…</div><div id="info"></div><div class="buttons"><button id="front">正面</button><button id="left">左轉</button><button id="right">右轉</button><button id="reset">重置</button></div></div></div>
 <script type="module">
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
-import {GLTFLoader} from 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js';
+import * as THREE from './vendor/three/three.module.js';
+import {GLTFLoader} from './vendor/three/examples/jsm/loaders/GLTFLoader.js';
 
 const MODEL='./assets/dark-star/technical-dark-star-avatar.glb';
 const status=document.getElementById('status');
@@ -24,9 +24,9 @@ let scene,camera,renderer,root,mixer,clock;
 function row(k,v){return `<div class="row"><span class="name">${k}</span><span class="value">${String(v).replaceAll('&','&amp;').replaceAll('<','&lt;')}</span></div>`}
 function setStatus(t,c='warn'){status.className=c;status.textContent=t}
 function collect(root){
- let meshes=0,skinned=0,morphMeshes=0,morphs=[] ,bones=0,materials=0,vertices=0;
+ let meshes=0,skinned=0,morphMeshes=0,morphs=[],bones=0,materials=0,vertices=0;
  root.traverse(o=>{
-   if(o.isMesh){meshes++;vertices+=o.geometry?.attributes?.position?.count||0; if(o.material)materials+=Array.isArray(o.material)?o.material.length:1;if(o.morphTargetDictionary){morphMeshes++;morphs.push(...Object.keys(o.morphTargetDictionary))}}
+   if(o.isMesh){meshes++;vertices+=o.geometry?.attributes?.position?.count||0;if(o.material)materials+=Array.isArray(o.material)?o.material.length:1;if(o.morphTargetDictionary){morphMeshes++;morphs.push(...Object.keys(o.morphTargetDictionary))}}
    if(o.isSkinnedMesh)skinned++;
    if(o.isBone)bones++;
  });
@@ -35,22 +35,19 @@ function collect(root){
 
 async function boot(){
  try{
-   scene=new THREE.Scene();
-   scene.background=new THREE.Color(0x070a0f);
+   setStatus('正在啟動 AIVAULT 本地 Three.js…','warn');
+   scene=new THREE.Scene();scene.background=new THREE.Color(0x070a0f);
    camera=new THREE.PerspectiveCamera(35,stage.clientWidth/stage.clientHeight,.01,1000);
-   camera.position.set(0,1.55,3.2);
    renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
-   renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-   renderer.setSize(stage.clientWidth,stage.clientHeight);
-   renderer.outputColorSpace=THREE.SRGBColorSpace;
-   stage.appendChild(renderer.domElement);
+   renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(stage.clientWidth,stage.clientHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;stage.appendChild(renderer.domElement);
    scene.add(new THREE.HemisphereLight(0xffffff,0x263041,2.0));
    const key=new THREE.DirectionalLight(0xffffff,3.0);key.position.set(2,4,4);scene.add(key);
    const fill=new THREE.DirectionalLight(0x9ec8ff,1.5);fill.position.set(-3,2,1);scene.add(fill);
+   setStatus('Three.js 成功，正在解析 AIVAULT GLB…','warn');
    const loader=new GLTFLoader();
    const gltf=await loader.loadAsync(MODEL);
    root=gltf.scene;scene.add(root);
-   const box=new THREE.Box3().setFromObject(root), size=box.getSize(new THREE.Vector3()), center=box.getCenter(new THREE.Vector3());
+   const box=new THREE.Box3().setFromObject(root),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());
    root.position.sub(center);root.position.y+=size.y*.5;
    const max=Math.max(size.x,size.y,size.z)||1;camera.position.set(0,max*.38,max*2.25);camera.lookAt(0,max*.45,0);
    if(gltf.animations?.length){mixer=new THREE.AnimationMixer(root);gltf.animations.forEach(a=>mixer.clipAction(a).play())}
@@ -59,7 +56,7 @@ async function boot(){
    if(d.morphs.length||d.bones||gltf.animations?.length)setStatus('✅ 3D 引擎解析成功，已找到可控制的動畫資料。下一步可接臉部控制。','ok');
    else setStatus('⚠️ GLB 可以正常解析與顯示，但目前未找到 Morph Target、Bone 或 Animation；需要進一步檢查模型結構。','warn');
    clock=new THREE.Clock();animate();
- }catch(e){console.error(e);setStatus('❌ Three.js / GLTFLoader 解析失敗：'+(e?.message||e),'err');info.innerHTML=row('模型',MODEL)+row('錯誤',e?.stack||e)}
+ }catch(e){console.error(e);setStatus('❌ AIVAULT 本地 Three.js / GLTFLoader 解析失敗：'+(e?.message||e),'err');info.innerHTML=row('模型',MODEL)+row('錯誤',e?.stack||e)}
 }
 function animate(){requestAnimationFrame(animate);if(mixer)mixer.update(clock.getDelta());renderer.render(scene,camera)}
 function turn(rad){if(root)root.rotation.y=rad}
