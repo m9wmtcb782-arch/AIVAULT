@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
 
@@ -24,44 +24,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - name: Generate temporary GLB structure report
-        run: |
-          python3 - <<'PY'
-          import json, struct
-          from pathlib import Path
-          p=Path('assets/dark-star/technical-dark-star-avatar.glb')
-          b=p.read_bytes()
-          magic,version,total=struct.unpack_from('<4sII',b,0)
-          pos=12; doc=None; bins=[]
-          while pos+8<=len(b):
-              n,t=struct.unpack_from('<II',b,pos); s=pos+8; e=s+n
-              if t==0x4E4F534A:
-                  doc=json.loads(b[s:e].decode('utf-8').rstrip(' \t\r\n\x00'))
-              elif t==0x004E4942:
-                  bins.append((s,n))
-              pos=e
-          out=[]
-          out.append(f'magic={magic.decode()} version={version} total={total} file={len(b)}')
-          out.append(f'buffers={len(doc.get("buffers",[]))} bufferViews={len(doc.get("bufferViews",[]))} accessors={len(doc.get("accessors",[]))}')
-          for i,x in enumerate(doc.get('buffers',[])):
-              out.append(f'buffer[{i}]={json.dumps(x,ensure_ascii=False)}')
-          out.append('--- bufferViews ---')
-          for i,x in enumerate(doc.get('bufferViews',[])):
-              out.append(f'bufferView[{i}] buffer={x.get("buffer")} offset={x.get("byteOffset",0)} length={x.get("byteLength")} stride={x.get("byteStride",0)}')
-          out.append('--- accessors using buffer 1 ---')
-          for i,x in enumerate(doc.get('accessors',[])):
-              bv=x.get('bufferView')
-              if bv is not None and 0 <= bv < len(doc.get('bufferViews',[])) and doc['bufferViews'][bv].get('buffer')==1:
-                  out.append(f'accessor[{i}] bufferView={bv} type={x.get("type")} componentType={x.get("componentType")} count={x.get("count")} byteOffset={x.get("byteOffset",0)} sparse={bool(x.get("sparse"))}')
-          Path('glb-diagnosis.txt').write_text('\n'.join(out)+'\n',encoding='utf-8')
-          PY
-      - name: Commit temporary GLB report
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add glb-diagnosis.txt
-          git commit -m 'Temporary GLB diagnosis report [skip ci]' || true
-          git push || true
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload Pages artifact
