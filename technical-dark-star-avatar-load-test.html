@@ -3,30 +3,30 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Technical Dark Star｜真人模型載入測試</title>
+<title>Technical Dark Star｜AIVAULT 真人模型測試</title>
 <script src="https://aframe.io/releases/1.8.0/aframe.min.js"></script>
 <style>
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#10131a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif}
-#info{position:fixed;z-index:20;top:10px;left:10px;right:10px;padding:14px;border-radius:16px;background:rgba(0,0,0,.78);backdrop-filter:blur(12px);font-size:14px;line-height:1.55}
+#info{position:fixed;z-index:20;top:10px;left:10px;right:10px;padding:14px;border-radius:16px;background:rgba(0,0,0,.8);backdrop-filter:blur(12px);font-size:14px;line-height:1.55}
 #info b{font-size:17px}.ok{color:#8ee6bd}.warn{color:#ffd27a}.err{color:#ff9c9c}
 #file{display:none}.upload{display:inline-block;margin-top:10px;padding:10px 13px;border:1px solid #66708a;border-radius:11px;background:#202638}
 #retry{margin:8px 6px 0 0;padding:10px 13px;border:0;border-radius:11px;background:#fff;color:#111;font-weight:700}
-#debug{margin-top:7px;font-size:12px;opacity:.78;word-break:break-all}
+#debug{margin-top:7px;font-size:12px;opacity:.8;word-break:break-all;white-space:pre-wrap}
 </style>
 </head>
 <body>
 <div id="info">
-  <b>Technical Dark Star｜真人 3D 模型載入測試</b><br>
-  <span id="status" class="warn">正在準備真人模型……</span>
-  <div id="debug"></div>
-  <button id="retry" type="button">重新載入真人模型</button>
-  <label class="upload">載入自己的 VRM / GLB<input id="file" type="file" accept=".vrm,.glb,model/gltf-binary,model/gltf+json"></label>
+<b>Technical Dark Star｜AIVAULT 真人 3D 模型測試</b><br>
+<span id="status" class="warn">正在準備 AIVAULT 自有模型……</span>
+<div id="debug"></div>
+<button id="retry" type="button">重新載入</button>
+<label class="upload">載入自己的 VRM / GLB<input id="file" type="file" accept=".vrm,.glb,model/gltf-binary,model/gltf+json"></label>
 </div>
-<a-scene renderer="colorManagement:true; physicallyCorrectLights:true;antialias:true" background="color:#10131a" vr-mode-ui="enabled:false" loading-screen="enabled:false">
-  <a-entity light="type:hemisphere;color:#ffffff;groundColor:#334455;intensity:2.5"></a-entity>
-  <a-entity light="type:directional;color:#ffffff;intensity:3" position="2 4 5"></a-entity>
-  <a-entity id="model" position="0 -1.05 -2.8" scale="1 1 1"></a-entity>
-  <a-entity camera position="0 1.15 3.4" look-controls="enabled:true"></a-entity>
+<a-scene renderer="colorManagement:true;physicallyCorrectLights:true;antialias:true" background="color:#10131a" vr-mode-ui="enabled:false" loading-screen="enabled:false">
+<a-entity light="type:hemisphere;color:#ffffff;groundColor:#334455;intensity:2.5"></a-entity>
+<a-entity light="type:directional;color:#ffffff;intensity:3" position="2 4 5"></a-entity>
+<a-entity id="model" position="0 -1.05 -2.8" scale="1 1 1"></a-entity>
+<a-entity camera position="0 1.15 3.4" look-controls="enabled:true"></a-entity>
 </a-scene>
 <script>
 const status=document.getElementById('status');
@@ -35,56 +35,52 @@ const model=document.getElementById('model');
 const retry=document.getElementById('retry');
 const fileInput=document.getElementById('file');
 
-// 第一個來源若因 CDN/CORS/網路問題失敗，就自動嘗試下一個。
-// 這些都是公開 GLB 來源；頁面本身不依賴其中任何一個才能打開。
-const MODEL_URLS=[
+// 第一順位：AIVAULT 自己託管模型。
+// GitHub Actions 會把公開模型快取到 AIVAULT/assets/dark-star/。
+const SOURCES=[
+  './assets/dark-star/technical-dark-star-avatar.glb',
   'https://three.ws/avatars/realistic-halfbody.glb',
   'https://three.ws/avatars/selfie-girl.glb',
   'https://cdn.jsdelivr.net/gh/c-frame/valid-avatars-glb@c539a28/avatars/Asian/Asian_F_2_Casual.glb'
 ];
-let attempt=0;
+let sourceIndex=0;
 let objectUrl=null;
 
-function setStatus(text, cls='warn', detail=''){
-  status.textContent=text;
-  status.className=cls;
-  debug.textContent=detail;
+function setStatus(text,cls='warn',detail=''){
+ status.textContent=text;
+ status.className=cls;
+ debug.textContent=detail;
 }
-
-function loadRemote(index=0){
-  attempt=index;
-  if(index>=MODEL_URLS.length){
-    setStatus('❌ 真人模型來源全部失敗。', 'err', '你仍可按「載入自己的 VRM / GLB」直接選模型。\n如果三個來源都失敗，通常是目前網路環境封鎖外部 3D CDN，不是頁面本身壞掉。');
-    return;
-  }
-  const url=MODEL_URLS[index];
-  setStatus('正在載入真人模型（來源 '+(index+1)+'/'+MODEL_URLS.length+'）……','warn',url);
-  model.removeAttribute('gltf-model');
-  setTimeout(()=>model.setAttribute('gltf-model',url),80);
+function loadSource(i=0){
+ sourceIndex=i;
+ if(i>=SOURCES.length){
+  setStatus('❌ 模型全部失敗','err','這次已經不再把外部 CDN 當成 AIVAULT 的核心依賴。\n若 AIVAULT 自有模型尚未出現，請稍等 GitHub Pages 更新後重新整理。\n也可以使用「載入自己的 VRM / GLB」。');
+  return;
+ }
+ const url=SOURCES[i];
+ setStatus('正在載入模型 '+(i+1)+'/'+SOURCES.length+'……','warn',url);
+ model.removeAttribute('gltf-model');
+ setTimeout(()=>model.setAttribute('gltf-model',url),100);
 }
-
 model.addEventListener('model-loaded',()=>{
-  setStatus('✅ 真人 3D 模型已成功載入。','ok','來源 '+(attempt+1)+'：'+MODEL_URLS[attempt]);
+ const own=sourceIndex===0;
+ setStatus(own?'✅ AIVAULT 自有真人模型已載入':'✅ 真人模型已載入','ok',SOURCES[sourceIndex]);
 });
-
 model.addEventListener('model-error',()=>{
-  console.warn('Avatar model failed:', MODEL_URLS[attempt]);
-  loadRemote(attempt+1);
+ console.warn('avatar source failed',SOURCES[sourceIndex]);
+ loadSource(sourceIndex+1);
 });
-
-retry.onclick=()=>loadRemote(0);
-
+retry.onclick=()=>loadSource(0);
 fileInput.onchange=e=>{
-  const f=e.target.files&&e.target.files[0];
-  if(!f)return;
-  if(objectUrl)URL.revokeObjectURL(objectUrl);
-  objectUrl=URL.createObjectURL(f);
-  model.removeAttribute('gltf-model');
-  setStatus('正在載入你選擇的模型……','warn',f.name+' · '+Math.round(f.size/1024/1024*10)/10+' MB');
-  setTimeout(()=>model.setAttribute('gltf-model',objectUrl),80);
+ const f=e.target.files&&e.target.files[0];
+ if(!f)return;
+ if(objectUrl)URL.revokeObjectURL(objectUrl);
+ objectUrl=URL.createObjectURL(f);
+ model.removeAttribute('gltf-model');
+ setStatus('正在載入你選擇的模型……','warn',f.name+' · '+(f.size/1024/1024).toFixed(1)+' MB');
+ setTimeout(()=>model.setAttribute('gltf-model',objectUrl),100);
 };
-
-window.addEventListener('load',()=>setTimeout(()=>loadRemote(0),700));
+window.addEventListener('load',()=>setTimeout(()=>loadSource(0),700));
 </script>
 </body>
 </html>
