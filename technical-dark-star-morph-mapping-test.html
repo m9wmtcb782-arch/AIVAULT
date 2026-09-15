@@ -3,91 +3,92 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Technical Dark Star｜GLB 多 Buffer 診斷</title>
+<title>Technical Dark Star｜原生 GLB Morph GPU 測試</title>
 <style>
-body{margin:0;background:#080d18;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif;padding:18px}
-h2{margin:0 0 8px}.box{background:#121a2b;border-radius:14px;padding:14px;margin:12px 0;white-space:pre-wrap;word-break:break-word;line-height:1.65}.ok{color:#62e6ae}.err{color:#ff788b}.warn{color:#ffd166}.muted{color:#aab4cc}button{border:0;border-radius:10px;padding:12px 16px;background:#31558f;color:white;font-size:16px}
+html,body{margin:0;width:100%;height:100%;background:#050812;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif;overflow:hidden}
+#app{position:fixed;inset:0}
+#panel{position:fixed;left:12px;right:12px;top:12px;z-index:5;background:rgba(8,13,24,.92);backdrop-filter:blur(12px);border:1px solid #273451;border-radius:14px;padding:12px;max-height:42vh;overflow:auto;box-shadow:0 10px 30px #0008}
+h2{font-size:18px;margin:0 0 7px}.status{line-height:1.55;font-size:14px}.ok{color:#62e6ae}.err{color:#ff788b}.warn{color:#ffd166}.muted{color:#aab4cc}
+.controls{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}button{border:0;border-radius:9px;padding:9px 12px;background:#31558f;color:#fff;font-size:14px}button:active{transform:scale(.97)}
+#face{position:fixed;left:12px;right:12px;bottom:12px;z-index:5;background:rgba(8,13,24,.9);border:1px solid #273451;border-radius:14px;padding:10px;display:none}.row{display:flex;align-items:center;gap:8px;margin:5px 0}.row span{width:70px;font-size:12px}.row input{flex:1}.value{width:42px;text-align:right;font-size:12px;color:#b9c7e5}
 </style>
 </head>
 <body>
-<h2>Technical Dark Star｜GLB 多 Buffer 診斷</h2>
-<div class="box muted">這一版完全不載入 Three.js，也不依賴 CDN。先直接讀取 GLB，確認每一個 buffer 的來源與實際檔案。正式暗星未修改。</div>
-<div id="status" class="box">正在啟動原生 GLB 讀取…</div>
-<div id="buffers" class="box">等待 GLB…</div>
-<div id="detail" class="box">等待結構分析…</div>
-<button onclick="location.reload()">重新檢查</button>
-<script>
+<div id="app"></div>
+<div id="panel">
+<h2>Technical Dark Star｜原生 GLB + Meshopt + Morph GPU 測試</h2>
+<div id="status" class="status">正在載入 Three.js、Meshopt Decoder 與 GLB…</div>
+<div id="info" class="status muted"></div>
+<div class="controls"><button id="prev">上一個 Morph</button><button id="next">下一個 Morph</button><button id="auto">自動測試</button><button id="reset">歸零</button></div>
+</div>
+<div id="face"></div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
+import {GLTFLoader} from 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js';
+import {MeshoptDecoder} from 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/libs/meshopt_decoder.module.js';
+
 const MODEL='./assets/dark-star/technical-dark-star-avatar.glb';
 const $=id=>document.getElementById(id);
-function u32(d,o){return d.getUint32(o,true)}
-function text(buf,start,len){return new TextDecoder().decode(new Uint8Array(buf,start,len))}
-async function checkUrl(url){
-  try{
-    const r=await fetch(url,{cache:'no-store'});
-    const b=await r.arrayBuffer();
-    return {ok:r.ok,status:r.status,size:b.byteLength};
-  }catch(e){return {ok:false,status:'FETCH_ERROR',size:0,error:e.message}}
+let scene,camera,renderer,modelRoot,morphMeshes=[],morphTargets=[],current=-1,autoTimer=null;
+
+function status(html){$('status').innerHTML=html}
+function collectMorphs(root){
+  morphMeshes=[];morphTargets=[];
+  root.traverse(o=>{
+    if(!o.isMesh || !o.morphTargetInfluences || !o.morphTargetDictionary)return;
+    morphMeshes.push(o);
+    for(const [name,index] of Object.entries(o.morphTargetDictionary)){
+      morphTargets.push({mesh:o,name,index,global:morphTargets.length});
+    }
+  });
+}
+function clearMorphs(){for(const x of morphTargets)x.mesh.morphTargetInfluences[x.index]=0}
+function setMorph(i,value){clearMorphs();if(!morphTargets[i])return;const x=morphTargets[i];x.mesh.morphTargetInfluences[x.index]=value;current=i;$('info').textContent=`Morph ${i+1}/${morphTargets.length}｜${x.name}｜strength=${value.toFixed(2)}`}
+function buildFacePanel(){
+  const f=$('face');f.style.display=morphTargets.length?'block':'none';f.innerHTML='';
+  morphTargets.slice(0,96).forEach((x,i)=>{
+    const r=document.createElement('div');r.className='row';
+    const s=document.createElement('span');s.textContent=(i+1)+'. '+x.name.slice(0,10);
+    const inp=document.createElement('input');inp.type='range';inp.min=0;inp.max=1;inp.step=.01;inp.value=0;
+    const v=document.createElement('div');v.className='value';v.textContent='0.00';
+    inp.oninput=()=>{clearMorphs();x.mesh.morphTargetInfluences[x.index]=+inp.value;v.textContent=(+inp.value).toFixed(2);current=i};
+    r.append(s,inp,v);f.append(r);
+  });
+}
+function init3D(){
+  scene=new THREE.Scene();scene.background=new THREE.Color(0x050812);
+  camera=new THREE.PerspectiveCamera(35,innerWidth/innerHeight,.01,100);camera.position.set(0,1.45,3.4);
+  renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.shadowMap.enabled=true;$('app').appendChild(renderer.domElement);
+  const hemi=new THREE.HemisphereLight(0xbfd8ff,0x182033,2.2);scene.add(hemi);
+  const key=new THREE.DirectionalLight(0xffffff,3.2);key.position.set(2,3,4);key.castShadow=true;scene.add(key);
+  const fill=new THREE.DirectionalLight(0x8fb8ff,1.4);fill.position.set(-3,1,2);scene.add(fill);
+  addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+  function loop(){requestAnimationFrame(loop);if(modelRoot)modelRoot.rotation.y=Math.sin(performance.now()/7000)*.08;renderer.render(scene,camera)}loop();
 }
 async function main(){
  try{
-   $('status').innerHTML='<span class="warn">① 正在取得 GLB…</span>';
-   const r=await fetch(MODEL,{cache:'no-store'});
-   if(!r.ok)throw Error('GLB HTTP '+r.status);
-   const buf=await r.arrayBuffer();
-   $('status').innerHTML='<span class="ok">① GLB 取得成功：'+buf.byteLength.toLocaleString()+' bytes</span>';
-   if(buf.byteLength<20)throw Error('GLB 太小');
-   const d=new DataView(buf);
-   const magic=text(buf,0,4),version=u32(d,4),total=u32(d,8);
-   if(magic!=='glTF')throw Error('Magic 錯誤：'+magic);
-   if(version!==2)throw Error('GLB Version='+version);
-   let p=12,json=null,binChunks=[];
-   while(p+8<=Math.min(total,buf.byteLength)){
-     const n=u32(d,p),t=u32(d,p+4),s=p+8,e=s+n;
-     if(e>buf.byteLength)throw Error(`chunk 超界：offset=${p} length=${n} end=${e}`);
-     if(t===0x4e4f534a)json=JSON.parse(text(buf,s,n).trim());
-     if(t===0x004e4942)binChunks.push({offset:s,length:n});
-     p=e;
-   }
-   if(!json)throw Error('沒有 JSON chunk');
-   $('status').innerHTML+='<br><span class="ok">② GLB 結構讀取成功：Version 2｜BIN chunks='+binChunks.length+'</span>';
-   const bs=json.buffers||[];
-   const bvs=json.bufferViews||[];
-   const acs=json.accessors||[];
-   let out=[];
-   out.push(`buffers=${bs.length}｜bufferViews=${bvs.length}｜accessors=${acs.length}`);
-   for(let i=0;i<bs.length;i++){
-     const b=bs[i]||{};
-     if(i===0 && !b.uri){
-       const bin=binChunks[0];
-       out.push(`buffer[${i}]：GLB BIN\n  宣告=${(b.byteLength||0).toLocaleString()} bytes\n  實際 BIN=${(bin?.length||0).toLocaleString()} bytes`);
-     }else if(b.uri){
-       const url=new URL(b.uri,location.href).href;
-       out.push(`buffer[${i}]：外部 URI\n  URI=${b.uri}\n  URL=${url}\n  宣告=${(b.byteLength||0).toLocaleString()} bytes`);
-       const x=await checkUrl(url);
-       out[out.length-1]+=x.ok?`\n  HTTP=${x.status} ✅\n  實際=${x.size.toLocaleString()} bytes`:`\n  HTTP=${x.status} ❌ ${x.error||''}`;
-     }else{
-       out.push(`buffer[${i}]：❌ 沒有 URI，而且不是 GLB BIN buffer`);
-     }
-   }
-   $('buffers').textContent=out.join('\n\n');
-   const problems=[];
-   for(let i=0;i<bvs.length;i++){
-     const b=bvs[i]||{};
-     if(b.buffer>=bs.length)problems.push(`bufferView[${i}] 指向不存在的 buffer ${b.buffer}`);
-     if(b.buffer===0&&!b.uri){
-       const bin=binChunks[0];
-       const start=b.byteOffset||0,end=start+(b.byteLength||0);
-       if(bin && end>bin.length)problems.push(`bufferView[${i}] 超出 BIN：end=${end} BIN=${bin.length}`);
-     }
-   }
-   $('detail').innerHTML='<span class="ok">③ 結構分析完成</span>\n'+(problems.length?'<span class="err">❌ '+problems.length+' 個 bufferView 問題\n'+problems.join('\n')+'</span>':'<span class="ok">沒有發現 bufferView 指向不存在 buffer 的問題。</span>')+'\n\n<span class="warn">下一步：根據上面的 buffer[1] URI 判斷真正缺少的是哪個外部資源。</span>';
- }catch(e){
-   $('status').innerHTML='<span class="err">❌ '+(e.stack||e.message||String(e))+'</span>';
-   $('buffers').textContent='';
-   $('detail').textContent='原生 GLB 讀取失敗。';
-   console.error(e);
- }
+  init3D();
+  status('<span class="warn">① 取得 GLB…</span>');
+  const r=await fetch(MODEL,{cache:'no-store'});if(!r.ok)throw Error('GLB HTTP '+r.status);
+  const buf=await r.arrayBuffer();status('<span class="ok">① GLB 取得成功：'+buf.byteLength.toLocaleString()+' bytes</span><br><span class="warn">② Meshopt 解碼器初始化…</span>');
+  const loader=new GLTFLoader();
+  loader.setMeshoptDecoder(MeshoptDecoder);
+  status('<span class="ok">① GLB 取得成功</span><br><span class="ok">② Meshopt Decoder 已設定</span><br><span class="warn">③ 正在解析 GLB + EXT_meshopt_compression…</span>');
+  const gltf=await new Promise((resolve,reject)=>loader.parse(buf,'./assets/dark-star/',resolve,reject));
+  modelRoot=gltf.scene;scene.add(modelRoot);
+  const box=new THREE.Box3().setFromObject(modelRoot),center=box.getCenter(new THREE.Vector3()),size=box.getSize(new THREE.Vector3());
+  modelRoot.position.x=-center.x;modelRoot.position.y=-center.y+1.0;modelRoot.position.z=-center.z;
+  const max=Math.max(size.x,size.y,size.z);camera.position.set(0,max*.35,max*2.2);camera.lookAt(0,max*.35,0);
+  collectMorphs(modelRoot);buildFacePanel();
+  status('<span class="ok">④ ✅ GLB + Meshopt 載入成功</span>');
+  $('info').textContent=`Nodes/scene 已建立｜Mesh=${morphMeshes.length} 個含 Morph 的 Mesh｜Morph Targets=${morphTargets.length}｜Animations=${gltf.animations?.length||0}`;
+  if(morphTargets.length)setMorph(0,.5);
+ }catch(e){status('<span class="err">❌ '+(e.stack||e.message||e)+'</span>');console.error(e)}
 }
+$('prev').onclick=()=>{if(!morphTargets.length)return;setMorph((current-1+morphTargets.length)%morphTargets.length,.6)};
+$('next').onclick=()=>{if(!morphTargets.length)return;setMorph((current+1)%morphTargets.length,.6)};
+$('reset').onclick=()=>{clearMorphs();$('info').textContent='所有 Morph 已歸零'};
+$('auto').onclick=()=>{if(autoTimer){clearInterval(autoTimer);autoTimer=null;$('auto').textContent='自動測試';return}$('auto').textContent='停止自動';let i=0;autoTimer=setInterval(()=>{setMorph(i,.65);i=(i+1)%Math.min(morphTargets.length,96)},700)};
 main();
 </script>
 </body>
