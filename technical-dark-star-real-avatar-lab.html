@@ -5,19 +5,19 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Technical Dark Star｜真人 3D Avatar Lab</title>
 <style>
-*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif;background:#10131a;color:#fff}#app{width:100%;height:100%;position:relative}canvas{display:block;width:100%;height:100%}.panel{position:absolute;left:12px;right:12px;bottom:12px;max-height:45vh;overflow:auto;background:rgba(12,15,22,.88);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.14);border-radius:18px;padding:12px;box-shadow:0 12px 40px rgba(0,0,0,.35)}h1{font-size:17px;margin:0 0 4px}.sub{font-size:12px;color:#aeb7c8;margin-bottom:10px}.row{display:flex;gap:7px;flex-wrap:wrap;margin:7px 0}.btn{border:1px solid #394357;background:#1b2130;color:#fff;border-radius:10px;padding:9px 11px;font-size:13px}.btn:active{transform:scale(.97)}label{font-size:12px;color:#c8d0df;display:flex;align-items:center;gap:7px;min-width:150px}input[type=range]{width:120px}.status{font-size:12px;color:#8ee6bd;margin-top:7px;word-break:break-word}.upload{font-size:12px;color:#b9c3d5}.top{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;pointer-events:none}.badge{background:rgba(10,13,20,.72);padding:8px 11px;border-radius:12px;border:1px solid rgba(255,255,255,.12);font-size:12px}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif;background:#10131a;color:#fff}#app{width:100%;height:100%;position:relative}canvas{display:block;width:100%;height:100%}.panel{position:absolute;left:12px;right:12px;bottom:12px;max-height:47vh;overflow:auto;background:rgba(12,15,22,.9);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.14);border-radius:18px;padding:12px;box-shadow:0 12px 40px rgba(0,0,0,.35)}h1{font-size:17px;margin:0 0 4px}.sub{font-size:12px;color:#aeb7c8;margin-bottom:8px}.row{display:flex;gap:7px;flex-wrap:wrap;margin:7px 0}.btn{border:1px solid #394357;background:#1b2130;color:#fff;border-radius:10px;padding:9px 11px;font-size:13px}.btn:active{transform:scale(.97)}label{font-size:12px;color:#c8d0df;display:flex;align-items:center;gap:7px;min-width:150px}input[type=range]{width:120px}.status{font-size:12px;color:#8ee6bd;margin-top:7px;word-break:break-word}.upload{font-size:12px;color:#b9c3d5}.top{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;pointer-events:none;z-index:3}.badge{background:rgba(10,13,20,.72);padding:8px 11px;border-radius:12px;border:1px solid rgba(255,255,255,.12);font-size:12px}.warning{color:#ffd98a}.hidden{display:none}
 </style>
 </head>
 <body>
 <div id="app">
-<div class="top"><div class="badge">Technical Dark Star · 3D Avatar Lab</div><div class="badge" id="modelName">載入模型中…</div></div>
+<div class="top"><div class="badge">Technical Dark Star · 真人 3D Avatar Lab</div><div class="badge" id="modelName">載入真人模型…</div></div>
 <div class="panel">
-<h1>真人／3D Avatar 控制測試</h1>
-<div class="sub">這一頁只測試 3D 引擎與臉部控制，不修改正式暗星頁面。可直接載入自己的 .vrm。</div>
+<h1>真人數字人臉部控制測試</h1>
+<div class="sub">這是獨立測試頁，不修改正式暗星。這次直接測試同一個 3D 真人女性模型的原生臉部 BlendShape，不再疊加假眼睛或假嘴巴。</div>
 <div class="row">
-<button class="btn" id="loadDefault">載入測試模型</button>
-<label class="btn upload">載入自己的 VRM <input id="file" type="file" accept=".vrm,.glb" hidden></label>
-<button class="btn" onclick="DarkStarFace.reset()">重置臉部</button>
+<button class="btn" id="loadDefault">載入真人測試模型</button>
+<label class="btn upload">載入自己的 VRM / GLB <input id="file" type="file" accept=".vrm,.glb" hidden></label>
+<button class="btn" onclick="DarkStarFace.reset()">重置</button>
 </div>
 <div class="row">
 <button class="btn" onclick="DarkStarFace.blink()">眨眼</button>
@@ -41,7 +41,7 @@
 <label>眼睛 <input id="eyes" type="range" min="0" max="1" step="0.01" value="1" oninput="DarkStarFace.eyes(+this.value)"></label>
 <label>眉毛 <input id="brow" type="range" min="-1" max="1" step="0.01" value="0" oninput="DarkStarFace.brows(+this.value)"></label>
 </div>
-<div class="status" id="status">等待模型。</div>
+<div class="status" id="status">準備載入真人模型……</div>
 </div>
 </div>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","@pixiv/three-vrm":"https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.4.1/lib/three-vrm.module.js"}}</script>
@@ -51,41 +51,39 @@ import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {VRMLoaderPlugin,VRMUtils} from '@pixiv/three-vrm';
 
-const DEFAULT_MODEL='https://vtubeme.com/media/free/sky/model.vrm';
-const status=document.getElementById('status'), nameEl=document.getElementById('modelName');
-const scene=new THREE.Scene(); scene.background=new THREE.Color(0x10131a);
-const camera=new THREE.PerspectiveCamera(28,innerWidth/innerHeight,.1,100); camera.position.set(0,1.35,4.5);
-const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false}); renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.setSize(innerWidth,innerHeight); renderer.outputColorSpace=THREE.SRGBColorSpace; document.getElementById('app').prepend(renderer.domElement);
-const controls=new OrbitControls(camera,renderer.domElement); controls.target.set(0,1.25,0); controls.enableDamping=true; controls.minDistance=2; controls.maxDistance=7;
-scene.add(new THREE.HemisphereLight(0xffffff,0x334455,2.2)); const key=new THREE.DirectionalLight(0xffffff,3); key.position.set(2,3,4); scene.add(key);
-const floor=new THREE.Mesh(new THREE.CircleGeometry(3,64),new THREE.MeshStandardMaterial({color:0x171d28,roughness:.9})); floor.rotation.x=-Math.PI/2; floor.position.y=0; scene.add(floor);
-let vrm=null; const loader=new GLTFLoader(); loader.crossOrigin='anonymous'; loader.register(p=>new VRMLoaderPlugin(p));
+// Google VALID-derived Asian female avatar, converted to VRM/GLB with ARKit 52 facial blendshapes.
+// The source repository states CC BY 4.0 and full ARKit facial animation support.
+const DEFAULT_MODEL='https://raw.githubusercontent.com/TLTMedia/valid-vrm-avatars/master/Asian/Asian_F_1_Casual.glb';
+const status=document.getElementById('status'),nameEl=document.getElementById('modelName');
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x10131a);
+const camera=new THREE.PerspectiveCamera(28,innerWidth/innerHeight,.1,100);camera.position.set(0,1.35,4.5);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;document.getElementById('app').prepend(renderer.domElement);
+const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,1.25,0);controls.enableDamping=true;controls.minDistance=2;controls.maxDistance=7;
+scene.add(new THREE.HemisphereLight(0xffffff,0x334455,2.2));const key=new THREE.DirectionalLight(0xffffff,3);key.position.set(2,3,4);scene.add(key);
+const floor=new THREE.Mesh(new THREE.CircleGeometry(3,64),new THREE.MeshStandardMaterial({color:0x171d28,roughness:.9}));floor.rotation.x=-Math.PI/2;scene.add(floor);
+let vrm=null;const loader=new GLTFLoader();loader.crossOrigin='anonymous';loader.register(p=>new VRMLoaderPlugin(p));
 function setStatus(t){status.textContent=t}
 async function load(url,label){
- setStatus('正在載入 3D 模型…'); nameEl.textContent=label||'VRM';
- if(vrm){scene.remove(vrm.scene);VRMUtils.deepDispose(vrm.scene);vrm=null}
- try{
-  const gltf=await loader.loadAsync(url); vrm=gltf.userData.vrm;
-  VRMUtils.removeUnnecessaryVertices(gltf.scene); VRMUtils.combineSkeletons(gltf.scene); VRMUtils.combineMorphs(vrm);
-  vrm.scene.traverse(o=>o.frustumCulled=false); scene.add(vrm.scene); vrm.scene.rotation.y=0;
-  if(vrm.lookAt) vrm.lookAt.autoUpdate=true;
-  setStatus('模型已載入。現在可以測試眼睛、眉毛、表情與嘴型。');
- }catch(e){console.error(e);setStatus('模型載入失敗：'+(e?.message||e)+'。如果外部模型被瀏覽器/CORS 阻擋，請用「載入自己的 VRM」直接選檔。')}
+ setStatus('正在下載／載入真人 3D 模型（首次約 67 MB），請稍候……');nameEl.textContent=label||'真人 VRM/GLB';
+ if(vrm){scene.remove(vrm.scene);try{VRMUtils.deepDispose(vrm.scene)}catch{}vrm=null}
+ try{const gltf=await loader.loadAsync(url);vrm=gltf.userData.vrm;if(!vrm)throw new Error('此 GLB 沒有 VRM 資料');VRMUtils.removeUnnecessaryVertices(gltf.scene);VRMUtils.combineSkeletons(gltf.scene);VRMUtils.combineMorphs(vrm);vrm.scene.traverse(o=>o.frustumCulled=false);scene.add(vrm.scene);if(vrm.lookAt)vrm.lookAt.autoUpdate=true;setStatus('真人模型已載入。現在控制的就是模型本身的眼睛、眉毛、嘴巴。');}
+ catch(e){console.error(e);setStatus('真人模型載入失敗：'+(e?.message||e)+'。仍可使用「載入自己的 VRM / GLB」測試。')}
 }
-function exp(name,v=1){if(!vrm?.expressionManager)return; const aliases={happy:['happy','joy'],sad:['sad','sorrow'],angry:['angry'],surprised:['surprised'],relaxed:['relaxed','neutral']}; const list=aliases[name]||[name]; for(const n of list){try{vrm.expressionManager.setValue(n,v)}catch{}}}
-function reset(){if(!vrm?.expressionManager)return; for(const n of vrm.expressionManager.expressions||[]){try{vrm.expressionManager.setValue(n.name,0)}catch{}} if(vrm.lookAt?.target) vrm.lookAt.target.position.set(0,1.25,2); document.getElementById('mouth').value=0;document.getElementById('eyes').value=1;document.getElementById('brow').value=0;setStatus('臉部已重置。')}
-function blink(){wink('both')}
-function wink(side){if(!vrm?.expressionManager)return; const candidates=side==='left'?['blinkLeft','blink_left']:side==='right'?['blinkRight','blink_right']:['blink']; for(const n of candidates){try{vrm.expressionManager.setValue(n,1)}catch{}} setTimeout(()=>{for(const n of candidates){try{vrm.expressionManager.setValue(n,0)}catch{}}},170)}
+function setExp(names,v){if(!vrm?.expressionManager)return;for(const n of names){try{vrm.expressionManager.setValue(n,v)}catch{}}}
+function reset(){if(!vrm?.expressionManager)return;for(const e of vrm.expressionManager.expressions||[]){try{vrm.expressionManager.setValue(e.name,0)}catch{}}look('center');document.getElementById('mouth').value=0;document.getElementById('eyes').value=1;document.getElementById('brow').value=0;setStatus('臉部已重置。')}
+function blink(){setExp(['blink'],1);setTimeout(()=>setExp(['blink'],0),170)}
+function wink(side){const names=side==='left'?['blinkLeft','eyeBlinkLeft']:['blinkRight','eyeBlinkRight'];setExp(names,1);setTimeout(()=>setExp(names,0),170)}
 const target=new THREE.Object3D();scene.add(target);target.position.set(0,1.25,2);
 function look(dir){const p={center:[0,1.25,2],left:[-1.8,1.25,2],right:[1.8,1.25,2],up:[0,2.3,2],down:[0,.3,2]}[dir]||[0,1.25,2];target.position.set(...p);if(vrm?.lookAt)vrm.lookAt.target=target;setStatus('視線：'+dir)}
-function mouth(v){if(!vrm?.expressionManager)return;for(const n of ['aa','A','mouthOpen']){try{vrm.expressionManager.setValue(n,v)}catch{}}}
-function eyes(v){if(!vrm?.expressionManager)return;for(const n of ['blink','blinkLeft','blinkRight']){try{vrm.expressionManager.setValue(n,1-v)}catch{}}}
-function brows(v){if(!vrm?.expressionManager)return;for(const n of ['browDownLeft','browDownRight','browUpLeft','browUpRight']){try{vrm.expressionManager.setValue(n,Math.max(0,v>0?v:0))}catch{}}}
-window.DarkStarFace={reset,blink,wink,look,mouth,eyes,brows,expression:(n)=>{reset();exp(n);setStatus('表情：'+n)}};
-document.getElementById('loadDefault').onclick=()=>load(DEFAULT_MODEL,'Sky · VRM');
+function mouth(v){setExp(['aa','A','mouthOpen'],v)}
+function eyes(v){setExp(['blink'],1-v)}
+function brows(v){if(v>0)setExp(['browOuterUpLeft','browOuterUpRight','browInnerUp'],v);else setExp(['browDownLeft','browDownRight'],Math.abs(v))}
+function expression(name){reset();const map={happy:['happy','joy'],sad:['sad','sorrow'],angry:['angry'],surprised:['surprised'],relaxed:['relaxed','neutral']};setExp(map[name]||[name],1);setStatus('表情：'+name)}
+window.DarkStarFace={reset,blink,wink,look,mouth,eyes,brows,expression};
+document.getElementById('loadDefault').onclick=()=>load(DEFAULT_MODEL,'真人女性 · Asian F1');
 document.getElementById('file').onchange=e=>{const f=e.target.files?.[0];if(f)load(URL.createObjectURL(f),f.name)};
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
-const clock=new THREE.Clock();function animate(){requestAnimationFrame(animate);const dt=clock.getDelta();if(vrm)vrm.update(dt);controls.update();renderer.render(scene,camera)}animate();load(DEFAULT_MODEL,'Sky · VRM');
+const clock=new THREE.Clock();function animate(){requestAnimationFrame(animate);const dt=clock.getDelta();if(vrm)vrm.update(dt);controls.update();renderer.render(scene,camera)}animate();load(DEFAULT_MODEL,'真人女性 · Asian F1');
 </script>
 </body>
 </html>
