@@ -11,7 +11,7 @@
 </head>
 <body><main class="wrap">
 <h1>🎙️ Technical Dark Star｜真實聲音克隆測試</h1><div class="muted">獨立測試頁。此頁不修改 technical-dark-star.html。</div>
-<div id="auth" class="status">正在檢查登入狀態…</div>
+<div id="auth" class="status">正在取得 AIVAULT 測試登入身分…</div>
 <section class="card"><h2>① 錄製聲音</h2><div class="muted">建議朗讀約 30–40 秒。最長 45 秒。錄音會即時顯示音波與秒數。</div>
 <label>聲音名稱</label><input id="voiceName" value="暗星測試聲音" maxlength="80">
 <div class="wavebox"><canvas id="wave"></canvas><div id="recLabel" class="recordingLabel">🔴 正在錄音</div></div>
@@ -27,12 +27,38 @@
 const SUPABASE_URL='https://clcddygkaaqqtsbswgdf.supabase.co';
 const SUPABASE_KEY='sb_publishable_1D05YGthBrNGg-5L92TLCw_GiLnInBu';
 const FN=SUPABASE_URL+'/functions/v1/technical-dark-star-voice-clone-test';
-const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const $=id=>document.getElementById(id);
 let recorder=null,chunks=[],blob=null,url=null,voiceId=null,stream=null,audioCtx=null,analyser=null,raf=null,startAt=0,timerInt=null,mime='',stopping=false,isRecording=false;
 function msg(t,cls=''){ $('result').textContent=t; $('result').className='result '+cls }
 function fmt(s){s=Math.max(0,Math.floor(s));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
-async function auth(){try{const {data:{session}}=await sb.auth.getSession();if(session){$('auth').innerHTML='✅ 已登入，可以進行真實 Clone 測試。';$('auth').className='status ok';return session}$('auth').innerHTML='⚠️ 尚未登入 Supabase。請先在 AIVAULT 登入後再開本測試頁。';$('auth').className='status err';return null}catch(e){$('auth').textContent='❌ 登入狀態檢查失敗：'+(e.message||e);$('auth').className='status err';return null}}
+async function auth(){
+  try{
+    let {data:{session},error}=await sb.auth.getSession();
+    if(error) throw error;
+    if(session){
+      $('auth').innerHTML='✅ 已取得測試登入 Session，可以進行真實 Clone。';
+      $('auth').className='status ok';
+      return session;
+    }
+    $('auth').innerHTML='⏳ AIVAULT 正式頁沒有使用 Supabase Auth；現在建立本測試頁專用的匿名登入身分…';
+    $('auth').className='status';
+    const r=await sb.auth.signInAnonymously();
+    if(r.error) throw r.error;
+    session=r.data.session;
+    if(!session) throw new Error('匿名登入沒有回傳 Session');
+    $('auth').innerHTML='✅ 已建立測試用 Supabase Session。正式暗星頁不會被修改。';
+    $('auth').className='status ok';
+    msg('AUTH READY\n模式：isolated anonymous test session\n可以進行 REAL CLONE。','ok');
+    return session;
+  }catch(e){
+    const text=e?.message||String(e);
+    $('auth').innerHTML='❌ 無法建立測試登入 Session：'+text+'<br><span class="small">這不是聲音克隆失敗；目前卡在 Supabase Auth 測試身分建立。</span>';
+    $('auth').className='status err';
+    msg('AUTH FAILED\n'+text+'\n請確認此 Supabase Project 已啟用 Anonymous Sign-Ins。','err');
+    return null;
+  }
+}
 function setCloneReady(){const ready=!!blob&&blob.size>0&&!isRecording; $('cloneBtn').disabled=!ready; $('cloneStatus').textContent=ready?'✅ 錄音已取得，可以直接按「開始真正聲音克隆」，不需要先播放。':'請先完成錄音。'; $('cloneStatus').className='status small '+(ready?'ready':''); if(ready) msg('錄音已完成，可以直接開始 REAL CLONE。','ok')}
 function draw(){if(!analyser)return;const c=$('wave'),d=c.getContext('2d'),r=c.getBoundingClientRect(),w=c.width=Math.max(300,r.width*devicePixelRatio),h=c.height=Math.max(120,r.height*devicePixelRatio);d.clearRect(0,0,w,h);const data=new Uint8Array(analyser.fftSize);analyser.getByteTimeDomainData(data);d.strokeStyle='#fff';d.lineWidth=2*devicePixelRatio;d.beginPath();for(let i=0;i<data.length;i++){const x=i/(data.length-1)*w,y=h/2+(data[i]-128)/128*h*.42;i?d.lineTo(x,y):d.moveTo(x,y)}d.stroke();raf=requestAnimationFrame(draw)}
 function cleanupMedia(){clearInterval(timerInt);timerInt=null;cancelAnimationFrame(raf);raf=null;if(audioCtx){audioCtx.close().catch(()=>{});audioCtx=null}if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}analyser=null}
@@ -44,7 +70,7 @@ $('recordBtn').addEventListener('click',start);
 $('stopBtn').addEventListener('click',stop);
 $('playBtn').addEventListener('click',async()=>{if(!$('originalAudio').src)return;try{await $('originalAudio').play()}catch(e){$('micStatus').textContent='❌ 無法播放原始錄音：'+(e.message||e);$('micStatus').className='status err'}});
 $('redoBtn').addEventListener('click',()=>{if(isRecording)stop();blob=null;voiceId=null;chunks=[];$('originalAudio').pause();$('originalAudio').removeAttribute('src');$('originalAudio').hidden=true;$('playBtn').disabled=true;$('cloneBtn').disabled=true;$('redoBtn').disabled=true;$('speakBtn').disabled=true;$('cloneStatus').textContent='準備重新錄音。';$('cloneStatus').className='status small';$('timer').textContent='00:00 / 00:45';setTimeout(start,150)});
-$('cloneBtn').addEventListener('click',async()=>{msg('🚀 已按下 Clone，正在檢查錄音…');if(!blob||!blob.size){$('cloneStatus').textContent='❌ 沒有有效錄音資料。請按重新錄音後再停止一次。';$('cloneStatus').className='status small err';msg('REAL CLONE 尚未執行：錄音 Blob 不存在或為 0 bytes。','err');setCloneReady();return}if(isRecording){$('cloneStatus').textContent='❌ 仍在錄音中，請先停止錄音。';$('cloneStatus').className='status small err';return}const s=await auth();if(!s)return;msg('正在建立真正 Voice Clone…');$('cloneBtn').disabled=true;$('cloneStatus').textContent='⏳ 正在把錄音送到 AIVAULT → ElevenLabs…';$('cloneStatus').className='status small';try{const fd=new FormData();fd.append('action','clone');fd.append('name',$('voiceName').value.trim()||'暗星測試聲音');fd.append('description','Technical Dark Star isolated voice clone test');const ext=(blob.type||'').includes('mp4')?'m4a':(blob.type||'').includes('ogg')?'ogg':'webm';fd.append('files',blob,'dark-star-sample.'+ext);const {data:{session}}=await sb.auth.getSession();if(!session)throw new Error('Supabase 登入 Session 已失效，請重新登入 AIVAULT。');const res=await fetch(FN,{method:'POST',headers:{Authorization:'Bearer '+session.access_token},body:fd});const raw=await res.text();let j={};try{j=JSON.parse(raw)}catch(e){throw new Error('伺服器沒有回傳 JSON：'+raw.slice(0,300))}if(!res.ok||!j.voice_id)throw new Error(j.error||j.message||('Clone HTTP '+res.status));voiceId=j.voice_id;$('speakBtn').disabled=false;$('cloneStatus').textContent='✅ REAL CLONE 成功，已取得 Voice ID。';$('cloneStatus').className='status small ok';msg('Provider: '+(j.provider||'elevenlabs')+'\nVoice ID: '+voiceId+'\nStatus: REAL CLONE SUCCESS\nOwner: '+(j.owner_id||s.user.id),'ok')}catch(e){$('cloneStatus').textContent='❌ REAL CLONE 失敗：'+(e.message||e);$('cloneStatus').className='status small err';msg('REAL CLONE FAILED\n'+(e.message||e),'err');$('cloneBtn').disabled=false}});
+$('cloneBtn').addEventListener('click',async()=>{msg('🚀 已按下 Clone，正在檢查錄音…');if(!blob||!blob.size){$('cloneStatus').textContent='❌ 沒有有效錄音資料。請按重新錄音後再停止一次。';$('cloneStatus').className='status small err';msg('REAL CLONE 尚未執行：錄音 Blob 不存在或為 0 bytes。','err');setCloneReady();return}if(isRecording){$('cloneStatus').textContent='❌ 仍在錄音中，請先停止錄音。';$('cloneStatus').className='status small err';return}const s=await auth();if(!s)return;msg('正在建立真正 Voice Clone…');$('cloneBtn').disabled=true;$('cloneStatus').textContent='⏳ 正在把錄音送到 AIVAULT → ElevenLabs…';$('cloneStatus').className='status small';try{const fd=new FormData();fd.append('action','clone');fd.append('name',$('voiceName').value.trim()||'暗星測試聲音');fd.append('description','Technical Dark Star isolated voice clone test');const ext=(blob.type||'').includes('mp4')?'m4a':(blob.type||'').includes('ogg')?'ogg':'webm';fd.append('files',blob,'dark-star-sample.'+ext);const {data:{session}}=await sb.auth.getSession();if(!session)throw new Error('Supabase 測試 Session 已失效。');const res=await fetch(FN,{method:'POST',headers:{Authorization:'Bearer '+session.access_token},body:fd});const raw=await res.text();let j={};try{j=JSON.parse(raw)}catch(e){throw new Error('伺服器沒有回傳 JSON：'+raw.slice(0,300))}if(!res.ok||!j.voice_id)throw new Error(j.error||j.message||('Clone HTTP '+res.status));voiceId=j.voice_id;$('speakBtn').disabled=false;$('cloneStatus').textContent='✅ REAL CLONE 成功，已取得 Voice ID。';$('cloneStatus').className='status small ok';msg('Provider: '+(j.provider||'elevenlabs')+'\nVoice ID: '+voiceId+'\nStatus: REAL CLONE SUCCESS\nOwner: '+(j.owner_id||s.user.id),'ok')}catch(e){$('cloneStatus').textContent='❌ REAL CLONE 失敗：'+(e.message||e);$('cloneStatus').className='status small err';msg('REAL CLONE FAILED\n'+(e.message||e),'err');$('cloneBtn').disabled=false}});
 $('speakBtn').addEventListener('click',async()=>{if(!voiceId)return;const s=await auth();if(!s)return;msg('正在用 Clone Voice 生成真正音訊…');$('speakBtn').disabled=true;try{const {data:{session}}=await sb.auth.getSession();const res=await fetch(FN,{method:'POST',headers:{Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},body:JSON.stringify({action:'speak',voice_id:voiceId,text:$('testText').value,model:'eleven_multilingual_v2'})});const raw=await res.text();let j={};try{j=JSON.parse(raw)}catch(e){throw new Error('伺服器沒有回傳 JSON：'+raw.slice(0,300))}if(!res.ok||!j.audio_base64)throw new Error(j.error||j.message||('TTS HTTP '+res.status));const a=$('cloneAudio');a.src='data:'+(j.content_type||'audio/mpeg')+';base64,'+j.audio_base64;a.hidden=false;try{await a.play()}catch(e){}msg('Provider: '+(j.provider||'elevenlabs')+'\nVoice ID: '+voiceId+'\nStatus: REAL CLONE TTS SUCCESS\n已產生實際音訊，請按播放器播放確認。','ok')}catch(e){msg('REAL CLONE TTS FAILED\n'+(e.message||e),'err')}finally{$('speakBtn').disabled=false}});
 auth();
 </script></body></html>
