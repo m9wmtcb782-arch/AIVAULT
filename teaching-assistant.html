@@ -42,6 +42,8 @@ body{margin:0;background:#fff;color:#172033;font:15px sans-serif}
 <aside>
 <section class="p"><b>🎤 暗星聲控</b><div id="vs">正在準備聲控…</div><div id="tr">等待老師說話…</div>
 <button class="b primary" id="voiceStart">開始聽</button><button class="b" id="voiceStop">取消聲控</button></section>
+<section class="p"><b>🔊 暗星說話聲音</b><div id="speechStatus">暗星語音：開啟</div>
+<button class="b primary" id="speechOn">開啟聲音</button><button class="b" id="speechOff">關閉聲音</button></section>
 <section class="p"><b>💬 回答模式</b>
 <button class="b mode" data-m="voice">🔊 語音</button><button class="b mode" data-m="text">💬 字幕</button><button class="b mode active" data-m="both">🔊💬 語音＋字幕</button></section>
 <section class="p"><b>📊 PPT</b><input id="file" type="file" accept=".pptx">
@@ -64,15 +66,18 @@ body{margin:0;background:#fff;color:#172033;font:15px sans-serif}
 
 <script>
 const $=x=>document.getElementById(x);
-let viewer=null,count=0,index=0,voice=true,rec=null,mode='both',classMode=false;
+let viewer=null,count=0,index=0,voice=true,rec=null,mode='both',classMode=false,speechEnabled=true;
 let researchOpen=false,researchBig=false,researchKind='',researchUrl='',listening=false;
 
 function setMode(m){mode=m;document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('active',x.dataset.m===mode))}
+function setSpeechEnabled(v){speechEnabled=v;$('speechStatus').textContent='暗星語音：'+(v?'開啟':'關閉');$('speechOn').classList.toggle('primary',v);$('speechOff').classList.toggle('primary',!v);if(!v)try{speechSynthesis.cancel()}catch{}}
 function say(t){
  if(mode!=='voice'){$('ans').textContent=t;$('ans').style.display='block'}else $('ans').style.display='none';
- if(mode!=='text')try{speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(t))}catch{}
+ if(mode!=='text'&&speechEnabled)try{speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(t))}catch{}
 }
 document.querySelectorAll('.mode').forEach(b=>b.onclick=()=>setMode(b.dataset.m));
+$('speechOn').onclick=()=>setSpeechEnabled(true);
+$('speechOff').onclick=()=>setSpeechEnabled(false);
 
 function update(){
  $('info').textContent=count?'第 '+(index+1)+' / '+count+' 頁':'尚未載入';
@@ -162,6 +167,8 @@ function command(t){
  const raw=t,x=clean(t);$('tr').textContent=raw;
  if(!voice){if(/恢復聲控|開啟聲控|啟動聲控|恢復聽取/.test(x)){voice=true;$('vs').textContent='聲控已恢復';startRec();say('聲控已恢復。')}return}
  if(/取消聲控|停止聲控|關閉聲控/.test(x)){voice=false;$('vs').textContent='聲控已取消（靜默待機，只等待恢復聲控）';speechSynthesis.cancel();return}
+ if(/關閉暗星語音|關閉暗星聲音|關閉說話聲音|停止暗星說話|不要說話|靜音暗星/.test(x)){setSpeechEnabled(false);return}
+ if(/開啟暗星語音|開啟暗星聲音|恢復暗星說話|恢復說話聲音|取消靜音暗星/.test(x)){setSpeechEnabled(true);return}
  if(/下一頁|下一張/.test(x))return $('next').click();
  if(/上一頁|上一張/.test(x))return $('prev').click();
  const m=x.match(/第(\d+)頁/);if(m)return go(+m[1]-1);
@@ -190,6 +197,7 @@ function setup(){
  $('voiceStop').onclick=()=>{voice=false;$('vs').textContent='聲控已取消（靜默待機，只等待恢復聲控）';speechSynthesis.cancel();try{rec.stop()}catch{}};
  startRec();
 }
+setSpeechEnabled(true);
 setup();
 </script>
 </body>
