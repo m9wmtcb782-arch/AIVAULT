@@ -13,96 +13,28 @@
 <main>
 <h1>🎙️ Technical Dark Star｜真實聲音克隆測試 v3</h1>
 <div class="sub">獨立測試頁。正式 technical-dark-star.html 不會被修改。</div>
-
-<div class="box">
-<strong>① 錄製聲音</strong>
-<p class="small">先錄音，再建立真正的 Voice Clone。建議自然錄製 30–40 秒。</p>
-<div class="timer" id="timer">00:00</div>
-<div class="record-meta"><span id="recordLabel">尚未錄音</span><span id="recordSize">0 KB</span></div>
-<div class="meter"><canvas id="waveform" width="1200" height="200"></canvas></div>
-<button id="rec" type="button">🎙️ 開始錄音</button>
-<button id="stop" type="button" class="secondary" disabled>⏹️ 停止錄音</button>
-<div id="recordState" class="status">尚未錄音</div>
-<audio id="preview" controls hidden></audio>
-</div>
-
-<div class="box">
-<strong>② 真實 Clone</strong>
-<div class="row">
-<input id="voiceName" value="Technical Dark Star Clone Test" placeholder="Voice Profile 名稱">
-<input id="voiceDesc" value="Technical Dark Star 真實聲音克隆測試" placeholder="描述">
-<button id="clone" type="button" disabled>🧬 建立真實 Voice Clone</button>
-</div>
-<div id="cloneState" class="status">等待錄音完成</div>
-</div>
-
-<div class="box">
-<strong>③ 用 Clone Voice 真實合成語音</strong>
-<textarea id="text">大家好，我是暗星。現在進行聲音克隆測試，請確認我的聲音、語速和自然停頓。</textarea>
-<button id="speak" type="button" disabled>🔊 用 Clone Voice 說出來</button>
-<div id="speakState" class="status">等待 Voice ID</div>
-<audio id="audio" controls hidden></audio>
-</div>
-
-<div class="box">
-<strong>測試狀態</strong>
-<div id="log" class="status">v3 已載入。錄音會顯示即時音波與秒數。</div>
-</div>
+<div class="box"><strong>① 錄製聲音</strong><p class="small">先錄音，再建立真正的 Voice Clone。建議自然錄製 30–40 秒。</p><div class="timer" id="timer">00:00</div><div class="record-meta"><span id="recordLabel">尚未錄音</span><span id="recordSize">0 KB</span></div><div class="meter"><canvas id="waveform" width="1200" height="200"></canvas></div><button id="rec" type="button">🎙️ 開始錄音</button><button id="stop" type="button" class="secondary" disabled>⏹️ 停止錄音</button><div id="recordState" class="status">尚未錄音</div><audio id="preview" controls hidden></audio></div>
+<div class="box"><strong>② 真實 Clone</strong><div class="row"><input id="voiceName" value="Technical Dark Star Clone Test" placeholder="Voice Profile 名稱"><input id="voiceDesc" value="Technical Dark Star 真實聲音克隆測試" placeholder="描述"><button id="clone" type="button" disabled>🧬 建立真實 Voice Clone</button></div><div id="cloneState" class="status">等待錄音完成</div></div>
+<div class="box"><strong>③ 用 Clone Voice 真實合成語音</strong><textarea id="text">大家好，我是暗星。現在進行聲音克隆測試，請確認我的聲音、語速和自然停頓。</textarea><button id="speak" type="button" disabled>🔊 用 Clone Voice 說出來</button><div id="speakState" class="status">等待 Voice ID</div><audio id="audio" controls hidden></audio></div>
+<div class="box"><strong>測試狀態</strong><div id="log" class="status">v3.1 已載入。錄音會顯示即時音波與秒數；Clone 測試不再依賴 Anonymous Sign-in。</div></div>
 </main>
 <script>
-(function(){
-'use strict';
+(function(){'use strict';
 const SUPABASE_URL='https://clcddygkaaqqtsbswgdf.supabase.co';
 const FUNCTION_URL=SUPABASE_URL+'/functions/v1/technical-dark-star-voice-clone-test';
-const SUPABASE_PUBLISHABLE_KEY='sb_publishable_1D05YGthBrNGg-5L92TLCw_GiLnInBu';
 const $=id=>document.getElementById(id);
 let stream=null,recorder=null,chunks=[],audioBlob=null,voiceId='';
 let audioContext=null,analyser=null,sourceNode=null,waveFrame=0,startAt=0,timerFrame=0;
 function log(msg,cls){$('log').textContent=msg;$('log').className='status '+(cls||'');}
 function pickMime(){const list=['audio/webm;codecs=opus','audio/mp4','audio/webm','audio/ogg;codecs=opus'];return list.find(x=>window.MediaRecorder&&MediaRecorder.isTypeSupported(x))||'';}
 function formatTime(ms){const s=Math.floor(ms/1000);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
-function drawWave(){
- const c=$('waveform'),ctx=c.getContext('2d'),w=c.width,h=c.height;ctx.clearRect(0,0,w,h);ctx.beginPath();ctx.lineWidth=3;ctx.strokeStyle='#111';
- if(analyser){const data=new Uint8Array(analyser.fftSize);analyser.getByteTimeDomainData(data);for(let x=0;x<w;x++){const i=Math.floor(x/w*data.length);const y=(data[i]/255)*h;if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)}ctx.stroke();}
- else{ctx.moveTo(0,h/2);ctx.lineTo(w,h/2);ctx.stroke();}
- if(recorder&&recorder.state==='recording'){waveFrame=requestAnimationFrame(drawWave);}
-}
-function stopVisual(){if(waveFrame)cancelAnimationFrame(waveFrame);waveFrame=0;if(timerFrame)cancelAnimationFrame(timerFrame);timerFrame=0;try{sourceNode?.disconnect()}catch{}try{audioContext?.close()}catch{}sourceNode=null;analyser=null;audioContext=null;drawWave();}
-function updateTimer(){if(recorder&&recorder.state==='recording'){$('timer').textContent=formatTime(performance.now()-startAt);timerFrame=requestAnimationFrame(updateTimer);}}
-async function startRecording(){
- try{
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('此瀏覽器不支援麥克風錄音，請使用 HTTPS 的 Safari。');
-  chunks=[];audioBlob=null;$('timer').textContent='00:00';$('recordSize').textContent='0 KB';
-  stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
-  const mime=pickMime();recorder=mime?new MediaRecorder(stream,{mimeType:mime}):new MediaRecorder(stream);
-  try{audioContext=new (window.AudioContext||window.webkitAudioContext)();await audioContext.resume();sourceNode=audioContext.createMediaStreamSource(stream);analyser=audioContext.createAnalyser();analyser.fftSize=2048;sourceNode.connect(analyser);}catch{}
-  recorder.ondataavailable=e=>{if(e.data&&e.data.size){chunks.push(e.data);$('recordSize').textContent=Math.round(chunks.reduce((n,x)=>n+x.size,0)/1024)+' KB';}};
-  recorder.onerror=e=>log('錄音錯誤：'+(e.error?.message||'MediaRecorder error'),'err');
-  recorder.onstop=()=>{
-   const type=recorder.mimeType||mime||'audio/webm';audioBlob=new Blob(chunks,{type});
-   const objectUrl=window.URL.createObjectURL(audioBlob);$('preview').src=objectUrl;$('preview').hidden=false;
-   $('clone').disabled=false;$('recordState').textContent='錄音完成：'+formatTime(performance.now()-startAt)+'｜'+Math.round(audioBlob.size/1024)+' KB';$('recordLabel').textContent='錄音完成';$('recordLabel').className='';
-   stopVisual();log('錄音完成。現在可以按「建立真實 Voice Clone」。','ok');
-   if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
-  };
-  recorder.start(250);startAt=performance.now();$('rec').disabled=true;$('stop').disabled=false;$('recordLabel').textContent='● 正在錄音';$('recordLabel').className='recording';$('recordState').textContent='正在錄音……音波與秒數會即時更新。';drawWave();updateTimer();log('麥克風已啟動，正在實際錄音。','ok');
- }catch(e){stopVisual();if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}log('無法開始錄音：'+(e.message||e),'err');$('recordState').textContent='錄音失敗';}
-}
-function stopRecording(){if(recorder&&recorder.state!=='inactive'){recorder.stop();$('rec').disabled=false;$('stop').disabled=true;$('recordLabel').textContent='正在處理錄音……';}}
-async function getClient(){if(!window.supabase||!window.supabase.createClient)throw new Error('Supabase JS 載入失敗');return window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);}
-async function cloneVoice(){
- if(!audioBlob)return;$('clone').disabled=true;$('cloneState').textContent='正在建立真實 Voice Clone……';
- try{const sb=await getClient();let session=(await sb.auth.getSession()).data.session;if(!session){const r=await sb.auth.signInAnonymously();if(r.error)throw r.error;session=r.data.session;}if(!session?.access_token)throw new Error('無法取得 Supabase Auth session');
-  const fd=new FormData();fd.append('action','clone');fd.append('name',$('voiceName').value.trim()||'Technical Dark Star Clone');fd.append('description',$('voiceDesc').value.trim());fd.append('files',audioBlob,'dark-star-voice.'+(audioBlob.type.includes('mp4')?'mp4':'webm'));
-  const res=await fetch(FUNCTION_URL,{method:'POST',headers:{Authorization:'Bearer '+session.access_token},body:fd});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.error||data.message||('HTTP '+res.status));voiceId=data.voice_id||data.voice?.voice_id||data.id;if(!voiceId)throw new Error('後端沒有回傳真正的 voice_id');
-  $('cloneState').textContent='Clone 成功\nVoice ID：'+voiceId;$('speak').disabled=false;log('真實 Clone 已取得 Voice ID。下一步測試 TTS。','ok');
- }catch(e){$('cloneState').textContent='Clone 失敗：'+(e.message||e);log('Clone 未完成；沒有假裝成功。','err');$('clone').disabled=false;}
-}
-async function speak(){
- if(!voiceId)return;$('speak').disabled=true;$('speakState').textContent='正在呼叫真實 Clone Voice TTS……';
- try{const sb=await getClient();const session=(await sb.auth.getSession()).data.session;if(!session?.access_token)throw new Error('沒有 Supabase Auth session');const res=await fetch(FUNCTION_URL,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},body:JSON.stringify({action:'speak',voice_id:voiceId,text:$('text').value,model:'eleven_multilingual_v2'})});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.error||data.message||('HTTP '+res.status));if(!data.audio_base64)throw new Error('後端沒有回傳實際音訊');const bin=atob(data.audio_base64),bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);const blob=new Blob([bytes],{type:data.mime_type||'audio/mpeg'});$('audio').src=window.URL.createObjectURL(blob);$('audio').hidden=false;$('speakState').textContent='TTS 成功：已收到實際音訊，可以播放。';log('真實 Clone Voice TTS 測試成功。','ok');
- }catch(e){$('speakState').textContent='TTS 失敗：'+(e.message||e);log('TTS 未完成。','err');}finally{$('speak').disabled=false;}
-}
+function drawWave(){const c=$('waveform'),ctx=c.getContext('2d'),w=c.width,h=c.height;ctx.clearRect(0,0,w,h);ctx.beginPath();ctx.lineWidth=3;ctx.strokeStyle='#111';if(analyser){const data=new Uint8Array(analyser.fftSize);analyser.getByteTimeDomainData(data);for(let x=0;x<w;x++){const i=Math.floor(x/w*data.length);const y=(data[i]/255)*h;if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)}ctx.stroke()}else{ctx.moveTo(0,h/2);ctx.lineTo(w,h/2);ctx.stroke()}if(recorder&&recorder.state==='recording')waveFrame=requestAnimationFrame(drawWave)}
+function stopVisual(){if(waveFrame)cancelAnimationFrame(waveFrame);waveFrame=0;if(timerFrame)cancelAnimationFrame(timerFrame);timerFrame=0;try{sourceNode?.disconnect()}catch{}try{audioContext?.close()}catch{}sourceNode=null;analyser=null;audioContext=null;drawWave()}
+function updateTimer(){if(recorder&&recorder.state==='recording'){$('timer').textContent=formatTime(performance.now()-startAt);timerFrame=requestAnimationFrame(updateTimer)}}
+async function startRecording(){try{if(!navigator.mediaDevices?.getUserMedia)throw new Error('此瀏覽器不支援麥克風錄音，請使用 HTTPS 的 Safari。');chunks=[];audioBlob=null;$('timer').textContent='00:00';$('recordSize').textContent='0 KB';stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});const mime=pickMime();recorder=mime?new MediaRecorder(stream,{mimeType:mime}):new MediaRecorder(stream);try{audioContext=new (window.AudioContext||window.webkitAudioContext)();await audioContext.resume();sourceNode=audioContext.createMediaStreamSource(stream);analyser=audioContext.createAnalyser();analyser.fftSize=2048;sourceNode.connect(analyser)}catch{}recorder.ondataavailable=e=>{if(e.data?.size){chunks.push(e.data);$('recordSize').textContent=Math.round(chunks.reduce((n,x)=>n+x.size,0)/1024)+' KB'}};recorder.onerror=e=>log('錄音錯誤：'+(e.error?.message||'MediaRecorder error'),'err');recorder.onstop=()=>{const type=recorder.mimeType||mime||'audio/webm';audioBlob=new Blob(chunks,{type});const u=URL.createObjectURL(audioBlob);$('preview').src=u;$('preview').hidden=false;$('clone').disabled=false;$('recordState').textContent='錄音完成：'+formatTime(performance.now()-startAt)+'｜'+Math.round(audioBlob.size/1024)+' KB';$('recordLabel').textContent='錄音完成';stopVisual();log('錄音完成。現在可以按「建立真實 Voice Clone」。','ok');if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}};recorder.start(250);startAt=performance.now();$('rec').disabled=true;$('stop').disabled=false;$('recordLabel').textContent='● 正在錄音';$('recordLabel').className='recording';$('recordState').textContent='正在錄音……音波與秒數會即時更新。';drawWave();updateTimer();log('麥克風已啟動，正在實際錄音。','ok')}catch(e){stopVisual();if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}log('無法開始錄音：'+(e.message||e),'err');$('recordState').textContent='錄音失敗'}}
+function stopRecording(){if(recorder&&recorder.state!=='inactive'){recorder.stop();$('rec').disabled=false;$('stop').disabled=true;$('recordLabel').textContent='正在處理錄音……'}}
+async function cloneVoice(){if(!audioBlob)return;$('clone').disabled=true;$('cloneState').textContent='正在建立真實 Voice Clone……';try{const fd=new FormData();fd.append('action','clone');fd.append('name',$('voiceName').value.trim()||'Technical Dark Star Clone');fd.append('description',$('voiceDesc').value.trim());fd.append('files',audioBlob,'dark-star-voice.'+(audioBlob.type.includes('mp4')?'mp4':'webm'));const res=await fetch(FUNCTION_URL,{method:'POST',body:fd});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.error||data.message||('HTTP '+res.status));voiceId=data.voice_id||data.voice?.voice_id||data.id;if(!voiceId)throw new Error('後端沒有回傳真正的 voice_id');$('cloneState').textContent='Clone 成功\nVoice ID：'+voiceId;$('speak').disabled=false;log('真實 Clone 已取得 Voice ID。下一步測試 TTS。','ok')}catch(e){$('cloneState').textContent='Clone 失敗：'+(e.message||e);log('Clone 未完成；沒有假裝成功。','err');$('clone').disabled=false}}
+async function speak(){if(!voiceId)return;$('speak').disabled=true;$('speakState').textContent='正在呼叫真實 Clone Voice TTS……';try{const res=await fetch(FUNCTION_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'speak',voice_id:voiceId,text:$('text').value,model:'eleven_multilingual_v2'})});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.error||data.message||('HTTP '+res.status));if(!data.audio_base64)throw new Error('後端沒有回傳實際音訊');const bin=atob(data.audio_base64),bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);const blob=new Blob([bytes],{type:data.mime||'audio/mpeg'});$('audio').src=URL.createObjectURL(blob);$('audio').hidden=false;$('speakState').textContent='TTS 成功：已收到實際音訊，可以播放。';log('真實 Clone Voice TTS 測試成功。','ok')}catch(e){$('speakState').textContent='TTS 失敗：'+(e.message||e);log('TTS 未完成。','err')}finally{$('speak').disabled=false}}
 $('rec').addEventListener('click',startRecording);$('stop').addEventListener('click',stopRecording);$('clone').addEventListener('click',cloneVoice);$('speak').addEventListener('click',speak);drawWave();
 })();
 </script>
