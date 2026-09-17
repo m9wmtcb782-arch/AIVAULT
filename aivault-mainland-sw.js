@@ -1,0 +1,5 @@
+const CACHE='aivault-mainland-v1';
+const CORE=['./aivault-mainland.html','./technical-dark-star.html','./aivault-home.html','./teaching-assistant.html','./aivault-agent-collaboration.html'];
+self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE).catch(()=>{})).then(()=>self.skipWaiting())));
+self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
+self.addEventListener('fetch',e=>{const r=e.request;if(r.method!=='GET')return;e.respondWith(caches.match(r).then(cached=>cached||fetch(r).then(res=>{if(res.ok&&new URL(r.url).origin===location.origin){const copy=res.clone();caches.open(CACHE).then(c=>c.put(r,copy)).catch(()=>{})}return res}).catch(()=>cached||new Response('AIVAULT 暫時離線，請重新連線。',{status:503,headers:{'Content-Type':'text/plain;charset=utf-8'}}))))});
