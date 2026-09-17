@@ -1,11 +1,11 @@
 (()=>{
 'use strict';
-if(window.__AIVAULT_DARK_STAR_REALTIME_VOICE_V10__)return;
-window.__AIVAULT_DARK_STAR_REALTIME_VOICE_V10__=true;
+if(window.__AIVAULT_DARK_STAR_REALTIME_VOICE_V11__)return;
+window.__AIVAULT_DARK_STAR_REALTIME_VOICE_V11__=true;
 const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-voice';
 const SESSION='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-voice-session';
 const LIVE_VIDEO='https://m9wmtcb782-arch.github.io/AIVAULT/technical-dark-star-live-video-test.html?utm_source=chatgpt.com';
-const VOICES=[['Kore','Kore｜沉穩、專業、溫柔'],['Puck','Puck｜活潑、俏皮、親切'],['Charon','Charon｜低沉、穩重、權威'],['Leda','Leda｜溫柔、細膩、知性'],['Gacrux','Gacrux｜成熟、厚實、可靠'],['Aoede','Aoede｜明亮、優雅、自然'],['Orus','Orus｜冷靜、理性、沉著'],['Zephyr','Zephyr｜輕快、清新、柔和'],['Fenrir','Fenrir｜低沉、強烈、果斷'],['Achird','Achird｜親切、溫暖、自然']];
+const VOICES=[['Kore','Kore｜沉穩、專業、溫柔'],['Puck','Puck｜活漿、俏皮、親切'],['Charon','Charon｜低沉、穩重、權威'],['Leda','Leda｜溫柔、細膻、知性'],['Gacrux','Gacrux｜成熟、厚實、可靠'],['Aoede','Aoede｜明亮、優雅、自然'],['Orus','Orus｜冷靜、理性、沉著'],['Zephyr','Zephyr｜輕快、清新、柔和'],['Fenrir','Fenrir｜低沉、強烈、果斷'],['Achird','Achird｜親切、溫暖、自然']];
 const state={active:false,starting:false,ws:null,stream:null,ctx:null,source:null,processor:null,sink:null,nextAudioTime:0,sessionId:null,voice:'Kore'};
 function css(){if(document.getElementById('dsVoiceStyle'))return;const s=document.createElement('style');s.id='dsVoiceStyle';s.textContent=`
 .dark-star-live-controls{display:flex;align-items:center;gap:4px;min-width:0;position:relative;flex:0 0 auto;overflow:visible;margin:0 4px 0 5px}.dark-star-sound-button,.dark-star-live-button{height:30px;border:1px solid #dedede;border-radius:8px;background:#fff;color:#222;font-size:11px;font-weight:500;padding:0 7px;display:flex;align-items:center;justify-content:center;white-space:nowrap}.dark-star-sound-button:hover,.dark-star-live-button:hover{background:#f5f5f5}.dark-star-live-button.active{background:#171717;color:#fff;border-color:#171717}.dark-star-voice-select{position:absolute;top:34px;right:0;width:210px;max-width:calc(100vw - 24px);height:32px;border:1px solid #dedede;border-radius:8px;background:#fff;color:#222;font-size:11px;padding:0 7px;display:none;z-index:1001;box-shadow:0 4px 16px rgba(0,0,0,.10)}.dark-star-live-controls.expanded .dark-star-voice-select{display:block}.dark-star-live-status{position:fixed;top:66px;right:14px;z-index:1000;background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:7px 10px;font-size:12px;color:#555;box-shadow:0 4px 18px rgba(0,0,0,.10);display:none}.dark-star-live-status.show{display:block}.composer-mic{display:none!important}.brand-home{font-size:0!important;width:30px;height:30px;padding:0!important;display:flex;align-items:center;justify-content:center;order:3;flex:0 0 auto}.brand-home::before{content:'‹';font-size:27px;line-height:1;font-weight:300;color:#333}.brand{flex:1;min-width:0;gap:5px}.brand-title{min-width:0;overflow:hidden;text-overflow:ellipsis}.brand-engine{min-width:0;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -39,10 +39,11 @@ function ui(){
   if(!top)return;
   const controls=document.createElement('div');controls.id='darkStarLiveControls';controls.className='dark-star-live-controls';
   const sound=document.createElement('button');sound.id='darkStarSoundButton';sound.type='button';sound.className='dark-star-sound-button';sound.textContent='聲音';sound.title='展開聲音設定';
+  const video=document.createElement('a');video.id='darkStarLiveVideoButton';video.className='dark-star-live-button';video.textContent='即時視訊';video.href=LIVE_VIDEO;video.target='_blank';video.rel='noopener noreferrer';video.title='開啟即時視訊';
   const live=document.createElement('button');live.id='darkStarLiveButton';live.type='button';live.className='dark-star-live-button';live.textContent='即時語音';
   const select=document.createElement('select');select.id='darkStarVoiceSelect';select.className='dark-star-voice-select';select.title='選擇聲音';VOICES.forEach(([value,label],i)=>{const o=document.createElement('option');o.value=value;o.textContent=`${i+1}. ${label}`;select.appendChild(o)});select.value=state.voice;controls.append(sound,select);
   const home=document.querySelector('.brand-home');
-  if(home){home.textContent='';home.title='回上一頁';home.setAttribute('aria-label','回上一頁');home.href='javascript:history.back()';home.before(live);live.after(controls)}else top.append(controls,live);
+  if(home){home.textContent='';home.title='回上一頁';home.setAttribute('aria-label','回上一頁');home.href='javascript:history.back()';home.before(video);video.after(live);live.after(controls)}else top.append(video,controls,live);
   const status=document.createElement('div');status.id='darkStarLiveStatus';status.className='dark-star-live-status';document.body.appendChild(status);
   sound.onclick=()=>{state.expanded=!state.expanded;controls.classList.toggle('expanded',state.expanded)};select.onchange=()=>{state.voice=select.value;if(state.active||state.starting)stopVoice().then(startVoice)};live.onclick=()=>state.active||state.starting?stopVoice():startVoice();
 }
