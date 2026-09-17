@@ -10,11 +10,42 @@ const state={active:false,starting:false,ws:null,stream:null,ctx:null,source:nul
 function css(){if(document.getElementById('dsVoiceStyle'))return;const s=document.createElement('style');s.id='dsVoiceStyle';s.textContent=`
 .dark-star-live-controls{display:flex;align-items:center;gap:4px;min-width:0;position:relative;flex:0 0 auto;overflow:visible;margin:0 4px 0 5px}.dark-star-sound-button,.dark-star-live-button{height:30px;border:1px solid #dedede;border-radius:8px;background:#fff;color:#222;font-size:11px;font-weight:500;padding:0 7px;display:flex;align-items:center;justify-content:center;white-space:nowrap}.dark-star-sound-button:hover,.dark-star-live-button:hover{background:#f5f5f5}.dark-star-live-button.active{background:#171717;color:#fff;border-color:#171717}.dark-star-voice-select{position:absolute;top:34px;right:0;width:210px;max-width:calc(100vw - 24px);height:32px;border:1px solid #dedede;border-radius:8px;background:#fff;color:#222;font-size:11px;padding:0 7px;display:none;z-index:1001;box-shadow:0 4px 16px rgba(0,0,0,.10)}.dark-star-live-controls.expanded .dark-star-voice-select{display:block}.dark-star-live-status{position:fixed;top:66px;right:14px;z-index:1000;background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:7px 10px;font-size:12px;color:#555;box-shadow:0 4px 18px rgba(0,0,0,.10);display:none}.dark-star-live-status.show{display:block}.composer-mic{display:none!important}.brand-home{font-size:0!important;width:30px;height:30px;padding:0!important;display:flex;align-items:center;justify-content:center;order:3;flex:0 0 auto}.brand-home::before{content:'‹';font-size:27px;line-height:1;font-weight:300;color:#333}.brand{flex:1;min-width:0;gap:5px}.brand-title{min-width:0;overflow:hidden;text-overflow:ellipsis}.brand-engine{min-width:0;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #dsEmotionAvatar{display:none!important}
-.dark-star-favorites-title{padding:8px 10px 4px;color:#888;font-size:11px;font-weight:600}.dark-star-favorite-video{width:100%;border:0;background:transparent;border-radius:9px;padding:10px;display:flex;align-items:center;gap:10px;text-align:left;font-size:13px;color:#444;text-decoration:none}.dark-star-favorite-video:hover{background:#f3f3f3}.dark-star-favorite-video-icon{width:24px;height:24px;border-radius:7px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.dark-star-favorites-title{padding:10px 10px 5px;color:#888;font-size:11px;font-weight:600}.dark-star-favorite-video{width:100%;border:1px solid #e5e5e5;background:#fff;border-radius:10px;padding:11px 10px;margin:2px 0 5px;display:flex;align-items:center;gap:10px;text-align:left;font-size:13px;color:#222;text-decoration:none;box-shadow:0 1px 2px rgba(0,0,0,.03)}.dark-star-favorite-video:hover{background:#f7f7f7}.dark-star-favorite-video-icon{width:26px;height:26px;border-radius:7px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
 @media(max-width:520px){.topbar{padding:0 8px}.brand{margin-left:4px;gap:4px}.brand-mark{width:26px;height:26px;min-width:26px}.brand-title{font-size:13px;max-width:92px}.brand-engine{font-size:10px;max-width:70px}.dark-star-live-controls{gap:3px;margin:0 3px 0 4px}.dark-star-sound-button,.dark-star-live-button{height:29px;padding:0 6px;font-size:10px}.dark-star-voice-select{top:33px;width:190px;font-size:10px}.brand-home{width:28px;height:28px}}
 `;document.head.appendChild(s)}
-function favorites(){if(document.getElementById('darkStarFavoriteVideo'))return;const bottom=document.querySelector('.drawer-bottom');if(!bottom)return;const title=document.createElement('div');title.className='dark-star-favorites-title';title.textContent='⭐ 收藏頁';const link=document.createElement('a');link.id='darkStarFavoriteVideo';link.className='dark-star-favorite-video';link.href=LIVE_VIDEO;link.target='_blank';link.rel='noopener noreferrer';link.innerHTML='<span class="dark-star-favorite-video-icon">🎥</span><span>即時視訊</span>';bottom.insertBefore(title,bottom.firstChild);bottom.insertBefore(link,title.nextSibling)}
-function ui(){if(document.getElementById('darkStarLiveControls'))return;css();favorites();const top=document.querySelector('.topbar');if(!top)return;const controls=document.createElement('div');controls.id='darkStarLiveControls';controls.className='dark-star-live-controls';const sound=document.createElement('button');sound.id='darkStarSoundButton';sound.type='button';sound.className='dark-star-sound-button';sound.textContent='聲音';sound.title='展開聲音設定';const live=document.createElement('button');live.id='darkStarLiveButton';live.type='button';live.className='dark-star-live-button';live.textContent='即時語音';const select=document.createElement('select');select.id='darkStarVoiceSelect';select.className='dark-star-voice-select';select.title='選擇聲音';VOICES.forEach(([value,label],i)=>{const o=document.createElement('option');o.value=value;o.textContent=`${i+1}. ${label}`;select.appendChild(o)});select.value=state.voice;controls.append(sound,select);const home=document.querySelector('.brand-home');if(home){home.textContent='';home.title='回上一頁';home.setAttribute('aria-label','回上一頁');home.href='javascript:history.back()';home.before(live);live.after(controls)}else top.append(controls,live);const status=document.createElement('div');status.id='darkStarLiveStatus';status.className='dark-star-live-status';document.body.appendChild(status);sound.onclick=()=>{state.expanded=!state.expanded;controls.classList.toggle('expanded',state.expanded)};select.onchange=()=>{state.voice=select.value;if(state.active||state.starting)stopVoice().then(startVoice)};live.onclick=()=>state.active||state.starting?stopVoice():startVoice()}
+function favorites(){
+  const bottom=document.querySelector('.drawer-bottom');
+  if(!bottom)return false;
+  if(document.getElementById('darkStarFavoriteVideo'))return true;
+  const title=document.createElement('div');
+  title.className='dark-star-favorites-title';
+  title.textContent='⭐ 收藏頁';
+  const link=document.createElement('a');
+  link.id='darkStarFavoriteVideo';
+  link.className='dark-star-favorite-video';
+  link.href=LIVE_VIDEO;
+  link.target='_blank';
+  link.rel='noopener noreferrer';
+  link.innerHTML='<span class="dark-star-favorite-video-icon">🎥</span><span>即時視訊</span>';
+  bottom.insertBefore(title,bottom.firstChild);
+  bottom.insertBefore(link,title.nextSibling);
+  return true;
+}
+function ui(){
+  css();
+  favorites();
+  if(document.getElementById('darkStarLiveControls'))return;
+  const top=document.querySelector('.topbar');
+  if(!top)return;
+  const controls=document.createElement('div');controls.id='darkStarLiveControls';controls.className='dark-star-live-controls';
+  const sound=document.createElement('button');sound.id='darkStarSoundButton';sound.type='button';sound.className='dark-star-sound-button';sound.textContent='聲音';sound.title='展開聲音設定';
+  const live=document.createElement('button');live.id='darkStarLiveButton';live.type='button';live.className='dark-star-live-button';live.textContent='即時語音';
+  const select=document.createElement('select');select.id='darkStarVoiceSelect';select.className='dark-star-voice-select';select.title='選擇聲音';VOICES.forEach(([value,label],i)=>{const o=document.createElement('option');o.value=value;o.textContent=`${i+1}. ${label}`;select.appendChild(o)});select.value=state.voice;controls.append(sound,select);
+  const home=document.querySelector('.brand-home');
+  if(home){home.textContent='';home.title='回上一頁';home.setAttribute('aria-label','回上一頁');home.href='javascript:history.back()';home.before(live);live.after(controls)}else top.append(controls,live);
+  const status=document.createElement('div');status.id='darkStarLiveStatus';status.className='dark-star-live-status';document.body.appendChild(status);
+  sound.onclick=()=>{state.expanded=!state.expanded;controls.classList.toggle('expanded',state.expanded)};select.onchange=()=>{state.voice=select.value;if(state.active||state.starting)stopVoice().then(startVoice)};live.onclick=()=>state.active||state.starting?stopVoice():startVoice();
+}
 function status(t,show=true){const s=document.getElementById('darkStarLiveStatus');if(s){s.textContent=t;s.classList.toggle('show',show)}}
 function button(on){const b=document.getElementById('darkStarLiveButton');if(b){b.classList.toggle('active',on);b.textContent=on?'結束即時語音':'即時語音'}}
 function b64(bytes){let o='';for(let i=0;i<bytes.length;i+=32768)o+=String.fromCharCode(...bytes.subarray(i,i+32768));return btoa(o)}
@@ -25,6 +56,13 @@ async function sessionStart(){try{const r=await fetch(SESSION,{method:'POST',hea
 async function sessionEnd(){if(!state.sessionId)return;try{await fetch(SESSION,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'end',session_id:state.sessionId})})}catch{}state.sessionId=null}
 async function stopVoice(){state.active=false;state.starting=false;button(false);status('即時語音已結束',false);try{state.ws?.close()}catch{}try{state.processor?.disconnect()}catch{}try{state.source?.disconnect()}catch{}try{state.sink?.disconnect()}catch{}try{state.stream?.getTracks().forEach(t=>t.stop())}catch{}try{await state.ctx?.close()}catch{}state.ws=null;state.processor=null;state.source=null;state.sink=null;state.stream=null;state.ctx=null;state.nextAudioTime=0;await sessionEnd()}
 async function startVoice(){if(state.active||state.starting)return;state.starting=true;button(true);status('正在啟動即時語音……');try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)throw Error('此瀏覽器不支援音訊');if(!navigator.mediaDevices?.getUserMedia)throw Error('此瀏覽器不允許麥克風');state.ctx=new AC();await state.ctx.resume();await sessionStart();state.stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});state.ws=new WebSocket(RELAY+'?voice='+encodeURIComponent(state.voice));state.ws.onopen=()=>{state.active=true;state.starting=false;button(true);status('正在聆聽');const src=state.ctx.createMediaStreamSource(state.stream),pr=state.ctx.createScriptProcessor(2048,1,1),sink=state.ctx.createGain();sink.gain.value=0;state.source=src;state.processor=pr;state.sink=sink;src.connect(pr);pr.connect(sink);sink.connect(state.ctx.destination);pr.onaudioprocess=e=>{if(!state.active||state.ws?.readyState!==WebSocket.OPEN)return;const bytes=pcm16(e.inputBuffer.getChannelData(0),e.inputBuffer.sampleRate,16000);state.ws.send(JSON.stringify({type:'audio',data:b64(bytes),mimeType:'audio/pcm;rate=16000'}))}};state.ws.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch{return}if(m.error?.message){status('語音錯誤：'+m.error.message);return}const c=m.serverContent||{};if(c.modelTurn?.parts)for(const part of c.modelTurn.parts)if(part?.inlineData?.data)play(part.inlineData.data,part.inlineData.mimeType);if(c.turnComplete)status('正在聆聽')};state.ws.onerror=()=>status('即時語音連線錯誤');state.ws.onclose=()=>{if(state.active)stopVoice()}}catch(e){console.error('[DarkStar voice]',e);await stopVoice();status(e?.message||'即時語音啟動失敗')}}
-function init(){ui()}
+function init(){
+  ui();
+  let tries=0;
+  const timer=setInterval(()=>{
+    tries++;
+    if(favorites()||tries>=20)clearInterval(timer);
+  },250);
+}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
