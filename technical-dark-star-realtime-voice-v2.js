@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
-if(window.__AIVAULT_DARK_STAR_REALTIME_VOICE_V11__)return;
-window.__AIVAULT_DARK_STAR_REALTIME_VOICE_V11__=true;
+if(window.__AIVAULT_DARK_STAR_REALTIME_VOICE_V10__)return;
+window.__AIVAULT_DARK_STAR_REALTIME_VOICE_V10__=true;
 const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-voice';
 const SESSION='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-voice-session';
 const LIVE_VIDEO='https://m9wmtcb782-arch.github.io/AIVAULT/technical-dark-star-live-video-test.html?utm_source=chatgpt.com';
@@ -61,11 +61,8 @@ function init(){
   let tries=0;
   const timer=setInterval(()=>{
     tries++;
-    if(favorites()||tries>=40)clearInterval(timer);
+    if(favorites()||tries>=20)clearInterval(timer);
   },250);
-  const observer=new MutationObserver(()=>favorites());
-  observer.observe(document.body,{childList:true,subtree:true});
-  setTimeout(()=>observer.disconnect(),15000);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
