@@ -1,10 +1,10 @@
 (()=>{
 'use strict';
-if(window.__AIVAULT_DARK_STAR_REALTIME_VOICE_V11__)return;
-window.__AIVAULT_DARK_STAR_REALTIME_VOICE_V11__=true;
+if(window.__AIVAULT_DARK_STAR_REALTIME_VOICE_V12__)return;
+window.__AIVAULT_DARK_STAR_REALTIME_VOICE_V12__=true;
 const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-voice';
 const SESSION='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-voice-session';
-const LIVE_VIDEO='https://m9wmtcb782-arch.github.io/AIVAULT/technical-dark-star-live-video-test.html?utm_source=chatgpt.com';
+const LIVE_VIDEO='https://m9wmtcb782-arch.github.io/AIVAULT/technical-dark-star-live-video-test.html?mode=video&v=2';
 const VOICES=[['Kore','Kore｜沉穩、專業、溫柔'],['Puck','Puck｜活漿、俏皮、親切'],['Charon','Charon｜低沉、穩重、權威'],['Leda','Leda｜溫柔、細膻、知性'],['Gacrux','Gacrux｜成熟、厚實、可靠'],['Aoede','Aoede｜明亮、優雅、自然'],['Orus','Orus｜冷靜、理性、沉著'],['Zephyr','Zephyr｜輕快、清新、柔和'],['Fenrir','Fenrir｜低沉、強烈、果斷'],['Achird','Achird｜親切、溫暖、自然']];
 const state={active:false,starting:false,ws:null,stream:null,ctx:null,source:null,processor:null,sink:null,nextAudioTime:0,sessionId:null,voice:'Kore'};
 function css(){if(document.getElementById('dsVoiceStyle'))return;const s=document.createElement('style');s.id='dsVoiceStyle';s.textContent=`
@@ -16,17 +16,26 @@ function css(){if(document.getElementById('dsVoiceStyle'))return;const s=documen
 function favorites(){
   const bottom=document.querySelector('.drawer-bottom');
   if(!bottom)return false;
-  if(document.getElementById('darkStarFavoriteVideo'))return true;
+  let link=document.getElementById('darkStarFavoriteVideo');
+  if(link){
+    link.href=LIVE_VIDEO;
+    link.target='_blank';
+    link.rel='noopener noreferrer';
+    const label=link.querySelector('span:last-child');
+    if(label)label.textContent='即時暗星';
+    else link.textContent='🎥 即時暗星';
+    return true;
+  }
   const title=document.createElement('div');
   title.className='dark-star-favorites-title';
   title.textContent='⭐ 收藏頁';
-  const link=document.createElement('a');
+  link=document.createElement('a');
   link.id='darkStarFavoriteVideo';
   link.className='dark-star-favorite-video';
   link.href=LIVE_VIDEO;
   link.target='_blank';
   link.rel='noopener noreferrer';
-  link.innerHTML='<span class="dark-star-favorite-video-icon">🎥</span><span>即時視訊</span>';
+  link.innerHTML='<span class="dark-star-favorite-video-icon">🎥</span><span>即時暗星</span>';
   bottom.insertBefore(title,bottom.firstChild);
   bottom.insertBefore(link,title.nextSibling);
   return true;
