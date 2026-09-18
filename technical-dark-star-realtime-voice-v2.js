@@ -5,9 +5,30 @@ window.__AIVAULT_DARK_STAR_REALTIME_VOICE_V13__=true;
 const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-voice';
 const SESSION='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-voice-session';
 const LIVE_VIDEO='https://m9wmtcb782-arch.github.io/AIVAULT/technical-dark-star-live-video-test.html?mode=video&v=2';
+const HOME='aivault-home.html';
 const VOICES=[['Kore','Kore｜沉穩、專業、溫柔'],['Puck','Puck｜活漿、俏皮、親切'],['Charon','Charon｜低沉、穩重、權威'],['Leda','Leda｜溫柔、細膻、知性'],['Gacrux','Gacrux｜成熟、厚實、可靠'],['Aoede','Aoede｜明亮、優雅、自然'],['Orus','Orus｜冷靜、理性、沉著'],['Zephyr','Zephyr｜輕快、清新、柔和'],['Fenrir','Fenrir｜低沉、強烈、果斷'],['Achird','Achird｜親切、溫暖、自然']];
 const state={active:false,starting:false,ws:null,stream:null,ctx:null,source:null,processor:null,sink:null,nextAudioTime:0,sessionId:null,voice:'Kore'};
 const CTX_KEY='technical_dark_star_live_context';
+function bindHomeBack(){
+  const btn=document.getElementById('homeButton')||document.querySelector('.brand-home');
+  if(btn){
+    btn.setAttribute('href',HOME);
+    if(!btn.dataset.homeBound){
+      btn.dataset.homeBound='1';
+      btn.textContent='🔙 返回 Home';
+      btn.addEventListener('click',function(e){e.preventDefault();location.replace(HOME)});
+    }
+  }
+  if(!sessionStorage.getItem('aivault-ds-home-guard')){
+    sessionStorage.setItem('aivault-ds-home-guard','1');
+    history.replaceState({aivaultHome:1},'',location.href);
+    history.pushState({aivaultDarkStar:1},'',location.href);
+  }
+  if(!window.__AIVAULT_DS_HOME_POP__){
+    window.__AIVAULT_DS_HOME_POP__=true;
+    window.addEventListener('popstate',function(){location.replace(HOME)});
+  }
+}
 function collectDarkStarContext(){
   let hist=[];
   try{
@@ -77,7 +98,7 @@ function favorites(){
   return false;
 }
 function ui(){
-  css();favorites();
+  css();favorites();bindHomeBack();
   if(document.getElementById('darkStarLiveControls'))return;
   const top=document.querySelector('.topbar');if(!top)return;
   const controls=document.createElement('div');controls.id='darkStarLiveControls';controls.className='dark-star-live-controls';
@@ -101,7 +122,7 @@ function play(data,mime){if(!state.ctx)return;const u=decode64(data);if(u.length
 async function sessionStart(){try{const r=await fetch(SESSION,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'start',voice_profile:state.voice})});const j=await r.json();state.sessionId=j?.session?.id||j?.session_id||j?.id||null}catch{state.sessionId=null}}
 async function sessionEnd(){if(!state.sessionId)return;try{await fetch(SESSION,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'end',session_id:state.sessionId})})}catch{}state.sessionId=null}
 async function stopVoice(){state.active=false;state.starting=false;button(false);status('即時語音已結束',false);try{state.ws?.close()}catch{}try{state.processor?.disconnect()}catch{}try{state.source?.disconnect()}catch{}try{state.sink?.disconnect()}catch{}try{state.stream?.getTracks().forEach(t=>t.stop())}catch{}try{await state.ctx?.close()}catch{}state.ws=null;state.processor=null;state.source=null;state.sink=null;state.stream=null;state.ctx=null;state.nextAudioTime=0;await sessionEnd()}
-async function startVoice(){if(state.active||state.starting)return;state.starting=true;button(true);status('正在啟動即時語音……');try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)throw Error('此瀏覽器不支援音訊');if(!navigator.mediaDevices?.getUserMedia)throw Error('此瀏覽器不允許麥克風');state.ctx=new AC();await state.ctx.resume();await sessionStart();state.stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});state.ws=new WebSocket(RELAY+'?voice='+encodeURIComponent(state.voice));state.ws.onopen=()=>{state.active=true;state.starting=false;button(true);status('正在聆聽');sendDarkStarContext('session-start');const src=state.ctx.createMediaStreamSource(state.stream),pr=state.ctx.createScriptProcessor(2048,1,1),sink=state.ctx.createGain();sink.gain.value=0;state.source=src;state.processor=pr;state.sink=sink;src.connect(pr);pr.connect(sink);sink.connect(state.ctx.destination);pr.onaudioprocess=e=>{if(!state.active||state.ws?.readyState!==WebSocket.OPEN)return;const bytes=pcm16(e.inputBuffer.getChannelData(0),e.inputBuffer.sampleRate,16000);state.ws.send(JSON.stringify({type:'audio',data:b64(bytes),mimeType:'audio/pcm;rate=16000'}))}};state.ws.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch{return}if(m.error?.message){status('語音錯誤：'+m.error.message);return}const c=m.serverContent||{};if(c.modelTurn?.parts)for(const part of c.modelTurn.parts)if(part?.inlineData?.data)play(part.inlineData.data,part.inlineData.mimeType);if(c.turnComplete)status('正在聆聽')};state.ws.onerror=()=>status('即時語音連線錯誤');state.ws.onclose=()=>{if(state.active)stopVoice()}}catch(e){console.error('[DarkStar voice]',e);await stopVoice();status(e?.message||'即時語音啟動失敗')}}
-function init(){ui();bindDarkStarTextSync();let tries=0;const timer=setInterval(()=>{tries++;if(favorites()||tries>=20)clearInterval(timer)},250)}
+async function startVoice(){if(state.active||state.starting)return;state.starting=true;button(true);status('正在啟動即時語音……');try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)throw Error('此瀏覽器不支援音訊');if(!navigator.mediaDevices?.getUserMedia)throw Error('此瀏覽器不允許麥克風');state.ctx=new AC();await state.ctx.resume();await sessionStart();state.stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});state.ws=new WebSocket(RELAY+'?voice='+encodeURIComponent(state.voice));state.ws.onopen=()=>{state.active=true;state.starting=false;button(true);status('正在耳聽');sendDarkStarContext('session-start');const src=state.ctx.createMediaStreamSource(state.stream),pr=state.ctx.createScriptProcessor(2048,1,1),sink=state.ctx.createGain();sink.gain.value=0;state.source=src;state.processor=pr;state.sink=sink;src.connect(pr);pr.connect(sink);sink.connect(state.ctx.destination);pr.onaudioprocess=e=>{if(!state.active||state.ws?.readyState!==WebSocket.OPEN)return;const bytes=pcm16(e.inputBuffer.getChannelData(0),e.inputBuffer.sampleRate,16000);state.ws.send(JSON.stringify({type:'audio',data:b64(bytes),mimeType:'audio/pcm;rate=16000'}))}};state.ws.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch{return}if(m.error?.message){status('語音錯誤：'+m.error.message);return}const c=m.serverContent||{};if(c.modelTurn?.parts)for(const part of c.modelTurn.parts)if(part?.inlineData?.data)play(part.inlineData.data,part.inlineData.mimeType);if(c.turnComplete)status('正在耳聽')};state.ws.onerror=()=>status('即時語音連線錯誤');state.ws.onclose=()=>{if(state.active)stopVoice()}}catch(e){console.error('[DarkStar voice]',e);await stopVoice();status(e?.message||'即時語音啟動失敗')}}
+function init(){ui();bindDarkStarTextSync();bindHomeBack();let tries=0;const timer=setInterval(()=>{tries++;bindHomeBack();if(favorites()||tries>=20)clearInterval(timer)},250)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
