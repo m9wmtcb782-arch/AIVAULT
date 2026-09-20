@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>暗星學習監督台｜AIVAULT</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--text:#18212b;--muted:#687584;--line:#dfe5eb;--accent:#465cff;--ok:#0d8a57;--warn:#b76b00;--bad:#c73737}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif}main{max-width:1100px;margin:auto;padding:18px}.top{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}.brand{font-weight:800;font-size:22px}.sub{color:var(--muted);font-size:13px}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;margin-top:16px}.card{grid-column:span 12;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 5px 18px #17203308}.half{grid-column:span 6}.third{grid-column:span 4}h2{font-size:16px;margin:0 0 12px}label{display:block;font-size:13px;color:var(--muted);margin:10px 0 5px}input,textarea,select,button{font:inherit}input,textarea,select{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px;background:#fff;color:var(--text)}textarea{min-height:130px;resize:vertical}button{border:0;border-radius:10px;padding:11px 15px;background:var(--accent);color:#fff;font-weight:700;cursor:pointer}button.secondary{background:#e9edf4;color:var(--text)}button:disabled{opacity:.5;cursor:not-allowed}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.status{display:inline-flex;align-items:center;gap:7px;font-weight:700}.dot{width:10px;height:10px;border-radius:50%;background:var(--warn)}.dot.ok{background:var(--ok)}.dot.bad{background:var(--bad)}.metric{font-size:28px;font-weight:800}.muted{color:var(--muted)}.log{background:#101722;color:#e8edf5;border-radius:10px;padding:12px;white-space:pre-wrap;overflow:auto;max-height:320px;font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace}.item{border:1px solid var(--line);border-radius:10px;padding:11px;margin:8px 0}.item strong{display:block;margin-bottom:4px}.tag{display:inline-block;border-radius:99px;background:#edf0ff;color:#3545c7;padding:3px 8px;font-size:12px;margin:2px}.notice{border-left:4px solid var(--accent);background:#f0f2ff;padding:10px;border-radius:8px;font-size:13px}.footer{color:var(--muted);font-size:12px;margin:18px 0}@media(max-width:760px){.half,.third{grid-column:span 12}main{padding:12px}.brand{font-size:19px}}
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <div><div class="brand">🌑 暗星學習監督台</div><div class="sub">AIVAULT · Technical Dark Star · 實際後端狀態</div></div>
+    <div class="actions"><button class="secondary" id="refreshBtn">重新讀取</button><button class="secondary" id="homeBtn">回工作中心</button></div>
+  </div>
+  <div class="grid">
+    <section class="card third"><h2>暗星服務狀態</h2><div id="healthStatus" class="status"><span class="dot"></span>尚未檢查</div><div id="healthText" class="sub" style="margin-top:8px">等待連線</div></section>
+    <section class="card third"><h2>身份</h2><div class="metric" id="identityName">—</div><div class="sub">identity_locked：<span id="locked">—</span></div></section>
+    <section class="card third"><h2>學習管線</h2><div class="metric" id="pipelineCount">—</div><div class="sub">由暗星後端實際回傳</div></section>
+    <section class="card half"><h2>① 目前後端回應</h2><div id="rawHealth" class="log">尚未取得資料</div></section>
+    <section class="card half"><h2>② 暗星學習管線</h2><div id="pipeline" class="muted">尚未取得管線</div></section>
+    <section class="card half"><h2>③ 我要教暗星</h2><div class="notice">輸入學習目標後，會送往暗星的 /task 路由。此頁不會自行捏造「已學會」結果；是否完成，必須依後端與實際測試回報。</div><label for="topic">學習主題</label><input id="topic" placeholder="例如：學習 TypeScript Edge Function 錯誤處理"><label for="details">具體要求</label><textarea id="details" placeholder="請說明希望暗星研究、實作、測試或解讀的內容"></textarea><label for="mode">任務類型</label><select id="mode"><option value="learning-research">學習與研究</option><option value="code-review">程式碼理解與審查</option><option value="runtime-test">實際執行與測試</option><option value="compute-dispatch">交給協作池／算力池</option></select><div class="actions"><button id="sendBtn">送出給暗星</button></div><div id="submitResult" class="sub" style="margin-top:10px">尚未送出任務</div></section>
+    <section class="card half"><h2>④ 任務回傳與中文解讀</h2><div id="taskResult" class="log">送出任務後，這裡顯示暗星實際回應。</div></section>
+    <section class="card"><h2>⑤ 本頁操作紀錄</h2><div class="notice">這是前端連線操作紀錄，不等同於暗星已完成的學習證明。正式的長期學習紀錄應由 Supabase 學習事件／記憶資料表保存。</div><div id="localLog" style="margin-top:10px"></div><div class="actions"><button class="secondary" id="clearLogBtn">清除本機顯示紀錄</button></div></section>
+  </div>
+  <div class="footer">安全原則：前端不放置 Supabase service role key，也不把「已送出」冒充成「已學會」。</div>
+</main>
+<script>
+const SUPABASE_URL='https://clcddygkaaqqtsbswgdf.supabase.co';
+const DARK_STAR=SUPABASE_URL+'/functions/v1/technical-dark-star';
+const $=id=>document.getElementById(id);
+let localEvents=[];
+function addLog(title,detail){localEvents.unshift({time:new Date().toLocaleString('zh-TW'),title,detail});localEvents=localEvents.slice(0,30);renderLog();}
+function renderLog(){$('localLog').innerHTML=localEvents.length?localEvents.map(x=>`<div class="item"><strong>${esc(x.title)}</strong><div class="sub">${esc(x.time)}</div><div>${esc(x.detail)}</div></div>`).join(''):'<div class="muted">尚無操作紀錄</div>';}
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+async function request(path,options={}){const r=await fetch(DARK_STAR+path,{...options,headers:{'Content-Type':'application/json',...(options.headers||{})}});const text=await r.text();let data;try{data=JSON.parse(text)}catch{data={raw:text}}if(!r.ok)throw new Error((data&&data.error)||('HTTP '+r.status));return data;}
+async function loadHealth(){
+ $('healthStatus').innerHTML='<span class="dot"></span>連線中';
+ try{const h=await request('/health');const identity=h.identity||{};$('healthStatus').innerHTML='<span class="dot ok"></span>在線回應';$('healthText').textContent=`版本：${h.version||'—'}｜服務：${h.service||'—'}`;$('identityName').textContent=identity.display_name||'暗星';$('locked').textContent=identity.identity_locked===true?'true':'—';$('rawHealth').textContent=JSON.stringify(h,null,2);addLog('讀取暗星狀態','成功取得 /health');
+ }catch(e){$('healthStatus').innerHTML='<span class="dot bad"></span>連線失敗';$('healthText').textContent=e.message;$('rawHealth').textContent=e.message;addLog('讀取暗星狀態','失敗：'+e.message)}
+ try{const p=await request('/pipeline');const list=Array.isArray(p.pipeline)?p.pipeline:[];$('pipelineCount').textContent=list.length;$('pipeline').innerHTML=list.map((x,i)=>`<div class="item"><span class="tag">${i+1}</span>${esc(x)}</div>`).join('')||'後端沒有回傳管線';addLog('讀取學習管線','成功取得 /pipeline');}catch(e){$('pipelineCount').textContent='—';$('pipeline').textContent=e.message;addLog('讀取學習管線','失敗：'+e.message)}
+}
+async function submitTask(){const topic=$('topic').value.trim(),details=$('details').value.trim(),mode=$('mode').value;if(!topic&&!details){$('submitResult').textContent='請先輸入學習內容';return}const requestText=[`學習主題：${topic}`,`任務類型：${mode}`,`具體要求：${details}`].join('\n');$('sendBtn').disabled=true;$('submitResult').textContent='正在送出，等待暗星後端回應…';try{const data=await request('/task',{method:'POST',body:JSON.stringify({name:topic||'暗星學習任務',type:mode,task_type:mode,priority:'NORMAL',gpu_required:false,request:{name:topic,content:requestText,learning_request:true,requested_by:'owner'},metadata:{source:'dark-star-learning-console',language:'zh-TW'}})});$('taskResult').textContent=JSON.stringify(data,null,2);$('submitResult').textContent=data.task_id?`已取得任務 ID：${data.task_id}；狀態：${data.status||'—'}`:'已收到後端回應，請查看右側內容';addLog('送出學習任務',topic||details);$('details').value='';}catch(e){$('taskResult').textContent=e.message;$('submitResult').textContent='送出失敗：'+e.message;addLog('送出學習任務','失敗：'+e.message)}finally{$('sendBtn').disabled=false}}
+$('refreshBtn').addEventListener('click',loadHealth);$('sendBtn').addEventListener('click',submitTask);$('clearLogBtn').addEventListener('click',()=>{localEvents=[];renderLog()});$('homeBtn').addEventListener('click',()=>location.href='index.html');renderLog();loadHealth();
+</script>
+</body>
+</html>
