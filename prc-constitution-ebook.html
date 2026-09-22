@@ -14,10 +14,10 @@ main{display:flex;flex-direction:column}.tabs{height:44px;display:flex;gap:6px;p
 @media(max-width:800px){.layout{grid-template-columns:1fr;height:calc(100dvh - 52px)}aside{display:none}.layout main{min-height:0}}
 </style></head>
 <body>
-<header><a class="btn" href="dark-star-ebook.html">🔙 回電子書</a><div class="title">中華人民共和國憲法｜2018年修正文本</div><div class="sp"></div><a class="btn" target="_blank" href="https://www.npc.gov.cn/npc/c191/c505/201905/t20190521_263492.html">官方原文</a></header>
+<header><a class="btn" href="dark-star-ebook.html">🔙 回電子書</a><div class="title">中華人民共和國憲法｜2018年修正文本</div><div class="sp"></div><span class="source">官方原文已由 AIVAULT 後端快取</span></header>
 <div class="layout"><aside><div class="meta"><b>繁體中文法律電子書</b><br><span class="source">現行版本基準：1982年憲法＋1988／1993／1999／2004／2018年修正案。全國人大現行有效法律目錄截至2026年3月12日仍列上述版本。</span></div><div class="toc" id="toc"></div></aside>
 <main><div class="tabs"><button id="full" class="on">官方全文</button><button id="study">逐條解讀</button></div>
-<div class="frame" id="frame"><div style="padding:28px;line-height:1.9;color:#201b16;background:#f4efe6;min-height:100%;overflow:auto"><h2>中華人民共和國憲法｜2018年修正文本</h2><p>本閱讀器不再嵌入維基百科／維基文庫等第三方頁面。</p><p>左側目錄與「逐條解讀」提供本教材的學習入口；正式法律研究與引用，請以全國人民代表大會官方公布的憲法文本為準。</p><p><a class="btn" target="_blank" href="https://www.npc.gov.cn/npc/c191/c505/201905/t20190521_263492.html">開啟全國人大官方原文</a></p></div></div>
+<div class="frame" id="frame"><div id="officialContent" style="padding:22px;line-height:1.9;color:#201b16;background:#f4efe6;min-height:100%;overflow:auto"><h2>中華人民共和國憲法｜2018年修正文本</h2><p class="source">AIVAULT 後端法律資料庫｜官方原文快取。首次載入會建立後端索引，之後直接由 AIVAULT 讀取。</p><div id="officialStatus">正在載入官方原文……</div></div></div>
 <div class="explain" id="explain"><h2>逐條解讀</h2><p class="source">以下為學習性說明；不是全國人大常委會的正式憲法解釋。需要正式引用時，以官方原文核對。</p><div id="articles"></div></div>
 </main></div>
 <script>
@@ -167,6 +167,21 @@ const notes={
 143:"規定中華人民共和國首都是北京。"
 };
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+const officialApi="https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/prc-constitution-backend";
+const officialApiKey="sb_publishable_1D05YGthBrNGg-5L92TLCw_GiLnInBu";
+async function loadOfficialConstitution(){
+  const box=document.getElementById("officialStatus");
+  try{
+    const r=await fetch(officialApi,{headers:{"apikey":officialApiKey,"Authorization":"Bearer "+officialApiKey}});
+    const j=await r.json();
+    if(!r.ok||!j.ok) throw new Error(j.error||("HTTP "+r.status));
+    const articles=j.articles||[];
+    box.innerHTML='<div class="source">資料庫已載入 '+articles.length+' 條官方條文。</div>'+
+      articles.map(x=>'<section class="article" id="official-a'+esc(x.article_number)+'"><h3>'+esc(x.heading)+'</h3><div>'+esc(x.content).replace(/\n/g,"<br>")+'</div></section>').join("");
+  }catch(e){
+    box.innerHTML='<div style="padding:14px;background:#fff0f0;border-left:3px solid #b42318;color:#7a271a">後端原文載入失敗：'+esc(e?.message||e)+'</div><p class="source">請重新整理頁面。AIVAULT 不會改回外部 Wiki／維基文庫頁面。</p>';
+  }
+}
 const a=document.getElementById("articles");
 a.innerHTML=Object.keys(notes).map(n=>'<section class="article" id="a'+n+'"><h3>第'+n+'條</h3><div>'+esc(notes[n])+'</div></section>').join("");
 document.getElementById("full").onclick=()=>{full.classList.add("on");study.classList.remove("on");frame.style.display="block";explain.classList.remove("on")};
