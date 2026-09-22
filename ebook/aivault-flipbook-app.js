@@ -703,15 +703,36 @@
     $("flipBook").style.transform = "scale(" + state.scale + ")";
   }
   function renderMore() {
+    const deleteLabel = state.source === "local" ? "🗑 刪除本機書籍" : "🗑 從我的書架移除";
     const html =
       '<div class="setform">' +
       '<button class="ib" id="moreSet">⚙ 閱讀設定</button>' +
       '<button class="ib" id="moreFav">' + (E.isFav(state.bookId) ? "取消收藏" : "⭐ 收藏") + "</button>" +
+      '<button class="ib" id="deleteBook">' + deleteLabel + "</button>" +
       '<a class="ib" href="dark-star-ebook-classic.html?ebook_id=' + encodeURIComponent(state.remoteId || state.bookId) + '">原閱讀器</a>' +
       "</div>";
     openDrawer("更多", html);
     $("moreSet").onclick = renderSettings;
     $("moreFav").onclick = function () { E.setFavorite(state.bookId, !E.isFav(state.bookId)); toast("已更新收藏"); };
+    $("deleteBook").onclick = async function () {
+      const label = state.source === "local"
+        ? "刪除這本本機電子書？書頁、書籤、筆記與閱讀進度也會一併刪除。"
+        : "把這本遠端電子書從本機我的書架移除？（不刪除伺服器上的原書）";
+      if (!confirm(label)) return;
+      try {
+        await E.deleteLocalBook(state.bookId);
+        closeDrawer();
+        state.bookId = null;
+        state.remoteId = null;
+        state.book = null;
+        state.pages = [];
+        state.cache.clear();
+        showShelf();
+        toast("已完成");
+      } catch (e) {
+        toast("刪除失敗：" + (e && e.message ? e.message : "unknown error"));
+      }
+    };
   }
 
   function bindNav() {
