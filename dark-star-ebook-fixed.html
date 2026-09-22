@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111214">
+<title>AIVAULT｜數位書架 · FlipBook</title>
+<link rel="stylesheet" href="ebook/aivault-flipbook.css">
+</head>
+<body>
+<div id="app">
+
+<section id="shelfView" class="view">
+  <header class="shelf-top">
+    <a class="ib" href="aivault-home.html">🔙 回 Home</a>
+    <div class="brand">📚 AIVAULT 數位書架</div>
+    <div class="spacer"></div>
+    <a class="ib" href="dark-star-ebook-classic.html">📖 原閱讀器</a>
+    <a class="ib" href="prc-constitution-ebook.html">中華人民共和國憲法</a>
+    <a class="ib" href="dark-star-ebook-editor.html">匯入</a>
+  </header>
+  <nav class="shelf-tabs" id="shelfTabs">
+    <button data-tab="mine" class="on">📚 我的書架</button>
+    <button data-tab="recent">🕘 最近閱讀</button>
+    <button data-tab="fav">⭐ 我的收藏</button>
+    <button data-tab="new">📖 最近新增</button>
+    <button data-tab="cats">📂 我的分類</button>
+    <button data-tab="search">🔍 搜尋</button>
+  </nav>
+  <div class="shelf-tools">
+    <input id="shelfQ" placeholder="搜尋書名、作者">
+    <label class="filebtn">＋ 匯入文件
+      <input id="shelfFile" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.jpg,.jpeg,.png,.webp,application/pdf,image/*">
+    </label>
+    <span id="importStatus" class="muted"></span>
+  </div>
+  <div id="catBar" class="catbar" hidden></div>
+  <div id="shelfGrid" class="shelf-grid"></div>
+  <p class="hint">點擊書封進入 📖 FlipBook 閱讀模式。既有 dark-star-ebook-ingest、匯入頁與原閱讀器入口都保留。</p>
+</section>
+
+<section id="readerView" class="view" hidden>
+  <header class="reader-top">
+    <button class="ib" id="btnBackShelf">← 返回書架</button>
+    <div class="meta-line">
+      <div id="readerTitle" class="brand">書名</div>
+      <div id="readerAuthor" class="sub">作者</div>
+    </div>
+    <div class="spacer"></div>
+    <button class="ib hide-sm" id="btnClassic">原閱讀器</button>
+  </header>
+
+  <div id="stage" class="stage">
+    <div id="bookStage" class="book-stage">
+      <div id="flipBook" class="flip-book single">
+        <div class="leaf left" id="leafLeft">
+          <div class="paper" id="paperLeft"></div>
+          <div class="pageno" id="noLeft"></div>
+        </div>
+        <div class="leaf right" id="leafRight">
+          <div class="paper" id="paperRight"></div>
+          <div class="pageno" id="noRight"></div>
+        </div>
+        <div class="flipper" id="flipper" hidden>
+          <div class="face front" id="flipFront"></div>
+          <div class="face back" id="flipBack"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="reader-bottom">
+    <div class="pagerow">
+      <button class="ib" id="prevBtn" aria-label="上一頁">←</button>
+      <input id="jumpRange" type="range" min="1" max="1" value="1">
+      <div id="pageLabel">第 1 / 1 頁</div>
+      <button class="ib" id="nextBtn" aria-label="下一頁">→</button>
+    </div>
+    <div class="toolbar" id="toolbar">
+      <button class="tb" id="btnToc" title="目錄">☰</button>
+      <button class="tb" id="btnMark" title="書籤">🔖</button>
+      <button class="tb" id="btnSearch" title="搜尋">🔍</button>
+      <button class="tb" id="btnNote" title="筆記">📝</button>
+      <button class="tb" id="btnSpeak" title="朗讀">🔊</button>
+      <button class="tb" id="btnAsk" title="問暗星">🤖</button>
+      <button class="tb hide-sm" id="btnSettings" title="閱讀設定">⚙</button>
+      <button class="tb" id="btnMore" title="更多">⋯</button>
+      <button class="tb" id="btnFull" title="全螢幕">⛶</button>
+    </div>
+  </div>
+</section>
+
+<aside class="drawer" id="drawer">
+  <div class="drawer-h">
+    <b id="drawerTitle">面板</b>
+    <button class="ib" id="btnCloseDrawer">關閉</button>
+  </div>
+  <div class="drawer-b" id="drawerBody"></div>
+</aside>
+<div class="mask" id="mask" hidden></div>
+
+<div id="toast" class="toast" hidden></div>
+</div>
+
+<script>
+/* AIVAULT 修復：?view=read 未帶 ebook_id 時，直接開啟預設電子法律教材。 */
+(function () {
+  const DEFAULT_EBOOK_ID = "3c203a20-258d-42b1-910f-5f10c8186033";
+  const u = new URL(location.href);
+  const view = u.searchParams.get("view");
+  const ebookId = u.searchParams.get("ebook_id");
+  if (view === "read" && !ebookId) {
+    u.searchParams.set("ebook_id", DEFAULT_EBOOK_ID);
+    history.replaceState(null, "", u.href);
+  }
+})();
+</script>
+<script src="ebook/aivault-ebook-lib.js"></script>
+<script src="ebook/aivault-flipbook-app.js"></script>
+</body>
+</html>
