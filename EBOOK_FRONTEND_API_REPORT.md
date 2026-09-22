@@ -4,40 +4,42 @@
 
 前端只使用公開 anon JWT，未放入 service_role / Gemini / Groq secret。
 
-## 已確認存在的 action
+## 已確認存在的 action（2026-09-23 再測）
 
 | action | 必要欄位 | 實測 |
 |---|---|---|
-| create | title | HTTP 400 `title required`；補 title 後 HTTP 500 `permission denied for table dark_star_legal_sources` |
-| append | job_id, sequence_no, content | HTTP 400 缺欄位；欄位齊但 job 不存在時 HTTP 404 `job not found` |
-| finalize | job_id | HTTP 400 `job_id required`；job 不存在 HTTP 404 `job not found` |
-| status | job_id（不是 ebook_id） | 有 job_id 時查 `dark_star_ebook_ingestion_jobs`，anon 權限不足 HTTP 404/500 |
-| book | ebook_id, page_number | HTTP 404 `permission denied for table dark_star_ebooks` |
-| toc | ebook_id | HTTP 500 `permission denied for table dark_star_ebook_toc` |
-| context | ebook_id, page_number, radius | HTTP 500 `permission denied for table dark_star_ebook_pages` |
-| progress | ebook_id, reader_id（UUID） | HTTP 400 `ebook_id required`；reader_id 非 UUID 會炸；有 UUID 時 HTTP 500 `permission denied for table dark_star_ebook_reading_progress` |
+| create | title | HTTP 200，回傳 ebook_id / source_id / job_id |
+| append | job_id, sequence_no, content | job 存在時可寫入 |
+| finalize | job_id | job 存在時可完結並建頁／目錄 |
+| status | job_id | 查 `dark_star_ebook_ingestion_jobs` |
+| book | ebook_id, page_number | HTTP 200，回傳 ebook + page.content |
+| toc | ebook_id | HTTP 200，回傳 toc[] |
+| context | ebook_id, page_number, radius | HTTP 200，回傳前後頁 |
+| progress | ebook_id, reader_id（UUID） | GET 可空；save:true 可寫入 dark_star_ebook_reading_progress |
 
 ## 不存在的 action（HTTP 400 unknown action）
 
-list / books / catalog / library / publish / archive / cover / update / metadata / help 等。
+list / books / catalog / library / publish / archive / cover / update / metadata / search / bookmark / notes / help
 
-因此學生端沒有「官方書單 API」。前台只用本機成功匯入紀錄 + 手動輸入 ebook_id，沒有偽造書目。
+因此學生端沒有官方書單 API。書架由本機 catalog + IndexedDB + 已知遠端教材組成，不偽造書目。
 
-## 根因（前端無法修復）
+## 直連 REST
 
-Edge Function 以呼叫者 JWT（anon）存取：
+anon 對既有表仍是 permission denied（42501）。缺少：
 
-- dark_star_legal_sources
-- dark_star_ebooks
-- dark_star_ebook_pages
-- dark_star_ebook_toc
-- dark_star_ebook_ingestion_jobs
-- dark_star_ebook_reading_progress
+- dark_star_ebook_bookmarks
+- dark_star_ebook_notes
 
-這些表未 GRANT 給 anon。依規格不修改後端、不重建資料庫。
+第一階段書籤／筆記／全文索引放 IndexedDB `aivault_flipbook_v1`。未 DROP、未 reset、未改 ai-gateway / technical-dark-star。
+
+可選 ADD SQL：`ebook/supabase-ebook-extend.sql`
 
 ## 前台檔案
 
-- `dark-star-ebook.html` 學生閱讀器
-- `dark-star-ebook-editor.html` 管理員匯入
-- 暗星解說走既有 `ai-gateway`
+- `dark-star-ebook.html` 數位書架 + FlipBook 閱讀器
+- `aivault-ebook-shelf.html` 書架捷徑
+- `dark-star-ebook-classic.html` 原閱讀器（功能保留）
+- `dark-star-ebook-editor.html` 管理員匯入（新增 PDF/Office/圖片，原文字流程保留）
+- `ebook/aivault-ebook-lib.js` 共用 ingest + IndexedDB + 匯入
+- `ebook/aivault-flipbook-app.js` 翻頁／工具列
+- 暗星解說走既有 `ai-gateway`，請求帶 book_id、page_number、頁面原文、章節

@@ -43,7 +43,9 @@ button.primary{background:#c4a36a;color:#1b1612;border-color:#c4a36a;font-weight
     <div style="font-size:12px;color:#cbbda3">create → append chunks → finalize　不一次上傳整本</div>
   </div>
   <div style="flex:1"></div>
-  <a class="linkbtn" href="dark-star-ebook.html">學生閱讀器</a>
+  <a class="linkbtn" href="dark-star-ebook.html">📚 數位書架</a>
+  <a class="linkbtn" href="dark-star-ebook.html?view=read">📖 翻頁閱讀</a>
+  <a class="linkbtn" href="dark-star-ebook-classic.html">原閱讀器</a>
   <a class="linkbtn" href="technical-dark-star.html">暗星主頁</a>
 </header>
 <div class="wrap">
@@ -75,6 +77,9 @@ button.primary{background:#c4a36a;color:#1b1612;border-color:#c4a36a;font-weight
       <img class="coverprev" id="coverPrev" alt="封面預覽">
       <input id="coverFile" type="file" accept="image/*">
     </div>
+    <label>文件匯入（PDF / Word / PPT / Excel / JPG / TXT）</label>
+    <input id="docFile" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.jpg,.jpeg,.png,.webp,application/pdf,image/*">
+    <p style="color:#cbbda3;font-size:13px;line-height:1.55">文件會先在本機建立 FlipBook 頁面與搜尋索引，再把抽出的文字走既有 dark-star-ebook-ingest（create → append → finalize）。不取代原文字匯入。</p>
     <label>教材原文（貼上或選文字檔）</label>
     <input id="textFile" type="file" accept=".txt,.md,.text,text/plain">
     <textarea id="body" placeholder="在此貼上法律教材原文。可含編、章、節、條標題，後端負責解析。"></textarea>
@@ -101,6 +106,7 @@ button.primary{background:#c4a36a;color:#1b1612;border-color:#c4a36a;font-weight
     </section>
   </aside>
 </div>
+<script src="ebook/aivault-ebook-lib.js"></script>
 <script>
 const SUPABASE_URL = "https://clcddygkaaqqtsbswgdf.supabase.co";
 const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE";
@@ -196,6 +202,26 @@ $("textFile").onchange = async () => {
   if (!f) return;
   $("body").value = await f.text();
   preview();
+};
+$("docFile").onchange = async () => {
+  const f = $("docFile").files[0];
+  if (!f) return;
+  log("本機解析 " + f.name + " …");
+  try {
+    const imported = await AIVAULTEbook.importFile(f, {
+      title: $("title").value.trim() || f.name.replace(/\.[^.]+$/, ""),
+      author: $("author").value.trim()
+    });
+    $("title").value = $("title").value.trim() || imported.book.title;
+    $("author").value = $("author").value.trim() || imported.book.author || "";
+    $("body").value = imported.pages.map(p => p.content || "").join("\n\n");
+    if (imported.book.cover_url) $("coverPrev").src = imported.book.cover_url;
+    log("本機 FlipBook 已建立 " + imported.book.page_count + " 頁，book_id=" + imported.book.id + "。可再按開始匯入把文字同步到 ingest。", "ok");
+    preview();
+    renderLib();
+  } catch (err) {
+    log("本機解析失敗：" + (err.message || err), "err");
+  }
 };
 function preview(){
   const text = $("body").value || "";
