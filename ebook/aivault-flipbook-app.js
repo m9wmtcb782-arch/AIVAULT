@@ -362,42 +362,53 @@
   }
 
   async function openBook(id) {
+    if (!id) {
+      toast("缺少電子書 ID");
+      return;
+    }
     state.bookId = id;
     state.cache.clear();
     state.pages = [];
     state.toc = [];
     state.context = null;
-    const local = await E.getBook(id);
-    if (local) {
-      state.source = "local";
-      state.book = local;
-      state.remoteId = local.remote_id || null;
-      state.pages = await E.pagesOf(id);
-      state.totalPages = local.page_count || state.pages.length || 1;
-      state.pages.forEach(function (p) { state.cache.set(p.page_number, p); });
-      state.toc = E.inferTocFromText(state.pages);
-    } else {
-      state.source = "remote";
-      state.remoteId = id;
-      const first = await E.fetchRemoteBook(id, 1);
-      if (!first.ok) {
-        toast("無法開啟遠端書籍 HTTP " + first.status);
-        return;
+    // 先切入閱讀模式，再載入資料；避免遠端請求失敗時整個閱讀器永遠不出現。
+    showReader();
+    setQS(id, Number(qs().get("page") || 1), "read");
+    try {
+      const local = await E.getBook(id);
+      if (local) {
+        state.source = "local";
+        state.book = local;
+        state.remoteId = local.remote_id || null;
+        state.pages = await E.pagesOf(id);
+        state.totalPages = local.page_count || state.pages.length || 1;
+        state.pages.forEach(function (p) { state.cache.set(p.page_number, p); });
+        state.toc = E.inferTocFromText(state.pages);
+      } else {
+        state.source = "remote";
+        state.remoteId = id;
+        const first = await E.fetchRemoteBook(id, 1);
+        const data = (first && first.data) || {};
+        const ebook = data.ebook || data.book || data.data || {};
+        if (ebook && typeof ebook === "object") {
+          state.book = Object.assign({}, state.book || {}, ebook);
+          state.totalPages = Number(ebook.total_pages || ebook.page_count || ebook.pages || state.totalPages || 1);
+        }
+        if (!first || !first.ok) {
+          toast("遠端教材資料載入失敗，先保留閱讀器畫面（HTTP " + ((first && first.status) || "network") + "）");
+        } else {
+          await getPage(1);
+          try { state.toc = await E.fetchRemoteToc(id); } catch (e) { state.toc = []; }
+          E.rememberRemote({
+            ebook_id: id,
+            title: state.book && state.book.title,
+            author: state.book && state.book.author,
+            page_count: state.totalPages,
+            cover_url: state.book && state.book.cover_url
+          });
+        }
       }
-      const ebook = first.data.ebook || {};
-      state.book = ebook;
-      state.totalPages = Number(ebook.total_pages || 1);
-      await getPage(1);
-      try { state.toc = await E.fetchRemoteToc(id); } catch (e) { state.toc = []; }
-      E.rememberRemote({
-        ebook_id: id,
-        title: ebook.title,
-        author: ebook.author,
-        page_count: ebook.total_pages,
-        cover_url: ebook.cover_url
-      });
-    }
-    let start = Number(qs().get("page") || 0);
+      let start = Number(qs().get("page") || 0);
     if (!start) {
       const lp = await E.loadLocalProgress(id);
       if (lp && lp.current_page) start = lp.current_page;
