@@ -10,25 +10,58 @@
   try {
     if (window.top !== window.self) {
       window.top.location.replace('https://m9wmtcb782-arch.github.io/AIVAULT/aivault-home.html');
+      return;
     }
   } catch (e) {}
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function (regs) {
+      regs.forEach(function (reg) { reg.unregister(); });
+    });
+  }
+  if (window.caches && caches.keys) {
+    caches.keys().then(function (keys) {
+      keys.forEach(function (key) { caches.delete(key); });
+    });
+  }
 })();
 </script>
 <style>
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif}
-.home-nav{position:fixed;top:0;left:0;right:0;z-index:1000;min-height:54px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 10px;box-sizing:border-box}
+.home-nav{position:fixed;top:0;left:0;right:0;z-index:1000;height:56px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:8px;padding:8px 10px;box-sizing:border-box;overflow:hidden}
 .home-nav a{height:40px;display:inline-flex;align-items:center;justify-content:center;padding:0 12px;border-radius:12px;border:1px solid #e2e8f0;background:#fff;color:#334155;text-decoration:none;font-size:14px;font-weight:700;white-space:nowrap}
 .home-nav a.ebook{background:#1b1612;color:#f4ead6;border-color:#1b1612}
-iframe{display:block;position:absolute;top:104px;left:0;width:100%;height:calc(100% - 104px);border:0;background:#fff}
-@media(min-width:560px){iframe{top:56px;height:calc(100% - 56px)}}
+iframe{display:block;position:absolute;top:56px;left:0;width:100%;height:calc(100% - 56px);border:0;background:#fff}
 </style>
 </head>
 <body>
-<nav class="home-nav" aria-label="AIVAULT 快速入口">
-  <a href="https://m9wmtcb782-arch.github.io/AIVAULT/aivault-agent-collaboration.html" target="_top">🤝 AI 協作池</a>
-  <a href="https://m9wmtcb782-arch.github.io/AIVAULT/teaching-assistant.html" target="_top">📚 教學助理</a>
-  <a class="ebook" href="https://m9wmtcb782-arch.github.io/AIVAULT/dark-star-ebook.html" target="_top">📖 電子書</a>
-</nav>
+<nav class="home-nav" id="aivaultTopNav" aria-label="AIVAULT 快速入口"></nav>
 <iframe id="aivaultApp" src="aivault-home-original-dark.html" title="AIVAULT"></iframe>
+<script>
+(function () {
+  var NAV_HTML =
+    '<a href="https://m9wmtcb782-arch.github.io/AIVAULT/aivault-agent-collaboration.html" target="_top">🤝 AI 協作池</a>' +
+    '<a href="https://m9wmtcb782-arch.github.io/AIVAULT/teaching-assistant.html" target="_top">📚 教學助理</a>' +
+    '<a class="ebook" href="https://m9wmtcb782-arch.github.io/AIVAULT/dark-star-ebook.html" target="_top">📖 電子書</a>';
+  var nav = document.getElementById('aivaultTopNav');
+  function lockNav() {
+    if (!nav) return;
+    if (nav.getAttribute('data-locked') === '1' && nav.children.length === 3) return;
+    nav.innerHTML = NAV_HTML;
+    nav.setAttribute('data-locked', '1');
+  }
+  lockNav();
+  if (window.MutationObserver && nav) {
+    new MutationObserver(function () {
+      if (nav.children.length !== 3) {
+        nav.setAttribute('data-locked', '0');
+        lockNav();
+      }
+    }).observe(nav, { childList: true });
+  }
+  document.querySelectorAll('.home-nav').forEach(function (el) {
+    if (el !== nav) el.remove();
+  });
+})();
+</script>
 </body>
 </html>
