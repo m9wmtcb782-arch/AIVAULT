@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>AIVAULT｜教學助理</title>
+<style>
+html,body{margin:0;height:100%;background:#f8fafc;font-family:-apple-system,"Noto Sans TC",sans-serif;color:#0f172a}
+.wrap{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:16px}
+a.back{position:fixed;top:12px;left:12px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;color:#334155;text-decoration:none;font-weight:700}
+.enter,.hold{width:min(320px,86vw);height:72px;border-radius:18px;border:0;background:#6d28d9;color:#fff;font-size:20px;font-weight:800}
+.hold{background:#0f172a;height:120px}
+.hold.down{background:#2563eb}
+.log{width:min(520px,92vw);min-height:120px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px;white-space:pre-wrap}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<a class="back" href="aivault-home.html">回工作中心</a>
+<div class="wrap" id="gate">
+  <button class="enter" id="enter">進入教學助理</button>
+  <p>進去後按住說話才會動作</p>
+</div>
+<div class="wrap hidden" id="room">
+  <button class="hold" id="hold">按住說話</button>
+  <div class="log" id="log">等待語音指令</div>
+</div>
+<script>
+const GATEWAY="https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/ai-gateway";
+const $ = id => document.getElementById(id);
+$("enter").onclick=()=>{ $("gate").classList.add("hidden"); $("room").classList.remove("hidden"); };
+const rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+let r=null;
+function say(t){ $("log").textContent=t; }
+if(rec){
+  r=new rec(); r.lang="zh-TW"; r.interimResults=false;
+  r.onresult=async e=>{
+    const q=e.results[0][0].transcript;
+    say("你說："+q+"\n暗星處理中…");
+    try{
+      const res=await fetch(GATEWAY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({engine:"technical-dark-star",agent_id:"technical-dark-star",source:"teaching-assistant-min",message:q})});
+      const data=await res.json().catch(()=>({}));
+      say("你說："+q+"\n\n【暗星】\n"+(data.reply||data.message||data.text||JSON.stringify(data)));
+    }catch(err){ say("失敗："+err.message); }
+  };
+  r.onerror=e=>say("語音錯誤："+e.error);
+}
+function start(){ if(!r){ say("這個瀏覽器不能語音辨識"); return;} $("hold").classList.add("down"); try{r.start();}catch(e){} }
+function stop(){ $("hold").classList.remove("down"); try{r&&r.stop();}catch(e){} }
+$("hold").addEventListener("touchstart",e=>{e.preventDefault();start();},{passive:false});
+$("hold").addEventListener("touchend",stop);
+$("hold").addEventListener("mousedown",start);
+$("hold").addEventListener("mouseup",stop);
+</script>
+</body>
+</html>
