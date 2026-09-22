@@ -296,6 +296,24 @@
   }
   async function removeNote(id) { return idbDel("notes", id); }
 
+  async function deleteLocalBook(bookId) {
+    if (!bookId) throw new Error("missing book id");
+    const db = await openDb();
+    const stores = ["books", "files", "progress"];
+    for (let i = 0; i < stores.length; i++) {
+      try { await idbDel(stores[i], bookId); } catch (e) {}
+    }
+    const childStores = ["pages", "bookmarks", "notes"];
+    for (let i = 0; i < childStores.length; i++) {
+      const rows = await idbIndex(childStores[i], "by_book", bookId);
+      for (let j = 0; j < rows.length; j++) await idbDel(childStores[i], rows[j].id);
+    }
+    let rows = catalog().filter(function (r) { return r.ebook_id !== bookId; });
+    saveCatalog(rows);
+    setFavorite(bookId, false);
+    return true;
+  }
+
   function splitTextPages(text, size) {
     const chunk = size || 900;
     const raw = String(text || "").replace(/\r\n/g, "\n");
@@ -646,6 +664,7 @@
     addNote: addNote,
     notesOf: notesOf,
     removeNote: removeNote,
+    deleteLocalBook: deleteLocalBook,
     splitTextPages: splitTextPages,
     makeCover: makeCover,
     importFile: importFile,
