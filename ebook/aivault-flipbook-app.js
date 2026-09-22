@@ -129,7 +129,7 @@
         author: "AIVAULT 法律教材",
         page_count: 143,
         source: "legal-reference",
-        special_url: "prc-constitution-ebook.html",
+        special_url: "prc-constitution-ebook.html?v=20260923-4",
         category: "法律",
         created_at: "2026-09-23T07:04:00+08:00"
       });
