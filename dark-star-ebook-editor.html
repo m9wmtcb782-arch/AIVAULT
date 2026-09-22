@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#14110e">
+<title>AIVAULT｜電子書教材匯入</title>
+<style>
+:root{--line:rgba(255,236,205,.12);--gold:#c4a36a;--paper:#f4ead6}
+*{box-sizing:border-box}
+html,body{margin:0;background:#120f0c;color:#f4ead6;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","Segoe UI",sans-serif}
+body{min-height:100dvh}
+a{color:#e7d2a3}
+.top{height:58px;display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid var(--line);background:#14110e;position:sticky;top:0}
+.mark{width:28px;height:28px;border-radius:8px;background:var(--paper);color:#1b1612;display:grid;place-items:center;font-weight:800}
+.wrap{max-width:1100px;margin:0 auto;padding:18px 14px 60px;display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
+h1{font-size:22px;margin:0 0 6px}
+h2{font-size:13px;letter-spacing:.14em;color:var(--gold);margin:0 0 10px}
+.card{background:#1b1713;border:1px solid var(--line);border-radius:16px;padding:16px}
+label{display:block;font-size:12px;color:#d8cbb4;margin:10px 0 6px}
+input,textarea,select{width:100%;border:1px solid var(--line);background:#241e18;color:#f4ead6;border-radius:10px;padding:10px}
+textarea{min-height:220px;resize:vertical;line-height:1.6}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+button,.linkbtn{height:38px;border:1px solid var(--line);background:#2a221b;color:#f4ead6;border-radius:10px;padding:0 12px;cursor:pointer;display:inline-flex;align-items:center}
+button:hover{border-color:var(--gold)}
+button.primary{background:#c4a36a;color:#1b1612;border-color:#c4a36a;font-weight:700}
+.bar{height:8px;background:#2a241c;border-radius:99px;overflow:hidden;margin:8px 0}
+.bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#c4a36a,#efe2c6)}
+.log{white-space:pre-wrap;font-size:12px;line-height:1.55;background:#120f0c;border-radius:10px;padding:10px;min-height:160px;max-height:360px;overflow:auto;border:1px solid var(--line)}
+.err{color:#f3c7c0}
+.ok{color:#b7e3c5}
+.coverprev{width:120px;height:160px;border-radius:8px;border:1px solid #7a6240;object-fit:cover;background:#2a2218}
+.list button{width:100%;justify-content:flex-start;margin-bottom:6px}
+@media(max-width:860px){.wrap,.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="mark">匯</div>
+  <div>
+    <b>電子書教材匯入</b>
+    <div style="font-size:12px;color:#cbbda3">create → append chunks → finalize　不一次上傳整本</div>
+  </div>
+  <div style="flex:1"></div>
+  <a class="linkbtn" href="dark-star-ebook.html">學生閱讀器</a>
+  <a class="linkbtn" href="technical-dark-star.html">暗星主頁</a>
+</header>
+<div class="wrap">
+  <section class="card">
+    <h1>建立／匯入法律教材</h1>
+    <p style="color:#cbbda3;line-height:1.6">使用既有入口 dark-star-ebook-ingest。封面可選。正文以約 20,000 字分塊上傳。沒有成功回傳前，不會寫入假書。</p>
+    <div class="row">
+      <div>
+        <label>書名 title</label>
+        <input id="title" placeholder="例如：民法總則講義">
+      </div>
+      <div>
+        <label>作者 author</label>
+        <input id="author" placeholder="作者／編者">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>版本 version</label>
+        <input id="version" placeholder="例如：2026 年版">
+      </div>
+      <div>
+        <label>說明 description</label>
+        <input id="description" placeholder="簡短說明">
+      </div>
+    </div>
+    <label>封面（選用）</label>
+    <div style="display:flex;gap:12px;align-items:center">
+      <img class="coverprev" id="coverPrev" alt="封面預覽">
+      <input id="coverFile" type="file" accept="image/*">
+    </div>
+    <label>教材原文（貼上或選文字檔）</label>
+    <input id="textFile" type="file" accept=".txt,.md,.text,text/plain">
+    <textarea id="body" placeholder="在此貼上法律教材原文。可含編、章、節、條標題，後端負責解析。"></textarea>
+    <div class="btns">
+      <button type="button" id="btnPreview">預覽字數</button>
+      <button type="button" class="primary" id="btnStart">開始匯入</button>
+      <button type="button" id="btnStatus">查看 status</button>
+      <button type="button" id="btnFinalize">finalize</button>
+      <button type="button" id="btnPublish">發布</button>
+      <button type="button" id="btnArchive">封存</button>
+    </div>
+  </section>
+  <aside>
+    <section class="card">
+      <h2>匯入進度</h2>
+      <div id="stats">尚未開始</div>
+      <div class="bar"><i id="bar"></i></div>
+      <div class="log" id="log">等待操作。</div>
+    </section>
+    <section class="card" style="margin-top:16px">
+      <h2>本機書目</h2>
+      <p style="color:#cbbda3;font-size:13px">後端目前沒有 list action，因此只保存本機成功建立的 ebook_id / job_id，不是假書。</p>
+      <div class="list" id="lib"></div>
+    </section>
+  </aside>
+</div>
+<script>
+const SUPABASE_URL = "https://clcddygkaaqqtsbswgdf.supabase.co";
+const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE";
+const INGEST = SUPABASE_URL + "/functions/v1/dark-star-ebook-ingest";
+const CATALOG_KEY = "aivault_ebook_catalog";
+const CHUNK = 20000;
+
+const job = {
+  job_id: null,
+  ebook_id: null,
+  title: "",
+  chunks: 0,
+  uploaded: 0,
+  chars: 0
+};
+
+function $(id){ return document.getElementById(id); }
+function catalog(){ try { return JSON.parse(localStorage.getItem(CATALOG_KEY)||"[]"); } catch { return []; } }
+function saveCatalog(rows){ localStorage.setItem(CATALOG_KEY, JSON.stringify(rows)); }
+function log(msg, cls){
+  const el = $("log");
+  const line = document.createElement("div");
+  if (cls) line.className = cls;
+  line.textContent = "[" + new Date().toLocaleTimeString() + "] " + msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+function setStats(){
+  $("stats").innerHTML =
+    `書名：${job.title||"—"}<br>` +
+    `ebook_id：${job.ebook_id||"—"}<br>` +
+    `job_id：${job.job_id||"—"}<br>` +
+    `已上傳字元：${job.uploaded} / ${job.chars}<br>` +
+    `已上傳區塊：${job.chunks}`;
+  const pct = job.chars ? Math.min(100, job.uploaded / job.chars * 100) : 0;
+  $("bar").style.width = pct + "%";
+}
+function renderLib(){
+  const rows = catalog();
+  $("lib").innerHTML = rows.length
+    ? rows.map(r => `<a class="linkbtn" style="width:100%;margin-bottom:6px" href="dark-star-ebook.html?ebook_id=${encodeURIComponent(r.ebook_id)}">${r.title||r.ebook_id}<br><small>${r.ebook_id}</small></a>`).join("")
+    : "<div style='color:#9a8b70'>尚無成功書目</div>";
+}
+function remember(){
+  if (!job.ebook_id) return;
+  const rows = catalog().filter(r => r.ebook_id !== job.ebook_id);
+  rows.unshift({
+    ebook_id: job.ebook_id,
+    job_id: job.job_id,
+    title: job.title,
+    saved_at: new Date().toISOString()
+  });
+  saveCatalog(rows.slice(0, 30));
+  renderLib();
+}
+
+async function ingest(payload){
+  const res = await fetch(INGEST, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": ANON_KEY,
+      "Authorization": "Bearer " + ANON_KEY
+    },
+    body: JSON.stringify(payload)
+  });
+  const text = await res.text();
+  let data = {};
+  try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+  const result = { ok: res.ok, status: res.status, data, request: payload };
+  log(`API ${payload.action}  HTTP ${res.status}  ${JSON.stringify(data).slice(0,500)}`, res.ok ? "ok" : "err");
+  if (!res.ok) {
+    log(`失敗報告\naction: ${payload.action}\nrequest: ${JSON.stringify(payload).slice(0,800)}\nresponse: ${text.slice(0,800)}\nHTTP: ${res.status}\nerror: ${data.error||data.message||""}`, "err");
+  }
+  return result;
+}
+
+function chunksOf(text){
+  const out = [];
+  for (let i=0;i<text.length;i+=CHUNK) out.push(text.slice(i, i+CHUNK));
+  return out;
+}
+
+$("coverFile").onchange = () => {
+  const f = $("coverFile").files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => { $("coverPrev").src = r.result; };
+  r.readAsDataURL(f);
+};
+$("textFile").onchange = async () => {
+  const f = $("textFile").files[0];
+  if (!f) return;
+  $("body").value = await f.text();
+  preview();
+};
+function preview(){
+  const text = $("body").value || "";
+  const n = chunksOf(text).length;
+  log(`預覽：${text.length} 字元，將分成 ${n} 個 chunk（chunk_size=${CHUNK}）。不會送出假資料。`);
+  job.chars = text.length;
+  setStats();
+}
+$("btnPreview").onclick = preview;
+
+$("btnStart").onclick = async () => {
+  const title = $("title").value.trim();
+  const text = $("body").value || "";
+  if (!title) { log("title required", "err"); return; }
+  if (!text.trim()) { log("請先貼上或選擇教材文字。", "err"); return; }
+  job.title = title;
+  job.chars = text.length;
+  job.uploaded = 0;
+  job.chunks = 0;
+  setStats();
+  const payload = {
+    action: "create",
+    title,
+    author: $("author").value.trim(),
+    version: $("version").value.trim(),
+    description: $("description").value.trim()
+  };
+  if ($("coverPrev").src && $("coverPrev").src.startsWith("data:image/")) {
+    payload.cover_base64 = $("coverPrev").src;
+    payload.cover = $("coverPrev").src;
+  }
+  const created = await ingest(payload);
+  if (!created.ok) return;
+  job.job_id = created.data.job_id || created.data.job?.id || created.data.id || null;
+  job.ebook_id = created.data.ebook_id || created.data.ebook?.id || created.data.book_id || created.data.id || null;
+  if (created.data.ebook && created.data.job_id) {
+    job.ebook_id = created.data.ebook.id || created.data.ebook.ebook_id || job.ebook_id;
+  }
+  setStats();
+  if (job.ebook_id) remember();
+  const parts = chunksOf(text);
+  for (let i=0;i<parts.length;i++){
+    const sent = await ingest({
+      action: "append",
+      job_id: job.job_id,
+      ebook_id: job.ebook_id,
+      sequence_no: i,
+      content: parts[i],
+      chunk_size: CHUNK
+    });
+    if (!sent.ok) {
+      log(`append sequence ${i} 失敗，停止後續區塊。`, "err");
+      return;
+    }
+    job.chunks = i+1;
+    job.uploaded += parts[i].length;
+    setStats();
+  }
+  log("所有 chunk 已送出，接著可查看 status 或 finalize。");
+  await ingest({ action:"status", job_id: job.job_id, ebook_id: job.ebook_id });
+};
+
+$("btnStatus").onclick = async () => {
+  if (!job.job_id && !job.ebook_id) { log("尚無 job_id / ebook_id", "err"); return; }
+  const result = await ingest({ action:"status", job_id: job.job_id, ebook_id: job.ebook_id });
+  const d = result.data || {};
+  const pages = d.page_count || d.pages || d.total_pages || d.processed_pages;
+  const words = d.word_count || d.chars || d.character_count || d.total_chars;
+  if (pages || words) log(`後端狀態：頁數 ${pages||"—"}／字數 ${words||"—"}／status ${d.status||d.state||"—"}`);
+};
+
+$("btnFinalize").onclick = async () => {
+  if (!job.job_id) { log("尚無 job_id，無法 finalize", "err"); return; }
+  const result = await ingest({ action:"finalize", job_id: job.job_id, ebook_id: job.ebook_id });
+  if (result.ok) {
+    job.ebook_id = result.data.ebook_id || result.data.ebook?.id || job.ebook_id;
+    remember();
+    log("finalize 已送出。目錄與分頁由後端產生。");
+  }
+};
+
+async function tryState(action){
+  if (!job.ebook_id && !job.job_id) { log("尚無電子書", "err"); return; }
+  const result = await ingest({ action, ebook_id: job.ebook_id, job_id: job.job_id });
+  if (!result.ok && result.data?.error === "unknown action") {
+    log(`後端尚未提供 ${action} action。前端已依規格送出，不改後端。`, "err");
+  }
+}
+$("btnPublish").onclick = () => tryState("publish");
+$("btnArchive").onclick = () => tryState("archive");
+
+renderLib();
+</script>
+</body>
+</html>
