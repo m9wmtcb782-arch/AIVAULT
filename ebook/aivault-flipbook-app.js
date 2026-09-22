@@ -242,8 +242,14 @@
       return null;
     }
     const ebookId = state.remoteId || state.bookId;
-    const result = await E.fetchRemoteBook(ebookId, n);
-    if (!result.ok) return null;
+    let result;
+    try {
+      result = await E.fetchRemoteBook(ebookId, n);
+    } catch (e) {
+      console.error("[AIVAULT FlipBook] fetch page failed", e);
+      return null;
+    }
+    if (!result || !result.ok) return null;
     const ebook = result.data.ebook || result.data.book;
     const page = result.data.page || (result.data.pages && result.data.pages[0]);
     if (ebook) {
