@@ -408,7 +408,13 @@
           });
         }
       }
-      let start = Number(qs().get("page") || 0);
+    } catch (e) {
+      console.error("[AIVAULT FlipBook] openBook failed", e);
+      toast("電子書載入失敗：" + (e && e.message ? e.message : "network error"));
+      renderSpread();
+      return;
+    }
+    let start = Number(qs().get("page") || 0);
     if (!start) {
       const lp = await E.loadLocalProgress(id);
       if (lp && lp.current_page) start = lp.current_page;
