@@ -75,7 +75,7 @@
       ? '<img class="cover" alt="" src="' + E.esc(b.cover_url) + '">'
       : '<div class="cover-ph">' + E.esc(title) + "</div>";
     return (
-      '<article class="card" data-open="' + E.esc(id) + '" data-src="' + E.esc(b.source || (b.remote_id ? "remote" : "local")) + '">' +
+      '<article class="card" data-open="' + E.esc(id) + '" data-url="' + E.esc(b.special_url || "") + '" data-src="' + E.esc(b.source || (b.remote_id ? "remote" : "local")) + '">' +
       cover +
       '<div class="cinfo"><h3>' + E.esc(title) + "</h3>" +
       "<p>作者：" + E.esc(author) + "</p>" +
@@ -114,9 +114,24 @@
         ebook_id: E.DEFAULT_REMOTE,
         title: "AIVAULT 電子法律教材使用說明",
         author: "AIVAULT",
-        page_count: 5,
-        source: "remote",
-        created_at: "2026-09-22T06:23:03.728Z"
+        page_count: 0,
+        source: "guide",
+        special_url: "aivault-user-guide.html",
+        created_at: "2026-09-23T07:04:00+08:00"
+      });
+    }
+    const constitutionId = "aivault-prc-constitution-2018";
+    if (!map.has(constitutionId)) {
+      map.set(constitutionId, {
+        id: constitutionId,
+        ebook_id: constitutionId,
+        title: "中華人民共和國憲法｜現行2018修正｜繁體逐條解讀",
+        author: "AIVAULT 法律教材",
+        page_count: 143,
+        source: "legal-reference",
+        special_url: "prc-constitution-ebook.html",
+        category: "法律",
+        created_at: "2026-09-23T07:04:00+08:00"
       });
     }
     const progressRows = {};
@@ -182,7 +197,11 @@
     }
     $("shelfGrid").innerHTML = books.map(cardHtml).join("");
     $("shelfGrid").querySelectorAll("[data-open]").forEach(function (el) {
-      el.onclick = function () { openBook(el.getAttribute("data-open")); };
+      el.onclick = function () {
+        const url = el.getAttribute("data-url");
+        if (url) { location.href = url; return; }
+        openBook(el.getAttribute("data-open"));
+      };
     });
   }
 
