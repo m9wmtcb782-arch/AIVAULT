@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AIVAULT｜中華人民共和國憲法電子書</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;font-family:-apple-system,"Noto Sans TC",sans-serif;background:#15171b;color:#eee}
+header{height:52px;background:#101114;border-bottom:1px solid #2b2e35;display:flex;align-items:center;gap:8px;padding:0 10px}
+button,a{font:inherit}.btn{border:0;border-radius:8px;background:#292c33;color:#fff;padding:8px 12px;text-decoration:none;cursor:pointer}
+.title{font-weight:800}.sp{flex:1}.layout{height:calc(100dvh - 52px);display:grid;grid-template-columns:360px 1fr;gap:10px;padding:10px}
+aside,main{background:#1d2025;border:1px solid #2c3038;border-radius:10px;overflow:hidden}
+aside{display:flex;flex-direction:column}.meta{padding:14px;border-bottom:1px solid #2c3038}.toc{overflow:auto}.toc button{display:block;width:100%;text-align:left;border:0;background:transparent;color:#ddd;padding:10px 14px;border-bottom:1px solid #282b31;cursor:pointer}.toc button:hover{background:#282b31}
+main{display:flex;flex-direction:column}.tabs{height:44px;display:flex;gap:6px;padding:6px;border-bottom:1px solid #2c3038}.tabs button{border:0;border-radius:7px;padding:7px 10px;background:#292c33;color:#eee;cursor:pointer}.tabs .on{background:#4b505a}
+.frame{flex:1;background:#f4efe6}.frame iframe{width:100%;height:100%;border:0}
+.explain{display:none;flex:1;overflow:auto;background:#f4efe6;color:#201b16;padding:22px;line-height:1.8}.explain.on{display:block}.source{font-size:12px;color:#756b5d}.article{padding:14px;margin:10px 0;background:#fbf8f1;border-left:3px solid #8a7655}.article h3{margin:0 0 5px}
+@media(max-width:800px){.layout{grid-template-columns:1fr;height:calc(100dvh - 52px)}aside{display:none}.layout main{min-height:0}}
+</style></head>
+<body>
+<header><a class="btn" href="dark-star-ebook.html">🔙 回電子書</a><div class="title">中華人民共和國憲法｜2018年修正文本</div><div class="sp"></div><a class="btn" target="_blank" href="https://www.npc.gov.cn/npc/c191/c505/201905/t20190521_263492.html">官方原文</a></header>
+<div class="layout"><aside><div class="meta"><b>繁體中文法律電子書</b><br><span class="source">現行版本基準：1982年憲法＋1988／1993／1999／2004／2018年修正案。全國人大現行有效法律目錄截至2026年3月12日仍列上述版本。</span></div><div class="toc" id="toc"></div></aside>
+<main><div class="tabs"><button id="full" class="on">官方全文</button><button id="study">逐條解讀</button></div>
+<div class="frame" id="frame"><iframe src="https://zh.wikisource.org/zh-hant/中華人民共和國憲法_(2018年)" title="中華人民共和國憲法全文"></iframe></div>
+<div class="explain" id="explain"><h2>逐條解讀</h2><p class="source">以下為學習性說明；不是全國人大常委會的正式憲法解釋。需要正式引用時，以官方原文核對。</p><div id="articles"></div></div>
+</main></div>
+<script>
+const notes={
+1:"確定國家性質、社會主義制度的根本制度地位，以及中國共產黨領導在中國特色社會主義中的憲法定位。",
+2:"確定國家一切權力屬於人民，以及人民代表大會作為人民行使國家權力的機關。",
+3:"規定民主集中制及中央與地方國家機構的基本權力關係。",
+4:"規定民族平等、民族區域自治及少數民族權利保障。",
+5:"確立依法治國、憲法法律效力及不得有超越憲法法律特權的原則。",
+6:"規定社會主義基本經濟制度及分配制度的憲法基礎。",
+7:"規定國有經濟的主導地位。",
+8:"規定農村集體經濟及家庭承包經營等制度。",
+9:"規定自然資源所有權及合理利用、保護原則。",
+10:"規定土地所有制度及公共利益需要下的徵收、徵用。",
+11:"確認非公有制經濟是社會主義市場經濟的重要組成部分。",
+12:"規定社會主義公共財產受保護。",
+13:"規定公民合法私有財產權、繼承權及徵收徵用補償。",
+14:"規定提高生產力、節約、合理分配及社會保障等國家經濟政策。",
+15:"確立社會主義市場經濟及宏觀調控。",
+16:"規定國有企業自主經營及民主管理。",
+17:"規定集體經濟組織自主經營及民主管理。",
+18:"規定外國企業、經濟組織和個人在中國投資的基本法律保障。",
+19:"規定教育事業及教育制度的基本方向。",
+20:"規定自然科學、社會科學及科技知識普及。",
+21:"規定醫療衛生及體育事業。",
+22:"規定文化事業與歷史文化遺產保護。",
+23:"規定培養專業人才及知識分子作用。",
+24:"規定精神文明建設與社會主義核心價值觀。",
+25:"規定計劃生育；具體生育政策需結合相關法律政策理解。",
+26:"規定環境、生態保護及污染防治。",
+27:"規定國家機關精簡、責任、培訓考核等制度。",
+28:"規定國家維護社會秩序及依法處理犯罪活動。",
+29:"規定武裝力量屬於人民及其任務。",
+30:"規定行政區劃基本結構。",
+31:"規定設立特別行政區的憲法依據。",
+32:"規定外國人在中國的合法權利利益及守法義務，並涉及庇護。",
+33:"規定公民身份、法律面前平等、尊重和保障人權及權利義務統一。",
+34:"規定年滿十八週歲公民原則上的選舉權和被選舉權。",
+35:"規定言論、出版、集會、結社、遊行、示威等自由。",
+36:"規定宗教信仰自由及國家保護正常宗教活動。",
+37:"規定人身自由及逮捕、拘禁等憲法保障。",
+38:"規定人格尊嚴及禁止侮辱、誹謗、誣告陷害。",
+39:"規定住宅不受侵犯。",
+40:"規定通信自由和通信秘密及依法檢查的法定條件。",
+41:"規定對國家機關和工作人員的批評、建議、申訴、控告、檢舉等權利。",
+42:"規定勞動權利和義務及勞動保障。",
+43:"規定休息權與休假制度。",
+44:"規定退休制度與退休人員生活保障。",
+45:"規定年老、疾病、喪失勞動能力等情況下獲得物質幫助的權利。",
+46:"規定受教育的權利和義務。",
+47:"規定科學研究、文學藝術創作及文化活動自由。",
+48:"規定婦女與男子平等的權利及婦女權益保障。",
+49:"規定婚姻、家庭、母親、兒童受保護及家庭扶養義務。",
+50:"規定華僑、歸僑和僑眷合法權益保障。",
+51:"規定行使自由和權利不得損害國家、社會、集體及他人合法權利。",
+52:"規定維護國家統一和民族團結的義務。",
+53:"規定遵守憲法法律、保密、愛護公共財產及公共秩序等義務。",
+54:"規定維護祖國安全、榮譽和利益。",
+55:"規定保衛祖國、抵抗侵略及依法服兵役等義務。",
+56:"規定依法納稅義務。",
+57:"確定全國人大為最高國家權力機關，其常設機關為常委會。",
+58:"規定全國人大及常委會行使國家立法權。",
+59:"規定全國人大代表的組成與產生。",
+60:"規定全國人大每屆任期五年。",
+61:"規定全國人大會議通常每年舉行一次。",
+62:"列舉全國人大主要職權，包括修改憲法、立法、選舉和決定重要國家機關人員等。",
+63:"規定全國人大罷免重要國家公職人員的權力。",
+64:"規定憲法修改提議及三分之二以上多數通過門檻。",
+65:"規定全國人大常委會組成人員。",
+66:"規定常委會任期及部分領導職務連任限制。",
+67:"規定常委會憲法解釋、監督憲法實施、立法及重大事項決定等職權。",
+68:"規定常委會領導工作制度。",
+69:"規定常委會會議與工作程序。",
+70:"規定專門委員會等工作機構。",
+71:"規定立法等工作中的調查研究和聽取意見。",
+72:"規定議案、質詢等制度。",
+73:"規定人大代表履職保障。",
+74:"規定人大代表資格與履職制度。",
+75:"規定人大代表在會議中的發言和表決保障。",
+76:"規定人大代表遵守憲法法律、保守秘密、聯繫人民等職責。",
+77:"規定人大代表接受原選舉單位或選民監督。",
+78:"規定全國人大及常委會組織和工作程序由法律規定。",
+79:"規定國家主席、副主席的產生、資格和任期。",
+80:"規定國家主席公布法律、任免、授勳、特赦、緊急狀態等職權。",
+81:"規定國家主席代表國家進行國事活動及接受外國使節。",
+82:"規定國家主席派遣駐外代表及條約協定相關職權。",
+83:"規定國家主席、副主席任期。",
+84:"規定國家主席、副主席缺位時的繼任和補選。",
+85:"規定國務院是最高國家行政機關。",
+86:"規定國務院組成人員。",
+87:"規定國務院總理、副總理、國務委員等的產生和任期。",
+88:"規定總理負責國務院工作。",
+89:"規定國務院主要職權。",
+90:"規定國務院各部、委員會的設置與職責。",
+91:"規定審計機關依法獨立行使審計監督權。",
+92:"規定中央軍事委員會領導全國武裝力量。",
+93:"規定中央軍委組成及主席負責制。",
+94:"規定中央軍委主席任期。",
+95:"規定地方各級人民代表大會的設置和產生。",
+96:"規定地方各級人民政府的設置及性質。",
+97:"規定地方人大代表選舉制度框架。",
+98:"規定縣級以下人大代表直接選舉等制度。",
+99:"規定地方人大職權。",
+100:"規定地方性法規制定的憲法權限與程序關係。",
+101:"規定地方人大選舉、罷免本級政府及有關國家機關負責人的制度。",
+102:"規定地方人大代表接受選民或原選舉單位監督。",
+103:"規定縣級以上地方人大常委會組成及任職限制。",
+104:"規定地方人大常委會監督及決定重大事項等職權。",
+105:"規定地方政府是本級人大執行機關和地方行政機關。",
+106:"規定地方政府任期。",
+107:"規定縣級以上地方政府管理地方行政事務的基本職權。",
+108:"規定地方政府工作部門的設置、領導與行政職能。",
+109:"規定地方政府工作人員依法履職並接受監督。",
+110:"規定鄉、民族鄉、鎮人民政府的組織和職權。",
+111:"規定民族自治地方自治機關及自治權。",
+112:"規定民族自治地方人大常委會組成人員的民族構成要求。",
+113:"規定自治區主席、自治州州長、自治縣縣長的民族資格要求。",
+114:"規定民族自治地方自治機關同時履行地方國家機關職權。",
+115:"規定自治條例和單行條例制定、批准及備案。",
+116:"規定民族自治地方財政自治權。",
+117:"規定民族自治地方自主安排和管理地方經濟建設。",
+118:"規定民族自治地方自主安排地方經濟文化事業。",
+119:"規定民族自治地方管理教育、科學、文化、衛生、體育等事業。",
+120:"規定民族自治地方發展本民族語言文字和文化。",
+121:"規定國家幫助民族自治地方發展經濟文化。",
+122:"規定民族自治地方執行國家法律政策時結合地方實際。",
+123:"確定各級監察委員會為國家監察機關。",
+124:"規定國家及地方監察委員會的設置、組成與任期。",
+125:"確定國家監察委員會為最高監察機關並領導地方監察委員會。",
+126:"規定監察委員會體系的責任關係。",
+127:"規定監察委員會依法行使監察權及與其他機關的配合制約。",
+128:"規定人民法院的國家機關性質及法院體系。",
+129:"規定最高、地方及專門人民法院等法院設置。",
+130:"規定最高人民法院院長任期及連任限制。",
+131:"規定人民法院依法獨立行使審判權。",
+132:"確定最高人民法院為最高審判機關及上下級法院監督關係。",
+133:"規定最高人民法院、地方人民法院的負責關係。",
+134:"規定少數民族公民使用本民族語言文字進行訴訟的權利。",
+135:"規定法院、檢察院和公安機關辦理刑事案件分工負責、互相配合、互相制約。",
+136:"規定人民檢察院是國家的法律監督機關。",
+137:"規定最高人民檢察院地位及上下級檢察機關領導關係。",
+138:"規定最高、地方人民檢察院的負責關係。",
+139:"規定各民族公民用本民族語言文字進行訴訟及司法語言保障。",
+140:"再次規定法院、檢察院和公安機關刑事案件分工負責、互相配合、互相制約。",
+141:"規定國旗為五星紅旗、國歌為《義勇軍進行曲》。",
+142:"規定國徽的基本構成。",
+143:"規定中華人民共和國首都是北京。"
+};
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",""":"&quot;"}[c]));
+const a=document.getElementById("articles");
+a.innerHTML=Object.keys(notes).map(n=>'<section class="article" id="a'+n+'"><h3>第'+n+'條</h3><div>'+esc(notes[n])+'</div></section>').join("");
+document.getElementById("full").onclick=()=>{full.classList.add("on");study.classList.remove("on");frame.style.display="block";explain.classList.remove("on")};
+document.getElementById("study").onclick=()=>{study.classList.add("on");full.classList.remove("on");frame.style.display="none";explain.classList.add("on")};
+document.getElementById("toc").innerHTML='<button data-n="0">序言與版本說明</button>'+Object.keys(notes).map(n=>'<button data-n="'+n+'">第'+n+'條</button>').join("");
+document.querySelectorAll(".toc button").forEach(b=>b.onclick=()=>{study.click();const n=b.dataset.n;if(n==="0"){explain.scrollTop=0}else{document.getElementById("a"+n)?.scrollIntoView({behavior:"smooth",block:"start"})}});
+</script></body></html>
