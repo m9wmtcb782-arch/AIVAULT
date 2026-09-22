@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>AIVAULT｜電子書</title>
 <style>
-*{box-sizing:border-box}html,body{margin:0;height:100%;background:#1a1c20;color:#e8e8ea;font-family:-apple-system,"Noto Sans TC",sans-serif}
+*{box-sizing:border-box}[hidden]{display:none!important}html,body{margin:0;height:100%;background:#1a1c20;color:#e8e8ea;font-family:-apple-system,"Noto Sans TC",sans-serif}
 button,input,textarea{font:inherit}body{overflow:hidden}
 .app{height:100dvh;display:flex;flex-direction:column}
 .top{height:48px;display:flex;align-items:center;gap:8px;padding:0 10px;background:#111214;border-bottom:1px solid #2a2d33}
@@ -33,13 +33,13 @@ button,input,textarea{font:inherit}body{overflow:hidden}
 </style></head>
 <body>
 <div class="app">
-<header class="top"><a class="ib" href="aivault-home.html">回首頁</a><div class="brand">電子書</div><span id="connStatus" style="font-size:12px;color:#9aa0a8"></span><div class="spacer"></div>
+<header class="top"><a class="ib" href="aivault-home.html">回首頁</a><div class="brand">電子書</div><div class="spacer"></div>
 <button class="ib" id="btnLib">選書</button><button class="ib" id="btnToc">目錄</button><button class="ib" id="btnAsk">詢問暗星</button><a class="ib" href="dark-star-ebook-editor.html">匯入</a></header>
 <div class="stage" id="stage">
-<div class="empty" id="emptyState"><h1>選擇教材</h1><input id="ebookIdInput" placeholder="ebook_id"><button class="ib" id="btnOpen">開啟</button><div id="localLib"></div></div>
-<div class="book" id="bookView" hidden><div class="spread"><article class="page left"><div class="inner" id="leftInner"></div><div class="pageno" id="leftNo"></div></article><article class="page right"><div class="inner" id="rightInner"></div><div class="pageno" id="rightNo"></div></article></div></div>
+<div class="empty" id="emptyState" hidden><h1>選擇教材</h1><input id="ebookIdInput" placeholder="ebook_id"><button class="ib" id="btnOpen">開啟</button><div id="localLib"></div></div>
+<div class="book" id="bookView"><div class="spread"><article class="page left"><div class="inner" id="leftInner"></div><div class="pageno" id="leftNo"></div></article><article class="page right"><div class="inner" id="rightInner"></div><div class="pageno" id="rightNo"></div></article></div></div>
 </div>
-<div class="bar" id="readerNav" hidden><button class="ib" id="prevBtn">‹</button><input id="jumpRange" type="range" min="1" max="1" value="1"><div id="pageLabel">1 / 1</div><button class="ib" id="nextBtn">›</button><button class="ib" id="btnRead">朗讀</button><button class="ib" id="btnStopRead">停止</button></div>
+<div class="bar" id="readerNav"><button class="ib" id="prevBtn">‹</button><input id="jumpRange" type="range" min="1" max="1" value="1"><div id="pageLabel">1 / 1</div><button class="ib" id="nextBtn">›</button><button class="ib" id="btnRead">朗讀</button><button class="ib" id="btnStopRead">停止</button></div>
 </div>
 <aside class="drawer" id="side"><div id="coverBox" style="padding:16px"></div><div id="bookMeta" style="padding:0 16px 8px;font-size:13px;color:#aaa"></div><div id="tocList"></div></aside>
 <aside class="drawer right" id="ask"><div style="padding:14px;font-weight:800">詢問暗星</div><div id="askLog" style="padding:10px"></div><form class="askform" id="askForm"><textarea id="askInput" placeholder="針對目前這一頁提問"></textarea><button class="ib" type="submit">送出問題</button></form></aside>
@@ -50,6 +50,7 @@ const INGEST=SUPABASE_URL+"/functions/v1/dark-star-ebook-ingest";
 const GATEWAY=SUPABASE_URL+"/functions/v1/ai-gateway";
 const CATALOG_KEY="aivault_ebook_catalog";
 const READER_KEY="aivault_ebook_reader_id";
+const DEFAULT_BOOK="3c203a20-258d-42b1-910f-5f10c8186033";
 const state={ebookId:null,readerId:null,ebook:null,toc:[],pageNumber:1,totalPages:0,cache:new Map(),context:null};
 const $=id=>document.getElementById(id);
 const isWide=()=>innerWidth>820;
@@ -69,13 +70,13 @@ function currentPages(){if(isWide()){const left=state.pageNumber%2===0?state.pag
 function paint(elInner,elNo,page,n){if(!page){elInner.innerHTML="<h3>【教材原文】</h3><p>此頁無內容。</p>";elNo.textContent=n||"";return;}const meta=pageMeta(page);const bits=[meta.chapter,meta.section,meta.article_number].filter(Boolean).join("　");elInner.innerHTML="<h3>【教材原文】"+(bits?("　"+esc(bits)):"")+"</h3><div>"+esc(pageContent(page)).replace(/\n/g,"<br>")+"</div>";elNo.textContent=String(meta.page_number||n||"");}
 function renderPages(){const p=currentPages();const a=p[0],b=p[1];paint($("leftInner"),$("leftNo"),state.cache.get(a),a);paint($("rightInner"),$("rightNo"),state.cache.get(b||a),b||a);const total=state.totalPages||0;$("pageLabel").textContent=total?(state.pageNumber+" / "+total):String(state.pageNumber);$("jumpRange").max=String(total||1);$("jumpRange").value=String(state.pageNumber);}
 async function fetchPage(n){if(!n||n<1)return null;if(state.cache.has(n))return state.cache.get(n);const result=await ingest({action:"book",ebook_id:state.ebookId,page_number:n});if(!result.ok)return null;const ebook=unwrapEbook(result.data);const page=unwrapPage(result.data)||(result.data&&result.data.pages&&result.data.pages[0]);if(ebook&&typeof ebook==="object"){state.ebook=Object.assign({},state.ebook||{},ebook);const t=Number(pick(ebook,["page_count","total_pages","pages"])||0);if(t)state.totalPages=t;renderCover(state.ebook);}if(page){const num=pageMeta(page).page_number||n;state.cache.set(num,page);return page;}return null;}
-async function fetchContext(n){const result=await ingest({action:"context",ebook_id:state.ebookId,page_number:n,radius:1});if(!result.ok)return;state.context=result.data;const pages=[].concat((result.data&&result.data.pages)||[],result.data&&result.data.previous_page,result.data&&result.data.current_page,result.data&&result.data.next_page,result.data&&result.data.page).filter(Boolean);pages.forEach(function(p){const num=pageMeta(p).page_number;if(num)state.cache.set(num,p);});}
+async function fetchContext(n){const result=await ingest({action:"context",ebook_id:state.ebookId,page_number:n,radius:1});if(!result.ok)return;state.context=result.data;}
 function renderCover(ebook){const title=pick(ebook||{},["title","book_title","name"])||"教材";const author=pick(ebook||{},["author"])||"";const version=pick(ebook||{},["version","edition"])||"";$("coverBox").innerHTML="<div style='background:#2a241c;color:#f4ead6;padding:24px;border-radius:8px'>"+esc(title)+"<div style='margin-top:8px;font-size:12px'>"+esc(author)+"</div></div>";$("bookMeta").innerHTML=esc(title)+"<br>作者 "+esc(author||"—")+"<br>版本 "+esc(version||"—");}
-function renderToc(items){const list=Array.isArray(items)?items:(items&&(items.toc||items.items||items.entries))||[];state.toc=list;$("tocList").innerHTML=list.length?list.map(function(item){const title=pick(item,["title","label","name","heading","text"])||"未命名";const page=pick(item,["page_number","page","target_page"]);return "<button class='tocbtn' data-page='"+esc(page||"")+"'>"+esc(title)+"</button>";}).join(""):"<div style='padding:12px;color:#888'>尚無目錄</div>";$("tocList").querySelectorAll("[data-page]").forEach(function(btn){btn.onclick=function(){const n=Number(btn.getAttribute("data-page"));if(n)goPage(n);closeDrawers();};});}
+function renderToc(items){const list=Array.isArray(items)?items:(items&&(items.toc||items.items||items.entries))||[];$("tocList").innerHTML=list.length?list.map(function(item){const title=pick(item,["title","label","name","heading","text"])||"未命名";const page=pick(item,["page_number","page","target_page"]);return "<button class='tocbtn' data-page='"+esc(page||"")+"'>"+esc(title)+"</button>";}).join(""):"<div style='padding:12px;color:#888'>尚無目錄</div>";$("tocList").querySelectorAll("[data-page]").forEach(function(btn){btn.onclick=function(){const n=Number(btn.getAttribute("data-page"));if(n)goPage(n);closeDrawers();};});}
 async function loadToc(){const result=await ingest({action:"toc",ebook_id:state.ebookId});if(result.ok)renderToc(result.data);}
 async function saveProgress(){if(!state.ebookId||!state.readerId)return;await ingest({action:"progress",ebook_id:state.ebookId,reader_id:state.readerId,save:true,page_number:state.pageNumber,progress:state.totalPages?Number((state.pageNumber/state.totalPages).toFixed(4)):0});}
 async function restoreProgress(){const result=await ingest({action:"progress",ebook_id:state.ebookId,reader_id:state.readerId});const n=Number(pick(result.data||{},["page_number","page"])||1);return n>0?n:1;}
-async function goPage(n){if(!state.ebookId)return;n=Math.max(1,Number(n)||1);if(state.totalPages)n=Math.min(state.totalPages,n);state.pageNumber=n;setQS(state.ebookId,n);const neighbors=[n-1,n,n+1];if(isWide())neighbors.push(n+2);await Promise.all(neighbors.filter(function(x){return x>0;}).map(fetchPage));fetchContext(n);renderPages();saveProgress();stopRead();}
+async function goPage(n){if(!state.ebookId)return;n=Math.max(1,Number(n)||1);if(state.totalPages)n=Math.min(state.totalPages,n);state.pageNumber=n;setQS(state.ebookId,n);await Promise.all([n-1,n,n+1].filter(function(x){return x>0;}).map(fetchPage));fetchContext(n);renderPages();saveProgress();stopRead();}
 async function openBook(ebookId,page){state.ebookId=ebookId;state.readerId=getReaderId();state.cache.clear();$("emptyState").hidden=true;$("bookView").hidden=false;$("readerNav").hidden=false;setQS(ebookId,page||1);await loadToc();let start=Number(page||qs().get("page")||0);if(!start)start=await restoreProgress();await goPage(start);}
 function closeDrawers(){$("side").classList.remove("open");$("ask").classList.remove("open");}
 function sourceLine(){const meta=pageMeta(state.cache.get(state.pageNumber)||{});const title=pick(state.ebook||{},["title","book_title"])||"本書";return [title,"第"+state.pageNumber+"頁",meta.chapter,meta.section].filter(Boolean).join("、");}
@@ -98,6 +99,6 @@ $("askForm").onsubmit=function(e){e.preventDefault();const q=$("askInput").value
 document.addEventListener("keydown",function(e){if(["INPUT","TEXTAREA"].indexOf(e.target.tagName)>=0)return;if(e.key==="ArrowRight"||e.key==="PageDown")goPage(state.pageNumber+1);if(e.key==="ArrowLeft"||e.key==="PageUp")goPage(state.pageNumber-1);});
 let sx=0;$("stage").addEventListener("touchstart",function(e){sx=e.changedTouches[0].clientX;},{passive:true});
 $("stage").addEventListener("touchend",function(e){const dx=e.changedTouches[0].clientX-sx;if(dx<-40)goPage(state.pageNumber+1);if(dx>40)goPage(state.pageNumber-1);});
-(function(){renderLibrary();const id=qs().get("ebook_id");if(id)openBook(id,qs().get("page"));})();
+openBook(DEFAULT_BOOK);
 </script>
 </body></html>
