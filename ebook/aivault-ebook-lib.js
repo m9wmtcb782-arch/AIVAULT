@@ -221,21 +221,76 @@
 
   function inferTocFromText(pages) {
     const toc = [];
-    const re = /^(第[一二三四五六七八九十百千0-9]+[編章節條]|第\s*\d+\s*[章節編條]|Chapter\s+\d+|CHAPTER\s+\d+)/;
+    const seen = {};
+    const re = /^(第[一二三四五六七八九十百千0-9]+[編章節條](?:\\s*.*)?|第\\s*\\d+\\s*[章節編條](?:\\s*.*)?|Chapter\\s+\\d+(?:\\s+.*)?|CHAPTER\\s+\\d+(?:\\s+.*)?)/;
+    function add(title, page, level) {
+      const t = String(title || "").replace(/^[\\s\\-—–]+|[\\s\\-—–]+$/g, "").trim();
+      const p = Number(page || 0);
+      if (!t || !p || t.length > 120) return;
+      const key = t + "|" + p;
+      if (seen[key]) return;
+      seen[key] = true;
+      toc.push({ title: t, page_number: p, level: level || "section" });
+    }
     pages.forEach(function (p) {
-      const lines = String(p.content || "").split(/\n+/);
+      const lines = String(p.content || "").split(/\\n+/);
       lines.forEach(function (line) {
-        const t = line.trim();
-        if (t.length >= 2 && t.length < 80 && re.test(t)) {
-          toc.push({
-            title: t,
-            page_number: p.page_number,
-            level: /編/.test(t) ? "part" : /章|Chapter/i.test(t) ? "chapter" : /節/.test(t) ? "section" : "article"
-          });
+        const t = line.trim().replace(/\\s{2,}/g, " ");
+        if (t.length >= 2 && t.length < 120 && re.test(t)) {
+          add(t, p.page_number, /編/.test(t) ? "part" : /章|Chapter/i.test(t) ? "chapter" : /節/.test(t) ? "section" : "article");
         }
       });
     });
-    return toc;
+
+    const allText = pages.map(function (p) { return String(p.content || ""); }).join("\\n");
+    if (/中華人民共和國憲法|中华人民共和国宪法/.test(allText)) {
+      const canonical = [
+        ["序言", "preamble"],
+        ["第一章　總綱", "chapter"],
+        ["第二章　公民的基本權利和義務", "chapter"],
+        ["第三章　國家機構", "chapter"],
+        ["第四章　國旗、國歌、國徽、首都", "chapter"]
+      ];
+      canonical.forEach(function (entry) {
+        let page = 0;
+        for (let i = 0; i < pages.length; i++) {
+          const txt = String(pages[i].content || "");
+          const traditional = entry[0].replace(/　/g, " ");
+          const simplified = traditional
+            .replace(/總綱/g, "总纲")
+            .replace(/公民的基本權利和義務/g, "公民的基本权利和义务")
+            .replace(/國家機構/g, "国家机构")
+            .replace(/國旗、國歌、國徽、首都/g, "国旗、国歌、国徽、首都");
+          if (txt.indexOf(entry[0]) >= 0 || txt.indexOf(traditional) >= 0 || txt.indexOf(simplified) >= 0) {
+            page = Number(pages[i].page_number || 0);
+            break;
+          }
+        }
+        if (page) add(entry[0], page, entry[1]);
+      });
+      const sections = [
+        ["第一節　全國人民代表大會", "第一节 全国人民代表大会"],
+        ["第二節　中華人民共和國主席", "第二节 中华人民共和国主席"],
+        ["第三節　國務院", "第三节 国务院"],
+        ["第四節　中央軍事委員會", "第四节 中央军事委员会"],
+        ["第五節　地方各級人民代表大會和地方各級人民政府", "第五节 地方各级人民代表大会和地方各级人民政府"],
+        ["第六節　民族自治地方的自治機關", "第六节 民族自治地方的自治机关"],
+        ["第七節　監察委員會", "第七节 监察委员会"],
+        ["第八節　人民法院和人民檢察院", "第八节 人民法院和人民检察院"]
+      ];
+      sections.forEach(function (entry) {
+        for (let i = 0; i < pages.length; i++) {
+          const txt = String(pages[i].content || "");
+          if (txt.indexOf(entry[0]) >= 0 || txt.indexOf(entry[1]) >= 0) {
+            add(entry[0], Number(pages[i].page_number || 0), "section");
+            break;
+          }
+        }
+      });
+    }
+    return toc.sort(function (a, b) {
+      return Number(a.page_number || 0) - Number(b.page_number || 0);
+    });
   }
 
   function searchPages(pages, query) {
