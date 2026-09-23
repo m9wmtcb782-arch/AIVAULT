@@ -612,7 +612,7 @@
       }));
       AGENTS.forEach(agent => {
         const r = results[agent.provider] || { ok: false, text: '未知' };
-        setAgentRuntime(agent.id, { status: r.ok ? 'idle' : 'offline', statusText: r.ok ? (`空閒 · ${agent.provider}`) : '未連線', connected: !!r.ok, lastError: r.ok ? '' : r.text });
+        setAgentRuntime(agent.id, { status: r.ok ? 'idle' : 'offline', statusText: r.ok ? (`空閒`) : '未連線', connected: !!r.ok, lastError: r.ok ? '' : r.text });
       });
       renderAgents(); renderAgentRegistry();
       if (!selectedChatAgents.length) selectedChatAgents = AGENTS.filter(a => getAgentView(a).connected).slice(0, 2).map(a => a.id);
@@ -623,7 +623,7 @@
       const container = document.getElementById('agentsGrid');
       container.innerHTML = AGENTS.slice(0, 6).map(raw => {
         const agent = getAgentView(raw);
-        return `<div class="agent-card" data-id="${agent.id}"><div class="agent-avatar" style="background:${agent.color}22">${agent.avatar}</div><div class="agent-name">${agent.name}</div><div class="agent-role">${agent.role} · ${agent.provider}</div><div class="agent-status"><span class="status-dot ${agent.status}"></span><span>${agent.statusText}</span></div></div>`;
+        return `<div class="agent-card" data-id="${agent.id}"><div class="agent-avatar" style="background:${agent.color}22">${agent.avatar}</div><div class="agent-name">${agent.name}</div><div class="agent-role">${agent.role}</div><div class="agent-status"><span class="status-dot ${agent.status}"></span><span>${agent.statusText}</span></div></div>`;
       }).join('');
     }
     function renderTasks(containerId) {
@@ -670,7 +670,7 @@
         } catch (err) {
           messages.push({ sender: agent.name, role: agent.role, type: 'agent', text: `任務執行失敗：${err.message || err}`, time: nowTime() });
         }
-        setAgentRuntime(agent.id, { status: 'idle', statusText: '空閒 · ' + agent.provider, connected: true });
+        setAgentRuntime(agent.id, { status: 'idle', statusText: '空閒', connected: true });
         renderAgents(); renderMessages('chatMessages'); renderMessages('homeChatPreview', 6);
       }
     }
@@ -817,7 +817,7 @@
     function renderAgentRegistry() {
       const container = document.getElementById('agentRegistry');
       container.innerHTML = AGENTS.map(agent => `
-        <div class="registry-item"><div class="registry-info"><div class="registry-icon" style="background:${agent.color}33">${agent.avatar}</div><div><div style="font-weight:600;font-size:14px">${agent.name}</div><div style="font-size:12px;color:var(--text-muted)">${agent.role} · ${agent.provider}</div></div></div><div class="toggle ${getAgentView(agent).connected?'on':''}" data-id="${agent.id}"></div></div>`).join('');
+        <div class="registry-item"><div class="registry-info"><div class="registry-icon" style="background:${agent.color}33">${agent.avatar}</div><div><div style="font-weight:600;font-size:14px">${agent.name}</div><div style="font-size:12px;color:var(--text-muted)">${agent.role}</div></div></div><div class="toggle ${getAgentView(agent).connected?'on':''}" data-id="${agent.id}"></div></div>`).join('');
     }
     function renderProviders() {
       const container = document.getElementById('providerRegistry');
@@ -873,7 +873,7 @@
         try {
           setAgentRuntime(agent.id, { status: 'working', statusText: '正在做事…', connected: true }); renderAgents();
           const reply = await callAIGateway({ provider: agent.provider, model: getAgentModel(agent), agentName: agent.name, userMessage: text });
-          setAgentRuntime(agent.id, { status: 'idle', statusText: '空閒 · ' + agent.provider, connected: true }); renderAgents();
+          setAgentRuntime(agent.id, { status: 'idle', statusText: '空閒', connected: true }); renderAgents();
           messages.push({ sender: agent.name, role: agent.role, type: 'agent', text: reply, time: nowTime() });
         } catch (error) {
           messages.push({ sender: agent.name, role: agent.role, type: 'agent', text: `AI Gateway 錯誤：${error.message}`, time: nowTime() });
@@ -997,7 +997,7 @@
           const provider = PROVIDERS.find(p => p.code === providerCode);
           if (provider) {
             const nowOn = !toggleEl.classList.contains('on'); toggleEl.classList.toggle('on'); provider.status = nowOn ? 'active' : 'inactive';
-            AGENTS.forEach(a => { if (a.provider === providerCode) setAgentRuntime(a.id, { connected: nowOn, status: nowOn ? 'idle' : 'offline', statusText: nowOn ? (`空閒 · ${providerCode}`) : 'Provider 已關閉' }); });
+            AGENTS.forEach(a => { if (a.provider === providerCode) setAgentRuntime(a.id, { connected: nowOn, status: nowOn ? 'idle' : 'offline', statusText: nowOn ? (`空閒`) : 'Provider 已關閉' }); });
             renderAgents(); renderAgentRegistry(); renderAgentPickBars();
           }
           return;
