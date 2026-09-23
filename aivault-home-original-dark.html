@@ -235,7 +235,7 @@
     <button class="tab" data-panel="chat">AI 協作</button>
     <button class="tab" data-panel="task">任務流程</button>
     <button class="tab" data-panel="agents">Agent</button>
-    <button class="tab" data-panel="brain">🧠 AI 大腦</button>
+    
     <button class="tab" data-panel="approval">審批</button>
     <button class="tab" type="button" id="tabProposalLibrary">企劃書庫</button>
   </nav>
@@ -307,6 +307,18 @@
           <div style="flex-shrink:0; padding:8px 12px; border-radius:20px; background:linear-gradient(135deg,#d4af37,#78716c); color:#1c1917; font-size:12px; font-weight:700;">進入西洋棋</div>
         </div>
       </div>
+      <div class="agent-card" id="brainOnlineCard" style="margin-bottom:16px;cursor:default;border-color:rgba(34,197,94,.35);background:linear-gradient(135deg,#0f2d20,#1e293b);">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+            <div class="status-dot thinking" id="brainOnlineDot"></div>
+            <div style="min-width:0;">
+              <div class="agent-name" style="font-size:15px;">🧠 AI 大腦</div>
+              <div class="agent-role" id="brainOnlineText" style="margin-bottom:0;">正在檢查連線…</div>
+            </div>
+          </div>
+          <div id="brainOnlineBadge" style="flex-shrink:0;padding:7px 11px;border-radius:18px;background:#334155;color:#cbd5e1;font-size:12px;font-weight:700;">檢查中</div>
+        </div>
+      </div>
       <div class="section-title">在線 Agent</div>
       <div class="agents-grid" id="agentsGrid"></div>
       <div class="section-title">任務工作流｜大腦</div>
@@ -362,44 +374,6 @@
       <div class="section-title">AI 服務</div>
       <div class="registry-list" id="providerRegistry"></div>
       <p style="font-size:12px;color:var(--text-muted);margin-top:16px;text-align:center;">AI Gateway 負責 Provider Adapter。API Key 不放在前端。</p>
-    </div>
-
-    <div class="panel" id="panel-brain">
-      <div class="section-title">🧠 AI 大腦｜即時運作</div>
-      <div class="chat-container" style="height:auto;min-height:300px;">
-        <div class="chat-header">
-          <span>AIVAULT AI 大腦</span>
-          <span style="font-size:11px;color:var(--success)">● 運作中</span>
-        </div>
-        <div style="padding:14px;border-bottom:1px solid var(--border);">
-          <div style="display:flex;align-items:center;gap:10px;">
-            <div class="status-dot thinking" id="brainStatusDot"></div>
-            <div>
-              <div style="font-weight:700;font-size:14px;" id="brainStatus">AI 大腦待命</div>
-              <div style="font-size:11px;color:var(--text-muted);" id="brainStatusDetail">AIVAULT Gateway 已連線 · 智慧核心由系統自動調度</div>
-            </div>
-          </div>
-        </div>
-        <div style="padding:14px;">
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">目前在線 AI Agent</div>
-          <div class="agents-grid" id="brainAgentsGrid" style="margin-bottom:14px;"></div>
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">大腦工作流</div>
-          <div class="workflow" id="brainWorkflow" style="margin-bottom:0;"></div>
-        </div>
-      </div>
-      <div class="section-title" style="margin-top:18px;">即時 AI 對話</div>
-      <div class="chat-container" style="height:380px;">
-        <div class="chat-header">
-          <span>AI 大腦對話</span>
-          <span style="font-size:11px;color:var(--success)">● Gateway</span>
-        </div>
-        <div class="agent-pick-bar" id="brainAgentPick"></div>
-        <div class="chat-messages" id="brainChatMessages"></div>
-        <div class="chat-input-area">
-          <input class="chat-input" id="brainChatInput" placeholder="輸入問題，讓 AI 大腦處理…" autocomplete="off" />
-          <button class="send-btn" id="brainSendBtn" type="button">↑</button>
-        </div>
-      </div>
     </div>
 
     <div class="panel" id="panel-approval">
@@ -657,12 +631,27 @@
       else selectedChatAgents = selectedChatAgents.filter(id => { const a = AGENTS.find(x => x.id === id); return a && getAgentView(a).connected; });
       renderAgentPickBars();
     }
+    function renderBrainOnlineStatus() {
+      const dot = document.getElementById('brainOnlineDot');
+      const text = document.getElementById('brainOnlineText');
+      const badge = document.getElementById('brainOnlineBadge');
+      if (!dot || !text || !badge) return;
+      const onlineCount = AGENTS.filter(a => getAgentView(a).connected).length;
+      const online = onlineCount > 0;
+      dot.className = 'status-dot ' + (online ? 'idle' : 'offline');
+      text.textContent = online ? `AI 大腦在線 · ${onlineCount} 個 AI Agent 可用` : 'AI 大腦離線 · 尚無可用 AI Agent';
+      badge.textContent = online ? '● 在線' : '○ 離線';
+      badge.style.background = online ? 'rgba(34,197,94,.18)' : '#334155';
+      badge.style.color = online ? '#86efac' : '#cbd5e1';
+    }
+
     function renderAgents() {
       const container = document.getElementById('agentsGrid');
       container.innerHTML = AGENTS.slice(0, 6).map(raw => {
         const agent = getAgentView(raw);
         return `<div class="agent-card" data-id="${agent.id}"><div class="agent-avatar" style="background:${agent.color}22">${agent.avatar}</div><div class="agent-name">${agent.name}</div><div class="agent-role">${agent.role}</div><div class="agent-status"><span class="status-dot ${agent.status}"></span><span>${agent.statusText}</span></div></div>`;
       }).join('');
+      renderBrainOnlineStatus();
     }
     function renderTasks(containerId) {
       const container = document.getElementById(containerId);
@@ -887,31 +876,25 @@
     }
     window.handleApproval = handleApproval;
     async function sendMessage(fromHome) {
-      const input = fromHome === 'brain'
-        ? document.getElementById('brainChatInput')
-        : (document.getElementById(fromHome ? 'homeChatInput' : 'chatInput') || document.getElementById('chatInput'));
+      const input = document.getElementById(fromHome ? 'homeChatInput' : 'chatInput') || document.getElementById('chatInput');
       const homeInput = document.getElementById('homeChatInput');
       const chatInput = document.getElementById('chatInput');
-      const brainInput = document.getElementById('brainChatInput');
       const homeBtn = document.getElementById('homeSendBtn');
       const chatBtn = document.getElementById('sendBtn');
-      const brainBtn = document.getElementById('brainSendBtn');
       const text = (input && input.value.trim()) || '';
       if (!text) return;
       if (homeInput) homeInput.value = '';
       if (chatInput) chatInput.value = '';
-      if (brainInput) brainInput.value = '';
       if (homeBtn) homeBtn.disabled = true;
       if (chatBtn) chatBtn.disabled = true;
-      if (brainBtn) brainBtn.disabled = true;
       messages.push({ sender: 'Owner', type: 'owner', text, time: nowTime() });
-      renderMessages('chatMessages'); renderMessages('homeChatPreview'); renderMessages('brainChatMessages'); renderMessages('brainChatMessages');
+      renderMessages('chatMessages'); renderMessages('homeChatPreview');
       let activeAgents = selectedChatAgents.length
         ? AGENTS.filter(agent => selectedChatAgents.includes(agent.id) && getAgentView(agent).connected)
         : AGENTS.filter(agent => getAgentView(agent).connected).slice(0, 2);
       if (!activeAgents.length) {
         showToast('沒有已連線的 Agent，請檢查 AI Gateway');
-        if (homeBtn) homeBtn.disabled = false; if (chatBtn) chatBtn.disabled = false; if (brainBtn) brainBtn.disabled = false; return;
+        if (homeBtn) homeBtn.disabled = false; if (chatBtn) chatBtn.disabled = false; return;
       }
       for (const agent of activeAgents) {
         try {
@@ -922,7 +905,7 @@
         } catch (error) {
           messages.push({ sender: agent.name, role: agent.role, type: 'agent', text: `AI Gateway 錯誤：${error.message}`, time: nowTime() });
         }
-        renderMessages('chatMessages'); renderMessages('homeChatPreview', 4); renderMessages('brainChatMessages');
+        renderMessages('chatMessages'); renderMessages('homeChatPreview', 4);
       }
       if (homeBtn) homeBtn.disabled = false; if (chatBtn) chatBtn.disabled = false;
     }
@@ -946,8 +929,6 @@
       if (panel) panel.classList.add('active');
     });
     document.getElementById('sendBtn').addEventListener('click', () => sendMessage(false));
-    document.getElementById('brainSendBtn')?.addEventListener('click', () => sendMessage('brain'));
-    document.getElementById('brainChatInput')?.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); sendMessage('brain'); } });
     document.getElementById('homeSendBtn')?.addEventListener('click', () => sendMessage(true));
     document.getElementById('homeChatInput')?.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); sendMessage(true); } });
     document.getElementById('chatInput').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); sendMessage(); } });
@@ -1060,11 +1041,6 @@
       }
     });
     renderAgents(); renderAgentPickBars(); checkGatewayConnections();
-    if (document.getElementById('brainAgentsGrid')) {
-      document.getElementById('brainAgentsGrid').innerHTML = document.getElementById('agentsGrid')?.innerHTML || '';
-      document.getElementById('brainWorkflow').innerHTML = document.getElementById('workflowHome')?.innerHTML || '';
-      renderAgentPickBars();
-    }
     renderTasks('taskList'); renderTasks('taskListFull'); renderWorkflow();
     renderMessages('chatMessages'); renderMessages('homeChatPreview');
     renderAgentRegistry(); renderProviders(); renderApprovals();
