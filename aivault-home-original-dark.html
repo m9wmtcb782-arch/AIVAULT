@@ -235,7 +235,7 @@
     <button class="tab" data-panel="chat">AI 協作</button>
     <button class="tab" data-panel="task">任務流程</button>
     <button class="tab" data-panel="agents">Agent</button>
-    
+    <button class="tab" data-panel="providers">Providers</button>
     <button class="tab" data-panel="approval">審批</button>
     <button class="tab" type="button" id="tabProposalLibrary">企劃書庫</button>
   </nav>
@@ -307,7 +307,7 @@
           <div style="flex-shrink:0; padding:8px 12px; border-radius:20px; background:linear-gradient(135deg,#d4af37,#78716c); color:#1c1917; font-size:12px; font-weight:700;">進入西洋棋</div>
         </div>
       </div>
-      <div class="section-title">在線 AI 大腦</div>
+      <div class="section-title">在線 Agent</div>
       <div class="agents-grid" id="agentsGrid"></div>
       <div class="section-title">任務工作流｜大腦</div>
       <div class="workflow" id="workflowHome"></div>
@@ -342,7 +342,7 @@
           <button class="send-btn" id="sendBtn">↑</button>
         </div>
       </div>
-      <p style="font-size:12px;color:var(--text-muted);text-align:center;">已連接 AIVAULT AI Gateway</p>
+      <p style="font-size:12px;color:var(--text-muted);text-align:center;">已連接 AIVAULT AI Gateway · Groq / Gemini</p>
     </div>
 
     <div class="panel" id="panel-task">
@@ -358,8 +358,8 @@
       <p style="font-size:12px;color:var(--text-muted);margin-top:16px;text-align:center;">Agent 目前由前端 Registry 顯示，後續可改由 Supabase DB 動態載入。</p>
     </div>
 
-    <div class="panel" id="panel-providers" style="display:none !important">
-      <div class="section-title">AI 服務</div>
+    <div class="panel" id="panel-providers">
+      <div class="section-title">AI Providers</div>
       <div class="registry-list" id="providerRegistry"></div>
       <p style="font-size:12px;color:var(--text-muted);margin-top:16px;text-align:center;">AI Gateway 負責 Provider Adapter。API Key 不放在前端。</p>
     </div>
@@ -612,34 +612,19 @@
       }));
       AGENTS.forEach(agent => {
         const r = results[agent.provider] || { ok: false, text: '未知' };
-        setAgentRuntime(agent.id, { status: r.ok ? 'idle' : 'offline', statusText: r.ok ? (`空閒`) : '未連線', connected: !!r.ok, lastError: r.ok ? '' : r.text });
+        setAgentRuntime(agent.id, { status: r.ok ? 'idle' : 'offline', statusText: r.ok ? (`空閒 · ${agent.provider}`) : '未連線', connected: !!r.ok, lastError: r.ok ? '' : r.text });
       });
       renderAgents(); renderAgentRegistry();
       if (!selectedChatAgents.length) selectedChatAgents = AGENTS.filter(a => getAgentView(a).connected).slice(0, 2).map(a => a.id);
       else selectedChatAgents = selectedChatAgents.filter(id => { const a = AGENTS.find(x => x.id === id); return a && getAgentView(a).connected; });
       renderAgentPickBars();
     }
-    function renderBrainOnlineStatus() {
-      const dot = document.getElementById('brainOnlineDot');
-      const text = document.getElementById('brainOnlineText');
-      const badge = document.getElementById('brainOnlineBadge');
-      if (!dot || !text || !badge) return;
-      const onlineCount = AGENTS.filter(a => getAgentView(a).connected).length;
-      const online = onlineCount > 0;
-      dot.className = 'status-dot ' + (online ? 'idle' : 'offline');
-      text.textContent = online ? `AI 大腦在線 · ${onlineCount} 個 AI Agent 可用` : 'AI 大腦離線 · 尚無可用 AI Agent';
-      badge.textContent = online ? '● 在線' : '○ 離線';
-      badge.style.background = online ? 'rgba(34,197,94,.18)' : '#334155';
-      badge.style.color = online ? '#86efac' : '#cbd5e1';
-    }
-
     function renderAgents() {
       const container = document.getElementById('agentsGrid');
       container.innerHTML = AGENTS.slice(0, 6).map(raw => {
         const agent = getAgentView(raw);
-        return `<div class="agent-card" data-id="${agent.id}"><div class="agent-avatar" style="background:${agent.color}22">${agent.avatar}</div><div class="agent-name">${agent.name}</div><div class="agent-role">${agent.role}</div><div class="agent-status"><span class="status-dot ${agent.status}"></span><span>${agent.statusText}</span></div></div>`;
+        return `<div class="agent-card" data-id="${agent.id}"><div class="agent-avatar" style="background:${agent.color}22">${agent.avatar}</div><div class="agent-name">${agent.name}</div><div class="agent-role">${agent.role} · ${agent.provider}</div><div class="agent-status"><span class="status-dot ${agent.status}"></span><span>${agent.statusText}</span></div></div>`;
       }).join('');
-      renderBrainOnlineStatus();
     }
     function renderTasks(containerId) {
       const container = document.getElementById(containerId);
@@ -685,7 +670,7 @@
         } catch (err) {
           messages.push({ sender: agent.name, role: agent.role, type: 'agent', text: `任務執行失敗：${err.message || err}`, time: nowTime() });
         }
-        setAgentRuntime(agent.id, { status: 'idle', statusText: '空閒, connected: true });
+        setAgentRuntime(agent.id, { status: 'idle', statusText: '空閒 · ' + agent.provider, connected: true });
         renderAgents(); renderMessages('chatMessages'); renderMessages('homeChatPreview', 6);
       }
     }
@@ -836,8 +821,8 @@
     }
     function renderProviders() {
       const container = document.getElementById('providerRegistry');
-      container.innerHTML = PROVIDERS.map((provider, index) => `
-        <div class="registry-item"><div class="registry-info"><div class="registry-icon" style="background:#334155">🔌</div><div><div style="font-weight:600;font-size:14px">AI 核心 ${index + 1}</div><div style="font-size:12px;color:var(--text-muted)">由 AIVAULT Gateway 管理</div></div></div><div class="toggle ${provider.status==='active'?'on':''}" data-code="${provider.code}"></div></div>`).join('');
+      container.innerHTML = PROVIDERS.map(provider => `
+        <div class="registry-item"><div class="registry-info"><div class="registry-icon" style="background:#334155">🔌</div><div><div style="font-weight:600;font-size:14px">${provider.name}</div><div style="font-size:12px;color:var(--text-muted)">${provider.models.join(', ')}</div></div></div><div class="toggle ${provider.status==='active'?'on':''}" data-code="${provider.code}"></div></div>`).join('');
     }
     function renderApprovals() {
       const container = document.getElementById('approvalList');
