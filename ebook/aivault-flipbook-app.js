@@ -455,6 +455,20 @@
     showReader();
     await goPage(start, false);
     if (start > 1) toast("繼續閱讀第 " + start + " 頁");
+
+    // 遠端電子書若沒有後端 TOC，背景建立完整章節目錄；
+    // 不阻塞閱讀器首次開啟，也不改動既有閱讀頁面。
+    if (state.source === "remote" && !state.toc.length) {
+      loadAllRemotePages().then(function (pages) {
+        const inferred = E.inferTocFromText(pages || []);
+        if (inferred.length) {
+          state.toc = inferred;
+          if (state.view === "read") toast("已建立完整章節目錄");
+        }
+      }).catch(function (e) {
+        console.warn("[AIVAULT FlipBook] TOC build failed", e);
+      });
+    }
   }
 
   function closeDrawer() {
