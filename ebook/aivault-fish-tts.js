@@ -18,7 +18,7 @@
   function fishVoice() {
     try { return (localStorage.getItem("FISH_VOICE_ID") || "").trim(); } catch (e) { return ""; }
   }
-  function useFish() { return !!(fishKey() && fishVoice()); }
+  function useFish() { return !!fishVoice(); }
 
   function stopFishAudio() {
     if (fishAudio) {
@@ -46,18 +46,19 @@
     stopFishAudio();
     const play = function (index) {
       if (!speaking || index >= chunks.length) { speaking = false; return; }
-      fetch("https://api.fish.audio/v1/tts", {
+      const E = window.AIVAULTEbook || {};
+      const fn = "https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/fish-tts";
+      fetch(fn, {
         method: "POST",
         headers: {
-          "Authorization": "Bearer " + fishKey(),
           "Content-Type": "application/json",
-          "model": "s2.1-pro"
+          "apikey": E.ANON_KEY || "",
+          "Authorization": "Bearer " + (E.ANON_KEY || "")
         },
         body: JSON.stringify({
           text: chunks[index],
           reference_id: fishVoice(),
-          format: "mp3",
-          model: "s2.1-pro"
+          format: "mp3"
         })
       }).then(function (res) {
         if (!res.ok) throw new Error("http " + res.status);
@@ -75,8 +76,10 @@
         return fishAudio.play();
       }).catch(function (err) {
         const msg = String((err && err.message) || err || "");
-        if (/Failed to fetch|NetworkError|CORS|blocked/i.test(msg)) {
+        if (/Failed to fetch|NetworkError|CORS|blocked|Load failed|TypeError/i.test(msg)) {
           toast("被瀏覽器擋跨域，要後端代打。");
+        } else if (/^http /.test(msg)) {
+          toast("朗讀失敗：" + msg);
         } else {
           toast("朗讀失敗");
         }
