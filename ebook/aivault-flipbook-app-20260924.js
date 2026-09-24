@@ -192,6 +192,15 @@
       }
       out.push(b);
     });
+
+    // 固定保護：憲法是既有正式遠端電子書，無論 live catalog 短暫失敗或舊快取，
+    // 書架都必須保留同一個真實 UUID，不得因列表異常而消失。
+    const constitution = map.get(constitutionId);
+    if (constitution) {
+      const idx = out.findIndex(function (b) { return b.id === constitutionId; });
+      if (idx >= 0) out.splice(idx, 1);
+      out.unshift(constitution);
+    }
     return out;
   }
 
