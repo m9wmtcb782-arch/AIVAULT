@@ -100,11 +100,27 @@ function ui(){
   const top=document.querySelector('.topbar');if(!top)return;
   const controls=document.createElement('div');controls.id='darkStarLiveControls';controls.className='dark-star-live-controls';
   const sound=document.createElement('button');sound.id='darkStarSoundButton';sound.type='button';sound.className='dark-star-sound-button';sound.textContent='聲音';
-  const video=document.createElement('a');video.id='darkStarLiveVideoButton';video.className='dark-star-live-button';video.textContent='即時視訊';video.href=LIVE_VIDEO;
+  let video=document.getElementById('darkStarLiveVideoButton');
+  if(video){
+    video.href=LIVE_VIDEO;
+    video.removeAttribute('target');
+    video.textContent='即時視訊';
+  }else{
+    video=document.createElement('a');
+    video.id='darkStarLiveVideoButton';
+    video.className='dark-star-live-button';
+    video.textContent='即時視訊';
+    video.href=LIVE_VIDEO;
+  }
+  document.querySelectorAll('#darkStarLiveVideoButton').forEach((el,i)=>{if(i>0)el.remove()});
   const live=document.createElement('button');live.id='darkStarLiveButton';live.type='button';live.className='dark-star-live-button';live.textContent='即時語音';
   const select=document.createElement('select');select.id='darkStarVoiceSelect';select.className='dark-star-voice-select';VOICES.forEach(([value,label])=>{const o=document.createElement('option');o.value=value;o.textContent=label;select.appendChild(o)});select.value=state.voice;controls.append(sound,select);
   const home=document.querySelector('.brand-home');
-  if(home){home.before(video);video.after(live);live.after(controls)}else top.append(video,controls,live);
+  if(!document.getElementById('darkStarLiveVideoButton')){
+    if(home){home.before(video)}else top.append(video);
+  }
+  if(video.nextElementSibling!==live) video.after(live);
+  live.after(controls);
   const st=document.createElement('div');st.id='darkStarLiveStatus';st.className='dark-star-live-status';document.body.appendChild(st);
   sound.onclick=()=>{state.expanded=!state.expanded;controls.classList.toggle('expanded',state.expanded)};
   select.onchange=()=>{state.voice=select.value;localStorage.setItem('darkStarVoice',state.voice)};
