@@ -22,6 +22,13 @@
     context: null
   };
 
+  function unwrapIngest(result) {
+    if (!result) return {};
+    const body = result.data || {};
+    if (body && body.data && typeof body.data === "object") return body.data;
+    return body;
+  }
+
   function isWide() { return innerWidth > 820 && state.mode !== "single"; }
   function useSpread() {
     if (state.mode === "single") return false;
@@ -71,8 +78,9 @@
     const pages = b.page_count || b.total_pages || 0;
     const prog = b.progress || 0;
     const last = b.last_read_at ? new Date(b.last_read_at).toLocaleString() : "尚未閱讀";
-    const cover = b.cover_url
-      ? '<img class="cover" alt="" src="' + E.esc(b.cover_url) + '">'
+    const coverSrc = b.cover_url || (E.makeCover ? E.makeCover(title, author) : "");
+    const cover = coverSrc
+      ? '<img class="cover" alt="" src="' + E.esc(coverSrc) + '">'
       : '<div class="cover-ph">' + E.esc(title) + "</div>";
     return (
       '<article class="card" data-open="' + E.esc(id) + '" data-url="' + E.esc(b.special_url || "") + '" data-src="' + E.esc(b.source || (b.remote_id ? "remote" : "local")) + '">' +
@@ -92,8 +100,11 @@
     let remoteRows = E.catalog();
     try {
       const live = await E.fetchRemoteCatalog(80);
-      if (live && live.ok && live.data && Array.isArray(live.data.ebooks)) {
-        remoteRows = live.data.ebooks.map(function (r) {
+      const liveData = unwrapIngest(live);
+      const ebooks = Array.isArray(liveData.ebooks) ? liveData.ebooks
+        : (Array.isArray(liveData.items) ? liveData.items : []);
+      if (live && live.ok && ebooks.length) {
+        remoteRows = ebooks.map(function (r) {
           return {
             ebook_id: r.id || r.ebook_id,
             title: r.title,
@@ -315,8 +326,9 @@
       return null;
     }
     if (!result || !result.ok) return null;
-    const ebook = result.data.ebook || result.data.book;
-    const page = result.data.page || (result.data.pages && result.data.pages[0]);
+    const resultData = unwrapIngest(result);
+    const ebook = resultData.ebook || resultData.book;
+    const page = resultData.page || (resultData.pages && resultData.pages[0]);
     if (ebook) {
       state.book = Object.assign({}, state.book || {}, ebook);
       const t = Number(E.pick(ebook, ["total_pages", "page_count", "pages"]) || 0);
@@ -463,7 +475,7 @@
           state.source = "remote";
           state.remoteId = local.remote_id || id;
           const first = await E.fetchRemoteBook(state.remoteId, 1);
-          const data = (first && first.data) || {};
+          const data = unwrapIngest(first);
           const ebook = data.ebook || data.book || {};
           state.book = Object.assign({}, local || {}, ebook);
           state.totalPages = Number(ebook.total_pages || ebook.page_count || local.page_count || 1);
@@ -478,8 +490,8 @@
         state.source = "remote";
         state.remoteId = id;
         const first = await E.fetchRemoteBook(id, 1);
-        const data = (first && first.data) || {};
-        const ebook = data.ebook || data.book || data.data || {};
+        const data = unwrapIngest(first);
+        const ebook = data.ebook || data.book || {};
         if (ebook && typeof ebook === "object") {
           state.book = Object.assign({}, state.book || {}, ebook);
           state.totalPages = Number(ebook.total_pages || ebook.page_count || ebook.pages || state.totalPages || 1);
