@@ -42,67 +42,72 @@
     speaking = true;
     fishMode = true;
     if (!fishAudio) fishAudio = new Audio();
-    const play = function (index) {
-      if (!speaking || index >= chunks.length) { speaking = false; return; }
-      const E = window.AIVAULTEbook || {};
-      const fn = "https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/fish-tts";
-      const ctrl = new AbortController();
-      const timer = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 50000);
-      function requestOnce() {
-        return fetch(fn, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "apikey": E.ANON_KEY || "",
-            "Authorization": "Bearer " + (E.ANON_KEY || "")
-          },
-          body: JSON.stringify({
-            text: chunks[index],
-            reference_id: fishVoice(),
-            format: "mp3"
-          }),
-          signal: ctrl.signal
-        });
-      }
-      requestOnce().then(function (res) {
-        if ((res.status === 429 || res.status >= 500) && !requestOnce._retried) {
-          requestOnce._retried = true;
-          return new Promise(function (resolve) { setTimeout(resolve, 800); }).then(requestOnce);
-        }
-        return res;
+    const cache = [];
+    const E = window.AIVAULTEbook || {};
+    const fn = "https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/fish-tts";
+    let advancing = false;
+
+    function fetchChunk(index) {
+      if (cache[index]) return cache[index];
+      cache[index] = fetch(fn, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": E.ANON_KEY || "",
+          "Authorization": "Bearer " + (E.ANON_KEY || "")
+        },
+        body: JSON.stringify({
+          text: chunks[index],
+          reference_id: fishVoice(),
+          format: "mp3"
+        })
       }).then(function (res) {
-        const ctype = (res.headers.get("content-type") || "").toLowerCase();
         if (!res.ok) throw new Error("http " + res.status);
+        const ctype = (res.headers.get("content-type") || "").toLowerCase();
         if (ctype.indexOf("json") >= 0) throw new Error("http 200-json");
         return res.blob();
       }).then(function (blob) {
-        clearTimeout(timer);
-        if (!speaking) return;
         if (!blob || blob.size < 200) throw new Error("empty-audio");
-        const url = URL.createObjectURL(blob);
-        if (!fishAudio) fishAudio = new Audio();
-        fishAudio.onended = function () {
-          try { URL.revokeObjectURL(url); } catch (e) {}
+        return URL.createObjectURL(blob);
+      });
+      return cache[index];
+    }
+
+    function play(index) {
+      if (!speaking || index >= chunks.length) { speaking = false; return; }
+      if (advancing) return;
+      advancing = true;
+      fetchChunk(index).then(function (url) {
+        advancing = false;
+        if (!speaking) return;
+        if (index + 1 < chunks.length) fetchChunk(index + 1);
+        let moved = false;
+        function next() {
+          if (moved) return;
+          moved = true;
           play(index + 1);
-        };
+        }
+        fishAudio.onended = next;
         fishAudio.onerror = function () { toast("朗讀中斷，再按一次"); speaking = false; };
         fishAudio.src = url;
-        const p = fishAudio.play();
-        if (p && p.catch) return p.catch(function () {
+        fishAudio.play().then(function () {
+          const d = fishAudio.duration;
+          if (d && isFinite(d) && d > 0) {
+            setTimeout(next, Math.ceil(d * 1000) + 250);
+          }
+        }).catch(function () {
           toast("朗讀中斷，再按一次");
           speaking = false;
         });
       }).catch(function (err) {
-        clearTimeout(timer);
+        advancing = false;
         const msg = String((err && err.message) || err || "");
-        if (/abort/i.test(msg)) toast("朗讀逾時，再按一次");
-        else if (/Failed to fetch|NetworkError|CORS|blocked|Load failed/i.test(msg)) toast("連線中斷，再按一次");
-        else if (/^http /.test(msg)) toast("朗讀失敗：" + msg);
+        if (/^http /.test(msg)) toast("朗讀失敗：" + msg);
         else toast("朗讀中斷，再按一次");
         speaking = false;
       });
-    };
-    toast("朗讀目前頁");
+    }
+    toast("朗讀目前頁 · " + chunks.length + " 段");
     play(0);
   }
 
