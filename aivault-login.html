@@ -158,6 +158,7 @@ input:focus{border-color:rgba(101,232,255,.55);box-shadow:0 0 0 3px rgba(101,232
   const supabase = isConfigured
     ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         auth: {
+          experimental: { passkey: true },
           autoRefreshToken: true,
           persistSession: true,
           detectSessionInUrl: true,
@@ -389,9 +390,30 @@ input:focus{border-color:rgba(101,232,255,.55);box-shadow:0 0 0 3px rgba(101,232
     }
   }
 
-  // Passkey 預留
-  document.getElementById('passkey').onclick = () => {
-    showError('Passkey / Face ID 將在下一階段啟用。目前請使用 Email + 密碼登入。')
+  // Passkey / Face ID：保留原登入頁，只增加第二種登入方式
+  document.getElementById('passkey').onclick = async () => {
+    clearMsg()
+    if (!supabase) {
+      showError('尚未設定 Supabase，無法使用 Passkey。')
+      return
+    }
+    try {
+      const { error } = await supabase.auth.signInWithPasskey()
+      if (error) {
+        showError('Face ID / Passkey 登入未完成：' + (error.message || '請稍後再試。'))
+        return
+      }
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user) {
+        showSuccess('Face ID / Passkey 驗證成功，正在進入工作台…')
+        setTimeout(() => redirectAfterAuth(session.user), 400)
+      } else {
+        showError('Passkey 驗證完成，但尚未取得登入 Session。')
+      }
+    } catch (err) {
+      console.error(err)
+      showError('Face ID / Passkey 驗證取消或失敗。')
+    }
   }
 
   // 監聽 Auth 狀態（可選）
