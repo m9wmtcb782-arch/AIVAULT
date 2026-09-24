@@ -416,13 +416,32 @@
     try {
       const local = await E.getBook(id);
       if (local) {
-        state.source = "local";
-        state.book = local;
-        state.remoteId = local.remote_id || null;
-        state.pages = await E.pagesOf(id);
-        state.totalPages = local.page_count || state.pages.length || 1;
-        state.pages.forEach(function (p) { state.cache.set(p.page_number, p); });
-        state.toc = E.inferTocFromText(state.pages);
+        const localPages = await E.pagesOf(id);
+        // 遠端教材若只有書籍殼、沒有實際頁面，不能把它當成完整 local 書；
+        // 否則會跳過 Supabase 遠端內容，造成「有書名、沒內容」。
+        if (localPages && localPages.length > 0) {
+          state.source = "local";
+          state.book = local;
+          state.remoteId = local.remote_id || null;
+          state.pages = localPages;
+          state.totalPages = local.page_count || state.pages.length || 1;
+          state.pages.forEach(function (p) { state.cache.set(p.page_number, p); });
+          state.toc = E.inferTocFromText(state.pages);
+        } else {
+          state.source = "remote";
+          state.remoteId = local.remote_id || id;
+          const first = await E.fetchRemoteBook(state.remoteId, 1);
+          const data = (first && first.data) || {};
+          const ebook = data.ebook || data.book || {};
+          state.book = Object.assign({}, local || {}, ebook);
+          state.totalPages = Number(ebook.total_pages || ebook.page_count || local.page_count || 1);
+          if (first && first.ok) {
+            await getPage(1);
+            try { state.toc = await E.fetchRemoteToc(state.remoteId); } catch (e) { state.toc = []; }
+          } else {
+            toast("遠端教材資料載入失敗（HTTP " + ((first && first.status) || "network") + "）");
+          }
+        }
       } else {
         state.source = "remote";
         state.remoteId = id;
