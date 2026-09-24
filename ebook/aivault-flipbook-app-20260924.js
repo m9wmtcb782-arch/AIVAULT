@@ -765,7 +765,6 @@
   }
 
   async function speakRange(from, to) {
-    stopSpeak();
     from = Math.max(1, from);
     to = Math.min(state.totalPages, to);
     speaking = true;
@@ -815,6 +814,26 @@
     // unlock utterance 已先進入 speech queue；正文會在它結束後接續。
     await waitForVoices();
     next();
+  }
+
+  function renderSpeakPanel() {
+    const ch = chapterPages();
+    const html =
+      '<div class="setform">' +
+      '<button class="ib" id="spPage">朗讀目前頁</button>' +
+      '<button class="ib" id="spChap">朗讀目前章（' + E.esc(ch.title) + " · " + ch.from + "–" + ch.to + "）</button>" +
+      '<label>起始頁 <input id="speakFrom" type="number" min="1" value="' + state.pageNumber + '"></label>' +
+      '<label>結束頁 <input id="speakTo" type="number" min="1" value="' + Math.min(state.totalPages, state.pageNumber + 5) + '"></label>' +
+      '<button class="ib" id="spRange">依頁碼朗讀</button>' +
+      '<div style="display:flex;gap:8px"><button class="ib" id="spPause">⏸ 暫停</button><button class="ib" id="spResume">▶ 繼續</button><button class="ib" id="spStop">⏹ 停止</button></div>' +
+      "</div>";
+    openDrawer("🔊 朗讀", html);
+    $("spPage").onclick = function () { speakRange(state.pageNumber, state.pageNumber); };
+    $("spChap").onclick = function () { speakRange(ch.from, ch.to); };
+    $("spRange").onclick = function () { speakRange(Number($("speakFrom").value), Number($("speakTo").value)); };
+    $("spPause").onclick = function () { try { speechSynthesis.pause(); } catch (e) {} };
+    $("spResume").onclick = function () { try { speechSynthesis.resume(); } catch (e) {} };
+    $("spStop").onclick = stopSpeak;
   }
 
   function currentChapterTitle() {
