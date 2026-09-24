@@ -7,10 +7,35 @@
 import {createClient} from "https://esm.sh/@supabase/supabase-js@2.105.0";
 const SUPABASE_URL="https://clcddygkaaqqtsbswgdf.supabase.co";
 const SUPABASE_KEY="sb_publishable_1D05YGthBrNGg-5L92TLCw_GiLnInBu";
+const HOME_URL="https://m9wmtcb782-arch.github.io/AIVAULT/aivault-home.html";
 const statusEl=document.getElementById("status"),setStatus=v=>statusEl.textContent=v;
 const supabase=createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{experimental:{passkey:true},persistSession:true,autoRefreshToken:true}});
-async function gateway(action){const {data:{session}}=await supabase.auth.getSession();if(!session)return{success:false,error:"NO_SESSION"};const r=await fetch(SUPABASE_URL+"/functions/v1/aivault-identity-gateway",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+session.access_token},body:JSON.stringify({action})});return await r.json();}
-document.getElementById("passwordSignIn").onclick=async()=>{const email=document.getElementById("email").value.trim(),password=document.getElementById("password").value;if(!email||!password){setStatus("請輸入帳號／Email 與密碼。");return;}setStatus("正在登入 AIVAULT…");const {error}=await supabase.auth.signInWithPassword({email,password});if(error){setStatus("帳號／密碼登入失敗：\n"+error.message);return;}const state=await gateway("get_identity_state");setStatus("一般帳號登入成功。\n"+JSON.stringify(state,null,2));};
-document.getElementById("signIn").onclick=async()=>{setStatus("正在啟動裝置身分驗證…");const {error}=await supabase.auth.signInWithPasskey();if(error){setStatus("Passkey 登入失敗：\n"+error.message);return;}const state=await gateway("get_identity_state");setStatus("裝置驗證完成。\n"+JSON.stringify(state,null,2));};
-document.getElementById("register").onclick=async()=>{setStatus("請先登入，再註冊此裝置…");const {data:{session}}=await supabase.auth.getSession();if(!session){setStatus("目前沒有登入 Session。請先使用 Face ID / Passkey 登入。");return;}const {data,error}=await supabase.auth.registerPasskey();if(error){setStatus("Passkey 註冊失敗：\n"+error.message);return;}setStatus("Passkey 已註冊。\n"+JSON.stringify(data,null,2));};
+function goHome(){window.location.replace(HOME_URL);}
+document.getElementById("passwordSignIn").onclick=async()=>{
+ const email=document.getElementById("email").value.trim(),password=document.getElementById("password").value;
+ if(!email||!password){setStatus("請輸入帳號／Email 與密碼。");return;}
+ setStatus("正在登入 AIVAULT…");
+ const {data,error}=await supabase.auth.signInWithPassword({email,password});
+ if(error){setStatus("帳號／密碼登入失敗：\n"+error.message);return;}
+ if(!data.session||!data.user){setStatus("登入未取得有效 Session。");return;}
+ setStatus("一般帳號登入成功，正在進入 AIVAULT…");
+ setTimeout(goHome,250);
+};
+document.getElementById("signIn").onclick=async()=>{
+ setStatus("正在啟動裝置身分驗證…");
+ const {error}=await supabase.auth.signInWithPasskey();
+ if(error){setStatus("Passkey 登入失敗：\n"+error.message);return;}
+ const {data:{session}}=await supabase.auth.getSession();
+ if(!session){setStatus("Passkey 驗證完成，但沒有取得登入 Session。");return;}
+ setStatus("Face ID / Passkey 驗證成功，正在進入 AIVAULT…");
+ setTimeout(goHome,250);
+};
+document.getElementById("register").onclick=async()=>{
+ setStatus("請先登入，再註冊此裝置…");
+ const {data:{session}}=await supabase.auth.getSession();
+ if(!session){setStatus("目前沒有登入 Session。請先登入。");return;}
+ const {data,error}=await supabase.auth.registerPasskey();
+ if(error){setStatus("Passkey 註冊失敗：\n"+error.message);return;}
+ setStatus("Passkey 已註冊。");
+};
 </script></body></html>
