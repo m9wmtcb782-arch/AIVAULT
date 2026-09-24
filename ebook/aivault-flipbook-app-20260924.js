@@ -668,57 +668,153 @@
 
   let speakQueue = [];
   let speaking = false;
+  let voicesReady = null;
+
   function stopSpeak() {
     speaking = false;
     speakQueue = [];
     try { speechSynthesis.cancel(); } catch (e) {}
   }
-  function speakText(text, onend) {
-    const raw = String(text || "").replace(/<[^>]+>/g, " ").trim();
-    if (!raw || !("speechSynthesis" in window)) { if (onend) onend(); return; }
-    const u = new SpeechSynthesisUtterance(raw);
-    u.lang = "zh-TW";
-    u.onend = function () { if (onend) onend(); };
-    speechSynthesis.speak(u);
+
+  function pickChineseVoice() {
+    if (!("speechSynthesis" in window)) return null;
+    const voices = speechSynthesis.getVoices ? speechSynthesis.getVoices() : [];
+    if (!voices.length) return null;
+    const preferred = voices.filter(function (v) {
+      const name = String(v.name || "");
+      const lang = String(v.lang || "").toLowerCase();
+      return lang === "zh-tw" || /Tingting|Meijia/i.test(name);
+    });
+    return preferred[0] || voices.find(function (v) {
+      return String(v.lang || "").toLowerCase().indexOf("zh") === 0;
+    }) || null;
   }
+
+  function waitForVoices() {
+    if (!("speechSynthesis" in window)) return Promise.resolve([]);
+    const voices = speechSynthesis.getVoices ? speechSynthesis.getVoices() : [];
+    if (voices.length) return Promise.resolve(voices);
+    if (voicesReady) return voicesReady;
+    voicesReady = new Promise(function (resolve) {
+      const done = function () {
+        try { speechSynthesis.removeEventListener("voiceschanged", done); } catch (e) {}
+        voicesReady = null;
+        resolve(speechSynthesis.getVoices ? speechSynthesis.getVoices() : []);
+      };
+      try { speechSynthesis.addEventListener("voiceschanged", done, { once: true }); } catch (e) {
+        setTimeout(function () {
+          try { speechSynthesis.removeEventListener("voiceschanged", done); } catch (x) {}
+          voicesReady = null;
+          resolve(speechSynthesis.getVoices ? speechSynthesis.getVoices() : []);
+        }, 1000);
+      }
+      setTimeout(function () {
+        try { speechSynthesis.removeEventListener("voiceschanged", done); } catch (x) {}
+        if (voicesReady) {
+          voicesReady = null;
+          resolve(speechSynthesis.getVoices ? speechSynthesis.getVoices() : []);
+        }
+      }, 1500);
+    });
+    return voicesReady;
+  }
+
+  function speakText(text, onend) {
+    const raw = String(text || "").replace(/<[^>]+>/g, " ").replace(/\\s+/g, " ").trim();
+    if (!raw) {
+      toast("這一頁沒有可朗讀文字");
+      if (onend) onend();
+      return;
+    }
+    if (!("speechSynthesis" in window)) {
+      toast("此裝置不支援語音朗讀");
+      if (onend) onend();
+      return;
+    }
+
+    const chunks = [];
+    for (let i = 0; i < raw.length; i += 300) chunks.push(raw.slice(i, i + 300));
+
+    const speakChunk = function (index) {
+      if (!speaking || index >= chunks.length) {
+        if (onend) onend();
+        return;
+      }
+      const u = new SpeechSynthesisUtterance(chunks[index]);
+      u.lang = "zh-TW";
+      const voice = pickChineseVoice();
+      if (voice) u.voice = voice;
+      u.onend = function () { speakChunk(index + 1); };
+      u.onerror = function (ev) {
+        toast("朗讀失敗" + (ev && ev.error ? "：" + ev.error : ""));
+        speaking = false;
+        speakQueue = [];
+      };
+      speechSynthesis.speak(u);
+    };
+
+    // 沒有正在播放時，不在 tap 後額外 await，讓 iPhone 的使用者手勢直接觸發 speak()。
+    // 若先前有語音，才 cancel；cancel 後等待約 60ms 再開始下一段。
+    const wasSpeaking = !!speechSynthesis.speaking || !!speechSynthesis.pending;
+    if (wasSpeaking) {
+      try { speechSynthesis.cancel(); } catch (e) {}
+      setTimeout(function () { speakChunk(0); }, 60);
+    } else {
+      speakChunk(0);
+    }
+  }
+
   async function speakRange(from, to) {
     stopSpeak();
     from = Math.max(1, from);
     to = Math.min(state.totalPages, to);
+    speaking = true;
+
+    // 已在 cache：點擊當下直接 speak()，不讓 await 打斷 iPhone 手勢。
+    const current = from === to ? state.cache.get(from) : null;
+    if (current) {
+      const text = current.content || "";
+      toast("朗讀第 " + from + " 頁");
+      speakText(text, function () { speaking = false; });
+      return;
+    }
+
+    // 未在 cache：同一個 tap 先用短句解鎖語音，再等待頁面資料。
+    // 短句本身不等待網路／getPage，讓 iPhone 保留此次手勢授權。
+    if (("speechSynthesis" in window)) {
+      const unlock = new SpeechSynthesisUtterance("開始朗讀");
+      unlock.lang = "zh-TW";
+      const voice = pickChineseVoice();
+      if (voice) unlock.voice = voice;
+      unlock.onerror = function (ev) {
+        toast("朗讀啟動失敗" + (ev && ev.error ? "：" + ev.error : ""));
+      };
+      try { speechSynthesis.speak(unlock); } catch (e) { toast("朗讀啟動失敗"); }
+    }
+
     for (let n = from; n <= to; n++) await getPage(n);
+
     speakQueue = [];
     for (let n = from; n <= to; n++) {
       const p = state.cache.get(n);
       speakQueue.push({ n: n, text: p ? (p.content || "") : "" });
     }
-    speaking = true;
+
     toast("朗讀第 " + from + "–" + to + " 頁");
     const next = function () {
       if (!speaking || !speakQueue.length) { speaking = false; return; }
       const item = speakQueue.shift();
       goPage(item.n);
+      if (!item.text) {
+        toast("這一頁沒有可朗讀文字");
+        next();
+        return;
+      }
       speakText(item.text, next);
     };
+    // unlock utterance 已先進入 speech queue；正文會在它結束後接續。
+    await waitForVoices();
     next();
-  }
-  function renderSpeakPanel() {
-    const ch = chapterPages();
-    const html =
-      '<div class="setform">' +
-      '<button class="ib" id="spPage">朗讀目前頁</button>' +
-      '<button class="ib" id="spChap">朗讀目前章（' + E.esc(ch.title) + " · " + ch.from + "–" + ch.to + "）</button>" +
-      '<label>起始頁 <input id="speakFrom" type="number" min="1" value="' + state.pageNumber + '"></label>' +
-      '<label>結束頁 <input id="speakTo" type="number" min="1" value="' + Math.min(state.totalPages, state.pageNumber + 5) + '"></label>' +
-      '<button class="ib" id="spRange">依頁碼朗讀</button>' +
-      '<div style="display:flex;gap:8px"><button class="ib" id="spPause">⏸ 暫停</button><button class="ib" id="spResume">▶ 繼續</button><button class="ib" id="spStop">⏹ 停止</button></div>' +
-      "</div>";
-    openDrawer("🔊 朗讀", html);
-    $("spPage").onclick = function () { speakRange(state.pageNumber, state.pageNumber); };
-    $("spChap").onclick = function () { speakRange(ch.from, ch.to); };
-    $("spRange").onclick = function () { speakRange(Number($("speakFrom").value), Number($("speakTo").value)); };
-    $("spPause").onclick = function () { try { speechSynthesis.pause(); } catch (e) {} };
-    $("spResume").onclick = function () { try { speechSynthesis.resume(); } catch (e) {} };
-    $("spStop").onclick = stopSpeak;
   }
 
   function currentChapterTitle() {
