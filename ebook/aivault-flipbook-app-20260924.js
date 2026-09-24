@@ -915,22 +915,47 @@
       $("importStatus").textContent = "正在解析 " + f.name + " …";
       try {
         const result = await E.importFile(f, {});
-        $("importStatus").textContent = "已建立《" + result.book.title + "》共 " + result.book.page_count + " 頁";
-        const text = result.pages.map(function (p) { return p.content || ""; }).join("\n\n");
-        if (text && text.length < 400000) {
-          E.pushTextToIngest(result.book.title, result.book.author || "", text, "local flipbook import " + f.name).then(function (r) {
-            if (r && r.ok) {
-              const rid = r.data.ebook_id || (r.data.ebook && r.data.ebook.id);
-              if (rid) {
-                result.book.remote_id = rid;
-                E.saveBook(result.book);
-              }
-            }
+        const text = result.pages.map(function (p) { return p.content || ""; }).join("\n\n").trim();
+
+        // 通用匯入規則：本機解析完成後，必須同步建立遠端電子書；
+        // 不再用 400,000 字元上限把大型教材靜默留在本機。
+        // pushTextToIngest 內部會自動以 20,000 字元分塊，因此 50 萬字、
+        // 100 萬字甚至更大的純文字教材都不會因單次 request 過大而被截斷。
+        if (text) {
+          $("importStatus").textContent = "正在同步《" + result.book.title + "》到電子書資料庫…";
+          const r = await E.pushTextToIngest(
+            result.book.title,
+            result.book.author || "",
+            text,
+            "AIVAULT FlipBook 通用匯入：" + f.name
+          );
+          if (!r || !r.ok) {
+            throw new Error("遠端電子書建立失敗（HTTP " + ((r && r.status) || "network") + "）");
+          }
+          const rid = r.data && (r.data.ebook_id || (r.data.ebook && r.data.ebook.id) || r.data.book_id);
+          if (!rid) throw new Error("遠端電子書建立成功但未返回 ebook_id");
+          result.book.remote_id = rid;
+          await E.saveBook(result.book);
+          E.rememberRemote({
+            ebook_id: rid,
+            title: result.book.title,
+            author: result.book.author || "",
+            page_count: result.book.page_count,
+            cover_url: result.book.cover_url
           });
+          $("importStatus").textContent =
+            "已完成《" + result.book.title + "》：本機 " + result.book.page_count + " 頁／遠端內容已建立";
+        } else {
+          // 掃描型 PDF／純圖片教材可能沒有文字層；保留本機影像頁，
+          // 不把空文字誤判成「成功建立電子書」。
+          $("importStatus").textContent =
+            "已匯入《" + result.book.title + "》共 " + result.book.page_count +
+            " 頁；此檔案沒有可擷取文字層，保留本機頁面。";
         }
         renderShelf();
       } catch (err) {
         $("importStatus").textContent = "匯入失敗：" + (err.message || err);
+        console.error("[AIVAULT FlipBook] generic import failed", err);
       }
       $("shelfFile").value = "";
     };
