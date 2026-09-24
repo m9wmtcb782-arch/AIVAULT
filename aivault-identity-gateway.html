@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AIVAULT Identity Gateway</title>
+<style>
+body{margin:0;background:#070b14;color:#eef2ff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+main{max-width:720px;margin:auto;padding:32px 20px}
+.card{background:#111827;border:1px solid #26324a;border-radius:20px;padding:24px}
+h1{margin-top:0}.muted{color:#9aa7bd;line-height:1.7}
+button{width:100%;padding:16px;border:0;border-radius:14px;background:#fff;color:#111827;font-size:17px;font-weight:700;margin-top:12px}
+button.secondary{background:#202a3d;color:#fff}
+.status{margin-top:18px;padding:14px;border-radius:12px;background:#0b1220;white-space:pre-wrap;line-height:1.6}
+.badge{display:inline-block;padding:5px 9px;border-radius:999px;background:#172554;color:#bfdbfe;font-size:13px}
+</style>
+</head>
+<body>
+<main>
+<div class="card">
+<span class="badge">IDENTITY GATEWAY v1</span>
+<h1>AIVAULT 身分入口</h1>
+<p class="muted">這裡是獨立的身分入口，不是暗星本體。第一階段使用 Passkey / iPhone Face ID。Face ID 只在你的裝置上完成生物辨識，AIVAULT 不接收你的原始臉部資料。</p>
+<button id="signIn">使用 Face ID / Passkey 登入</button>
+<button id="register" class="secondary">登入後註冊此裝置 Passkey</button>
+<div id="status" class="status">尚未驗證。</div>
+</div>
+</main>
+<script type="module">
+import {createClient} from "https://esm.sh/@supabase/supabase-js@2.105.0";
+const SUPABASE_URL="https://clcddygkaaqqtsbswgdf.supabase.co";
+const SUPABASE_KEY="YOUR_PUBLISHABLE_KEY";
+const statusEl=document.getElementById("status");
+const setStatus=v=>statusEl.textContent=v;
+const supabase=createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{experimental:{passkey:true},persistSession:true,autoRefreshToken:true}});
+async function gateway(action){
+ const {data:{session}}=await supabase.auth.getSession();
+ if(!session) return {success:false,error:"NO_SESSION"};
+ const r=await fetch(SUPABASE_URL+"/functions/v1/aivault-identity-gateway",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+session.access_token},body:JSON.stringify({action})});
+ return await r.json();
+}
+document.getElementById("signIn").onclick=async()=>{
+ setStatus("正在啟動裝置身分驗證…");
+ const {data,error}=await supabase.auth.signInWithPasskey();
+ if(error){setStatus("Passkey 登入失敗：\n"+error.message);return;}
+ const state=await gateway("get_identity_state");
+ setStatus("裝置驗證完成。\n"+JSON.stringify(state,null,2));
+};
+document.getElementById("register").onclick=async()=>{
+ setStatus("請先登入，再註冊此裝置…");
+ const {data:{session}}=await supabase.auth.getSession();
+ if(!session){setStatus("目前沒有登入 Session。請先使用 Face ID / Passkey 登入。");return;}
+ const {data,error}=await supabase.auth.registerPasskey();
+ if(error){setStatus("Passkey 註冊失敗：\n"+error.message);return;}
+ setStatus("Passkey 已註冊。\n"+JSON.stringify(data,null,2));
+};
+</script>
+</body>
+</html>
