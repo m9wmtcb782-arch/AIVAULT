@@ -1068,6 +1068,31 @@ a.brand-home:hover,
   .composer-input{font-size:19px !important;}
   .history-item,.drawer-item,.new-chat,.attach-option{font-size:16px !important;}
 }
+
+/* AIVAULT_DARK_STAR_LARGE_TEXT_MODE_V1 */
+.readability-toggle{
+  margin-left:8px;
+  border:1px solid #ddd;
+  background:#fff;
+  color:#111;
+  border-radius:9px;
+  padding:7px 10px;
+  font-size:13px;
+  white-space:nowrap;
+}
+.readability-toggle.active{background:#111;color:#fff;border-color:#111;}
+.large-text-mode .message-text{font-size:24px !important;line-height:1.9 !important;}
+.large-text-mode .media-article{font-size:22px !important;line-height:1.9 !important;}
+.large-text-mode .message{margin-bottom:34px;}
+.large-text-mode .welcome-title{font-size:34px;}
+.large-text-mode .welcome-subtitle{font-size:19px;}
+@media(max-width:700px){
+  .readability-toggle{padding:7px 9px;font-size:13px;}
+  .large-text-mode .message-text{font-size:22px !important;line-height:1.9 !important;}
+  .large-text-mode .media-article{font-size:20px !important;line-height:1.9 !important;}
+  .large-text-mode .welcome-title{font-size:29px;}
+  .large-text-mode .welcome-subtitle{font-size:18px;}
+}
 </style>
 </head>
 
@@ -1115,6 +1140,14 @@ a.brand-home:hover,
     href="aivault-home.html">
     回工作中心
   </a>
+
+  <button id="readabilityToggle"
+    class="readability-toggle"
+    type="button"
+    aria-pressed="false"
+    title="放大聊天文字">
+    大字
+  </button>
 
 </header>
 
@@ -6644,6 +6677,32 @@ document
     }
   );
 
+
+/* =========================================================
+   LARGE TEXT READING MODE
+========================================================= */
+
+(function initLargeTextMode(){
+  const button=document.getElementById("readabilityToggle");
+  if(!button)return;
+  const key="technical-dark-star-large-text-mode";
+  let enabled=false;
+  try{enabled=localStorage.getItem(key)==="1";}catch(error){}
+  function apply(){
+    document.body.classList.toggle("large-text-mode",enabled);
+    button.classList.toggle("active",enabled);
+    button.setAttribute("aria-pressed",String(enabled));
+    button.textContent=enabled?"大字 ✓":"大字";
+    button.title=enabled?"關閉大字閱讀模式":"開啟大字閱讀模式";
+  }
+  button.addEventListener("click",()=>{
+    enabled=!enabled;
+    try{localStorage.setItem(key,enabled?"1":"0");}catch(error){}
+    apply();
+    requestAnimationFrame(()=>{try{messages.scrollTop=messages.scrollHeight;}catch(error){}});
+  });
+  apply();
+})();
 
 /* =========================================================
    INITIAL
