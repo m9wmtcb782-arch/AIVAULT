@@ -146,6 +146,44 @@ body{overflow:hidden}
 }
 
 /* =========================================================
+   SCROLL TO LATEST
+========================================================= */
+
+.scroll-latest{
+  position:absolute;
+  right:18px;
+  bottom:112px;
+  width:42px;
+  height:42px;
+  border:1px solid #dedede;
+  border-radius:50%;
+  background:rgba(255,255,255,.97);
+  color:#333;
+  box-shadow:0 3px 14px rgba(0,0,0,.12);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  font-size:21px;
+  line-height:1;
+  z-index:25;
+}
+
+.scroll-latest.show{
+  display:flex;
+}
+
+.scroll-latest:hover{
+  background:#f5f5f5;
+}
+
+@media(max-width:700px){
+  .scroll-latest{
+    right:12px;
+    bottom:108px;
+  }
+}
+
+/* =========================================================
    WELCOME
 ========================================================= */
 
@@ -1057,6 +1095,7 @@ a.brand-home:hover,
 <section class="chat">
 
   <div id="messages" class="messages">
+  <button id="scrollLatest" class="scroll-latest" type="button" aria-label="回到最新消息" title="回到最新消息">↓</button>
 
     <div id="messagesInner"
       class="messages-inner">
@@ -1405,6 +1444,9 @@ const messages =
 const messagesInner =
   document.getElementById("messagesInner");
 
+const scrollLatest =
+  document.getElementById("scrollLatest");
+
 const input =
   document.getElementById("composerInput");
 
@@ -1460,6 +1502,25 @@ function escapeHTML(value){
 }
 
 
+function isNearBottom(){
+
+  return (
+    messages.scrollHeight -
+    messages.scrollTop -
+    messages.clientHeight
+  ) < 80;
+}
+
+function updateScrollLatest(){
+
+  if(!scrollLatest)return;
+
+  scrollLatest.classList.toggle(
+    "show",
+    !isNearBottom()
+  );
+}
+
 function scrollBottom(){
 
   requestAnimationFrame(()=>{
@@ -1467,8 +1528,26 @@ function scrollBottom(){
     messages.scrollTop =
       messages.scrollHeight;
 
+    updateScrollLatest();
+
   });
 }
+
+messages.addEventListener(
+  "scroll",
+  updateScrollLatest,
+  {passive:true}
+);
+
+scrollLatest?.addEventListener(
+  "click",
+  ()=>{
+    messages.scrollTo({
+      top:messages.scrollHeight,
+      behavior:"smooth"
+    });
+  }
+);
 
 
 function saveState(){
@@ -6793,6 +6872,6 @@ setMic(false);
 </script>
 <!-- /AIVAULT_DARK_STAR_REALTIME_VOICE_V1 -->
 
-<script src="technical-dark-star-realtime-voice-v2.js"></script>
+<script src="technical-dark-star-realtime-voice-v2.js?v=4"></script>
 </body>
 </html>
