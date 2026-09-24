@@ -24,8 +24,6 @@
     if (fishAudio) {
       try { fishAudio.pause(); } catch (e) {}
       try { fishAudio.currentTime = 0; } catch (e) {}
-      try { fishAudio.src = ""; } catch (e) {}
-      fishAudio = null;
     }
   }
 
@@ -43,7 +41,7 @@
     for (let i = 0; i < text.length; i += 180) chunks.push(text.slice(i, i + 180));
     speaking = true;
     fishMode = true;
-    stopFishAudio();
+    if (!fishAudio) fishAudio = new Audio();
     const play = function (index) {
       if (!speaking || index >= chunks.length) { speaking = false; return; }
       const E = window.AIVAULTEbook || {};
@@ -81,15 +79,19 @@
         clearTimeout(timer);
         if (!speaking) return;
         if (!blob || blob.size < 200) throw new Error("empty-audio");
-        stopFishAudio();
         const url = URL.createObjectURL(blob);
-        fishAudio = new Audio(url);
+        if (!fishAudio) fishAudio = new Audio();
         fishAudio.onended = function () {
           try { URL.revokeObjectURL(url); } catch (e) {}
           play(index + 1);
         };
         fishAudio.onerror = function () { toast("朗讀中斷，再按一次"); speaking = false; };
-        return fishAudio.play().catch(function () { toast("朗讀中斷，再按一次"); speaking = false; });
+        fishAudio.src = url;
+        const p = fishAudio.play();
+        if (p && p.catch) return p.catch(function () {
+          toast("朗讀中斷，再按一次");
+          speaking = false;
+        });
       }).catch(function (err) {
         clearTimeout(timer);
         const msg = String((err && err.message) || err || "");
