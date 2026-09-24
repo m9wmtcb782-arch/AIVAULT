@@ -40,7 +40,7 @@
     const text = String(raw || "").trim();
     if (!text) { toast("這一頁沒有可朗讀文字"); return; }
     const chunks = [];
-    for (let i = 0; i < text.length; i += 300) chunks.push(text.slice(i, i + 300));
+    for (let i = 0; i < text.length; i += 180) chunks.push(text.slice(i, i + 180));
     speaking = true;
     fishMode = true;
     stopFishAudio();
@@ -48,23 +48,39 @@
       if (!speaking || index >= chunks.length) { speaking = false; return; }
       const E = window.AIVAULTEbook || {};
       const fn = "https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/fish-tts";
-      fetch(fn, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": E.ANON_KEY || "",
-          "Authorization": "Bearer " + (E.ANON_KEY || "")
-        },
-        body: JSON.stringify({
-          text: chunks[index],
-          reference_id: fishVoice(),
-          format: "mp3"
-        })
+      const ctrl = new AbortController();
+      const timer = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 50000);
+      function requestOnce() {
+        return fetch(fn, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": E.ANON_KEY || "",
+            "Authorization": "Bearer " + (E.ANON_KEY || "")
+          },
+          body: JSON.stringify({
+            text: chunks[index],
+            reference_id: fishVoice(),
+            format: "mp3"
+          }),
+          signal: ctrl.signal
+        });
+      }
+      requestOnce().then(function (res) {
+        if ((res.status === 429 || res.status >= 500) && !requestOnce._retried) {
+          requestOnce._retried = true;
+          return new Promise(function (resolve) { setTimeout(resolve, 800); }).then(requestOnce);
+        }
+        return res;
       }).then(function (res) {
+        const ctype = (res.headers.get("content-type") || "").toLowerCase();
         if (!res.ok) throw new Error("http " + res.status);
+        if (ctype.indexOf("json") >= 0) throw new Error("http 200-json");
         return res.blob();
       }).then(function (blob) {
+        clearTimeout(timer);
         if (!speaking) return;
+        if (!blob || blob.size < 200) throw new Error("empty-audio");
         stopFishAudio();
         const url = URL.createObjectURL(blob);
         fishAudio = new Audio(url);
@@ -72,17 +88,15 @@
           try { URL.revokeObjectURL(url); } catch (e) {}
           play(index + 1);
         };
-        fishAudio.onerror = function () { toast("朗讀失敗"); speaking = false; };
-        return fishAudio.play();
+        fishAudio.onerror = function () { toast("朗讀中斷，再按一次"); speaking = false; };
+        return fishAudio.play().catch(function () { toast("朗讀中斷，再按一次"); speaking = false; });
       }).catch(function (err) {
+        clearTimeout(timer);
         const msg = String((err && err.message) || err || "");
-        if (/Failed to fetch|NetworkError|CORS|blocked|Load failed|TypeError/i.test(msg)) {
-          toast("被瀏覽器擋跨域，要後端代打。");
-        } else if (/^http /.test(msg)) {
-          toast("朗讀失敗：" + msg);
-        } else {
-          toast("朗讀失敗");
-        }
+        if (/abort/i.test(msg)) toast("朗讀逾時，再按一次");
+        else if (/Failed to fetch|NetworkError|CORS|blocked|Load failed/i.test(msg)) toast("連線中斷，再按一次");
+        else if (/^http /.test(msg)) toast("朗讀失敗：" + msg);
+        else toast("朗讀中斷，再按一次");
         speaking = false;
       });
     };
