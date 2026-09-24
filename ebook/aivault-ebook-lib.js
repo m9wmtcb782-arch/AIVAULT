@@ -701,6 +701,7 @@
     categories: categories,
     saveCategories: saveCategories,
     pageContent: pageContent,
+    fetchRemoteCatalog: fetchRemoteCatalog,
     fetchRemoteBook: fetchRemoteBook,
     fetchRemoteToc: fetchRemoteToc,
     fetchRemoteContext: fetchRemoteContext,
