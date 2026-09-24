@@ -175,6 +175,9 @@
     return String(pick(page, ["content", "page_content", "text", "body", "html"]) || "");
   }
 
+  async function fetchRemoteCatalog(limit) {
+    return ingest({ action: "list", limit: limit || 80 });
+  }
   async function fetchRemoteBook(ebookId, pageNumber) {
     const result = await ingest({ action: "book", ebook_id: ebookId, page_number: pageNumber || 1 });
     return result;
