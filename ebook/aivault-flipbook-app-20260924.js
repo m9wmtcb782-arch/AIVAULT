@@ -152,18 +152,21 @@
       });
     }
 
-    const constitutionId = "aivault-prc-constitution-2018";
+    const constitutionId = "8ea77ade-e709-468d-bbea-95e0df53e823";
+    // 憲法已建立為真正的遠端電子書資料列；離線/列表失敗時只保留這個
+    // 真實 UUID 的 fallback，避免舊的虛構 ID 導致「有書名、沒內容」。
     if (!map.has(constitutionId)) {
       map.set(constitutionId, {
         id: constitutionId,
         ebook_id: constitutionId,
-        title: "中華人民共和國憲法｜現行2018修正｜繁體逐條解讀",
+        title: "中華人民共和國憲法｜2018年修正本｜繁體電子書",
         author: "AIVAULT 法律教材",
         page_count: 143,
-        source: "legal-reference",
-        special_url: "prc-constitution-ebook.html?v=20260923-4",
+        total_pages: 143,
+        source: "remote",
+        remote_id: constitutionId,
         category: "法律",
-        created_at: "2026-09-23T07:04:00+08:00"
+        created_at: "2026-09-24T00:00:00+08:00"
       });
     }
 
