@@ -659,7 +659,7 @@
     if (!created.ok) return created;
     const job_id = created.data.job_id || (created.data.job && created.data.job.id) || created.data.id;
     const ebook_id = created.data.ebook_id || (created.data.ebook && created.data.ebook.id) || created.data.book_id;
-    const CHUNK = 20000;
+    const CHUNK = 200000;
     for (let i = 0, n = 0; i < text.length; i += CHUNK, n++) {
       const sent = await ingest({
         action: "append",
