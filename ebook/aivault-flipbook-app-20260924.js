@@ -89,25 +89,56 @@
 
   async function collectBooks() {
     const local = await E.allLocalBooks();
-    const remoteRows = E.catalog();
-    const map = new Map();
-    local.forEach(function (b) {
-      map.set(b.id, Object.assign({ source: "local" }, b));
-    });
-    remoteRows.forEach(function (r) {
-      if (!map.has(r.ebook_id)) {
-        map.set(r.ebook_id, {
-          id: r.ebook_id,
-          ebook_id: r.ebook_id,
-          title: r.title,
-          author: r.author,
-          page_count: r.page_count,
-          cover_url: r.cover_url,
-          source: "remote",
-          created_at: r.saved_at
+    let remoteRows = E.catalog();
+    try {
+      const live = await E.fetchRemoteCatalog(80);
+      if (live && live.ok && live.data && Array.isArray(live.data.ebooks)) {
+        remoteRows = live.data.ebooks.map(function (r) {
+          return {
+            ebook_id: r.id || r.ebook_id,
+            title: r.title,
+            author: r.author,
+            page_count: r.total_pages || r.page_count || 0,
+            cover_url: r.cover_url || "",
+            edition: r.edition || "",
+            source: "remote",
+            saved_at: r.updated_at || r.created_at
+          };
+        }).filter(function (r) {
+          return r.ebook_id && Number(r.page_count || 0) > 0 &&
+            String(r.title || "").indexOf("AIVAULT FlipBook Probe") < 0 &&
+            String(r.title || "").indexOf("「當行政遇上科學") !== 0;
+        });
+        E.catalog().forEach(function (r) {
+          if (remoteRows.some(function (x) { return x.ebook_id === r.ebook_id; })) return;
+          if (r.ebook_id === "1d8ce1b4-6f6b-4075-8e99-f5da89c680cd") return;
+          remoteRows.push(r);
         });
       }
+    } catch (e) {
+      console.warn("[AIVAULT FlipBook] live catalog failed; using local catalog", e);
+    }
+
+    const map = new Map();
+    local.forEach(function (b) { map.set(b.id, Object.assign({ source: "local" }, b)); });
+    remoteRows.forEach(function (r) {
+      if (!r.ebook_id) return;
+      map.set(r.ebook_id, {
+        id: r.ebook_id,
+        ebook_id: r.ebook_id,
+        title: r.title || "未命名",
+        author: r.author || "—",
+        page_count: r.page_count || r.total_pages || 0,
+        total_pages: r.total_pages || r.page_count || 0,
+        cover_url: r.cover_url || "",
+        edition: r.edition || "",
+        source: "remote",
+        category: r.category || "法律",
+        created_at: r.saved_at || r.created_at || "",
+        remote_id: r.ebook_id
+      });
     });
+
     if (!map.has(E.DEFAULT_REMOTE)) {
       map.set(E.DEFAULT_REMOTE, {
         id: E.DEFAULT_REMOTE,
@@ -120,20 +151,7 @@
         created_at: "2026-09-23T07:04:00+08:00"
       });
     }
-    const newBookId = "88b895c3-c7c9-49b8-aac2-d57edc9bae20";
-    if (!map.has(newBookId)) {
-      map.set(newBookId, {
-        id: newBookId,
-        ebook_id: newBookId,
-        title: "當行政遇上科學：從風險評估談起－以美國法為例",
-        author: "宮文祥",
-        page_count: 19,
-        total_pages: 19,
-        source: "remote",
-        category: "法律",
-        created_at: "2026-09-24T00:00:00+08:00"
-      });
-    }
+
     const constitutionId = "aivault-prc-constitution-2018";
     if (!map.has(constitutionId)) {
       map.set(constitutionId, {
@@ -148,6 +166,7 @@
         created_at: "2026-09-23T07:04:00+08:00"
       });
     }
+
     const progressRows = {};
     try {
       const allP = await E.openDb().then(function (db) {
@@ -159,6 +178,7 @@
       });
       allP.forEach(function (p) { progressRows[p.book_id] = p; });
     } catch (e) {}
+
     const out = [];
     map.forEach(function (b) {
       const p = progressRows[b.id];
