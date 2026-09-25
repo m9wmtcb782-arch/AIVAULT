@@ -685,13 +685,16 @@
     return [{ page_number: 1, content: file.name, image: url, kind: "image", title: file.name }];
   }
 
-  async function pushTextToIngest(title, author, text, description) {
+  async function pushTextToIngest(title, author, text, description, options) {
+    options = options || {};
     const created = await ingest({
       action: "create",
       title: title,
       author: author || "",
-      version: "",
-      description: description || ""
+      version: options.version || "",
+      description: description || "",
+      category: options.category || "未分類",
+      content_type: options.content_type || "text"
     });
     if (!created.ok) return created;
     const job_id = created.data.job_id || (created.data.job && created.data.job.id) || created.data.id;
