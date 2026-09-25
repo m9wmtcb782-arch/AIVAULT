@@ -5588,6 +5588,8 @@ async function callAIVAULT(
 
   updateDarkStarWorkLocation("📍 AIVAULT → AI Gateway → 等待真實回應", {kind:"gateway"});
 
+  payload.stream = true;
+
   const response =
     await fetch(
       AI_GATEWAY_URL,
@@ -5600,7 +5602,9 @@ async function callAIVAULT(
 
         headers:{
           "Content-Type":
-            "application/json"
+            "application/json",
+          "Accept":
+            "text/event-stream, application/json"
         },
 
         body:
@@ -5611,33 +5615,115 @@ async function callAIVAULT(
       }
     );
 
+  let data = {};
 
-  const responseText =
-    await response.text();
+  if(!response.ok){
+    const errorText = await response.text();
+    let errorData = {};
+    try{ errorData = errorText ? JSON.parse(errorText) : {}; }catch(error){}
+    const detail =
+      errorData?.message ||
+      errorData?.error ||
+      `HTTP ${response.status}`;
+    throw new Error(String(detail));
+  }
 
+  const contentType =
+    String(response.headers.get("content-type") || "").toLowerCase();
 
-  let data;
+  if(contentType.includes("text/event-stream") && response.body){
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let streamDone = false;
 
+    const handleEventBlock = (block) => {
+      const lines = String(block || "").split(/\\r?\\n/);
+      let eventName = "message";
+      const dataLines = [];
 
-  try{
+      for(const line of lines){
+        if(line.startsWith("event:")){
+          eventName = line.slice(6).trim();
+        }else if(line.startsWith("data:")){
+          dataLines.push(line.slice(5).trimStart());
+        }
+      }
 
-    data =
-      responseText
-        ? JSON.parse(
-            responseText
-          )
-        : {};
+      if(!dataLines.length) return;
 
-  }catch(error){
+      const raw = dataLines.join("\\n");
+      let eventData = {};
+      try{
+        eventData = JSON.parse(raw);
+      }catch(error){
+        console.warn("[DarkStar][Gateway SSE] invalid event data", raw);
+        return;
+      }
 
-    throw new Error(
-      "AIVAULT AI Gateway 回傳不是 JSON：\n" +
-      responseText.slice(
-        0,
-        1200
-      )
-    );
+      if(eventName === "runtime"){
+        const action = String(eventData?.action || "").trim();
+        const target = String(eventData?.target || "").trim();
+        if(action || target){
+          const label = [action, target].filter(Boolean).join("：");
+          updateDarkStarWorkLocation("📍 " + label, {
+            kind: eventData?.kind || "gateway"
+          });
+        }
+        return;
+      }
 
+      if(eventName === "result"){
+        data = eventData && typeof eventData === "object"
+          ? eventData
+          : {};
+        return;
+      }
+
+      if(eventName === "error"){
+        throw new Error(
+          String(eventData?.message || eventData?.error || "AIVAULT AI Gateway 串流執行失敗")
+        );
+      }
+
+      if(eventName === "done"){
+        streamDone = true;
+      }
+    };
+
+    while(!streamDone){
+      const {value, done} = await reader.read();
+      if(done) break;
+
+      buffer += decoder.decode(value, {stream:true});
+
+      const blocks = buffer.split("\\n\\n");
+      buffer = blocks.pop() || "";
+
+      for(const block of blocks){
+        handleEventBlock(block);
+      }
+    }
+
+    buffer += decoder.decode();
+    if(buffer.trim()) handleEventBlock(buffer);
+
+    if(!data || typeof data !== "object" || Object.keys(data).length === 0){
+      throw new Error("AIVAULT AI Gateway 串流沒有收到最終結果。");
+    }
+  }else{
+    const responseText = await response.text();
+    try{
+      data =
+        responseText
+          ? JSON.parse(responseText)
+          : {};
+    }catch(error){
+      throw new Error(
+        "AIVAULT AI Gateway 回傳不是 JSON：\\n" +
+        responseText.slice(0,1200)
+      );
+    }
   }
 
 
