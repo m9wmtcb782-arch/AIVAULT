@@ -5,7 +5,7 @@ window.__AIVAULT_DARK_STAR_MY_VOICE__=true;
 const FN='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/fish-tts';
 const KEY='darkStarUseMyVoice';
 const RATE_KEY='darkStarMyVoiceRate';
-let audio=null,speaking=false,last='',typeTimer=0,rec=null,stream=null;
+let audio=null,speaking=false,last='',typeTimer=0,rec=null,stream=null,hold='',holdT=0;
 const originalSpeak=window.speakText;
 function lsGet(k){try{return (localStorage.getItem(k)||'').trim()}catch(e){return ''}}
 function lsSet(k,v){try{localStorage.setItem(k,String(v))}catch(e){}}
@@ -18,7 +18,14 @@ function stopSpeak(){speaking=false;if(!audio)return;try{audio.pause()}catch(e){
 function unlockAudio(){if(!audio)audio=new Audio();audio.volume=1;audio.src='data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';return audio.play().catch(function(){}).then(function(){try{audio.pause()}catch(e){}})}
 function wrongLang(s){return /[ऀ-ॿ가-힣぀-ヿЀ-ӿ؀-ۿ฀-๿]/.test(String(s||''))}
 function setInput(text){const input=document.getElementById('composerInput');if(!input)return;input.value=String(text||'');input.dispatchEvent(new Event('input',{bubbles:true}))}
-function sendOfficial(){const input=document.getElementById('composerInput');const send=document.getElementById('sendButton')||document.querySelector('.composer-send');if(!input||!String(input.value||'').trim())return;if(send)send.click()}
+function sendOfficial(text){
+  const raw=String(text||'').trim();
+  if(!raw||wrongLang(raw))return;
+  setInput(raw);
+  const send=document.getElementById('sendButton')||document.querySelector('.composer-send');
+  if(send)send.click();
+  hold='';
+}
 function lastAI(){const nodes=document.querySelectorAll('.message.ai .message-text, .message.assistant .message-text');const el=nodes[nodes.length-1];const t=el?String(el.innerText||'').trim():'';if(!t||/思考中|正在思考/.test(t))return '';return t}
 function speakChinese(text){const raw=String(text||'').trim();const lines=raw.split(/\n+/).map(s=>s.trim()).filter(Boolean);const zh=lines.filter(s=>/[一-鿿]/.test(s)&&!wrongLang(s));return zh.length?zh.join('。'):raw}
 async function speakMine(text){
@@ -27,22 +34,32 @@ async function speakMine(text){
   last=raw;speaking=true;
   if(!audio)audio=new Audio();audio.volume=1;
   const res=await fetch(FN,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:raw.slice(0,800),reference_id:id,format:'mp3'})});
-  if(!res.ok){toast('合成失敗：'+res.status);speaking=false;return}
-  const blob=await res.blob();
-  if(!blob||blob.size<200){toast('沒有音訊');speaking=false;return}
+  if(!res.ok){speaking=false;return}
+  const blob=await res.blob();if(!blob||blob.size<200){speaking=false;return}
   const url=URL.createObjectURL(blob);
   await new Promise(resolve=>{audio.onended=resolve;audio.onerror=resolve;audio.src=url;audio.playbackRate=rate();audio.play().catch(resolve)});
   speaking=false;
 }
-function watchTyped(){if(!on())return;clearTimeout(typeTimer);typeTimer=setTimeout(function(){const t=lastAI();if(!t||t===last||wrongLang(t))return;speakMine(t)},700)}
-function stopRec(){try{if(rec)rec.stop()}catch(e){}rec=null;if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}}
+function watchTyped(){if(!on())return;clearTimeout(typeTimer);typeTimer=setTimeout(function(){const t=lastAI();if(!t||t===last||wrongLang(t))return;speakMine(t)},500)}
+function stopRec(){clearTimeout(holdT);try{if(rec)rec.stop()}catch(e){}rec=null;if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}}
 function startRec(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){toast('請打字，暗星寫完會自動播');return}
+  if(!SR){toast('請打字，寫完會自動播');return}
   rec=new SR();rec.lang='zh-TW';rec.continuous=true;rec.interimResults=true;
-  rec.onresult=function(ev){let final='';for(let i=ev.resultIndex;i<ev.results.length;i++){const piece=ev.results[i][0]&&ev.results[i][0].transcript||'';if(wrongLang(piece))continue;if(ev.results[i].isFinal)final+=piece;else setInput(piece)}if(final.trim()){setInput(final.trim());sendOfficial()}};
-  rec.onend=function(){if(on())try{rec.start()}catch(e){}};
-  try{rec.start();toast('說完→暗星寫完→播')}catch(e){toast('無法開聽寫')}
+  rec.onresult=function(ev){
+    let text='';
+    for(let i=0;i<ev.results.length;i++){
+      const piece=ev.results[i][0]&&ev.results[i][0].transcript||'';
+      if(!wrongLang(piece))text+=piece;
+    }
+    text=text.trim();
+    if(!text)return;
+    hold=text;setInput(text);
+    clearTimeout(holdT);
+    holdT=setTimeout(function(){if(hold)sendOfficial(hold)},550);
+  };
+  rec.onend=function(){if(hold)sendOfficial(hold);if(on())try{rec.start()}catch(e){}};
+  try{rec.start();toast('說完停一下就會送出')}catch(e){toast('無法開聽寫')}
 }
 function addDrawerSettings(){const bottom=document.querySelector('.drawer-bottom');if(!bottom||document.getElementById('dsMyVoiceSettings'))return;const box=document.createElement('div');box.id='dsMyVoiceSettings';box.style.cssText='padding:10px 12px 12px;border-bottom:1px solid #eee';box.innerHTML='<div style="font-size:12px;font-weight:600;margin-bottom:8px">我的聲音</div><button id="dsMyVoiceToggle" type="button" class="drawer-item" style="width:100%">變更設定</button><div id="dsMyVoiceFields" hidden><label style="display:block;font-size:11px;color:#666;margin:8px 0 6px">Fish API Key<br><input id="dsFishKeyIn" type="password" style="width:100%;margin-top:4px;padding:7px;border:1px solid #ddd;border-radius:8px"></label><label style="display:block;font-size:11px;color:#666">Voice id<br><input id="dsFishVoiceIn" type="text" style="width:100%;margin-top:4px;padding:7px;border:1px solid #ddd;border-radius:8px"></label><button id="dsFishSave" type="button" class="drawer-item" style="width:100%">儲存</button></div>';bottom.insertBefore(box,bottom.firstChild);const fields=document.getElementById('dsMyVoiceFields');const toggle=document.getElementById('dsMyVoiceToggle');if(toggle)toggle.onclick=function(){if(!fields)return;fields.hidden=!fields.hidden;if(!fields.hidden){const k=document.getElementById('dsFishKeyIn');const v=document.getElementById('dsFishVoiceIn');if(k)k.value=lsGet('FISH_API_KEY');if(v)v.value=lsGet('FISH_VOICE_ID')}};const save=document.getElementById('dsFishSave');if(save)save.onclick=function(){const k=document.getElementById('dsFishKeyIn');const v=document.getElementById('dsFishVoiceIn');lsSet('FISH_API_KEY',(k&&k.value||'').trim());lsSet('FISH_VOICE_ID',(v&&v.value||'').trim());toast('已儲存');if(fields)fields.hidden=true}}
 window.speakText=function(text){if(on()){if(text)speakMine(text);return}if(typeof originalSpeak==='function')return originalSpeak(text)};
