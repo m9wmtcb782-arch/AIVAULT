@@ -4,6 +4,7 @@
 
   var speaking = false;
   var gen = 0;
+  var lastTouch = 0;
   var ios = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
@@ -134,10 +135,16 @@
     var btn = $("btnSpeak");
     if (!btn || btn._iosSpeakBound) return;
     btn._iosSpeakBound = true;
-    btn.addEventListener("click", onSpeakTap, true);
     btn.addEventListener("touchend", function (ev) {
-      ev.preventDefault();
-      ev.stopImmediatePropagation();
+      lastTouch = Date.now();
+      onSpeakTap(ev);
+    }, true);
+    btn.addEventListener("click", function (ev) {
+      if (Date.now() - lastTouch < 700) {
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+        return;
+      }
       onSpeakTap(ev);
     }, true);
   }
