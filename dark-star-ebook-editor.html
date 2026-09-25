@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#14110e">
-<title>AIVAULT｜電子書教材匯入</title>
+<title>AIVAULT｜電子書匯入</title>
 <style>
 :root{--line:rgba(255,236,205,.12);--gold:#c4a36a;--paper:#f4ead6}
 *{box-sizing:border-box}
@@ -39,7 +39,7 @@ button.primary{background:#c4a36a;color:#1b1612;border-color:#c4a36a;font-weight
 <header class="top">
   <div class="mark">匯</div>
   <div>
-    <b>電子書教材匯入</b>
+    <b>電子書匯入</b>
     <div style="font-size:12px;color:#cbbda3">create → append chunks → finalize　不一次上傳整本</div>
   </div>
   <div style="flex:1"></div>
@@ -50,7 +50,7 @@ button.primary{background:#c4a36a;color:#1b1612;border-color:#c4a36a;font-weight
 </header>
 <div class="wrap">
   <section class="card">
-    <h1>建立／匯入法律教材</h1>
+    <h1>建立／匯入電子書或文件</h1>
     <p style="color:#cbbda3;line-height:1.6">使用既有入口 dark-star-ebook-ingest。封面可選。正文以約 20,000 字分塊上傳。沒有成功回傳前，不會寫入假書。</p>
     <div class="row">
       <div>
@@ -77,12 +77,12 @@ button.primary{background:#c4a36a;color:#1b1612;border-color:#c4a36a;font-weight
       <img class="coverprev" id="coverPrev" alt="封面預覽">
       <input id="coverFile" type="file" accept="image/*">
     </div>
-    <label>文件匯入（PDF / Word / PPT / Excel / JPG / TXT）</label>
+    <label>文件匯入（PDF / Word / PPT / Excel / JPG / PNG / TXT / Markdown）</label>
     <input id="docFile" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.jpg,.jpeg,.png,.webp,application/pdf,image/*">
-    <p style="color:#cbbda3;font-size:13px;line-height:1.55">文件會先在本機建立 FlipBook 頁面與搜尋索引，再把抽出的文字走既有 dark-star-ebook-ingest（create → append → finalize）。不取代原文字匯入。</p>
-    <label>教材原文（貼上或選文字檔）</label>
+    <p style="color:#cbbda3;font-size:13px;line-height:1.55">文件會先建立 FlipBook 頁面與搜尋索引，再把抽出的文字同步到電子書後端（create → append → finalize）。文字貼上與文件匯入都可使用。</p>
+    <label>文字內容（貼上或選文字檔）</label>
     <input id="textFile" type="file" accept=".txt,.md,.text,text/plain">
-    <textarea id="body" placeholder="在此貼上法律教材原文。可含編、章、節、條標題，後端負責解析。"></textarea>
+    <textarea id="body" placeholder="在此貼上任何文字內容，例如書籍、論文、教材、小說、筆記、工作文件或其他資料。"></textarea>
     <div class="btns">
       <button type="button" id="btnPreview">預覽字數</button>
       <button type="button" class="primary" id="btnStart">開始匯入</button>
@@ -236,7 +236,7 @@ $("btnStart").onclick = async () => {
   const title = $("title").value.trim();
   const text = $("body").value || "";
   if (!title) { log("title required", "err"); return; }
-  if (!text.trim()) { log("請先貼上或選擇教材文字。", "err"); return; }
+  if (!text.trim()) { log("請先貼上或選擇文字內容。", "err"); return; }
   job.title = title;
   job.chars = text.length;
   job.uploaded = 0;
@@ -244,6 +244,8 @@ $("btnStart").onclick = async () => {
   setStats();
   const payload = {
     action: "create",
+    category: "未分類",
+    content_type: "text",
     title,
     author: $("author").value.trim(),
     version: $("version").value.trim(),
