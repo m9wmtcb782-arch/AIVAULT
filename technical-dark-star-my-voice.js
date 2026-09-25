@@ -6,8 +6,9 @@ const FN='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/fish-tts';
 const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-voice';
 const KEY='darkStarUseMyVoice';
 const RATE_KEY='darkStarMyVoiceRate';
-const LANG_LOCK='請只用繁體中文回答。可在中文下方另起一行附上簡短英文字幕。不要改用其他語言。';
-let audio=null,speaking=false,last='',typeTimer=0;
+const LANG_LOCK='聽寫規則：使用者只說繁體中文或英文。input transcription 必須是繁體中文或英文原文，禁止翻譬或聽寫成韓文、日文或其他語言。回答只用繁體中文，可另起一行英文字幕。';
+const STT_FIX='聽寫錯誤。使用者說的是繁體中文或英文，請用繁中或英文重聽，不要韓文。';
+let audio=null,speaking=false,last='',typeTimer=0,sttWarn=0;
 let ws=null,stream=null,ctx=null,source=null,processor=null,sink=null,outText='',inText='',userEl=null,aiEl=null,thinkEl=null,thinkT=0,thinkSec=0;
 const originalSpeak=window.speakText;
 function lsGet(k){try{return (localStorage.getItem(k)||'').trim()}catch(e){return ''}}
@@ -30,6 +31,7 @@ function topicId(){if(typeof getDarkStarTopicId==='function')return String(getDa
 function convId(){if(typeof conversationId==='string')return conversationId.trim();try{return (localStorage.getItem('technical_dark_star_conversation_id')||'').trim()}catch(e){return ''}}
 function liveParams(){const p=new URLSearchParams();p.set('voice','Kore');p.set('agent_id','technical-dark-star');const t=topicId();const c=convId();const tok=accessToken();if(t)p.set('topic_id',t);if(c)p.set('conversation_id',c);if(tok)p.set('access_token',tok);return p}
 function pcm16(float32){const out=new Int16Array(float32.length);for(let i=0;i<float32.length;i++){const s=Math.max(-1,Math.min(1,float32[i]));out[i]=s<0?s*0x8000:s*0x7fff}const bytes=new Uint8Array(out.buffer);let bin='';for(let i=0;i<bytes.length;i++)bin+=String.fromCharCode(bytes[i]);return btoa(bin)}
+function wrongLang(s){return /[가-힣぀-ヿ]/.test(String(s||''))}
 function scrollChat(){const box=document.getElementById('messages');if(box)box.scrollTop=box.scrollHeight}
 function ensureBubble(role){
   const welcome=document.getElementById('welcome');if(welcome)welcome.remove();
@@ -150,7 +152,7 @@ function stopLive(){
   stopThink();
   try{if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:'audioStreamEnd'}))}catch(e){}
   try{if(ws)ws.close()}catch(e){}
-  ws=null;outText='';inText='';userEl=null;aiEl=null;thinkEl=null;
+  ws=null;outText='';inText='';userEl=null;aiEl=null;thinkEl=null;sttWarn=0;
   try{if(processor)processor.disconnect()}catch(e){}
   try{if(source)source.disconnect()}catch(e){}
   try{if(sink)sink.disconnect()}catch(e){}
@@ -172,7 +174,16 @@ function attachMic(s){
   ws.onmessage=function(ev){
     let msg=ev.data;try{msg=JSON.parse(ev.data)}catch(e){return}
     const spoken=readBlock(msg,'in');
-    if(spoken){inText=mergeText(inText,spoken);writeUser(inText);if(!thinkT)startThink()}
+    if(spoken){
+      if(wrongLang(spoken)){
+        writeUser('（你說的是中文或英文，聽寫請勿用韓文）');
+        if(ws&&ws.readyState===1&&sttWarn<3){sttWarn+=1;try{ws.send(JSON.stringify({type:'text',text:STT_FIX}))}catch(e){}}
+      }else{
+        inText=mergeText(inText,spoken);
+        writeUser(inText);
+      }
+      if(!thinkT)startThink();
+    }
     const t=readBlock(msg,'out');if(t)outText=mergeText(outText,t);
     if(isDone(msg)){stopThink();const say=outText.trim();if(say.length>=2){aiEl=thinkEl&&thinkEl.isConnected?thinkEl:null;writeAI(say);speakMine(say)}inText='';outText='';userEl=null;aiEl=null;thinkEl=null}
   };
