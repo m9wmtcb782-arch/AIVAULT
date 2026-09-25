@@ -3,51 +3,108 @@
 if(window.__AIVAULT_DARK_STAR_MY_VOICE__)return;
 window.__AIVAULT_DARK_STAR_MY_VOICE__=true;
 const FN='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/fish-tts';
-const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-voice';
 const KEY='darkStarUseMyVoice';
 const RATE_KEY='darkStarMyVoiceRate';
-const LANG_LOCK='請用繁體中文完整回答，不要只說半句。聽寫只能繁中或英文。';
-let audio=null,speaking=false,last='',typeTimer=0,retries=0,userClose=false,settleT=0;
-let ws=null,stream=null,ctx=null,source=null,processor=null,sink=null,outText='',inText='',userEl=null,aiEl=null,thinkEl=null,thinkT=0,thinkSec=0;
+let audio=null,speaking=false,last='',typeTimer=0,rec=null,stream=null;
 const originalSpeak=window.speakText;
 function lsGet(k){try{return (localStorage.getItem(k)||'').trim()}catch(e){return ''}}
-function lsSet(k,v){try{if(v!=null)localStorage.setItem(k,v)}catch(e){}}
+function lsSet(k,v){try{localStorage.setItem(k,String(v))}catch(e){}}
 function voiceId(){return lsGet('FISH_VOICE_ID')}
 function on(){return lsGet(KEY)==='1'}
 function rate(){let n=parseFloat(lsGet(RATE_KEY));if(!isFinite(n))n=1;return Math.min(1.3,Math.max(0.7,n))}
 function toast(msg){const el=document.getElementById('voiceStatus');if(!el){alert(msg);return}el.textContent=msg;el.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>el.classList.remove('show'),2800)}
-function paint(){const btn=document.getElementById('darkStarMyVoiceButton');if(!btn)return;const v=on();btn.classList.toggle('active',v);btn.textContent=v?'我的聲音 ✓':'我的聲音'}
+function paint(){const btn=document.getElementById('darkStarMyVoiceButton');if(!btn)return;btn.classList.toggle('active',on());btn.textContent=on()?'我的聲音 ✓':'我的聲音'}
 function stopSpeak(){speaking=false;if(!audio)return;try{audio.pause()}catch(e){}}
 function unlockAudio(){if(!audio)audio=new Audio();audio.volume=1;audio.src='data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';return audio.play().catch(function(){}).then(function(){try{audio.pause()}catch(e){}})}
-function accessToken(){try{const raw=localStorage.getItem('sb-clcddygkaaqqtsbswgdf-auth-token');if(!raw)return '';const j=JSON.parse(raw);return String(j.access_token||(j.currentSession&&j.currentSession.access_token)||'').trim()}catch(e){return ''}}
-function topicId(){if(typeof getDarkStarTopicId==='function'){const t=String(getDarkStarTopicId()||'').trim();if(t)return t}return lsGet('technical-dark-star-topic-id')||lsGet('technical_dark_star_topic_id')}
-function convId(){if(typeof conversationId==='string'&&conversationId.trim())return conversationId.trim();return lsGet('technical_dark_star_conversation_id')||lsGet('technical-dark-star-conversation-id')}
-function adoptIds(msg){if(!msg||typeof msg!=='object')return;const src=msg.live_open||msg.session||msg;const c=String(src.conversation_id||msg.conversation_id||'').trim();const t=String(src.topic_id||msg.topic_id||'').trim();if(c){lsSet('technical_dark_star_conversation_id',c);try{window.conversationId=c}catch(e){}}if(t)lsSet('technical-dark-star-topic-id',t)}
-function liveParams(){const p=new URLSearchParams();p.set('voice','Kore');p.set('agent_id','technical-dark-star');const t=topicId();const c=convId();const tok=accessToken();if(t)p.set('topic_id',t);if(c)p.set('conversation_id',c);if(tok)p.set('access_token',tok);return p}
-function pcm16(float32){const out=new Int16Array(float32.length);for(let i=0;i<float32.length;i++){const s=Math.max(-1,Math.min(1,float32[i]));out[i]=s<0?s*0x8000:s*0x7fff}const bytes=new Uint8Array(out.buffer);let bin='';for(let i=0;i<bytes.length;i++)bin+=String.fromCharCode(bytes[i]);return btoa(bin)}
 function wrongLang(s){return /[ऀ-ॿ가-힣぀-ヿЀ-ӿ؀-ۿ฀-๿]/.test(String(s||''))}
-function scrollChat(){const box=document.getElementById('messages');if(box)box.scrollTop=box.scrollHeight}
-function ensureBubble(role){const welcome=document.getElementById('welcome');if(welcome)welcome.remove();const inner=document.getElementById('messagesInner');if(!inner)return null;const row=document.createElement('div');row.className='message '+(role==='user'?'user':'ai');const avatar=document.createElement('div');avatar.className='message-avatar';avatar.textContent=role==='user'?'你':'✦';const body=document.createElement('div');body.className='message-body';const text=document.createElement('div');text.className='message-text';body.appendChild(text);row.appendChild(avatar);row.appendChild(body);inner.appendChild(row);return text}
-function writeUser(text){const raw=String(text||'').trim();if(!raw||wrongLang(raw))return;if(!userEl||!userEl.isConnected)userEl=ensureBubble('user');if(userEl)userEl.textContent=raw;const input=document.getElementById('composerInput');if(input){input.value=raw;input.dispatchEvent(new Event('input',{bubbles:true}))}scrollChat()}
-function writeAI(text){const raw=String(text||'').trim();if(!raw)return;if(!aiEl||!aiEl.isConnected)aiEl=ensureBubble('ai');if(aiEl)aiEl.textContent=raw;scrollChat()}
-function startThink(){stopThink();thinkSec=0;if(!thinkEl||!thinkEl.isConnected)thinkEl=ensureBubble('ai');if(thinkEl)thinkEl.textContent='暗星思考中 0 秒';thinkT=setInterval(function(){thinkSec+=1;if(thinkEl&&thinkEl.isConnected)thinkEl.textContent='暗星思考中 '+thinkSec+' 秒'},1000)}
-function stopThink(){if(thinkT){clearInterval(thinkT);thinkT=0}}
-function mergeText(prev,next){const a=String(prev||'');const b=String(next||'');if(!b)return a;if(!a)return b;if(b.startsWith(a))return b;if(a.startsWith(b)&&a.length>b.length)return a;if(a.endsWith(b))return a;if(b.length+4<a.length)return a;return a+b}
-function lastTyped(){const nodes=document.querySelectorAll('.message.ai .message-text, .message.assistant .message-text');const el=nodes[nodes.length-1];const t=el?String(el.innerText||'').trim():'';if(!t||/思考中/.test(t))return '';return t}
-function watchTyped(){if(!on())return;clearTimeout(typeTimer);typeTimer=setTimeout(function(){const t=lastTyped();if(!t||t===last||wrongLang(t))return;speakMine(t)},1400)}
-function addDrawerSettings(){const bottom=document.querySelector('.drawer-bottom');if(!bottom||document.getElementById('dsMyVoiceSettings'))return;const box=document.createElement('div');box.id='dsMyVoiceSettings';box.style.cssText='padding:10px 12px 12px;border-bottom:1px solid #eee';box.innerHTML='<div style="font-size:12px;font-weight:600;margin-bottom:8px">我的聲音</div><button id="dsMyVoiceToggle" type="button" class="drawer-item" style="width:100%">變更我的聲音設定</button><div id="dsMyVoiceFields" hidden><label style="display:block;font-size:11px;color:#666;margin:8px 0 6px">Fish API Key<br><input id="dsFishKeyIn" type="password" style="width:100%;margin-top:4px;padding:7px;border:1px solid #ddd;border-radius:8px"></label><label style="display:block;font-size:11px;color:#666">Voice id<br><input id="dsFishVoiceIn" type="text" style="width:100%;margin-top:4px;padding:7px;border:1px solid #ddd;border-radius:8px"></label><button id="dsFishSave" type="button" class="drawer-item" style="width:100%">儲存</button></div>';bottom.insertBefore(box,bottom.firstChild);const fields=document.getElementById('dsMyVoiceFields');const toggle=document.getElementById('dsMyVoiceToggle');if(toggle)toggle.onclick=function(){if(fields)fields.hidden=!fields.hidden};const save=document.getElementById('dsFishSave');if(save)save.onclick=function(){const k=document.getElementById('dsFishKeyIn');const v=document.getElementById('dsFishVoiceIn');lsSet('FISH_API_KEY',(k&&k.value||'').trim());lsSet('FISH_VOICE_ID',(v&&v.value||'').trim());toast('已儲存');if(fields)fields.hidden=true}}
+function setInput(text){const input=document.getElementById('composerInput');if(!input)return;input.value=String(text||'');input.dispatchEvent(new Event('input',{bubbles:true}))}
+function sendOfficial(){
+  const input=document.getElementById('composerInput');
+  const send=document.getElementById('sendButton')||document.querySelector('.composer-send');
+  if(!input||!String(input.value||'').trim())return;
+  if(send)send.click();
+}
+function lastAI(){const nodes=document.querySelectorAll('.message.ai .message-text, .message.assistant .message-text');const el=nodes[nodes.length-1];const t=el?String(el.innerText||'').trim():'';if(!t||/思考中|正在思考/.test(t))return '';return t}
 function speakChinese(text){const raw=String(text||'').trim();const lines=raw.split(/\n+/).map(s=>s.trim()).filter(Boolean);const zh=lines.filter(s=>/[一-鿿]/.test(s)&&!wrongLang(s));return zh.length?zh.join('。'):raw}
-async function speakMine(text){const raw=speakChinese(text);const id=voiceId();if(!raw||raw.length<2||!id||speaking||wrongLang(raw))return;last=raw;speaking=true;if(!audio)audio=new Audio();audio.volume=1;const chunks=[];for(let i=0;i<raw.length;i+=180)chunks.push(raw.slice(i,i+180));for(let i=0;i<chunks.length;i++){if(!on())break;const res=await fetch(FN,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:chunks[i],reference_id:id,format:'mp3'})});if(!res.ok)break;const blob=await res.blob();if(!blob||blob.size<200)break;const url=URL.createObjectURL(blob);await new Promise(resolve=>{audio.onended=resolve;audio.onerror=resolve;audio.src=url;audio.playbackRate=rate();audio.play().catch(resolve)})}speaking=false}
-function readBlock(msg,kind){if(!msg||typeof msg!=='object')return '';const c=msg.serverContent||msg.content||msg;const key=kind==='in'?'inputTranscription':'outputTranscription';const block=c[key]||msg[key];if(block&&typeof block==='object'&&block.text)return String(block.text).trim();if(typeof block==='string')return block.trim();if(msg.type===key&&msg.text)return String(msg.text).trim();if(kind==='out'){const parts=c.modelTurn&&c.modelTurn.parts;if(Array.isArray(parts)){const t=parts.map(p=>p&&p.text?p.text:'').join('').trim();if(t)return t}}return ''}
-function isDone(msg){if(!msg||typeof msg!=='object')return false;const c=msg.serverContent||msg.content||msg;return !!(c.turnComplete||msg.turnComplete||msg.type==='turnComplete')}
-function blockOfficial(e){if(!on())return;const t=e.target;if(!t||!t.closest)return;if(t.closest('#micButton')||t.closest('#sendButton')||t.closest('.composer-mic')||t.closest('.composer-send')||t.closest('.message-action')){e.preventDefault();e.stopImmediatePropagation()}}
-function dropGraph(){try{if(ws){ws.onclose=null;if(ws.readyState===1)ws.close()}}catch(e){}ws=null;try{if(processor)processor.disconnect()}catch(e){}try{if(source)source.disconnect()}catch(e){}try{if(sink)sink.disconnect()}catch(e){}try{if(ctx)ctx.close()}catch(e){}processor=source=sink=ctx=null}
-function stopLive(){userClose=true;stopThink();clearTimeout(settleT);dropGraph();outText='';inText='';if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}}
-function scheduleReconnect(){if(userClose||!on())return;if(retries>=6)return;retries+=1;setTimeout(function(){if(userClose||!on())return;const keep=stream;dropGraph();if(keep&&keep.getTracks().some(t=>t.readyState==='live'))attachMic(keep);else navigator.mediaDevices.getUserMedia({audio:true}).then(attachMic).catch(function(){})},900)}
-function finishSay(){stopThink();const say=outText.trim();if(say.length>=2&&!wrongLang(say)){aiEl=thinkEl&&thinkEl.isConnected?thinkEl:null;writeAI(say);speakMine(say)}inText='';outText='';userEl=null;aiEl=null;thinkEl=null}
-function attachMic(s){stream=s;dropGraph();ctx=new (window.AudioContext||window.webkitAudioContext)({sampleRate:16000});source=ctx.createMediaStreamSource(stream);processor=ctx.createScriptProcessor(4096,1,1);sink=ctx.createGain();sink.gain.value=0;processor.onaudioprocess=function(ev){if(!ws||ws.readyState!==1)return;try{ws.send(JSON.stringify({type:'audio',data:pcm16(ev.inputBuffer.getChannelData(0)),mimeType:'audio/pcm;rate=16000'}))}catch(e){}};source.connect(processor);processor.connect(sink);sink.connect(ctx.destination);if(ctx.state==='suspended')ctx.resume();ws=new WebSocket(RELAY+'?'+liveParams().toString());ws.onopen=function(){retries=0;toast('已連線');try{ws.send(JSON.stringify({type:'text',text:LANG_LOCK}))}catch(e){}};ws.onmessage=function(ev){let msg=ev.data;try{msg=JSON.parse(ev.data)}catch(e){return}adoptIds(msg);const spoken=readBlock(msg,'in');if(spoken&&!wrongLang(spoken)){inText=mergeText(inText,spoken);writeUser(inText);if(!thinkT)startThink()}const t=readBlock(msg,'out');if(t&&!wrongLang(t)){outText=mergeText(outText,t);if(thinkEl&&thinkEl.isConnected)thinkEl.textContent=outText}if(t||isDone(msg)){clearTimeout(settleT);settleT=setTimeout(finishSay,2200)}};ws.onclose=function(){if(userClose||!on())return;scheduleReconnect()}}
+async function speakMine(text){
+  const raw=speakChinese(text);const id=voiceId();
+  if(!raw||raw.length<2||!id||speaking||wrongLang(raw)||raw===last)return;
+  last=raw;speaking=true;
+  if(!audio)audio=new Audio();audio.volume=1;
+  const chunks=[];for(let i=0;i<raw.length;i+=180)chunks.push(raw.slice(i,i+180));
+  for(let i=0;i<chunks.length;i++){
+    if(!on())break;
+    const res=await fetch(FN,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:chunks[i],reference_id:id,format:'mp3'})});
+    if(!res.ok){toast('我的聲音合成失敗：'+res.status);break}
+    const blob=await res.blob();if(!blob||blob.size<200)break;
+    const url=URL.createObjectURL(blob);
+    await new Promise(resolve=>{audio.onended=resolve;audio.onerror=resolve;audio.src=url;audio.playbackRate=rate();audio.play().catch(resolve)});
+  }
+  speaking=false;
+}
+function watchTyped(){
+  if(!on())return;
+  clearTimeout(typeTimer);
+  typeTimer=setTimeout(function(){const t=lastAI();if(!t||t===last||wrongLang(t))return;speakMine(t)},1600);
+}
+function stopRec(){
+  try{if(rec)rec.stop()}catch(e){}
+  rec=null;
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+}
+function startRec(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){toast('這台手機沒有語音轉文字，請直接打字，暗星寫完仍會自動播');return}
+  rec=new SR();
+  rec.lang='zh-TW';
+  rec.continuous=true;
+  rec.interimResults=true;
+  rec.onresult=function(ev){
+    let final='';
+    for(let i=ev.resultIndex;i<ev.results.length;i++){
+      const piece=ev.results[i][0]&&ev.results[i][0].transcript||'';
+      if(wrongLang(piece))continue;
+      if(ev.results[i].isFinal)final+=piece;
+      else setInput(piece);
+    }
+    if(final.trim()){setInput(final.trim());sendOfficial()}
+  };
+  rec.onerror=function(ev){if(ev.error!=='no-speech')toast('聽寫：'+ev.error)};
+  rec.onend=function(){if(on())try{rec.start()}catch(e){}};
+  try{rec.start();toast('我的聲音已開：說話→暗星寫完→再播')}catch(e){toast(e&&e.message||'無法開聽寫')}
+}
+function addDrawerSettings(){
+  const bottom=document.querySelector('.drawer-bottom');
+  if(!bottom||document.getElementById('dsMyVoiceSettings'))return;
+  const box=document.createElement('div');box.id='dsMyVoiceSettings';box.style.cssText='padding:10px 12px 12px;border-bottom:1px solid #eee';
+  box.innerHTML='<div style="font-size:12px;font-weight:600;margin-bottom:8px">我的聲音</div><button id="dsMyVoiceToggle" type="button" class="drawer-item" style="width:100%">變更設定</button><div id="dsMyVoiceFields" hidden><label style="display:block;font-size:11px;color:#666;margin:8px 0 6px">Fish API Key<br><input id="dsFishKeyIn" type="password" style="width:100%;margin-top:4px;padding:7px;border:1px solid #ddd;border-radius:8px"></label><label style="display:block;font-size:11px;color:#666">Voice id<br><input id="dsFishVoiceIn" type="text" style="width:100%;margin-top:4px;padding:7px;border:1px solid #ddd;border-radius:8px"></label><button id="dsFishSave" type="button" class="drawer-item" style="width:100%">儲存</button></div>';
+  bottom.insertBefore(box,bottom.firstChild);
+  const fields=document.getElementById('dsMyVoiceFields');
+  const toggle=document.getElementById('dsMyVoiceToggle');
+  if(toggle)toggle.onclick=function(){if(!fields)return;fields.hidden=!fields.hidden;if(!fields.hidden){const k=document.getElementById('dsFishKeyIn');const v=document.getElementById('dsFishVoiceIn');if(k)k.value=lsGet('FISH_API_KEY');if(v)v.value=lsGet('FISH_VOICE_ID')}};
+  const save=document.getElementById('dsFishSave');
+  if(save)save.onclick=function(){const k=document.getElementById('dsFishKeyIn');const v=document.getElementById('dsFishVoiceIn');lsSet('FISH_API_KEY',(k&&k.value||'').trim());lsSet('FISH_VOICE_ID',(v&&v.value||'').trim());toast('已儲存');if(fields)fields.hidden=true};
+}
 window.speakText=function(text){if(on()){if(text)speakMine(text);return}if(typeof originalSpeak==='function')return originalSpeak(text)};
-function addButton(){if(document.getElementById('darkStarMyVoiceButton'))return;const top=document.querySelector('.topbar');if(!top)return;const btn=document.createElement('button');btn.id='darkStarMyVoiceButton';btn.type='button';btn.style.cssText='margin-left:6px;border:1px solid #ddd;background:#fff;border-radius:9px;padding:7px 10px;font-size:12px;white-space:nowrap';btn.addEventListener('click',function(){if(on()){lsSet(KEY,'0');paint();stopSpeak();stopLive();return}userClose=false;retries=0;navigator.mediaDevices.getUserMedia({audio:true,video:false}).then(function(s){lsSet(KEY,'1');paint();unlockAudio();attachMic(s)}).catch(function(){toast('請允許麥克風')})});const home=document.getElementById('homeButton')||document.querySelector('.brand-home');if(home)home.before(btn);else top.appendChild(btn);lsSet(KEY,'0');paint()}
-function init(){addButton();addDrawerSettings();document.addEventListener('click',blockOfficial,true);document.addEventListener('pointerdown',blockOfficial,true);const inner=document.getElementById('messagesInner');if(inner)new MutationObserver(watchTyped).observe(inner,{childList:true,subtree:true,characterData:true})}
+function addButton(){
+  if(document.getElementById('darkStarMyVoiceButton'))return;
+  const top=document.querySelector('.topbar');if(!top)return;
+  const btn=document.createElement('button');btn.id='darkStarMyVoiceButton';btn.type='button';
+  btn.style.cssText='margin-left:6px;border:1px solid #ddd;background:#fff;border-radius:9px;padding:7px 10px;font-size:12px;white-space:nowrap';
+  btn.addEventListener('click',function(){
+    if(on()){lsSet(KEY,'0');paint();stopSpeak();stopRec();return}
+    navigator.mediaDevices.getUserMedia({audio:true,video:false}).then(function(s){
+      stream=s;lsSet(KEY,'1');paint();unlockAudio();startRec();
+    }).catch(function(){toast('請允許麥克風')});
+  });
+  const home=document.getElementById('homeButton')||document.querySelector('.brand-home');
+  if(home)home.before(btn);else top.appendChild(btn);
+  lsSet(KEY,'0');paint();
+}
+function init(){
+  addButton();addDrawerSettings();
+  const inner=document.getElementById('messagesInner');
+  if(inner)new MutationObserver(watchTyped).observe(inner,{childList:true,subtree:true,characterData:true});
+}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
