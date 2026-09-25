@@ -2715,17 +2715,6 @@ function getDarkStarTopicId(){
     使用固定 localStorage topic。
   */
 
-  if(
-    typeof conversationId ===
-      "string" &&
-    conversationId.trim()
-  ){
-
-    return conversationId.trim();
-
-  }
-
-
   let topicId = null;
 
 
@@ -5583,6 +5572,16 @@ async function callAIVAULT(
     data.session_id ||
     data.sessionId ||
     conversationId;
+
+
+  try{
+    const returnedTopicId = data?.memory?.topic_id || data?.topic_id || topicId;
+    if(returnedTopicId){
+      localStorage.setItem("technical-dark-star-topic-id", String(returnedTopicId));
+    }
+  }catch(error){
+    console.warn("[DarkStar][memory] topic persistence failed", error);
+  }
 
 
   console.info(
