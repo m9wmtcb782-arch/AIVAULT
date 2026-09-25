@@ -7,6 +7,7 @@
   const INGEST = SUPABASE_URL + "/functions/v1/dark-star-ebook-ingest";
   const GATEWAY = SUPABASE_URL + "/functions/v1/ai-gateway";
   const CATALOG_KEY = "aivault_ebook_catalog";
+  const SHELF_REMOVED_KEY = "aivault_ebook_shelf_removed";
   const READER_KEY = "aivault_ebook_reader_id";
   const FAV_KEY = "aivault_ebook_favorites";
   const CAT_KEY = "aivault_ebook_categories";
@@ -48,8 +49,34 @@
 
   function catalog() { return lsGet(CATALOG_KEY, []); }
   function saveCatalog(rows) { lsSet(CATALOG_KEY, rows); }
+
+  // 書架移除採「本機 tombstone」：只從「我的書架」隱藏，不刪除 Supabase 原書。
+  // 這可避免 live catalog / fallback catalog 每次重新載入又把遠端書加回來。
+  function removedShelfIds() {
+    return lsGet(SHELF_REMOVED_KEY, []);
+  }
+  function isShelfRemoved(ebookId) {
+    return !!ebookId && removedShelfIds().indexOf(String(ebookId)) >= 0;
+  }
+  function removeFromShelf(ebookId) {
+    if (!ebookId) throw new Error("missing ebook id");
+    const id = String(ebookId);
+    const removed = removedShelfIds().filter(function (x) { return String(x) !== id; });
+    removed.push(id);
+    lsSet(SHELF_REMOVED_KEY, removed.slice(-500));
+    saveCatalog(catalog().filter(function (r) { return String(r.ebook_id) !== id; }));
+    try { setFavorite(id, false); } catch (e) {}
+    return true;
+  }
+  function restoreToShelf(ebookId) {
+    if (!ebookId) return false;
+    const id = String(ebookId);
+    lsSet(SHELF_REMOVED_KEY, removedShelfIds().filter(function (x) { return String(x) !== id; }));
+    return true;
+  }
+
   function rememberRemote(meta) {
-    if (!meta || !meta.ebook_id) return;
+    if (!meta || !meta.ebook_id || isShelfRemoved(meta.ebook_id)) return;
     const rows = catalog().filter(function (r) { return r.ebook_id !== meta.ebook_id; });
     rows.unshift({
       ebook_id: meta.ebook_id,
@@ -366,9 +393,7 @@
       const rows = await idbIndex(childStores[i], "by_book", bookId);
       for (let j = 0; j < rows.length; j++) await idbDel(childStores[i], rows[j].id);
     }
-    let rows = catalog().filter(function (r) { return r.ebook_id !== bookId; });
-    saveCatalog(rows);
-    setFavorite(bookId, false);
+    removeFromShelf(bookId);
     return true;
   }
 
@@ -693,6 +718,10 @@
     readerId: readerId,
     catalog: catalog,
     rememberRemote: rememberRemote,
+    removedShelfIds: removedShelfIds,
+    isShelfRemoved: isShelfRemoved,
+    removeFromShelf: removeFromShelf,
+    restoreToShelf: restoreToShelf,
     ingest: ingest,
     askGateway: askGateway,
     favorites: favorites,
