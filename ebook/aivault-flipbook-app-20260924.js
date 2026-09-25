@@ -133,7 +133,7 @@
     const map = new Map();
     local.forEach(function (b) { map.set(b.id, Object.assign({ source: "local" }, b)); });
     remoteRows.forEach(function (r) {
-      if (!r.ebook_id) return;
+      if (!r.ebook_id || E.isShelfRemoved(r.ebook_id)) return;
       map.set(r.ebook_id, {
         id: r.ebook_id,
         ebook_id: r.ebook_id,
@@ -166,7 +166,7 @@
     const constitutionId = "8ea77ade-e709-468d-bbea-95e0df53e823";
     // 憲法已建立為真正的遠端電子書資料列；離線/列表失敗時只保留這個
     // 真實 UUID 的 fallback，避免舊的虛構 ID 導致「有書名、沒內容」。
-    if (!map.has(constitutionId)) {
+    if (!E.isShelfRemoved(constitutionId) && !map.has(constitutionId)) {
       map.set(constitutionId, {
         id: constitutionId,
         ebook_id: constitutionId,
@@ -195,6 +195,7 @@
 
     const out = [];
     map.forEach(function (b) {
+      if (E.isShelfRemoved(b.id || b.ebook_id)) return;
       const p = progressRows[b.id];
       if (p) {
         b.progress = p.progress;
@@ -946,6 +947,8 @@
       if (!confirm(label)) return;
       try {
         await E.deleteLocalBook(state.bookId);
+        // deleteLocalBook now also persists a remote-shelf tombstone, so a
+        // subsequent live catalog refresh cannot immediately resurrect the book.
         closeDrawer();
         state.bookId = null;
         state.remoteId = null;
