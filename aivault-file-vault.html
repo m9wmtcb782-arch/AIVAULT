@@ -482,9 +482,39 @@ alert("雲端預覽失敗："+e.message)
 
 async function downloadCloud(f){
 try{
-downloadBlob(await cloudBlob(f),f.displayName)
+const session=(await sb.auth.getSession()).data?.session;
+if(!session?.access_token){
+  throw new Error("尚未取得 AIVAULT 登入工作階段，請先登入。");
+}
+const fileId=f.file_id||f.metadata?.file_id||null;
+if(fileId){
+  const resp=await fetch(SUPABASE_URL+"/functions/v1/aivault-file-download",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "Authorization":"Bearer "+session.access_token,
+      "apikey":SUPABASE_PUBLISHABLE_KEY
+    },
+    body:JSON.stringify({file_id:fileId})
+  });
+  const data=await resp.json().catch(()=>({}));
+  if(!resp.ok||!data?.ok||!data?.signed_url){
+    throw new Error(data?.error||data?.message||("下載服務 HTTP "+resp.status));
+  }
+  const a=document.createElement("a");
+  a.href=data.signed_url;
+  a.target="_blank";
+  a.rel="noopener";
+  a.download=f.displayName||data.file_name||"download";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  return;
+}
+downloadBlob(await cloudBlob(f),f.displayName);
 }catch(e){
-alert("雲端下載失敗："+e.message)
+console.error("cloud download",e);
+alert("雲端下載失敗："+(e?.message||String(e)))
 }
 }
 
