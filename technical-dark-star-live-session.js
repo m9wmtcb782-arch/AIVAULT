@@ -1,4 +1,4 @@
-const FN='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-memory';
+const FN='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-voice';
 const TURNS_KEY='aivault_ds_live_turns';
 const DRAFT_KEY='aivault_ds_live_draft';
 const CTX_KEY='technical_dark_star_live_context';
@@ -24,16 +24,14 @@ function saveTurn(role,text){
   const item={id:Date.now()+'-'+Math.random().toString(16).slice(2),role:role==='user'?'user':'assistant',text,t:Date.now()};
   list.push(item);
   try{localStorage.setItem(TURNS_KEY,JSON.stringify(list.slice(-80)))}catch(e){}
-  try{new BroadcastChannel('aivault-dark-star-live').postMessage({type:'turn',...item})}catch(e){}
 }
 function flushTurn(){if(inBuf.trim())saveTurn('user',inBuf);if(outBuf.trim())saveTurn('assistant',outBuf);inBuf='';outBuf='';userEl=null;aiEl=null}
+function accessToken(){try{const raw=localStorage.getItem('sb-clcddygkaaqqtsbswgdf-auth-token');if(!raw)return '';const j=JSON.parse(raw);return String(j.access_token||(j.currentSession&&j.currentSession.access_token)||'').trim()}catch(e){return ''}}
 function sendTextToLive(text){
   text=String(text||'').trim();if(!text)return false;
   if(!ws||ws.readyState!==1){pendingText.push(text);status('文字已排隊，連上後會送給暗星');return false}
   try{
     ws.send(JSON.stringify({type:'text',text,source:'dark-star-live-page'}));
-    ws.send(JSON.stringify({clientContent:{turns:[{role:'user',parts:[{text}]}],turnComplete:true}}));
-    ws.send(JSON.stringify({realtimeInput:{text}}));
     log('你打字：'+text);bubble('user',text,false);saveTurn('user',text);return true;
   }catch(e){log('送字失敗：'+e.message);return false}
 }
@@ -72,14 +70,23 @@ async function openAudio(){
 function scheduleReconnect(){
   if(!auto||!wanted||reconnecting)return;
   reconnecting=true;status('🟡 已斷線，正在自動重連…');log('連線中斷，1 秒後自動重連');
-  setTimeout(()=>{reconnecting=false;if(!auto||!wanted)return;connect().then(()=>{if(mode==='video')startVideo();if(!processor)startAudio();status('🟢 已重連｜可繼續說或打字')}).catch(()=>scheduleReconnect())},1000);
+  setTimeout(()=>{reconnecting=false;if(!auto||!wanted)return;connect().then(()=>{if(mode==='video')startVideo();if(!processor)startAudio();status('🟢 已重連')}).catch(()=>scheduleReconnect())},1000);
 }
 function connect(){
   return new Promise((resolve,reject)=>{
     if(ws&&ws.readyState===1)return resolve();
-    const q=new URLSearchParams(location.search);const topicId=localStorage.getItem('technical-dark-star-topic-id')||q.get('topic_id')||'';const conversationId=localStorage.getItem('technical_dark_star_conversation_id')||q.get('conversation_id')||'';ws=new WebSocket(FN+'?voice='+encodeURIComponent($('voiceSelect').value)+'&topic_id='+encodeURIComponent(topicId)+'&conversation_id='+encodeURIComponent(conversationId));
+    const q=new URLSearchParams();
+    q.set('voice',$('voiceSelect').value||'Kore');
+    q.set('agent_id','technical-dark-star');
+    const topicId=localStorage.getItem('technical-dark-star-topic-id')||'';
+    const conversationId=localStorage.getItem('technical_dark_star_conversation_id')||'';
+    const tok=accessToken();
+    if(topicId)q.set('topic_id',topicId);
+    if(conversationId)q.set('conversation_id',conversationId);
+    if(tok)q.set('access_token',tok);
+    ws=new WebSocket(FN+'?'+q.toString());
     ws.binaryType='arraybuffer';
-    ws.onopen=()=>{status('🟢 已連線｜可以打字或說話');log('WebSocket 已連線');flushPending();resolve()};
+    ws.onopen=()=>{status('🟢 已連線 live-voice');log('WebSocket live-voice 已連線');flushPending();resolve()};
     ws.onerror=e=>reject(e);
     ws.onclose=()=>{ws=null;if(auto&&wanted)scheduleReconnect();else status('⚪ 已斷線')};
     ws.onmessage=e=>handleMessage(e.data);
@@ -116,7 +123,7 @@ async function start(){
     await openAudio();await openMedia();await connect();
     if(mode==='video')startVideo();startAudio();
     $('startBtn').disabled=true;$('stopBtn').disabled=false;
-    status('🟢 暗星正在聽／說'+(mode==='video'?'／看':'')+'｜斷線會自動重連');
+    status('🟢 live-voice 已開始');
     const draft=($('liveInput').value||'').trim();if(draft)sendTextToLive(draft);
   }catch(e){status('🔴 無法啟動');log('啟動失敗：'+(e.message||e))}
 }
