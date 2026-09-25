@@ -8,7 +8,7 @@ const LIVE_VIDEO='technical-dark-star-live-video-test.html?mode=video&v=3';
 const LIVE_VOICE='technical-dark-star-live-video-test.html?mode=voice&v=3';
 const HOME='aivault-home.html';
 const VOICES=[['Kore','Kore｜沉穩、專業、溫柔'],['Puck','Puck｜活漿、俗皮、親切'],['Charon','Charon｜低沉、穩重、權威'],['Leda','Leda｜溫柔、細黃、知性'],['Gacrux','Gacrux｜成熟、厚實、可靠'],['Aoede','Aoede｜明亮、優雅、自然'],['Orus','Orus｜冷靜、理性、沉著'],['Zephyr','Zephyr｜輕快、清新、柔和'],['Fenrir','Fenrir｜低沉、強烈、果斷'],['Achird','Achird｜親切、溫暖、自然']];
-const state={active:false,starting:false,ws:null,stream:null,ctx:null,source:null,processor:null,sink:null,nextAudioTime:0,sessionId:null,voice:'Kore'};
+const state={active:false,starting:false,ws:null,stream:null,ctx:null,source:null,processor:null,sink=null,nextAudioTime:0,sessionId:null,voice:'Kore'};
 const CTX_KEY='technical_dark_star_live_context';
 function bindHomeBack(){
   const btn=document.getElementById('homeButton')||document.querySelector('.brand-home');
@@ -127,7 +127,7 @@ function ui(){
   live.onclick=()=>{location.href=LIVE_VOICE};
 }
 function loadLiveJump(){if(document.getElementById('dsLiveJump'))return;const s=document.createElement('script');s.id='dsLiveJump';s.src='technical-dark-star-live-jump.js?v=3';document.head.appendChild(s)}
-function loadMyVoice(){if(document.getElementById('dsMyVoiceScript'))return;const s=document.createElement('script');s.id='dsMyVoiceScript';s.src='technical-dark-star-my-voice.js?v=15';document.head.appendChild(s)}
+function loadMyVoice(){if(document.getElementById('dsMyVoiceScript'))return;const s=document.createElement('script');s.id='dsMyVoiceScript';s.src='technical-dark-star-my-voice.js?v=16';document.head.appendChild(s)}
 function init(){ui();bindDarkStarTextSync();bindComposerSendToLive();bindHomeBack();loadLiveJump();loadMyVoice();let tries=0;const timer=setInterval(()=>{tries++;bindHomeBack();loadLiveJump();loadMyVoice();if(favorites()||tries>=20)clearInterval(timer)},250)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
