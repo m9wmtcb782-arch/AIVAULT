@@ -898,6 +898,19 @@ body{overflow:hidden}
    VOICE
 ========================================================= */
 
+/* AIVAULT_DARK_STAR_WORK_LOCATION_V1 */
+.dark-star-work-location{
+  display:block;
+  margin-top:4px;
+  color:#777;
+  font-size:13px;
+  line-height:1.45;
+  word-break:break-word;
+}
+@media(max-width:700px){
+  .dark-star-work-location{font-size:13px;}
+}
+
 .voice-status{
   position:fixed;
   left:50%;
@@ -5679,6 +5692,34 @@ async function callAIVAULT(
    SINGLE ENTRY POINT
 ========================================================= */
 
+function getCurrentWorkLocation(text, files){
+
+  const value=String(text || "").trim();
+
+  if(isSandboxIntent(value, files)){
+    return "📍 AIVAULT → Sandbox → 網頁工程測試";
+  }
+
+  if(isGameIntent(value, files)){
+    return "📍 AIVAULT → Game Sandbox → 遊戲製作與測試";
+  }
+
+  if(isDrawIntent(value, files)){
+    return "📍 AIVAULT → Dark Star → 圖像／SVG 處理";
+  }
+
+  if((files || []).some(file => file?.content_type === "image")){
+    return "📍 AIVAULT → Technical Dark Star → 圖片分析";
+  }
+
+  if((files || []).length){
+    return "📍 AIVAULT → Technical Dark Star → 檔案處理";
+  }
+
+  return "📍 AIVAULT → Technical Dark Star → AI Gateway";
+}
+
+
 async function sendMessage(){
 
   /*
@@ -5832,7 +5873,12 @@ async function sendMessage(){
 
 
   const loading =
-    createLoadingMessage();
+    createLoadingMessage(
+      getCurrentWorkLocation(
+        text,
+        outgoingFiles
+      )
+    );
 
 
   try{
@@ -6092,6 +6138,7 @@ function createLoadingMessage(){
     <span class="think-timer">
       0 秒
     </span>
+    <span class="dark-star-work-location"></span>
 
   </div>
 
@@ -6104,6 +6151,15 @@ function createLoadingMessage(){
     row.querySelector(
       ".think-timer"
     );
+
+  const location =
+    row.querySelector(
+      ".dark-star-work-location"
+    );
+
+  if(location){
+    location.textContent = workLocation;
+  }
 
 
   const started =
