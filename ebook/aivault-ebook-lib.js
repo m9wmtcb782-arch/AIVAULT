@@ -50,30 +50,18 @@
   function catalog() { return lsGet(CATALOG_KEY, []); }
   function saveCatalog(rows) { lsSet(CATALOG_KEY, rows); }
 
-  // 書架移除採「本機 tombstone」：只從「我的書架」隱藏，不刪除 Supabase 原書。
-  // 這可避免 live catalog / fallback catalog 每次重新載入又把遠端書加回來。
-  function removedShelfIds() {
-    return lsGet(SHELF_REMOVED_KEY, []);
-  }
-  function isShelfRemoved(ebookId) {
-    return !!ebookId && removedShelfIds().indexOf(String(ebookId)) >= 0;
-  }
+  // 「我的書架／我的分類」不再使用本機 tombstone 作為資料來源。
+  // 遠端電子書以 Supabase dark_star_ebooks 為唯一真實來源；刪除必須先成功刪除後端。
+  function removedShelfIds() { return []; }
+  function isShelfRemoved(ebookId) { return false; }
   function removeFromShelf(ebookId) {
     if (!ebookId) throw new Error("missing ebook id");
     const id = String(ebookId);
-    const removed = removedShelfIds().filter(function (x) { return String(x) !== id; });
-    removed.push(id);
-    lsSet(SHELF_REMOVED_KEY, removed.slice(-500));
-    saveCatalog(catalog().filter(function (r) { return String(r.ebook_id) !== id; }));
+    saveCatalog(catalog().filter(function (r) { return String(r.ebook_id) !== id && String(r.id) !== id; }));
     try { setFavorite(id, false); } catch (e) {}
     return true;
   }
-  function restoreToShelf(ebookId) {
-    if (!ebookId) return false;
-    const id = String(ebookId);
-    lsSet(SHELF_REMOVED_KEY, removedShelfIds().filter(function (x) { return String(x) !== id; }));
-    return true;
-  }
+  function restoreToShelf(ebookId) { return !!ebookId; }
 
   function rememberRemote(meta) {
     if (!meta || !meta.ebook_id || isShelfRemoved(meta.ebook_id)) return;
@@ -381,8 +369,32 @@
   }
   async function removeNote(id) { return idbDel("notes", id); }
 
+  async function deleteRemoteBook(ebookId) {
+    if (!ebookId) throw new Error("missing ebook id");
+    const result = await ingest({
+      action: "delete",
+      ebook_id: String(ebookId),
+      confirm: "PERMANENT_DELETE"
+    });
+    if (!result.ok) {
+      const msg = result.data && (result.data.error || result.data.message);
+      const err = new Error(msg || ("remote delete failed: HTTP " + result.status));
+      err.remote = true;
+      err.status = result.status;
+      err.response = result;
+      throw err;
+    }
+    return result.data;
+  }
+
   async function deleteLocalBook(bookId) {
     if (!bookId) throw new Error("missing book id");
+    // 若此 ID 存在於 Supabase，必須先永久刪除後端；後端不存在才允許只刪本機資料。
+    try {
+      await deleteRemoteBook(bookId);
+    } catch (e) {
+      if (e && e.status !== 404) throw e;
+    }
     const db = await openDb();
     const stores = ["books", "files", "progress"];
     for (let i = 0; i < stores.length; i++) {
@@ -753,6 +765,7 @@
     notesOf: notesOf,
     removeNote: removeNote,
     deleteLocalBook: deleteLocalBook,
+    deleteRemoteBook: deleteRemoteBook,
     splitTextPages: splitTextPages,
     makeCover: makeCover,
     importFile: importFile,
