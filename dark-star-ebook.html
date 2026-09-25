@@ -10,12 +10,25 @@
 .reader-top,.reader-bottom,.shelf-top{position:relative;z-index:40}
 .drawer{z-index:45}
 .mask{top:48px;bottom:96px;pointer-events:none}
-.drawer.open ~ #mask,.drawer.open + #mask{pointer-events:none}
 #btnAsk.ask-star{padding:0;background:transparent}
 .ask-star-icon{
   width:32px;height:32px;border-radius:9px;
-  display:flex;align-items:center;justify-content:center;
+  display:inline-flex;align-items:center;justify-content:center;
   font-size:18px;font-weight:800;color:#fff;line-height:1;
+  text-shadow:0 1px 2px rgba(0,0,0,.28);
+  background:linear-gradient(135deg,#ff3b30,#ff9500,#ffcc00,#34c759,#0a84ff,#5856d6,#af52de,#ff2d55);
+  background-size:300% 300%;
+  animation:aivaultLogoColorShift 6s ease-in-out infinite;
+}
+.ask-star-icon.sm{width:22px;height:22px;font-size:13px;border-radius:7px;vertical-align:middle;margin-right:6px}
+#drawerTitle{display:inline-flex;align-items:center;gap:6px}
+.bubble.ai{position:relative;padding-left:40px}
+.bubble.ai::before{
+  content:"\2726";
+  position:absolute;left:0;top:2px;
+  width:28px;height:28px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:15px;font-weight:800;color:#fff;line-height:1;
   text-shadow:0 1px 2px rgba(0,0,0,.28);
   background:linear-gradient(135deg,#ff3b30,#ff9500,#ffcc00,#34c759,#0a84ff,#5856d6,#af52de,#ff2d55);
   background-size:300% 300%;
@@ -88,7 +101,7 @@
       <button class="tb" id="btnSearch">🔍</button>
       <button class="tb" id="btnNote">📝</button>
       <button class="tb" id="btnSpeak">🔊</button>
-      <button class="tb ask-star" id="btnAsk" aria-label="暗星" title="暗星"><span class="ask-star-icon">✦</span></button>
+      <button class="tb ask-star" id="btnAsk" aria-label="問暗星" title="問暗星"><span class="ask-star-icon">✦</span></button>
       <button class="tb hide-sm" id="btnSettings">⚙</button>
       <button class="tb" id="btnMore">⋯</button>
       <button class="tb" id="btnFull">⛶</button>
@@ -129,5 +142,23 @@
 <script src="ebook/aivault-fish-tts.js?v=20260925-hide2"></script>
 <script src="ebook/aivault-precise-select-tts.js?v=20260925-3"></script>
 <script src="ebook/aivault-speak-unfreeze.js?v=20260925-speak5"></script>
+<script>
+(function () {
+  function paintAskStar() {
+    var t = document.getElementById("drawerTitle");
+    if (!t) return;
+    var s = String(t.textContent || "");
+    if (s.indexOf("🤖") >= 0 || s.indexOf("問暗星") >= 0) {
+      if (t.querySelector(".ask-star-icon")) return;
+      t.innerHTML = '<span class="ask-star-icon sm">\u2726</span>問暗星';
+    }
+  }
+  var drawer = document.getElementById("drawer");
+  if (drawer && window.MutationObserver) {
+    new MutationObserver(paintAskStar).observe(drawer, { childList: true, subtree: true, characterData: true });
+  }
+  paintAskStar();
+})();
+</script>
 </body>
 </html>
