@@ -22,7 +22,8 @@ function hijack(el,mode){
 function bindJumps(){
   hijack(document.getElementById('darkStarLiveButton'),'voice');
   hijack(document.getElementById('dsFixLive'),'voice');
-  hijack(document.getElementById('micButton'),'voice');
+  // The bottom composer microphone is normal zh-TW SpeechRecognition input.
+  // Do not hijack it to the live page; live voice uses the top 「即時語音」 control.
   const video=document.getElementById('darkStarLiveVideoButton');
   if(video){
     video.href=LIVE+'?mode=video&v=3';
