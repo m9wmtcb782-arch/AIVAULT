@@ -10,9 +10,9 @@ function goLive(mode){
   const voiceEl=document.getElementById('darkStarVoiceSelect');
   const input=document.getElementById('composerInput');
   const voice=(voiceEl&&voiceEl.value)||localStorage.getItem('darkStarVoice')||localStorage.getItem('ds_live_voice')||'Kore';
-  const draft=input&&typeof input.value==='string'?input.value:'';
+  const draft=input&&typeof input.value==='string'?input.value:'';const topicId=localStorage.getItem('technical-dark-star-topic-id')||'';const conversationId=localStorage.getItem('technical_dark_star_conversation_id')||'';
   try{localStorage.setItem(DRAFT_KEY,draft);localStorage.setItem('darkStarVoice',voice)}catch(e){}
-  location.href=LIVE+'?mode='+(mode==='video'?'video':'voice')+'&voice='+encodeURIComponent(voice)+'&v=3';
+  location.href=LIVE+'?mode='+(mode==='video'?'video':'voice')+'&voice='+encodeURIComponent(voice)+'&topic_id='+encodeURIComponent(topicId)+'&conversation_id='+encodeURIComponent(conversationId)+'&v=4';
 }
 function hijack(el,mode){
   if(!el||el.dataset.dsJump==='1')return;
