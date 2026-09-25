@@ -6,7 +6,7 @@ const FN='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/fish-tts';
 const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-voice';
 const KEY='darkStarUseMyVoice';
 const RATE_KEY='darkStarMyVoiceRate';
-let audio=null,speaking=false,timer=0,last='';
+let audio=null,speaking=false,last='';
 let ws=null,stream=null,ctx=null,source=null,processor=null,sink=null,outText='',inText='',speakTimer=0,userEl=null,aiEl=null;
 const originalSpeak=window.speakText;
 function lsGet(k){try{return (localStorage.getItem(k)||'').trim()}catch(e){return ''}}
@@ -77,13 +77,40 @@ function addDrawerSettings(){
   const save=document.getElementById('dsFishSave');
   if(save)save.onclick=function(){const k=document.getElementById('dsFishKeyIn');const v=document.getElementById('dsFishVoiceIn');lsSet('FISH_API_KEY',(k&&k.value||'').trim());lsSet('FISH_VOICE_ID',(v&&v.value||'').trim());toast('已儲存我的聲音設定');collapse()};
 }
-async function speakMine(text){const raw=String(text||'').trim();const id=voiceId();if(!raw||raw===last)return;if(!id){toast('請先在左上抽屆變更設定');return}last=raw;stopSpeak();speaking=true;writeAI(raw);const chunks=[];for(let i=0;i<raw.length;i+=180)chunks.push(raw.slice(i,i+180));if(!audio)audio=new Audio();audio.playbackRate=rate();for(let i=0;i<chunks.length;i++){if(!speaking)return;const res=await fetch(FN,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:chunks[i],reference_id:id,format:'mp3'})});if(!res.ok){toast('我的聲音合成失敗：'+res.status);speaking=false;return}const blob=await res.blob();if(!blob||blob.size<200){toast('我的聲音沒有音訊');speaking=false;return}const url=URL.createObjectURL(blob);await new Promise(resolve=>{audio.onended=resolve;audio.onerror=resolve;audio.src=url;audio.playbackRate=rate();audio.play().catch(resolve)})}speaking=false}
-function lastAI(){const nodes=document.querySelectorAll('.message.ai .message-text, .message.assistant .message-text');const el=nodes[nodes.length-1];return el?String(el.innerText||'').trim():''}
-function queueAuto(){if(!on())return;clearTimeout(timer);timer=setTimeout(()=>{const text=lastAI();if(!text||text===last)return;if(/正在思考|正在聆聽/.test(text))return;speakMine(text)},700)}
+async function speakMine(text){
+  const raw=String(text||'').trim();
+  const id=voiceId();
+  if(!raw||!id)return;
+  if(speaking&&raw===last)return;
+  last=raw;
+  if(speaking)return;
+  speaking=true;
+  writeAI(raw);
+  const chunks=[];
+  for(let i=0;i<raw.length;i+=180)chunks.push(raw.slice(i,i+180));
+  if(!audio)audio=new Audio();
+  for(let i=0;i<chunks.length;i++){
+    if(!on())break;
+    const res=await fetch(FN,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:chunks[i],reference_id:id,format:'mp3'})});
+    if(!res.ok){toast('我的聲音合成失敗：'+res.status);break}
+    const blob=await res.blob();
+    if(!blob||blob.size<200){toast('我的聲音沒有音訊');break}
+    const url=URL.createObjectURL(blob);
+    await new Promise(resolve=>{audio.onended=resolve;audio.onerror=resolve;audio.src=url;audio.playbackRate=rate();audio.play().catch(resolve)});
+  }
+  speaking=false;
+}
 function readBlock(msg,kind){if(!msg||typeof msg!=='object')return '';const c=msg.serverContent||msg.content||msg;const key=kind==='in'?'inputTranscription':'outputTranscription';const block=c[key]||msg[key];if(block&&typeof block==='object'&&block.text)return String(block.text).trim();if(typeof block==='string')return block.trim();if(msg.type===key&&msg.text)return String(msg.text).trim();if(kind==='out'){const parts=c.modelTurn&&c.modelTurn.parts;if(Array.isArray(parts)){const t=parts.map(p=>p&&p.text?p.text:'').join('').trim();if(t)return t}}return ''}
 function isDone(msg){if(!msg||typeof msg!=='object')return false;const c=msg.serverContent||msg.content||msg;return !!(c.turnComplete||msg.turnComplete||msg.type==='turnComplete')}
-function stopOfficialMic(){const mic=document.getElementById('micButton');if(mic&&mic.classList.contains('recording')){try{mic.click()}catch(e){}}}
-function sendComposerNow(){const input=document.getElementById('composerInput');if(!input||!ws||ws.readyState!==1)return;const text=String(input.value||'').trim();if(!text)return;try{ws.send(JSON.stringify({type:'text',text}));writeUser(text);input.value='';input.dispatchEvent(new Event('input',{bubbles:true}))}catch(e){}}
+function blockOfficial(e){
+  if(!on())return;
+  const t=e.target;
+  if(!t||!t.closest)return;
+  if(t.closest('#micButton')||t.closest('#sendButton')||t.closest('.composer-mic')||t.closest('.composer-send')){
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  }
+}
 function stopLive(){
   try{if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:'audioStreamEnd'}))}catch(e){}
   try{if(ws)ws.close()}catch(e){}
@@ -96,7 +123,6 @@ function stopLive(){
   if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
 }
 async function startLive(){
-  stopOfficialMic();
   stopLive();
   if(!voiceId()){toast('請先在左上抽屆變更設定');return}
   stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
@@ -120,30 +146,25 @@ async function startLive(){
     if(spoken){inText=spoken;writeUser(spoken)}
     const t=readBlock(msg,'out');
     if(t){outText=t;writeAI(t)}
-    if(isDone(msg)){userEl=null;aiEl=null}
-    if(outText&&(isDone(msg)||t)){
-      clearTimeout(speakTimer);
+    if(isDone(msg)){
       const say=outText;
-      speakTimer=setTimeout(()=>speakMine(say),isDone(msg)?80:650);
+      userEl=null;aiEl=null;
+      if(say){
+        clearTimeout(speakTimer);
+        speakTimer=setTimeout(()=>speakMine(say),120);
+      }
     }
   };
   ws.onerror=()=>toast('我的聲音連線錯誤');
   ws.onclose=()=>{if(on())toast('我的聲音連線已結束')};
 }
-window.speakText=function(text){if(on())return speakMine(text);if(typeof originalSpeak==='function')return originalSpeak(text);try{if('speechSynthesis' in window){window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(String(text||''));u.lang='zh-TW';window.speechSynthesis.speak(u)}}catch(e){}};
-function addButton(){if(document.getElementById('darkStarMyVoiceButton'))return;const top=document.querySelector('.topbar');if(!top)return;const btn=document.createElement('button');btn.id='darkStarMyVoiceButton';btn.type='button';btn.title='開：說話轉文字並自動回答。關：改回按喇叭';btn.style.cssText='margin-left:6px;border:1px solid #ddd;background:#fff;border-radius:9px;padding:7px 10px;font-size:12px;white-space:nowrap';btn.onclick=async()=>{const next=!on();lsSet(KEY,next?'1':'0');paint();if(!next){stopSpeak();stopLive();return}if(!voiceId()){toast('請先在左上抽屆變更設定');return}try{await startLive()}catch(e){toast(e&&e.message||'麥克風權限失敗');lsSet(KEY,'0');paint()}};const home=document.getElementById('homeButton')||document.querySelector('.brand-home');if(home)home.before(btn);else top.appendChild(btn);paint()}
-function bindComposer(){
-  const input=document.getElementById('composerInput');
-  const send=document.getElementById('sendButton');
-  if(input&&!input.dataset.dsMyVoice){
-    input.dataset.dsMyVoice='1';
-    input.addEventListener('keydown',function(e){if(!on())return;if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendComposerNow()}});
-  }
-  if(send&&!send.dataset.dsMyVoice){
-    send.dataset.dsMyVoice='1';
-    send.addEventListener('click',function(e){if(!on())return;e.preventDefault();e.stopImmediatePropagation();sendComposerNow()},true);
-  }
+window.speakText=function(text){if(on())return;if(typeof originalSpeak==='function')return originalSpeak(text);try{if('speechSynthesis' in window){window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(String(text||''));u.lang='zh-TW';window.speechSynthesis.speak(u)}}catch(e){}};
+function addButton(){if(document.getElementById('darkStarMyVoiceButton'))return;const top=document.querySelector('.topbar');if(!top)return;const btn=document.createElement('button');btn.id='darkStarMyVoiceButton';btn.type='button';btn.title='開：說話轉文字，暗星直接回並自動播放。';btn.style.cssText='margin-left:6px;border:1px solid #ddd;background:#fff;border-radius:9px;padding:7px 10px;font-size:12px;white-space:nowrap';btn.onclick=async()=>{const next=!on();lsSet(KEY,next?'1':'0');paint();if(!next){stopSpeak();stopLive();return}if(!voiceId()){toast('請先在左上抽屆變更設定');return}try{await startLive()}catch(e){toast(e&&e.message||'麥克風權限失敗');lsSet(KEY,'0');paint()}};const home=document.getElementById('homeButton')||document.querySelector('.brand-home');if(home)home.before(btn);else top.appendChild(btn);paint()}
+function init(){
+  addButton();
+  addDrawerSettings();
+  document.addEventListener('click',blockOfficial,true);
+  document.addEventListener('pointerdown',blockOfficial,true);
 }
-function init(){addButton();addDrawerSettings();bindComposer();const inner=document.getElementById('messagesInner');if(inner)new MutationObserver(queueAuto).observe(inner,{childList:true,subtree:true,characterData:true})}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
