@@ -9,8 +9,6 @@
   let ctx = null;
   let watch = null;
   let userPaused = false;
-  let lastText = "";
-  let lastLang = "zh-TW";
 
   function unlockContext() {
     try {
@@ -20,15 +18,6 @@
       if (ctx.state === "suspended") ctx.resume();
     } catch (e) {}
     try { synth.getVoices(); } catch (e) {}
-  }
-
-  function speakSaved() {
-    if (!lastText) return;
-    const u = new SpeechSynthesisUtterance(lastText);
-    u.lang = lastLang || "zh-TW";
-    u.rate = 1;
-    u.volume = 1;
-    origSpeak(u);
   }
 
   function startWatch() {
@@ -41,15 +30,20 @@
     }, 4000);
   }
 
+  function stopWatch() {
+    if (watch) { clearInterval(watch); watch = null; }
+  }
+
   synth.speak = function (utterance) {
     userPaused = false;
-    if (utterance && utterance.text) {
-      lastText = utterance.text;
-      lastLang = utterance.lang || "zh-TW";
-    }
     unlockContext();
     startWatch();
-    return origSpeak(utterance);
+    try {
+      return origSpeak(utterance);
+    } catch (e) {
+      stopWatch();
+      throw e;
+    }
   };
 
   synth.pause = function () {
@@ -60,29 +54,15 @@
   synth.resume = function () {
     userPaused = false;
     unlockContext();
-    const r = origResume();
-    setTimeout(function () {
-      if (!synth.speaking && lastText) speakSaved();
-    }, 80);
-    return r;
+    return origResume();
   };
 
   synth.cancel = function () {
     userPaused = false;
-    try { return origCancel(); } finally {
-      if (watch) { clearInterval(watch); watch = null; }
-    }
+    stopWatch();
+    return origCancel();
   };
 
   document.addEventListener("touchstart", unlockContext, { passive: true });
-  document.addEventListener("click", function (ev) {
-    unlockContext();
-    const id = ev.target && ev.target.id;
-    if (id === "spResume") {
-      userPaused = false;
-      setTimeout(function () {
-        if (!synth.speaking && lastText) speakSaved();
-      }, 80);
-    }
-  }, { passive: true });
+  document.addEventListener("click", unlockContext, { passive: true });
 })();
