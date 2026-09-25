@@ -7,6 +7,9 @@
   var liveRange = null;
   var pointerStart = null;
   var rebuildTimer = 0;
+  var speakGen = 0;
+  var speakTimer = 0;
+  var speakLockUntil = 0;
   function $(id) { return document.getElementById(id); }
   function toast(msg) {
     var el = $("toast");
@@ -192,7 +195,19 @@
     else if (startCaret && !endCaret) text = "已設定朗讀開始位置";
     document.querySelectorAll(".ps-status").forEach(function (el) { el.textContent = text; });
   }
+  function stopAllSpeech() {
+    speakGen += 1;
+    clearTimeout(speakTimer);
+    try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {}
+    try {
+      if (window.AIVAULTFishTTS && typeof window.AIVAULTFishTTS.stop === "function") window.AIVAULTFishTTS.stop();
+    } catch (e) {}
+    try {
+      if (window.AIVAULTReaderTTS && typeof window.AIVAULTReaderTTS.stopSpeak === "function") window.AIVAULTReaderTTS.stopSpeak();
+    } catch (e) {}
+  }
   function clearSelection(keepToast) {
+    stopAllSpeech();
     startCaret = null; endCaret = null; selectedText = ""; selectedLen = 0;
     clearVisual(); setStatus();
     if (!keepToast) toast("已清除選取");
@@ -229,35 +244,36 @@
     });
     return preferred[0] || voices.find(function (v) { return String(v.lang || "").toLowerCase().indexOf("zh") === 0; }) || null;
   }
-  function speakViaExistingSpeechSynthesis(text) {
+  function speakViaExistingSpeechSynthesis(text, gen) {
     if (!("speechSynthesis" in window)) { toast("此裝置不支援語音朗讀"); return; }
     var raw = String(text || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
     if (!raw) { toast("請先點擊文字設定開始與結束位置。"); return; }
     var chunks = [];
     for (var i = 0; i < raw.length; i += 300) chunks.push(raw.slice(i, i + 300));
-    try { speechSynthesis.cancel(); } catch (e) {}
     function speakChunk(index) {
+      if (gen !== speakGen) return;
       if (index >= chunks.length) return;
       var u = new SpeechSynthesisUtterance(chunks[index]);
       u.lang = "zh-TW";
       var voice = pickChineseVoice();
       if (voice) u.voice = voice;
-      u.onend = function () { speakChunk(index + 1); };
-      u.onerror = function (ev) { toast("朗讀失敗" + (ev && ev.error ? "：" + ev.error : "")); };
+      u.onend = function () { if (gen === speakGen) speakChunk(index + 1); };
+      u.onerror = function (ev) {
+        if (gen !== speakGen) return;
+        if (ev && ev.error === "interrupted") return;
+        toast("朗讀失敗" + (ev && ev.error ? "：" + ev.error : ""));
+      };
       speechSynthesis.speak(u);
     }
     speakChunk(0);
   }
-  function speakSelected() {
-    var text = selectedText;
-    if (!text && liveRange) text = rangePlainText(liveRange);
-    text = String(text || "").trim();
-    if (!text) { toast("請先點擊文字設定開始與結束位置。"); return; }
-    window.__AIVAULT_LAST_TTS_TEXT = text;
+  function startPlayback(text, gen) {
+    if (gen !== speakGen) return;
     try {
       var fish = window.AIVAULTFishTTS;
       if (fish && typeof fish.useFish === "function" && fish.useFish() && typeof fish.playText === "function") {
-        fish.playText(text); return;
+        fish.playText(text);
+        return;
       }
     } catch (e) {}
     try {
@@ -265,7 +281,24 @@
       if (tts && typeof tts.speakSelectedText === "function") { tts.speakSelectedText(text); return; }
       if (tts && typeof tts.speakText === "function") { tts.speakText(text); return; }
     } catch (e) {}
-    speakViaExistingSpeechSynthesis(text);
+    speakViaExistingSpeechSynthesis(text, gen);
+  }
+  function speakSelected() {
+    var text = selectedText;
+    if (!text && liveRange) text = rangePlainText(liveRange);
+    text = String(text || "").trim();
+    if (!text) { toast("請先點擊文字設定開始與結束位置。"); return; }
+    var now = Date.now();
+    if (now < speakLockUntil) return;
+    speakLockUntil = now + 700;
+    window.__AIVAULT_LAST_TTS_TEXT = text;
+    stopAllSpeech();
+    var gen = speakGen;
+    clearTimeout(speakTimer);
+    speakTimer = setTimeout(function () {
+      if (gen !== speakGen) return;
+      startPlayback(text, gen);
+    }, 80);
   }
   function injectBar() {
     var bottom = document.querySelector(".reader-bottom");
@@ -349,6 +382,7 @@
     getSelectedText: function () { return selectedText; },
     lastSentText: function () { return window.__AIVAULT_LAST_TTS_TEXT || ""; },
     clear: function () { clearSelection(true); },
-    speak: speakSelected
+    speak: speakSelected,
+    stop: stopAllSpeech
   };
 })();
