@@ -6,6 +6,7 @@ const FN='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/fish-tts';
 const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-voice';
 const KEY='darkStarUseMyVoice';
 const RATE_KEY='darkStarMyVoiceRate';
+const LANG_LOCK='請只用繁體中文回答。可在中文下方另起一行附上對應的簡短英文字幕。不要改用其他語言。';
 let audio=null,speaking=false,last='';
 let ws=null,stream=null,ctx=null,source=null,processor=null,sink=null,outText='',inText='',speakTimer=0,userEl=null,aiEl=null;
 const originalSpeak=window.speakText;
@@ -17,6 +18,15 @@ function rate(){let n=parseFloat(lsGet(RATE_KEY));if(!isFinite(n))n=1;return Mat
 function toast(msg){const el=document.getElementById('voiceStatus');if(!el){alert(msg);return}el.textContent=msg;el.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>el.classList.remove('show'),2400)}
 function paint(){const btn=document.getElementById('darkStarMyVoiceButton');if(!btn)return;const v=on();btn.classList.toggle('active',v);btn.setAttribute('aria-pressed',String(v));btn.textContent=v?'我的聲音 ✓':'我的聲音'}
 function stopSpeak(){speaking=false;clearTimeout(speakTimer);if(!audio)return;try{audio.pause()}catch(e){}try{audio.currentTime=0}catch(e){}}
+function unlockAudio(){
+  if(!audio)audio=new Audio();
+  audio.volume=1;
+  try{audio.muted=false}catch(e){}
+  const silent='data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+  const prev=audio.src;
+  audio.src=silent;
+  return audio.play().catch(function(){}).then(function(){audio.pause();audio.src=prev||''});
+}
 function accessToken(){try{const raw=localStorage.getItem('sb-clcddygkaaqqtsbswgdf-auth-token');if(!raw)return '';const j=JSON.parse(raw);return String(j.access_token||(j.currentSession&&j.currentSession.access_token)||'').trim()}catch(e){return ''}}
 function topicId(){if(typeof getDarkStarTopicId==='function')return String(getDarkStarTopicId()||'').trim();try{return (localStorage.getItem('technical-dark-star-topic-id')||'').trim()}catch(e){return ''}}
 function convId(){if(typeof conversationId==='string')return conversationId.trim();try{return (localStorage.getItem('technical_dark_star_conversation_id')||'').trim()}catch(e){return ''}}
@@ -77,26 +87,41 @@ function addDrawerSettings(){
   const save=document.getElementById('dsFishSave');
   if(save)save.onclick=function(){const k=document.getElementById('dsFishKeyIn');const v=document.getElementById('dsFishVoiceIn');lsSet('FISH_API_KEY',(k&&k.value||'').trim());lsSet('FISH_VOICE_ID',(v&&v.value||'').trim());toast('已儲存我的聲音設定');collapse()};
 }
-async function speakMine(text){
+function speakChinese(text){
   const raw=String(text||'').trim();
+  const lines=raw.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+  const zh=lines.filter(s=>/[一-鿿]/.test(s));
+  if(zh.length)return zh.join('。');
+  return raw;
+}
+async function speakMine(text){
+  const raw=speakChinese(text);
   const id=voiceId();
   if(!raw||!id)return;
   if(speaking&&raw===last)return;
   last=raw;
   if(speaking)return;
   speaking=true;
-  writeAI(raw);
+  writeAI(String(text||'').trim());
   const chunks=[];
   for(let i=0;i<raw.length;i+=180)chunks.push(raw.slice(i,i+180));
   if(!audio)audio=new Audio();
+  audio.volume=1;
+  try{audio.muted=false}catch(e){}
   for(let i=0;i<chunks.length;i++){
     if(!on())break;
-    const res=await fetch(FN,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:chunks[i],reference_id:id,format:'mp3'})});
+    const res=await fetch(FN,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:chunks[i],reference_id:id,format:'mp3',normalize:true})});
     if(!res.ok){toast('我的聲音合成失敗：'+res.status);break}
     const blob=await res.blob();
     if(!blob||blob.size<200){toast('我的聲音沒有音訊');break}
     const url=URL.createObjectURL(blob);
-    await new Promise(resolve=>{audio.onended=resolve;audio.onerror=resolve;audio.src=url;audio.playbackRate=rate();audio.play().catch(resolve)});
+    await new Promise(resolve=>{
+      audio.onended=resolve;
+      audio.onerror=function(){toast('播放失敗');resolve()};
+      audio.src=url;
+      audio.playbackRate=rate();
+      audio.play().catch(function(err){toast('播放被系統攔下：'+(err&&err.message||'autoplay'));resolve()});
+    });
   }
   speaking=false;
 }
@@ -106,7 +131,7 @@ function blockOfficial(e){
   if(!on())return;
   const t=e.target;
   if(!t||!t.closest)return;
-  if(t.closest('#micButton')||t.closest('#sendButton')||t.closest('.composer-mic')||t.closest('.composer-send')){
+  if(t.closest('#micButton')||t.closest('#sendButton')||t.closest('.composer-mic')||t.closest('.composer-send')||t.closest('.message-action')){
     e.preventDefault();
     e.stopImmediatePropagation();
   }
@@ -125,6 +150,7 @@ function stopLive(){
 async function startLive(){
   stopLive();
   if(!voiceId()){toast('請先在左上抽屆變更設定');return}
+  await unlockAudio();
   stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
   ctx=new (window.AudioContext||window.webkitAudioContext)({sampleRate:16000});
   if(ctx.state==='suspended')await ctx.resume();
@@ -138,7 +164,10 @@ async function startLive(){
   };
   source.connect(processor);processor.connect(sink);sink.connect(ctx.destination);
   ws=new WebSocket(RELAY+'?'+liveParams().toString());
-  ws.onopen=()=>toast('我的聲音已開麥，直接說即可');
+  ws.onopen=function(){
+    toast('我的聲音已開麥，直接說即可');
+    try{ws.send(JSON.stringify({type:'text',text:LANG_LOCK}))}catch(e){}
+  };
   ws.onmessage=function(ev){
     let msg=ev.data;
     try{msg=JSON.parse(ev.data)}catch(e){return}
@@ -159,7 +188,7 @@ async function startLive(){
   ws.onclose=()=>{if(on())toast('我的聲音連線已結束')};
 }
 window.speakText=function(text){if(on())return;if(typeof originalSpeak==='function')return originalSpeak(text);try{if('speechSynthesis' in window){window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(String(text||''));u.lang='zh-TW';window.speechSynthesis.speak(u)}}catch(e){}};
-function addButton(){if(document.getElementById('darkStarMyVoiceButton'))return;const top=document.querySelector('.topbar');if(!top)return;const btn=document.createElement('button');btn.id='darkStarMyVoiceButton';btn.type='button';btn.title='開：說話轉文字，暗星直接回並自動播放。';btn.style.cssText='margin-left:6px;border:1px solid #ddd;background:#fff;border-radius:9px;padding:7px 10px;font-size:12px;white-space:nowrap';btn.onclick=async()=>{const next=!on();lsSet(KEY,next?'1':'0');paint();if(!next){stopSpeak();stopLive();return}if(!voiceId()){toast('請先在左上抽屆變更設定');return}try{await startLive()}catch(e){toast(e&&e.message||'麥克風權限失敗');lsSet(KEY,'0');paint()}};const home=document.getElementById('homeButton')||document.querySelector('.brand-home');if(home)home.before(btn);else top.appendChild(btn);paint()}
+function addButton(){if(document.getElementById('darkStarMyVoiceButton'))return;const top=document.querySelector('.topbar');if(!top)return;const btn=document.createElement('button');btn.id='darkStarMyVoiceButton';btn.type='button';btn.title='開：繁中回答，英文作字幕，自動播放';btn.style.cssText='margin-left:6px;border:1px solid #ddd;background:#fff;border-radius:9px;padding:7px 10px;font-size:12px;white-space:nowrap';btn.onclick=async()=>{const next=!on();lsSet(KEY,next?'1':'0');paint();if(!next){stopSpeak();stopLive();return}if(!voiceId()){toast('請先在左上抽屆變更設定');return}try{await startLive()}catch(e){toast(e&&e.message||'麥克風權限失敗');lsSet(KEY,'0');paint()}};const home=document.getElementById('homeButton')||document.querySelector('.brand-home');if(home)home.before(btn);else top.appendChild(btn);paint()}
 function init(){
   addButton();
   addDrawerSettings();
