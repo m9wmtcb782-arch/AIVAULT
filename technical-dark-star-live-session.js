@@ -4,7 +4,7 @@ const DRAFT_KEY='aivault_ds_live_draft';
 const CTX_KEY='technical_dark_star_live_context';
 const VOICES=[['Kore','穩重'],['Puck','活潑'],['Charon','資訊型'],['Zephyr','明亮'],['Leda','年輕'],['Aoede','輕快'],['Orus','穩重'],['Fenrir','興奮'],['Gacrux','成熟'],['Achird','友善']];
 let ws=null,stream=null,auto=false,facing='user',mode='video',videoTimer=null,inputCtx=null,processor=null,source=null,playCtx=null,nextPlayTime=0,audioPackets=0,audioBytes=0,reconnecting=false,wanted=false;
-let pendingText=[], inBuf='', outBuf='', userEl=null, aiEl=null;
+let pendingText=[], inBuf='', outBuf='', userEl=null, aiEl=null, playSources=[], userTalkingUntil=0;
 const $=id=>document.getElementById(id);
 function log(s){const el=$('log');if(!el)return;el.textContent+='['+new Date().toLocaleTimeString('zh-TW')+'] '+s+'\n';el.scrollTop=el.scrollHeight}
 function status(s){const el=$('status');if(el)el.textContent=s}
@@ -30,6 +30,13 @@ function flushPending(){pendingText.splice(0).forEach(t=>sendTextToLive(t))}
 function sendTyped(){const input=$('liveInput');const text=(input&&input.value||'').trim();if(!text)return;input.value='';sendTextToLive(text)}
 function initVoices(){const sel=$('voiceSelect');if(!sel)return;sel.innerHTML='';VOICES.forEach(([id,label])=>{const o=document.createElement('option');o.value=id;o.textContent=id+' — '+label;sel.appendChild(o)});const q=new URLSearchParams(location.search);sel.value=q.get('voice')||localStorage.getItem('darkStarVoice')||'Kore';updateVoice();sel.onchange=()=>{localStorage.setItem('darkStarVoice',sel.value);updateVoice()}}
 function updateVoice(){const el=$('voiceStat');if(el)$('voiceStat').textContent=$('voiceSelect').value}
+function bargeIn(){
+  playSources.forEach(function(s){try{s.stop()}catch(e){}});
+  playSources=[];
+  nextPlayTime=0;
+  userTalkingUntil=Date.now()+700;
+}
+function userLevel(a){let s=0;for(let i=0;i<a.length;i++)s+=a[i]*a[i];return Math.sqrt(s/Math.max(1,a.length))}
 function setMode(m){if(m===mode)return;if(ws||stream)return;mode=m;document.body.className='mode-'+m;const vb=$('voiceBtn'),vd=$('videoBtn');if(vb)vb.classList.toggle('active',m==='voice');if(vd)vd.classList.toggle('active',m==='video');const ms=$('modeStat');if(ms)ms.textContent=m==='voice'?'語音':'視訊'}
 async function openMedia(){if(stream)return;const constraints={audio:{echoCancellation:true,noiseSuppression:true}};if(mode==='video')constraints.video={facingMode:facing,width:{ideal:640},height:{ideal:480}};stream=await navigator.mediaDevices.getUserMedia(constraints);if(mode==='video'&&stream.getVideoTracks().length){const p=$('preview');if(p)p.srcObject=stream;const c=$('cameraBtn');if(c)c.disabled=false}}
 async function openAudio(){if(!playCtx)playCtx=new AudioContext();if(playCtx.state!=='running')await playCtx.resume();if(!inputCtx)inputCtx=new AudioContext({sampleRate:16000});if(inputCtx.state!=='running')await inputCtx.resume()}
@@ -59,6 +66,8 @@ function handleMessage(raw){
   if(raw instanceof ArrayBuffer){playPCM(raw);return}
   if(typeof Blob!=='undefined'&&raw instanceof Blob){raw.arrayBuffer().then(playPCM).catch(function(){});return}
   let d;try{d=JSON.parse(raw)}catch(e){return}
+  const sc0=d.serverContent||d;
+  if(d.type==='interrupted'||sc0.interrupted){bargeIn();}
   takeAudio(d);
   if(d.type==='live_open'||d.setupComplete){log('live_open '+(d.model||''));status('🟢 Gemini Live 已啟動 '+(d.model||''))}
   if(d.type==='go_away'){log('go_away');return}
@@ -71,7 +80,7 @@ function handleMessage(raw){
   if(d.type==='error'||d.error){const m=d.message||(d.error&&d.error.message)||JSON.stringify(d.error||d);log('錯誤：'+m);status('🔴 '+m)}
 }
 function playBase64PCM(b64){try{const bin=atob(b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);playPCM(u.buffer)}catch(e){}}
-function playPCM(buf){if(!playCtx)return;const bytes=new Uint8Array(buf),pcm=new Int16Array(bytes.buffer,bytes.byteOffset,Math.floor(bytes.byteLength/2));if(!pcm.length)return;audioPackets++;audioBytes+=bytes.byteLength;if($('audioStat'))$('audioStat').textContent=audioPackets;if($('byteStat'))$('byteStat').textContent=audioBytes.toLocaleString();if(playCtx.state!=='running')playCtx.resume().catch(function(){});const audio=playCtx.createBuffer(1,pcm.length,24000),data=audio.getChannelData(0);for(let i=0;i<pcm.length;i++)data[i]=pcm[i]/32768;const src=playCtx.createBufferSource();src.buffer=audio;src.connect(playCtx.destination);const now=playCtx.currentTime;if(nextPlayTime<now+.03)nextPlayTime=now+.03;src.start(nextPlayTime);nextPlayTime+=audio.duration}
+function playPCM(buf){if(!playCtx)return;if(Date.now()<userTalkingUntil)return;const bytes=new Uint8Array(buf),pcm=new Int16Array(bytes.buffer,bytes.byteOffset,Math.floor(bytes.byteLength/2));if(!pcm.length)return;audioPackets++;audioBytes+=bytes.byteLength;if($('audioStat'))$('audioStat').textContent=audioPackets;if($('byteStat'))$('byteStat').textContent=audioBytes.toLocaleString();if(playCtx.state!=='running')playCtx.resume().catch(function(){});const audio=playCtx.createBuffer(1,pcm.length,24000),data=audio.getChannelData(0);for(let i=0;i<pcm.length;i++)data[i]=pcm[i]/32768;const src=playCtx.createBufferSource();src.buffer=audio;src.connect(playCtx.destination);const now=playCtx.currentTime;if(nextPlayTime<now+.03)nextPlayTime=now+.03;src.start(nextPlayTime);nextPlayTime+=audio.duration;playSources.push(src);src.onended=function(){const i=playSources.indexOf(src);if(i>=0)playSources.splice(i,1)}}
 async function start(){try{wanted=true;auto=true;setAutoUi();audioPackets=0;audioBytes=0;if($('audioStat'))$('audioStat').textContent='0';await openAudio();await openMedia();await connect();startAudio();startVideo();if($('startBtn'))$('startBtn').disabled=true;if($('stopBtn'))$('stopBtn').disabled=false;status('🟢 已開始（視訊 JPEG 送往 live-voice）');log('視訊 JPEG 已啟用：每秒 1 張，送往 live-voice');const draft=($('liveInput')&&$('liveInput').value||'').trim();if(draft)sendTextToLive(draft)}catch(e){status('🔴 無法啟動：'+(e.message||e));log('啟動失敗：'+(e.message||e))}}
 function startVideo(){
   clearInterval(videoTimer);
@@ -122,7 +131,7 @@ function startVideo(){
   }, 1000);
   log('開始每秒送 1 張 JPEG 給 live-voice');
 }
-function startAudio(){if(!stream||!inputCtx||processor)return;source=inputCtx.createMediaStreamSource(stream);processor=inputCtx.createScriptProcessor(2048,1,1);const silent=inputCtx.createGain();silent.gain.value=0;processor.onaudioprocess=e=>{if(!ws||ws.readyState!==1)return;const a=e.inputBuffer.getChannelData(0),pcm=new Int16Array(a.length);for(let i=0;i<a.length;i++)pcm[i]=Math.max(-1,Math.min(1,a[i]))*32767;let bin='';const u=new Uint8Array(pcm.buffer);for(let i=0;i<u.length;i++)bin+=String.fromCharCode(u[i]);try{ws.send(JSON.stringify({type:'audio',data:btoa(bin),mimeType:'audio/pcm;rate=16000'}))}catch(err){}};source.connect(processor);processor.connect(silent);silent.connect(inputCtx.destination)}
+function startAudio(){if(!stream||!inputCtx||processor)return;source=inputCtx.createMediaStreamSource(stream);processor=inputCtx.createScriptProcessor(2048,1,1);const silent=inputCtx.createGain();silent.gain.value=0;processor.onaudioprocess=e=>{if(!ws||ws.readyState!==1)return;const a=e.inputBuffer.getChannelData(0);if(userLevel(a)>0.02)bargeIn();const pcm=new Int16Array(a.length);for(let i=0;i<a.length;i++)pcm[i]=Math.max(-1,Math.min(1,a[i]))*32767;let bin='';const u=new Uint8Array(pcm.buffer);for(let i=0;i<u.length;i++)bin+=String.fromCharCode(u[i]);try{ws.send(JSON.stringify({type:'audio',data:btoa(bin),mimeType:'audio/pcm;rate=16000'}))}catch(err){}};source.connect(processor);processor.connect(silent);silent.connect(inputCtx.destination)}
 async function stop(){wanted=false;auto=false;setAutoUi();flushTurn();clearInterval(videoTimer);if(processor)processor.disconnect();if(source)source.disconnect();if(inputCtx)await inputCtx.close().catch(function(){});if(playCtx)await playCtx.close().catch(function(){});inputCtx=null;playCtx=null;processor=null;source=null;nextPlayTime=0;if(ws){try{ws.close()}catch(_){}ws=null}if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}const p=$('preview');if(p)p.srcObject=null;if($('startBtn'))$('startBtn').disabled=false;if($('stopBtn'))$('stopBtn').disabled=true;status('⚪ 已停止')}
 async function toggleAuto(){if(auto&&wanted){await stop();return}await start()}
 async function switchCamera(){if(mode!=='video'||!stream)return;facing=facing==='user'?'environment':'user';const old=stream;const ns=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing},audio:{echoCancellation:true}});old.getTracks().forEach(t=>t.stop());stream=ns;const p=$('preview');if(p){p.srcObject=ns;p.classList.toggle('mirror',facing==='user')}if(processor){try{processor.disconnect()}catch(_){}processor=null;source=null;startAudio()}if(ws&&ws.readyState===1)startVideo();}
