@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Technical Dark Star｜live-voice 黑盒影音測試</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;background:#fff;color:#222;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif}
+body{padding:12px 12px calc(16px + env(safe-area-inset-bottom))}
+h1{font-size:17px;margin:0 0 4px}
+.note{font-size:12px;color:#666;line-height:1.55;margin:0 0 12px}
+.box{border:1px solid #e5e5e5;border-radius:12px;padding:10px;margin-bottom:10px}
+.box h2{font-size:13px;margin:0 0 8px}
+.row{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+button{flex:1;min-width:30%;padding:10px 8px;border:1px solid #ccc;border-radius:9px;background:#fff;font-size:14px}
+button.on{background:#171717;color:#fff;border-color:#171717}
+button:disabled{opacity:.4}
+video{width:100%;max-height:220px;background:#111;border-radius:10px;object-fit:cover}
+.status{font-size:13px;padding:8px;background:#f5f5f5;border-radius:8px;margin:6px 0;white-space:pre-wrap}
+.levels span{display:inline-block;margin:0 6px 6px 0;padding:4px 7px;border-radius:7px;font-size:11px;background:#eee;color:#555}
+.levels span.yes{background:#e7f7ef;color:#166534}
+.levels span.no{background:#fdeaea;color:#991b1b}
+.levels span.wait{background:#fff7ed;color:#9a3412}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px}
+.grid b{display:block}
+.log{font:11px/1.5 ui-monospace,Menlo,monospace;white-space:pre-wrap;word-break:break-word;background:#111;color:#ddd;border-radius:8px;padding:8px;min-height:120px;max-height:240px;overflow:auto}
+input[type=text]{flex:1;min-width:0;padding:10px;border:1px solid #ccc;border-radius:9px;font-size:16px}
+</style>
+</head>
+<body>
+<h1>live-voice 黑盒測試</h1>
+<p class="note">只連 technical-dark-star-live-voice。不改暗星頁、不改 relay。<br>
+JPEG 送出 ≠ relay 收到 ≠ Gemini 看到。</p>
+<div class="box">
+  <h2>連線</h2>
+  <div class="status" id="connStatus">尚未連線</div>
+  <div class="row">
+    <button id="btnConnect" type="button">連線 WSS</button>
+    <button id="btnDisconnect" type="button" disabled>斷線</button>
+  </div>
+  <div class="grid">
+    <div>WS <b id="wsState">CLOSED</b></div>
+    <div>voice <b id="voiceStat">Kore</b></div>
+    <div>close code <b id="closeCode">—</b></div>
+    <div>close reason <b id="closeReason">—</b></div>
+    <div>wasClean <b id="wasClean">—</b></div>
+    <div>endpoint <b>live-voice</b></div>
+  </div>
+</div>
+<div class="box">
+  <h2>Microphone</h2>
+  <div class="status" id="micStatus">麥克風關閉</div>
+  <div class="row">
+    <button id="btnMicOn" type="button">開麥克風</button>
+    <button id="btnMicOff" type="button" disabled>關麥克風</button>
+  </div>
+</div>
+<div class="box">
+  <h2>Camera</h2>
+  <div class="status" id="camStatus">相機關閉</div>
+  <video id="preview" autoplay playsinline muted></video>
+  <div class="row">
+    <button id="btnCamOn" type="button">開前鏡頭</button>
+    <button id="btnCamOff" type="button" disabled>關相機</button>
+    <button id="btnJpegOn" type="button" disabled>開始送 JPEG 1FPS</button>
+    <button id="btnJpegOff" type="button" disabled>停止送 JPEG</button>
+  </div>
+</div>
+<div class="box">
+  <h2>Text（只送 type:text）</h2>
+  <div class="row">
+    <input id="textInput" type="text" value="請回答：影音測試連線正常嗎？">
+    <button id="btnText" type="button">送出 text</button>
+  </div>
+</div>
+<div class="box">
+  <h2>證據分層（Video）</h2>
+  <div class="levels">
+    <span id="lv1" class="wait">L1 JPEG 產生：未發生</span>
+    <span id="lv2" class="wait">L2 JPEG 送出：未發生</span>
+    <span id="lv3" class="wait">L3 Relay 回應：未發生</span>
+    <span id="lv4" class="wait">L4 Relay error / close：未發生</span>
+    <span id="lv5" class="no">L5 Gemini/relay 已處理影像：無證據</span>
+  </div>
+  <p class="note" style="margin:8px 0 0">L5 預設否定。沒有明確影像證據時不得改成成功。</p>
+</div>
+<div class="box">
+  <h2>結果區分</h2>
+  <div class="grid">
+    <div>Audio PCM 送出 <b id="rAudioSend">未測</b></div>
+    <div>Audio 回傳播放 <b id="rAudioRecv">未測</b></div>
+    <div>Text 送出 <b id="rTextSend">未測</b></div>
+    <div>Text/轉寫回應 <b id="rTextRecv">未測</b></div>
+    <div>JPEG CREATED <b id="rJpegCreated">0</b></div>
+    <div>JPEG SENT <b id="rJpegSent">0</b></div>
+    <div>PCM 包 <b id="rAudioN">0</b></div>
+    <div>回放包 <b id="rPlayN">0</b></div>
+  </div>
+  <div class="status" id="lastRelay">尚未收到 relay message</div>
+</div>
+<div class="box">
+  <h2>字幕／未知訊息</h2>
+  <div class="status" id="chat">—</div>
+</div>
+<div class="box">
+  <h2>Log</h2>
+  <div class="log" id="log"></div>
+</div>
+<script>
+const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-voice';
+const VOICE='Kore';
+const $ = id => document.getElementById(id);
+const S = {
+  ws:null, micStream:null, camStream:null, ctx:null, play:null,
+  src:null, proc:null, jpegTimer:null, next:0, inT:'', outT:'',
+  jpegCreated:0, jpegSent:0, audioN:0, playN:0
+};
+function now(){ return new Date().toLocaleTimeString('zh-TW',{hour12:false}); }
+function log(tag, extra){
+  const line = '['+now()+'] ['+tag+']'+(extra?' '+extra:'');
+  $('log').textContent += ($('log').textContent ? '\n' : '') + line;
+  $('log').scrollTop = $('log').scrollHeight;
+}
+function setLevel(id, cls, text){
+  const el=$(id); el.className=cls; el.textContent=text;
+}
+function b64(bytes){
+  const u = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let s='';
+  for(let i=0;i<u.length;i+=32768) s += String.fromCharCode.apply(null, u.subarray(i, i+32768));
+  return btoa(s);
+}
+function u8(s){
+  const bin=atob(s), out=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) out[i]=bin.charCodeAt(i);
+  return out;
+}
+function toPCM16(input, fromRate, toRate){
+  let samples=input;
+  if(fromRate!==toRate){
+    const ratio=fromRate/toRate, n=Math.max(1, Math.round(input.length/ratio)), out=new Float32Array(n);
+    for(let i=0;i<n;i++){
+      const pos=i*ratio, L=Math.floor(pos), f=pos-L;
+      const a=input[L]||0, b=input[Math.min(L+1,input.length-1)]||a;
+      out[i]=a+(b-a)*f;
+    }
+    samples=out;
+  }
+  const pcm=new Int16Array(samples.length);
+  for(let i=0;i<samples.length;i++){
+    const v=Math.max(-1, Math.min(1, samples[i]));
+    pcm[i]=v<0 ? v*32768 : v*32767;
+  }
+  return pcm;
+}
+function playPCM(data){
+  if(!S.play){
+    const AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC) return;
+    S.play=new AC();
+  }
+  S.play.resume().catch(function(){});
+  const bytes=u8(data);
+  if(bytes.byteLength<2) return;
+  const pcm=new Int16Array(bytes.buffer, bytes.byteOffset, Math.floor(bytes.byteLength/2));
+  const buf=S.play.createBuffer(1, pcm.length, 24000);
+  const ch=buf.getChannelData(0);
+  for(let i=0;i<pcm.length;i++) ch[i]=pcm[i]/32768;
+  const src=S.play.createBufferSource();
+  src.buffer=buf; src.connect(S.play.destination);
+  const t=Math.max(S.play.currentTime, S.next);
+  src.start(t); S.next=t+buf.duration;
+  S.playN++; $('rPlayN').textContent=S.playN;
+  $('rAudioRecv').textContent='PASS：收到 relay audio 並嘗試 24kHz 播放';
+}
+function connect(){
+  if(S.ws && (S.ws.readyState===0 || S.ws.readyState===1)) return;
+  const url=RELAY+'?voice='+encodeURIComponent(VOICE);
+  log('CONNECT', url);
+  $('connStatus').textContent='連線中…';
+  $('wsState').textContent='CONNECTING';
+  $('closeCode').textContent='—';
+  $('closeReason').textContent='—';
+  $('wasClean').textContent='—';
+  try{ S.ws=new WebSocket(url); }
+  catch(e){
+    log('RELAY ERROR', 'constructor '+e.message);
+    $('connStatus').textContent='WebSocket 建立失敗：'+e.message;
+    setLevel('lv4','yes','L4 建立失敗：'+e.message);
+    return;
+  }
+  S.ws.onopen=function(){
+    log('OPEN', 'readyState=1 voice='+VOICE);
+    $('wsState').textContent='OPEN';
+    $('connStatus').textContent='WS OPEN（live-voice）。尚未證明 video 被處理。';
+    $('btnConnect').disabled=true;
+    $('btnDisconnect').disabled=false;
+  };
+  S.ws.onerror=function(){
+    log('RELAY ERROR', 'ws.onerror（瀏覽器不提供細節）');
+    $('connStatus').textContent='ws.onerror 已觸發，見 log 與 close';
+    setLevel('lv4','yes','L4 ws.onerror');
+  };
+  S.ws.onclose=function(e){
+    log('CLOSE', 'code='+e.code+' reason='+(e.reason||'(empty)')+' wasClean='+e.wasClean);
+    $('wsState').textContent='CLOSED';
+    $('closeCode').textContent=String(e.code);
+    $('closeReason').textContent=e.reason||'(empty)';
+    $('wasClean').textContent=String(e.wasClean);
+    $('connStatus').textContent='已關閉 code='+e.code+' reason='+(e.reason||'(empty)')+' wasClean='+e.wasClean;
+    $('btnConnect').disabled=false;
+    $('btnDisconnect').disabled=true;
+    setLevel('lv4','yes','L4 CLOSE code='+e.code);
+    S.ws=null;
+    stopMicCapture();
+    stopJpeg();
+  };
+  S.ws.onmessage=function(ev){
+    const raw=typeof ev.data==='string' ? ev.data : '[binary '+(ev.data && ev.data.byteLength)+']';
+    log('RELAY MESSAGE', String(raw).slice(0,800));
+    $('lastRelay').textContent=String(raw).slice(0,1000);
+    setLevel('lv3','yes','L3 已有 relay message（不代表處理了 JPEG）');
+    let msg;
+    try{ msg=JSON.parse(ev.data); }
+    catch(err){
+      log('UNKNOWN MESSAGE', String(raw).slice(0,800));
+      return;
+    }
+    if(msg && (msg.type==='error' || msg.error)){
+      const errText=(msg.error && (msg.error.message||JSON.stringify(msg.error))) || msg.message || JSON.stringify(msg);
+      log('RELAY ERROR', errText);
+      $('connStatus').textContent='RELAY ERROR 原文：'+errText;
+      setLevel('lv4','yes','L4 '+String(errText).slice(0,80));
+      return;
+    }
+    const c=msg.serverContent||{};
+    if(c.inputTranscription && c.inputTranscription.text){
+      S.inT += c.inputTranscription.text;
+      $('rTextRecv').textContent='PASS：收到 inputTranscription';
+    }
+    if(c.outputTranscription && c.outputTranscription.text){
+      S.outT += c.outputTranscription.text;
+      $('rTextRecv').textContent='PASS：收到 outputTranscription';
+    }
+    if(c.modelTurn && c.modelTurn.parts){
+      for(let i=0;i<c.modelTurn.parts.length;i++){
+        const p=c.modelTurn.parts[i];
+        if(p && p.inlineData && p.inlineData.data) playPCM(p.inlineData.data);
+        if(p && p.text){
+          S.outT += p.text;
+          $('rTextRecv').textContent='PASS：收到 modelTurn.text';
+        }
+      }
+    }
+    if(msg.audio && msg.audio.data) playPCM(msg.audio.data);
+    if(c.interrupted) S.next=0;
+    if(c.turnComplete){ S.inT=''; S.outT=''; }
+    $('chat').textContent='你：'+(S.inT||'—')+'\n暗星：'+(S.outT||'—');
+    const known=msg.serverContent||msg.audio||msg.setupComplete||msg.type==='live_open'||msg.type==='close';
+    if(!known) log('UNKNOWN MESSAGE', JSON.stringify(msg).slice(0,800));
+  };
+}
+function disconnect(){
+  try{ if(S.ws && S.ws.readyState===1) S.ws.send(JSON.stringify({type:'close'})); }catch(e){}
+  try{ if(S.ws) S.ws.close(); }catch(e){}
+}
+function startMic(){
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    $('micStatus').textContent='permission/API error：此瀏覽器沒有 mediaDevices.getUserMedia';
+    log('RELAY ERROR','no getUserMedia');
+    return;
+  }
+  const AC=window.AudioContext||window.webkitAudioContext;
+  if(!AC){ $('micStatus').textContent='此瀏覽器不支援 AudioContext'; return; }
+  navigator.mediaDevices.getUserMedia({
+    audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}
+  }).then(function(stream){
+    S.micStream=stream;
+    S.ctx=new AC();
+    return S.ctx.resume().then(function(){
+      const src=S.ctx.createMediaStreamSource(stream);
+      const proc=S.ctx.createScriptProcessor(2048,1,1);
+      const sink=S.ctx.createGain(); sink.gain.value=0;
+      S.src=src; S.proc=proc;
+      src.connect(proc); proc.connect(sink); sink.connect(S.ctx.destination);
+      proc.onaudioprocess=function(ev){
+        if(!S.ws || S.ws.readyState!==1) return;
+        const pcm=toPCM16(ev.inputBuffer.getChannelData(0), ev.inputBuffer.sampleRate, 16000);
+        try{
+          S.ws.send(JSON.stringify({type:'audio', data:b64(pcm), mimeType:'audio/pcm;rate=16000'}));
+          S.audioN++;
+          $('rAudioN').textContent=S.audioN;
+          $('rAudioSend').textContent='PASS：瀏覽器送出 PCM';
+          if(S.audioN===1 || S.audioN%50===0) log('AUDIO SEND', 'n='+S.audioN+' bytes='+pcm.byteLength);
+        }catch(e){
+          log('RELAY ERROR', 'audio send '+e.message);
+        }
+      };
+      $('micStatus').textContent='麥克風開啟／stream live／送 PCM 16kHz type:audio';
+      $('btnMicOn').disabled=true; $('btnMicOn').classList.add('on');
+      $('btnMicOff').disabled=false;
+      log('AUDIO SEND', 'mic stream started');
+    });
+  }).catch(function(e){
+    $('micStatus').textContent='microphone permission error：'+(e.name||'')+' '+(e.message||e);
+    log('RELAY ERROR', 'mic '+(e.name||'')+' '+(e.message||e));
+  });
+}
+function stopMicCapture(){
+  try{ if(S.proc) S.proc.disconnect(); }catch(e){}
+  try{ if(S.src) S.src.disconnect(); }catch(e){}
+  try{ if(S.micStream) S.micStream.getTracks().forEach(function(t){t.stop();}); }catch(e){}
+  try{ if(S.ctx) S.ctx.close(); }catch(e){}
+  S.proc=S.src=S.micStream=S.ctx=null;
+  $('micStatus').textContent='麥克風關閉';
+  $('btnMicOn').disabled=false; $('btnMicOn').classList.remove('on');
+  $('btnMicOff').disabled=true;
+}
+function stopMic(){ stopMicCapture(); log('AUDIO SEND','mic stopped'); }
+function startCam(){
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    $('camStatus').textContent='permission/API error：沒有 getUserMedia';
+    return;
+  }
+  navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}}).then(function(stream){
+    S.camStream=stream;
+    $('preview').srcObject=stream;
+    $('preview').play().catch(function(){});
+    $('camStatus').textContent='相機開啟／前鏡頭 preview／tracks='+stream.getVideoTracks().length;
+    $('btnCamOn').disabled=true; $('btnCamOn').classList.add('on');
+    $('btnCamOff').disabled=false;
+    $('btnJpegOn').disabled=false;
+    log('VIDEO JPEG CREATED', 'camera opened');
+  }).catch(function(e){
+    $('camStatus').textContent='camera permission error：'+(e.name||'')+' '+(e.message||e);
+    log('RELAY ERROR', 'camera '+(e.name||'')+' '+(e.message||e));
+  });
+}
+function stopCam(){
+  stopJpeg();
+  try{ if(S.camStream) S.camStream.getTracks().forEach(function(t){t.stop();}); }catch(e){}
+  S.camStream=null;
+  $('preview').srcObject=null;
+  $('camStatus').textContent='相機關閉';
+  $('btnCamOn').disabled=false; $('btnCamOn').classList.remove('on');
+  $('btnCamOff').disabled=true;
+  $('btnJpegOn').disabled=true;
+}
+function sendJpegOnce(){
+  const v=$('preview');
+  if(!v.videoWidth){
+    log('VIDEO JPEG CREATED', 'skip: videoWidth=0');
+    return;
+  }
+  const c=document.createElement('canvas');
+  c.width=640;
+  c.height=Math.max(1, Math.round(640*v.videoHeight/v.videoWidth));
+  c.getContext('2d').drawImage(v,0,0,c.width,c.height);
+  let data;
+  try{ data=c.toDataURL('image/jpeg',0.72).split(',')[1]; }
+  catch(e){ log('VIDEO JPEG CREATED', 'fail '+e.message); return; }
+  if(!data){ log('VIDEO JPEG CREATED', 'empty base64'); return; }
+  S.jpegCreated++;
+  $('rJpegCreated').textContent=String(S.jpegCreated);
+  setLevel('lv1','yes','L1 前端已產生 JPEG #'+S.jpegCreated);
+  log('VIDEO JPEG CREATED', '#'+S.jpegCreated+' chars='+data.length+' '+c.width+'x'+c.height);
+  if(!S.ws || S.ws.readyState!==1){
+    log('VIDEO SEND', 'not sent: ws not OPEN');
+    return;
+  }
+  try{
+    S.ws.send(JSON.stringify({type:'video', data:data, mimeType:'image/jpeg'}));
+    S.jpegSent++;
+    $('rJpegSent').textContent=String(S.jpegSent);
+    setLevel('lv2','yes','L2 前端已送影像幀 #'+S.jpegSent);
+    log('VIDEO SEND', '#'+S.jpegSent+' type=video mimeType=image/jpeg');
+  }catch(e){
+    log('RELAY ERROR', 'video send '+e.message);
+    setLevel('lv4','yes','L4 send 例外：'+e.message);
+  }
+}
+function startJpeg(){
+  if(S.jpegTimer) return;
+  sendJpegOnce();
+  S.jpegTimer=setInterval(sendJpegOnce,1000);
+  $('btnJpegOn').disabled=true;
+  $('btnJpegOff').disabled=false;
+}
+function stopJpeg(){
+  if(S.jpegTimer){ clearInterval(S.jpegTimer); S.jpegTimer=null; }
+  $('btnJpegOn').disabled=!S.camStream;
+  $('btnJpegOff').disabled=true;
+}
+function sendText(){
+  const text=($('textInput').value||'').trim();
+  if(!text) return;
+  if(!S.ws || S.ws.readyState!==1){
+    log('RELAY ERROR','text not sent: ws not OPEN');
+    $('rTextSend').textContent='未送：WS 未開';
+    return;
+  }
+  try{
+    S.ws.send(JSON.stringify({type:'text', text:text}));
+    $('rTextSend').textContent='PASS：送出 text';
+    log('RELAY MESSAGE', 'client sent type=text '+text);
+  }catch(e){
+    log('RELAY ERROR','text send '+e.message);
+  }
+}
+$('btnConnect').onclick=connect;
+$('btnDisconnect').onclick=disconnect;
+$('btnMicOn').onclick=startMic;
+$('btnMicOff').onclick=stopMic;
+$('btnCamOn').onclick=startCam;
+$('btnCamOff').onclick=stopCam;
+$('btnJpegOn').onclick=startJpeg;
+$('btnJpegOff').onclick=stopJpeg;
+$('btnText').onclick=sendText;
+$('voiceStat').textContent=VOICE;
+log('CONNECT', 'page ready; endpoint live-voice voice='+VOICE);
+</script>
+</body>
+</html>
