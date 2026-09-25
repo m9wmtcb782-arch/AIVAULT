@@ -4014,7 +4014,20 @@ function appendResultArtifacts(
     null;
 
 
-  if(files){
+  /*
+    只有真正由 Sandbox 執行產生的結果才顯示 Sandbox UI。
+    正常聊天即使 Gateway 回傳 files，也不能自動把對話
+    變成 Sandbox 對話。
+  */
+
+  const sandboxExecuted =
+    result?.sandbox === true ||
+    result?.sandbox?.executed === true ||
+    result?.sandbox?.status === "executed" ||
+    result?.execution?.environment === "sandbox" ||
+    result?.source === "dark-star-sandbox";
+
+  if(files && sandboxExecuted){
 
     renderSandbox(
       body,
@@ -4753,29 +4766,31 @@ function isSandboxIntent(
   files
 ){
 
-  const value =
-    String(text || "");
+  /*
+    Sandbox 是工程測試工具，不是正常聊天通道。
 
+    只有使用者明確要求進入／執行／重跑 Sandbox
+    時才啟用。一般「建立、做成、寫頁面、實作」
+    等需求仍先走正常 Technical Dark Star 對話，
+    不得因關鍵字誤判而自動把使用者送進 Sandbox。
+  */
+
+  const value =
+    String(text || "").trim();
 
   if(
+    !value ||
     isDebugIntent(value) ||
     hasImageAttachment(files) ||
-    isGameIntent(
-      value,
-      files
-    ) ||
-    isDrawIntent(
-      value,
-      files
-    )
+    isGameIntent(value, files) ||
+    isDrawIntent(value, files)
   ){
 
     return false;
 
   }
 
-
-  return /建立(一個)?|做成|寫一個頁面|實作頁面|重跑|沙盒|登入頁|計算機|preview|sandbox/i
+  return /(?:進入|使用|執行|開始|重跑|測試)\s*(?:沙盒|sandbox)|(?:沙盒|sandbox)\s*(?:測試|執行|重跑|驗證)/i
     .test(value);
 
 }
