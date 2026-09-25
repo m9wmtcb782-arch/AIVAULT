@@ -19,6 +19,12 @@
     try { return (localStorage.getItem("FISH_VOICE_ID") || "").trim(); } catch (e) { return ""; }
   }
   function useFish() { return !!fishVoice(); }
+  function maskSecret(s) {
+    const t = String(s || "");
+    if (!t) return "未設定";
+    if (t.length <= 4) return "••••";
+    return t.slice(0, 2) + "••••" + t.slice(-2);
+  }
 
   function stopFishAudio() {
     if (fishAudio) {
@@ -111,29 +117,80 @@
     play(0);
   }
 
+  function statusLine() {
+    const hasKey = !!fishKey();
+    const hasVoice = !!fishVoice();
+    if (hasKey && hasVoice) return "我的聲音：已儲存（" + maskSecret(fishVoice()) + "）";
+    if (hasVoice) return "我的聲音：Voice 已儲存，Key 未設定";
+    if (hasKey) return "我的聲音：Key 已儲存，Voice 未設定";
+    return "我的聲音：尚未設定";
+  }
+
   function injectFields() {
     const body = document.getElementById("drawerBody");
-    if (!body || body.querySelector("#fishKeyIn")) return;
+    if (!body || body.querySelector("#fishVoiceBox")) return;
     const form = body.querySelector(".setform");
     if (!form) return;
     const wrap = document.createElement("div");
+    wrap.id = "fishVoiceBox";
     wrap.innerHTML =
-      '<label>Fish API Key <input id="fishKeyIn" type="password" autocomplete="off"></label>' +
-      '<label>Voice id <input id="fishVoiceIn" type="text" autocomplete="off"></label>' +
-      '<button class="ib" id="fishSave" type="button">儲存本機設定</button>';
+      '<button class="ib" id="fishToggle" type="button" style="width:100%;justify-content:space-between">' +
+      '<span id="fishStatus">' + statusLine() + '</span><span id="fishToggleHint">▾ 展開</span></button>' +
+      '<div id="fishSecretFields" hidden>' +
+      '<p class="muted">密碼與 Voice ID 不會顯示明文。留空按儲存不會覆蓋舊值。</p>' +
+      '<label>我的聲音 API Key<input id="fishKeyIn" type="password" autocomplete="new-password" placeholder="••••••••"></label>' +
+      '<label>我的聲音 Voice ID<input id="fishVoiceIn" type="password" autocomplete="new-password" placeholder="••••••••"></label>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      '<button class="ib" id="fishPeek" type="button">顯示 / 隱藏</button>' +
+      '<button class="ib" id="fishSave" type="button">儲存</button>' +
+      '<button class="ib" id="fishHide" type="button">收起</button>' +
+      '</div></div>';
     form.appendChild(wrap);
+    const fields = document.getElementById("fishSecretFields");
+    const toggle = document.getElementById("fishToggle");
+    const hint = document.getElementById("fishToggleHint");
+    const status = document.getElementById("fishStatus");
     const k = document.getElementById("fishKeyIn");
     const v = document.getElementById("fishVoiceIn");
-    if (k) k.value = fishKey();
-    if (v) v.value = fishVoice();
+    function collapse() {
+      if (fields) fields.hidden = true;
+      if (hint) hint.textContent = "▾ 展開";
+      if (k) k.value = "";
+      if (v) v.value = "";
+      if (k) k.type = "password";
+      if (v) v.type = "password";
+      if (status) status.textContent = statusLine();
+    }
+    function expand() {
+      if (fields) fields.hidden = false;
+      if (hint) hint.textContent = "▴ 收起";
+      if (k) { k.type = "password"; k.value = ""; k.placeholder = fishKey() ? "已儲存，若要更換請重新輸入" : "貼上 API Key"; }
+      if (v) { v.type = "password"; v.value = ""; v.placeholder = fishVoice() ? "已儲存，若要更換請重新輸入" : "貼上 Voice ID"; }
+    }
+    if (toggle) toggle.onclick = function () {
+      if (fields && fields.hidden) expand();
+      else collapse();
+    };
+    const hide = document.getElementById("fishHide");
+    if (hide) hide.onclick = collapse;
+    const peek = document.getElementById("fishPeek");
+    if (peek) peek.onclick = function () {
+      if (!k || !v) return;
+      const next = k.type === "password" ? "text" : "password";
+      k.type = next;
+      v.type = next;
+    };
     const save = document.getElementById("fishSave");
     if (save) {
       save.onclick = function () {
         try {
-          localStorage.setItem("FISH_API_KEY", (k && k.value || "").trim());
-          localStorage.setItem("FISH_VOICE_ID", (v && v.value || "").trim());
+          const nextKey = (k && k.value || "").trim();
+          const nextVoice = (v && v.value || "").trim();
+          if (nextKey) localStorage.setItem("FISH_API_KEY", nextKey);
+          if (nextVoice) localStorage.setItem("FISH_VOICE_ID", nextVoice);
         } catch (e) {}
         toast("已存本機");
+        collapse();
       };
     }
   }
