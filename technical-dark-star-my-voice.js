@@ -5,6 +5,7 @@ window.__AIVAULT_DARK_STAR_MY_VOICE__=true;
 const FN='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/fish-tts';
 const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-voice';
 const KEY='darkStarUseMyVoice';
+const RATE_KEY='darkStarMyVoiceRate';
 let audio=null,speaking=false,timer=0,last='';
 let ws=null,stream=null,ctx=null,source=null,processor=null,sink=null,outText='';
 const originalSpeak=window.speakText;
@@ -12,6 +13,7 @@ function lsGet(k){try{return (localStorage.getItem(k)||'').trim()}catch(e){retur
 function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
 function voiceId(){return lsGet('FISH_VOICE_ID')}
 function on(){return lsGet(KEY)==='1'}
+function rate(){let n=parseFloat(lsGet(RATE_KEY));if(!isFinite(n))n=1;return Math.min(1.3,Math.max(0.7,n))}
 function toast(msg){const el=document.getElementById('voiceStatus');if(!el){alert(msg);return}el.textContent=msg;el.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>el.classList.remove('show'),2200)}
 function paint(){const btn=document.getElementById('darkStarMyVoiceButton');if(!btn)return;const v=on();btn.classList.toggle('active',v);btn.setAttribute('aria-pressed',String(v));btn.textContent=v?'我的聲音 ✓':'我的聲音'}
 function stopSpeak(){speaking=false;if(!audio)return;try{audio.pause()}catch(e){}try{audio.currentTime=0}catch(e){}}
@@ -27,8 +29,10 @@ function addDrawerSettings(){
   box.id='dsMyVoiceSettings';
   box.style.cssText='padding:10px 12px 12px;border-bottom:1px solid #eee';
   const has=!!(lsGet('FISH_VOICE_ID')||lsGet('FISH_API_KEY'));
+  const r=rate();
   box.innerHTML='<div style="font-size:12px;font-weight:600;margin-bottom:8px">我的聲音</div>'+
     '<div id="dsMyVoiceSummary" style="font-size:11px;color:#888;margin-bottom:8px">'+(has?'已設定（已隱藏）':'尚未設定')+'</div>'+
+    '<label style="display:flex;align-items:center;gap:8px;font-size:11px;color:#666;margin:0 0 8px">語速 <input id="dsFishRateIn" type="range" min="0.7" max="1.3" step="0.05" style="flex:1"><span id="dsFishRateVal">'+r.toFixed(2)+'</span></label>'+
     '<button id="dsMyVoiceToggle" type="button" class="drawer-item" style="width:100%">變更我的聲音設定</button>'+
     '<div id="dsMyVoiceFields" hidden>'+
     '<label style="display:block;font-size:11px;color:#666;margin:8px 0 6px">Fish API Key<br><input id="dsFishKeyIn" type="password" autocomplete="off" style="width:100%;margin-top:4px;padding:7px;border:1px solid #ddd;border-radius:8px"></label>'+
@@ -39,6 +43,18 @@ function addDrawerSettings(){
   const fields=document.getElementById('dsMyVoiceFields');
   const toggle=document.getElementById('dsMyVoiceToggle');
   const summary=document.getElementById('dsMyVoiceSummary');
+  const rateIn=document.getElementById('dsFishRateIn');
+  const rateVal=document.getElementById('dsFishRateVal');
+  if(rateIn){
+    rateIn.value=String(r);
+    rateIn.oninput=function(){
+      const n=rate();
+      const cur=Math.min(1.3,Math.max(0.7,parseFloat(rateIn.value)||1));
+      lsSet(RATE_KEY,String(cur));
+      if(rateVal)rateVal.textContent=cur.toFixed(2);
+      if(audio)audio.playbackRate=cur;
+    };
+  }
   function fill(){
     const k=document.getElementById('dsFishKeyIn');
     const v=document.getElementById('dsFishVoiceIn');
@@ -69,7 +85,7 @@ function addDrawerSettings(){
     collapse();
   };
 }
-async function speakMine(text){const raw=String(text||'').trim();const id=voiceId();if(!raw)return;if(!id){toast('請先在左上抽屆變更設定');return}stopSpeak();speaking=true;const chunks=[];for(let i=0;i<raw.length;i+=180)chunks.push(raw.slice(i,i+180));if(!audio)audio=new Audio();for(let i=0;i<chunks.length;i++){if(!speaking)return;const res=await fetch(FN,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:chunks[i],reference_id:id,format:'mp3'})});if(!res.ok){toast('我的聲音合成失敗：'+res.status);speaking=false;return}const blob=await res.blob();if(!blob||blob.size<200){toast('我的聲音沒有音訊');speaking=false;return}const url=URL.createObjectURL(blob);await new Promise(resolve=>{audio.onended=resolve;audio.onerror=resolve;audio.src=url;audio.play().catch(resolve)})}speaking=false}
+async function speakMine(text){const raw=String(text||'').trim();const id=voiceId();if(!raw)return;if(!id){toast('請先在左上抽屆變更設定');return}stopSpeak();speaking=true;const chunks=[];for(let i=0;i<raw.length;i+=180)chunks.push(raw.slice(i,i+180));if(!audio)audio=new Audio();audio.playbackRate=rate();for(let i=0;i<chunks.length;i++){if(!speaking)return;const res=await fetch(FN,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:chunks[i],reference_id:id,format:'mp3'})});if(!res.ok){toast('我的聲音合成失敗：'+res.status);speaking=false;return}const blob=await res.blob();if(!blob||blob.size<200){toast('我的聲音沒有音訊');speaking=false;return}const url=URL.createObjectURL(blob);await new Promise(resolve=>{audio.onended=resolve;audio.onerror=resolve;audio.src=url;audio.playbackRate=rate();audio.play().catch(resolve)})}speaking=false}
 function lastAI(){const nodes=document.querySelectorAll('.message.ai .message-text');const el=nodes[nodes.length-1];return el?String(el.innerText||'').trim():''}
 function queueAuto(){if(!on())return;clearTimeout(timer);timer=setTimeout(()=>{const text=lastAI();if(!text||text===last)return;if(/正在思考|正在聆聽/.test(text))return;last=text;speakMine(text)},900)}
 function stopLive(){
