@@ -18,14 +18,21 @@
     toast._t = setTimeout(function () { el.hidden = true; }, 1800);
   }
 
-  function releaseUI() {
+  function hideStuckMask() {
+    var drawer = $("drawer");
+    var mask = $("mask");
+    if (mask && !mask.hidden && drawer && !drawer.classList.contains("open")) {
+      mask.hidden = true;
+    }
+    document.body.style.pointerEvents = "";
+  }
+
+  function closeSpeakOverlay() {
     var drawer = $("drawer");
     var mask = $("mask");
     if (drawer) drawer.classList.remove("open", "right");
     if (mask) mask.hidden = true;
     document.body.style.pointerEvents = "";
-    var app = $("app");
-    if (app) app.style.pointerEvents = "";
   }
 
   function stopEverything() {
@@ -44,7 +51,7 @@
     if (!ios) {
       try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {}
     }
-    releaseUI();
+    closeSpeakOverlay();
     var btn = $("btnSpeak");
     if (btn) btn.textContent = "🔊";
   }
@@ -114,7 +121,7 @@
   function onSpeakTap(ev) {
     ev.preventDefault();
     ev.stopImmediatePropagation();
-    releaseUI();
+    closeSpeakOverlay();
     if (speaking) {
       stopEverything();
       toast("已停止朗讀");
@@ -139,15 +146,8 @@
     if (e.key === "Escape") stopEverything();
   });
 
-  document.addEventListener("click", function (ev) {
-    var t = ev.target;
-    var id = t && t.id;
-    if (id === "spStop" || id === "btnCloseDrawer" || id === "btnBackShelf") stopEverything();
-    if (t && t.closest && t.closest("#toolbar") && id !== "btnSpeak") releaseUI();
-  }, true);
-
   setInterval(function () {
-    releaseUI();
+    hideStuckMask();
     bindSpeakToggle();
   }, 1200);
 
