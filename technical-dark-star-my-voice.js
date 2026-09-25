@@ -26,19 +26,50 @@ function addDrawerSettings(){
   const box=document.createElement('div');
   box.id='dsMyVoiceSettings';
   box.style.cssText='padding:10px 12px 12px;border-bottom:1px solid #eee';
-  box.innerHTML='<div style="font-size:12px;font-weight:600;margin-bottom:8px">我的聲音設定</div>'+
-    '<label style="display:block;font-size:11px;color:#666;margin-bottom:6px">Fish API Key<br><input id="dsFishKeyIn" type="password" autocomplete="off" style="width:100%;margin-top:4px;padding:7px;border:1px solid #ddd;border-radius:8px"></label>'+
+  const has=!!(lsGet('FISH_VOICE_ID')||lsGet('FISH_API_KEY'));
+  box.innerHTML='<div style="font-size:12px;font-weight:600;margin-bottom:8px">我的聲音</div>'+
+    '<div id="dsMyVoiceSummary" style="font-size:11px;color:#888;margin-bottom:8px">'+(has?'已設定（已隱藏）':'尚未設定')+'</div>'+
+    '<button id="dsMyVoiceToggle" type="button" class="drawer-item" style="width:100%">變更我的聲音設定</button>'+
+    '<div id="dsMyVoiceFields" hidden>'+
+    '<label style="display:block;font-size:11px;color:#666;margin:8px 0 6px">Fish API Key<br><input id="dsFishKeyIn" type="password" autocomplete="off" style="width:100%;margin-top:4px;padding:7px;border:1px solid #ddd;border-radius:8px"></label>'+
     '<label style="display:block;font-size:11px;color:#666;margin-bottom:6px">Voice id<br><input id="dsFishVoiceIn" type="text" autocomplete="off" style="width:100%;margin-top:4px;padding:7px;border:1px solid #ddd;border-radius:8px"></label>'+
-    '<button id="dsFishSave" type="button" class="drawer-item" style="width:100%">儲存我的聲音設定</button>';
+    '<button id="dsFishSave" type="button" class="drawer-item" style="width:100%">儲存並收起</button>'+
+    '</div>';
   bottom.insertBefore(box,bottom.firstChild);
-  const k=document.getElementById('dsFishKeyIn');
-  const v=document.getElementById('dsFishVoiceIn');
-  if(k)k.value=lsGet('FISH_API_KEY');
-  if(v)v.value=lsGet('FISH_VOICE_ID');
+  const fields=document.getElementById('dsMyVoiceFields');
+  const toggle=document.getElementById('dsMyVoiceToggle');
+  const summary=document.getElementById('dsMyVoiceSummary');
+  function fill(){
+    const k=document.getElementById('dsFishKeyIn');
+    const v=document.getElementById('dsFishVoiceIn');
+    if(k)k.value=lsGet('FISH_API_KEY');
+    if(v)v.value=lsGet('FISH_VOICE_ID');
+  }
+  function collapse(){
+    if(fields)fields.hidden=true;
+    const k=document.getElementById('dsFishKeyIn');
+    const v=document.getElementById('dsFishVoiceIn');
+    if(k)k.value='';
+    if(v)v.value='';
+    if(summary)summary.textContent=(lsGet('FISH_VOICE_ID')||lsGet('FISH_API_KEY'))?'已設定（已隱藏）':'尚未設定';
+    if(toggle)toggle.textContent='變更我的聲音設定';
+  }
+  if(toggle)toggle.onclick=function(){
+    if(!fields)return;
+    if(fields.hidden){fields.hidden=false;fill();toggle.textContent='收起設定';}
+    else collapse();
+  };
   const save=document.getElementById('dsFishSave');
-  if(save)save.onclick=function(){lsSet('FISH_API_KEY',(k&&k.value||'').trim());lsSet('FISH_VOICE_ID',(v&&v.value||'').trim());toast('已儲存我的聲音設定')};
+  if(save)save.onclick=function(){
+    const k=document.getElementById('dsFishKeyIn');
+    const v=document.getElementById('dsFishVoiceIn');
+    lsSet('FISH_API_KEY',(k&&k.value||'').trim());
+    lsSet('FISH_VOICE_ID',(v&&v.value||'').trim());
+    toast('已儲存我的聲音設定');
+    collapse();
+  };
 }
-async function speakMine(text){const raw=String(text||'').trim();const id=voiceId();if(!raw)return;if(!id){toast('請先在左上抽屆存 Voice id');return}stopSpeak();speaking=true;const chunks=[];for(let i=0;i<raw.length;i+=180)chunks.push(raw.slice(i,i+180));if(!audio)audio=new Audio();for(let i=0;i<chunks.length;i++){if(!speaking)return;const res=await fetch(FN,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:chunks[i],reference_id:id,format:'mp3'})});if(!res.ok){toast('我的聲音合成失敗：'+res.status);speaking=false;return}const blob=await res.blob();if(!blob||blob.size<200){toast('我的聲音沒有音訊');speaking=false;return}const url=URL.createObjectURL(blob);await new Promise(resolve=>{audio.onended=resolve;audio.onerror=resolve;audio.src=url;audio.play().catch(resolve)})}speaking=false}
+async function speakMine(text){const raw=String(text||'').trim();const id=voiceId();if(!raw)return;if(!id){toast('請先在左上抽屆變更設定');return}stopSpeak();speaking=true;const chunks=[];for(let i=0;i<raw.length;i+=180)chunks.push(raw.slice(i,i+180));if(!audio)audio=new Audio();for(let i=0;i<chunks.length;i++){if(!speaking)return;const res=await fetch(FN,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:chunks[i],reference_id:id,format:'mp3'})});if(!res.ok){toast('我的聲音合成失敗：'+res.status);speaking=false;return}const blob=await res.blob();if(!blob||blob.size<200){toast('我的聲音沒有音訊');speaking=false;return}const url=URL.createObjectURL(blob);await new Promise(resolve=>{audio.onended=resolve;audio.onerror=resolve;audio.src=url;audio.play().catch(resolve)})}speaking=false}
 function lastAI(){const nodes=document.querySelectorAll('.message.ai .message-text');const el=nodes[nodes.length-1];return el?String(el.innerText||'').trim():''}
 function queueAuto(){if(!on())return;clearTimeout(timer);timer=setTimeout(()=>{const text=lastAI();if(!text||text===last)return;if(/正在思考|正在聆聽/.test(text))return;last=text;speakMine(text)},900)}
 function stopLive(){
@@ -54,7 +85,7 @@ function stopLive(){
 }
 async function startLive(){
   stopLive();
-  if(!voiceId()){toast('請先在左上抽屆存 Voice id');return}
+  if(!voiceId()){toast('請先在左上抽屆變更設定');return}
   stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
   ctx=new (window.AudioContext||window.webkitAudioContext)({sampleRate:16000});
   if(ctx.state==='suspended')await ctx.resume();
@@ -81,7 +112,7 @@ async function startLive(){
   ws.onclose=()=>{if(on())toast('我的聲音連線已結束')};
 }
 window.speakText=function(text){if(on())return speakMine(text);if(typeof originalSpeak==='function')return originalSpeak(text);try{if('speechSynthesis' in window){window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(String(text||''));u.lang='zh-TW';window.speechSynthesis.speak(u)}}catch(e){}};
-function addButton(){if(document.getElementById('darkStarMyVoiceButton'))return;const top=document.querySelector('.topbar');if(!top)return;const btn=document.createElement('button');btn.id='darkStarMyVoiceButton';btn.type='button';btn.title='開：麥克風即時聽＋回答自動用我的聲音。關：改回按喇叭播手機聲音';btn.style.cssText='margin-left:6px;border:1px solid #ddd;background:#fff;border-radius:9px;padding:7px 10px;font-size:12px;white-space:nowrap';btn.onclick=async()=>{const next=!on();lsSet(KEY,next?'1':'0');paint();if(!next){stopSpeak();stopLive();return}if(!voiceId()){toast('請先在左上抽屆存 Voice id');return}try{await startLive()}catch(e){toast(e&&e.message||'麥克風權限失敗');lsSet(KEY,'0');paint()}};const home=document.getElementById('homeButton')||document.querySelector('.brand-home');if(home)home.before(btn);else top.appendChild(btn);paint()}
+function addButton(){if(document.getElementById('darkStarMyVoiceButton'))return;const top=document.querySelector('.topbar');if(!top)return;const btn=document.createElement('button');btn.id='darkStarMyVoiceButton';btn.type='button';btn.title='開：麥克風即時聽＋回答自動用我的聲音。關：改回按喇叭播手機聲音';btn.style.cssText='margin-left:6px;border:1px solid #ddd;background:#fff;border-radius:9px;padding:7px 10px;font-size:12px;white-space:nowrap';btn.onclick=async()=>{const next=!on();lsSet(KEY,next?'1':'0');paint();if(!next){stopSpeak();stopLive();return}if(!voiceId()){toast('請先在左上抽屆變更設定');return}try{await startLive()}catch(e){toast(e&&e.message||'麥克風權限失敗');lsSet(KEY,'0');paint()}};const home=document.getElementById('homeButton')||document.querySelector('.brand-home');if(home)home.before(btn);else top.appendChild(btn);paint()}
 function init(){addButton();addDrawerSettings();const inner=document.getElementById('messagesInner');if(inner)new MutationObserver(queueAuto).observe(inner,{childList:true,subtree:true,characterData:true})}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
