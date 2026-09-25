@@ -7,7 +7,7 @@ const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-
 const KEY='darkStarUseMyVoice';
 const RATE_KEY='darkStarMyVoiceRate';
 const LANG_LOCK='請只用繁體中文回答。可在中文下方另起一行附上簡短英文字幕。不要改用其他語言。';
-let audio=null,speaking=false,last='';
+let audio=null,speaking=false,last='',typeTimer=0;
 let ws=null,stream=null,ctx=null,source=null,processor=null,sink=null,outText='',inText='',userEl=null,aiEl=null,thinkEl=null,thinkT=0,thinkSec=0;
 const originalSpeak=window.speakText;
 function lsGet(k){try{return (localStorage.getItem(k)||'').trim()}catch(e){return ''}}
@@ -15,7 +15,7 @@ function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
 function voiceId(){return lsGet('FISH_VOICE_ID')}
 function on(){return lsGet(KEY)==='1'}
 function rate(){let n=parseFloat(lsGet(RATE_KEY));if(!isFinite(n))n=1;return Math.min(1.3,Math.max(0.7,n))}
-function toast(msg){const el=document.getElementById('voiceStatus');if(!el){alert(msg);return}el.textContent=msg;el.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>el.classList.remove('show'),2800)}
+function toast(msg){const el=document.getElementById('voiceStatus');if(!el){alert(msg);return}el.textContent=msg;el.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>el.classList.remove('show'),3200)}
 function paint(){const btn=document.getElementById('darkStarMyVoiceButton');if(!btn)return;const v=on();btn.classList.toggle('active',v);btn.setAttribute('aria-pressed',String(v));btn.textContent=v?'我的聲音 ✓':'我的聲音'}
 function stopSpeak(){speaking=false;if(!audio)return;try{audio.pause()}catch(e){}try{audio.currentTime=0}catch(e){}}
 function unlockAudio(){
@@ -68,16 +68,29 @@ function startThink(){
 }
 function stopThink(){if(thinkT){clearInterval(thinkT);thinkT=0}}
 function mergeText(prev,next){
-  const a=String(prev||'');
-  const b=String(next||'');
-  if(!b)return a;
-  if(!a)return b;
-  if(b===a)return a;
+  const a=String(prev||'');const b=String(next||'');
+  if(!b)return a;if(!a)return b;if(b===a)return a;
   if(b.startsWith(a))return b;
   if(a.startsWith(b)&&a.length>b.length)return a;
   if(a.endsWith(b))return a;
   if(b.length+4<a.length)return a;
   return a+b;
+}
+function lastTyped(){
+  const nodes=document.querySelectorAll('.message.ai .message-text, .message.assistant .message-text');
+  const el=nodes[nodes.length-1];
+  const t=el?String(el.innerText||'').trim():'';
+  if(!t||/思考中|正在思考|正在聆聽/.test(t))return '';
+  return t;
+}
+function watchTyped(){
+  if(!on())return;
+  clearTimeout(typeTimer);
+  typeTimer=setTimeout(function(){
+    const t=lastTyped();
+    if(!t||t===last)return;
+    speakMine(t);
+  },1400);
 }
 function addDrawerSettings(){
   const bottom=document.querySelector('.drawer-bottom');
@@ -118,7 +131,8 @@ function speakChinese(text){
 async function speakMine(text){
   const raw=speakChinese(text);
   const id=voiceId();
-  if(!raw||raw.length<2||!id)return;
+  if(!raw||raw.length<2)return;
+  if(!id){toast('已打開我的聲音，但抽屆還沒有 Voice id');return}
   if(speaking)return;
   last=raw;
   speaking=true;
@@ -167,10 +181,13 @@ function stopLive(){
   if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
 }
 async function startLive(){
-  stopLive();
-  if(!voiceId()){toast('請先在左上抽屆變更設定');return}
-  await unlockAudio();
-  stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+  const existing=stream;
+  stopThink();
+  try{if(ws)ws.close()}catch(e){}
+  ws=null;outText='';inText='';
+  if(!existing){
+    stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+  }
   ctx=new (window.AudioContext||window.webkitAudioContext)({sampleRate:16000});
   if(ctx.state==='suspended')await ctx.resume();
   source=ctx.createMediaStreamSource(stream);
@@ -184,41 +201,47 @@ async function startLive(){
   source.connect(processor);processor.connect(sink);sink.connect(ctx.destination);
   ws=new WebSocket(RELAY+'?'+liveParams().toString());
   ws.onopen=function(){
-    toast('我的聲音已開麥，直接說即可');
+    toast('麥克風已開啟，可直接說話');
     try{ws.send(JSON.stringify({type:'text',text:LANG_LOCK}))}catch(e){}
   };
   ws.onmessage=function(ev){
     let msg=ev.data;
     try{msg=JSON.parse(ev.data)}catch(e){return}
     const spoken=readBlock(msg,'in');
-    if(spoken){
-      inText=mergeText(inText,spoken);
-      writeUser(inText);
-      if(!thinkT)startThink();
-    }
+    if(spoken){inText=mergeText(inText,spoken);writeUser(inText);if(!thinkT)startThink()}
     const t=readBlock(msg,'out');
     if(t) outText=mergeText(outText,t);
     if(isDone(msg)){
       stopThink();
       const say=outText.trim();
-      if(say.length>=2){
-        aiEl=thinkEl&&thinkEl.isConnected?thinkEl:null;
-        writeAI(say);
-        speakMine(say);
-      }
+      if(say.length>=2){aiEl=thinkEl&&thinkEl.isConnected?thinkEl:null;writeAI(say);speakMine(say)}
       inText='';outText='';userEl=null;aiEl=null;thinkEl=null;
     }
   };
   ws.onerror=()=>toast('我的聲音連線錯誤');
   ws.onclose=()=>{if(on())toast('我的聲音連線已結束')};
 }
-window.speakText=function(text){if(on())return;if(typeof originalSpeak==='function')return originalSpeak(text);try{if('speechSynthesis' in window){window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(String(text||''));u.lang='zh-TW';window.speechSynthesis.speak(u)}}catch(e){}};
-function addButton(){if(document.getElementById('darkStarMyVoiceButton'))return;const top=document.querySelector('.topbar');if(!top)return;const btn=document.createElement('button');btn.id='darkStarMyVoiceButton';btn.type='button';btn.title='開：先思考計時，答完再播我的聲音';btn.style.cssText='margin-left:6px;border:1px solid #ddd;background:#fff;border-radius:9px;padding:7px 10px;font-size:12px;white-space:nowrap';btn.onclick=async()=>{const next=!on();lsSet(KEY,next?'1':'0');paint();if(!next){stopSpeak();stopLive();return}if(!voiceId()){toast('請先在左上抽屆變更設定');return}try{await startLive()}catch(e){toast(e&&e.message||'麥克風權限失敗');lsSet(KEY,'0');paint()}};const home=document.getElementById('homeButton')||document.querySelector('.brand-home');if(home)home.before(btn);else top.appendChild(btn);paint()}
+window.speakText=function(text){if(on()){if(text)speakMine(text);return}if(typeof originalSpeak==='function')return originalSpeak(text)};
+function addButton(){if(document.getElementById('darkStarMyVoiceButton'))return;const top=document.querySelector('.topbar');if(!top)return;const btn=document.createElement('button');btn.id='darkStarMyVoiceButton';btn.type='button';btn.title='開：要麥克風權限，暗星文字答完自動播';btn.style.cssText='margin-left:6px;border:1px solid #ddd;background:#fff;border-radius:9px;padding:7px 10px;font-size:12px;white-space:nowrap';btn.onclick=async()=>{
+  if(on()){lsSet(KEY,'0');paint();stopSpeak();stopLive();return}
+  try{
+    await unlockAudio();
+    stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+  }catch(e){
+    toast('請允許麥克風：'+(e&&e.message||'permission'));
+    return;
+  }
+  lsSet(KEY,'1');paint();
+  if(!voiceId())toast('麥克風已允許。請到抽屆填 Voice id，才能播你的聲音');
+  try{await startLive()}catch(e){toast(e&&e.message||'開麥失敗')}
+};const home=document.getElementById('homeButton')||document.querySelector('.brand-home');if(home)home.before(btn);else top.appendChild(btn);paint()}
 function init(){
   addButton();
   addDrawerSettings();
   document.addEventListener('click',blockOfficial,true);
   document.addEventListener('pointerdown',blockOfficial,true);
+  const inner=document.getElementById('messagesInner');
+  if(inner)new MutationObserver(watchTyped).observe(inner,{childList:true,subtree:true,characterData:true});
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
