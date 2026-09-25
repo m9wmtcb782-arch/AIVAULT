@@ -1,4 +1,4 @@
-const FN='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-vision-test';
+const FN='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-memory';
 const TURNS_KEY='aivault_ds_live_turns';
 const DRAFT_KEY='aivault_ds_live_draft';
 const CTX_KEY='technical_dark_star_live_context';
@@ -77,7 +77,7 @@ function scheduleReconnect(){
 function connect(){
   return new Promise((resolve,reject)=>{
     if(ws&&ws.readyState===1)return resolve();
-    ws=new WebSocket(FN+'?voice='+encodeURIComponent($('voiceSelect').value));
+    const q=new URLSearchParams(location.search);const topicId=localStorage.getItem('technical-dark-star-topic-id')||q.get('topic_id')||'';const conversationId=localStorage.getItem('technical_dark_star_conversation_id')||q.get('conversation_id')||'';ws=new WebSocket(FN+'?voice='+encodeURIComponent($('voiceSelect').value)+'&topic_id='+encodeURIComponent(topicId)+'&conversation_id='+encodeURIComponent(conversationId));
     ws.binaryType='arraybuffer';
     ws.onopen=()=>{status('🟢 已連線｜可以打字或說話');log('WebSocket 已連線');flushPending();resolve()};
     ws.onerror=e=>reject(e);
