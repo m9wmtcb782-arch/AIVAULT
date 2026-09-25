@@ -2,7 +2,7 @@ const FN='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-sta
 const TURNS_KEY='aivault_ds_live_turns';
 const DRAFT_KEY='aivault_ds_live_draft';
 const CTX_KEY='technical_dark_star_live_context';
-const VOICES=[['Kore','穩重'],['Puck','活潑'],['Charon','資訊型'],['Zephyr','明亮'],['Leda','年輕'],['Aoede','輕快'],['Orus','穩重'],['Fenrir','興奮'],['Gacrux','成熟'],['Achird','友善']];
+const VOICES=[['Kore','穩重'],['Puck','活漂'],['Charon','資訊型'],['Zephyr','明亮'],['Leda','年輕'],['Aoede','輕快'],['Orus','穩重'],['Fenrir','興奮'],['Gacrux','成熟'],['Achird','友善']];
 let ws=null,stream=null,auto=false,facing='user',mode='video',videoTimer=null,inputCtx=null,processor=null,source=null,playCtx=null,nextPlayTime=0,audioPackets=0,audioBytes=0,reconnecting=false,wanted=false;
 let pendingText=[], inBuf='', outBuf='', userEl=null, aiEl=null;
 const $=id=>document.getElementById(id);
@@ -72,12 +72,60 @@ function handleMessage(raw){
 }
 function playBase64PCM(b64){try{const bin=atob(b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);playPCM(u.buffer)}catch(e){}}
 function playPCM(buf){if(!playCtx)return;const bytes=new Uint8Array(buf),pcm=new Int16Array(bytes.buffer,bytes.byteOffset,Math.floor(bytes.byteLength/2));if(!pcm.length)return;audioPackets++;audioBytes+=bytes.byteLength;if($('audioStat'))$('audioStat').textContent=audioPackets;if($('byteStat'))$('byteStat').textContent=audioBytes.toLocaleString();if(playCtx.state!=='running')playCtx.resume().catch(function(){});const audio=playCtx.createBuffer(1,pcm.length,24000),data=audio.getChannelData(0);for(let i=0;i<pcm.length;i++)data[i]=pcm[i]/32768;const src=playCtx.createBufferSource();src.buffer=audio;src.connect(playCtx.destination);const now=playCtx.currentTime;if(nextPlayTime<now+.03)nextPlayTime=now+.03;src.start(nextPlayTime);nextPlayTime+=audio.duration}
-async function start(){try{wanted=true;auto=true;setAutoUi();audioPackets=0;audioBytes=0;if($('audioStat'))$('audioStat').textContent='0';await openAudio();await openMedia();await connect();startAudio();if($('startBtn'))$('startBtn').disabled=true;if($('stopBtn'))$('stopBtn').disabled=false;status('🟢 已開始（鏡頭預覽本機，語音走 live-voice）');log('不送 type:video，避免 live-voice 斷線');const draft=($('liveInput')&&$('liveInput').value||'').trim();if(draft)sendTextToLive(draft)}catch(e){status('🔴 無法啟動：'+(e.message||e));log('啟動失敗：'+(e.message||e))}}
-function startVideo(){clearInterval(videoTimer);log('鏡頭只做預覽，不送 JPEG 給 live-voice')}
+async function start(){try{wanted=true;auto=true;setAutoUi();audioPackets=0;audioBytes=0;if($('audioStat'))$('audioStat').textContent='0';await openAudio();await openMedia();await connect();startAudio();startVideo();if($('startBtn'))$('startBtn').disabled=true;if($('stopBtn'))$('stopBtn').disabled=false;status('🟢 已開始（視訊 JPEG 送往 live-voice）');log('視訊 JPEG 已啟用：每秒 1 張，送往 live-voice');const draft=($('liveInput')&&$('liveInput').value||'').trim();if(draft)sendTextToLive(draft)}catch(e){status('🔴 無法啟動：'+(e.message||e));log('啟動失敗：'+(e.message||e))}}
+function startVideo(){
+  clearInterval(videoTimer);
+  if(mode !== 'video' || !stream || !ws || ws.readyState !== 1) return;
+  const track = stream.getVideoTracks()[0];
+  if(!track){
+    log('找不到視訊軌');
+    return;
+  }
+  const settings = track.getSettings ? track.getSettings() : {};
+  const w = Math.max(1, Math.min(640, settings.width || 640));
+  const h = Math.max(1, Math.min(480, settings.height || 480));
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  const video = $('preview');
+  videoTimer = setInterval(() => {
+    if(!ws || ws.readyState !== 1) return;
+    if(!video || video.readyState < 2) return;
+    try{
+      ctx.drawImage(video, 0, 0, w, h);
+      canvas.toBlob(blob => {
+        if(!blob || !ws || ws.readyState !== 1) return;
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if(!ws || ws.readyState !== 1) return;
+          const result = String(reader.result || '');
+          const comma = result.indexOf(',');
+          if(comma < 0) return;
+          const base64 = result.slice(comma + 1);
+          try{
+            ws.send(JSON.stringify({
+              type: 'video',
+              data: base64,
+              mimeType: 'image/jpeg'
+            }));
+            log('送視訊 JPEG ' + w + 'x' + h);
+          }catch(e){
+            log('送視訊失敗：' + e.message);
+          }
+        };
+        reader.readAsDataURL(blob);
+      }, 'image/jpeg', 0.72);
+    }catch(e){
+      log('擷取視訊失敗：' + e.message);
+    }
+  }, 1000);
+  log('開始每秒送 1 張 JPEG 給 live-voice');
+}
 function startAudio(){if(!stream||!inputCtx||processor)return;source=inputCtx.createMediaStreamSource(stream);processor=inputCtx.createScriptProcessor(2048,1,1);const silent=inputCtx.createGain();silent.gain.value=0;processor.onaudioprocess=e=>{if(!ws||ws.readyState!==1)return;const a=e.inputBuffer.getChannelData(0),pcm=new Int16Array(a.length);for(let i=0;i<a.length;i++)pcm[i]=Math.max(-1,Math.min(1,a[i]))*32767;let bin='';const u=new Uint8Array(pcm.buffer);for(let i=0;i<u.length;i++)bin+=String.fromCharCode(u[i]);try{ws.send(JSON.stringify({type:'audio',data:btoa(bin),mimeType:'audio/pcm;rate=16000'}))}catch(err){}};source.connect(processor);processor.connect(silent);silent.connect(inputCtx.destination)}
 async function stop(){wanted=false;auto=false;setAutoUi();flushTurn();clearInterval(videoTimer);if(processor)processor.disconnect();if(source)source.disconnect();if(inputCtx)await inputCtx.close().catch(function(){});if(playCtx)await playCtx.close().catch(function(){});inputCtx=null;playCtx=null;processor=null;source=null;nextPlayTime=0;if(ws){try{ws.close()}catch(_){}ws=null}if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}const p=$('preview');if(p)p.srcObject=null;if($('startBtn'))$('startBtn').disabled=false;if($('stopBtn'))$('stopBtn').disabled=true;status('⚪ 已停止')}
 async function toggleAuto(){if(auto&&wanted){await stop();return}await start()}
-async function switchCamera(){if(mode!=='video'||!stream)return;facing=facing==='user'?'environment':'user';const old=stream;const ns=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing},audio:{echoCancellation:true}});old.getTracks().forEach(t=>t.stop());stream=ns;const p=$('preview');if(p){p.srcObject=ns;p.classList.toggle('mirror',facing==='user')}if(processor){try{processor.disconnect()}catch(_){}processor=null;source=null;startAudio()}}
+async function switchCamera(){if(mode!=='video'||!stream)return;facing=facing==='user'?'environment':'user';const old=stream;const ns=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing},audio:{echoCancellation:true}});old.getTracks().forEach(t=>t.stop());stream=ns;const p=$('preview');if(p){p.srcObject=ns;p.classList.toggle('mirror',facing==='user')}if(processor){try{processor.disconnect()}catch(_){}processor=null;source=null;startAudio()}if(ws&&ws.readyState===1)startVideo();}
 function bootFromQuery(){const q=new URLSearchParams(location.search);const m=q.get('mode')==='voice'?'voice':'video';mode='';setMode(m)}
 if($('liveInput'))$('liveInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendTyped()}});
 initVoices();bootFromQuery();
