@@ -2,7 +2,7 @@ const FN='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-sta
 const TURNS_KEY='aivault_ds_live_turns';
 const DRAFT_KEY='aivault_ds_live_draft';
 const CTX_KEY='technical_dark_star_live_context';
-const VOICES=[['Kore','穩重'],['Puck','活漂'],['Charon','資訊型'],['Zephyr','明亮'],['Leda','年輕'],['Aoede','輕快'],['Orus','穩重'],['Fenrir','興奮'],['Gacrux','成熟'],['Achird','友善']];
+const VOICES=[['Kore','穩重'],['Puck','活潑'],['Charon','資訊型'],['Zephyr','明亮'],['Leda','年輕'],['Aoede','輕快'],['Orus','穩重'],['Fenrir','興奮'],['Gacrux','成熟'],['Achird','友善']];
 let ws=null,stream=null,auto=false,facing='user',mode='video',videoTimer=null,inputCtx=null,processor=null,source=null,playCtx=null,nextPlayTime=0,audioPackets=0,audioBytes=0,reconnecting=false,wanted=false;
 let pendingText=[], inBuf='', outBuf='', userEl=null, aiEl=null;
 const $=id=>document.getElementById(id);
