@@ -907,6 +907,26 @@ body{overflow:hidden}
   line-height:1.45;
   word-break:break-word;
 }
+.dark-star-work-stop{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  margin-top:7px;
+  min-height:30px;
+  padding:4px 10px;
+  border:1px solid #d9d9d9;
+  border-radius:8px;
+  background:#fff;
+  color:#222;
+  font-size:12px;
+}
+.dark-star-work-stop:hover{
+  background:#f3f3f3;
+}
+.dark-star-work-stop.danger{
+  border-color:#ef4444;
+  color:#b91c1c;
+}
 @media(max-width:700px){
   .dark-star-work-location{font-size:13px;}
 }
@@ -4924,6 +4944,9 @@ async function callDrawSandbox(
 
         method:"POST",
 
+        signal:
+          getDarkStarAbortSignal(),
+
         headers:{
           "Content-Type":
             "application/json"
@@ -5093,6 +5116,9 @@ async function callGameSandbox(
 
         method:"POST",
 
+        signal:
+          getDarkStarAbortSignal(),
+
         headers:{
           "Content-Type":
             "application/json"
@@ -5260,6 +5286,9 @@ async function callSandbox(
       {
 
         method:"POST",
+
+        signal:
+          getDarkStarAbortSignal(),
 
         headers:{
           "Content-Type":
@@ -5533,6 +5562,9 @@ async function callAIVAULT(
 
         method:"POST",
 
+        signal:
+          getDarkStarAbortSignal(),
+
         headers:{
           "Content-Type":
             "application/json"
@@ -5704,6 +5736,21 @@ async function callAIVAULT(
 ========================================================= */
 
 let activeDarkStarWorkLocation = null;
+let activeDarkStarAbortController = null;
+let darkStarStopRequested = false;
+
+function getDarkStarAbortSignal(){
+  return activeDarkStarAbortController
+    ? activeDarkStarAbortController.signal
+    : undefined;
+}
+
+function stopDarkStarWork(){
+  if(!isSending || !activeDarkStarAbortController) return;
+  darkStarStopRequested = true;
+  updateDarkStarWorkLocation("■ 正在停止暗星目前工作……");
+  activeDarkStarAbortController.abort();
+}
 
 function updateDarkStarWorkLocation(location){
   const text = String(location || "").trim();
@@ -5775,6 +5822,9 @@ async function sendMessage(){
   isSending =
     true;
 
+  darkStarStopRequested = false;
+  activeDarkStarAbortController =
+    new AbortController();
 
   const sendId =
     ++requestSequence;
@@ -6054,6 +6104,22 @@ async function sendMessage(){
 
     loading.remove();
 
+    if(
+      darkStarStopRequested ||
+      error?.name === "AbortError"
+    ){
+      updateDarkStarWorkLocation("■ 已停止目前工作");
+      renderAIMessage(
+        "■ 已停止目前工作。暗星已回到待命狀態。"
+      );
+      messagesHistory.push({
+        role:"assistant",
+        text:"■ 已停止目前工作。暗星已回到待命狀態。"
+      });
+      saveState();
+      return;
+    }
+
 
     const errorText =
       "Technical Dark Star 無法取得 AIVAULT 的真實回應。\n\n" +
@@ -6096,6 +6162,9 @@ async function sendMessage(){
 
     isSending =
       false;
+
+    activeDarkStarAbortController = null;
+    darkStarStopRequested = false;
 
 
     sendButton.disabled =
@@ -6151,6 +6220,12 @@ function createLoadingMessage(){
       0 秒
     </span>
     <span class="dark-star-work-location"></span>
+    <button
+      type="button"
+      class="dark-star-work-stop"
+      aria-label="停止暗星目前工作">
+      ■ 停止
+    </button>
 
   </div>
 
@@ -6169,8 +6244,28 @@ function createLoadingMessage(){
       ".dark-star-work-location"
     );
 
+  const stopButton =
+    row.querySelector(
+      ".dark-star-work-stop"
+    );
+
   if(location){
-    location.textContent = workLocation;
+    location.textContent =
+      workLocation || "📍 正在思考……";
+  }
+
+  if(stopButton){
+    stopButton.addEventListener(
+      "click",
+      event=>{
+        event.preventDefault();
+        event.stopPropagation();
+        stopButton.disabled = true;
+        stopButton.classList.add("danger");
+        stopButton.textContent = "■ 停止中……";
+        stopDarkStarWork();
+      }
+    );
   }
 
 
