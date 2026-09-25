@@ -19,12 +19,6 @@
     try { return (localStorage.getItem("FISH_VOICE_ID") || "").trim(); } catch (e) { return ""; }
   }
   function useFish() { return !!fishVoice(); }
-  function maskSecret(s) {
-    const t = String(s || "");
-    if (!t) return "未設定";
-    if (t.length <= 4) return "••••";
-    return t.slice(0, 2) + "••••" + t.slice(-2);
-  }
 
   function stopFishAudio() {
     if (fishAudio) {
@@ -118,16 +112,15 @@
   }
 
   function statusLine() {
-    const hasKey = !!fishKey();
-    const hasVoice = !!fishVoice();
-    if (hasKey && hasVoice) return "我的聲音：已儲存（" + maskSecret(fishVoice()) + "）";
-    if (hasVoice) return "我的聲音：Voice 已儲存，Key 未設定";
-    if (hasKey) return "我的聲音：Key 已儲存，Voice 未設定";
-    return "我的聲音：尚未設定";
+    if (fishKey() && fishVoice()) return "我的聲音：密碼已儲存";
+    if (fishVoice() || fishKey()) return "我的聲音：尚未完整設定";
+    return "我的聲音：點此設定";
   }
 
   function injectFields() {
+    const title = document.getElementById("drawerTitle");
     const body = document.getElementById("drawerBody");
+    if (!title || title.textContent.indexOf("設定") < 0) return;
     if (!body || body.querySelector("#fishVoiceBox")) return;
     const form = body.querySelector(".setform");
     if (!form) return;
@@ -137,7 +130,7 @@
       '<button class="ib" id="fishToggle" type="button" style="width:100%;justify-content:space-between">' +
       '<span id="fishStatus">' + statusLine() + '</span><span id="fishToggleHint">▾ 展開</span></button>' +
       '<div id="fishSecretFields" hidden>' +
-      '<p class="muted">密碼與 Voice ID 不會顯示明文。留空按儲存不會覆蓋舊值。</p>' +
+      '<p class="muted">電子書密碼欄位預設收起，不回填明文。留空儲存不會覆蓋舊值。</p>' +
       '<label>我的聲音 API Key<input id="fishKeyIn" type="password" autocomplete="new-password" placeholder="••••••••"></label>' +
       '<label>我的聲音 Voice ID<input id="fishVoiceIn" type="password" autocomplete="new-password" placeholder="••••••••"></label>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
@@ -155,10 +148,8 @@
     function collapse() {
       if (fields) fields.hidden = true;
       if (hint) hint.textContent = "▾ 展開";
-      if (k) k.value = "";
-      if (v) v.value = "";
-      if (k) k.type = "password";
-      if (v) v.type = "password";
+      if (k) { k.value = ""; k.type = "password"; }
+      if (v) { v.value = ""; v.type = "password"; }
       if (status) status.textContent = statusLine();
     }
     function expand() {
