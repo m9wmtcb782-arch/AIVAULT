@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Technical Dark Star｜即時語音／視訊</title>
+<title>Technical Dark Star｜視訊</title>
 <style>
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif;background:#fff;color:#202123}body{overflow:hidden}
 .app{height:100dvh;display:flex;flex-direction:column}
@@ -12,53 +12,35 @@
 .back{margin-left:auto;border:1px solid #ddd;background:#fff;border-radius:9px;padding:7px 10px;text-decoration:none;color:inherit}
 .main{flex:1;min-height:0;overflow:auto;padding:18px 18px 110px}
 .card{max-width:760px;margin:0 auto;border:1px solid #e5e5e5;border-radius:16px;padding:16px}
-.modes{display:flex;gap:8px;margin-bottom:12px}
-.mode{flex:1;border:1px solid #ddd;background:#fff;border-radius:11px;padding:11px;font-weight:600}
-.mode.active{background:#171717;color:#fff;border-color:#171717}
-.voice-row{display:grid;grid-template-columns:100px 1fr;gap:8px;align-items:center;margin-bottom:12px}
-.voice-label{font-weight:600}
-.voice-select{width:100%;border:1px solid #ddd;border-radius:10px;background:#fff;padding:11px;font-size:15px}
 .status{padding:10px 12px;background:#f6f6f6;border-radius:10px;font-size:13px;margin-bottom:12px}
 .video-wrap{position:relative;background:#111;border-radius:14px;overflow:hidden;aspect-ratio:4/3}
 .video{width:100%;height:100%;object-fit:cover;display:block}.mirror{transform:scaleX(-1)}
 .controls{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
 .btn{border:1px solid #ddd;background:#fff;border-radius:10px;padding:12px;font-weight:600}
 .btn.primary{background:#171717;color:#fff;border-color:#171717}.btn:disabled{opacity:.45}
-.stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-.stat{font-size:12px;background:#f7f7f7;border-radius:8px;padding:6px 8px;color:#555}
 .chat{margin-top:12px;min-height:80px;max-height:220px;overflow:auto;border:1px solid #eee;border-radius:10px;padding:10px;background:#fafafa}
 .bubble{margin:0 0 8px;padding:8px 10px;border-radius:12px;font-size:14px;line-height:1.55;white-space:pre-wrap}
 .bubble.user{background:#eef5ff}.bubble.ai{background:#f2f2f2}
-.bubble b{display:block;font-size:11px;color:#666;margin-bottom:3px}
-.log{margin-top:12px;min-height:80px;max-height:160px;overflow:auto;background:#fafafa;border:1px solid #eee;border-radius:10px;padding:10px;font-size:12px;line-height:1.6;white-space:pre-wrap}
-.hint{font-size:12px;color:#777;line-height:1.6;margin-top:10px}
-.composer{position:fixed;left:0;right:0;bottom:0;padding:10px 16px max(14px,env(safe-area-inset-bottom));background:linear-gradient(to bottom,rgba(255,255,255,0),#fff 28%);pointer-events:none}
-.composer-box{pointer-events:auto;max-width:760px;margin:0 auto;display:flex;gap:8px;border:1px solid #d9d9d9;border-radius:22px;background:#fff;padding:6px;box-shadow:0 3px 14px rgba(0,0,0,.06)}
-.composer-box textarea{flex:1;border:0;outline:0;resize:none;min-height:40px;max-height:120px;padding:9px 10px;font:inherit;font-size:16px}
-.composer-box button{width:44px;height:44px;border:0;border-radius:50%;background:#171717;color:#fff;font-size:16px}
-.voiceOnly{display:none}.videoOnly{display:block}
-.mode-voice .voiceOnly{display:block}.mode-voice .videoOnly{display:none}
-.mode-video .voiceOnly{display:none}.mode-video .videoOnly{display:block}
+.log{margin-top:12px;min-height:80px;max-height:160px;overflow:auto;background:#fafafa;border:1px solid #eee;border-radius:10px;padding:10px;font-size:12px;white-space:pre-wrap}
+.composer{position:fixed;left:0;right:0;bottom:0;padding:10px 16px max(14px,env(safe-area-inset-bottom));background:#fff}
+.composer-box{max-width:760px;margin:0 auto;display:flex;gap:8px;border:1px solid #d9d9d9;border-radius:22px;background:#fff;padding:6px}
+.composer-box textarea{flex:1;border:0;outline:0;resize:none;min-height:40px;padding:9px 10px;font:inherit;font-size:16px}
+.composer-box button{width:44px;height:44px;border:0;border-radius:50%;background:#171717;color:#fff}
 </style>
 </head>
 <body class="mode-video">
 <div class="app">
-<header class="top"><div class="logo">✦</div><div><div class="title">Technical Dark Star</div><div class="engine">即時語音／視訊｜斷線自動重連</div></div><a class="back" href="aivault-home.html">🔙 回 Home</a>
-<button class="back" type="button" onclick="location.href='technical-dark-star.html'">← 回暗星</button></header>
+<header class="top"><div class="logo">✦</div><div><div class="title">Technical Dark Star</div><div class="engine">視訊｜live-voice</div></div><a class="back" href="technical-dark-star.html">← 回暗星</a></header>
 <main class="main"><section class="card">
-<div class="modes"><button id="voiceBtn" class="mode" onclick="setMode('voice')">🎤 即時語音</button><button id="videoBtn" class="mode active" onclick="setMode('video')">🎥 即時視訊</button></div>
-<div class="voice-row"><div class="voice-label">🔊 暗星聲音</div><select id="voiceSelect" class="voice-select"></select></div>
-<div id="status" class="status">尚未連線。按開始後若伺服器斷線會自動重連。</div>
-<div class="video-wrap videoOnly"><video id="preview" class="video mirror" autoplay playsinline muted></video></div>
-<div class="controls"><button id="autoBtn" class="btn primary" onclick="toggleAuto()">⚡ 自動連接</button><button id="cameraBtn" class="btn videoOnly" onclick="switchCamera()" disabled>🔄 切換鏡頭：自己／別人</button><button id="startBtn" class="btn" onclick="start()">▶ 開始</button><button id="stopBtn" class="btn" onclick="stop()" disabled>■ 停止</button></div>
-<div class="stats"><span class="stat">模式：<b id="modeStat">視訊</b></span><span class="stat">聲音：<b id="voiceStat">Kore</b></span><span class="stat">收到音訊：<b id="audioStat">0</b></span><span class="stat">音訊位元組：<b id="byteStat">0</b></span></div>
-<div class="hint voiceOnly">語音模式只開麥克風。斷線會自動重連，按停止才結束。</div>
-<div class="hint videoOnly">視訊模式開攝影機＋麥克風。斷線會自動重連，按停止才結束。</div>
+<div id="status" class="status">按開始。鏡頭只預覽；語音走 live-voice。</div>
+<div class="video-wrap"><video id="preview" class="video mirror" autoplay playsinline muted></video></div>
+<div class="controls"><button id="autoBtn" class="btn primary" onclick="toggleAuto()">⚡ 自動連接</button><button id="cameraBtn" class="btn" onclick="switchCamera()" disabled>🔄 切鏡頭</button><button id="startBtn" class="btn" onclick="start()">▶ 開始</button><button id="stopBtn" class="btn" onclick="stop()" disabled>■ 停止</button></div>
+<div class="voice-row" style="margin-top:10px"><select id="voiceSelect"></select> <span id="voiceStat"></span> 音訊:<b id="audioStat">0</b></div>
 <div id="chat" class="chat"></div>
 <pre id="log" class="log"></pre>
 </section></main>
-<div class="composer"><div class="composer-box"><textarea id="liveInput" rows="1" placeholder="打字給即時語音／視訊的暗星看"></textarea><button type="button" id="liveSend" onclick="sendTyped()">➤</button></div></div>
+<div class="composer"><div class="composer-box"><textarea id="liveInput" rows="1" placeholder="打字"></textarea><button type="button" id="liveSend" onclick="sendTyped()">➤</button></div></div>
 </div>
-<script src="technical-dark-star-live-session.js?v=5"></script>
+<script src="technical-dark-star-live-session.js?v=6"></script>
 </body>
 </html>
