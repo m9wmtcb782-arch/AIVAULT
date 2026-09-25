@@ -4959,7 +4959,7 @@ async function callDrawSandbox(
   userMessage,
   svg
 ){
-  updateDarkStarWorkLocation("📍 AIVAULT → Draw Sandbox → 執行 SVG 測試");
+  updateDarkStarWorkLocation("📍 AIVAULT → Draw Sandbox → 執行 SVG 測試", {kind:"gateway"});
 
   const animation =
     /動畫|拍翅膀|轉動|閃爍|animate|gif/i
@@ -5140,7 +5140,7 @@ async function callGameSandbox(
   userMessage,
   html
 ){
-  updateDarkStarWorkLocation("📍 AIVAULT → Game Sandbox → 執行遊戲測試");
+  updateDarkStarWorkLocation("📍 AIVAULT → Game Sandbox → 執行遊戲測試", {kind:"gateway"});
 
   const response =
     await fetch(
@@ -5311,7 +5311,7 @@ async function callSandbox(
   files,
   action
 ){
-  updateDarkStarWorkLocation("📍 AIVAULT → Sandbox → " + (action === "rerun" ? "重新執行測試" : "執行網頁測試"));
+  updateDarkStarWorkLocation("📍 AIVAULT → Sandbox → " + (action === "rerun" ? "重新執行測試" : "執行網頁測試"), {kind:"gateway"});
 
   const response =
     await fetch(
@@ -5466,7 +5466,7 @@ async function callAIVAULT(
   userMessage,
   files
 ){
-  updateDarkStarWorkLocation("📍 AIVAULT → AI Gateway → 發送請求");
+  updateDarkStarWorkLocation("📍 AIVAULT → AI Gateway → 發送請求", {kind:"gateway"});
 
   const requestId =
     ++requestSequence;
@@ -5586,7 +5586,7 @@ async function callAIVAULT(
   );
 
 
-  updateDarkStarWorkLocation("📍 AIVAULT → AI Gateway → 等待真實回應");
+  updateDarkStarWorkLocation("📍 AIVAULT → AI Gateway → 等待真實回應", {kind:"gateway"});
 
   const response =
     await fetch(
@@ -5685,7 +5685,7 @@ async function callAIVAULT(
 
   const actualLocation = createWorkLocationFromGateway(data);
   if(actualLocation){
-    updateDarkStarWorkLocation(actualLocation);
+    updateDarkStarWorkLocation(actualLocation, {kind: actualLocation.includes("GitHub") ? "github" : actualLocation.includes("Supabase") ? "supabase" : "gateway"});
   }
 
   console.info(
@@ -5781,7 +5781,7 @@ function getDarkStarAbortSignal(){
 function stopDarkStarWork(){
   if(!isSending || !activeDarkStarAbortController) return;
   darkStarStopRequested = true;
-  updateDarkStarWorkLocation("■ 正在停止暗星目前工作……");
+  updateDarkStarWorkLocation("■ 正在停止暗星目前工作……", {kind:"default"});
   activeDarkStarAbortController.abort();
 }
 
@@ -6154,7 +6154,7 @@ async function sendMessage(){
       darkStarStopRequested ||
       error?.name === "AbortError"
     ){
-      updateDarkStarWorkLocation("■ 已停止目前工作");
+      updateDarkStarWorkLocation("■ 已停止目前工作", {kind:"default"});
       renderAIMessage(
         "■ 已停止目前工作。暗星已回到待命狀態。"
       );
@@ -6299,8 +6299,12 @@ function createLoadingMessage(){
     );
 
   if(location){
-    location.textContent =
-      workLocation || "📍 正在思考……";
+    activeDarkStarWorkLocation = location;
+    location.classList.remove("is-idle");
+    const locationText = location.querySelector(".dark-star-work-location-text");
+    if(locationText) locationText.textContent = workLocation || "📍 正在思考……";
+    const locationIcon = location.querySelector(".dark-star-work-location-icon");
+    if(locationIcon) locationIcon.innerHTML = '<svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="6.2"/><path d="M9 5.7v3.7l2.5 1.5"/></svg>';
   }
 
   if(stopButton){
