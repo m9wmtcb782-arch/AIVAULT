@@ -157,11 +157,15 @@
   ];
   try {
     var rows = JSON.parse(localStorage.getItem(KEY) || "[]");
+    var removed = [];
+    try { removed = JSON.parse(localStorage.getItem("aivault_ebook_shelf_removed") || "[]"); } catch (e) {}
     books.forEach(function (book) {
+      if (removed.indexOf(String(book.ebook_id)) >= 0) return;
       if (!rows.some(function (r) { return r.ebook_id === book.ebook_id; })) {
         rows.unshift(book);
       }
     });
+    rows = rows.filter(function (r) { return removed.indexOf(String(r.ebook_id)) < 0; });
     localStorage.setItem(KEY, JSON.stringify(rows.slice(0, 80)));
   } catch (e) {}
 })();
