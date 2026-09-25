@@ -4906,6 +4906,7 @@ async function callDrawSandbox(
   userMessage,
   svg
 ){
+  updateDarkStarWorkLocation("📍 AIVAULT → Draw Sandbox → 執行 SVG 測試");
 
   const animation =
     /動畫|拍翅膀|轉動|閃爍|animate|gif/i
@@ -5083,6 +5084,7 @@ async function callGameSandbox(
   userMessage,
   html
 ){
+  updateDarkStarWorkLocation("📍 AIVAULT → Game Sandbox → 執行遊戲測試");
 
   const response =
     await fetch(
@@ -5250,6 +5252,7 @@ async function callSandbox(
   files,
   action
 ){
+  updateDarkStarWorkLocation("📍 AIVAULT → Sandbox → " + (action === "rerun" ? "重新執行測試" : "執行網頁測試"));
 
   const response =
     await fetch(
@@ -5401,6 +5404,7 @@ async function callAIVAULT(
   userMessage,
   files
 ){
+  updateDarkStarWorkLocation("📍 AIVAULT → AI Gateway → 發送請求");
 
   const requestId =
     ++requestSequence;
@@ -5520,6 +5524,8 @@ async function callAIVAULT(
   );
 
 
+  updateDarkStarWorkLocation("📍 AIVAULT → AI Gateway → 等待真實回應");
+
   const response =
     await fetch(
       AI_GATEWAY_URL,
@@ -5612,6 +5618,11 @@ async function callAIVAULT(
   }
 
 
+  const actualLocation = createWorkLocationFromGateway(data);
+  if(actualLocation){
+    updateDarkStarWorkLocation(actualLocation);
+  }
+
   console.info(
     "[DarkStar][GATEWAY RESPONSE]",
     {
@@ -5692,31 +5703,37 @@ async function callAIVAULT(
    SINGLE ENTRY POINT
 ========================================================= */
 
-function getCurrentWorkLocation(text, files){
+let activeDarkStarWorkLocation = null;
 
-  const value=String(text || "").trim();
+function updateDarkStarWorkLocation(location){
+  const text = String(location || "").trim();
+  if(!text) return;
+  if(activeDarkStarWorkLocation){
+    activeDarkStarWorkLocation.textContent = text;
+  }
+  console.info("[DarkStar][WORK LOCATION]", text);
+}
 
-  if(isSandboxIntent(value, files)){
-    return "📍 AIVAULT → Sandbox → 網頁工程測試";
+function createWorkLocationFromGateway(data){
+  const startup = Array.isArray(data?.memory?.startup_files_loaded)
+    ? data.memory.startup_files_loaded.filter(Boolean)
+    : [];
+
+  if(startup.length){
+    const file = String(startup[0]);
+    return "📍 GitHub → AIVAULT → " + file;
   }
 
-  if(isGameIntent(value, files)){
-    return "📍 AIVAULT → Game Sandbox → 遊戲製作與測試";
+  if(data?.memory?.canonical_source === "Supabase"){
+    return "📍 Supabase → Conversation Memory → 正在同步";
   }
 
-  if(isDrawIntent(value, files)){
-    return "📍 AIVAULT → Dark Star → 圖像／SVG 處理";
+  if(data?.provider){
+    const model = data?.model ? " → " + data.model : "";
+    return "📍 AI Gateway → " + String(data.provider).toUpperCase() + model;
   }
 
-  if((files || []).some(file => file?.content_type === "image")){
-    return "📍 AIVAULT → Technical Dark Star → 圖片分析";
-  }
-
-  if((files || []).length){
-    return "📍 AIVAULT → Technical Dark Star → 檔案處理";
-  }
-
-  return "📍 AIVAULT → Technical Dark Star → AI Gateway";
+  return "";
 }
 
 
@@ -5873,12 +5890,7 @@ async function sendMessage(){
 
 
   const loading =
-    createLoadingMessage(
-      getCurrentWorkLocation(
-        text,
-        outgoingFiles
-      )
-    );
+    createLoadingMessage("📍 正在思考……");
 
 
   try{
