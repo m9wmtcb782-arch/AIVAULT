@@ -19,13 +19,7 @@ function bindHomeBack(){
   }
 }
 function css(){if(document.getElementById('dsVoiceStyle'))return;const s=document.createElement('style');s.id='dsVoiceStyle';s.textContent='.dark-star-live-controls{display:flex;align-items:center;gap:4px}.dark-star-sound-button,.dark-star-live-button{height:30px;border:1px solid #dedede;border-radius:8px;background:#fff;color:#222;font-size:11px;padding:0 7px}.dark-star-live-button.active{background:#171717;color:#fff}.dark-star-voice-select{position:absolute;top:34px;right:0;width:210px;height:32px;display:none;z-index:1001}.dark-star-live-controls.expanded .dark-star-voice-select{display:block}';document.head.appendChild(s)}
-function favorites(){
-  const bottom=document.querySelector('.drawer-bottom');
-  if(!bottom)return false;
-  const link=document.getElementById('darkStarFavoriteVideo');
-  if(link){link.href=LIVE_VIDEO;link.removeAttribute('target');return true}
-  return false;
-}
+function favorites(){const bottom=document.querySelector('.drawer-bottom');if(!bottom)return false;const link=document.getElementById('darkStarFavoriteVideo');if(link){link.href=LIVE_VIDEO;link.removeAttribute('target');return true}return false}
 function ui(){
   css();favorites();bindHomeBack();
   if(document.getElementById('darkStarLiveControls'))return;
@@ -46,7 +40,7 @@ function ui(){
   select.onchange=function(){state.voice=select.value};
   live.onclick=function(){location.href=LIVE_VOICE};
 }
-function loadMyVoice(){if(document.getElementById('dsMyVoiceScript'))return;const s=document.createElement('script');s.id='dsMyVoiceScript';s.src='technical-dark-star-my-voice.js?v=16';document.head.appendChild(s)}
+function loadMyVoice(){if(document.getElementById('dsMyVoiceScript'))return;const s=document.createElement('script');s.id='dsMyVoiceScript';s.src='technical-dark-star-my-voice.js?v=17';document.head.appendChild(s)}
 function init(){ui();bindHomeBack();loadMyVoice();let tries=0;const timer=setInterval(function(){tries++;bindHomeBack();loadMyVoice();if(favorites()||tries>=20)clearInterval(timer)},250)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
