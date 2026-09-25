@@ -5638,7 +5638,7 @@ async function callAIVAULT(
     let streamDone = false;
 
     const handleEventBlock = (block) => {
-      const lines = String(block || "").split(/\\r?\\n/);
+      const lines = String(block || "").split(/\r?\n/);
       let eventName = "message";
       const dataLines = [];
 
@@ -5652,7 +5652,7 @@ async function callAIVAULT(
 
       if(!dataLines.length) return;
 
-      const raw = dataLines.join("\\n");
+      const raw = dataLines.join("\n");
       let eventData = {};
       try{
         eventData = JSON.parse(raw);
@@ -5697,7 +5697,7 @@ async function callAIVAULT(
 
       buffer += decoder.decode(value, {stream:true});
 
-      const blocks = buffer.split("\\n\\n");
+      const blocks = buffer.split("\n\n");
       buffer = blocks.pop() || "";
 
       for(const block of blocks){
