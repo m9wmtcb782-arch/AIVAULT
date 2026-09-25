@@ -57,14 +57,10 @@ function writeAI(text){
   scrollChat();
 }
 function startThink(){
-  stopThink();
-  thinkSec=0;
+  stopThink();thinkSec=0;
   if(!thinkEl||!thinkEl.isConnected)thinkEl=ensureBubble('ai');
   if(thinkEl)thinkEl.textContent='暗星思考中 0 秒';
-  thinkT=setInterval(function(){
-    thinkSec+=1;
-    if(thinkEl&&thinkEl.isConnected)thinkEl.textContent='暗星思考中 '+thinkSec+' 秒';
-  },1000);
+  thinkT=setInterval(function(){thinkSec+=1;if(thinkEl&&thinkEl.isConnected)thinkEl.textContent='暗星思考中 '+thinkSec+' 秒'},1000);
 }
 function stopThink(){if(thinkT){clearInterval(thinkT);thinkT=0}}
 function mergeText(prev,next){
@@ -86,11 +82,7 @@ function lastTyped(){
 function watchTyped(){
   if(!on())return;
   clearTimeout(typeTimer);
-  typeTimer=setTimeout(function(){
-    const t=lastTyped();
-    if(!t||t===last)return;
-    speakMine(t);
-  },1400);
+  typeTimer=setTimeout(function(){const t=lastTyped();if(!t||t===last)return;speakMine(t)},1400);
 }
 function addDrawerSettings(){
   const bottom=document.querySelector('.drawer-bottom');
@@ -132,28 +124,18 @@ async function speakMine(text){
   const raw=speakChinese(text);
   const id=voiceId();
   if(!raw||raw.length<2)return;
-  if(!id){toast('已打開我的聲音，但抽屆還沒有 Voice id');return}
+  if(!id){toast('請先在抽屆填 Voice id');return}
   if(speaking)return;
-  last=raw;
-  speaking=true;
-  const chunks=[];
-  for(let i=0;i<raw.length;i+=180)chunks.push(raw.slice(i,i+180));
-  if(!audio)audio=new Audio();
-  audio.volume=1;try{audio.muted=false}catch(e){}
+  last=raw;speaking=true;
+  const chunks=[];for(let i=0;i<raw.length;i+=180)chunks.push(raw.slice(i,i+180));
+  if(!audio)audio=new Audio();audio.volume=1;try{audio.muted=false}catch(e){}
   for(let i=0;i<chunks.length;i++){
     if(!on())break;
     const res=await fetch(FN,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:chunks[i],reference_id:id,format:'mp3'})});
     if(!res.ok){toast('我的聲音合成失敗：'+res.status);break}
-    const blob=await res.blob();
-    if(!blob||blob.size<200){toast('我的聲音沒有音訊');break}
+    const blob=await res.blob();if(!blob||blob.size<200){toast('我的聲音沒有音訊');break}
     const url=URL.createObjectURL(blob);
-    await new Promise(resolve=>{
-      audio.onended=resolve;
-      audio.onerror=function(){toast('播放失敗');resolve()};
-      audio.src=url;
-      audio.playbackRate=rate();
-      audio.play().catch(function(err){toast('播放被系統攔下：'+(err&&err.message||'autoplay'));resolve()});
-    });
+    await new Promise(resolve=>{audio.onended=resolve;audio.onerror=function(){toast('播放失敗');resolve()};audio.src=url;audio.playbackRate=rate();audio.play().catch(function(err){toast('播放被系統攔下：'+(err&&err.message||'autoplay'));resolve()})});
   }
   speaking=false;
 }
@@ -161,12 +143,8 @@ function readBlock(msg,kind){if(!msg||typeof msg!=='object')return '';const c=ms
 function isDone(msg){if(!msg||typeof msg!=='object')return false;const c=msg.serverContent||msg.content||msg;return !!(c.turnComplete||msg.turnComplete||msg.type==='turnComplete')}
 function blockOfficial(e){
   if(!on())return;
-  const t=e.target;
-  if(!t||!t.closest)return;
-  if(t.closest('#micButton')||t.closest('#sendButton')||t.closest('.composer-mic')||t.closest('.composer-send')||t.closest('.message-action')){
-    e.preventDefault();
-    e.stopImmediatePropagation();
-  }
+  const t=e.target;if(!t||!t.closest)return;
+  if(t.closest('#micButton')||t.closest('#sendButton')||t.closest('.composer-mic')||t.closest('.composer-send')||t.closest('.message-action')){e.preventDefault();e.stopImmediatePropagation()}
 }
 function stopLive(){
   stopThink();
@@ -180,61 +158,53 @@ function stopLive(){
   processor=source=sink=ctx=null;
   if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
 }
-async function startLive(){
-  const existing=stream;
-  stopThink();
-  try{if(ws)ws.close()}catch(e){}
-  ws=null;outText='';inText='';
-  if(!existing){
-    stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
-  }
+function attachMic(s){
+  stream=s;
   ctx=new (window.AudioContext||window.webkitAudioContext)({sampleRate:16000});
-  if(ctx.state==='suspended')await ctx.resume();
   source=ctx.createMediaStreamSource(stream);
   processor=ctx.createScriptProcessor(4096,1,1);
   sink=ctx.createGain();sink.gain.value=0;
-  processor.onaudioprocess=function(ev){
-    if(!ws||ws.readyState!==1)return;
-    const data=pcm16(ev.inputBuffer.getChannelData(0));
-    try{ws.send(JSON.stringify({type:'audio',data,mimeType:'audio/pcm;rate=16000'}))}catch(e){}
-  };
+  processor.onaudioprocess=function(ev){if(!ws||ws.readyState!==1)return;try{ws.send(JSON.stringify({type:'audio',data:pcm16(ev.inputBuffer.getChannelData(0)),mimeType:'audio/pcm;rate=16000'}))}catch(e){}};
   source.connect(processor);processor.connect(sink);sink.connect(ctx.destination);
+  if(ctx.state==='suspended')ctx.resume();
   ws=new WebSocket(RELAY+'?'+liveParams().toString());
-  ws.onopen=function(){
-    toast('麥克風已開啟，可直接說話');
-    try{ws.send(JSON.stringify({type:'text',text:LANG_LOCK}))}catch(e){}
-  };
+  ws.onopen=function(){toast('麥克風已開啟，可直接說話');try{ws.send(JSON.stringify({type:'text',text:LANG_LOCK}))}catch(e){}};
   ws.onmessage=function(ev){
-    let msg=ev.data;
-    try{msg=JSON.parse(ev.data)}catch(e){return}
+    let msg=ev.data;try{msg=JSON.parse(ev.data)}catch(e){return}
     const spoken=readBlock(msg,'in');
     if(spoken){inText=mergeText(inText,spoken);writeUser(inText);if(!thinkT)startThink()}
-    const t=readBlock(msg,'out');
-    if(t) outText=mergeText(outText,t);
-    if(isDone(msg)){
-      stopThink();
-      const say=outText.trim();
-      if(say.length>=2){aiEl=thinkEl&&thinkEl.isConnected?thinkEl:null;writeAI(say);speakMine(say)}
-      inText='';outText='';userEl=null;aiEl=null;thinkEl=null;
-    }
+    const t=readBlock(msg,'out');if(t)outText=mergeText(outText,t);
+    if(isDone(msg)){stopThink();const say=outText.trim();if(say.length>=2){aiEl=thinkEl&&thinkEl.isConnected?thinkEl:null;writeAI(say);speakMine(say)}inText='';outText='';userEl=null;aiEl=null;thinkEl=null}
   };
   ws.onerror=()=>toast('我的聲音連線錯誤');
   ws.onclose=()=>{if(on())toast('我的聲音連線已結束')};
 }
 window.speakText=function(text){if(on()){if(text)speakMine(text);return}if(typeof originalSpeak==='function')return originalSpeak(text)};
-function addButton(){if(document.getElementById('darkStarMyVoiceButton'))return;const top=document.querySelector('.topbar');if(!top)return;const btn=document.createElement('button');btn.id='darkStarMyVoiceButton';btn.type='button';btn.title='開：要麥克風權限，暗星文字答完自動播';btn.style.cssText='margin-left:6px;border:1px solid #ddd;background:#fff;border-radius:9px;padding:7px 10px;font-size:12px;white-space:nowrap';btn.onclick=async()=>{
-  if(on()){lsSet(KEY,'0');paint();stopSpeak();stopLive();return}
-  try{
-    await unlockAudio();
-    stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
-  }catch(e){
-    toast('請允許麥克風：'+(e&&e.message||'permission'));
-    return;
-  }
-  lsSet(KEY,'1');paint();
-  if(!voiceId())toast('麥克風已允許。請到抽屆填 Voice id，才能播你的聲音');
-  try{await startLive()}catch(e){toast(e&&e.message||'開麥失敗')}
-};const home=document.getElementById('homeButton')||document.querySelector('.brand-home');if(home)home.before(btn);else top.appendChild(btn);paint()}
+function addButton(){
+  if(document.getElementById('darkStarMyVoiceButton'))return;
+  const top=document.querySelector('.topbar');if(!top)return;
+  const btn=document.createElement('button');
+  btn.id='darkStarMyVoiceButton';btn.type='button';
+  btn.title='開：同一下要麥克風權限';
+  btn.style.cssText='margin-left:6px;border:1px solid #ddd;background:#fff;border-radius:9px;padding:7px 10px;font-size:12px;white-space:nowrap';
+  btn.addEventListener('click',function(){
+    if(on()){lsSet(KEY,'0');paint();stopSpeak();stopLive();return}
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){toast('這個瀏覽器不能開麥');return}
+    const ask=navigator.mediaDevices.getUserMedia({audio:true,video:false});
+    ask.then(function(s){
+      lsSet(KEY,'1');paint();
+      unlockAudio();
+      if(!voiceId())toast('麥克風已允許。請到抽屆填 Voice id');
+      attachMic(s);
+    }).catch(function(e){
+      lsSet(KEY,'0');paint();
+      toast('請允許麥克風：'+(e&&e.message||'permission'));
+    });
+  });
+  const home=document.getElementById('homeButton')||document.querySelector('.brand-home');
+  if(home)home.before(btn);else top.appendChild(btn);
+  lsSet(KEY,'0');paint();
+}
 function init(){
   addButton();
   addDrawerSettings();
