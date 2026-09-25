@@ -7,10 +7,15 @@ const HOME='aivault-home.html';
 const VOICES=[['Kore','Kore'],['Puck','Puck'],['Charon','Charon'],['Leda','Leda'],['Gacrux','Gacrux'],['Aoede','Aoede'],['Orus','Orus'],['Zephyr','Zephyr'],['Fenrir','Fenrir'],['Achird','Achird']];
 const state={expanded:false,voice:'Kore'};
 function bindHomeBack(){const btn=document.getElementById('homeButton')||document.querySelector('.brand-home');if(btn){btn.setAttribute('href',HOME);if(!btn.dataset.homeBound){btn.dataset.homeBound='1';btn.textContent='🔙 返回 Home';btn.addEventListener('click',function(e){e.preventDefault();location.replace(HOME)})}}}
-function css(){if(document.getElementById('dsVoiceStyle'))return;const s=document.createElement('style');s.id='dsVoiceStyle';s.textContent='.dark-star-live-controls{display:flex;align-items:center;gap:4px}.dark-star-sound-button,.dark-star-live-button{height:30px;border:1px solid #dedede;border-radius:8px;background:#fff;color:#222;font-size:11px;padding:0 7px}.dark-star-voice-select{position:absolute;top:34px;right:0;width:210px;height:32px;display:none;z-index:1001}.dark-star-live-controls.expanded .dark-star-voice-select{display:block}';document.head.appendChild(s)}
+function hideDupVoice(){
+  document.querySelectorAll('#darkStarLiveButton, a, button').forEach(function(el){
+    const t=String(el.textContent||'').replace(/\s+/g,'');
+    if(el.id==='darkStarLiveButton'||t==='即時語音')el.style.display='none';
+  });
+}
+function css(){if(document.getElementById('dsVoiceStyle'))return;const s=document.createElement('style');s.id='dsVoiceStyle';s.textContent='#darkStarLiveButton{display:none!important}.dark-star-live-controls{display:flex;align-items:center;gap:4px}.dark-star-sound-button,.dark-star-live-button{height:30px;border:1px solid #dedede;border-radius:8px;background:#fff;color:#222;font-size:11px;padding:0 7px}.dark-star-voice-select{position:absolute;top:34px;right:0;width:210px;height:32px;display:none;z-index:1001}.dark-star-live-controls.expanded .dark-star-voice-select{display:block}';document.head.appendChild(s)}
 function ui(){
-  css();bindHomeBack();
-  document.querySelectorAll('#darkStarLiveButton').forEach(function(el){el.remove()});
+  css();bindHomeBack();hideDupVoice();
   if(document.getElementById('darkStarLiveControls'))return;
   const top=document.querySelector('.topbar');if(!top)return;
   const controls=document.createElement('div');controls.id='darkStarLiveControls';controls.className='dark-star-live-controls';
@@ -25,7 +30,7 @@ function ui(){
   video.after(controls);
   sound.onclick=function(){state.expanded=!state.expanded;controls.classList.toggle('expanded',state.expanded)};
 }
-function loadMyVoice(){if(document.getElementById('dsMyVoiceScript'))return;const s=document.createElement('script');s.id='dsMyVoiceScript';s.src='technical-dark-star-my-voice.js?v=18';document.head.appendChild(s)}
-function init(){ui();loadMyVoice()}
+function loadMyVoice(){if(document.getElementById('dsMyVoiceScript'))return;const s=document.createElement('script');s.id='dsMyVoiceScript';s.src='technical-dark-star-my-voice.js?v=19';document.head.appendChild(s)}
+function init(){ui();loadMyVoice();setInterval(hideDupVoice,800)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
