@@ -127,7 +127,7 @@ function ui(){
   live.onclick=()=>{location.href=LIVE_VOICE};
 }
 function loadLiveJump(){if(document.getElementById('dsLiveJump'))return;const s=document.createElement('script');s.id='dsLiveJump';s.src='technical-dark-star-live-jump.js?v=3';document.head.appendChild(s)}
-function loadMyVoice(){if(document.getElementById('dsMyVoiceScript'))return;const s=document.createElement('script');s.id='dsMyVoiceScript';s.src='technical-dark-star-my-voice.js?v=14';document.head.appendChild(s)}
+function loadMyVoice(){if(document.getElementById('dsMyVoiceScript'))return;const s=document.createElement('script');s.id='dsMyVoiceScript';s.src='technical-dark-star-my-voice.js?v=15';document.head.appendChild(s)}
 function init(){ui();bindDarkStarTextSync();bindComposerSendToLive();bindHomeBack();loadLiveJump();loadMyVoice();let tries=0;const timer=setInterval(()=>{tries++;bindHomeBack();loadLiveJump();loadMyVoice();if(favorites()||tries>=20)clearInterval(timer)},250)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
