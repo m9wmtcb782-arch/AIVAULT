@@ -93,7 +93,7 @@
         fishAudio.play().then(function () {
           const d = fishAudio.duration;
           if (d && isFinite(d) && d > 0) {
-            setTimeout(next, Math.ceil(d * 1000) + 250);
+            setTimeout(next, Math.max(0, Math.ceil(d * 1000) + 250));
           }
         }).catch(function () {
           toast("朗讀中斷，再按一次");
@@ -107,7 +107,7 @@
         speaking = false;
       });
     }
-    toast("朗讀目前頁 · " + chunks.length + " 段");
+    toast("朗讀 · " + chunks.length + " 段");
     play(0);
   }
 
@@ -146,6 +146,16 @@
   if (document.getElementById("drawer")) {
     obs.observe(document.getElementById("drawer"), { childList: true, subtree: true });
   }
+
+  window.AIVAULTFishTTS = {
+    playText: playFishText,
+    useFish: useFish,
+    stop: function () {
+      speaking = false;
+      stopFishAudio();
+      fishMode = false;
+    }
+  };
 
   document.addEventListener("click", function (ev) {
     const id = ev.target && ev.target.id;
