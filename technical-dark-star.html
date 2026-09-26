@@ -1,1 +1,42 @@
-PLACEHOLDER
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Technical Dark Star</title>
+</head>
+<body>
+<p style="font-family:sans-serif;padding:24px;color:#444">正在還原暗星…</p>
+<script>
+(async function () {
+  const sources = [
+    "https://cdn.jsdelivr.net/gh/m9wmtcb782-arch/AIVAULT@ece64b65d112fc15802b97507a886805b43ba552/technical-dark-star.html",
+    "https://raw.githubusercontent.com/m9wmtcb782-arch/AIVAULT/ece64b65d112fc15802b97507a886805b43ba552/technical-dark-star.html"
+  ];
+  let text = "";
+  let lastError = null;
+  for (const url of sources) {
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error(url + " HTTP " + res.status);
+      text = await res.text();
+      if (text && text.indexOf("createLoadingMessage") !== -1) break;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  if (!text) {
+    document.body.textContent = "暗星還原失敗：" + (lastError && lastError.message ? lastError.message : "無法載入備份");
+    return;
+  }
+  text = text.replace(
+    "function createLoadingMessage(){",
+    "function createLoadingMessage(workLocation){"
+  );
+  document.open();
+  document.write(text);
+  document.close();
+})();
+</script>
+</body>
+</html>
