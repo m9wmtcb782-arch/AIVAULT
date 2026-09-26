@@ -40,6 +40,11 @@ function bindComposerBridge(){
     send.addEventListener('click',function(){
       if(typeof window.sendMessage==='function'){
         window.sendMessage();
+      }else{
+        const inputNow=document.getElementById('composerInput');
+        if(inputNow&&String(inputNow.value||'').trim()){
+          inputNow.dispatchEvent(new Event('input',{bubbles:true}));
+        }
       }
     });
   }
