@@ -1539,6 +1539,7 @@ try{
 let attachments = [];
 let recognition = null;
 let isRecording = false;
+let voiceShouldAutoSend = false;
 
 let lastSandboxFiles = {};
 
@@ -6590,6 +6591,7 @@ if(SpeechRecognition){
         event.error
       );
 
+      voiceShouldAutoSend = false;
       stopRecording();
 
     };
@@ -6598,7 +6600,17 @@ if(SpeechRecognition){
   recognition.onend =
     ()=>{
 
+      const shouldSend = voiceShouldAutoSend;
+      voiceShouldAutoSend = false;
       stopRecording();
+
+      if(
+        shouldSend &&
+        !isSending &&
+        String(input.value || "").trim()
+      ){
+        sendMessage();
+      }
 
     };
 
@@ -6625,6 +6637,7 @@ function startRecording(){
 
   if(isRecording){
 
+    voiceShouldAutoSend = false;
     recognition.stop();
 
     return;
@@ -6634,6 +6647,7 @@ function startRecording(){
 
   try{
 
+    voiceShouldAutoSend = true;
     recognition.start();
 
   }catch(error){
