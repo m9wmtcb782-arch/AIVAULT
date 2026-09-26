@@ -41,7 +41,19 @@
     "function createLoadingMessage(workLocation){"
   );
   // AIVAULT: final live-control safety net. Inject into the restored document before document.write().
-  text = text.replace('</body>', `<script id="dsLiveVideoSafety">
+  text = text.replace('</body>', `<script id="dsMyVoiceRestored">
+(function(){
+  function load(){
+    if(document.getElementById('dsMyVoiceScriptLoader'))return;
+    var s=document.createElement('script');
+    s.id='dsMyVoiceScriptLoader';
+    s.src='https://raw.githubusercontent.com/m9wmtcb782-arch/AIVAULT/main/technical-dark-star-my-voice.js?v=myvoicefix-20260926';
+    document.head.appendChild(s);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',load);else load();
+  setTimeout(load,500);
+})();
+</script><script id="dsLiveVideoSafety">
 (function(){
   var LIVE='technical-dark-star-live-video-test.html?mode=video&v=3';
   function ensure(){
@@ -69,22 +81,6 @@
   document.open();
   document.write(text);
   document.close();
-})();
-</script>
-<script src="technical-dark-star-realtime-voice-v2.js"></script>
-<!-- AIVAULT_LOADER_MY_VOICE_V1 -->
-<script>
-(function(){
-  function load(){
-    if(document.getElementById('dsMyVoiceScriptLoader'))return;
-    if(!document.querySelector('.drawer-bottom') && !document.querySelector('.topbar'))return;
-    var s=document.createElement('script');
-    s.id='dsMyVoiceScriptLoader';
-    s.src='https://raw.githubusercontent.com/m9wmtcb782-arch/AIVAULT/main/technical-dark-star-my-voice.js?v=myvoicefix-20260926';
-    document.head.appendChild(s);
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',load);else load();
-  setTimeout(load,500);
 })();
 </script>
 </body>
