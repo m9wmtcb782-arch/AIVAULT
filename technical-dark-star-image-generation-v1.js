@@ -140,7 +140,6 @@
         saveState();
       }
 
-      renderGeneratedJPG(result);
       return result;
     } catch (error) {
       loading.remove();
