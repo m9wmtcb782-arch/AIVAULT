@@ -6,89 +6,36 @@
 <title>Technical Dark Star</title>
 </head>
 <body>
-<p style="font-family:sans-serif;padding:24px;color:#444">正在還原暗星…</p>
+<p id="restoreStatus" style="font-family:sans-serif;padding:24px;color:#444">正在連接暗星…</p>
 <script>
 (async function () {
   const sources = [
-    "https://cdn.jsdelivr.net/gh/m9wmtcb782-arch/AIVAULT@ece64b65d112fc15802b97507a886805b43ba552/technical-dark-star.html",
-    "https://raw.githubusercontent.com/m9wmtcb782-arch/AIVAULT/ece64b65d112fc15802b97507a886805b43ba552/technical-dark-star.html"
+    "https://raw.githubusercontent.com/m9wmtcb782-arch/AIVAULT/ece64b65d112fc15802b97507a886805b43ba552/technical-dark-star.html",
+    "https://cdn.jsdelivr.net/gh/m9wmtcb782-arch/AIVAULT@ece64b65d112fc15802b97507a886805b43ba552/technical-dark-star.html"
   ];
-  let text = "";
-  let lastError = null;
+  let html = "";
+  let lastError = "";
   for (const url of sources) {
     try {
       const res = await fetch(url, { cache: "no-store" });
-      if (!res.ok) throw new Error(url + " HTTP " + res.status);
-      text = await res.text();
-      if (text && text.indexOf("createLoadingMessage") !== -1) break;
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const candidate = await res.text();
+      if (candidate && candidate.includes("createLoadingMessage") && candidate.includes("Technical Dark Star")) {
+        html = candidate;
+        break;
+      }
+      throw new Error("備份內容不完整");
     } catch (err) {
-      lastError = err;
+      lastError = err && err.message ? err.message : String(err);
     }
   }
-  if (!text) {
-    document.body.textContent = "暗星還原失敗：" + (lastError && lastError.message ? lastError.message : "無法載入備份");
+  if (!html) {
+    document.getElementById("restoreStatus").textContent =
+      "暗星載入失敗：" + lastError + "。請重新整理，不要清除資料。";
     return;
   }
-  // AIVAULT: always use the current live-control implementation from main.
-  // Keep this one-pass: do not run a second replacement that can rewrite the URL we just inserted.
-  text = text.replace(/(?:https:\/\/raw\.githubusercontent\.com\/m9wmtcb782-arch\/AIVAULT\/main\/)?artifacts\/restore-live-controls\.js(?:\?v=[^"']*)?/g,
-    'https://raw.githubusercontent.com/m9wmtcb782-arch/AIVAULT/main/artifacts/restore-live-controls.js?v=livevideo-20260926');
-  text = text.replace(/(?:https:\/\/raw\.githubusercontent\.com\/m9wmtcb782-arch\/AIVAULT\/main\/)?technical-dark-star-realtime-voice-v2\.js(?:\\?v=[^"']*)?/g,
-    'https://raw.githubusercontent.com/m9wmtcb782-arch/AIVAULT/main/technical-dark-star-realtime-voice-v2.js?v=livevideo-20260926');
-
-  // AIVAULT: static live-video control in the restored page.
-  // This is deliberately inserted into the real pinned HTML before document.write(),
-  // so visibility does not depend on any later UI script.
-  text = text.replace(
-    '<a id="homeButton"',
-    '<a id="dsStaticLiveVideo" href="technical-dark-star-live-video-test.html?mode=video&v=3" aria-label="即時視訊" style="margin-left:8px;border:1px solid #dedede;background:#fff;color:#222;border-radius:8px;padding:7px 10px;text-decoration:none;font-size:12px;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap">即時視訊</a>\n\n  <a id="homeButton"',
-    1
-  );
-
-  text = text.replace(
-    "function createLoadingMessage(){",
-    "function createLoadingMessage(workLocation){"
-  );
-  // AIVAULT: final live-control safety net. Inject into the restored document before document.write().
-  text = text.replace('</body>', `<script id="dsMyVoiceRestored">
-(function(){
-  function load(){
-    if(document.getElementById('dsMyVoiceScriptLoader'))return;
-    var s=document.createElement('script');
-    s.id='dsMyVoiceScriptLoader';
-    s.src='https://raw.githubusercontent.com/m9wmtcb782-arch/AIVAULT/main/technical-dark-star-my-voice.js?v=myvoicefix-20260926';
-    document.head.appendChild(s);
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',load);else load();
-  setTimeout(load,500);
-})();
-</script><script id="dsLiveVideoSafety">
-(function(){
-  var LIVE='technical-dark-star-live-video-test.html?mode=video&v=3';
-  function ensure(){
-    var top=document.querySelector('.topbar'); if(!top) return;
-    var controls=document.getElementById('darkStarLiveControls');
-    var video=document.getElementById('darkStarLiveVideoButton');
-    if(!video){
-      video=document.createElement('a');
-      video.id='darkStarLiveVideoButton';
-      video.className='dark-star-live-button';
-      video.textContent='視訊';
-      var home=top.querySelector('.brand-home');
-      if(home) home.before(video); else top.appendChild(video);
-    }
-    video.href=LIVE;
-    video.removeAttribute('target');
-    video.style.removeProperty('display');
-    video.removeAttribute('aria-hidden');
-  }
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',ensure); else ensure();
-  setTimeout(ensure,100); setTimeout(ensure,500); setTimeout(ensure,1200);
-})();
-</script></body>`, 1);
-
   document.open();
-  document.write(text);
+  document.write(html);
   document.close();
 })();
 </script>
