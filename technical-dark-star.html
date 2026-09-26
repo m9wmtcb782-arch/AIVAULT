@@ -40,6 +40,32 @@
     "function createLoadingMessage(){",
     "function createLoadingMessage(workLocation){"
   );
+  // AIVAULT: final live-control safety net. Inject into the restored document before document.write().
+  text = text.replace('</body>', `<script id="dsLiveVideoSafety">
+(function(){
+  var LIVE='technical-dark-star-live-video-test.html?mode=video&v=3';
+  function ensure(){
+    var top=document.querySelector('.topbar'); if(!top) return;
+    var controls=document.getElementById('darkStarLiveControls');
+    var video=document.getElementById('darkStarLiveVideoButton');
+    if(!video){
+      video=document.createElement('a');
+      video.id='darkStarLiveVideoButton';
+      video.className='dark-star-live-button';
+      video.textContent='視訊';
+      var home=top.querySelector('.brand-home');
+      if(home) home.before(video); else top.appendChild(video);
+    }
+    video.href=LIVE;
+    video.removeAttribute('target');
+    video.style.removeProperty('display');
+    video.removeAttribute('aria-hidden');
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',ensure); else ensure();
+  setTimeout(ensure,100); setTimeout(ensure,500); setTimeout(ensure,1200);
+})();
+</script></body>`, 1);
+
   document.open();
   document.write(text);
   document.close();
