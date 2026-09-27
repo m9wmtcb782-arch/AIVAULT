@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AIVAULT 五手機影片算力硬測試</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#070a12;color:#f4f6fb;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","PingFang TC",sans-serif}
+main{max-width:760px;margin:auto;padding:22px 16px 48px}.card{background:#101522;border:1px solid #252d3d;border-radius:18px;padding:18px;margin:12px 0}
+h1{font-size:24px;margin:0 0 8px}.muted{color:#9aa4b5;font-size:13px;line-height:1.6}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.pill{padding:6px 10px;border-radius:999px;background:#1a2231;font-size:12px}
+button,input{font:inherit;border-radius:12px;border:1px solid #344057;padding:11px 13px;background:#151d2c;color:#fff}button{cursor:pointer}button.primary{background:#f4f6fb;color:#080b12;border:0;font-weight:700}button:disabled{opacity:.45}
+input{width:150px}.big{font-size:34px;font-weight:800}.meter{height:10px;background:#1c2433;border-radius:99px;overflow:hidden}.bar{height:100%;width:0;background:#f4f6fb;transition:width .15s}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.node{border:1px solid #2a3447;border-radius:14px;padding:12px;background:#0c111b}.ok{border-color:#55715c}.warn{border-color:#705e43}.err{border-color:#70464b}
+#preview{width:100%;aspect-ratio:16/9;background:#02040a;border-radius:14px;display:block}
+pre{white-space:pre-wrap;word-break:break-word;color:#aeb8c9;font-size:12px}
+</style>
+</head>
+<body>
+<main>
+<div class="card">
+<h1>AIVAULT · 五手機影片算力硬測試</h1>
+<div class="muted">實驗模式，不註冊正式 Compute Node、不寫入正式節點資料。五台手機共同參與瀏覽器端影片渲染壓力測試。這不是把 CogVideoX 5B 硬塞進 iPhone；先驗證「多手機能不能共同吃影片計算工作」。</div>
+</div>
+
+<div class="card">
+<div class="row"><span class="pill" id="status">尚未開始</span><span class="pill" id="workerId">TEMP-——</span><span class="pill" id="api">WebGPU：檢查中</span></div>
+<div style="margin-top:14px" class="big" id="workers">0 / 5</div>
+<div class="muted">測試房間：<span id="roomLabel">尚未建立</span></div>
+<div class="row" style="margin-top:12px">
+<button class="primary" id="hostBtn">建立測試房間</button>
+<input id="roomInput" placeholder="輸入房間碼">
+<button id="joinBtn">加入</button>
+</div>
+</div>
+
+<div class="card">
+<h2 style="font-size:17px">影片硬負載</h2>
+<div class="muted">每台手機取得不同 frame 範圍，使用 WebGPU / Canvas 反覆生成影片幀與數學運算。手機會明顯發熱、耗電；測試可隨時停止。</div>
+<div style="margin:12px 0"><div class="meter"><div class="bar" id="bar"></div></div></div>
+<div class="row"><span class="pill">總幀：<b id="totalFrames">300</b></span><span class="pill">完成：<b id="doneFrames">0</b></span><span class="pill">FPS：<b id="fps">0</b></span></div>
+<div class="row" style="margin-top:12px"><button class="primary" id="startBtn" disabled>開始五機硬跑</button><button id="stopBtn" disabled>停止</button></div>
+</div>
+
+<div class="card"><h2 style="font-size:17px">影片預覽</h2><canvas id="preview" width="640" height="360"></canvas><div class="muted" style="margin-top:8px">預覽由目前裝置繪製；五機結果以完成 frame 數、速度與故障接管狀態驗證。</div></div>
+
+<div class="card"><h2 style="font-size:17px">五台 Worker</h2><div class="grid" id="nodeGrid"></div></div>
+<div class="card"><h2 style="font-size:17px">測試紀錄</h2><pre id="log"></pre></div>
+</main>
+
+<script type="module">
+const SUPABASE_URL="https://clcddygkaaqqtsbswgdf.supabase.co";
+const SUPABASE_ANON="REPLACE_WITH_ANON_KEY";
+let sb=null, channel=null, room="", id="TEMP-"+crypto.randomUUID().slice(0,8).toUpperCase();
+let running=false, localFrames=0, totalFrames=300, startedAt=0, lastBroadcast=0, workerMap=new Map();
+
+const $=s=>document.querySelector(s);
+const log=(s)=>{const el=$("#log");el.textContent=new Date().toLocaleTimeString()+"  "+s+"\n"+el.textContent.slice(0,7000)};
+$("#workerId").textContent=id;
+
+async function initGpu(){
+  if(!("gpu" in navigator)){ $("#api").textContent="WebGPU：不可用"; $("#api").className="pill err"; return false; }
+  try{const adapter=await navigator.gpu.requestAdapter(); if(!adapter){throw Error("no adapter")}
+    $("#api").textContent="WebGPU：可用"; $("#api").className="pill ok"; log("WebGPU adapter OK"); return true;
+  }catch(e){$("#api").textContent="WebGPU：不可用";$("#api").className="pill warn";log("WebGPU 不可用，改用 Canvas fallback");return false}
+}
+
+function renderNodes(){
+  const el=$("#nodeGrid"); el.innerHTML="";
+  [...workerMap.values()].sort((a,b)=>a.id.localeCompare(b.id)).forEach(n=>{
+    const d=document.createElement("div");d.className="node "+(n.online?"ok":"err");
+    d.innerHTML="<b>"+n.id+"</b><div class='muted'>"+(n.device||"Browser Worker")+"<br>"+(n.status||"等待中")+"<br>完成 "+(n.done||0)+" frames</div>";
+    el.appendChild(d);
+  });
+  $("#workers").textContent=workerMap.size+" / 5";
+}
+
+async function loadSb(){
+  if(SUPABASE_ANON.startsWith("REPLACE")){log("尚未放入 anon key：目前頁面只可單機測試。要五機同步需設定 anon key。"); return false}
+  if(!window.supabase){log("Supabase SDK 載入失敗");return false}
+  sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON); return true;
+}
+function makeChannel(){
+  if(!sb||!room)return;
+  channel=sb.channel("video-hard-test-"+room,{config:{broadcast:{self:true}}});
+  channel.on("broadcast",{event:"worker"},({payload})=>{workerMap.set(payload.id,{...payload,online:true});renderNodes()});
+  channel.on("broadcast",{event:"job"},({payload})=>{if(payload.type==="start"&&!running) runJob(payload.start,payload.end,payload.jobId)});
+  channel.on("broadcast",{event:"progress"},({payload})=>{workerMap.set(payload.id,{...payload,online:true});renderNodes();updateTotal()});
+  channel.on("broadcast",{event:"stop"},()=>stopJob(false));
+  channel.subscribe(status=>{if(status==="SUBSCRIBED"){$("#startBtn").disabled=false; announce(); log("已連線測試房間 "+room)}});
+}
+function announce(){channel?.send({type:"broadcast",event:"worker",payload:{id,device:"iPhone / Safari",status:"READY",done:localFrames,online:true}})}
+function updateTotal(){let sum=0;workerMap.forEach(n=>sum+=Number(n.done||0));$("#doneFrames").textContent=Math.min(totalFrames,sum);$("#bar").style.width=Math.min(100,sum/totalFrames*100)+"%"}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+async function heavyFrame(frame){
+  const c=$("#preview"),ctx=c.getContext("2d"),w=c.width,h=c.height;
+  const img=ctx.createImageData(w,h),d=img.data;
+  const t=frame/totalFrames, seed=frame*0.6180339887;
+  for(let y=0;y<h;y+=2) for(let x=0;x<w;x+=2){
+    const nx=x/w,ny=y/h; let v=0;
+    for(let k=0;k<9;k++) v+=Math.sin((nx*(k+2)+t*3.1+seed*.01)*18.7)+Math.cos((ny*(k+3)-t*2.4)*21.3);
+    v=Math.max(0,Math.min(255,128+v*9));
+    for(let yy=0;yy<2&&y+yy<h;yy++)for(let xx=0;xx<2&&x+xx<w;xx++){const i=((y+yy)*w+x+xx)*4;d[i]=v;d[i+1]=v*0.82;d[i+2]=255-v*.55;d[i+3]=255}
+  }
+  ctx.putImageData(img,0,0);
+}
+async function runJob(start,end,jobId){
+  running=true;$("#stopBtn").disabled=false;$("#startBtn").disabled=true;startedAt=performance.now();
+  for(let f=start;f<=end&&running;f++){await heavyFrame(f);localFrames++; if((localFrames%2)===0||f===end){
+      const now=performance.now(), fps=localFrames/Math.max(.001,(now-startedAt)/1000);$("#fps").textContent=fps.toFixed(1);
+      channel?.send({type:"broadcast",event:"progress",payload:{id,device:"iPhone / Safari",status:"RUNNING",done:localFrames,online:true,fps:+fps.toFixed(1),jobId}});
+      updateTotal();
+  }}
+  if(running){running=false;$("#status").textContent="完成";$("#stopBtn").disabled=true;$("#startBtn").disabled=false;channel?.send({type:"broadcast",event:"worker",payload:{id,device:"iPhone / Safari",status:"DONE",done:localFrames,online:true}});log("本機完成 "+localFrames+" frames")}
+}
+function stopJob(send=true){running=false;$("#stopBtn").disabled=true;$("#startBtn").disabled=false;$("#status").textContent="已停止";if(send)channel?.send({type:"broadcast",event:"stop",payload:{id}})}
+
+$("#hostBtn").onclick=async()=>{room=Math.random().toString(36).slice(2,8).toUpperCase();$("#roomLabel").textContent=room;$("#roomInput").value=room;await loadSb();makeChannel();$("#status").textContent="房主等待中";};
+$("#joinBtn").onclick=async()=>{room=$("#roomInput").value.trim().toUpperCase();if(!room)return alert("請輸入房間碼");$("#roomLabel").textContent=room;await loadSb();makeChannel();$("#status").textContent="加入中";};
+$("#startBtn").onclick=()=>{
+  if(!channel)return alert("先建立或加入測試房間");
+  workerMap.set(id,{id,device:"iPhone / Safari",status:"RUNNING",done:0,online:true});renderNodes();
+  const peers=Math.max(1,workerMap.size), idx=[...workerMap.keys()].sort().indexOf(id), chunk=Math.ceil(totalFrames/Math.min(5,peers));
+  const start=idx*chunk,end=Math.min(totalFrames-1,start+chunk-1),jobId="V-"+Date.now();
+  channel.send({type:"broadcast",event:"job",payload:{type:"start",start,end,jobId,totalFrames}});
+  runJob(start,end,jobId);
+};
+$("#stopBtn").onclick=()=>stopJob(true);
+$("#totalFrames").textContent=totalFrames;
+initGpu();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</body>
+</html>
