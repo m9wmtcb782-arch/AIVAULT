@@ -912,13 +912,9 @@ button:disabled{
     <div class="section-title">⏱️ 影片時間（單選）</div>
 
     <div class="option-grid duration-grid" id="durationOptions">
+      <button type="button" class="option-chip" data-duration="5">5 秒</button>
       <button type="button" class="option-chip" data-duration="10">10 秒</button>
-      <button type="button" class="option-chip" data-duration="15">15 秒</button>
-      <button type="button" class="option-chip on" data-duration="30">30 秒</button>
-      <button type="button" class="option-chip" data-duration="60">60 秒</button>
-      <button type="button" class="option-chip" data-duration="90">90 秒</button>
-      <button type="button" class="option-chip" data-duration="120">120 秒</button>
-      <button type="button" class="option-chip" data-duration="180">180 秒</button>
+      <button type="button" class="option-chip on" data-duration="15">15 秒</button>
     </div>
 
 
@@ -944,7 +940,7 @@ button:disabled{
 
     <div class="info-row">
       <span class="badge red" id="selectedThemeBadge">尚未選擇主題</span>
-      <span class="badge" id="selectedDurationBadge">30 秒</span>
+      <span class="badge" id="selectedDurationBadge">15 秒</span>
     </div>
 
     <div class="actions">
@@ -1859,8 +1855,8 @@ function selectedDuration(){
     .filter(n => Number.isFinite(n) && n > 0);
   const n = Number(videoProject.duration);
   if(allowed.length && Number.isFinite(n) && allowed.includes(n)) return n;
-  if(allowed.length) return allowed.includes(30) ? 30 : allowed[0];
-  return Number.isFinite(n) && n > 0 ? n : 30;
+  if(allowed.length) return allowed.includes(15) ? 15 : allowed[0];
+  return Number.isFinite(n) && n > 0 ? n : 15;
 }
 
 function maxSecondInText(text){
@@ -3828,13 +3824,14 @@ function showVideoResultFromProject(){
   const video=$("generatedVideo");
   if(data.video_url){
     screen.classList.add("is-done");
-    screen.innerHTML="";
-    screen.appendChild(video);
+    const title=$("generationScreenTitle");
+    const text=$("generationScreenText");
+    if(title) title.textContent="影片製作完成";
+    if(text) text.textContent="影片已生成，正在直接播放。";
     video.hidden=false;
     video.src=data.video_url;
     video.load();
     video.play().catch(()=>{});
-    $("generationScreenTitle").textContent="影片製作完成";
   }else{
     screen.classList.remove("is-done");
     $("generationScreenTitle").textContent="影片製作中";
@@ -4212,7 +4209,7 @@ document.addEventListener(
 
       const defaultDuration =
         document.querySelector(
-          '[data-duration="30"]'
+          '[data-duration="15"]'
         );
 
       if(defaultDuration){
