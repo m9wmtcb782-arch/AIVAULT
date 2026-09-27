@@ -4735,6 +4735,32 @@ function hasImageAttachment(
 }
 
 
+function isJpgImageIntent(
+  text,
+  files
+){
+
+  const value =
+    String(text || "").trim();
+
+
+  if(
+    !value ||
+    isDebugIntent(value) ||
+    hasImageAttachment(files)
+  ){
+
+    return false;
+
+  }
+
+
+  return /JPG|JPEG|jpg|jpeg|點陣圖|生成圖片|產生圖片|生成一張圖|產生一張圖|生成照片|產生照片/i
+    .test(value);
+
+}
+
+
 function isDrawIntent(
   text,
   files
@@ -4746,7 +4772,8 @@ function isDrawIntent(
 
   if(
     isDebugIntent(value) ||
-    hasImageAttachment(files)
+    hasImageAttachment(files) ||
+    isJpgImageIntent(value, files)
   ){
 
     return false;
@@ -5033,6 +5060,151 @@ async function callDrawSandbox(
 
 
   return data;
+
+}
+
+
+async function makeJpgImageWithDarkStar(
+  userMessage,
+  files
+){
+
+  updateDarkStarWorkLocation(
+    "📍 AIVAULT → Image Generation → Gemini 3.1 Flash Image"
+  );
+
+
+  const response =
+    await fetch(
+      SUPABASE_URL +
+      "/functions/v1/technical-dark-star/image/generate",
+      {
+
+        method:"POST",
+
+        headers:{
+          "Content-Type":
+            "application/json"
+        },
+
+        body:
+          JSON.stringify({
+
+            prompt:
+              String(
+                userMessage || ""
+              ).trim(),
+
+            mime_type:
+              "image/jpeg",
+
+            aspect_ratio:
+              "1:1",
+
+            image_size:
+              "1K"
+
+          })
+
+      }
+    );
+
+
+  const data =
+    await response.json()
+      .catch(
+        ()=>({
+          success:false,
+          error:
+            "Image generation returned invalid JSON."
+        })
+      );
+
+
+  if(
+    !response.ok ||
+    data?.success === false
+  ){
+
+    throw new Error(
+      data?.error ||
+      data?.image_generation?.error ||
+      ("JPG 圖片生成失敗（HTTP " +
+        response.status +
+        "）")
+    );
+
+  }
+
+
+  const generated =
+    data?.image_generation ||
+    data;
+
+
+  const artifact =
+    generated?.artifact;
+
+
+  const signedUrl =
+    artifact?.signed_url ||
+    generated?.signed_url ||
+    data?.signed_url ||
+    null;
+
+
+  if(!signedUrl){
+
+    throw new Error(
+      "JPG 已收到後端回應，但沒有取得圖片 URL。"
+    );
+
+  }
+
+
+  return {
+
+    success:true,
+
+    capability:
+      "image_generation",
+
+    provider:
+      generated?.provider ||
+      "google",
+
+    model:
+      generated?.model ||
+      "gemini-3.1-flash-image",
+
+    mime_type:
+      generated?.mime_type ||
+      "image/jpeg",
+
+    artifact:
+      artifact ||
+      null,
+
+    images:[
+      {
+        name:
+          "dark-star-generated.jpg",
+
+        type:
+          "image/jpeg",
+
+        content_type:
+          "image",
+
+        url:
+          signedUrl,
+
+        preview:
+          signedUrl
+      }
+    ]
+
+  };
 
 }
 
@@ -6000,6 +6172,12 @@ async function sendMessage(){
       "[DarkStar][TASK]",
       sendId,
       {
+        jpg:
+          isJpgImageIntent(
+            text,
+            outgoingFiles
+          ),
+
         draw:
           isDrawIntent(
             text,
@@ -6019,6 +6197,10 @@ async function sendMessage(){
           ),
 
         normal:
+          !isJpgImageIntent(
+            text,
+            outgoingFiles
+          ) &&
           !isDrawIntent(
             text,
             outgoingFiles
@@ -6044,6 +6226,19 @@ async function sendMessage(){
 
 
     if(
+      isJpgImageIntent(
+        text,
+        outgoingFiles
+      )
+    ){
+
+      result =
+        await makeJpgImageWithDarkStar(
+          text,
+          outgoingFiles
+        );
+
+    }else if(
       isDrawIntent(
         text,
         outgoingFiles
