@@ -17,5 +17,79 @@ var closeVideo=function(){try{videoChannel&&videoChannel.postMessage({type:'stop
 var bindVideoToggle=function(){const b=document.getElementById('darkStarLiveVideoButton');if(!b||b.dataset.videoToggleBound)return;b.dataset.videoToggleBound='1';b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(videoOpen){closeVideo();return}videoOpen=true;paintVideo();videoWindow=window.open(LIVE_VIDEO,'aivault-dark-star-video');if(!videoWindow){location.href=LIVE_VIDEO}});paintVideo()}
 bindVideoToggle();
 }else{controls.style.removeProperty('display');controls.style.display='flex';const existingSound=document.getElementById('darkStarSoundButton');const existingSelect=document.getElementById('darkStarVoiceSelect');if(existingSelect&&existingSelect.options.length!==VOICES.length){existingSelect.innerHTML='';VOICES.forEach(([v,l])=>{const o=document.createElement('option');o.value=v;o.textContent=l;existingSelect.appendChild(o)})}const drawer=document.getElementById('drawer');const drawerBottom=drawer&&drawer.querySelector('.drawer-bottom');const existingLive=document.getElementById('darkStarLiveButton');if(drawerBottom&&existingLive&&existingLive.parentElement!==drawerBottom){existingLive.className='drawer-item';existingLive.textContent='⚙️ 設定';drawerBottom.insertBefore(existingLive,drawerBottom.firstChild)}if(drawerBottom&&existingSound&&existingSound.parentElement!==drawerBottom){existingSound.className='drawer-item';existingSound.textContent='🔊 聲音';drawerBottom.insertBefore(existingSound,(existingLive&&existingLive.parentElement===drawerBottom)?existingLive.nextSibling:drawerBottom.firstChild)}if(drawerBottom&&existingLive&&!existingLive.dataset.settingsNestedBound){existingLive.dataset.settingsNestedBound='1';existingLive.setAttribute('aria-expanded','false');existingLive.addEventListener('click',()=>{const open=existingSound&&existingSound.style.display!=='none';if(existingSound)existingSound.style.display=open?'none':'block';if(existingSelect)existingSelect.style.display='none';existingLive.setAttribute('aria-expanded',String(!open))})}if(drawerBottom&&existingSound&&existingSelect&&existingSelect.parentElement!==drawerBottom){existingSelect.className='drawer-voice-select';existingSelect.style.position='static';existingSelect.style.width='100%';existingSelect.style.height='42px';existingSelect.style.marginTop='4px';existingSelect.style.display='none';if(existingSound&&!existingSound.dataset.voiceMenuBound){existingSound.dataset.voiceMenuBound='1';existingSound.setAttribute('aria-expanded','false');existingSound.addEventListener('click',()=>{const open=existingSelect.style.display!=='none';existingSelect.style.display=open?'none':'block';existingSound.setAttribute('aria-expanded',String(!open));if(!open)existingSelect.focus()})}drawerBottom.insertBefore(existingSelect,existingSound?existingSound.nextSibling:null)}if(!document.getElementById('darkStarLiveButton')){const live=document.createElement('button');live.id='darkStarLiveButton';live.type='button';live.className='dark-star-live-button';live.textContent='⚙️ 設定';controls.appendChild(live)}['darkStarLiveVideoButton','darkStarLiveControls','darkStarFavoriteVideo'].forEach(id=>{const e=document.getElementById(id);if(e){e.style.removeProperty('display');e.removeAttribute('aria-hidden')}});const v=document.getElementById('darkStarLiveVideoButton');if(v){v.href=LIVE_VIDEO;bindVideoToggle();}const s=document.getElementById('darkStarVoiceSelect');if(s){s.value=localStorage.getItem('darkStarVoice')||s.value||'Kore';s.onchange=()=>localStorage.setItem('darkStarVoice',s.value)}const liveBtn=document.getElementById('darkStarLiveButton');if(liveBtn){liveBtn.className='drawer-item';liveBtn.textContent='⚙️ 設定';liveBtn.style.removeProperty('display');liveBtn.removeAttribute('aria-hidden')}}return true}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',restore);else restore();let n=0;const t=setInterval(()=>{if(restore()||++n>40)clearInterval(t)},250);
+/* AIVAULT_SETTINGS_PANEL_V2 */
+function ensureSettingsPanel(){
+  const drawer=document.getElementById('drawer');
+  const bottom=drawer&&drawer.querySelector('.drawer-bottom');
+  const settings=document.getElementById('darkStarLiveButton');
+  if(!bottom||!settings)return false;
+  settings.className='drawer-item';
+  settings.textContent='⚙️ 設定';
+  settings.style.removeProperty('display');
+  settings.removeAttribute('aria-hidden');
+
+  let panel=document.getElementById('darkStarSettingsPanel');
+  if(!panel){
+    panel=document.createElement('div');
+    panel.id='darkStarSettingsPanel';
+    panel.style.display='none';
+    panel.style.padding='4px 0 0';
+    panel.style.borderTop='1px solid #eee';
+    panel.style.marginTop='4px';
+    bottom.insertBefore(panel,settings.nextSibling);
+  }
+
+  const sound=document.getElementById('darkStarSoundButton');
+  const select=document.getElementById('darkStarVoiceSelect');
+  const big=document.getElementById('readabilityToggle');
+
+  if(sound){
+    sound.className='drawer-item';
+    sound.textContent='🔊 聲音';
+    sound.style.removeProperty('display');
+    sound.removeAttribute('aria-hidden');
+    if(sound.parentElement!==panel)panel.appendChild(sound);
+  }
+  if(select){
+    select.className='drawer-voice-select';
+    select.style.position='static';
+    select.style.width='100%';
+    select.style.height='42px';
+    select.style.marginTop='4px';
+    if(select.parentElement!==panel)panel.appendChild(select);
+    if(!select.dataset.settingsPanelBound){
+      select.dataset.settingsPanelBound='1';
+      select.style.display='none';
+    }
+  }
+  if(sound && !sound.dataset.settingsPanelBound){
+    sound.dataset.settingsPanelBound='1';
+    sound.addEventListener('click',()=>{
+      if(select)select.style.display=select.style.display==='none'?'block':'none';
+    },true);
+  }
+  if(big){
+    big.className='drawer-item';
+    big.style.removeProperty('display');
+    big.removeAttribute('aria-hidden');
+    big.style.marginTop='4px';
+    if(big.parentElement!==panel)panel.appendChild(big);
+  }
+
+  if(!settings.dataset.settingsPanelBound){
+    settings.dataset.settingsPanelBound='1';
+    settings.setAttribute('aria-expanded','false');
+    settings.addEventListener('click',(event)=>{
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const open=panel.style.display!=='none';
+      panel.style.display=open?'none':'block';
+      settings.setAttribute('aria-expanded',String(!open));
+      if(open && select)select.style.display='none';
+    },true);
+  }
+  return true;
+}
+
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',restore);else restore();let n=0;const t=setInterval(()=>{if(restore()){ensureSettingsPanel();}if(++n>40)clearInterval(t)},250);
 })();
