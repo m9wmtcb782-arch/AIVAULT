@@ -133,11 +133,8 @@ function ensureSettingsPanel(){
 
  if(video){
    video.className='drawer-item';
-   video.textContent='即時視訊';
    video.style.removeProperty('display');
    video.removeAttribute('aria-hidden');
-   video.removeAttribute('aria-hidden');
-   if(video.parentElement!==bottom)bottom.insertBefore(video,settings);
    if(video.parentElement!==bottom)bottom.insertBefore(video,settings);
  }
 
