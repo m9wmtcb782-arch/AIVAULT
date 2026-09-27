@@ -44,6 +44,17 @@ async function ebookLoad(){
     say('電子書已匯入教學助理，現在可以作為老師上課教材。');
   }catch(e){$('ebookStatus').textContent='教材載入失敗：'+(e.message||e);say('電子書教材載入失敗。')}
 }
+function videoIdFromUrl(u){
+  try{const x=new URL(String(u||'')); if(x.hostname.includes('youtu.be')) return {provider:'youtube',id:x.pathname.split('/').filter(Boolean)[0]||''}; if(x.hostname.includes('youtube.com')) return {provider:'youtube',id:x.searchParams.get('v')||x.pathname.split('/').filter(Boolean).pop()||''}; if(x.hostname.includes('vimeo.com')) return {provider:'vimeo',id:x.pathname.split('/').filter(Boolean).pop()||''}; return null;}catch{return null}
+}
+function renderInlineVideo(v){
+  const provider=String(v.provider||'').toLowerCase(), url=String(v.url||''), id=String(v.video_id||'');
+  const title=String(v.title||'影片');
+  if(provider==='youtube' && id) return '<div style="margin-top:8px"><b>🎬 '+E.esc(title)+'</b><div style="margin-top:6px;position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:10px;overflow:hidden"><iframe src="https://www.youtube.com/embed/'+encodeURIComponent(id)+'" title="'+E.esc(title)+'" style="width:100%;height:100%;border:0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div></div>';
+  if(provider==='vimeo' && id) return '<div style="margin-top:8px"><b>🎬 '+E.esc(title)+'</b><div style="margin-top:6px;position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:10px;overflow:hidden"><iframe src="https://player.vimeo.com/video/'+encodeURIComponent(id)+'" title="'+E.esc(title)+'" style="width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div></div>';
+  if(provider==='direct' && url) return '<div style="margin-top:8px"><b>🎬 '+E.esc(title)+'</b><video controls playsinline preload="metadata" style="width:100%;max-height:520px;background:#000;border-radius:10px" src="'+E.esc(url)+'"></video></div>';
+  return '';
+}
 async function ebookRender(pageObj){
   const p=pageObj||{};const n=Number(ebookPick(p,['page_number','page','number'])||ebookState.page||1);
   ebookState.page=n;
@@ -51,6 +62,8 @@ async function ebookRender(pageObj){
   $('ebookLessonTitle').textContent='📚 '+(ebookPick(ebookState.book,['title','name'])||'電子書教材');
   $('ebookLessonPage').textContent='第 '+n+(ebookState.total?' / '+ebookState.total:'')+' 頁';
   $('ebookLessonText').textContent=text||'本頁沒有可讀文字。';
+  const videos=Array.isArray(p?.metadata?.videos)?p.metadata.videos:[];
+  $('ebookLessonVideo').innerHTML=videos.map(renderInlineVideo).join('');
 }
 async function ebookGo(delta){
   if(!ebookState.loaded)return;
@@ -104,7 +117,24 @@ async function enter(){if(!count&&!ebookState.loaded)return say('請先上傳 PP
 function hideResearch(){researchOpen=false;researchBig=false;$('research').classList.remove('on','big')}
 function showResearch(q){q=(q||'').trim();if(!q)return;researchOpen=true;$('q').value=q;$('research').classList.add('on');$('rbody').textContent=q;say('已開啟研究。')}
 $('search').onclick=()=>showResearch($('q').value);$('rClose').onclick=hideResearch;$('rPpt').onclick=()=>{hideResearch();say('已回到 PPT。')};$('rBig').onclick=()=>{$('research').classList.toggle('big')};$('rRead').onclick=()=>{const t=$('rbody').innerText.trim();if(t)speakText(t)};
-function yid(u){try{const x=new URL(u);return x.searchParams.get('v')||x.pathname.split('/').pop()}catch{return''}}$('openV').onclick=()=>{const id=yid($('yu').value.trim());if(!id)return say('請輸入 YouTube 網址。');$('video').innerHTML='<iframe style="width:100%;aspect-ratio:16/9" src="https://www.youtube.com/embed/'+encodeURIComponent(id)+'" allowfullscreen></iframe>'};$('closeV').onclick=()=>{$('video').innerHTML=''};
+function parseVideoSource(u){
+  const s=String(u||'').trim();
+  try{const x=new URL(s); const host=x.hostname.toLowerCase();
+    if(host.includes('youtu.be')||host.includes('youtube.com')){const id=x.searchParams.get('v')||x.pathname.split('/').filter(Boolean).pop()||''; if(id)return {provider:'youtube',video_id:id,url:s,title:($('videoTitle')?.value||'').trim()};}
+    if(host.includes('vimeo.com')){const id=x.pathname.split('/').filter(Boolean).pop()||''; if(id)return {provider:'vimeo',video_id:id,url:s,title:($('videoTitle')?.value||'').trim()};}
+    if(/\.(mp4|webm|ogg|mov)(\?|#|$)/i.test(s))return {provider:'direct',video_id:'',url:s,title:($('videoTitle')?.value||'').trim()};
+  }catch{}
+  return null;
+}
+function videoHtml(v){
+  if(v.provider==='youtube')return '<iframe style="width:100%;aspect-ratio:16/9;border:0" src="https://www.youtube.com/embed/'+encodeURIComponent(v.video_id)+'" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>';
+  if(v.provider==='vimeo')return '<iframe style="width:100%;aspect-ratio:16/9;border:0" src="https://player.vimeo.com/video/'+encodeURIComponent(v.video_id)+'" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>';
+  if(v.provider==='direct')return '<video controls playsinline preload="metadata" style="width:100%;max-height:520px;background:#000" src="'+E.esc(v.url)+'"></video>';
+  return '';
+}
+$('openV').onclick=()=>{const v=parseVideoSource($('yu').value);if(!v)return say('請輸入可嵌入播放的 YouTube、Vimeo 或直接影片網址。');$('video').innerHTML=videoHtml(v);$('videoStatus').textContent='影片正在 AIVAULT 教學助理內播放。'};
+$('saveV').onclick=async()=>{const v=parseVideoSource($('yu').value);if(!v)return say('請先輸入影片網址。');if(!ebookState.loaded)return say('請先用「電子書 → 教材」載入一本電子書，才能把影片存到目前頁。');try{await ebookApi({action:'media',ebook_id:ebookState.bookId,page_number:ebookState.page,videos:[v]});$('videoStatus').textContent='已儲存到電子書第 '+ebookState.page+' 頁；影片仍可直接在 AIVAULT 內播放。';await ebookGo(0);}catch(e){$('videoStatus').textContent='影片儲存失敗：'+(e.message||e);}};
+$('closeV').onclick=()=>{$('video').innerHTML='';$('videoStatus').textContent='影片已關閉。'};
 async function detectMicrophone(){const el=$('mic');try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});stream.getTracks().forEach(t=>t.stop());el.className='mic ok';el.textContent='✅ 已偵測到麥克風';return true}catch(e){el.className='mic warn';el.textContent='⚠️ 麥克風尚未允許';return false}}
 function startRec(){if(!rec||listening)return;try{rec.start();listening=true}catch{}}
 function setup(){const S=window.SpeechRecognition||window.webkitSpeechRecognition;if(!S){voice=false;$('vs').textContent='此瀏覽器不支援語音辨識';return}rec=new S();rec.lang='zh-TW';rec.continuous=false;rec.interimResults=true;rec.onstart=()=>{listening=true;if(voice)$('vs').textContent='聲控啟用'};rec.onerror=()=>{listening=false};rec.onresult=e=>{let t='';for(let k=e.resultIndex;k<e.results.length;k++)if(e.results[k].isFinal)t+=e.results[k][0].transcript;if(t){$('tr').textContent=t}};rec.onend=()=>{listening=false;setTimeout(()=>{if(rec&&voice)startRec()},350)};$('voiceStart').onclick=()=>{voice=true;$('vs').textContent='聲控啟用';startRec()};$('voiceStop').onclick=()=>{voice=false;$('vs').textContent='聲控已取消';try{rec.stop()}catch{}};startRec()}
