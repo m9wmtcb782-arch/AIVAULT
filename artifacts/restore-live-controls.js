@@ -23,6 +23,7 @@ function ensureSettingsPanel(){
   const bottom=drawer&&drawer.querySelector('.drawer-bottom');
   const settings=document.getElementById('darkStarLiveButton');
   if(!bottom||!settings)return false;
+
   settings.className='drawer-item';
   settings.textContent='⚙️ 設定';
   settings.style.removeProperty('display');
@@ -49,11 +50,19 @@ function ensureSettingsPanel(){
     sound.style.removeProperty('display');
     sound.removeAttribute('aria-hidden');
     if(sound.parentElement!==panel)panel.appendChild(sound);
-    // 唯一聲音入口：設定面板內，不在設定外重複顯示。
-    Array.from(bottom.querySelectorAll('#darkStarSoundButton')).forEach(el=>{
-      if(el!==sound && el.parentElement!==panel) el.remove();
-    });
+    sound.onclick=function(event){
+      event.preventDefault();
+      event.stopPropagation();
+      if(select){
+        const open=select.style.display!=='none';
+        select.style.display=open?'none':'block';
+        sound.setAttribute('aria-expanded',String(!open));
+        if(!open)select.focus();
+      }
+    };
+    sound.setAttribute('aria-expanded','false');
   }
+
   if(select){
     select.className='drawer-voice-select';
     select.style.position='static';
@@ -61,17 +70,10 @@ function ensureSettingsPanel(){
     select.style.height='42px';
     select.style.marginTop='4px';
     if(select.parentElement!==panel)panel.appendChild(select);
-    if(!select.dataset.settingsPanelBound){
-      select.dataset.settingsPanelBound='1';
-      select.style.display='none';
-    }
+    select.style.display='none';
+    select.onchange=()=>localStorage.setItem('darkStarVoice',select.value);
   }
-  if(sound && !sound.dataset.settingsPanelBound){
-    sound.dataset.settingsPanelBound='1';
-    sound.addEventListener('click',()=>{
-      if(select)select.style.display=select.style.display==='none'?'block':'none';
-    },true);
-  }
+
   if(big){
     big.className='drawer-item';
     big.style.removeProperty('display');
@@ -80,18 +82,16 @@ function ensureSettingsPanel(){
     if(big.parentElement!==panel)panel.appendChild(big);
   }
 
-  if(!settings.dataset.settingsPanelBound){
-    settings.dataset.settingsPanelBound='1';
-    settings.setAttribute('aria-expanded','false');
-    settings.addEventListener('click',(event)=>{
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      const open=panel.style.display!=='none';
-      panel.style.display=open?'none':'block';
-      settings.setAttribute('aria-expanded',String(!open));
-      if(open && select)select.style.display='none';
-    },true);
-  }
+  settings.onclick=function(event){
+    event.preventDefault();
+    event.stopPropagation();
+    const open=panel.style.display!=='none';
+    panel.style.display=open?'none':'block';
+    settings.setAttribute('aria-expanded',String(!open));
+    if(open&&select)select.style.display='none';
+  };
+  settings.setAttribute('aria-expanded',panel.style.display!=='none'?'true':'false');
+
   return true;
 }
 
