@@ -5126,9 +5126,30 @@ async function makeJpgImageWithDarkStar(
     data?.success === false
   ){
 
+    const rawError =
+      data?.error ??
+      data?.image_generation?.error ??
+      ("JPG 圖片生成失敗（HTTP " +
+        response.status +
+        "）");
+
+    let readableError = "";
+
+    if (typeof rawError === "string") {
+      readableError = rawError;
+    } else {
+      try {
+        readableError =
+          rawError?.message ||
+          rawError?.error?.message ||
+          JSON.stringify(rawError);
+      } catch (error) {
+        readableError = String(rawError);
+      }
+    }
+
     throw new Error(
-      data?.error ||
-      data?.image_generation?.error ||
+      readableError ||
       ("JPG 圖片生成失敗（HTTP " +
         response.status +
         "）")
