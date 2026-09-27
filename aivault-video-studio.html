@@ -3776,11 +3776,11 @@ let imageVideoPollStartedAt=0;
 
 function setImageVideoProgress(percent,text){
   const p=Math.max(0,Math.min(100,Math.round(Number(percent)||0)));
-  $("imageVideoStatus").textContent=(text||"影片製作中")+" "+p+"%";
+  $("imageVideoStatus").textContent="已完成 "+p+"%";
   const title=$("generationScreenTitle");
   const msg=$("generationScreenText");
   if(title) title.textContent="影片製作中";
-  if(msg) msg.textContent=(text||"AI 正在製作影片")+" "+p+"%";
+  if(msg) msg.textContent=(text||"AI 正在製作影片")+"　已完成 "+p+"%";
 }
 
 async function pollImageVideoJob(jobId){
@@ -3803,7 +3803,7 @@ async function pollImageVideoJob(jobId){
       videoProject.generated_video=data;
       showVideoResultFromProject();
       $("videoResultPanel").scrollIntoView({behavior:"smooth",block:"start"});
-      $("imageVideoStatus").textContent="完成 100%";
+      $("imageVideoStatus").textContent="已完成 100%";
       setStatus("✓ 照片→影片生成完成。","ok");
       saveProject();
       return;
@@ -3827,7 +3827,7 @@ async function generateImageVideo(){
   form.append("duration",String(Number(document.querySelector("[data-image-video-duration].on")?.dataset.imageVideoDuration||5)));
   form.append("aspect_ratio",$("imageVideoAspect").value||"16:9");
   setStatus("已按下生成，正在送出影片任務……");
-  $("imageVideoStatus").textContent="送出中 0%";
+  $("imageVideoStatus").textContent="已完成 0%";
   const btn=$("generateImageVideoBtn");
   if(btn){btn.disabled=true;btn.textContent="⏳ 影片生成中…";}
   $("videoResultPanel").style.display="block";
