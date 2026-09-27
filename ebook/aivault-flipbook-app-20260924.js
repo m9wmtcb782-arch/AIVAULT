@@ -278,6 +278,14 @@
     } else {
       body += "<div>" + E.esc(page.content || "").replace(/\n/g, "<br>") + "</div>";
     }
+    const videos=Array.isArray(page.metadata&&page.metadata.videos)?page.metadata.videos:[];
+    videos.forEach(function(v){
+      const provider=String(v.provider||"").toLowerCase(), url=String(v.url||""), id=String(v.video_id||"");
+      const title=String(v.title||"本頁影音");
+      if(provider==="youtube"&&id) body+='<div style="margin-top:16px"><h3>🎬 本頁影音</h3><div style="position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:10px;overflow:hidden"><iframe src="https://www.youtube.com/embed/'+encodeURIComponent(id)+'" title="'+E.esc(title)+'" style="width:100%;height:100%;border:0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div><div style="font-size:13px;margin-top:6px">'+E.esc(title)+'</div></div>';
+      else if(provider==="vimeo"&&id) body+='<div style="margin-top:16px"><h3>🎬 本頁影音</h3><div style="position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:10px;overflow:hidden"><iframe src="https://player.vimeo.com/video/'+encodeURIComponent(id)+'" title="'+E.esc(title)+'" style="width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div><div style="font-size:13px;margin-top:6px">'+E.esc(title)+'</div></div>';
+      else if(provider==="direct"&&url) body+='<div style="margin-top:16px"><h3>🎬 本頁影音</h3><video controls playsinline preload="metadata" src="'+E.esc(url)+'" style="width:100%;max-height:520px;background:#000;border-radius:10px"></video><div style="font-size:13px;margin-top:6px">'+E.esc(title)+'</div></div>';
+    });
     el.innerHTML = "<h3>【教材原文】" + (bits ? ("　" + E.esc(bits)) : "") + "</h3>" + body;
   }
 
@@ -343,6 +351,7 @@
         chapter: page.chapter || "",
         section: page.section || "",
         title: page.title || "",
+        metadata: page.metadata || {},
         kind: "text"
       };
       state.cache.set(num, norm);
