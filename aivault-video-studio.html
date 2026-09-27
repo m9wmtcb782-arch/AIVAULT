@@ -1900,6 +1900,17 @@ function enforceSelectedDurationContent(){
   if($("narrationText")) $("narrationText").value = videoProject.narration;
   buildSecondTimeline();
   buildMillisecondKeyframes();
+
+  // 同步重建本次 5／10／15 秒提示詞，避免舊的 30／60／90／120／180 秒提示詞殘留。
+  const zh = buildLocalPrompt();
+  const en = buildEnglishPrompt();
+  videoProject.prompt_zh = zh;
+  videoProject.prompt_en = en;
+  videoProject.final_prompt = zh;
+  if($("promptZh")) $("promptZh").value = zh;
+  if($("promptEn")) $("promptEn").value = en;
+  if($("finalPrompt")) $("finalPrompt").value = zh;
+  saveProject();
 }
 
 function inferredDuration(){
@@ -2518,18 +2529,15 @@ function fallbackScript(story){
     .filter(Boolean);
   const a = names[0] || "角色A";
   const b = names[1] || names[0] || "角色B";
-  const duration = Number(videoProject.duration || 30);
+  const duration = selectedDuration();
   const multi = names.length > 1;
   const parts = [];
-  for(let start = 0; start < duration; start += 10){
-    const end = Math.min(start + 10, duration);
+  for(let sec = 1; sec <= duration; sec++){
     if(multi){
-      parts.push(`${start + 1}-${end}秒（可重疊）`);
-      parts.push(a + "：「這段先看清楚。」");
-      parts.push(b + "：「我跟著你。」");
+      parts.push(`${sec}秒 ${a}：「看清楚。」`);
+      parts.push(`${sec}秒 ${b}：「我跟著你。」`);
     }else{
-      parts.push(`${start + 1}-${end}秒`);
-      parts.push(a + "：「這十秒把話說完。」");
+      parts.push(`${sec}秒 ${a}：「繼續。」`);
     }
   }
   return parts.join("\n");
