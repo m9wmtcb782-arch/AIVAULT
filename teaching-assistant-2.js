@@ -55,7 +55,7 @@ function renderInlineVideo(v){
   if(provider==='direct' && url) return '<div style="margin-top:8px"><b>🎬 '+E.esc(title)+'</b><video controls playsinline preload="metadata" style="width:100%;max-height:520px;background:#000;border-radius:10px" src="'+E.esc(url)+'"></video></div>';
   return '';
 }
-async function ebookRender(pageObj){
+function ebookCurrentHeading(){const toc=Array.isArray(ebookState.toc)?ebookState.toc:[];let current=null;for(const x of toc){if(Number(x.page_number||1)<=Number(ebookState.page))current=x;else break;}return current;}function ebookRenderOutline(){const el=$('ebookLessonOutline');if(!el)return;const toc=Array.isArray(ebookState.toc)?ebookState.toc:[];el.replaceChildren();if(!toc.length){el.textContent='本電子書目前沒有可辨識的章節目錄。';return;}toc.forEach(x=>{const b=document.createElement('button');b.type='button';b.className='b';b.textContent=(x.level==='part'?'📕 ':x.level==='chapter'?'📘 ':x.level==='section'?'📗 ':x.level==='article'?'📄 ':'• ')+(x.title||'');b.style.display='block';b.style.width='100%';b.style.textAlign='left';b.style.margin='2px 0';b.style.paddingLeft=(x.level==='part'?6:x.level==='chapter'?18:x.level==='section'?30:x.level==='article'?42:54)+'px';b.onclick=()=>{ebookState.page=Number(x.page_number)||1;ebookGo(0)};el.appendChild(b);});}async function ebookRender(pageObj){
   const p=pageObj||{};const n=Number(ebookPick(p,['page_number','page','number'])||ebookState.page||1);
   ebookState.page=n;
   const text=String(ebookPick(p,['content','page_content','text','body','html'])||'').replace(/<[^>]+>/g,'').trim();
