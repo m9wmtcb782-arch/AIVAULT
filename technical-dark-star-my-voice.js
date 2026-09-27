@@ -22,7 +22,8 @@ function sendOfficial(text){
   const raw=String(text||'').trim();
   if(!raw||wrongLang(raw))return;
   setInput(raw);
-  if(typeof window.sendMessage==='function') window.sendMessage(); else { const send=document.getElementById('sendButton')||document.querySelector('.composer-send'); if(send)send.click(); }
+  const send=document.getElementById('sendButton')||document.querySelector('.composer-send');
+  if(send)send.click();
   hold='';
 }
 function lastAI(){const nodes=document.querySelectorAll('.message.ai .message-text, .message.assistant .message-text');const el=nodes[nodes.length-1];const t=el?String(el.innerText||'').trim():'';if(!t||/思考中|正在思考/.test(t))return '';return t}
@@ -105,7 +106,7 @@ function addDrawerSettings(){
   };
 }
 window.speakText=function(text){if(on()){if(text)speakMine(text);return}if(typeof originalSpeak==='function')return originalSpeak(text)};
-function addButton(){if(document.getElementById('darkStarMyVoiceButton'))return;const top=document.querySelector('.topbar');if(!top)return;const btn=document.createElement('button');btn.id='darkStarMyVoiceButton';btn.type='button';btn.style.cssText='margin-left:6px;border:1px solid #ddd;background:#fff;border-radius:9px;padding:7px 10px;font-size:12px;white-space:nowrap';btn.addEventListener('click',function(){if(on()){lsSet(KEY,'0');paint();stopSpeak();stopRec();return}navigator.mediaDevices.getUserMedia({audio:true,video:false}).then(function(s){stream=s;lsSet(KEY,'1');paint();unlockAudio();startRec()}).catch(function(){toast('請允許麥克風')})});const home=document.getElementById('homeButton')||document.querySelector('.brand-home');if(home)home.before(btn);else top.appendChild(btn);paint()}
+function addButton(){if(document.getElementById('darkStarMyVoiceButton'))return;const top=document.querySelector('.topbar');if(!top)return;const btn=document.createElement('button');btn.id='darkStarMyVoiceButton';btn.type='button';btn.style.cssText='margin-left:6px;border:1px solid #ddd;background:#fff;border-radius:9px;padding:7px 10px;font-size:12px;white-space:nowrap';btn.addEventListener('click',function(){if(on()){lsSet(KEY,'0');paint();stopSpeak();stopRec();return}navigator.mediaDevices.getUserMedia({audio:true,video:false}).then(function(s){stream=s;lsSet(KEY,'1');paint();unlockAudio();startRec()}).catch(function(){toast('請允許麥克風')})});const home=document.getElementById('homeButton')||document.querySelector('.brand-home');if(home)home.before(btn);else top.appendChild(btn);lsSet(KEY,'0');paint()}
 function init(){addButton();addDrawerSettings();const inner=document.getElementById('messagesInner');if(inner)new MutationObserver(watchTyped).observe(inner,{childList:true,subtree:true,characterData:true})}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
