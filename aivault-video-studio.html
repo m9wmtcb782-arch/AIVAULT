@@ -595,6 +595,9 @@ button:disabled{
  .image-video-workspace{display:grid;grid-template-columns:minmax(240px,1fr) minmax(320px,1.5fr);gap:18px;align-items:stretch;} .image-video-workspace .media-card{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fafafa;} .image-video-workspace img{width:100%;height:300px;object-fit:contain;background:#111;border-radius:10px;} .generation-screen{min-height:300px;border-radius:14px;background:#111;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;position:relative;overflow:hidden;} .generation-screen .pulse{width:74px;height:74px;border:3px solid currentColor;border-radius:50%;animation:videoPulse 1.4s infinite ease-in-out;margin-bottom:18px;} .generation-screen.is-done{justify-content:flex-start;align-items:stretch;padding:0;background:#000;} .generation-screen.is-done video{width:100%;height:100%;min-height:300px;object-fit:contain;background:#000;} @keyframes videoPulse{0%,100%{transform:scale(.75);opacity:.45}50%{transform:scale(1);opacity:1}} @media(max-width:720px){.image-video-workspace{grid-template-columns:1fr;}} .video-result{display:none;}
 .video-result.on{display:block;}
 .video-preview{width:100%;max-height:70vh;background:#000;border-radius:14px;display:block;}
+.video-player-wrap{margin-top:14px;}
+.video-player-actions{margin-top:10px;}
+.video-player-actions .secondary-btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;}
 .result-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px;}
 .result-meta div{border:1px solid var(--line);border-radius:11px;padding:10px 12px;background:#fff;}
 .result-meta strong{display:block;font-size:13px;color:var(--muted);}
@@ -1398,7 +1401,12 @@ button:disabled{
         <span id="generationScreenText">AI 正在分析圖片、建立動作與鏡頭。</span>
       </div>
     </div>
-    <video id="generatedVideo" class="video-preview" controls playsinline preload="metadata" autoplay hidden></video>
+    <div class="video-player-wrap">
+      <video id="generatedVideo" class="video-preview" controls playsinline preload="metadata" autoplay hidden></video>
+      <div class="actions video-player-actions" id="videoPlayerActions" hidden>
+        <a class="secondary-btn" id="downloadGeneratedVideoBtn" href="#" download>⬇️ 下載影片</a>
+      </div>
+    </div>
     <div class="result-meta">
       <div><strong>Provider</strong><span id="resultProvider">—</span></div>
       <div><strong>Model</strong><span id="resultModel">—</span></div>
@@ -3907,12 +3915,20 @@ function showVideoResultFromProject(){
     video.hidden=false;
     video.src=data.video_url;
     video.load();
+    const downloadBtn=$("downloadGeneratedVideoBtn");
+    const playerActions=$("videoPlayerActions");
+    if(downloadBtn){ downloadBtn.href=data.video_url; downloadBtn.download="aivault-generated-video.mp4"; }
+    if(playerActions) playerActions.hidden=false;
     video.play().catch(()=>{});
   }else{
     screen.classList.remove("is-done");
     $("generationScreenTitle").textContent="影片製作中";
     $("generationScreenText").textContent="AI 正在製作影片，完成後會直接在這個頁面播放。";
     video.hidden=true;
+    const playerActions=$("videoPlayerActions");
+    if(playerActions) playerActions.hidden=true;
+    const downloadBtn=$("downloadGeneratedVideoBtn");
+    if(downloadBtn) downloadBtn.removeAttribute("href");
   }
 }
 
