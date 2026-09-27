@@ -587,6 +587,15 @@ button:disabled{
   to{opacity:1;transform:scale(1)}
 }
 
+.video-result{display:none;}
+.video-result.on{display:block;}
+.video-preview{width:100%;max-height:70vh;background:#000;border-radius:14px;display:block;}
+.result-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px;}
+.result-meta div{border:1px solid var(--line);border-radius:11px;padding:10px 12px;background:#fff;}
+.result-meta strong{display:block;font-size:13px;color:var(--muted);}
+.result-meta span{display:block;margin-top:2px;font-weight:800;word-break:break-word;}
+@media(max-width:720px){.result-meta{grid-template-columns:1fr;}}
+
 .footer{
   padding:20px 0 10px;
   color:var(--muted);
@@ -1255,6 +1264,9 @@ button:disabled{
       <button class="primary-btn" id="generatePromptBtn" type="button">
         🎬 生成影片提示詞
       </button>
+      <button class="primary-btn" id="generateVideoBtn" type="button">
+        ▶️ 生成影片
+      </button>
     </div>
 
     <div class="prompt-box">
@@ -1357,6 +1369,20 @@ button:disabled{
     </div>
   </section>
 
+  <section class="panel video-result" id="videoResultPanel">
+    <div class="panel-title"><div><h2>🎥 生成結果</h2><p>影片完成後會在這裡預覽，並保留本次生成資訊。</p></div><span class="badge" id="videoResultStatus">尚未生成</span></div>
+    <video id="generatedVideo" class="video-preview" controls playsinline preload="metadata"></video>
+    <div class="result-meta">
+      <div><strong>Provider</strong><span id="resultProvider">—</span></div>
+      <div><strong>Model</strong><span id="resultModel">—</span></div>
+      <div><strong>秒數</strong><span id="resultDuration">—</span></div>
+      <div><strong>解析度</strong><span id="resultResolution">—</span></div>
+      <div><strong>比例</strong><span id="resultAspect">—</span></div>
+      <div><strong>Request ID</strong><span id="resultRequestId">—</span></div>
+    </div>
+    <div class="actions"><button class="secondary-btn" id="regenerateVideoBtn" type="button">↻ 重新生成</button><button class="secondary-btn" id="editPromptBtn" type="button">✎ 回到最終提示詞</button></div>
+  </section>
+
   <footer class="footer">
     暗星 Dark Star · AIVAULT Video Studio
   </footer>
@@ -1417,7 +1443,8 @@ const videoProject = {
   ai_model: "",
   ai_raw: "",
 
-  last_frames: []
+  last_frames: [],
+  generated_video: null
 };
 
 const $ = id => document.getElementById(id);
@@ -3717,6 +3744,38 @@ function switchTab(tab){
 
 }
 
+async function generateVideo(){
+  syncEditorFields();
+  syncProjectFromInputs();
+  const prompt = ($("finalPrompt").value || videoProject.final_prompt || "").trim();
+  if(!prompt){ setStatus("請先生成最終影片提示詞。","error"); return; }
+  setStatus("正在檢查免費影片 Provider……");
+  try{
+    const response = await fetch("https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/aivault-video-generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt,director_prompt:videoProject.final_prompt||prompt,duration_seconds:selectedDuration(),aspect_ratio:"16:9",resolution:"720p"})});
+    const data = await response.json().catch(()=>({}));
+    if(!response.ok || !data.success){ setStatus("影片尚未生成："+(data.error||data.message||"目前沒有可用的免費影片 Provider。"),"error"); return; }
+    videoProject.generated_video=data;
+    showVideoResultFromProject();
+    setStatus("✓ 影片生成完成。","ok");
+    $("videoResultPanel").scrollIntoView({behavior:"smooth",block:"start"});
+    saveProject();
+  }catch(error){ setStatus("影片生成請求失敗："+error.message,"error"); }
+}
+
+function showVideoResultFromProject(){
+  const data=videoProject.generated_video;
+  if(!data || !data.video_url) return;
+  $("videoResultPanel").classList.add("on");
+  $("generatedVideo").src=data.video_url;
+  $("resultProvider").textContent=data.provider||"—";
+  $("resultModel").textContent=data.model||"—";
+  $("resultDuration").textContent=(data.duration_seconds??"—")+(data.duration_seconds?" 秒":"");
+  $("resultResolution").textContent=data.resolution||"—";
+  $("resultAspect").textContent=data.aspect_ratio||"—";
+  $("resultRequestId").textContent=data.request_id||"—";
+  $("videoResultStatus").textContent="已載入";
+}
+
 function bindEvents(){
 
   $("backBtn").addEventListener(
@@ -3947,6 +4006,13 @@ function bindEvents(){
       "click",
       generatePrompt
     );
+
+  $("generateVideoBtn").addEventListener("click", generateVideo);
+  $("regenerateVideoBtn").addEventListener("click", generateVideo);
+  $("editPromptBtn").addEventListener("click", () => {
+    $("finalPrompt").scrollIntoView({behavior:"smooth",block:"center"});
+    $("finalPrompt").focus();
+  });
 
   [
     ["speakStoryBtn","storyText","🔊 播放"],
