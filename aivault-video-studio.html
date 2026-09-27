@@ -1261,7 +1261,7 @@ button:disabled{
         <img id="imageToVideoPreview" class="image-video-preview" alt="來源圖片預覽" hidden />
       </div>
       <div>
-        <div class="field full"><label for="imageVideoPrompt">動作／運鏡指令</label><textarea id="imageVideoPrompt" placeholder="例如：人物自然眨眼、頭髮被微風吹動，鏡頭緩慢向前推進，保持人物外貌與服裝一致。"></textarea></div>
+        <div class="field full"><label for="imageVideoPrompt">影片生成提示詞／動作與運鏡指令</label><textarea id="imageVideoPrompt" placeholder="例如：人物自然眨眼、頭髮被微風吹動，鏡頭緩慢向前推進，保持人物外貌與服裝一致。"></textarea></div>
         <div class="field-grid"><div class="field"><label>影片秒數</label><div class="option-row image-video-duration"><button type="button" data-image-video-duration="5" class="option-chip on">5 秒</button><button type="button" data-image-video-duration="10" class="option-chip">10 秒</button><button type="button" data-image-video-duration="15" class="option-chip">15 秒</button></div></div><div class="field"><label for="imageVideoAspect">畫面比例</label><select id="imageVideoAspect"><option value="16:9">16:9</option><option value="9:16">9:16</option><option value="1:1">1:1</option></select></div></div>
         <button class="primary-btn" id="generateImageVideoBtn" type="button">🖼️→🎬 生成影片</button>
       </div>
@@ -3771,22 +3771,98 @@ function switchTab(tab){
 
 }
 
+let imageVideoPollTimer=null;
+let imageVideoPollStartedAt=0;
+
+function setImageVideoProgress(percent,text){
+  const p=Math.max(0,Math.min(100,Math.round(Number(percent)||0)));
+  $("imageVideoStatus").textContent=(text||"影片製作中")+" "+p+"%";
+  const title=$("generationScreenTitle");
+  const msg=$("generationScreenText");
+  if(title) title.textContent="影片製作中";
+  if(msg) msg.textContent=(text||"AI 正在製作影片")+" "+p+"%";
+}
+
+async function pollImageVideoJob(jobId){
+  if(imageVideoPollTimer){clearTimeout(imageVideoPollTimer);imageVideoPollTimer=null;}
+  const elapsed=Date.now()-imageVideoPollStartedAt;
+  if(elapsed>10*60*1000){
+    $("imageVideoStatus").textContent="製作逾時";
+    setStatus("影片製作超過 10 分鐘仍未完成，請稍後再試。","error");
+    return;
+  }
+  try{
+    const response=await fetch("https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/aivault-video-generate?job_id="+encodeURIComponent(jobId));
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok||!data.success){
+      setStatus("影片進度查詢失敗："+(data.error||data.message||"未知錯誤"),"error");
+      $("imageVideoStatus").textContent="查詢失敗";
+      return;
+    }
+    if(data.video_url){
+      videoProject.generated_video=data;
+      showVideoResultFromProject();
+      $("videoResultPanel").scrollIntoView({behavior:"smooth",block:"start"});
+      $("imageVideoStatus").textContent="完成 100%";
+      setStatus("✓ 照片→影片生成完成。","ok");
+      saveProject();
+      return;
+    }
+    const p=Number(data.progress_percent ?? data.progress ?? 0);
+    setImageVideoProgress(p,data.status_text||"影片製作中");
+    imageVideoPollTimer=setTimeout(()=>pollImageVideoJob(jobId),4000);
+  }catch(error){
+    setStatus("影片進度查詢失敗："+error.message,"error");
+    $("imageVideoStatus").textContent="查詢失敗";
+  }
+}
+
 async function generateImageVideo(){
   const file=$("imageToVideoFile").files?.[0];
   if(!file){setStatus("請先選擇照片／圖像。","error");return;}
+  if(imageVideoPollTimer){clearTimeout(imageVideoPollTimer);imageVideoPollTimer=null;}
   const form=new FormData();
   form.append("image",file);
   form.append("prompt",($("imageVideoPrompt").value||"").trim());
   form.append("duration",String(Number(document.querySelector("[data-image-video-duration].on")?.dataset.imageVideoDuration||5)));
   form.append("aspect_ratio",$("imageVideoAspect").value||"16:9");
-  setStatus("正在送出照片→影片生成請求……"); $("imageVideoStatus").textContent="生成中";
+  setStatus("已按下生成，正在送出影片任務……");
+  $("imageVideoStatus").textContent="送出中 0%";
+  const btn=$("generateImageVideoBtn");
+  if(btn){btn.disabled=true;btn.textContent="⏳ 影片生成中…";}
+  $("videoResultPanel").style.display="block";
+  showVideoResultFromProject();
+  imageVideoPollStartedAt=Date.now();
   try{
     const response=await fetch("https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/aivault-video-generate",{method:"POST",body:form});
     const data=await response.json().catch(()=>({}));
-    if(!response.ok||!data.success){setStatus("照片→影片尚未生成："+(data.error||data.message||"未知錯誤"),"error");$("imageVideoStatus").textContent="失敗";return;}
-    if(data.video_url){videoProject.generated_video=data;showVideoResultFromProject();$("videoResultPanel").scrollIntoView({behavior:"smooth",block:"start"});setStatus("✓ 照片→影片生成完成。","ok");$("imageVideoStatus").textContent="完成";saveProject();}
-    else{setStatus("✓ 已送出生成任務，Provider 回傳非同步結果。","ok");$("imageVideoStatus").textContent="處理中";}
-  }catch(error){setStatus("照片→影片請求失敗："+error.message,"error");$("imageVideoStatus").textContent="失敗";}
+    if(!response.ok||!data.success){
+      setStatus("照片→影片尚未生成："+(data.error||data.message||"未知錯誤"),"error");
+      $("imageVideoStatus").textContent="失敗";
+      return;
+    }
+    if(data.video_url){
+      videoProject.generated_video=data;
+      showVideoResultFromProject();
+      $("videoResultPanel").scrollIntoView({behavior:"smooth",block:"start"});
+      setStatus("✓ 照片→影片生成完成。","ok");
+      $("imageVideoStatus").textContent="完成 100%";
+      saveProject();
+    }else if(data.job_id){
+      videoProject.generated_video=data;
+      showVideoResultFromProject();
+      setImageVideoProgress(data.progress_percent||0,"影片製作中");
+      await pollImageVideoJob(data.job_id);
+    }else{
+      setStatus("Provider 沒有回傳影片網址或任務 ID。","error");
+      $("imageVideoStatus").textContent="失敗";
+    }
+  }catch(error){
+    setStatus("照片→影片請求失敗："+error.message,"error");
+    $("imageVideoStatus").textContent="失敗";
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent="🖼️→🎬 生成影片";}
+  }
 }
 
 async function generateVideo(){
@@ -4219,7 +4295,7 @@ document.addEventListener(
         );
 
         videoProject.duration =
-          30;
+          15;
 
       }
 
