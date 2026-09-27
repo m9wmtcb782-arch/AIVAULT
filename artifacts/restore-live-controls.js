@@ -49,6 +49,10 @@ function ensureSettingsPanel(){
     sound.style.removeProperty('display');
     sound.removeAttribute('aria-hidden');
     if(sound.parentElement!==panel)panel.appendChild(sound);
+    // 唯一聲音入口：設定面板內，不在設定外重複顯示。
+    Array.from(bottom.querySelectorAll('#darkStarSoundButton')).forEach(el=>{
+      if(el!==sound && el.parentElement!==panel) el.remove();
+    });
   }
   if(select){
     select.className='drawer-voice-select';
