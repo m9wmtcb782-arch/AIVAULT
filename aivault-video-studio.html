@@ -1878,14 +1878,32 @@ function maxSecondInText(text){
   return max;
 }
 
+function trimTimeCodedContent(text, duration){
+  const max = Number(duration || 15);
+  const raw = String(text || "");
+  if(!raw) return "";
+  const lines = raw.split(/\n/);
+  return lines.filter(line => {
+    const ranges = [...line.matchAll(/(?:第\s*)?(\d{1,4})\s*秒/g)].map(m => Number(m[1]));
+    return !ranges.length || Math.min(...ranges) <= max;
+  }).join("\n").trim();
+}
+
+function enforceSelectedDurationContent(){
+  const duration = selectedDuration();
+  videoProject.duration = duration;
+  videoProject.script = trimTimeCodedContent(videoProject.script, duration);
+  videoProject.storyboard = trimTimeCodedContent(videoProject.storyboard, duration);
+  videoProject.narration = trimTimeCodedContent(videoProject.narration, duration);
+  if($("scriptText")) $("scriptText").value = videoProject.script;
+  if($("storyboardText")) $("storyboardText").value = videoProject.storyboard;
+  if($("narrationText")) $("narrationText").value = videoProject.narration;
+  buildSecondTimeline();
+  buildMillisecondKeyframes();
+}
+
 function inferredDuration(){
-  return Math.max(
-    selectedDuration(),
-    maxSecondInText(videoProject.script),
-    maxSecondInText(videoProject.storyboard),
-    maxSecondInText(videoProject.narration),
-    Number(videoProject.duration || 0)
-  );
+  return selectedDuration();
 }
 
 
@@ -2229,7 +2247,8 @@ function buildStoryRequest(){
 6. 如果主題包含動畫或日本動漫，要真的使用動畫式畫面描述。
 7. 不要因為影片很短就把故事刪成一句話。
 8. 必須根據影片秒數與語速調整內容密度。對白用角色語速、旁白用旁白語速換算字數。
-8-1. 影片長度是幾秒，故事、劇本、旁白、分鏡就要寫滿幾秒。選900秒就要寫到第900秒，禁止只寫到180秒或300秒就結束。
+8-1. 影片長度只能是 5 秒、10 秒或 15 秒，故事、劇本、旁白、分鏡與動作只能寫到目前選定秒數，禁止沿用舊的 30、60、90、120、180 秒內容。
+8-2. 分鏡必須逐秒輸出：第1秒、第2秒……直到選定的最後一秒；每一秒都必須有畫面、動作、鏡頭與必要的對白。
 9. 導演拍攝手法必須融入分鏡。
 12. 【劇本】不可空白。沒有人物對白的劇本視為失敗，必須重寫到有對白為止。
 13. 【旁白】不可空白。旁白必須依照影片秒數撰寫，長度要夠唸完整段影片。
@@ -2271,10 +2290,10 @@ ${characterLockText()}
 ${subtitleRuleText()}
 
 影片長度：
-${videoProject.duration} 秒
-必須寫滿 ${videoProject.duration} 秒。
-故事、劇本、對白、旁白、分鏡都要到第 ${videoProject.duration} 秒才結束。
-不可在第300秒提前收尾。
+${videoProject.duration} 秒（只允許 5／10／15 秒）
+必須精確寫滿 ${videoProject.duration} 秒。
+第1秒到第${videoProject.duration}秒，每一秒都必須有畫面、動作、鏡頭；不得省略任何一秒。
+禁止輸出第${videoProject.duration + 1}秒以後的內容，禁止沿用舊的長影片提示詞。
 
 語言：
 ${videoProject.language}
@@ -2592,8 +2611,8 @@ function talkCharsAllowed(seconds, pace){
 
 function buildSecondTimeline(){
 
-  videoProject.duration = inferredDuration();
-  const duration = Number(videoProject.duration || 30);
+  videoProject.duration = selectedDuration();
+  const duration = Number(videoProject.duration || 15);
 
   const blocks =
     parseSecondBlocks(videoProject.storyboard);
@@ -2905,9 +2924,10 @@ ${continuityText()}
 ${lastFrameText()}
 若有附圖，第一秒必須承接該畫面，不要重開場景，不要重述劇情。
 
-【分段時間軸】
-超過15秒的影片，每10秒為一段，不要用15秒一段。
-每一段都必須逐秒描述。
+【逐秒時間軸】
+只生成 ${videoProject.duration} 秒。
+第1秒到第${videoProject.duration}秒，每一秒都必須有獨立的畫面、動作、鏡頭與必要對白。
+不得輸出第${videoProject.duration + 1}秒以後內容，不得沿用舊的長影片提示詞。
 
 ${timelineText}
 
@@ -4059,11 +4079,9 @@ function bindEvents(){
             "on"
           );
 
-          videoProject.duration =
-            Number(
-              btn.dataset.duration
-            );
-
+          videoProject.duration = Number(btn.dataset.duration);
+          enforceSelectedDurationContent();
+          fillPromptParts();
           updateBadges();
 
           saveProject();
@@ -4289,34 +4307,16 @@ document.addEventListener(
 
     restoreProject();
 
-    syncProjectFromInputs();
-
-    updateBadges();
-
-    if(
-      !document.querySelector(
-        "[data-duration].on"
-      )
-    ){
-
-      const defaultDuration =
-        document.querySelector(
-          '[data-duration="15"]'
-        );
-
-      if(defaultDuration){
-
-        defaultDuration.classList.add(
-          "on"
-        );
-
-        videoProject.duration =
-          15;
-
-      }
-
+    if(!document.querySelector("[data-duration].on")){
+      const defaultDuration = document.querySelector('[data-duration="15"]');
+      if(defaultDuration) defaultDuration.classList.add("on");
     }
-
+    videoProject.duration = selectedDuration();
+    enforceSelectedDurationContent();
+    syncProjectFromInputs();
+    fillPromptParts();
+    renderTimeline();
+    renderKeyframes();
     updateBadges();
 
   }
