@@ -4735,6 +4735,17 @@ function hasImageAttachment(
 }
 
 
+function isExplicitSvgIntent(text){
+
+  const value = String(text || "").trim();
+
+  if(!value) return false;
+
+  return /SVG|Sandbox|沙盒|向量圖|向量圖形/i.test(value);
+
+}
+
+
 function isJpgImageIntent(
   text,
   files
@@ -4747,7 +4758,8 @@ function isJpgImageIntent(
   if(
     !value ||
     isDebugIntent(value) ||
-    hasImageAttachment(files)
+    hasImageAttachment(files) ||
+    isExplicitSvgIntent(value)
   ){
 
     return false;
@@ -6246,7 +6258,15 @@ async function sendMessage(){
     let result;
 
 
-    if(
+    if(isExplicitSvgIntent(text)){
+
+      result =
+        await makeDrawWithDarkStar(
+          text,
+          outgoingFiles
+        );
+
+    }else if(
       isJpgImageIntent(
         text,
         outgoingFiles
