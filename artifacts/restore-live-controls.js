@@ -44,6 +44,25 @@ function restore(){
    settings.className='drawer-item';
    settings.textContent='⚙️ 設定';
  }
+ let sound=document.getElementById('darkStarSoundButton');
+ if(!sound){
+   sound=document.createElement('button');
+   sound.id='darkStarSoundButton';
+   sound.type='button';
+   sound.className='drawer-item';
+   sound.textContent='🔊 聲音';
+ }
+ let select=document.getElementById('darkStarVoiceSelect');
+ if(!select){
+   select=document.createElement('select');
+   select.id='darkStarVoiceSelect';
+   select.className='drawer-voice-select';
+   VOICES.forEach(([v,l])=>{
+     const o=document.createElement('option');
+     o.value=v;o.textContent=l;select.appendChild(o);
+   });
+ }
+ select.value=localStorage.getItem('darkStarVoice')||'Kore';
  if(bottom){
    live.className='drawer-item';
    live.textContent='即時語音';
