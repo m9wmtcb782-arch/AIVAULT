@@ -3,24 +3,31 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>AIVAULT 五手機提示詞分散式圖像算力測試</title>
+<title>AIVAULT · 彈性分散式算力池硬測試</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#070a12;color:#f4f6fb;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","PingFang TC",sans-serif}
-main{max-width:780px;margin:auto;padding:22px 16px 48px}.card{background:#101522;border:1px solid #252d3d;border-radius:18px;padding:18px;margin:12px 0}
-h1{font-size:23px;margin:0 0 8px}h2{font-size:17px;margin:0 0 9px}.muted{color:#9aa4b5;font-size:13px;line-height:1.6}
+main{max-width:860px;margin:auto;padding:20px 14px 48px}.card{background:#101522;border:1px solid #252d3d;border-radius:18px;padding:17px;margin:12px 0}
+h1{font-size:22px;margin:0 0 8px}h2{font-size:16px;margin:0 0 9px}.muted{color:#9aa4b5;font-size:13px;line-height:1.6}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.pill{padding:6px 10px;border-radius:999px;background:#1a2231;font-size:12px}
-button,input,textarea{font:inherit;border-radius:12px;border:1px solid #344057;padding:11px 13px;background:#151d2c;color:#fff}button{cursor:pointer}
+button,input,textarea{font:inherit;border-radius:12px;border:1px solid #344057;padding:10px 12px;background:#151d2c;color:#fff}button{cursor:pointer}
 button.primary{background:#f4f6fb;color:#080b12;border:0;font-weight:700}button.stop{border-color:#7a4a4a}button:disabled{opacity:.4;cursor:not-allowed}
 input{width:150px}textarea{width:100%;min-height:96px;resize:vertical}.big{font-size:34px;font-weight:800}
-.meter{height:10px;background:#1c2433;border-radius:99px;overflow:hidden}.bar{height:100%;width:0;background:#f4f6fb;transition:width .2s}
+.meter{height:10px;background:#1c2433;border-radius:99px;overflow:hidden}.bar{height:100%;width:0;background:#f4f6fb;transition:width .25s}
 .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.node{border:1px solid #2a3447;border-radius:14px;padding:12px;background:#0c111b}.ok{border-color:#55715c}.warn{border-color:#705e43}.err{border-color:#70464b}
 pre{white-space:pre-wrap;word-break:break-word;color:#aeb8c9;font-size:12px}.task{border-left:3px solid #55657d;padding:10px 12px;background:#0c111b;margin:8px 0;border-radius:8px}
+.statgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.stat{background:#0c111b;border:1px solid #2a3447;border-radius:12px;padding:10px}.stat b{font-size:22px;display:block}
+@media(max-width:620px){.grid{grid-template-columns:1fr}.statgrid{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body><main>
 <div class="card">
-<h1>AIVAULT · 五手機提示詞分散式圖像算力測試</h1>
-<div class="muted">這次不是拿一張已完成圖片讓手機重算。暗星只負責理解需求與拆任務；五台手機各自執行一個生成子任務；所有子任務完成前，系統禁止合成結果。實驗不註冊正式 Compute Node。</div>
+<h1>AIVAULT · 彈性分散式算力池硬測試</h1>
+<div class="muted">新規則：<b>不等待固定數量手機。</b>第一台 Worker 上線即可開始；新 Worker 隨到隨加入；Worker 中途離線時，未完成的租約重新進入 Queue，由其他 Worker 接手。這個測試驗證的是「彈性算力池」，不是五手機湊齊測試。</div>
+<div class="row" style="margin-top:10px">
+<span class="pill">暗星：需求理解／拆任務／派工</span>
+<span class="pill">Worker：執行子任務</span>
+<span class="pill">Queue：可恢復</span>
+</div>
 </div>
 
 <div class="card">
@@ -30,79 +37,240 @@ pre{white-space:pre-wrap;word-break:break-word;color:#aeb8c9;font-size:12px}.tas
 </div>
 
 <div class="card">
-<h2>② 臨時五機房間</h2>
+<h2>② 彈性算力房間</h2>
 <div class="row"><span class="pill" id="status">尚未開始</span><span class="pill" id="wid"></span><span class="pill" id="gpu">WebGPU：檢查中</span></div>
-<div class="big" id="count">0 / 5</div>
-<div class="muted">房間：<span id="roomLabel">尚未建立</span></div>
-<div class="row" style="margin-top:12px"><button class="primary" id="hostBtn">建立測試房間</button><input id="roomInput" placeholder="房間碼"><button id="joinBtn">加入</button></div>
+<div class="big" id="count">0</div>
+<div class="muted">目前在線 Worker；<b>沒有 5 台門檻。</b>房間：<span id="roomLabel">尚未建立</span></div>
+<div class="row" style="margin-top:12px"><button class="primary" id="hostBtn">建立算力房間</button><input id="roomInput" placeholder="房間碼"><button id="joinBtn">加入算力池</button></div>
 </div>
 
 <div class="card">
-<h2>③ 暗星拆解後的派工</h2>
-<div id="tasks"><div class="muted">等待五台手機加入後，暗星才建立派工單。</div></div>
+<h2>③ 暗星拆解與 Queue</h2>
+<div class="statgrid">
+<div class="stat"><span class="muted">Queue</span><b id="queued">0</b></div>
+<div class="stat"><span class="muted">執行中</span><b id="active">0</b></div>
+<div class="stat"><span class="muted">完成</span><b id="done">0</b></div>
+<div class="stat"><span class="muted">重派</span><b id="requeued">0</b></div>
+</div>
+<div id="tasks" style="margin-top:10px"><div class="muted">建立房間後，暗星會把需求拆成可獨立執行的子任務。不是等待所有手機。</div></div>
 </div>
 
 <div class="card">
 <h2>④ 分散式生成計算</h2>
-<div class="muted">每台手機不是取得完成圖片，而是取得自己的「生成子任務」。本測試用瀏覽器端計算模擬生成子任務的實際算力消耗；正式版可把這一層替換成真正的圖像模型 Worker。</div>
+<div class="muted">本頁用瀏覽器端計算模擬 Worker 的實際工作量。正式版可將 Worker 計算器替換成真正的圖像／影片模型。每個子任務有 task_id、attempt_id、lease；只有收到有效完成回報才會結算。</div>
 <div style="margin:12px 0"><div class="meter"><div class="bar" id="bar"></div></div></div>
-<div class="row"><span class="pill">任務：<b id="total">0</b></span><span class="pill">完成：<b id="done">0</b></span><span class="pill">結果包：<b id="packets">0</b></span></div>
-<div class="row" style="margin-top:12px"><button class="primary" id="startBtn" disabled>暗星開始派工</button><button class="stop" id="stopBtn" disabled>■ 暫停／停止</button></div>
+<div class="row">
+<span class="pill">總任務：<b id="total">0</b></span>
+<span class="pill">完成：<b id="done2">0</b></span>
+<span class="pill">結果包：<b id="packets">0</b></span>
+<span class="pill">Compute Units：<b id="units">0</b></span>
+</div>
+<div class="row" style="margin-top:12px"><button class="primary" id="startBtn" disabled>暗星開始派工</button><button class="stop" id="stopBtn" disabled>■ 暫停派工</button></div>
 </div>
 
 <div class="card">
 <h2>⑤ 最終結果</h2>
-<div id="final" class="muted">五台手機全部回傳前，不允許產生最終圖片。</div>
+<div id="final" class="muted">任務全部完成後，才進入結果驗證／合成階段。Worker 中途離線不會讓整個任務永久停滯。</div>
 </div>
 
-<div class="card"><h2>五台 Worker</h2><div class="grid" id="nodeGrid"></div></div>
+<div class="card"><h2>目前 Worker</h2><div class="grid" id="nodeGrid"></div></div>
 <div class="card"><h2>測試紀錄</h2><pre id="log"></pre></div>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const SUPABASE_URL="https://clcddygkaaqqtsbswgdf.supabase.co";
-const SUPABASE_KEY="sb_publishable_1D05YGthBrNGg-5L92TLCw_GiLnInBu";
+const SUPABASE_KEY="sb_publishable_1D05YGthBrNGg-5L92TLCw_giLnInBu";
 const $=s=>document.querySelector(s);
 const id="TEMP-"+crypto.randomUUID().slice(0,8).toUpperCase();
-let sb=null,channel=null,room="",running=false,host=false,jobId="",workers=new Map(),results=new Map(),assignments=[],abortToken=0;
+let sb=null,channel=null,room="",host=false,running=false,jobId="";
+let workers=new Map(),queue=[],tasks=new Map(),results=new Map(),timer=null;
+const LEASE_MS=9000;
 $("#wid").textContent=id;
 
-function log(s){$("#log").textContent=new Date().toLocaleTimeString()+"  "+s+"\n"+$("#log").textContent.slice(0,7000)}
-function renderNodes(){const el=$("#nodeGrid");el.innerHTML="";[...workers.values()].sort((a,b)=>a.id.localeCompare(b.id)).forEach(n=>{const d=document.createElement("div");d.className="node "+(n.online?"ok":"err");d.innerHTML="<b>"+n.id+"</b><div class='muted'>"+(n.device||"Browser Worker")+"<br>"+(n.status||"WAITING")+(n.task?"<br>"+n.task:"")+(n.ms?"<br>"+n.ms+" ms":"")+"</div>";el.appendChild(d)});$("#count").textContent=workers.size+" / 5"}
-function taskPlan(){const p=$("#prompt").value.trim();const tasks=[
-["subject","主體生成：白色瑪爾濟斯的外形、姿態、毛髮與臉部細節"],
-["scene","場景生成：溫暖室內客廳、地毯、家具與空間關係"],
-["lighting","光線生成：自然光方向、陰影、曝光與整體色調"],
-["camera","攝影生成：16:9構圖、視角、景深與主體位置"],
-["detail","細節生成：毛髮紋理、眼睛高光、邊緣細節與畫面一致性"]
-];assignments=tasks.map((t,i)=>({tile:i,role:t[0],instruction:t[1],prompt:p}));$("#total").textContent=assignments.length;$("#plan").textContent="5 個子任務";$("#tasks").innerHTML=assignments.map((a,i)=>"<div class='task'><b>Worker "+(i+1)+" · "+a.role+"</b><div class='muted'>"+a.instruction+"</div></div>").join("")}
+function log(s){$("#log").textContent=new Date().toLocaleTimeString()+"  "+s+"\n"+$("#log").textContent.slice(0,8000)}
+function counts(){
+ const q=queue.filter(x=>x.status==="QUEUED").length;
+ const a=[...tasks.values()].filter(x=>x.status==="RUNNING").length;
+ const d=[...tasks.values()].filter(x=>x.status==="DONE").length;
+ const r=[...tasks.values()].reduce((n,x)=>n+(x.attempts>1?x.attempts-1:0),0);
+ $("#queued").textContent=q;$("#active").textContent=a;$("#done").textContent=d;$("#done2").textContent=d;
+ $("#requeued").textContent=r;$("#packets").textContent=results.size;
+ $("#units").textContent=d*10;
+ const total=tasks.size;$("#bar").style.width=total?(d/total*100)+"%":"0%";
+ $("#count").textContent=[...workers.values()].filter(x=>x.online).length;
+}
+function renderNodes(){
+ const el=$("#nodeGrid");el.innerHTML="";
+ [...workers.values()].sort((a,b)=>a.id.localeCompare(b.id)).forEach(n=>{
+   const d=document.createElement("div");d.className="node "+(n.online?"ok":"err");
+   d.innerHTML="<b>"+n.id+"</b><div class='muted'>"+(n.device||"Browser Worker")+"<br>"+(n.status||"READY")+(n.task?"<br>任務："+n.task:"")+(n.ms?"<br>"+n.ms+" ms":"")+"</div>";
+   el.appendChild(d);
+ });
+ counts();
+}
+function buildPlan(){
+ const p=$("#prompt").value.trim();
+ const defs=[
+  ["subject","主體：白色瑪爾濟斯外形、姿態、臉部與毛髮"],
+  ["scene","場景：室內客廳、地毯、家具與空間關係"],
+  ["lighting","光線：自然光、陰影、曝光與色調"],
+  ["camera","攝影：16:9構圖、視角、景深與主體位置"],
+  ["detail","細節：眼睛高光、毛髮紋理、邊緣與一致性"],
+  ["quality","品質：檢查提示詞條件、細節完整性與輸出一致性"]
+ ];
+ tasks.clear();queue=[];
+ defs.forEach((d,i)=>{
+   const t={task_id:"TASK-"+crypto.randomUUID().slice(0,8).toUpperCase(),tile:i,role:d[0],instruction:d[1],prompt:p,status:"QUEUED",attempts:0,worker_id:null,lease_until:0};
+   tasks.set(t.task_id,t);queue.push(t);
+ });
+ $("#plan").textContent="6 個可獨立子任務";
+ $("#total").textContent=tasks.size;
+ $("#tasks").innerHTML=[...tasks.values()].map(t=>"<div class='task'><b>"+t.role+"</b><div class='muted'>"+t.instruction+"<br><span id='ts-"+t.task_id+"'>QUEUE</span></div></div>").join("");
+ counts();
+}
+function paintTasks(){
+ tasks.forEach(t=>{
+  const el=$("#ts-"+t.task_id);if(el)el.textContent=t.status+(t.worker_id?" · "+t.worker_id:"")+(t.attempts>1?" · attempt "+t.attempts:"");
+ });
+ counts();
+}
 async function init(){if(!window.supabase){log("Supabase SDK 尚未載入");return false}sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);return true}
-function announce(){channel.send({type:"broadcast",event:"worker",payload:{id,device:"iPhone / Safari",status:"READY",online:true}})}
+function send(e,p){if(channel)channel.send({type:"broadcast",event:e,payload:p})}
+function snapshot(){
+ return {jobId,assignments:[...tasks.values()],queue:queue.map(t=>t.task_id),prompt:$("#prompt").value};
+}
 function setupChannel(){
- channel=sb.channel("prompt-image-hard-test-"+room,{config:{broadcast:{self:true}}});
- channel.on("broadcast",{event:"worker"},({payload})=>{workers.set(payload.id,{...payload,online:true});renderNodes()});
- channel.on("broadcast",{event:"plan"},({payload})=>{assignments=payload.assignments;$("#total").textContent=assignments.length;$("#plan").textContent="5 個子任務";$("#tasks").innerHTML=assignments.map((a,i)=>"<div class='task'><b>Worker "+(i+1)+" · "+a.role+"</b><div class='muted'>"+a.instruction+"</div></div>").join("")});
- channel.on("broadcast",{event:"start"},({payload})=>{if(running)return;const a=payload.assignments.find(x=>x.id===id);if(a)runWorker(a,payload.jobId)});
- channel.on("broadcast",{event:"result"},({payload})=>{if(payload.jobId!==jobId)return;results.set(payload.id,payload);workers.set(payload.id,{...payload,online:true,status:"RESULT_RETURNED"});renderNodes();$("#packets").textContent=results.size;$("#done").textContent=results.size;$("#bar").style.width=(results.size/5*100)+"%";if(host&&results.size===5){running=false;$("#stopBtn").disabled=true;$("#startBtn").disabled=false;$("#status").textContent="五機全部完成";$("#final").innerHTML="<b>所有生成子任務已完成。</b><div class='muted'>暗星收到 5 個結果包，現在才有資格進入最終合成／真正圖像模型編譯階段。</div>";log("五個 Worker 結果全部回傳；沒有使用既有圖片。")}});
- channel.on("broadcast",{event:"stop"},()=>stop(false));
- channel.subscribe(s=>{if(s==="SUBSCRIBED"){announce();$("#startBtn").disabled=workers.size<5;log("已連線測試房間 "+room)}})
+ channel=sb.channel("aivault-elastic-compute-"+room,{config:{broadcast:{self:true},presence:{key:id}}});
+ channel.on("broadcast",{event:"hello"},({payload})=>{
+   if(host){send("snapshot",{...snapshot(),to:payload.id});}
+ });
+ channel.on("broadcast",{event:"snapshot"},({payload})=>{
+   if(payload.to&&payload.to!==id)return;
+   jobId=payload.jobId||jobId;
+   if(payload.assignments){
+    tasks.clear();payload.assignments.forEach(t=>tasks.set(t.task_id,t));
+    queue=[...tasks.values()].filter(t=>t.status==="QUEUED");
+    $("#prompt").value=payload.prompt||$("#prompt").value;
+    $("#plan").textContent=tasks.size+" 個可獨立子任務";$("#total").textContent=tasks.size;paintTasks();
+   }
+ });
+ channel.on("broadcast",{event:"worker"},({payload})=>{
+   workers.set(payload.id,{...payload,online:true,last_seen:Date.now()});renderNodes();
+   if(host)send("snapshot",{...snapshot(),to:payload.id});
+ });
+ channel.on("broadcast",{event:"lease"},({payload})=>{
+   if(payload.worker_id===id&&payload.task_id){
+    const t=tasks.get(payload.task_id);if(t&&t.status==="RUNNING")runWorker(t);
+   }
+ });
+ channel.on("broadcast",{event:"result"},({payload})=>acceptResult(payload));
+ channel.on("broadcast",{event:"pause"},()=>{running=false;$("#status").textContent="已暫停派工";});
+ channel.on("broadcast",{event:"resume"},()=>{if(host)dispatch();});
+ channel.on("broadcast",{event:"requeue"},({payload})=>{
+   const t=tasks.get(payload.task_id);if(t&&t.status!=="DONE"){t.status="QUEUED";t.worker_id=null;t.lease_until=0;if(!queue.find(x=>x.task_id===t.task_id))queue.push(t);paintTasks();}
+ });
+ channel.on("presence",{event:"sync"},()=>{
+   const state=channel.presenceState();
+   Object.values(state).flat().forEach(x=>{if(x.id&&x.id!==id)workers.set(x.id,{...x,online:true,last_seen:Date.now()})});
+   renderNodes();
+ });
+ channel.subscribe(async s=>{
+   if(s==="SUBSCRIBED"){
+     await channel.track({id,device:navigator.userAgent.includes("iPhone")?"iPhone / Safari":"Browser Worker",status:"READY",online:true});
+     send("hello",{id});
+     $("#status").textContent=host?"等待 Worker 加入":"已加入算力池";
+     log("已連線房間 "+room+"；先到先做，無固定節點門檻");
+     if(host){buildPlan();$("#startBtn").disabled=false;}
+   }
+ });
 }
-async function computeTask(a,token){
- const text=a.prompt+"|"+a.role+"|"+a.instruction;let hash=2166136261>>>0;
- for(let r=0;r<180&&token===abortToken;r++){for(let i=0;i<text.length;i++){hash^=text.charCodeAt(i);hash=Math.imul(hash,16777619)>>>0}for(let k=0;k<18000;k++){hash^=(hash<<13)>>>0;hash^=hash>>>17;hash^=(hash<<5)>>>0;hash>>>0;if((k&4095)===0)await new Promise(requestAnimationFrame)}}
- return {hash,role:a.role,instruction:a.instruction,device:id}
+function availableWorker(){
+ return [...workers.values()].find(w=>w.online&&w.id!==id&&(!w.task||w.status!=="RUNNING")) || (workers.get(id)?.online?workers.get(id):null);
 }
-async function runWorker(a,jid){
- running=true;jobId=jid;const token=++abortToken;$("#status").textContent="執行："+a.role;$("#stopBtn").disabled=false;const t=performance.now();workers.set(id,{id,device:"iPhone / Safari",status:"RUNNING",task:a.role,online:true});renderNodes();
- const data=await computeTask(a,token);if(token!==abortToken)return;
- const ms=Math.round(performance.now()-t);const payload={id,device:"iPhone / Safari",status:"DONE",task:a.role,role:a.role,instruction:a.instruction,ms,hash:data.hash,jobId:jid,online:true};channel.send({type:"broadcast",event:"result",payload});workers.set(id,{...payload});renderNodes();if(!host){running=false;$("#stopBtn").disabled=true;$("#status").textContent="子任務完成";log("完成："+a.role+" · "+ms+" ms")}
+function assignOne(){
+ if(!running||!host)return;
+ const w=availableWorker();const t=queue.find(x=>x.status==="QUEUED");
+ if(!w||!t)return false;
+ t.status="RUNNING";t.worker_id=w.id;t.attempts=(t.attempts||0)+1;t.lease_until=Date.now()+LEASE_MS;
+ workers.set(w.id,{...w,status:"RUNNING",task:t.role,last_seen:Date.now()});
+ send("lease",{task_id:t.task_id,worker_id:w.id,attempt:t.attempts,jobId});
+ paintTasks();renderNodes();
+ if(w.id===id)runWorker(t);
+ return true;
 }
-function stop(send=true){abortToken++;running=false;$("#stopBtn").disabled=true;$("#startBtn").disabled=false;$("#status").textContent="已暫停／停止";if(send&&channel)channel.send({type:"broadcast",event:"stop",payload:{jobId}});log("測試已停止，未完成的 Worker 不得繼續派工")}
-$("#hostBtn").onclick=async()=>{host=true;room=Math.random().toString(36).slice(2,8).toUpperCase();$("#roomLabel").textContent=room;$("#roomInput").value=room;await init();setupChannel();$("#status").textContent="房主等待五機";log("暗星建立臨時計算房間 "+room)};
-$("#joinBtn").onclick=async()=>{host=false;room=$("#roomInput").value.trim().toUpperCase();if(!room)return alert("請輸入房間碼");$("#roomLabel").textContent=room;await init();setupChannel();$("#status").textContent="加入中";};
-$("#startBtn").onclick=()=>{if(!host)return alert("只有暗星房主負責派工");if(workers.size<5)return alert("必須先看到 5 台 Worker");taskPlan();results.clear();$("#done").textContent="0";$("#packets").textContent="0";$("#bar").style.width="0%";jobId="IMG-"+Date.now();const ids=[...workers.keys()].sort();assignments.forEach((a,i)=>a.id=ids[i]);channel.send({type:"broadcast",event:"plan",payload:{assignments,prompt:$("#prompt").value}});channel.send({type:"broadcast",event:"start",payload:{assignments,jobId}});runWorker(assignments.find(a=>a.id===id),jobId);$("#status").textContent="暗星派工中";$("#stopBtn").disabled=false;log("暗星完成提示詞拆解，開始五機分散式生成")};
-$("#stopBtn").onclick=()=>stop(true);
-$("#prompt").addEventListener("input",()=>{$("#plan").textContent="提示詞已修改，等待暗星重新拆解"});
-if("gpu" in navigator){navigator.gpu.requestAdapter().then(a=>{$("#gpu").textContent=a?"WebGPU：可用":"WebGPU：不可用";$("#gpu").className="pill "+(a?"ok":"warn")}).catch(()=>{$("#gpu").textContent="WebGPU：不可用";$("#gpu").className="pill warn"})}else{$("#gpu").textContent="WebGPU：不可用";$("#gpu").className="pill warn"}
-</script></body></html>
+function dispatch(){
+ if(!host||!running)return;
+ let guard=50,changed=false;
+ while(guard--&&assignOne())changed=true;
+ if(changed)log("Coordinator：按照目前在線算力立即派工，不等待固定手機數量");
+}
+function watchdog(){
+ if(!host||!running)return;
+ const now=Date.now();
+ tasks.forEach(t=>{
+   if(t.status==="RUNNING"&&t.lease_until<now){
+     log("租約逾時："+t.task_id+"；重新放回 Queue");
+     t.status="QUEUED";t.worker_id=null;t.lease_until=0;
+     if(!queue.find(x=>x.task_id===t.task_id))queue.push(t);
+     send("requeue",{task_id:t.task_id,reason:"LEASE_TIMEOUT"});
+   }
+ });
+ dispatch();paintTasks();
+ if(tasks.size&&[...tasks.values()].every(t=>t.status==="DONE")){
+   running=false;clearInterval(timer);$("#stopBtn").disabled=true;$("#startBtn").disabled=false;
+   $("#status").textContent="全部完成";
+   $("#final").innerHTML="<b>所有子任務完成。</b><div class='muted'>任何單一 Worker 都可以中途離線；未完成租約會重新派送。已完成任務不會因其他 Worker 離線而重做或重複計價。</div>";
+   log("Job "+jobId+" 完成；Compute Units = "+(tasks.size*10));
+ }
+}
+async function runWorker(t){
+ const started=performance.now(),token=t.task_id+":"+t.attempts;
+ workers.set(id,{id,device:"Browser Worker",status:"RUNNING",task:t.role,online:true,last_seen:Date.now()});renderNodes();
+ let hash=2166136261>>>0,text=t.prompt+"|"+t.role+"|"+t.instruction;
+ for(let r=0;r<120;r++){
+   for(let i=0;i<text.length;i++){hash^=text.charCodeAt(i);hash=Math.imul(hash,16777619)>>>0}
+   for(let k=0;k<15000;k++){hash^=(hash<<13)>>>0;hash^=hash>>>17;hash^=(hash<<5)>>>0;hash>>>=0}
+   await new Promise(requestAnimationFrame);
+ }
+ const ms=Math.round(performance.now()-started);
+ send("result",{task_id:t.task_id,worker_id:id,attempt:t.attempts,jobId,status:"DONE",role:t.role,hash,ms,compute_units:10});
+ workers.set(id,{id,device:"Browser Worker",status:"READY",online:true,last_seen:Date.now()});renderNodes();
+}
+function acceptResult(p){
+ if(p.jobId!==jobId)return;
+ const t=tasks.get(p.task_id);if(!t||t.status==="DONE")return;
+ if(p.attempt!==t.attempts||p.worker_id!==t.worker_id)return;
+ t.status="DONE";t.worker_id=p.worker_id;t.lease_until=0;
+ queue=queue.filter(x=>x.task_id!==t.task_id);
+ results.set(t.task_id,p);
+ workers.set(p.worker_id,{id:p.worker_id,device:"Browser Worker",status:"READY",task:null,online:true,last_seen:Date.now(),ms:p.ms});
+ log("完成 "+t.role+" · "+p.worker_id+" · "+p.ms+" ms · +10 CU");
+ paintTasks();renderNodes();dispatch();
+}
+function stop(){
+ running=false;$("#stopBtn").disabled=true;$("#startBtn").disabled=false;$("#status").textContent="已暫停派工";
+ send("pause",{jobId});log("已停止新增派工；已完成結果保留，Queue 不會消失");
+}
+$("#hostBtn").onclick=async()=>{
+ host=true;room=Math.random().toString(36).slice(2,8).toUpperCase();$("#roomLabel").textContent=room;$("#roomInput").value=room;
+ if(await init())setupChannel();
+};
+$("#joinBtn").onclick=async()=>{
+ host=false;room=$("#roomInput").value.trim().toUpperCase();if(!room)return alert("請輸入房間碼");
+ $("#roomLabel").textContent=room;if(await init())setupChannel();
+};
+$("#startBtn").onclick=()=>{
+ if(!host)return alert("暗星房主負責 Coordinator 派工");
+ if(!tasks.size)buildPlan();
+ jobId="JOB-"+Date.now();tasks.forEach(t=>{t.status="QUEUED";t.worker_id=null;t.lease_until=0;t.attempts=0});
+ queue=[...tasks.values()];results.clear();running=true;$("#status").textContent="彈性派工中";$("#stopBtn").disabled=false;
+ send("snapshot",{...snapshot()});log("暗星開始 Job："+jobId+"；第一個可用 Worker 立即取得任務");
+ dispatch();if(!timer)timer=setInterval(watchdog,1000);watchdog();
+};
+$("#stopBtn").onclick=stop;
+$("#prompt").addEventListener("input",()=>$("#plan").textContent="提示詞已修改，按開始後暗星重新拆解");
+if(navigator.gpu){navigator.gpu.requestAdapter().then(a=>{$("#gpu").textContent=a?"WebGPU：可用":"WebGPU：不可用";$("#gpu").className="pill "+(a?"ok":"warn")}).catch(()=>{$("#gpu").textContent="WebGPU：不可用";$("#gpu").className="pill warn"})}
+else{$("#gpu").textContent="WebGPU：不可用";$("#gpu").className="pill warn"}
+</script>
+</body></html>
