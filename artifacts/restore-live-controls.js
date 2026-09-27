@@ -142,7 +142,7 @@ function ensureSettingsPanel(){
    video.textContent='即時視訊';
    video.style.removeProperty('display');
    video.removeAttribute('aria-hidden');
-   if(video.parentElement!==panel)panel.appendChild(video);
+   if(video.parentElement!==bottom)bottom.insertBefore(video,settings);
    const controls=document.getElementById('darkStarLiveControls');
    if(controls)controls.style.display='none';
  }
