@@ -144,8 +144,8 @@ function ensureSettingsPanel(){
    select.style.width='100%';
    select.style.height='42px';
    select.style.marginTop='4px';
-   select.style.display='none';
    if(select.parentElement!==panel)panel.appendChild(select);
+   if(!select.dataset.settingsInitialized){select.style.display='none';select.dataset.settingsInitialized='1';}
    select.onchange=()=>localStorage.setItem('darkStarVoice',select.value);
  }
  if(big){
