@@ -756,6 +756,93 @@ button:disabled{
   </section>
 
   <!-- 專案設定 -->
+  <!-- 新版 Imagine 式快速生成區：只新增於最上方；下方舊提示詞製作區完整保留、不改動。 -->
+  <section class="panel" id="imagineQuickStudio">
+    <div class="panel-title">
+      <div>
+        <h2>✨ AIVAULT Imagine｜快速生成影片</h2>
+        <p>簡單輸入提示詞，或放入一張圖片；這個新版入口獨立運作，不會改變下面原有的專業提示詞工作流。</p>
+      </div>
+      <span class="badge red">新版</span>
+    </div>
+
+    <div class="workspace-tabs">
+      <button type="button" class="tab-btn on" data-imagine-tab="text">✍️ 文字→影片</button>
+      <button type="button" class="tab-btn" data-imagine-tab="image">🖼️ 圖片→影片</button>
+    </div>
+
+    <div id="imagineTextPanel" class="tab-content on">
+      <div class="field full">
+        <label for="imagineTextPrompt">你想生成什麼影片？</label>
+        <textarea id="imagineTextPrompt" placeholder="例如：雨夜的台北街頭，一名女子撐傘慢慢走過霓虹燈，鏡頭平穩跟拍，電影感。"></textarea>
+      </div>
+      <div class="field-grid">
+        <div class="field">
+          <label>影片秒數</label>
+          <div class="option-grid duration-grid" id="imagineTextDuration">
+            <button type="button" class="option-chip on" data-imagine-text-duration="5">5 秒</button>
+            <button type="button" class="option-chip" data-imagine-text-duration="10">10 秒</button>
+            <button type="button" class="option-chip" data-imagine-text-duration="15">15 秒</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="imagineTextAspect">畫面比例</label>
+          <select id="imagineTextAspect">
+            <option value="16:9">16:9</option>
+            <option value="9:16">9:16</option>
+            <option value="1:1">1:1</option>
+          </select>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="primary-btn" id="generateImagineTextBtn" type="button">✦ 生成影片</button>
+      </div>
+    </div>
+
+    <div id="imagineImagePanel" class="tab-content">
+      <div class="image-video-grid">
+        <div>
+          <label class="upload-drop" for="imageToVideoFile" id="imageToVideoDrop">
+            <input id="imageToVideoFile" type="file" accept="image/jpeg,image/png,image/webp" hidden />
+            <strong>＋ 選擇照片／圖像</strong>
+            <span>JPG / PNG / WebP，最大 12 MB</span>
+          </label>
+          <img id="imageToVideoPreview" class="image-video-preview" alt="來源圖片預覽" hidden />
+        </div>
+        <div>
+          <div class="field full">
+            <label for="imageVideoPrompt">圖片要怎麼動？</label>
+            <textarea id="imageVideoPrompt" placeholder="例如：人物自然眨眼、頭髮被微風吹動，鏡頭緩慢向前推進。"></textarea>
+          </div>
+          <div class="field-grid">
+            <div class="field">
+              <label>影片秒數</label>
+              <div class="option-grid duration-grid image-video-duration">
+                <button type="button" data-image-video-duration="5" class="option-chip on">5 秒</button>
+                <button type="button" data-image-video-duration="10" class="option-chip">10 秒</button>
+                <button type="button" data-image-video-duration="15" class="option-chip">15 秒</button>
+              </div>
+            </div>
+            <div class="field">
+              <label for="imageVideoAspect">畫面比例</label>
+              <select id="imageVideoAspect">
+                <option value="16:9">16:9</option>
+                <option value="9:16">9:16</option>
+                <option value="1:1">1:1</option>
+              </select>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="primary-btn" id="generateImageVideoBtn" type="button">🖼️→🎬 生成影片</button>
+          </div>
+          <div class="info-row">
+            <span class="badge" id="imageVideoStatus">尚未選擇圖片</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section class="panel">
     <div class="panel-title">
       <div>
@@ -1256,20 +1343,6 @@ button:disabled{
     </div>
   </section>
 
-  <section class="panel">
-    <div class="panel-title"><div><h2>🖼️→🎬 照片／圖像生成影片</h2><p>上傳一張圖片，讓 AI 依照圖片主體、構圖與環境生成動態影片。</p></div><span class="badge" id="imageVideoStatus">尚未選擇圖片</span></div>
-    <div class="image-video-grid">
-      <div>
-        <label class="upload-drop" for="imageToVideoFile" id="imageToVideoDrop"><input id="imageToVideoFile" type="file" accept="image/jpeg,image/png,image/webp" hidden /><strong>＋ 選擇照片／圖像</strong><span>JPG / PNG / WebP，最大 12 MB</span></label>
-        <img id="imageToVideoPreview" class="image-video-preview" alt="來源圖片預覽" hidden />
-      </div>
-      <div>
-        <div class="field full"><label for="imageVideoPrompt">影片生成提示詞／動作與運鏡指令</label><textarea id="imageVideoPrompt" placeholder="例如：人物自然眨眼、頭髮被微風吹動，鏡頭緩慢向前推進，保持人物外貌與服裝一致。"></textarea></div>
-        <div class="field-grid"><div class="field"><label>影片秒數</label><div class="option-row image-video-duration"><button type="button" data-image-video-duration="5" class="option-chip on">5 秒</button><button type="button" data-image-video-duration="10" class="option-chip">10 秒</button><button type="button" data-image-video-duration="15" class="option-chip">15 秒</button></div></div><div class="field"><label for="imageVideoAspect">畫面比例</label><select id="imageVideoAspect"><option value="16:9">16:9</option><option value="9:16">9:16</option><option value="1:1">1:1</option></select></div></div>
-        <button class="primary-btn" id="generateImageVideoBtn" type="button">🖼️→🎬 生成影片</button>
-      </div>
-    </div>
-  </section>
 
   <section class="panel">
     <div class="panel-title">
@@ -3901,6 +3974,28 @@ async function generateImageVideo(){
   }
 }
 
+async function generateImagineTextVideo(){
+  const prompt=($("imagineTextPrompt").value||"").trim();
+  if(!prompt){setStatus("請先輸入影片描述。","error");return;}
+  const duration=Number(document.querySelector("[data-imagine-text-duration].on")?.dataset.imagineTextDuration||5);
+  const aspect=$("imagineTextAspect").value||"16:9";
+  const btn=$("generateImagineTextBtn");
+  if(btn){btn.disabled=true;btn.textContent="⏳ 影片生成中…";}
+  setStatus("正在生成影片……");
+  try{
+    const response=await fetch("https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/aivault-video-generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt,director_prompt:prompt,duration_seconds:duration,aspect_ratio:aspect,resolution:"720p"})});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok||!data.success){setStatus("文字→影片尚未生成："+(data.error||data.message||"目前沒有可用的免費影片 Provider。"),"error");return;}
+    videoProject.generated_video=data;
+    showVideoResultFromProject();
+    if($("videoResultPanel")) $("videoResultPanel").scrollIntoView({behavior:"smooth",block:"start"});
+    setStatus(data.video_url?"✓ 文字→影片生成完成。":"✓ 影片任務已送出，正在製作。",data.video_url?"ok":"");
+    if(data.job_id) await pollImageVideoJob(data.job_id);
+    saveProject();
+  }catch(error){setStatus("文字→影片請求失敗："+error.message,"error");}
+  finally{if(btn){btn.disabled=false;btn.textContent="✦ 生成影片";}}
+}
+
 async function generateVideo(){
   syncEditorFields();
   syncProjectFromInputs();
@@ -4191,6 +4286,17 @@ function bindEvents(){
 
   $("generateVideoBtn").addEventListener("click", generateVideo);
   $("generateImageVideoBtn").addEventListener("click", generateImageVideo);
+  $("generateImagineTextBtn").addEventListener("click", generateImagineTextVideo);
+  document.querySelectorAll("[data-imagine-tab]").forEach(btn=>btn.addEventListener("click",()=>{
+    document.querySelectorAll("[data-imagine-tab]").forEach(b=>b.classList.remove("on"));
+    btn.classList.add("on");
+    $("imagineTextPanel").classList.toggle("on",btn.dataset.imagineTab==="text");
+    $("imagineImagePanel").classList.toggle("on",btn.dataset.imagineTab==="image");
+  }));
+  document.querySelectorAll("[data-imagine-text-duration]").forEach(btn=>btn.addEventListener("click",()=>{
+    document.querySelectorAll("[data-imagine-text-duration]").forEach(b=>b.classList.remove("on"));
+    btn.classList.add("on");
+  }));
   $("imageToVideoFile").addEventListener("change",()=>{
     const file=$("imageToVideoFile").files?.[0]; if(!file)return;
     $("imageVideoStatus").textContent=file.name;
