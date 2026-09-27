@@ -6372,9 +6372,60 @@ async function sendMessage(){
     loading.remove();
 
 
+    let readableError = "";
+
+    try{
+
+      const rawError =
+        error?.message ??
+        error?.error ??
+        error;
+
+      if(
+        typeof rawError ===
+          "string"
+      ){
+
+        readableError =
+          rawError;
+
+      }else if(
+        rawError &&
+        typeof rawError ===
+          "object"
+      ){
+
+        readableError =
+          rawError.message ||
+          rawError.error?.message ||
+          JSON.stringify(
+            rawError
+          );
+
+      }else{
+
+        readableError =
+          String(
+            rawError
+          );
+
+      }
+
+    }catch(serializationError){
+
+      readableError =
+        String(
+          error
+        );
+
+    }
+
     const errorText =
       "Technical Dark Star 無法取得 AIVAULT 的真實回應。\n\n" +
-      error.message;
+      (
+        readableError ||
+        "未知錯誤"
+      );
 
 
     console.error(
