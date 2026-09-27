@@ -80,8 +80,8 @@ async function exportTeachingToEbook(){
     parts=[($('ebookLessonTitle').textContent||'電子書教材'),($('ebookLessonText').innerText||'')].join('\n');
   }
   const teacherNotes=($('ebookExportText')?.value||'').trim();
-  if(teacherNotes) parts.push('【老師課堂補充】\\n'+teacherNotes);
-  const content=parts.join('\\n\\n');
+  if(teacherNotes) parts.push('【老師課堂補充】\n'+teacherNotes);
+  const content=parts.join('\n\n');
   if(!content.trim()){say('目前沒有可轉換的教學內容。請先載入 PPT 或電子書教材。');return}
   $('ebookStatus').textContent='正在把教學教材建立成電子書…';
   try{
