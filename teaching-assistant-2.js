@@ -95,6 +95,8 @@ async function exportTeachingToEbook(){
   const teacherNotes=($('ebookExportText')?.value||'').trim();
   if(teacherNotes) parts.push('【老師課堂補充】\n'+teacherNotes);
   const content=parts.join('\n\n');
+  const exportVideo=parseVideoSource($('yu')?.value||'');
+  if(exportVideo) ebookState.pendingVideo=exportVideo;
   if(!content.trim()){say('目前沒有可轉換的教學內容。請先載入 PPT 或電子書教材。');return}
   $('ebookStatus').textContent='正在把教學教材建立成電子書…';
   try{
@@ -106,6 +108,10 @@ async function exportTeachingToEbook(){
     const done=await ebookApi({action:'finalize',job_id:jobId,page_chars:900});
     const dp=ebookPick(done,['data'])||done;
     const newId=ebookPick(dp,['ebook_id']);
+    if(newId&&ebookState.pendingVideo){
+      await ebookApi({action:'media',ebook_id:newId,page_number:1,videos:[ebookState.pendingVideo]});
+      ebookState.pendingVideo=null;
+    }
     $('ebookStatus').textContent='已轉換成電子書：'+title+(newId?'（已存入 AIVAULT 書架）':'');
     say('教學教材已轉換成電子書並存入 AIVAULT。');
     await ebookRefresh();
@@ -133,7 +139,7 @@ function videoHtml(v){
   return '';
 }
 $('openV').onclick=()=>{const v=parseVideoSource($('yu').value);if(!v)return say('請輸入可嵌入播放的 YouTube、Vimeo 或直接影片網址。');$('video').innerHTML=videoHtml(v);$('videoStatus').textContent='影片正在 AIVAULT 教學助理內播放。'};
-$('saveV').onclick=async()=>{const v=parseVideoSource($('yu').value);if(!v)return say('請先輸入影片網址。');if(!ebookState.loaded)return say('請先用「電子書 → 教材」載入一本電子書，才能把影片存到目前頁。');try{await ebookApi({action:'media',ebook_id:ebookState.bookId,page_number:ebookState.page,videos:[v]});$('videoStatus').textContent='已儲存到電子書第 '+ebookState.page+' 頁；影片仍可直接在 AIVAULT 內播放。';await ebookGo(0);}catch(e){$('videoStatus').textContent='影片儲存失敗：'+(e.message||e);}};
+$('saveV').onclick=async()=>{const v=parseVideoSource($('yu').value);if(!v)return say('請先輸入影片網址。');if(!ebookState.loaded){ebookState.pendingVideo=v;$('videoStatus').textContent='影片已加入目前教學教材；轉成電子書時會一起寫入電子書。';return;}try{await ebookApi({action:'media',ebook_id:ebookState.bookId,page_number:ebookState.page,videos:[v]});$('videoStatus').textContent='已儲存到電子書第 '+ebookState.page+' 頁；影片仍可直接在 AIVAULT 內播放。';await ebookGo(0);}catch(e){$('videoStatus').textContent='影片儲存失敗：'+(e.message||e);}};
 $('closeV').onclick=()=>{$('video').innerHTML='';$('videoStatus').textContent='影片已關閉。'};
 async function detectMicrophone(){const el=$('mic');try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});stream.getTracks().forEach(t=>t.stop());el.className='mic ok';el.textContent='✅ 已偵測到麥克風';return true}catch(e){el.className='mic warn';el.textContent='⚠️ 麥克風尚未允許';return false}}
 function startRec(){if(!rec||listening)return;try{rec.start();listening=true}catch{}}
