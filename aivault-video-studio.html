@@ -592,7 +592,7 @@ button:disabled{
 .upload-drop span{color:var(--muted);font-size:13px;}
 .image-video-preview{width:100%;max-height:360px;object-fit:contain;border-radius:14px;margin-top:12px;background:#000;}
 @media(max-width:720px){.image-video-grid{grid-template-columns:1fr;}}
-.video-result{display:none;}
+ .image-video-workspace{display:grid;grid-template-columns:minmax(240px,1fr) minmax(320px,1.5fr);gap:18px;align-items:stretch;} .image-video-workspace .media-card{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fafafa;} .image-video-workspace img{width:100%;height:300px;object-fit:contain;background:#111;border-radius:10px;} .generation-screen{min-height:300px;border-radius:14px;background:#111;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;position:relative;overflow:hidden;} .generation-screen .pulse{width:74px;height:74px;border:3px solid currentColor;border-radius:50%;animation:videoPulse 1.4s infinite ease-in-out;margin-bottom:18px;} .generation-screen.is-done{justify-content:flex-start;align-items:stretch;padding:0;background:#000;} .generation-screen.is-done video{width:100%;height:100%;min-height:300px;object-fit:contain;background:#000;} @keyframes videoPulse{0%,100%{transform:scale(.75);opacity:.45}50%{transform:scale(1);opacity:1}} @media(max-width:720px){.image-video-workspace{grid-template-columns:1fr;}} .video-result{display:none;}
 .video-result.on{display:block;}
 .video-preview{width:100%;max-height:70vh;background:#000;border-radius:14px;display:block;}
 .result-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px;}
@@ -1391,7 +1391,18 @@ button:disabled{
 
   <section class="panel video-result" id="videoResultPanel">
     <div class="panel-title"><div><h2>🎥 生成結果</h2><p>影片完成後會在這裡預覽，並保留本次生成資訊。</p></div><span class="badge" id="videoResultStatus">尚未生成</span></div>
-    <video id="generatedVideo" class="video-preview" controls playsinline preload="metadata"></video>
+    <div class="image-video-workspace" id="imageVideoWorkspace">
+      <div class="media-card">
+        <strong>🖼️ 原始照片／圖像</strong>
+        <img id="resultSourceImage" alt="生成影片使用的原始圖片" hidden />
+      </div>
+      <div class="generation-screen" id="generationScreen">
+        <div class="pulse"></div>
+        <strong id="generationScreenTitle">影片製作中</strong>
+        <span id="generationScreenText">AI 正在分析圖片、建立動作與鏡頭。</span>
+      </div>
+    </div>
+    <video id="generatedVideo" class="video-preview" controls playsinline preload="metadata" autoplay hidden></video>
     <div class="result-meta">
       <div><strong>Provider</strong><span id="resultProvider">—</span></div>
       <div><strong>Model</strong><span id="resultModel">—</span></div>
@@ -3801,17 +3812,35 @@ async function generateVideo(){
 }
 
 function showVideoResultFromProject(){
-  const data=videoProject.generated_video;
-  if(!data || !data.video_url) return;
-  $("videoResultPanel").classList.add("on");
-  $("generatedVideo").src=data.video_url;
+  const data=videoProject.generated_video||{};
+  $("videoResultPanel").style.display="block";
+  $("videoResultStatus").textContent=data.video_url?"完成":"處理中";
   $("resultProvider").textContent=data.provider||"—";
   $("resultModel").textContent=data.model||"—";
-  $("resultDuration").textContent=(data.duration_seconds??"—")+(data.duration_seconds?" 秒":"");
-  $("resultResolution").textContent=data.resolution||"—";
-  $("resultAspect").textContent=data.aspect_ratio||"—";
-  $("resultRequestId").textContent=data.request_id||"—";
-  $("videoResultStatus").textContent="已載入";
+  $("resultDuration").textContent=data.duration_seconds?data.duration_seconds+" 秒":"—";
+  $("resultResolution").textContent=data.resolution||"720p";
+  $("resultAspect").textContent=data.aspect_ratio||"16:9";
+  $("resultRequestId").textContent=data.request_id||data.job_id||"—";
+  const src=$("resultSourceImage");
+  const selected=$("imageToVideoFile")?.files?.[0];
+  if(selected){const reader=new FileReader();reader.onload=()=>{src.src=reader.result;src.hidden=false;};reader.readAsDataURL(selected);}
+  const screen=$("generationScreen");
+  const video=$("generatedVideo");
+  if(data.video_url){
+    screen.classList.add("is-done");
+    screen.innerHTML="";
+    screen.appendChild(video);
+    video.hidden=false;
+    video.src=data.video_url;
+    video.load();
+    video.play().catch(()=>{});
+    $("generationScreenTitle").textContent="影片製作完成";
+  }else{
+    screen.classList.remove("is-done");
+    $("generationScreenTitle").textContent="影片製作中";
+    $("generationScreenText").textContent="AI 正在製作影片，完成後會直接在這個頁面播放。";
+    video.hidden=true;
+  }
 }
 
 function bindEvents(){
