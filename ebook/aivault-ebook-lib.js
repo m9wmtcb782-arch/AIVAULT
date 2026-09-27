@@ -455,7 +455,7 @@
     g.fillRect(24, 470, 312, 6);
     g.fillStyle = "#f4ead6";
     g.font = "bold 28px 'Noto Sans TC', sans-serif";
-    wrapText(g, title || "未命名", 40, 180, 280, 36);
+    wrapText(g, title || "未命名", 40, 120, 280, 36);
     g.fillStyle = "#d8cbb4";
     g.font = "16px 'Noto Sans TC', sans-serif";
     g.fillText(author || "", 40, 430);
