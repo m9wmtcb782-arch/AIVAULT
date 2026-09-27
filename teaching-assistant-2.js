@@ -18,7 +18,8 @@ async function ebookRefresh(){
   status.textContent='正在讀取 AIVAULT 電子書目錄…';
   try{
     const d=await ebookApi({action:'list',limit:80});
-    const rows=ebookPick(d,['books','ebooks','items','data'])||[];
+    const payload=ebookPick(d,['data'])||d;
+    const rows=ebookPick(payload,['books','ebooks','items'])||[];
     ebookState.books=Array.isArray(rows)?rows:[];
     sel.innerHTML='<option value="">請選擇上課教材</option>';
     ebookState.books.forEach(b=>{
@@ -33,12 +34,13 @@ async function ebookLoad(){
   $('ebookStatus').textContent='正在載入教材…';
   try{
     const d=await ebookApi({action:'book',ebook_id:id,page_number:1});
-    const b=ebookPick(d,['book','ebook'])||ebookState.books.find(x=>String(ebookPick(x,['ebook_id','id','book_id']))===String(id))||{};
-    const pages=ebookPick(d,['pages','items'])||[];
-    ebookState.book=b;ebookState.bookId=id;ebookState.page=Number(ebookPick(d,['page_number'])||1);ebookState.total=Number(ebookPick(d,['total_pages','page_count'])||ebookPick(b,['total_pages','page_count'])||0);ebookState.loaded=true;
+    const payload=ebookPick(d,['data'])||d;
+    const b=ebookPick(payload,['book','ebook'])||ebookState.books.find(x=>String(ebookPick(x,['ebook_id','id','book_id']))===String(id))||{};
+    const pages=ebookPick(payload,['pages','items'])||[];
+    ebookState.book=b;ebookState.bookId=id;ebookState.page=Number(ebookPick(payload,['page_number'])||1);ebookState.total=Number(ebookPick(payload,['total_pages','page_count'])||ebookPick(b,['total_pages','page_count'])||0);ebookState.loaded=true;
     $('ebookLesson').style.display='block';
     $('ebookStatus').textContent='教材已匯入：'+(ebookPick(b,['title','name'])||'電子書');
-    await ebookRender(pages[0]||ebookPick(d,['page'])||d);
+    await ebookRender(pages[0]||ebookPick(payload,['page'])||payload);
     say('電子書已匯入教學助理，現在可以作為老師上課教材。');
   }catch(e){$('ebookStatus').textContent='教材載入失敗：'+(e.message||e);say('電子書教材載入失敗。')}
 }
@@ -55,8 +57,9 @@ async function ebookGo(delta){
   const n=Math.max(1,Math.min(ebookState.total||999999,ebookState.page+delta));
   try{
     const d=await ebookApi({action:'book',ebook_id:ebookState.bookId,page_number:n});
-    const p=ebookPick(d,['page'])||((ebookPick(d,['pages','items'])||[])[0])||d;
-    ebookState.total=Number(ebookPick(d,['total_pages','page_count'])||ebookState.total||0);
+    const payload=ebookPick(d,['data'])||d;
+    const p=ebookPick(payload,['page'])||((ebookPick(payload,['pages','items'])||[])[0])||payload;
+    ebookState.total=Number(ebookPick(payload,['total_pages','page_count'])||ebookState.total||0);
     await ebookRender(p);
   }catch(e){$('ebookStatus').textContent='翻頁失敗：'+(e.message||e)}
 }
@@ -66,6 +69,33 @@ $('ebookPrev').onclick=()=>ebookGo(-1);
 $('ebookNext').onclick=()=>ebookGo(1);
 $('ebookRead').onclick=()=>{const t=$('ebookLessonText').innerText.trim();if(t)speakText(t)};
 $('ebookStop').onclick=stopReading;
+
+async function exportTeachingToEbook(){
+  const title=($('ebookExportTitle')?.value||'').trim() || ('AIVAULT 教學教材 '+new Date().toLocaleDateString('zh-TW'));
+  let parts=[];
+  if(Array.isArray(slideTexts)&&slideTexts.length){
+    parts=slideTexts.map((t,i)=>('第 '+(i+1)+' 頁\\n'+(t||'')).trim()).filter(Boolean);
+  }else if(ebookState.loaded){
+    parts=[($('ebookLessonTitle').textContent||'電子書教材'),($('ebookLessonText').innerText||'')].join('\\n');
+  }
+  const content=parts.join('\\n\\n');
+  if(!content.trim()){say('目前沒有可轉換的教學內容。請先載入 PPT 或電子書教材。');return}
+  $('ebookStatus').textContent='正在把教學教材建立成電子書…';
+  try{
+    const created=await ebookApi({action:'create',title,subtitle:'由 AIVAULT 教學助理轉換',author:'AIVAULT 教學助理',edition:'',description:'由教學助理教材轉換建立',reader_language:'zh-Hant',language:'zh-TW',input_format:'text',content_type:'teaching_material',chunk_size:100000});
+    const cp=ebookPick(created,['data'])||created;
+    const jobId=ebookPick(cp,['job_id']); if(!jobId)throw Error('電子書建立未取得 job_id');
+    const chunks=[]; for(let i=0;i<content.length;i+=100000)chunks.push(content.slice(i,i+100000));
+    for(let i=0;i<chunks.length;i++)await ebookApi({action:'append',job_id:jobId,sequence_no:i,content:chunks[i]});
+    const done=await ebookApi({action:'finalize',job_id:jobId,page_chars:900});
+    const dp=ebookPick(done,['data'])||done;
+    const newId=ebookPick(dp,['ebook_id']);
+    $('ebookStatus').textContent='已轉換成電子書：'+title+(newId?'（已存入 AIVAULT 書架）':'');
+    say('教學教材已轉換成電子書並存入 AIVAULT。');
+    await ebookRefresh();
+    if(newId)$('ebookSelect').value=newId;
+  }catch(e){$('ebookStatus').textContent='轉換電子書失敗：'+(e.message||e);say('教學教材轉換失敗。')}
+}
 ebookRefresh();
 async function enter(){if(!count&&!ebookState.loaded)return say('請先上傳 PPT 或匯入電子書教材。');classMode=true;$('panel').classList.add('class');$('ppt').classList.toggle('focusPpt',!!count&&!ebookState.loaded);$('ebookLesson').style.display=ebookState.loaded?'block':$('ebookLesson').style.display;$('start').style.display='none';$('exit').style.display='inline-block';document.body.style.overflow='hidden';if(ebookState.loaded&&!count){$('ppt').style.display='none';}else{$('ppt').style.display='block';}try{await $('panel').requestFullscreen()}catch{}say(ebookState.loaded&&!count?'開始電子書教材課程。':'開始上課。')}async function exit(){classMode=false;$('panel').classList.remove('class');$('ppt').classList.remove('focusPpt');$('start').style.display='inline-block';$('exit').style.display='none';document.body.style.overflow='';hideResearch();stopReading();try{if(document.fullscreenElement)await document.exitFullscreen()}catch{}say('已回到主畫面。')}$('start').onclick=enter;$('exit').onclick=exit;
 function hideResearch(){researchOpen=false;researchBig=false;$('research').classList.remove('on','big')}
