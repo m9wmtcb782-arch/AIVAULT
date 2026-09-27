@@ -69,6 +69,7 @@ $('ebookPrev').onclick=()=>ebookGo(-1);
 $('ebookNext').onclick=()=>ebookGo(1);
 $('ebookRead').onclick=()=>{const t=$('ebookLessonText').innerText.trim();if(t)speakText(t)};
 $('ebookStop').onclick=stopReading;
+$('ebookExport').onclick=exportTeachingToEbook;
 
 async function exportTeachingToEbook(){
   const title=($('ebookExportTitle')?.value||'').trim() || ('AIVAULT 教學教材 '+new Date().toLocaleDateString('zh-TW'));
