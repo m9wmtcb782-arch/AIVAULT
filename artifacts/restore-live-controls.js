@@ -10,27 +10,17 @@ function css(){if(document.getElementById('dsRestoreLiveControlsStyle'))return;c
 function restore(){
  const top=document.querySelector('.topbar');if(!top)return false;css();
  let controls=document.getElementById('darkStarLiveControls');
- if(!controls){
-   controls=document.createElement('div');
-   controls.id='darkStarLiveControls';
-   controls.className='dark-star-live-controls';
-   let video=document.getElementById('darkStarLiveVideoButton');
-   if(!video){
-     video=document.createElement('a');
-     video.id='darkStarLiveVideoButton';
-     video.className='dark-star-live-button';
-     video.href=LIVE_VIDEO;
-     video.textContent='即時視訊';
-   }
-   controls.append(video);
-   const home=top.querySelector('.brand-home');
-   if(home)home.before(controls);else top.appendChild(controls);
- }else{
-   controls.style.removeProperty('display');
-   controls.style.display='flex';
- }
+ if(controls)controls.remove();
  const drawer=document.getElementById('drawer');
  const bottom=drawer&&drawer.querySelector('.drawer-bottom');
+ let video=document.getElementById('darkStarLiveVideoButton');
+ if(!video){
+   video=document.createElement('button');
+   video.id='darkStarLiveVideoButton';
+   video.type='button';
+   video.className='drawer-item';
+   video.textContent='即時視訊';
+ }
  let live=document.getElementById('darkStarLiveButton');
  if(!live){
    live=document.createElement('button');
@@ -77,6 +67,7 @@ function restore(){
    settings.style.removeProperty('display');
    settings.removeAttribute('aria-hidden');
    if(settings.parentElement!==bottom)bottom.insertBefore(settings,live.nextSibling);
+   if(video.parentElement!==bottom)bottom.insertBefore(video,settings);
  }
  if(!live.dataset.liveVoiceBound){
    live.dataset.liveVoiceBound='1';
@@ -147,12 +138,7 @@ function ensureSettingsPanel(){
    video.removeAttribute('aria-hidden');
    video.removeAttribute('aria-hidden');
    if(video.parentElement!==bottom)bottom.insertBefore(video,settings);
-   const controls=document.getElementById('darkStarLiveControls');
-   if(controls)controls.style.display='none';
-   document.querySelectorAll('#darkStarLiveVideoButton').forEach((node,index)=>{
-     if(index===0)return;
-     node.remove();
-   });
+   if(video.parentElement!==bottom)bottom.insertBefore(video,settings);
  }
 
  if(sound){
