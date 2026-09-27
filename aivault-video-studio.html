@@ -587,6 +587,11 @@ button:disabled{
   to{opacity:1;transform:scale(1)}
 }
 
+.image-video-grid{display:grid;grid-template-columns:minmax(260px,1fr) minmax(320px,1.4fr);gap:18px;align-items:start;}
+.upload-drop{min-height:170px;border:2px dashed var(--line);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer;text-align:center;padding:18px;background:#fafafa;}
+.upload-drop span{color:var(--muted);font-size:13px;}
+.image-video-preview{width:100%;max-height:360px;object-fit:contain;border-radius:14px;margin-top:12px;background:#000;}
+@media(max-width:720px){.image-video-grid{grid-template-columns:1fr;}}
 .video-result{display:none;}
 .video-result.on{display:block;}
 .video-preview{width:100%;max-height:70vh;background:#000;border-radius:14px;display:block;}
@@ -1249,6 +1254,21 @@ button:disabled{
     </div>
     <div class="frame-list" id="frameList">
       <div class="empty">尚未上傳最後一幀。</div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-title"><div><h2>🖼️→🎬 照片／圖像生成影片</h2><p>上傳一張圖片，讓 AI 依照圖片主體、構圖與環境生成動態影片。</p></div><span class="badge" id="imageVideoStatus">尚未選擇圖片</span></div>
+    <div class="image-video-grid">
+      <div>
+        <label class="upload-drop" for="imageToVideoFile" id="imageToVideoDrop"><input id="imageToVideoFile" type="file" accept="image/jpeg,image/png,image/webp" hidden /><strong>＋ 選擇照片／圖像</strong><span>JPG / PNG / WebP，最大 12 MB</span></label>
+        <img id="imageToVideoPreview" class="image-video-preview" alt="來源圖片預覽" hidden />
+      </div>
+      <div>
+        <div class="field full"><label for="imageVideoPrompt">動作／運鏡指令</label><textarea id="imageVideoPrompt" placeholder="例如：人物自然眨眼、頭髮被微風吹動，鏡頭緩慢向前推進，保持人物外貌與服裝一致。"></textarea></div>
+        <div class="field-grid"><div class="field"><label>影片秒數</label><div class="option-row image-video-duration"><button type="button" data-image-video-duration="5" class="option-chip on">5 秒</button><button type="button" data-image-video-duration="10" class="option-chip">10 秒</button><button type="button" data-image-video-duration="15" class="option-chip">15 秒</button></div></div><div class="field"><label for="imageVideoAspect">畫面比例</label><select id="imageVideoAspect"><option value="16:9">16:9</option><option value="9:16">9:16</option><option value="1:1">1:1</option></select></div></div>
+        <button class="primary-btn" id="generateImageVideoBtn" type="button">🖼️→🎬 生成影片</button>
+      </div>
     </div>
   </section>
 
@@ -3744,6 +3764,24 @@ function switchTab(tab){
 
 }
 
+async function generateImageVideo(){
+  const file=$("imageToVideoFile").files?.[0];
+  if(!file){setStatus("請先選擇照片／圖像。","error");return;}
+  const form=new FormData();
+  form.append("image",file);
+  form.append("prompt",($("imageVideoPrompt").value||"").trim());
+  form.append("duration",String(Number(document.querySelector("[data-image-video-duration].on")?.dataset.imageVideoDuration||5)));
+  form.append("aspect_ratio",$("imageVideoAspect").value||"16:9");
+  setStatus("正在送出照片→影片生成請求……"); $("imageVideoStatus").textContent="生成中";
+  try{
+    const response=await fetch("https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/aivault-video-generate",{method:"POST",body:form});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok||!data.success){setStatus("照片→影片尚未生成："+(data.error||data.message||"未知錯誤"),"error");$("imageVideoStatus").textContent="失敗";return;}
+    if(data.video_url){videoProject.generated_video=data;showVideoResultFromProject();$("videoResultPanel").scrollIntoView({behavior:"smooth",block:"start"});setStatus("✓ 照片→影片生成完成。","ok");$("imageVideoStatus").textContent="完成";saveProject();}
+    else{setStatus("✓ 已送出生成任務，Provider 回傳非同步結果。","ok");$("imageVideoStatus").textContent="處理中";}
+  }catch(error){setStatus("照片→影片請求失敗："+error.message,"error");$("imageVideoStatus").textContent="失敗";}
+}
+
 async function generateVideo(){
   syncEditorFields();
   syncProjectFromInputs();
@@ -4008,6 +4046,15 @@ function bindEvents(){
     );
 
   $("generateVideoBtn").addEventListener("click", generateVideo);
+  $("generateImageVideoBtn").addEventListener("click", generateImageVideo);
+  $("imageToVideoFile").addEventListener("change",()=>{
+    const file=$("imageToVideoFile").files?.[0]; if(!file)return;
+    $("imageVideoStatus").textContent=file.name;
+    const reader=new FileReader(); reader.onload=()=>{$("imageToVideoPreview").src=reader.result;$("imageToVideoPreview").hidden=false;}; reader.readAsDataURL(file);
+  });
+  document.querySelectorAll("[data-image-video-duration]").forEach(btn=>btn.addEventListener("click",()=>{
+    document.querySelectorAll("[data-image-video-duration]").forEach(b=>b.classList.remove("on"));btn.classList.add("on");
+  }));
   $("regenerateVideoBtn").addEventListener("click", generateVideo);
   $("editPromptBtn").addEventListener("click", () => {
     $("finalPrompt").scrollIntoView({behavior:"smooth",block:"center"});
