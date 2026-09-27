@@ -14,11 +14,14 @@ function restore(){
    controls=document.createElement('div');
    controls.id='darkStarLiveControls';
    controls.className='dark-star-live-controls';
-   const video=document.createElement('a');
-   video.id='darkStarLiveVideoButton';
-   video.className='dark-star-live-button';
-   video.href=LIVE_VIDEO;
-   video.textContent='即時視訊';
+   let video=document.getElementById('darkStarLiveVideoButton');
+   if(!video){
+     video=document.createElement('a');
+     video.id='darkStarLiveVideoButton';
+     video.className='dark-star-live-button';
+     video.href=LIVE_VIDEO;
+     video.textContent='即時視訊';
+   }
    controls.append(video);
    const home=top.querySelector('.brand-home');
    if(home)home.before(controls);else top.appendChild(controls);
@@ -134,7 +137,7 @@ function ensureSettingsPanel(){
    live.textContent='即時語音';
    live.style.removeProperty('display');
    live.removeAttribute('aria-hidden');
-   if(live.parentElement!==panel)panel.appendChild(live);
+   if(live.parentElement!==bottom)bottom.insertBefore(live,bottom.firstChild);
  }
 
  if(video){
@@ -142,9 +145,14 @@ function ensureSettingsPanel(){
    video.textContent='即時視訊';
    video.style.removeProperty('display');
    video.removeAttribute('aria-hidden');
+   video.removeAttribute('aria-hidden');
    if(video.parentElement!==bottom)bottom.insertBefore(video,settings);
    const controls=document.getElementById('darkStarLiveControls');
    if(controls)controls.style.display='none';
+   document.querySelectorAll('#darkStarLiveVideoButton').forEach((node,index)=>{
+     if(index===0)return;
+     node.remove();
+   });
  }
 
  if(sound){
