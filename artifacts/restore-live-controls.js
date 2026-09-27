@@ -127,6 +127,25 @@ function ensureSettingsPanel(){
  const sound=document.getElementById('darkStarSoundButton');
  const select=document.getElementById('darkStarVoiceSelect');
  const big=document.getElementById('readabilityToggle');
+ const video=document.getElementById('darkStarLiveVideoButton');
+
+ if(live){
+   live.className='drawer-item';
+   live.textContent='即時語音';
+   live.style.removeProperty('display');
+   live.removeAttribute('aria-hidden');
+   if(live.parentElement!==panel)panel.appendChild(live);
+ }
+
+ if(video){
+   video.className='drawer-item';
+   video.textContent='即時視訊';
+   video.style.removeProperty('display');
+   video.removeAttribute('aria-hidden');
+   if(video.parentElement!==panel)panel.appendChild(video);
+   const controls=document.getElementById('darkStarLiveControls');
+   if(controls)controls.style.display='none';
+ }
 
  if(sound){
    sound.className='drawer-item';
