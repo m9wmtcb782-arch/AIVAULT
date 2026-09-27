@@ -37,7 +37,7 @@ async function ebookLoad(){
     const payload=ebookPick(d,['data'])||d;
     const b=ebookPick(payload,['book','ebook'])||ebookState.books.find(x=>String(ebookPick(x,['ebook_id','id','book_id']))===String(id))||{};
     const pages=ebookPick(payload,['pages','items'])||[];
-    ebookState.book=b;ebookState.bookId=id;ebookState.page=Number(ebookPick(payload,['page_number'])||1);ebookState.total=Number(ebookPick(payload,['total_pages','page_count'])||ebookPick(b,['total_pages','page_count'])||0);ebookState.loaded=true;
+    ebookState.book=b;ebookState.bookId=id;ebookState.page=Number(ebookPick(payload,['page_number'])||1);ebookState.total=Number(ebookPick(payload,['total_pages','page_count'])||ebookPick(b,['total_pages','page_count'])||0);const td=await ebookApi({action:'toc',ebook_id:id});const tp=ebookPick(td,['data'])||td;ebookState.toc=Array.isArray(ebookPick(tp,['toc','items']))?ebookPick(tp,['toc','items']):[];ebookState.loaded=true;
     $('ebookLesson').style.display='block';
     $('ebookStatus').textContent='教材已匯入：'+(ebookPick(b,['title','name'])||'電子書');
     await ebookRender(pages[0]||ebookPick(payload,['page'])||payload);
