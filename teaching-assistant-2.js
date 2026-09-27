@@ -59,7 +59,7 @@ function ebookCurrentHeading(){const toc=Array.isArray(ebookState.toc)?ebookStat
   const p=pageObj||{};const n=Number(ebookPick(p,['page_number','page','number'])||ebookState.page||1);
   ebookState.page=n;
   const text=String(ebookPick(p,['content','page_content','text','body','html'])||'').replace(/<[^>]+>/g,'').trim();
-  $('ebookLessonTitle').textContent='📚 '+(ebookPick(ebookState.book,['title','name'])||'電子書教材');
+  const current=ebookCurrentHeading();$('ebookLessonTitle').textContent='📚 '+(ebookPick(ebookState.book,['title','name'])||'電子書教材')+(current?'｜'+(current.title||''):'');ebookRenderOutline();
   $('ebookLessonPage').textContent='第 '+n+(ebookState.total?' / '+ebookState.total:'')+' 頁';
   $('ebookLessonText').textContent=text||'本頁沒有可讀文字。';
   const videos=Array.isArray(p?.metadata?.videos)?p.metadata.videos:[];
