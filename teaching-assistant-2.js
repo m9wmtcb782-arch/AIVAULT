@@ -7,15 +7,22 @@ const EBOOK_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJjbGNkZHlka
 const EBOOK_INGEST=EBOOK_SUPABASE_URL+'/functions/v1/dark-star-ebook-ingest';
 const ebookState={books:[],bookId:'',book:null,page:1,total:0,loaded:false,toc:[],units:[],unitIndex:-1,unitPages:[],pendingVideo:null};
 async function ebookApi(payload){
-  const r=await fetch(EBOOK_INGEST,{method:'POST',headers:{'Content-Type':'application/json',apikey:EBOOK_ANON_KEY,Authorization:'Bearer '+EBOOK_ANON_KEY},body:JSON.stringify(payload)});
-  const raw=await r.text();let data={};try{data=raw?JSON.parse(raw):{}}catch{}
-  if(!r.ok)throw Error((data.error||data.message||('電子書服務 HTTP '+r.status)));
-  return data;
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),15000);
+  try{
+    const r=await fetch(EBOOK_INGEST,{method:'POST',headers:{'Content-Type':'application/json',apikey:EBOOK_ANON_KEY,Authorization:'Bearer '+EBOOK_ANON_KEY},body:JSON.stringify(payload),signal:controller.signal});
+    const raw=await r.text();let data={};try{data=raw?JSON.parse(raw):{}}catch{}
+    if(!r.ok)throw Error((data.error||data.message||('電子書服務 HTTP '+r.status)));
+    return data;
+  }catch(e){
+    if(e?.name==='AbortError')throw Error('電子書服務逾時（15 秒）。請稍後重試；目前沒有載入整本電子書。');
+    throw e;
+  }finally{clearTimeout(timer)}
 }
 function ebookPick(data,keys){for(const k of keys)if(data&&data[k]!=null)return data[k];return null}
 async function ebookRefresh(){
   const sel=$('ebookSelect'), status=$('ebookStatus');
-  status.textContent='正在讀取 AIVAULT 電子書目錄…';
+  status.textContent='正在讀取 AIVAULT 電子書書名…';
   try{
     const d=await ebookApi({action:'list',limit:80});
     const payload=ebookPick(d,['data'])||d;
