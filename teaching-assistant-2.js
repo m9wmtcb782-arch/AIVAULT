@@ -101,7 +101,7 @@ function classroomBadge(){
   if(!inline && startBtn && startBtn.parentElement){
     inline=document.createElement('span');
     inline.id='aivaultClassroomCodeInline';
-    inline.style.cssText='display:inline-flex;align-items:center;justify-content:center;margin:0 8px 0 0;padding:5px 9px;border-radius:8px;font-size:16px;font-weight:800;letter-spacing:2px;text-align:center;color:#7567ff;background:rgba(255,255,255,.92);line-height:1.2;white-space:nowrap;pointer-events:none;vertical-align:middle;z-index:31;';
+    inline.style.cssText='display:inline-flex;align-items:center;justify-content:center;margin:0 8px 0 0;padding:3px 6px;border-radius:6px;font-size:12px;font-weight:800;letter-spacing:1px;text-align:center;color:#7567ff;background:rgba(255,255,255,.92);line-height:1.1;white-space:nowrap;pointer-events:none;vertical-align:middle;z-index:31;';
     startBtn.parentElement.insertBefore(inline,startBtn);
   }
   if(inline){
