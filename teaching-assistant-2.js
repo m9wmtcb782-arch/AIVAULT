@@ -676,8 +676,9 @@ function classVoiceControls(){
     off.onclick=()=>{ voice=false; listening=false; $('vs').textContent='聲控已取消'; try{rec?.abort()}catch{} classVoiceControls(); };
   }
   const s=$('classVoiceStatus'), v=$('vs'), t=$('tr');
-  if(s)s.textContent=(v?.textContent||'🎤 聲控').replace(/^正在準備聲控…$/,'🎤 聲控');
-  if(s&&t&&t.textContent&&t.textContent!=='等待老師說話…')s.textContent='🎤 '+t.textContent;
+  const micSvg='<svg class="darkStarLineMic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><path d="M12 18v3"></path><path d="M9 21h6"></path></svg>';
+  if(s){const txt=(v?.textContent||'聲控').replace(/^🎤\\s*/,'').replace(/^正在準備聲控…$/,'聲控');s.innerHTML=micSvg+'<span>'+txt+'</span>';}
+  if(s&&t&&t.textContent&&t.textContent!=='等待老師說話…')s.innerHTML=micSvg+'<span>'+t.textContent.replace(/^🎤\\s*/,'')+'</span>';
 }
 function chineseNumberToInt(s){
   s=String(s||'').trim();
