@@ -217,6 +217,14 @@ $('leaveClass').onclick=leaveClassroom;
 $('audioToggle').onclick=async()=>{if(!audioPlaybackStarted){audioEnabled=true;$('classroomAudio').muted=false;try{await $('classroomAudio').play();audioPlaybackStarted=true;$('audioToggle').textContent='🔊 老師聲音已啟用';setAudioStatus('課堂聲音：已啟用');}catch{setAudioStatus('瀏覽器仍未允許播放，請再按一次。');}if(!audioPc||!['connected','completed'].includes(audioPc.connectionState))await startStudentAudio();return;}if(audioEnabled){audioEnabled=false;$('classroomAudio').muted=true;$('audioToggle').textContent='🔇 已靜音老師聲音';setAudioStatus('課堂聲音：已靜音（只影響這台學生裝置）');}else{audioEnabled=true;$('classroomAudio').muted=false;try{await $('classroomAudio').play();audioPlaybackStarted=true;$('audioToggle').textContent='🔊 老師聲音已啟用';setAudioStatus('課堂聲音：已啟用');}catch{setAudioStatus('請按「🔊 啟用老師聲音」播放。');}if(!audioPc||!['connected','completed'].includes(audioPc.connectionState))await startStudentAudio();}};
 $('code').addEventListener('input',()=>{const v=$('code').value.replace(/D/g,'').slice(0,4);$('code').value=v;if(v.length===4)connect();});
 $('code').addEventListener('keydown',e=>{if(e.key==='Enter')connect();});
+
+/* Shared classroom link: student-classroom.html?code=1234 */
+const sharedClassroomCode=new URLSearchParams(location.search).get('code');
+if(/^\d{4}$/.test(String(sharedClassroomCode||''))){
+  $('code').value=String(sharedClassroomCode);
+  setStatus('正在進入教室 '+sharedClassroomCode+'…');
+  setTimeout(()=>connect(),0);
+}
 </script>
 </body>
 </html>
