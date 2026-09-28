@@ -28,6 +28,19 @@ function pptProjectRender(){
 }
 
 
+function getPptDesignSettings(){
+  const bg=$('pptBackgroundStyle')?String($('pptBackgroundStyle').value||'clean'):'clean';
+  const cover=$('pptCoverStyle')?String($('pptCoverStyle').value||'modern'):'modern';
+  try{localStorage.setItem('aivault_ppt_design',JSON.stringify({background:bg,cover}))}catch{}
+  return {background:bg,cover};
+}
+function loadPptDesignSettings(){
+  try{
+    const d=JSON.parse(localStorage.getItem('aivault_ppt_design')||'{}');
+    if($('pptBackgroundStyle')&&d.background)$('pptBackgroundStyle').value=d.background;
+    if($('pptCoverStyle')&&d.cover)$('pptCoverStyle').value=d.cover;
+  }catch{}
+}
 async function exportPptProjectToPptx(){
   if(!Array.isArray(pptProject)||!pptProject.length){
     $('pptProjectStatus').textContent='目前沒有可輸出的 PPT 投影片。';
@@ -39,7 +52,16 @@ async function exportPptProjectToPptx(){
     return false;
   }
   try{
-    $('pptProjectStatus').textContent='正在產生真正的 PowerPoint 投影片檔…';
+    const design=getPptDesignSettings();
+    const bgMap={
+      clean:{bg:'FFFFFF',title:'1F2937',body:'374151',accent:'2563EB'},
+      navy:{bg:'EAF1F8',title:'12304A',body:'27465D',accent:'1D4ED8'},
+      dark:{bg:'111827',title:'FFFFFF',body:'E5E7EB',accent:'60A5FA'},
+      paper:{bg:'F7F3EA',title:'4A4036',body:'5B5147',accent:'9A6B3F'},
+      green:{bg:'EEF5F0',title:'173B2B',body:'315443',accent:'2F6F4E'}
+    };
+    const theme=bgMap[design.background]||bgMap.clean;
+    $('pptProjectStatus').textContent='正在依選定的背景與封面樣式產生 PowerPoint 投影片…';
     const pptx=new PptxGenJS();
     pptx.layout='LAYOUT_WIDE';
     pptx.author='AIVAULT 教學助理';
@@ -47,52 +69,55 @@ async function exportPptProjectToPptx(){
     pptx.title=String(pptProjectMeta.title||'AIVAULT PPT 投影片');
     pptx.company='AIVAULT';
     pptx.lang='zh-TW';
-    pptx.theme={
-      headFontFace:'Microsoft JhengHei',
-      bodyFontFace:'Microsoft JhengHei',
-      lang:'zh-TW'
-    };
-    for(const item of pptProject){
+    pptx.theme={headFontFace:'Microsoft JhengHei',bodyFontFace:'Microsoft JhengHei',lang:'zh-TW'};
+    for(let idx=0;idx<pptProject.length;idx++){
+      const item=pptProject[idx]||{};
       const slide=pptx.addSlide();
-      slide.background={color:'FFFFFF'};
-      const title=String(item&&item.title||'投影片');
-      let body=String(item&&item.content||'').replace(/\r/g,'').trim();
+      const isCover=idx===0||item.kind==='cover';
+      const title=String(item.title||'投影片');
+      let body=String(item.content||'').replace(/\r/g,'').trim();
       if(body.startsWith(title))body=body.slice(title.length).trim();
-      const isCover=item&&item.kind==='cover';
-      slide.addText(title,{
-        x:0.65,y:0.42,w:12.0,h:0.65,
-        fontFace:'Microsoft JhengHei',fontSize:isCover?28:24,
-        bold:true,color:'1F2937',margin:0.02,breakLine:false,
-        fit:'shrink'
-      });
       if(isCover){
-        slide.addText(body,{
-          x:0.9,y:1.65,w:11.35,h:4.65,
-          fontFace:'Microsoft JhengHei',fontSize:22,
-          color:'374151',margin:0.08,breakLine:false,
-          valign:'mid',fit:'shrink',paraSpaceAfterPt:12
-        });
+        const coverBg=design.cover==='dark'?'111827':design.cover==='academic'?'EAF1F8':design.cover==='minimal'?'FFFFFF':theme.bg;
+        const coverTitle=design.cover==='dark'?'FFFFFF':design.cover==='academic'?'12304A':design.cover==='minimal'?'111827':theme.title;
+        const coverBody=design.cover==='dark'?'D1D5DB':design.cover==='academic'?'36536B':design.cover==='minimal'?'4B5563':theme.body;
+        slide.background={color:coverBg};
+        if(design.cover==='modern'){
+          slide.addShape(pptx.ShapeType.rect,{x:0,y:0,w:13.333,h:0.22,fill:{color:theme.accent},line:{color:theme.accent}});
+          slide.addShape(pptx.ShapeType.rect,{x:0,y:7.28,w:13.333,h:0.22,fill:{color:theme.accent},line:{color:theme.accent}});
+          slide.addText('AIVAULT',{x:0.75,y:0.65,w:2,h:0.3,fontSize:12,bold:true,color:theme.accent,margin:0});
+          slide.addText(title,{x:0.75,y:2.05,w:11.8,h:1.35,fontSize:34,bold:true,color:coverTitle,margin:0.02,fit:'shrink',align:'center'});
+          slide.addText(body||'電子書教學教材轉製',{x:1.25,y:3.65,w:10.8,h:1.5,fontSize:20,color:coverBody,margin:0.08,fit:'shrink',align:'center',valign:'mid'});
+        }else if(design.cover==='academic'){
+          slide.addText('AIVAULT 教學教材',{x:0.9,y:0.75,w:5,h:0.4,fontSize:14,bold:true,color:theme.accent,margin:0});
+          slide.addShape(pptx.ShapeType.line,{x:0.9,y:1.35,w:11.4,h:0,line:{color:theme.accent,width:2}});
+          slide.addText(title,{x:0.9,y:2.0,w:11.4,h:1.2,fontSize:30,bold:true,color:coverTitle,margin:0.02,fit:'shrink'});
+          slide.addText(body||'專題投影片',{x:0.9,y:3.55,w:11.4,h:1.8,fontSize:19,color:coverBody,margin:0.08,fit:'shrink'});
+        }else if(design.cover==='minimal'){
+          slide.addText(title,{x:1.0,y:2.3,w:11.3,h:1.1,fontSize:32,bold:true,color:coverTitle,margin:0.02,fit:'shrink',align:'center'});
+          slide.addText(body||'AIVAULT',{x:1.5,y:3.75,w:10.3,h:1.3,fontSize:18,color:coverBody,margin:0.08,fit:'shrink',align:'center'});
+        }else{
+          slide.addText('AIVAULT',{x:0.8,y:0.65,w:2,h:0.35,fontSize:13,bold:true,color:'60A5FA',margin:0});
+          slide.addText(title,{x:0.85,y:2.0,w:11.6,h:1.25,fontSize:32,bold:true,color:coverTitle,margin:0.02,fit:'shrink',align:'center'});
+          slide.addText(body||'AIVAULT PPT 投影片',{x:1.2,y:3.65,w:10.9,h:1.5,fontSize:20,color:coverBody,margin:0.08,fit:'shrink',align:'center'});
+        }
       }else{
-        const maxChars=1800;
-        if(body.length>maxChars)body=body.slice(0,maxChars)+'…';
-        slide.addText(body||'（本頁無文字內容）',{
-          x:0.75,y:1.25,w:11.85,h:5.55,
-          fontFace:'Microsoft JhengHei',fontSize:18,
-          color:'374151',margin:0.08,
-          valign:'top',fit:'shrink',breakLine:false,
-          paraSpaceAfterPt:8
-        });
+        slide.background={color:theme.bg};
+        slide.addShape(pptx.ShapeType.rect,{x:0,y:0,w:13.333,h:0.14,fill:{color:theme.accent},line:{color:theme.accent}});
+        slide.addText(title,{x:0.7,y:0.48,w:11.9,h:0.7,fontSize:25,bold:true,color:theme.title,margin:0.02,fit:'shrink'});
+        const lines=body.split(/\n+/).map(x=>x.trim()).filter(Boolean);
+        const maxPerSlide=12;
+        const chunks=[];
+        for(let i=0;i<lines.length;i+=maxPerSlide)chunks.push(lines.slice(i,i+maxPerSlide).join('\n'));
+        const chunk=chunks[0]||'（本頁無文字內容）';
+        slide.addText(chunk.slice(0,1700),{x:0.82,y:1.45,w:11.65,h:5.25,fontSize:19,color:theme.body,margin:0.12,breakLine:false,fit:'shrink',valign:'top',bullet:{type:'ul'}});
+        slide.addShape(pptx.ShapeType.line,{x:0.82,y:6.85,w:11.65,h:0,line:{color:theme.accent,width:1}});
+        slide.addText(String(idx+1),{x:11.85,y:7.0,w:0.55,h:0.22,fontSize:9,color:theme.body,margin:0,align:'right'});
       }
-      slide.addText('AIVAULT 教學助理',{
-        x:9.7,y:7.05,w:2.7,h:0.22,
-        fontFace:'Microsoft JhengHei',fontSize:8,
-        color:'6B7280',margin:0,align:'right'
-      });
     }
-    const safeName=String(pptProjectMeta.sourceBook||pptProjectMeta.title||'AIVAULT_PPT')
-      .replace(/[\\/:*?"<>|]+/g,'_').replace(/\\s+/g,'_').slice(0,80);
+    const safeName=String(pptProjectMeta.sourceBook||pptProjectMeta.title||'AIVAULT_PPT').replace(/[\\/:*?"<>|]+/g,'_').replace(/\s+/g,'_').slice(0,80);
     await pptx.writeFile({fileName:safeName+'_投影片.pptx'});
-    $('pptProjectStatus').textContent='已產生真正的 PowerPoint 投影片檔，共 '+pptProject.length+' 張，可直接開啟或分享。';
+    $('pptProjectStatus').textContent='已產生真正的 PowerPoint 投影片檔，共 '+pptProject.length+' 張；背景與封面已依你的選擇套用。';
     return true;
   }catch(e){
     console.error('export pptx',e);
@@ -190,6 +215,9 @@ $('ebookToPptProject').onclick=async()=>{
   const built=await buildPptProjectFromEbook();
   if(built)await exportPptProjectToPptx();
 };
+loadPptDesignSettings();
+$('pptBackgroundStyle').onchange=()=>getPptDesignSettings();
+$('pptCoverStyle').onchange=()=>getPptDesignSettings();
 $('save').onclick=()=>{if(pptProject.length)savePptProjectLocal();};
 $('clear').onclick=()=>{if(confirm('確定清除目前 PPT 專題報告？'))clearPptProjectLocal();};
 loadPptProjectLocal();
