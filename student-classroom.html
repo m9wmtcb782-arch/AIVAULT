@@ -126,8 +126,11 @@ function handleDarkStarVoice(v){
 function renderState(state){
  if(!state||typeof state!=='object')return;
  page=Number(state.page)||1;total=Number(state.total)||0;
- $('pageInfo').textContent='第 '+page+(total?' / '+total:'')+' 頁';
+ const isProject=state.type==='ppt-project';
+ $('pageInfo').textContent=(isProject?'📊 '+(state.project_title||'PPT 專題報告')+'｜':'')+'第 '+page+(total?' / '+total:'')+' 頁';
  $('content').textContent=String(state.content||'');
+ $('content').style.fontSize=isProject?'26px':'30px';
+ $('content').style.lineHeight=isProject?'1.9':'2';
  const videos=Array.isArray(state.videos)?state.videos:[];
  $('videoBox').innerHTML=videos.map(videoHtml).join('');
  $('videoBox').style.display=$('videoBox').innerHTML?'block':'none';
