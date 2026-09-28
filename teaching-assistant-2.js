@@ -274,23 +274,35 @@ function classroomBuildPayload(payload){
 }
 function addDarkStarResearchToProject(){
   if(!pptProject.length||!darkStarTeachingState.lastAnswer)return false;
-  const q=String(darkStarTeachingState.lastQuery||'目前問題');
-  const answer=String(darkStarTeachingState.lastAnswer||'');
+  const q=String(darkStarTeachingState.lastQuery||'目前問題').trim();
+  const answer=String(darkStarTeachingState.lastAnswer||'').trim();
   const sources=Array.isArray(darkStarTeachingState.lastResearch)?darkStarTeachingState.lastResearch:[];
+  const current=pptProject[pptProjectIndex]||{};
+  const duplicate=pptProject.some(x=>x&&x.kind==='research-question'&&String(x.research_query||'')===q);
+  if(duplicate){
+    $('pptProjectStatus').textContent='這個研究問題已經加入專題報告，未重複新增。';
+    return false;
+  }
   const insertAt=Math.min(pptProjectIndex+1,pptProject.length);
   const sourceText=sources.length
-    ?sources.map((x,n)=>(n+1)+'. '+String(x.title||x.url||'來源')+(x.url?'\n'+String(x.url):'')).join('\n\n')
+    ?sources.map((x,n)=>{
+      const title=String(x.title||x.url||'來源');
+      const url=x.url?String(x.url):'';
+      const snippet=String(x.snippet||x.description||x.content||'').replace(/\s+/g,' ').trim().slice(0,1400);
+      return (n+1)+'. '+title+(url?'\n'+url:'')+(snippet?'\n資料摘要：'+snippet:'');
+    }).join('\n\n')
     :'本次研究沒有取得可列出的來源。';
   const slides=[
-    {kind:'research-question',title:'研究問題｜'+q.slice(0,55),content:'研究問題\n\n'+q},
-    {kind:'research-sources',title:'研究資料與來源',content:sourceText},
-    {kind:'research-analysis',title:'暗星分析｜'+q.slice(0,45),content:'暗星分析\n\n'+answer},
-    {kind:'teacher-conclusion',title:'老師結論',content:'請由老師整理本研究的課堂結論。\n\n（這一頁不由暗星代替老師下結論。）'}
+    {kind:'research-question',research_query:q,title:'研究問題｜'+q.slice(0,55),content:'研究問題\n\n'+q+(current.title?'\n\n研究所依據的專題頁：'+String(current.title):'')},
+    {kind:'research-sources',research_query:q,title:'研究資料與來源',content:sourceText},
+    {kind:'research-analysis',research_query:q,title:'暗星分析｜'+q.slice(0,45),content:'暗星分析\n\n'+answer},
+    {kind:'teacher-conclusion',research_query:q,title:'老師結論',content:'請由老師整理本研究的課堂結論。\n\n（這一頁不由暗星代替老師下結論。）'}
   ];
   pptProject.splice(insertAt,0,...slides);
   pptProjectIndex=insertAt;
   pptProjectRender();
-  $('pptProjectStatus').textContent='已加入研究四段式：研究問題／研究資料／暗星分析／老師結論，共 4 頁。';
+  savePptProjectLocal();
+  $('pptProjectStatus').textContent='已加入研究四段式：研究問題／研究資料／暗星分析／老師結論，共 4 頁，並已保存。';
   return true;
 }
 function renderDarkStarTeachingPanel(){
