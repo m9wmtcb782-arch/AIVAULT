@@ -608,7 +608,7 @@ if(shareStudentClassroom)shareStudentClassroom.onclick=async()=>{
   const text=code?'AIVAULT 課堂教室\n教室代碼：'+code+'\n請開啟連結進入：'+url:'AIVAULT 課堂教室\n請開啟連結進入學生課堂：'+url;
   try{
     if(navigator.share){
-      await navigator.share({title:'AIVAULT 課堂教室',text,url});
+      await navigator.share({text});
     }else{
       await navigator.clipboard.writeText(text);
       say('已複製學生課堂分享內容。');
