@@ -38,9 +38,9 @@ async function classroomUpdateState(payload){
   try{await classroomApi({action:'classroom_update',channel_token:classroomState.channel_token,owner_token:classroomState.owner_token,state:lastClassroomPayload});}catch(e){console.warn('classroom state update',e);}
 }
 async function classroomBroadcast(payload){
-  if(!classroomActive||!classroomState.channel_token)return;
   const clean={type:payload.type||'page',page:Number(payload.page)||1,total:Number(payload.total)||0,content:String(payload.content||''),videos:Array.isArray(payload.videos)?payload.videos:[]};
   lastClassroomPayload=clean;
+  if(!classroomActive||!classroomState.channel_token)return;
   classroomUpdateState(clean);
   try{
     const r=await fetch(CLASSROOM_REALTIME,{
