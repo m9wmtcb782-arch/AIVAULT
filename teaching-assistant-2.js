@@ -617,6 +617,21 @@ if(shareStudentClassroom)shareStudentClassroom.onclick=async()=>{
     if(e?.name!=='AbortError')say('分享失敗：'+(e?.message||e));
   }
 };
+const shareStudentClassroomWeChat=$('shareStudentClassroomWeChat');
+if(shareStudentClassroomWeChat)shareStudentClassroomWeChat.onclick=async()=>{
+  const url=new URL('student-classroom.html',location.href);
+  const code=classroomState.code?String(classroomState.code):'';
+  if(/^\\d{4}$/.test(code))url.searchParams.set('code',code);
+  const text='AIVAULT 課堂教室\\n教室代碼：'+(code||'未建立')+'\\n點此直接進入：\\n'+url.href;
+  try{
+    if(navigator.share){
+      const data={text};
+      if(!navigator.canShare||navigator.canShare(data)){await navigator.share(data);return;}
+    }
+  }catch(e){if(e?.name==='AbortError')return;}
+  try{await navigator.clipboard.writeText(text);say('已複製微信分享內容，請貼到微信。');}
+  catch{say('請複製課堂連結後貼到微信。');}
+};
 function hideResearch(){researchOpen=false;researchBig=false;$('research').classList.remove('on','big')}
 function showResearch(q){q=(q||'').trim();if(!q)return;researchOpen=true;$('q').value=q;$('research').classList.add('on');$('rbody').textContent=q;say('已開啟研究。')}
 $('search').onclick=()=>showResearch($('q').value);$('rClose').onclick=hideResearch;$('rPpt').onclick=()=>{hideResearch();say('已回到 PPT。')};$('rBig').onclick=()=>{$('research').classList.toggle('big')};$('rRead').onclick=()=>{const t=$('rbody').innerText.trim();if(t)speakText(t)};
