@@ -965,7 +965,7 @@ async function ebookLoad(){
     if(ebookState.units.length) await ebookLoadUnit(0);
     else await ebookGo(0);
     $('ebookStatus').textContent='教材已載入：'+(ebookPick(b,['title','name'])||'電子書')+'；原書內文已放入教學助理，原文未改寫。';$('info').textContent='電子書教材｜第 '+(ebookState.page||1)+(ebookState.total?' / '+ebookState.total:'');
-    say('已將選定電子書作為完整教材來源。原文不改寫，使用時逐頁載入。');
+    // 選定教材後不再在教室上方顯示長提示；避免遮擋控制列與教材內容。
   }catch(e){$('ebookStatus').textContent='教材選定失敗：'+(e.message||e);say('電子書教材選定失敗。')}
 }
 function videoIdFromUrl(u){
