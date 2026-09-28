@@ -69,8 +69,9 @@ function classroomBadge(){
     const startBtn=$('start');
     if(startBtn&&startBtn.parentElement){
       inline=document.createElement('div'); inline.id='aivaultClassroomCodeInline';
-      inline.style.cssText='margin-top:6px;font-size:20px;font-weight:800;letter-spacing:2px;text-align:center;color:#7567ff;line-height:1.3;white-space:nowrap;';
-      startBtn.parentElement.appendChild(inline);
+      inline.style.cssText='position:absolute;right:92px;top:50%;transform:translateY(-50%);margin:0;font-size:16px;font-weight:800;letter-spacing:2px;text-align:center;color:#7567ff;line-height:1.2;white-space:nowrap;pointer-events:none;z-index:5;';
+      const bar=startBtn.closest('.bar');
+      if(bar){bar.style.position='relative';bar.appendChild(inline);}else{startBtn.parentElement.appendChild(inline);}
     }
   }
   if(inline){inline.textContent=classroomState.code?'教室 '+classroomState.code:'課堂代碼建立中…';}
