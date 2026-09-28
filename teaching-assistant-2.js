@@ -232,6 +232,19 @@ function classroomBuildPayload(payload){
     research:payload.research===undefined?classroomPayloadResearch():payload.research
   };
 }
+function addDarkStarResearchToProject(){
+  if(!pptProject.length||!darkStarTeachingState.lastAnswer)return false;
+  const title='暗星研究｜'+String(darkStarTeachingState.lastQuery||'目前問題').slice(0,60);
+  const sources=Array.isArray(darkStarTeachingState.lastResearch)?darkStarTeachingState.lastResearch:[];
+  const sourceText=sources.length
+    ? '\n\n資料來源：\n'+sources.map((s,n)=>(n+1)+'. '+String(s.title||s.url||'來源')+(s.url?'\n'+String(s.url):'')).join('\n')
+    : '';
+  pptProject.splice(Math.min(pptProjectIndex+1,pptProject.length),0,{kind:'research-result',title,content:String(darkStarTeachingState.lastAnswer||'')+sourceText});
+  pptProjectIndex=Math.min(pptProjectIndex+1,pptProject.length-1);
+  pptProjectRender();
+  $('pptProjectStatus').textContent='已將暗星研究結果加入專題報告。';
+  return true;
+}
 function renderDarkStarTeachingPanel(){
   let host=document.getElementById('darkStarTeachingResearch');
   const target=ebookState.loaded?$('ebookLesson'):$('ppt');
@@ -256,7 +269,10 @@ function renderDarkStarTeachingPanel(){
       ? '<div style="margin-top:10px;padding-top:9px;border-top:1px solid #eee;font-size:13px;color:#666"><b>資料來源</b><br>'+
         darkStarTeachingState.lastResearch.map(s=>'<div style="margin-top:4px">'+htmlEscape(s.title||s.url||'來源')+(s.url?' — <a href="'+htmlEscape(s.url)+'" target="_blank" rel="noopener" style="color:#155eef">'+htmlEscape(s.url)+'</a>':'')+'</div>').join('')+
         '</div>'
-      : '');
+      : '')+
+    (pptProject.length?'<button type="button" id="addResearchToProject" class="b primary" style="margin-top:10px;width:100%">📊 將研究結果加入專題報告</button>':'');
+  const addBtn=document.getElementById('addResearchToProject');
+  if(addBtn)addBtn.onclick=()=>addDarkStarResearchToProject();
 }
 async function darkStarTeachingResearchApi(payload){
   const r=await fetch(DARK_STAR_TEACHING_RESEARCH,{
