@@ -3,14 +3,14 @@ async function loadPpt(f){stopReading();$('view').textContent='正在解析 PPT�
 $('file').onchange=e=>e.target.files[0]&&loadPpt(e.target.files[0]);$('next').onclick=()=>{go(index+1);say('下一頁。')};$('prev').onclick=()=>{go(index-1);say('上一頁。')};$('goto').onclick=()=>{const n=prompt('請輸入頁碼',index+1);if(n){go(Number(n)-1)}};function pageReadingText(){const t=slideTexts[index]||'';return t.trim()||'這一頁目前沒有擷取到可讀文字。'}$('readPage').onclick=()=>{const t=pageReadingText();if(t.startsWith('這一頁目前'))return say(t);speakText(t)};
 
 const EBOOK_SUPABASE_URL='https://clcddygkaaqqtsbswgdf.supabase.co';
-const EBOOK_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJjbGNkZHlka2FhYXFxdHNibmdkZiIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE';
+const EBOOK_PUBLISHABLE_KEY='sb_publishable_1D05YGthBrNGg-5L92TLCw_GiLnInBu';
 const EBOOK_INGEST=EBOOK_SUPABASE_URL+'/functions/v1/dark-star-ebook-ingest';
 const ebookState={books:[],bookId:'',book:null,page:1,total:0,loaded:false,toc:[],units:[],unitIndex:-1,unitPages:[],pendingVideo:null};
 async function ebookApi(payload){
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),15000);
   try{
-    const r=await fetch(EBOOK_INGEST,{method:'POST',headers:{'Content-Type':'application/json',apikey:EBOOK_ANON_KEY,Authorization:'Bearer '+EBOOK_ANON_KEY},body:JSON.stringify(payload),signal:controller.signal});
+    const r=await fetch(EBOOK_INGEST,{method:'POST',headers:{'Content-Type':'application/json',apikey:EBOOK_PUBLISHABLE_KEY},body:JSON.stringify(payload),signal:controller.signal});
     const raw=await r.text();let data={};try{data=raw?JSON.parse(raw):{}}catch{}
     if(!r.ok)throw Error((data.error||data.message||('電子書服務 HTTP '+r.status)));
     return data;
