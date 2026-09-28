@@ -323,6 +323,31 @@ function classVoiceControls(){
   if(s)s.textContent=(v?.textContent||'🎤 聲控').replace(/^正在準備聲控…$/,'🎤 聲控');
   if(s&&t&&t.textContent&&t.textContent!=='等待老師說話…')s.textContent='🎤 '+t.textContent;
 }
+async function handleVoicePageCommand(text){
+  const t=String(text||'').replace(/[，。！？、,.!?\s]/g,'').trim();
+  if(!t)return false;
+  const next=/^(下一頁|下頁|下一張|下張|往下一頁|往下翻|往後一頁|下一頁了)$/.test(t)||t.includes('下一頁')||t.includes('下一張')||t.includes('往下翻');
+  const prev=/^(上一頁|上頁|上一張|上張|往上一頁|往上翻|往前一頁|前一頁)$/.test(t)||t.includes('上一頁')||t.includes('上一張')||t.includes('往上翻');
+  if(!next&&!prev)return false;
+  try{
+    if(ebookState.loaded){
+      const before=ebookState.page;
+      await ebookGo(next?1:-1);
+      const after=ebookState.page;
+      $('tr').textContent=(after===before)?(next?'已是最後一頁':'已是第一頁'):(next?'已切換下一頁':'已切換上一頁');
+    }else if(count){
+      const before=index;
+      await go(index+(next?1:-1));
+      const after=index;
+      $('tr').textContent=(after===before)?(next?'已是最後一頁':'已是第一頁'):(next?'已切換下一頁':'已切換上一頁');
+    }else{
+      $('tr').textContent='目前沒有可翻頁的教材';
+      return true;
+    }
+    classVoiceControls();
+    return true;
+  }catch(e){console.warn('voice page command',e);$('tr').textContent='翻頁失敗：'+(e.message||e);classVoiceControls();return true;}
+}
 function startRec(){if(!rec||listening)return;try{rec.start()}catch(e){listening=false;console.warn('speech recognition start',e);$('vs').textContent='請再按一次「開始聽」'}}
 function setup(){
   const S=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -330,7 +355,7 @@ function setup(){
   rec=new S();rec.lang='zh-TW';rec.continuous=false;rec.interimResults=true;
   rec.onstart=()=>{listening=true;$('vs').textContent='🎤 聲控啟用，請說話'};
   rec.onerror=e=>{listening=false;console.warn('speech recognition',e);if(voice)$('vs').textContent=e?.error==='not-allowed'?'⚠️ 麥克風／語音辨識權限被拒絕':'⚠️ 聲控暫停，請按「開始聽」'};
-  rec.onresult=e=>{let t='';for(let k=e.resultIndex;k<e.results.length;k++)if(e.results[k].isFinal)t+=e.results[k][0].transcript;if(t){$('tr').textContent=t;classVoiceControls()}};
+  rec.onresult=e=>{let t='';for(let k=e.resultIndex;k<e.results.length;k++)if(e.results[k].isFinal)t+=e.results[k][0].transcript;if(t){$('tr').textContent=t;classVoiceControls();handleVoicePageCommand(t)}};
   rec.onend=()=>{listening=false;if(voice){$('vs').textContent='🎤 聲控已停止，重新啟動中…';setTimeout(()=>{if(rec&&voice&&!listening)startRec()},250)}};
   $('voiceStart').onclick=()=>{voice=true;$('vs').textContent='🎤 正在啟動聲控…';startRec()};
   $('voiceStop').onclick=()=>{voice=false;listening=false;$('vs').textContent='聲控已取消';try{rec.abort()}catch{}};
