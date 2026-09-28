@@ -16,7 +16,8 @@ h1{font-size:clamp(30px,8vw,44px);margin:4px 0 8px}
 #code{width:100%;font-size:48px;letter-spacing:14px;text-align:center;padding:14px 12px;border:2px solid #7567ff;border-radius:14px;outline:none}
 #connect{width:100%;margin-top:14px;padding:15px;border:0;border-radius:12px;background:#7567ff;color:#fff;font-size:28px;font-weight:800}
 #lesson{display:none;margin-top:24px}
-#room{font-size:22px;color:#667085;text-align:center;margin-bottom:18px}
+#room{font-size:22px;color:#667085;text-align:center;margin-bottom:18px;display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap}
+#leaveClass{padding:8px 14px;border:1px solid #d5dbe5;border-radius:10px;background:#fff;color:#172033;font-size:18px;font-weight:700}
 #pageInfo{font-size:20px;color:#667085;margin-bottom:12px}
 #content{font-size:30px;line-height:2;white-space:pre-wrap;word-break:break-word}
 #videoBox{margin-top:20px}
@@ -41,7 +42,7 @@ video,iframe{display:block;width:100%;max-height:620px;margin:18px 0;border:0;bo
 <div class="msg" style="margin-top:16px">學生只能看到老師目前正在上的本堂課內容，不提供電子書書架、電子書搜尋或學生翻書功能。</div>
 </section>
 <section id="lesson">
-<div id="room"></div>
+<div id="room"><span id="roomName"></span><button id="leaveClass" type="button">🚪 退出教室</button></div>
 <div id="audioPanel"><button id="audioToggle" type="button">🔊 接收老師聲音</button><div id="audioStatus">課堂聲音：開啟</div><audio id="classroomAudio" autoplay playsinline></audio></div>
 <div id="pageInfo"></div>
 <div id="content" class="msg"></div>
@@ -73,7 +74,7 @@ async function startStudentAudio(){
   audioEnabled=true;$('classroomAudio').muted=false;$('audioToggle').textContent='🔊 接收老師聲音';setAudioStatus('課堂聲音：開啟');
   await sendSignal('audio_join',{peer_id:audioPeerId});
 }
-function stopStudentAudio(){if(audioPc){try{audioPc.close()}catch{}audioPc=null;}audioRemoteStream=null;$('classroomAudio').srcObject=null;}
+function stopStudentAudio(){if(audioPc){try{audioPc.close()}catch{}audioPc=null;}audioRemoteStream=null;$('classroomAudio').srcObject=null;pendingIce=[];}
 async function handleAudioOffer(payload){
   if(!payload||payload.to!==audioPeerId||!payload.description)return;
   stopStudentAudio();
@@ -111,7 +112,7 @@ async function connect(){
   const c=d.classroom;if(!c?.channel_token)throw Error('找不到這間教室');
   channelToken=String(c.channel_token);
   const state=c.current_state||{};
-  $('join').style.display='none';$('lesson').style.display='block';$('room').textContent='教室 '+classroomCode;
+  $('join').style.display='none';$('lesson').style.display='block';$('roomName').textContent='教室 '+classroomCode;
   if(state&&state.content)renderState(state);
   if(!window.supabase?.createClient)throw Error('即時課堂元件尚未載入，請重新整理學生頁面。');
   supabaseClient=window.supabase.createClient(SUPABASE_URL,KEY);
@@ -137,7 +138,24 @@ async function connect(){
   setStatus((e.message==='CLASSROOM_NOT_FOUND'||e.message==='找不到這間教室')?'找不到教室 '+code+'。請確認老師提供的 4 位數入口。':'進入教室失敗：'+(e.message||e),true);
  }
 }
+async function leaveClassroom(){
+  stopStudentAudio();
+  if(channel&&supabaseClient){try{await supabaseClient.removeChannel(channel)}catch{}}
+  channel=null;channelToken='';classroomCode='';total=0;page=1;
+  $('classroomAudio').muted=true;
+  $('audioPanel').style.display='none';
+  $('content').textContent='';
+  $('videoBox').innerHTML='';
+  $('pageInfo').textContent='';
+  $('roomName').textContent='';
+  $('code').value='';
+  $('lesson').style.display='none';
+  $('join').style.display='block';
+  setStatus('已退出教室。請輸入老師提供的 4 位數教室入口。');
+  $('code').focus();
+}
 $('connect').onclick=connect;
+$('leaveClass').onclick=leaveClassroom;
 $('audioToggle').onclick=async()=>{if(audioEnabled){audioEnabled=false;$('classroomAudio').muted=true;$('audioToggle').textContent='🔇 已靜音老師聲音';setAudioStatus('課堂聲音：已靜音（只影響這台學生裝置）');}else{audioEnabled=true;$('classroomAudio').muted=false;$('audioToggle').textContent='🔊 接收老師聲音';setAudioStatus('課堂聲音：開啟');try{await $('classroomAudio').play()}catch{}if(!audioPc)await startStudentAudio();}};
 $('code').addEventListener('input',()=>{const v=$('code').value.replace(/D/g,'').slice(0,4);$('code').value=v;if(v.length===4)connect();});
 $('code').addEventListener('keydown',e=>{if(e.key==='Enter')connect();});
