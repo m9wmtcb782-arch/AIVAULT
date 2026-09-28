@@ -15,7 +15,7 @@ function pptProjectRender(){
   $('pptTextStatus').textContent='PPT 專題報告：已載入，共 '+pptProject.length+' 頁';
   renderPptProjectOutline();
   $('info').textContent='PPT 專題報告｜第 '+(pptProjectIndex+1)+' / '+pptProject.length+' 頁';
-  if(classroomActive)classroomBroadcast({type:'ppt-project',page:pptProjectIndex+1,total:pptProject.length,content:String(s.content||''),project_title:String(s.title||''),videos:[]});
+  if(classroomActive)classroomBroadcast({type:'ppt-project',page:pptProjectIndex+1,total:pptProject.length,content:String(s.content||''),project_title:String(pptProjectMeta.title||'PPT 專題報告'),project_page_title:String(s.title||''),project_kind:String(s.kind||'content'),videos:[]});
 }
 async function buildPptProjectFromEbook(){
   if(!ebookState.loaded){say('請先選擇並載入電子書教材。');$('pptProjectStatus').textContent='請先載入電子書教材。';return false;}
@@ -24,6 +24,7 @@ async function buildPptProjectFromEbook(){
   const bookTitle=String(ebookPick(ebookState.book,['title','name'])||'電子書專題');
   $('pptProjectStatus').textContent='正在建立專題報告結構…';
   const slides=[];
+  pptProjectMeta={title:bookTitle+'｜專題報告',sourceBook:bookTitle};
   slides.push({kind:'cover',title:bookTitle,content:'PPT 專題報告\n由 AIVAULT 教學助理依電子書教材建立\n\n原電子書保持不變'});
   slides.push({kind:'overview',title:'專題大綱',content:'一、研究／學習問題\n二、各章核心內容\n三、重要概念與原文依據\n四、問題分析與延伸研究\n五、專題結論'});
   const unitSummaries=[];
