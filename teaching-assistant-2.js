@@ -52,7 +52,6 @@ async function ebookLoad(){
     ebookState.units=Array.isArray(ebookPick(up,['units','items']))?ebookPick(up,['units','items']):[];
     ebookState.unitIndex=-1;ebookState.unitPages=[];ebookState.loaded=true;
     $('ebookLesson').style.display='block';
-    $('ppt').style.display='none';
     $('ebookLesson').style.width='100%';
     $('ebookLesson').style.maxWidth='none';
     $('ebookLessonTitle').textContent='📚 '+(ebookPick(b,['title','name'])||'電子書教材');
