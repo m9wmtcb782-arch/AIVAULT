@@ -31,6 +31,17 @@ function classroomStopAudio(){
   if(classroomMicStream){classroomMicStream.getTracks().forEach(t=>t.stop());classroomMicStream=null;}
   classroomPeers.forEach(pc=>{try{pc.close()}catch{}});classroomPeers.clear();
 }
+// 聲控與課堂直播共用老師麥克風時，不停止 classroomMicStream。
+// SpeechRecognition 的生命週期只能控制辨識，不得關閉 WebRTC 課堂音訊。
+function classroomKeepAudioAlive(){
+  if(!classroomActive || !classroomMicStream)return;
+  classroomMicStream.getAudioTracks().forEach(track=>{
+    if(track.readyState==='ended'){
+      classroomMicStream=null;
+      classroomStartAudio().catch(e=>console.warn('classroom audio restore',e));
+    }
+  });
+}
 async function classroomSendSignal(event,payload){
   if(!classroomChannel)return;
   if(!classroomRealtimeReady){
@@ -406,15 +417,19 @@ async function handleVoicePageCommand(text){
     return true;
   }catch(e){console.warn('voice page command',e);$('tr').textContent='翻頁失敗：'+(e.message||e);classVoiceControls();return true;}
 }
-function startRec(){if(!rec||listening)return;try{rec.start()}catch(e){listening=false;console.warn('speech recognition start',e);$('vs').textContent='請再按一次「開始聽」'}}
+function startRec(){
+  if(!rec||listening)return;
+  classroomKeepAudioAlive();
+  try{rec.start()}catch(e){listening=false;console.warn('speech recognition start',e);$('vs').textContent='請再按一次「開始聽」'}
+}
 function setup(){
   const S=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!S){voice=false;$('vs').textContent='此瀏覽器不支援語音辨識';return}
   rec=new S();rec.lang='zh-TW';rec.continuous=false;rec.interimResults=true;
   rec.onstart=()=>{listening=true;$('vs').textContent='🎤 聲控啟用，請說話'};
   rec.onerror=e=>{listening=false;console.warn('speech recognition',e);if(voice)$('vs').textContent=e?.error==='not-allowed'?'⚠️ 麥克風／語音辨識權限被拒絕':'⚠️ 聲控暫停，請按「開始聽」'};
-  rec.onresult=e=>{let t='';for(let k=e.resultIndex;k<e.results.length;k++)if(e.results[k].isFinal)t+=e.results[k][0].transcript;if(t){$('tr').textContent=t;classVoiceControls();runVoiceCommand(t).catch(e=>console.warn('voice command',e))}};
-  rec.onend=()=>{listening=false;if(voice){$('vs').textContent='🎤 聲控已停止，重新啟動中…';setTimeout(()=>{if(rec&&voice&&!listening)startRec()},250)}};
+  rec.onresult=e=>{let t='';for(let k=e.resultIndex;k<e.results.length;k++)if(e.results[k].isFinal)t+=e.results[k][0].transcript;if(t){$('tr').textContent=t;classVoiceControls();runVoiceCommand(t).catch(e=>console.warn('voice command',e));}classroomKeepAudioAlive();};
+  rec.onend=()=>{listening=false;classroomKeepAudioAlive();if(voice){$('vs').textContent='🎤 聲控已停止，重新啟動中…';setTimeout(()=>{if(rec&&voice&&!listening)startRec()},250)}};
   $('voiceStart').onclick=()=>{voice=true;$('vs').textContent='🎤 正在啟動聲控…';startRec()};
   $('voiceStop').onclick=()=>{voice=false;listening=false;$('vs').textContent='聲控已取消';try{rec.abort()}catch{}};
   $('vs').textContent='🎤 請按「開始聽」啟用聲控';
