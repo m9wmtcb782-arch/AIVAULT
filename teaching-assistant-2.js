@@ -631,11 +631,11 @@ function renderDarkStarClassroomAvatar(){
   if(!host){
     host=document.createElement('div');
     host.id='darkStarClassroomAvatar';
-    host.style.cssText='position:absolute;right:18px;bottom:18px;width:220px;min-height:210px;padding:14px 14px 12px;border-radius:22px;background:rgba(8,12,24,.92);border:1px solid rgba(130,150,255,.55);box-shadow:0 12px 38px rgba(0,0,0,.45),0 0 30px rgba(90,110,255,.18);z-index:9600;color:#fff;pointer-events:none;text-align:center;backdrop-filter:blur(10px);';
-    host.innerHTML='<div id="darkStarAvatarFace" style="width:88px;height:88px;margin:0 auto 8px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:42px;background:radial-gradient(circle at 50% 42%,#dbe5ff 0 8%,#6f82ff 9% 22%,#17224b 48%,#050816 72%);box-shadow:0 0 24px rgba(105,125,255,.7);">✦</div>'+
-      '<div style="font-size:20px;font-weight:900;letter-spacing:1px;">暗星</div>'+
+    host.style.cssText='position:absolute;right:18px;bottom:18px;width:150px;min-height:145px;padding:9px 9px 8px;border-radius:16px;background:rgba(8,12,24,.92);border:1px solid rgba(130,150,255,.55);box-shadow:0 12px 38px rgba(0,0,0,.45),0 0 30px rgba(90,110,255,.18);z-index:9600;color:#fff;pointer-events:none;text-align:center;backdrop-filter:blur(10px);';
+    host.innerHTML='<div id="darkStarAvatarFace" style="width:58px;height:58px;margin:0 auto 5px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;background:radial-gradient(circle at 50% 42%,#dbe5ff 0 8%,#6f82ff 9% 22%,#17224b 48%,#050816 72%);box-shadow:0 0 24px rgba(105,125,255,.7);">✦</div>'+
+      '<div style="font-size:16px;font-weight:900;letter-spacing:1px;">暗星</div>'+
       '<div style="font-size:12px;opacity:.72;margin-top:2px;">Technical Dark Star · 教學 Agent</div>'+
-      '<div id="darkStarAvatarStatus" style="margin-top:9px;font-size:14px;line-height:1.45;color:#b9c5ff;">🎤 正在聽老師</div>';
+      '<div id="darkStarAvatarStatus" style="margin-top:6px;font-size:11px;line-height:1.45;color:#b9c5ff;">🎤 正在聽老師</div>';
     panel.appendChild(host);
   }
   const status=$('darkStarAvatarStatus');
