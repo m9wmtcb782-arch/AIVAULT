@@ -27,7 +27,6 @@ video,iframe{display:block;width:100%;max-height:600px;margin:18px 0;border:0;bo
 <body>
 <div id="app">
 <header><h1>✦ AIVAULT 學生上課</h1><div id="status">正在準備教材…</div></header>
-<div id="books"></div>
 <section id="lesson">
 <div id="title"></div>
 <div id="pageInfo"></div>
@@ -80,32 +79,41 @@ function videoHtml(v){
  if(provider==='direct'&&u)return '<video controls playsinline preload="metadata" src="'+esc(u)+'"></video>';
  return '';
 }
-async function listBooks(){
- $('status').textContent='正在載入課程教材…';
- const d=await api({action:'list',limit:80}),p=pick(d,['data'])||d,rows=pick(p,['books','ebooks','items'])||[];
- $('books').innerHTML='';
- rows.forEach(b=>{
-  const id=pick(b,['ebook_id','id','book_id']);if(!id)return;
-  const btn=document.createElement('button');btn.className='book';btn.textContent=pick(b,['title','name'])||'電子書教材';
-  btn.onclick=()=>{bookId=String(id);history.replaceState(null,'','?ebook_id='+encodeURIComponent(bookId));loadBook()};
-  $('books').appendChild(btn);
- });
- $('status').textContent=rows.length?'請選擇老師指定的教材':'目前沒有可用教材';
+function connectClassroom(){
+ if(!bookId){
+   $('status').textContent='尚未進入課堂。請使用老師提供的本堂課連結。';
+   return;
+ }
+ if(!window.supabase||typeof window.supabase.createClient!=='function'){
+   $('status').textContent='即時課堂元件尚未載入，請重新整理學生頁面。';
+   return;
+ }
+ if(!supabaseClient)supabaseClient=window.supabase.createClient(URL,KEY);
+ if(classroomChannel)supabaseClient.removeChannel(classroomChannel);
+ classroomChannel=supabaseClient.channel('student-classroom:'+String(bookId),{config:{broadcast:{self:false}}})
+  .on('broadcast',{event:'classroom_state'},({payload})=>{
+    if(!payload||String(payload.ebook_id)!==String(bookId))return;
+    if(payload.page)page=Number(payload.page);
+    if(payload.content==null)return;
+    render({page_number:page,content:payload.content,metadata:{videos:Array.isArray(payload.videos)?payload.videos:[]}});
+    $('status').textContent='本堂課上課中';
+  })
+  .subscribe(status=>{
+    if(status==='SUBSCRIBED')$('status').textContent='已連線本堂課，等待老師上課內容…';
+    else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')$('status').textContent='課堂連線失敗，請重新整理學生頁面。';
+  });
 }
 async function loadBook(){
- if(!bookId){await listBooks();return}
- $('books').style.display='none';$('lesson').style.display='block';
- $('status').textContent='正在載入上課內容…';
- try{
-  const d=await api({action:'book',ebook_id:bookId,page_number:1});
-  const p=pick(d,['data'])||d;const b=pick(p,['book'])||p;
-  bookTitle=pick(b,['title','name'])||'電子書教材';
-  total=Number(pick(p,['total_pages','page_count'])||0);page=1;
-  $('title').textContent=bookTitle;
-  render(pick(p,['page'])||((pick(p,['pages','items'])||[])[0])||p);
-  connectClassroom();
-  $('status').textContent='已連線老師上課畫面';
- }catch(e){$('status').innerHTML='<div class="err">教材載入失敗：'+esc(e.message||e)+'</div>'}
+ if(!bookId){connectClassroom();return;}
+ $('status').textContent='正在連線本堂課…';
+ $('books').style.display='none';
+ $('lesson').style.display='block';
+ $('title').textContent='本堂課';
+ $('pageInfo').textContent='';
+ $('content').textContent='';
+ $('videoBox').innerHTML='';
+ $('videoBox').style.display='none';
+ connectClassroom();
 }
 function render(p){
  page=Number(pick(p,['page_number','page','number'])||page);
