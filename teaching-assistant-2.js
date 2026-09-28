@@ -363,9 +363,34 @@ async function darkStarTeacherCommand(text){
     // 只有「暗星你來解釋／暗星請你來解釋」才讓暗星真正開口。
     // 搜尋、翻頁、改顏色等工作命令仍可執行，但不會搶答老師對學生提出的問題。
     if(explainIntent){
-      $('tr').textContent='暗星正在依老師要求解釋…';
-      // 解釋命令是唯一的「開口許可」；不受目前文字/語音模式切換影響。
-      if(speechEnabled)speakText(answer);
+      $('tr').textContent='暗星正在直接說話…';
+      // 老師明確叫暗星解釋時，暗星直接開口，不需要老師再按播放。
+      // 說話期間暫停語音辨識，避免暗星自己的聲音被辨識成老師的新指令。
+      voice=false;
+      listening=false;
+      try{rec?.abort()}catch{}
+      try{speechSynthesis.cancel()}catch{}
+      const u=new SpeechSynthesisUtterance(String(answer||''));
+      const v=(typeof chosenVoice==='function')?chosenVoice():null;
+      if(v){u.voice=v;u.lang=v.lang||'zh-TW'}else{u.lang='zh-TW'}
+      u.rate=+$('rate').value||1;
+      u.pitch=1;
+      u.volume=1;
+      currentUtterance=u;
+      u.onstart=()=>{$('readStatus').textContent='🔊 暗星正在說話…'};
+      u.onend=()=>{
+        $('readStatus').textContent='✅ 暗星說完了';
+        currentUtterance=null;
+        voice=true;
+        setTimeout(()=>{if(voice&&!listening)startRec()},250);
+      };
+      u.onerror=()=>{
+        $('readStatus').textContent='⚠️ 暗星語音播放失敗';
+        currentUtterance=null;
+        voice=true;
+        setTimeout(()=>{if(voice&&!listening)startRec()},250);
+      };
+      speechSynthesis.speak(u);
     }
     if(research){
       $('tr').textContent='暗星已完成網路研究並呈現在課堂頁面';
