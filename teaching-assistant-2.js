@@ -312,6 +312,7 @@ async function darkStarTeacherCommand(text){
     || /^\s*暗星[，,、\s]+請你來解釋(?:[：:，,、\s].*)?$/i.test(rawText);
   const explicitDarkStar=/^\s*暗星/.test(String(text||''));
   const colorOnly=/(用|改成|換成|接下來).*?(紅色|藍色|綠色|黃色|紫色|橙色|黑色|灰色|白色).*?字?/.test(String(text||''));
+  const navigationIntent=/下一頁|下一張|上一頁|上一張|往下|向下|往上|向上|第[一二三四五六七八九十百千0-9]+章|跳到|翻到|下一個單元|上一個單元/.test(rawText);
   // 翻頁也由暗星輔助：暗星負責理解目前老師意圖，真正的頁面操作仍交給既有的確定性導航函式。
   if(!research && !explicitDarkStar && !colorOnly && !navigationIntent)return false;
   $('tr').textContent=research?'暗星正在上網收集資料…':(navigationIntent?'暗星正在判斷老師的翻頁指令…':'暗星正在執行老師命令…');
