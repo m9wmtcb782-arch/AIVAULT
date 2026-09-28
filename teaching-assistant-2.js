@@ -71,7 +71,38 @@ async function buildPptProjectFromEbook(){
   say('已建立完整 PPT 專題報告，共 '+pptProject.length+' 頁。');
   return true;
 }
+function savePptProjectLocal(){
+  if(!pptProject.length){$('pptProjectStatus').textContent='目前沒有可儲存的 PPT 專題報告。';return false;}
+  try{
+    localStorage.setItem('aivault_ppt_project',JSON.stringify({meta:pptProjectMeta,slides:pptProject,index:pptProjectIndex,saved_at:new Date().toISOString()}));
+    $('pptProjectStatus').textContent='PPT 專題報告已儲存到本機瀏覽器。';
+    return true;
+  }catch(e){$('pptProjectStatus').textContent='儲存失敗：'+(e.message||e);return false;}
+}
+function loadPptProjectLocal(){
+  try{
+    const raw=localStorage.getItem('aivault_ppt_project');
+    if(!raw)return false;
+    const d=JSON.parse(raw);
+    if(!Array.isArray(d.slides)||!d.slides.length)return false;
+    pptProjectMeta=d.meta&&typeof d.meta==='object'?d.meta:{title:'PPT 專題報告',sourceBook:''};
+    pptProject=d.slides;
+    pptProjectIndex=Math.max(0,Math.min(Number(d.index)||0,pptProject.length-1));
+    pptProjectRender();
+    $('pptProjectStatus').textContent='已載入本機儲存的 PPT 專題報告，共 '+pptProject.length+' 頁。';
+    return true;
+  }catch(e){console.warn('load ppt project',e);return false;}
+}
+function clearPptProjectLocal(){
+  try{localStorage.removeItem('aivault_ppt_project')}catch{}
+  pptProject=[];pptProjectIndex=0;pptProjectMeta={title:'',sourceBook:''};
+  renderPptProjectOutline();
+  $('pptProjectStatus').textContent='PPT 專題報告已清除。';
+}
 $('pptProjectFromEbook').onclick=()=>buildPptProjectFromEbook();
+$('save').onclick=()=>{if(pptProject.length)savePptProjectLocal();};
+$('clear').onclick=()=>{if(confirm('確定清除目前 PPT 專題報告？'))clearPptProjectLocal();};
+loadPptProjectLocal();
 $('materialMode').onchange=e=>{if(e.target.value==='ppt-project')$('pptProjectStatus').textContent='可由電子書建立專題報告；原電子書不會被修改。';};
 $('file').onchange=e=>e.target.files[0]&&loadPpt(e.target.files[0]);
 $('next').onclick=()=>{if(pptProject.length){pptProjectIndex=Math.min(pptProject.length-1,pptProjectIndex+1);pptProjectRender();say('下一頁。');}else{go(index+1);say('下一頁。')}};
