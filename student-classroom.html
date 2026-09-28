@@ -1,38 +1,47 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
+<!doctype html>
+<html lang="zh-Hant">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>AIVAULT 學生上課</title>
+<title>AIVAULT 學生課堂</title>
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;background:#fff;color:#172033;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif}
 body{font-size:22px}
-#app{max-width:1100px;margin:auto;padding:18px}
-header{text-align:center;padding:12px 0 18px;border-bottom:1px solid #e2e8f0}
-h1{font-size:clamp(28px,7vw,42px);margin:4px 0 8px}
+#app{max-width:1000px;margin:auto;padding:22px}
+header{text-align:center;padding:12px 0 24px;border-bottom:1px solid #e2e8f0}
+h1{font-size:clamp(30px,8vw,44px);margin:4px 0 8px}
 #status{color:#667085;font-size:20px;min-height:30px}
-#books{display:grid;gap:12px;margin-top:20px}
-.book{width:100%;text-align:left;padding:18px;border:2px solid #dfe4ec;border-radius:14px;background:#fff;font-size:24px;font-weight:600;cursor:pointer}
-#lesson{display:none}
-#title{font-size:clamp(28px,6vw,40px);font-weight:700;margin:22px 0 10px}
-#pageInfo{color:#667085;font-size:20px;margin-bottom:12px}
-#content{font-size:30px;line-height:2;white-space:pre-wrap;word-break:break-word;padding:18px 4px}
-video,iframe{display:block;width:100%;max-height:600px;margin:18px 0;border:0;border-radius:12px;background:#000}
-#videoBox{display:none}
-.err{padding:20px;border-radius:12px;background:#fff3f3;color:#b42318;margin-top:20px}
+#join{max-width:520px;margin:40px auto 0;text-align:center}
+#code{width:100%;font-size:48px;letter-spacing:14px;text-align:center;padding:14px 12px;border:2px solid #7567ff;border-radius:14px;outline:none}
+#connect{width:100%;margin-top:14px;padding:15px;border:0;border-radius:12px;background:#7567ff;color:#fff;font-size:28px;font-weight:800}
+#lesson{display:none;margin-top:24px}
+#room{font-size:22px;color:#667085;text-align:center;margin-bottom:18px}
+#pageInfo{font-size:20px;color:#667085;margin-bottom:12px}
+#content{font-size:30px;line-height:2;white-space:pre-wrap;word-break:break-word}
+#videoBox{margin-top:20px}
+video,iframe{display:block;width:100%;max-height:620px;margin:18px 0;border:0;border-radius:12px;background:#000}
+.msg{padding:18px;border-radius:12px;background:#f7f9fc;color:#475467}
+.err{color:#b42318;background:#fff3f3}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
 <div id="app">
-<header><h1>✦ AIVAULT 學生上課</h1><div id="status">正在準備教材…</div></header>
+<header>
+<h1>✦ AIVAULT 學生上課</h1>
+<div id="status">請輸入老師提供的 4 位數教室入口。</div>
+</header>
+<section id="join">
+<input id="code" inputmode="numeric" maxlength="4" autocomplete="one-time-code" placeholder="0000" aria-label="四位數教室入口">
+<button id="connect">進入這間教室</button>
+<div class="msg" style="margin-top:16px">學生只能看到老師目前正在上的本堂課內容，不提供電子書書架、電子書搜尋或學生翻書功能。</div>
+</section>
 <section id="lesson">
-<div id="title"></div>
+<div id="room"></div>
 <div id="pageInfo"></div>
-<div id="content"></div>
+<div id="content" class="msg"></div>
 <div id="videoBox"></div>
-
 </section>
 </div>
 <script>
@@ -40,106 +49,68 @@ const URL='https://clcddygkaaqqtsbswgdf.supabase.co';
 const KEY='sb_publishable_1D05YGthBrNGg-5L92TLCw_GiLnInBu';
 const API=URL+'/functions/v1/dark-star-ebook-ingest';
 const $=id=>document.getElementById(id);
-let bookId=new URLSearchParams(location.search).get('ebook_id')||'';
-let page=1,total=0,bookTitle='';
-let classroomChannel=null;
-let supabaseClient=null;
-function connectClassroom(){
- if(!bookId)return;
- if(!window.supabase||typeof window.supabase.createClient!=='function'){
-   $('status').textContent='教材已載入，但即時同步元件尚未載入；請重新整理學生頁面。';
-   return;
- }
- if(!supabaseClient)supabaseClient=window.supabase.createClient(URL,KEY);
- if(classroomChannel)supabaseClient.removeChannel(classroomChannel);
- classroomChannel=supabaseClient.channel('student-classroom:'+String(bookId),{config:{broadcast:{self:false}}})
-  .on('broadcast',{event:'classroom_state'},({payload})=>{
-    if(!payload||String(payload.ebook_id)!==String(bookId))return;
-    if(payload.title){bookTitle=payload.title;$('title').textContent=bookTitle}
-    if(payload.total)total=Number(payload.total);
-    if(payload.page)page=Number(payload.page);
-    render({page_number:page,content:payload.content||'',metadata:{videos:Array.isArray(payload.videos)?payload.videos:[]}});
-    $('status').textContent='老師上課中｜同步第 '+page+(total?' / '+total:'')+' 頁';
-  })
-  .subscribe(status=>{
-    if(status==='SUBSCRIBED')$('status').textContent='已連線老師上課畫面';
-  });
-}
-async function api(payload){
- const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json',apikey:KEY},body:JSON.stringify(payload)});
- const raw=await r.text();let d={};try{d=JSON.parse(raw)}catch{}
- if(!r.ok)throw Error(d.error||d.message||('HTTP '+r.status));return d;
-}
-function pick(d,keys){for(const k of keys)if(d&&d[k]!=null)return d[k];return null}
-function esc(s){return String(s??'').replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]))}
+let classroomCode='',channelToken='',channel=null,supabaseClient=null,total=0,page=1;
+
+function setStatus(t,error=false){$('status').textContent=t;$('status').classList.toggle('err',error);}
+function esc(s){return String(s??'').replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));}
 function videoHtml(v){
- const provider=String(v.provider||'').toLowerCase(),u=String(v.url||''),id=String(v.video_id||''),t=esc(v.title||'教學影片');
+ const provider=String(v?.provider||'').toLowerCase(),u=String(v?.url||''),id=String(v?.video_id||''),t=esc(v?.title||'教學影片');
  if(provider==='youtube'&&id)return '<iframe src="https://www.youtube.com/embed/'+encodeURIComponent(id)+'" title="'+t+'" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>';
  if(provider==='vimeo'&&id)return '<iframe src="https://player.vimeo.com/video/'+encodeURIComponent(id)+'" title="'+t+'" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>';
  if(provider==='direct'&&u)return '<video controls playsinline preload="metadata" src="'+esc(u)+'"></video>';
  return '';
 }
-function connectClassroom(){
- if(!bookId){
-   $('status').textContent='尚未進入課堂。請使用老師提供的本堂課連結。';
-   return;
- }
- if(!window.supabase||typeof window.supabase.createClient!=='function'){
-   $('status').textContent='即時課堂元件尚未載入，請重新整理學生頁面。';
-   return;
- }
- if(!supabaseClient)supabaseClient=window.supabase.createClient(URL,KEY);
- if(classroomChannel)supabaseClient.removeChannel(classroomChannel);
- classroomChannel=supabaseClient.channel('student-classroom:'+String(bookId),{config:{broadcast:{self:false}}})
-  .on('broadcast',{event:'classroom_state'},({payload})=>{
-    if(!payload||String(payload.ebook_id)!==String(bookId))return;
-    if(payload.page)page=Number(payload.page);
-    if(payload.content==null)return;
-    render({page_number:page,content:payload.content,metadata:{videos:Array.isArray(payload.videos)?payload.videos:[]}});
-    $('status').textContent='本堂課上課中';
-  })
-  .subscribe(status=>{
-    if(status==='SUBSCRIBED')$('status').textContent='已連線本堂課，等待老師上課內容…';
-    else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')$('status').textContent='課堂連線失敗，請重新整理學生頁面。';
-  });
-}
-async function loadBook(){
- if(!bookId){connectClassroom();return;}
- $('status').textContent='正在連線本堂課…';
- $('books').style.display='none';
- $('lesson').style.display='block';
- $('title').textContent='本堂課';
- $('pageInfo').textContent='';
- $('content').textContent='';
- $('videoBox').innerHTML='';
- $('videoBox').style.display='none';
- connectClassroom();
-}
-function render(p){
- page=Number(pick(p,['page_number','page','number'])||page);
- const text=String(pick(p,['content','text','body'])||'');
+function renderState(state){
+ if(!state||typeof state!=='object')return;
+ page=Number(state.page)||1;total=Number(state.total)||0;
  $('pageInfo').textContent='第 '+page+(total?' / '+total:'')+' 頁';
- $('content').textContent=text;
- const videos=Array.isArray(p?.metadata?.videos)?p.metadata.videos:[];
- const box=$('videoBox');box.innerHTML=videos.map(videoHtml).join('');
- box.style.display=box.innerHTML?'block':'none';
+ $('content').textContent=String(state.content||'');
+ const videos=Array.isArray(state.videos)?state.videos:[];
+ $('videoBox').innerHTML=videos.map(videoHtml).join('');
+ $('videoBox').style.display=$('videoBox').innerHTML?'block':'none';
  window.scrollTo({top:0,behavior:'smooth'});
 }
-async function go(delta){
- const n=Math.max(1,Math.min(total||999999,page+delta));
- try{
-  $('status').textContent='正在切換教材…';
-  const d=await api({action:'book',ebook_id:bookId,page_number:n});
-  const p=pick(d,['data'])||d;
-  total=Number(pick(p,['total_pages','page_count'])||total);
-  render(pick(p,['page'])||((pick(p,['pages','items'])||[])[0])||p);
-  $('status').textContent='上課中';
- }catch(e){$('status').textContent='翻頁失敗：'+(e.message||e)}
+async function api(payload){
+ const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json',apikey:KEY},body:JSON.stringify(payload)});
+ const raw=await r.text();let d={};try{d=raw?JSON.parse(raw):{}}catch{}
+ if(!r.ok)throw Error(d.error||d.message||('課堂服務 HTTP '+r.status));
+ return d;
 }
-window.addEventListener('error',e=>{
-  if($('status')&&$('status').textContent==='正在準備教材…')$('status').textContent='學生頁面載入失敗：'+(e.message||'請重新整理頁面');
-});
-loadBook().catch(e=>{ $('status').textContent='教材服務暫時無法連線：'+(e.message||e); });
+async function connect(){
+ const code=$('code').value.replace(/D/g,'').slice(0,4);$('code').value=code;
+ if(!/^\d{4}$/.test(code)){setStatus('請輸入完整 4 位數教室入口。',true);return;}
+ if(channel&&supabaseClient){await supabaseClient.removeChannel(channel);channel=null;}
+ classroomCode=code;setStatus('正在尋找教室 '+code+'…');
+ try{
+  const d=await api({action:'classroom_resolve',code});
+  const c=d.classroom;if(!c?.channel_token)throw Error('找不到這間教室');
+  channelToken=String(c.channel_token);
+  const state=c.current_state||{};
+  $('join').style.display='none';$('lesson').style.display='block';$('room').textContent='教室 '+classroomCode;
+  if(state&&state.content)renderState(state);
+  if(!window.supabase?.createClient)throw Error('即時課堂元件尚未載入，請重新整理學生頁面。');
+  supabaseClient=window.supabase.createClient(URL,KEY);
+  channel=supabaseClient.channel('student-classroom:'+channelToken,{config:{broadcast:{self:false}}})
+    .on('broadcast',{event:'classroom_state'},({payload})=>{
+      if(!payload)return;
+      renderState(payload);
+      setStatus('已連線教室 '+classroomCode+'，老師正在上課。');
+    })
+    .subscribe(status=>{
+      if(status==='SUBSCRIBED'){
+        setStatus(state&&state.content?'已連線教室 '+classroomCode+'，內容會隨老師同步。':'已連線教室 '+classroomCode+'，等待老師上課內容…');
+      }else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
+        setStatus('教室連線失敗，請重新輸入 4 位數入口。',true);
+      }
+    });
+ }catch(e){
+  $('lesson').style.display='none';$('join').style.display='block';
+  setStatus((e.message==='CLASSROOM_NOT_FOUND'||e.message==='找不到這間教室')?'找不到教室 '+code+'。請確認老師提供的 4 位數入口。':'進入教室失敗：'+(e.message||e),true);
+ }
+}
+$('connect').onclick=connect;
+$('code').addEventListener('input',()=>{const v=$('code').value.replace(/D/g,'').slice(0,4);$('code').value=v;if(v.length===4)connect();});
+$('code').addEventListener('keydown',e=>{if(e.key==='Enter')connect();});
 </script>
 </body>
 </html>
