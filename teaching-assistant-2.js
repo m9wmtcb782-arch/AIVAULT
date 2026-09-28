@@ -41,7 +41,13 @@ async function ebookLoad(){
     $('ebookLesson').style.display='block';
     $('ebookStatus').textContent='教材已匯入：'+(ebookPick(b,['title','name'])||'電子書');
     await ebookRender(pages[0]||ebookPick(payload,['page'])||payload);
-    say('電子書已匯入教學助理，現在可以作為老師上課教材。');
+    // 純轉換：載入第一個原書結構單元，不產生任何新教材內容。
+    if(ebookState.units.length) await ebookLoadUnit(0);
+    else {
+      $('ebookLessonUnit').textContent='目前教學單元：原書第 1 頁';
+      $('ebookLessonText').textContent=String((pages[0]||ebookPick(payload,['page'])||payload)?.content||'').trim();
+    }
+    say('電子書已轉換為教學助理的原書單元，可依原順序閱讀與播放。');
   }catch(e){$('ebookStatus').textContent='教材載入失敗：'+(e.message||e);say('電子書教材載入失敗。')}
 }
 function videoIdFromUrl(u){
