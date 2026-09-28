@@ -363,7 +363,8 @@ async function darkStarTeacherCommand(text){
     // 搜尋、翻頁、改顏色等工作命令仍可執行，但不會搶答老師對學生提出的問題。
     if(explainIntent){
       $('tr').textContent='暗星正在依老師要求解釋…';
-      say(answer);
+      // 解釋命令是唯一的「開口許可」；不受目前文字/語音模式切換影響。
+      if(speechEnabled)speakText(answer);
     }
     if(research){
       $('tr').textContent='暗星已完成網路研究並呈現在課堂頁面';
