@@ -1065,11 +1065,12 @@ function installClassroomLayoutFix(){
     .class #ebookLesson{padding:calc(70px + env(safe-area-inset-top)) 16px calc(150px + env(safe-area-inset-bottom))!important;overflow:auto!important}
     .class #ebookLesson>.voiceBtns:last-child{position:static!important;display:flex!important;flex-wrap:wrap!important;gap:7px!important;z-index:auto!important;margin:10px 0!important;padding:7px!important;border:1px solid rgba(255,255,255,.25)!important;border-radius:12px!important;background:rgba(8,12,24,.92)!important;box-shadow:none!important}
     .class #ebookLesson>.voiceBtns:last-child .b{flex:1;min-width:0}
-    #classVoiceControls{position:static!important;display:flex!important;flex-wrap:wrap!important;justify-content:center!important;gap:6px!important;z-index:auto!important;transform:none!important;margin:10px auto!important;padding:6px!important;border-radius:12px!important;background:rgba(8,12,24,.94)!important;box-shadow:none!important;max-width:calc(100% - 20px)!important;overflow:visible!important}
+    #classVoiceControls{position:static!important;display:flex!important;flex-wrap:wrap!important;justify-content:center!important;align-items:center!important;gap:6px!important;z-index:auto!important;transform:none!important;margin:8px auto!important;padding:6px!important;border-radius:12px!important;background:rgba(8,12,24,.94)!important;box-shadow:none!important;max-width:calc(100% - 20px)!important;overflow:visible!important}
     #classVoiceControls .b{min-height:40px!important;white-space:nowrap}
     #darkStarVoiceControls{position:static!important;left:auto!important;right:auto!important;bottom:auto!important;z-index:auto!important;transform:none!important;display:flex!important;flex-wrap:wrap!important;justify-content:center!important;gap:6px!important;max-width:calc(100% - 20px)!important;margin:10px auto!important}
     #darkStarVoiceControls .b{min-height:40px!important;white-space:nowrap}
-    #darkStarClassroomAvatar{position:static!important;width:46px!important;height:46px!important;min-height:46px!important;flex:0 0 46px!important;padding:0!important;margin:6px auto!important;border-radius:50%!important;z-index:auto!important}
+    #darkStarClassroomAvatar{position:static!important;width:42px!important;height:42px!important;min-height:42px!important;flex:0 0 42px!important;padding:0!important;margin:0 3px!important;border-radius:50%!important;display:flex!important;align-items:center!important;justify-content:center!important;background:conic-gradient(#ff3b30 0deg,#ff9500 51deg,#ffcc00 102deg,#34c759 154deg,#00c7be 205deg,#5856d6 257deg,#af52de 308deg,#ff3b30 360deg)!important;box-shadow:0 0 0 2px rgba(255,255,255,.75),0 3px 12px rgba(0,0,0,.2)!important;z-index:auto!important;color:#fff!important;pointer-events:none!important;text-align:center!important}
+    #darkStarAvatarFace{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:900;background:#0b1024;color:#fff;box-shadow:inset 0 0 10px rgba(255,255,255,.18)}
     @media(max-width:700px){
       .class .bar{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:6px!important}
       .class .bar>div:first-child,.class .bar>div:last-child{flex:1 1 auto!important;width:100%!important;justify-content:center!important}
@@ -1120,27 +1121,16 @@ $('closeV').onclick=()=>{$('video').innerHTML='';$('videoStatus').textContent='�
 async function detectMicrophone(){const el=$('mic');try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});stream.getTracks().forEach(t=>t.stop());el.className='mic ok';el.textContent='✅ 已偵測到麥克風';return true}catch(e){el.className='mic warn';el.textContent='⚠️ 麥克風尚未允許';return false}}
 function renderDarkStarClassroomAvatar(){
   if(!classroomActive)return;
-  const panel=$('panel');
-  if(!panel)return;
+  const view=$('view');
+  if(!view)return;
   let host=$('darkStarClassroomAvatar');
   if(!host){
     host=document.createElement('div');
     host.id='darkStarClassroomAvatar';
-    // 暗星在教室只保留成 Home 風格的小型七彩 Logo，不佔教材、不遮按鍵。
-    host.style.cssText='position:static;width:46px;height:46px;min-height:46px;flex:0 0 46px;padding:0;margin:6px auto;border-radius:50%;display:flex;align-items:center;justify-content:center;background:conic-gradient(#ff3b30 0deg,#ff9500 51deg,#ffcc00 102deg,#34c759 154deg,#00c7be 205deg,#5856d6 257deg,#af52de 308deg,#ff3b30 360deg);box-shadow:0 0 0 2px rgba(255,255,255,.75),0 3px 14px rgba(0,0,0,.22);z-index:auto;color:#fff;pointer-events:none;text-align:center;';
     host.setAttribute('aria-label','暗星七彩 Logo');
     host.title='暗星';
-    host.innerHTML='<div id="darkStarAvatarFace" style="width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:900;background:#0b1024;color:#fff;box-shadow:inset 0 0 10px rgba(255,255,255,.18);">✦</div>';
-    const voice=document.getElementById('classVoiceControls');
-    if(voice&&voice.parentElement===document.body)document.body.insertBefore(host,voice);
-    else panel.appendChild(host);
-  }
-  const status=$('darkStarAvatarStatus');
-  const tr=$('tr')?.textContent||'';
-  if(status){
-    if(currentUtterance)status.textContent='暗星正在說話';
-    else if(tr&&tr!=='等待老師說話…')status.textContent=tr.slice(0,32);
-    else status.textContent='暗星正在聽';
+    host.innerHTML='<div id="darkStarAvatarFace">✦</div>';
+    view.insertBefore(host,view.firstChild);
   }
   const face=$('darkStarAvatarFace');
   if(face){
@@ -1148,35 +1138,35 @@ function renderDarkStarClassroomAvatar(){
     face.style.boxShadow=currentUtterance?'inset 0 0 12px rgba(255,255,255,.28),0 0 12px rgba(255,255,255,.45)':'inset 0 0 10px rgba(255,255,255,.18)';
   }
 }
-function hideDarkStarClassroomAvatar(){
-  $('darkStarClassroomAvatar')?.remove();
-}
+function hideDarkStarClassroomAvatar(){$('darkStarClassroomAvatar')?.remove();}
 
 function classVoiceControls(){
-  const bar=document.querySelector('#panel.class .stage .bar');
-  if(!bar)return;
+  if(!classroomActive)return;
+  const view=$('view');
+  if(!view)return;
   renderDarkStarClassroomAvatar();
   let box=document.getElementById('classVoiceControls');
   if(!box){
     box=document.createElement('div');
     box.id='classVoiceControls';
-    box.style.cssText='display:flex;align-items:center;gap:6px;margin-left:8px;z-index:30;';
+    box.style.cssText='display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px;margin:8px auto;padding:6px;';
     const status=document.createElement('span');
     status.id='classVoiceStatus';
-    status.textContent='🎤 聲控';
-    status.style.cssText='font-size:14px;white-space:nowrap;color:#fff;';
+    status.textContent='🎤 暗星聲控';
+    status.style.cssText='font-size:14px;white-space:nowrap;color:#fff;font-weight:800;';
     const on=document.createElement('button');
-    on.type='button';on.className='b';on.id='classVoiceOn';on.textContent='🎤 開始聽';
+    on.type='button';on.className='b';on.id='classVoiceOn';on.textContent='🎤 開始聽暗星';
     const off=document.createElement('button');
     off.type='button';off.className='b';off.id='classVoiceOff';off.textContent='⏹ 停止聲控';
     box.append(status,on,off);
-    document.body.appendChild(box);
-    on.onclick=()=>{ voice=true; listening=false; $('vs').textContent='🎤 正在啟動聲控…'; startRec(); classVoiceControls(); };
-    off.onclick=()=>{ voice=false; listening=false; $('vs').textContent='聲控已取消'; try{rec?.abort()}catch{} classVoiceControls(); };
+    const logo=$('darkStarClassroomAvatar');
+    if(logo&&logo.parentElement===view)box.insertBefore(logo,status);
+    view.insertBefore(box,view.firstChild);
+    on.onclick=()=>{voice=true;listening=false;$('vs').textContent='🎤 暗星正在聽…';startRec();classVoiceControls();};
+    off.onclick=()=>{voice=false;listening=false;$('vs').textContent='暗星聲控已取消';try{rec?.abort()}catch{}classVoiceControls();};
   }
-  const s=$('classVoiceStatus'), v=$('vs'), t=$('tr');
-  if(s)s.textContent=(v?.textContent||'🎤 聲控').replace(/^正在準備聲控…$/,'🎤 聲控');
-  if(s&&t&&t.textContent&&t.textContent!=='等待老師說話…')s.textContent='🎤 '+t.textContent;
+  const ss=$('classVoiceStatus'),v=$('vs'),t=$('tr');
+  if(ss)ss.textContent=(t?.textContent&&t.textContent!=='等待老師說話…')?'🎤 暗星：'+t.textContent.slice(0,28):((v?.textContent||'🎤 暗星聲控').replace(/^正在準備聲控…$/,'🎤 暗星聲控'));
 }
 function chineseNumberToInt(s){
   s=String(s||'').trim();
