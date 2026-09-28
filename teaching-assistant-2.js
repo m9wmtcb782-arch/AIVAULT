@@ -606,18 +606,18 @@ function studentClassroomShareData(){
   const code=classroomState.code?String(classroomState.code):'';
   if(/^\d{4}$/.test(code))u.searchParams.set('code',code);
   const url=u.href;
-  const text='AIVAULT 課堂教室\\n'+(code?'教室代碼：'+code+'\\n':'')+'學生點此直接進入：\\n'+url;
+  const text='AIVAULT 課堂教室\n'+(code?'教室代碼：'+code+'\n':'')+'學生點此直接進入：\n'+url;
   return {url,text};
 }
-function copyStudentClassroomShare(){
+async function copyStudentClassroomShare(){
   const {text}=studentClassroomShareData();
-  const ta=document.createElement('textarea');
-  ta.value=text;ta.style.position='fixed';ta.style.left='-9999px';document.body.appendChild(ta);
-  ta.focus();ta.select();
   let ok=false;
-  try{ok=document.execCommand('copy')}catch(e){console.warn('copy share text',e);}
-  ta.remove();
-  say(ok?'已複製微信分享內容，可直接貼到微信好友或群組。':'請複製分享內容後貼到微信：'+text);
+  try{if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(text);ok=true;}}catch(e){console.warn('clipboard share text',e);}
+  if(!ok){
+    const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.left='-9999px';document.body.appendChild(ta);
+    ta.focus();ta.select();try{ok=document.execCommand('copy')}catch(e){console.warn('copy share text',e);}ta.remove();
+  }
+  say(ok?'已複製微信分享內容，可直接貼到微信好友或群組。':'請長按複製以下微信分享內容：'+text);
 }
 const shareStudentClassroom=$('shareStudentClassroom');
 if(shareStudentClassroom)shareStudentClassroom.onclick=async()=>{
@@ -632,8 +632,8 @@ if(shareStudentClassroom)shareStudentClassroom.onclick=async()=>{
   }
 };
 const shareStudentClassroomWeChat=$('shareStudentClassroomWeChat');
-if(shareStudentClassroomWeChat)shareStudentClassroomWeChat.onclick=()=>{
-  copyStudentClassroomShare();
+if(shareStudentClassroomWeChat)shareStudentClassroomWeChat.onclick=async()=>{
+  await copyStudentClassroomShare();
 };
 const shareStudentClassroomLine=$('shareStudentClassroomLine');
 if(shareStudentClassroomLine)shareStudentClassroomLine.onclick=()=>{
