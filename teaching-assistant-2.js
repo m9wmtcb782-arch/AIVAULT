@@ -601,38 +601,45 @@ async function exportTeachingToEbook(){
 ebookRefresh();
 async function enter(){if(!count&&!ebookState.loaded)return say('請先上傳 PPT 或匯入電子書教材。');try{await ensureClassroom();await classroomPrepareRealtime();}catch(e){say('課堂入口建立失敗：'+(e.message||e));return}classroomActive=true;classMode=true;classroomBadge();renderDarkStarClassroomAvatar();
 try{await classroomStartAudio();}catch(e){classroomActive=false;classMode=false;try{await classroomChannel?.unsubscribe?.()}catch{}say(e.message||'老師麥克風啟動失敗。');return;}$('panel').classList.add('class');document.documentElement.style.overflow='hidden';document.body.style.overflow='hidden';$('app').style.overflow='hidden';window.scrollTo(0,0);classVoiceControls();$('ppt').classList.toggle('focusPpt',!!count&&!ebookState.loaded);$('ebookLesson').style.display=ebookState.loaded?'block':$('ebookLesson').style.display;$('start').style.display='none';$('exit').style.display='inline-block';document.body.style.overflow='hidden';if(ebookState.loaded&&!count){$('ppt').style.display='block';$('ppt').classList.add('ebookFocusShell');}else{$('ppt').style.display='block';$('ppt').classList.remove('ebookFocusShell');}classroomBadge();try{await $('panel').requestFullscreen()}catch{}say('開始上課。',ebookState.loaded&&!count);if(lastClassroomPayload)classroomBroadcast(lastClassroomPayload)}async function exit(){classroomActive=false;classroomStopAudio();if(classroomState.channel_token&&classroomState.owner_token)classroomApi({action:'classroom_close',channel_token:classroomState.channel_token,owner_token:classroomState.owner_token}).catch(()=>{});if(classroomChannel&&classroomSupabase){classroomSupabase.removeChannel(classroomChannel);classroomChannel=null}classroomState={code:'',channel_token:'',owner_token:'',expires_at:''};try{sessionStorage.removeItem('aivault_classroom')}catch{}classMode=false;hideDarkStarClassroomAvatar();classroomBadge();$('info').textContent=ebookState.loaded?'電子書教材｜第 '+(ebookState.page||1)+(ebookState.total?' / '+ebookState.total:''):count?'第 '+(index+1)+' / '+count+' 頁':'尚未載入';$('panel').classList.remove('class');document.documentElement.style.overflow='';document.body.style.overflow='';$('app').style.overflow='';document.getElementById('classVoiceControls')?.remove();$('ppt').classList.remove('focusPpt','ebookFocusShell');$('start').style.display='inline-block';$('exit').style.display='none';document.body.style.overflow='';hideResearch();stopReading();try{if(document.fullscreenElement)await document.exitFullscreen()}catch{}say('已回到主畫面。')}$('start').onclick=enter;$('exit').onclick=exit;
+function studentClassroomShareData(){
+  const u=new URL('student-classroom.html',location.href);
+  const code=classroomState.code?String(classroomState.code):'';
+  if(/^\d{4}$/.test(code))u.searchParams.set('code',code);
+  const url=u.href;
+  const text='AIVAULT 課堂教室\\n'+(code?'教室代碼：'+code+'\\n':'')+'學生點此直接進入：\\n'+url;
+  return {url,text};
+}
+function copyStudentClassroomShare(){
+  const {text}=studentClassroomShareData();
+  const ta=document.createElement('textarea');
+  ta.value=text;ta.style.position='fixed';ta.style.left='-9999px';document.body.appendChild(ta);
+  ta.focus();ta.select();
+  let ok=false;
+  try{ok=document.execCommand('copy')}catch(e){console.warn('copy share text',e);}
+  ta.remove();
+  say(ok?'已複製微信分享內容，可直接貼到微信好友或群組。':'請複製分享內容後貼到微信：'+text);
+}
 const shareStudentClassroom=$('shareStudentClassroom');
 if(shareStudentClassroom)shareStudentClassroom.onclick=async()=>{
-  const urlObj=new URL('student-classroom.html',location.href);
-  const code=classroomState.code?String(classroomState.code):'';
-  if(/^\\d{4}$/.test(code))urlObj.searchParams.set('code',code);
-  const url=urlObj.href;
-  const text=code?'AIVAULT 課堂教室\n教室代碼：'+code+'\n請開啟連結進入：'+url:'AIVAULT 課堂教室\n請開啟連結進入學生課堂：'+url;
+  const {text}=studentClassroomShareData();
   try{
-    if(navigator.share){
-      await navigator.share({text});
-    }else{
-      await navigator.clipboard.writeText(text);
-      say('已複製學生課堂分享內容。');
-    }
+    if(navigator.share)await navigator.share({text:text});
+    else copyStudentClassroomShare();
   }catch(e){
-    if(e?.name!=='AbortError')say('分享失敗：'+(e?.message||e));
+    if(e?.name==='AbortError')return;
+    console.warn('student classroom share',e);
+    copyStudentClassroomShare();
   }
 };
 const shareStudentClassroomWeChat=$('shareStudentClassroomWeChat');
-if(shareStudentClassroomWeChat)shareStudentClassroomWeChat.onclick=async()=>{
-  const url=new URL('student-classroom.html',location.href);
-  const code=classroomState.code?String(classroomState.code):'';
-  if(/^\\d{4}$/.test(code))url.searchParams.set('code',code);
-  const text='AIVAULT 課堂教室\\n教室代碼：'+(code||'未建立')+'\\n點此直接進入：\\n'+url.href;
-  try{
-    if(navigator.share){
-      const data={text};
-      if(!navigator.canShare||navigator.canShare(data)){await navigator.share(data);return;}
-    }
-  }catch(e){if(e?.name==='AbortError')return;}
-  try{await navigator.clipboard.writeText(text);say('已複製微信分享內容，請貼到微信。');}
-  catch{say('請複製課堂連結後貼到微信。');}
+if(shareStudentClassroomWeChat)shareStudentClassroomWeChat.onclick=()=>{
+  copyStudentClassroomShare();
+};
+const shareStudentClassroomLine=$('shareStudentClassroomLine');
+if(shareStudentClassroomLine)shareStudentClassroomLine.onclick=()=>{
+  const {text}=studentClassroomShareData();
+  const lineShare='https://line.me/R/share?text='+encodeURIComponent(text);
+  window.location.href=lineShare;
 };
 function hideResearch(){researchOpen=false;researchBig=false;$('research').classList.remove('on','big')}
 function showResearch(q){q=(q||'').trim();if(!q)return;researchOpen=true;$('q').value=q;$('research').classList.add('on');$('rbody').textContent=q;say('已開啟研究。')}
