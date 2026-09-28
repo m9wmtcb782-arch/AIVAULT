@@ -491,7 +491,7 @@ async function ebookLoad(){
     // 選定教材時不下載整本書；教材指向原電子書，內容仍完整保存在後端。
     // 前端只取得目錄／單元索引，實際頁面在翻頁或選單元時逐頁載入。
     const b=ebookState.books.find(x=>String(ebookPick(x,['ebook_id','id','book_id']))===String(id))||{};
-    ebookState.book=b;ebookState.bookId=id;ebookState.page=1;ebookState.total=Number(ebookPick(b,['total_pages','page_count'])||0);$('info').textContent='電子書教材：正在載入…';
+    ebookState.book=b;ebookState.bookId=id;ebookState.page=1;ebookState.total=Number(ebookPick(b,['total_pages','page_count'])||0);$('info').textContent='';
     const td=await ebookApi({action:'toc',ebook_id:id});
     const tp=ebookPick(td,['data'])||td;
     ebookState.toc=Array.isArray(ebookPick(tp,['toc','items']))?ebookPick(tp,['toc','items']):[];
@@ -513,7 +513,7 @@ async function ebookLoad(){
     // 不建立縮小視窗、不嵌入原電子書畫面；只做原文內容的教學呈現。
     if(ebookState.units.length) await ebookLoadUnit(0);
     else await ebookGo(0);
-    $('ebookStatus').textContent='教材已載入：'+(ebookPick(b,['title','name'])||'電子書')+'；原書內文已放入教學助理，原文未改寫。';$('info').textContent='電子書教材｜第 '+(ebookState.page||1)+(ebookState.total?' / '+ebookState.total:'');
+    $('ebookStatus').textContent='教材已載入：'+(ebookPick(b,['title','name'])||'電子書')+'；原書內文已放入教學助理，原文未改寫。';$('info').textContent='';
     say('已將選定電子書作為完整教材來源。原文不改寫，使用時逐頁載入。');
   }catch(e){$('ebookStatus').textContent='教材選定失敗：'+(e.message||e);say('電子書教材選定失敗。')}
 }
@@ -536,7 +536,7 @@ function ebookRenderOutline(){const el=$('ebookLessonOutline');if(!el)return;con
   ebookState.page=n;
   const text=String(ebookPick(p,['content','page_content','text','body','html'])||'').replace(/<[^>]+>/g,'').trim();
   const current=ebookCurrentHeading();const hierarchy=ebookCurrentHierarchy();$('ebookLessonTitle').textContent='📚 '+(ebookPick(ebookState.book,['title','name'])||'電子書教材')+(current?'｜'+(current.title||''):'');$('ebookLessonText').dataset.part=hierarchy.part||'';$('ebookLessonText').dataset.chapter=hierarchy.chapter||'';$('ebookLessonText').dataset.section=hierarchy.section||'';$('ebookLessonText').dataset.article=hierarchy.article||'';const unit=[hierarchy.part,hierarchy.chapter,hierarchy.section,hierarchy.article].filter(Boolean);$('ebookLessonUnit').textContent='目前教學單元：'+(unit.length?unit.join(' → '):'本頁原文');const ui=ebookUnitIndex();$('ebookUnitInfo').textContent=ui>=0?'單元 '+(ui+1)+' / '+ebookState.toc.length:'單元 0 / 0';ebookRenderOutline();
-  $('ebookLessonPage').textContent='第 '+n+(ebookState.total?' / '+ebookState.total:'')+' 頁';$('info').textContent='電子書教材｜第 '+n+(ebookState.total?' / '+ebookState.total:'');
+  $('ebookLessonPage').textContent='';$('info').textContent='';
   $('ebookLessonText').textContent=text||'本頁沒有可讀文字。';
   const videos=Array.isArray(p?.metadata?.videos)?p.metadata.videos:[];
   $('ebookLessonVideo').innerHTML=videos.map(renderInlineVideo).join('');
