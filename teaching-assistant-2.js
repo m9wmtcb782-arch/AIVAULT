@@ -666,7 +666,7 @@ function classVoiceControls(){
     status.innerHTML='<svg class="darkStarLineMic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><path d="M12 18v3"></path><path d="M9 21h6"></path></svg><span>聲控</span>';
     status.style.cssText='font-size:14px;white-space:nowrap;color:#fff;display:inline-flex;align-items:center;gap:4px;';
     const on=document.createElement('button');
-    on.type='button';on.className='b';on.id='classVoiceOn';on.innerHTML='<svg class="darkStarLineMic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><path d="M12 18v3"></path><path d="M9 21h6"></path></svg><span>開始聽</span>';
+    on.type='button';on.className='b';on.id='classVoiceOn';on.innerHTML='<svg class="darkStarLineMic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><path d="M12 18v3"></path><path d="M9 21h6"></path></svg><span></span>';
     const off=document.createElement('button');
     off.type='button';off.className='b';off.id='classVoiceOff';off.textContent='⏹ 停止聲控';
     box.append(status,on,off);
