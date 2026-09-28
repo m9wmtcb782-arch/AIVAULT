@@ -42,7 +42,11 @@ async function classroomSendSignal(event,payload){
 async function classroomHandleAudioJoin(payload){
   if(!classroomActive||!classroomRealtimeReady||!payload?.peer_id)return;
   const peerId=String(payload.peer_id);
-  if(classroomPeers.has(peerId))return;
+  const existing=classroomPeers.get(peerId);
+  if(existing){
+    if(['connected','completed'].includes(existing.connectionState))return;
+    try{existing.close()}catch{} classroomPeers.delete(peerId);
+  }
   try{
     const stream=await classroomStartAudio();
     const pc=new RTCPeerConnection({iceServers:CLASSROOM_ICE_SERVERS});
