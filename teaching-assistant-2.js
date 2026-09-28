@@ -285,6 +285,21 @@ async function darkStarTeachingGateway(command,research){
   if(!answer)throw Error('暗星沒有回傳可呈現的教學內容。');
   return answer;
 }
+async function runNavigationCommandDirect(text){
+  const t=String(text||'').trim();
+  if(!ebookState.loaded)return false;
+  if(/第[一二三四五六七八九十百千0-9]+章/.test(t)){
+    if(await voiceGotoChapter(t))return true;
+  }
+  if(/^(往下|往下走|向下|下面三行|往下三行)$/.test(t))return voiceScrollLines(3);
+  if(/^(往上|向上|往上走)$/.test(t))return voiceScrollLines(-3);
+  if(/下一個單元|下一單元/.test(t)){ if(ebookState.unitIndex+1<ebookState.units.length){await ebookLoadUnit(ebookState.unitIndex+1);return true;} return false; }
+  if(/上一個單元|上一單元/.test(t)){ if(ebookState.unitIndex>0){await ebookLoadUnit(ebookState.unitIndex-1);return true;} return false; }
+  if(/下一頁|下一張|往下翻/.test(t)){await ebookGo(1);return true;}
+  if(/上一頁|上一張|往上翻/.test(t)){await ebookGo(-1);return true;}
+  return false;
+}
+
 async function darkStarTeacherCommand(text){
   if(!classroomActive||!classroomState.owner_token)return false;
   darkStarSetColor(text);
@@ -292,11 +307,35 @@ async function darkStarTeacherCommand(text){
   const verify=/查證|重新查證|交叉確認|確認答案|確認一下|如果錯誤|再找/.test(String(text||''));
   const explicitDarkStar=/^\s*暗星/.test(String(text||''));
   const colorOnly=/(用|改成|換成|接下來).*?(紅色|藍色|綠色|黃色|紫色|橙色|黑色|灰色|白色).*?字?/.test(String(text||''));
-  if(!research && !explicitDarkStar && !colorOnly)return false;
-  $('tr').textContent=research?'暗星正在上網收集資料…':'暗星正在執行老師命令…';
+  const navigationIntent=/下一頁|下一張|上一頁|上一張|往下|向下|往上|向上|第[一二三四五六七八九十百千0-9]+章|跳到|翻到|下一個單元|上一個單元/.test(String(text||''));
+  // 翻頁也由暗星輔助：暗星負責理解目前老師意圖，真正的頁面操作仍交給既有的確定性導航函式。
+  if(!research && !explicitDarkStar && !colorOnly && !navigationIntent)return false;
+  $('tr').textContent=research?'暗星正在上網收集資料…':(navigationIntent?'暗星正在判斷老師的翻頁指令…':'暗星正在執行老師命令…');
   classVoiceControls();
   try{
     let webData=null;
+    if(navigationIntent && !research){
+      // 先讓暗星取得當前教材脈絡；不讓模型直接改 DOM。
+      const navAnswer=await darkStarTeachingGateway(
+        String(text||'')+'\n請判斷這是否為教材導航命令。若是，只回傳「NAVIGATION_CONFIRMED」，不要自行修改頁面。',
+        null
+      );
+      if(!/NAVIGATION_CONFIRMED/i.test(navAnswer)){
+        $('tr').textContent='暗星未確認這個翻頁命令，未執行頁面變更。';
+        classVoiceControls();
+        return true;
+      }
+      // 暗星確認後，交由既有精準導航邏輯執行，避免 AI 自行猜頁碼。
+      const handled=await runNavigationCommandDirect(text);
+      if(handled){
+        $('tr').textContent='暗星已輔助完成翻頁。';
+        classVoiceControls();
+        return true;
+      }
+      $('tr').textContent='暗星理解了指令，但目前教材沒有對應的翻頁位置。';
+      classVoiceControls();
+      return true;
+    }
     if(research){
       const q=darkStarResearchQuery(text);
       const domains=darkStarResearchDomains(text);
