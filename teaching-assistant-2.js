@@ -26,7 +26,7 @@ async function ebookRefresh(){
       const id=ebookPick(b,['ebook_id','id','book_id']); if(!id)return;
       const o=document.createElement('option');o.value=id;o.textContent=ebookPick(b,['title','name'])||('電子書 '+id);sel.appendChild(o);
     });
-    status.textContent=ebookState.books.length?'已載入 '+ebookState.books.length+' 本電子書，可直接匯入成教材。':'目前沒有可用電子書';
+    status.textContent=ebookState.books.length?'已載入 '+ebookState.books.length+' 本電子書書名；選定後才轉換成教材。':'目前沒有可用電子書';
   }catch(e){status.textContent='電子書目錄讀取失敗：'+(e.message||e)}
 }
 async function ebookLoad(){
@@ -41,13 +41,10 @@ async function ebookLoad(){
     $('ebookLesson').style.display='block';
     $('ebookStatus').textContent='教材已匯入：'+(ebookPick(b,['title','name'])||'電子書');
     await ebookRender(pages[0]||ebookPick(payload,['page'])||payload);
-    // 純轉換：載入第一個原書結構單元，不產生任何新教材內容。
-    if(ebookState.units.length) await ebookLoadUnit(0);
-    else {
-      $('ebookLessonUnit').textContent='目前教學單元：原書第 1 頁';
-      $('ebookLessonText').textContent=String((pages[0]||ebookPick(payload,['page'])||payload)?.content||'').trim();
-    }
-    say('電子書已轉換為教學助理的原書單元，可依原順序閱讀與播放。');
+    // 大型電子書不在選書時整批載入：先顯示書名與結構，真正原文只在選定單元後載入。
+    $('ebookLessonUnit').textContent=ebookState.units.length?'目前教學單元：尚未選取（請從目錄或單元按鈕選擇）':'目前教學單元：尚未選取';
+    $('ebookLessonText').textContent='已選定：'+(ebookPick(b,['title','name'])||'電子書')+'。目前只載入書名與結構；選定單元後才轉換原文。';
+    say('已選定電子書，目前只顯示書名與結構；選定單元後才轉換教材。');
   }catch(e){$('ebookStatus').textContent='教材載入失敗：'+(e.message||e);say('電子書教材載入失敗。')}
 }
 function videoIdFromUrl(u){
