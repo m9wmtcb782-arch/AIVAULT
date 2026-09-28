@@ -1069,14 +1069,14 @@ function installClassroomLayoutFix(){
     #classVoiceControls .b{min-height:40px!important;white-space:nowrap}
     #darkStarVoiceControls{position:static!important;left:auto!important;right:auto!important;bottom:auto!important;z-index:auto!important;transform:none!important;display:flex!important;flex-wrap:wrap!important;justify-content:center!important;gap:6px!important;max-width:calc(100% - 20px)!important;margin:10px auto!important}
     #darkStarVoiceControls .b{min-height:40px!important;white-space:nowrap}
-    #darkStarClassroomAvatar{position:static!important;width:min(94px,28vw)!important;min-height:76px!important;padding:5px!important;margin:8px auto!important;z-index:auto!important}
+    #darkStarClassroomAvatar{position:static!important;width:46px!important;height:46px!important;min-height:46px!important;flex:0 0 46px!important;padding:0!important;margin:6px auto!important;border-radius:50%!important;z-index:auto!important}
     @media(max-width:700px){
       .class .bar{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:6px!important}
       .class .bar>div:first-child,.class .bar>div:last-child{flex:1 1 auto!important;width:100%!important;justify-content:center!important}
       .class #info{padding:2px 4px!important}
       .class .view{padding-top:calc(150px + env(safe-area-inset-top))!important;padding-bottom:calc(130px + env(safe-area-inset-bottom))!important}
       #classVoiceControls,#darkStarVoiceControls{max-width:calc(100% - 20px)!important}
-      #darkStarClassroomAvatar{display:block!important}
+      #darkStarClassroomAvatar{display:flex!important}
     }
   `;
   document.head.appendChild(st);
@@ -1126,22 +1126,27 @@ function renderDarkStarClassroomAvatar(){
   if(!host){
     host=document.createElement('div');
     host.id='darkStarClassroomAvatar';
-    // 教室中的暗星只做小型狀態指示，不能遮住老師的教材。
-    host.style.cssText='position:fixed;right:10px;bottom:10px;width:118px;min-height:92px;padding:7px 7px 6px;border-radius:14px;background:rgba(8,12,24,.86);border:1px solid rgba(130,150,255,.5);box-shadow:0 6px 18px rgba(0,0,0,.3);z-index:9600;color:#fff;pointer-events:none;text-align:center;backdrop-filter:blur(6px);';
-    host.innerHTML='<div id="darkStarAvatarFace" style="width:42px;height:42px;margin:0 auto 4px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;background:radial-gradient(circle at 50% 42%,#dbe5ff 0 8%,#6f82ff 9% 22%,#17224b 48%,#050816 72%);box-shadow:0 0 12px rgba(105,125,255,.55);">✦</div>'+
-      '<div style="font-size:14px;font-weight:900;letter-spacing:.5px;">暗星</div>'+
-      '<div id="darkStarAvatarStatus" style="margin-top:3px;font-size:10px;line-height:1.25;color:#b9c5ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">🎤 正在聽</div>';
-    panel.appendChild(host);
+    // 暗星在教室只保留成 Home 風格的小型七彩 Logo，不佔教材、不遮按鍵。
+    host.style.cssText='position:static;width:46px;height:46px;min-height:46px;flex:0 0 46px;padding:0;margin:6px auto;border-radius:50%;display:flex;align-items:center;justify-content:center;background:conic-gradient(#ff3b30 0deg,#ff9500 51deg,#ffcc00 102deg,#34c759 154deg,#00c7be 205deg,#5856d6 257deg,#af52de 308deg,#ff3b30 360deg);box-shadow:0 0 0 2px rgba(255,255,255,.75),0 3px 14px rgba(0,0,0,.22);z-index:auto;color:#fff;pointer-events:none;text-align:center;';
+    host.setAttribute('aria-label','暗星七彩 Logo');
+    host.title='暗星';
+    host.innerHTML='<div id="darkStarAvatarFace" style="width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:900;background:#0b1024;color:#fff;box-shadow:inset 0 0 10px rgba(255,255,255,.18);">✦</div>';
+    const voice=document.getElementById('classVoiceControls');
+    if(voice&&voice.parentElement===document.body)document.body.insertBefore(host,voice);
+    else panel.appendChild(host);
   }
   const status=$('darkStarAvatarStatus');
   const tr=$('tr')?.textContent||'';
   if(status){
-    if(currentUtterance)status.textContent='🔊 暗星正在說話';
-    else if(tr&&tr!=='等待老師說話…')status.textContent='🎤 '+tr.slice(0,32);
-    else status.textContent='🎤 正在聽老師';
+    if(currentUtterance)status.textContent='暗星正在說話';
+    else if(tr&&tr!=='等待老師說話…')status.textContent=tr.slice(0,32);
+    else status.textContent='暗星正在聽';
   }
   const face=$('darkStarAvatarFace');
-  if(face)face.style.transform=currentUtterance?'scale(1.06)':'scale(1)';
+  if(face){
+    face.style.transform=currentUtterance?'scale(1.08)':'scale(1)';
+    face.style.boxShadow=currentUtterance?'inset 0 0 12px rgba(255,255,255,.28),0 0 12px rgba(255,255,255,.45)':'inset 0 0 10px rgba(255,255,255,.18)';
+  }
 }
 function hideDarkStarClassroomAvatar(){
   $('darkStarClassroomAvatar')?.remove();
