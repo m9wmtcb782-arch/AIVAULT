@@ -698,25 +698,35 @@ async function voiceGotoChapter(text){
   if(!ebookState.loaded)return false;
   const n=extractChapterNumber(text);
   if(!Number.isFinite(n))return false;
-  const toc=Array.isArray(ebookState.toc)?ebookState.toc:[];
-  const hit=toc.find(x=>x.level==='chapter'&&extractChapterNumber(x.title)===n)||toc.find(x=>extractChapterNumber(x.title)===n);
-  if(!hit)return false;
   const outline=$('ebookLessonOutline');
   const buttons=outline?[...outline.querySelectorAll('button')]:[];
+  // 優先直接找畫面上真正存在的章節按鈕，不要求 TOC level 必須正確。
   const target=buttons.find(btn=>extractChapterNumber(btn.textContent)===n);
-  try{
-    if(target){
+  if(target){
+    try{
+      target.scrollIntoView({block:'nearest'});
       target.click();
-    }else{
-      const page=Number(hit.page_number)||1;
-      await ebookGo(page-(Number(ebookState.page)||1));
+      $('tr').textContent='暗星已點選上方第 '+n+' 章。';
+      classVoiceControls();
+      return true;
+    }catch(e){
+      console.warn('voice chapter button',e);
     }
-    $('tr').textContent='暗星已點選上方章節：'+String(hit.title||('第 '+n+' 章'));
+  }
+  // 按鈕尚未建立或教材目錄沒有對應按鈕時，再使用 TOC 頁碼作為後備。
+  const toc=Array.isArray(ebookState.toc)?ebookState.toc:[];
+  const hit=toc.find(x=>extractChapterNumber(x.title)===n);
+  if(!hit)return false;
+  try{
+    const page=Number(hit.page_number);
+    if(!Number.isFinite(page)||page<1)return false;
+    await ebookGo(page-(Number(ebookState.page)||1));
+    $('tr').textContent='暗星已跳到第 '+n+' 章。';
     classVoiceControls();
     return true;
   }catch(e){
-    console.warn('voice chapter',e);
-    $('tr').textContent='章節切換失敗：'+(e.message||e);
+    console.warn('voice chapter fallback',e);
+    $('tr').textContent='第 '+n+' 章切換失敗：'+(e.message||e);
     classVoiceControls();
     return true;
   }
@@ -766,6 +776,12 @@ async function voiceSearchAndJump(text){
 }
 function normalizeVoiceText(text){return String(text||'').replace(/[，。！？、,.!?\s]/g,'').trim();}
 async function runVoiceCommand(text){
+  // 教材「第幾章」是確定性導航：先直接處理，絕不交給 AI 判斷按鈕。
+  // 這也允許語音辨識成「第四章開始」「小助第四章開始」「暗星第四章」等形式。
+  const directChapterText=String(text||'').trim();
+  if(ebookState.loaded && /第\s*[0-9０-９一二兩三四五六七八九十百千〇零]+\s*章/.test(directChapterText)){
+    if(await voiceGotoChapter(directChapterText))return true;
+  }
   // 先把語音辨識常見的「安心／暗心」及「小助」喚醒詞視為暗星稱呼。
   // 這只做喚醒詞判定，不會把老師對學生的普通問題交給暗星回答。
   const voiceRaw=String(text||'').trim();
