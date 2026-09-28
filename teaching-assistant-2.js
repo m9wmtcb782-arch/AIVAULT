@@ -17,6 +17,16 @@ function classroomApi(payload){
     .then(async r=>{const raw=await r.text();let d={};try{d=raw?JSON.parse(raw):{}}catch{}if(!r.ok)throw Error(d.error||d.message||('課堂服務 HTTP '+r.status));return d});
 }
 function classroomBadge(){
+  let inline=document.getElementById('aivaultClassroomCodeInline');
+  if(!inline){
+    const startBtn=$('start');
+    if(startBtn&&startBtn.parentElement){
+      inline=document.createElement('div'); inline.id='aivaultClassroomCodeInline';
+      inline.style.cssText='margin-top:6px;font-size:20px;font-weight:800;letter-spacing:2px;text-align:center;color:#7567ff;line-height:1.3;white-space:nowrap;';
+      startBtn.parentElement.appendChild(inline);
+    }
+  }
+  if(inline){inline.textContent=classroomState.code?'教室 '+classroomState.code:'課堂代碼建立中…';}
   let el=document.getElementById('aivaultClassroomBadge');
   if(!el){el=document.createElement('div');el.id='aivaultClassroomBadge';el.style.cssText='position:fixed;right:14px;top:12px;z-index:10001;padding:8px 14px;border-radius:12px;background:rgba(0,0,0,.82);color:#fff;font-size:22px;font-weight:800;letter-spacing:2px;display:none;box-shadow:0 4px 18px rgba(0,0,0,.25)';document.body.appendChild(el);}
   el.textContent=classroomState.code?'教室 '+classroomState.code:'';
@@ -107,6 +117,7 @@ async function ebookLoad(){
     ebookState.units=Array.isArray(ebookPick(up,['units','items']))?ebookPick(up,['units','items']):[];
     ebookState.unitIndex=-1;ebookState.unitPages=[];ebookState.loaded=true;
     $('ebookLesson').style.display='block';
+    await ensureClassroom();
     $('ebookLesson').style.width='100%';
     $('ebookLesson').style.maxWidth='none';
     $('ebookLessonTitle').textContent='📚 '+(ebookPick(b,['title','name'])||'電子書教材');
@@ -231,6 +242,10 @@ async function detectMicrophone(){const el=$('mic');try{const stream=await navig
 function startRec(){if(!rec||listening)return;try{rec.start();listening=true}catch{}}
 function setup(){const S=window.SpeechRecognition||window.webkitSpeechRecognition;if(!S){voice=false;$('vs').textContent='此瀏覽器不支援語音辨識';return}rec=new S();rec.lang='zh-TW';rec.continuous=false;rec.interimResults=true;rec.onstart=()=>{listening=true;if(voice)$('vs').textContent='聲控啟用'};rec.onerror=()=>{listening=false};rec.onresult=e=>{let t='';for(let k=e.resultIndex;k<e.results.length;k++)if(e.results[k].isFinal)t+=e.results[k][0].transcript;if(t){$('tr').textContent=t}};rec.onend=()=>{listening=false;setTimeout(()=>{if(rec&&voice)startRec()},350)};$('voiceStart').onclick=()=>{voice=true;$('vs').textContent='聲控啟用';startRec()};$('voiceStop').onclick=()=>{voice=false;$('vs').textContent='聲控已取消';try{rec.stop()}catch{}};startRec()}
 setSpeechEnabled(true);detectMicrophone();setup();
+
+/* Generate the classroom code as soon as a teacher has loaded teaching material. */
+const classroomOriginalLoadPpt=loadPpt;
+loadPpt=async function(f){await classroomOriginalLoadPpt(f);if(count){try{await ensureClassroom();}catch(e){console.warn('classroom code prepare',e);}}};
 
 /* PPT classroom sync: wrap the existing PPT navigation without changing teaching-assistant.js. */
 const classroomOriginalGo=go;
