@@ -100,12 +100,18 @@ function clearPptProjectLocal(){
   renderPptProjectOutline();
   $('pptProjectStatus').textContent='PPT 專題報告已清除。';
 }
-$('pptProjectFromEbook').onclick=()=>buildPptProjectFromEbook();
 $('ebookToPptProject').onclick=async()=>{
-  if(!ebookState.loaded){
-    $('pptProjectStatus').textContent='請先在上方選擇 AIVAULT 電子書並按「電子書 → 教材」。';
-    say('請先選擇並載入電子書。');
+  const sel=$('ebookSelect');
+  const selectedId=sel?String(sel.value||'').trim():'';
+  if(!selectedId){
+    $('pptProjectStatus').textContent='請先在上方「電子書 ⇄ 教學教材」選擇 AIVAULT 電子書。';
+    say('請先選擇 AIVAULT 電子書。');
     return;
+  }
+  if(!ebookState.loaded||String(ebookState.bookId||'')!==selectedId){
+    $('pptProjectStatus').textContent='正在載入上方已選的 AIVAULT 電子書…';
+    await ebookLoad();
+    if(!ebookState.loaded||String(ebookState.bookId||'')!==selectedId)return;
   }
   await buildPptProjectFromEbook();
 };
