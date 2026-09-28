@@ -171,7 +171,7 @@ async function connect(){
   if(state&&state.content)renderState(state);
   if(!window.supabase?.createClient)throw Error('即時課堂元件尚未載入，請重新整理學生頁面。');
   supabaseClient=window.supabase.createClient(SUPABASE_URL,KEY);
-  channel=supabaseClient.channel('student-classroom:'+channelToken,{config:{broadcast:{self:false}}})
+  channel=supabaseClient.channel('student-classroom:'+channelToken,{config:{broadcast:{self:false},presence:{key:'student-'+(crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random())}}})
     .on('broadcast',{event:'classroom_state'},({payload})=>{
       if(!payload)return;
       renderState(payload);
@@ -182,6 +182,7 @@ async function connect(){
     .on('broadcast',{event:'audio_ice'},({payload})=>handleAudioIce(payload))
     .subscribe(status=>{
       if(status==='SUBSCRIBED'){
+        channel.track({role:'student',online_at:new Date().toISOString()}).catch(e=>console.warn('student presence track',e));
         $('audioPanel').style.display='block';
         startStudentAudio().catch(e=>setAudioStatus(e.message||'等待老師音訊…'));
         setStatus(state&&state.content?'已連線教室 '+classroomCode+'，內容會隨老師同步。':'已連線教室 '+classroomCode+'，等待老師上課內容…');
