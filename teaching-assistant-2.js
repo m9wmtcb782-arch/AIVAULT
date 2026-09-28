@@ -238,13 +238,19 @@ function addDarkStarResearchToProject(){
   const answer=String(darkStarTeachingState.lastAnswer||'');
   const sources=Array.isArray(darkStarTeachingState.lastResearch)?darkStarTeachingState.lastResearch:[];
   const insertAt=Math.min(pptProjectIndex+1,pptProject.length);
-  const researchSlide={kind:'research-question',title:'研究問題｜'+q.slice(0,55),content:'研究問題\n\n'+q};
-  const analysisSlide={kind:'research-analysis',title:'暗星分析｜'+q.slice(0,45),content:'暗星分析\n\n'+answer};
-  const sourceSlide={kind:'research-sources',title:'研究資料與來源',content:sources.length?sources.map((x,n)=>(n+1)+'. '+String(x.title||x.url||'來源')+(x.url?'\n'+String(x.url):'')).join('\n\n'):'本次研究沒有取得可列出的來源。'};
-  pptProject.splice(insertAt,0,researchSlide,analysisSlide,sourceSlide);
-  pptProjectIndex=insertAt+1;
+  const sourceText=sources.length
+    ?sources.map((x,n)=>(n+1)+'. '+String(x.title||x.url||'來源')+(x.url?'\n'+String(x.url):'')).join('\n\n')
+    :'本次研究沒有取得可列出的來源。';
+  const slides=[
+    {kind:'research-question',title:'研究問題｜'+q.slice(0,55),content:'研究問題\n\n'+q},
+    {kind:'research-sources',title:'研究資料與來源',content:sourceText},
+    {kind:'research-analysis',title:'暗星分析｜'+q.slice(0,45),content:'暗星分析\n\n'+answer},
+    {kind:'teacher-conclusion',title:'老師結論',content:'請由老師整理本研究的課堂結論。\n\n（這一頁不由暗星代替老師下結論。）'}
+  ];
+  pptProject.splice(insertAt,0,...slides);
+  pptProjectIndex=insertAt;
   pptProjectRender();
-  $('pptProjectStatus').textContent='已將暗星研究拆成「研究問題／暗星分析／研究資料」三頁加入專題報告。';
+  $('pptProjectStatus').textContent='已加入研究四段式：研究問題／研究資料／暗星分析／老師結論，共 4 頁。';
   return true;
 }
 function renderDarkStarTeachingPanel(){
