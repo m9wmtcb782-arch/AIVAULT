@@ -21,6 +21,11 @@ h1{font-size:clamp(30px,8vw,44px);margin:4px 0 8px}
 #pageInfo{font-size:20px;color:#667085;margin-bottom:12px}
 #content{font-size:30px;line-height:2;white-space:pre-wrap;word-break:break-word}
 #videoBox{margin-top:20px}
+#darkStarResearch{display:none;margin-top:20px;padding:16px;border:1px solid #dfe4ec;border-radius:12px;background:#fff}
+#darkStarResearchTitle{font-weight:800;margin-bottom:8px}
+#darkStarResearchBody{white-space:pre-wrap;line-height:1.8}
+#darkStarResearchSources{margin-top:12px;padding-top:10px;border-top:1px solid #eee;font-size:16px;color:#667085}
+
 #audioPanel{display:none;margin:0 0 18px;padding:12px 16px;border:1px solid #dfe4ec;border-radius:12px;background:#f7f9fc;text-align:center}
 #audioToggle{padding:10px 18px;border:0;border-radius:10px;background:#7567ff;color:#fff;font-size:22px;font-weight:800}
 #audioStatus{font-size:18px;color:#667085;margin-top:7px}
@@ -46,7 +51,7 @@ video,iframe{display:block;width:100%;max-height:620px;margin:18px 0;border:0;bo
 <div id="audioPanel"><button id="audioToggle" type="button">🔊 接收老師聲音</button><div id="audioStatus">課堂聲音：開啟</div><audio id="classroomAudio" autoplay playsinline></audio></div>
 <div id="pageInfo"></div>
 <div id="content" class="msg"></div>
-<div id="videoBox"></div>
+<div id="videoBox"></div><section id="darkStarResearch"><div id="darkStarResearchTitle">✦ 暗星教學研究</div><div id="darkStarResearchBody"></div><div id="darkStarResearchSources"></div></section>
 </section>
 </div>
 <script>
@@ -97,6 +102,20 @@ function renderState(state){
  const videos=Array.isArray(state.videos)?state.videos:[];
  $('videoBox').innerHTML=videos.map(videoHtml).join('');
  $('videoBox').style.display=$('videoBox').innerHTML?'block':'none';
+ const research=state.research;
+ if(research&&research.answer){
+   $('darkStarResearch').style.display='block';
+   $('darkStarResearchBody').textContent=String(research.answer||'');
+   $('darkStarResearchBody').style.color=String(research.color||'#2563eb');
+   const sources=Array.isArray(research.sources)?research.sources:[];
+   $('darkStarResearchSources').innerHTML=sources.length
+     ? '<b>資料來源</b><br>'+sources.map(s=>'<div style="margin-top:5px">'+esc(s.title||s.url||'來源')+(s.url?' — <a href="'+esc(s.url)+'" target="_blank" rel="noopener">'+esc(s.url)+'</a>':'')+'</div>').join('')
+     : '';
+ }else{
+   $('darkStarResearch').style.display='none';
+   $('darkStarResearchBody').textContent='';
+   $('darkStarResearchSources').innerHTML='';
+ }
  window.scrollTo({top:0,behavior:'smooth'});
 }
 async function api(payload){
