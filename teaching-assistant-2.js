@@ -354,6 +354,86 @@ function classVoiceControls(){
   if(s)s.textContent=(v?.textContent||'🎤 聲控').replace(/^正在準備聲控…$/,'🎤 聲控');
   if(s&&t&&t.textContent&&t.textContent!=='等待老師說話…')s.textContent='🎤 '+t.textContent;
 }
+function chineseNumberToInt(s){
+  s=String(s||'').trim();
+  if(/^\\d+$/.test(s))return Number(s);
+  const d={'零':0,'〇':0,'一':1,'二':2,'兩':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9};
+  if(!s)return NaN;
+  let total=0,section=0,num=0;
+  for(const ch of s){
+    if(d[ch]!==undefined){num=d[ch];continue;}
+    if(ch==='十'||ch==='百'||ch==='千'){
+      const unit=ch==='十'?10:ch==='百'?100:1000;
+      section+=(num||1)*unit;num=0;
+    }else return NaN;
+  }
+  return section+num;
+}
+function extractChapterNumber(t){
+  const m=String(t||'').match(/第\\s*([0-9０-９一二兩三四五六七八九十百千〇零]+)\\s*章/);
+  if(!m)return NaN;
+  const raw=m[1].replace(/[０-９]/g,x=>String('０１２３４５６７８９'.indexOf(x)));
+  return chineseNumberToInt(raw);
+}
+async function voiceGotoChapter(text){
+  if(!ebookState.loaded)return false;
+  const n=extractChapterNumber(text);
+  if(!Number.isFinite(n))return false;
+  const toc=Array.isArray(ebookState.toc)?ebookState.toc:[];
+  const hit=toc.find(x=>x.level==='chapter'&&extractChapterNumber(x.title)===n)||toc.find(x=>extractChapterNumber(x.title)===n);
+  if(!hit)return false;
+  const page=Number(hit.page_number)||1;
+  try{
+    await ebookGo(page-(Number(ebookState.page)||1));
+    const title=String(hit.title||('第 '+n+' 章'));
+    $('tr').textContent='已跳到'+title;
+    classVoiceControls();
+    return true;
+  }catch(e){console.warn('voice chapter',e);return true;}
+}
+function voiceScrollLines(lines=3){
+  if(!ebookState.loaded)return false;
+  const el=$('ebookLessonText');
+  if(!el)return false;
+  const cs=getComputedStyle(el);
+  let lh=parseFloat(cs.lineHeight);
+  if(!Number.isFinite(lh)||lh<=0)lh=parseFloat(cs.fontSize)||16;
+  const before=el.scrollTop;
+  const max=Math.max(0,el.scrollHeight-el.clientHeight); el.scrollTop=Math.max(0,Math.min(max,before+lh*lines));
+  $('tr').textContent=el.scrollTop>before?'已往下三行':'已到目前內容底部';
+  classVoiceControls();
+  return true;
+}
+function voiceNormalizeSearch(s){return normalizeVoiceText(s).replace(/^請?搜尋/,'').replace(/^請?搜索/,'').replace(/^找一下/,'').replace(/^找/,'').trim();}
+function voiceSimilarity(query,text){
+  const q=normalizeVoiceText(query),t=normalizeVoiceText(text);
+  if(!q||!t)return 0;
+  if(t.includes(q))return 100000+q.length;
+  const chars=[...new Set([...q])];
+  let hit=0;for(const ch of chars)if(t.includes(ch))hit++;
+  let big=0;for(let i=0;i<q.length-1;i++)if(t.includes(q.slice(i,i+2)))big++;
+  return hit*3+big*8+Math.min(q.length,t.length)/100000;
+}
+async function voiceSearchAndJump(text){
+  if(!ebookState.loaded)return false;
+  const q=voiceNormalizeSearch(text);
+  if(q.length<2)return false;
+  let best={score:-1,page:0,content:''};
+  const pages=Array.isArray(ebookState.unitPages)?ebookState.unitPages:[];
+  for(const p of pages){const score=voiceSimilarity(q,p?.content||'');if(score>best.score)best={score,page:Number(p?.page_number)||0,content:String(p?.content||'')};}
+  const units=Array.isArray(ebookState.units)?ebookState.units:[];
+  const missing=units.filter((_,i)=>i!==ebookState.unitIndex);
+  const results=await Promise.all(missing.map(async u=>{try{const d=await ebookApi({action:'lesson_unit',ebook_id:ebookState.bookId,ordinal:Number(u.ordinal)});const p=ebookPick(d,['data'])||d;return Array.isArray(ebookPick(p,['pages','items']))?ebookPick(p,['pages','items']):[];}catch{return []}}));
+  for(const arr of results)for(const p of arr){const score=voiceSimilarity(q,p?.content||'');if(score>best.score)best={score,page:Number(p?.page_number)||0,content:String(p?.content||'')};}
+  if(best.page&&best.score>0){
+    await ebookGo(best.page-(Number(ebookState.page)||1));
+    const preview=best.content.replace(/\\s+/g,' ').trim().slice(0,80);
+    $('tr').textContent='已找到相似內容並跳到第 '+best.page+' 頁：'+preview;
+    classVoiceControls();
+    return true;
+  }
+  $('tr').textContent='找不到相似內容：'+q;classVoiceControls();return true;
+}
 function normalizeVoiceText(text){return String(text||'').replace(/[，。！？、,.!?\s]/g,'').trim();}
 async function runVoiceCommand(text){
   const t=normalizeVoiceText(text);if(!t)return false;
