@@ -27,114 +27,6 @@ function pptProjectRender(){
   if(classroomActive)classroomBroadcast({type:'ppt-project',page:pptProjectIndex+1,total:pptProject.length,content:String(s.content||''),project_title:String(pptProjectMeta.title||'PPT 專題報告'),project_page_title:String(s.title||''),project_kind:String(s.kind||'content'),videos:[]});
 }
 
-let localPptEbook={file:null,title:'',pages:[],units:[]};
-function localPptEbookTextClean(s){return String(s||'').replace(/\\u00a0/g,' ').replace(/\\r/g,'').replace(/[ \\t]+\\n/g,'\\n').replace(/\\n{3,}/g,'\\n\\n').trim();}
-function localPptEbookMakeUnits(pages){
-  const arr=Array.isArray(pages)?pages.filter(x=>String(x||'').trim()):[];
-  const units=[]; let current={title:'電子書內容',pages:[]};
-  const heading=/^(第\\s*[0-9０-９一二兩三四五六七八九十百千〇零]+\\s*章|第[一二兩三四五六七八九十百千]+編|[一二兩三四五六七八九十百千]+、|Chapter\\s+\\d+)/i;
-  for(const p of arr){
-    const lines=String(p).split(/\\n+/).map(x=>x.trim()).filter(Boolean);
-    const h=lines.find(x=>heading.test(x))||'';
-    if(h&&current.pages.length){units.push(current);current={title:h.replace(/^第\\s*/,'第'),pages:[]};}
-    else if(h&&!current.pages.length)current.title=h;
-    current.pages.push(String(p));
-  }
-  if(current.pages.length)units.push(current);
-  return units.length?units:arr.map((p,i)=>({title:'內容 '+(i+1),pages:[p]}));
-}
-async function parseLocalPptEbook(file){
-  const name=String(file?.name||'').trim()||'手機電子書';
-  const ext=(name.split('.').pop()||'').toLowerCase();
-  $('pptLocalEbookStatus').textContent='正在讀取手機電子書：'+name+'…';
-  let pages=[];
-  if(ext==='txt'){
-    pages=[localPptEbookTextClean(await file.text())];
-  }else if(ext==='html'||ext==='htm'){
-    const doc=new DOMParser().parseFromString(await file.text(),'text/html');
-    const title=String(doc.querySelector('title')?.textContent||'').trim();
-    if(title)localPptEbook.title=title;
-    pages=[localPptEbookTextClean(doc.body?.innerText||doc.documentElement?.textContent||'')];
-  }else if(ext==='json'){
-    const raw=JSON.parse(await file.text());
-    const title=String(raw?.title||raw?.name||'').trim();
-    if(title)localPptEbook.title=title;
-    const collect=v=>{
-      if(typeof v==='string'){const t=localPptEbookTextClean(v);if(t)pages.push(t);return;}
-      if(Array.isArray(v)){v.forEach(collect);return;}
-      if(v&&typeof v==='object'){
-        for(const k of ['content','text','body','page_content','pages','units','chapters','items','lessons'])if(v[k]!==undefined)collect(v[k]);
-      }
-    };
-    collect(raw);
-  }else if(ext==='epub'){
-    const JSZip=(await import('https://esm.sh/jszip@3.10.1')).default;
-    const zip=await JSZip.loadAsync(await file.arrayBuffer());
-    const container=zip.file('META-INF/container.xml');
-    if(!container)throw Error('EPUB 缺少 META-INF/container.xml');
-    const cdoc=new DOMParser().parseFromString(await container.async('text'),'application/xml');
-    const root=cdoc.getElementsByTagName('rootfile')[0]?.getAttribute('full-path');
-    if(!root||!zip.file(root))throw Error('EPUB 找不到 OPF');
-    const opf=zip.file(root), opfDoc=new DOMParser().parseFromString(await opf.async('text'),'application/xml');
-    const base=root.split('/').slice(0,-1).join('/');
-    const manifest=new Map();
-    [...opfDoc.getElementsByTagName('item')].forEach(x=>manifest.set(x.getAttribute('id'),{href:x.getAttribute('href')||'',media:x.getAttribute('media-type')||''}));
-    [...opfDoc.getElementsByTagName('spine')[0]?.getElementsByTagName('itemref')||[]].forEach(async()=>{});
-    const refs=[...opfDoc.getElementsByTagName('itemref')];
-    for(const ref of refs){
-      const item=manifest.get(ref.getAttribute('idref')); if(!item)continue;
-      const path=(base?base+'/':'')+decodeURIComponent(item.href.split('#')[0]);
-      const entry=zip.file(path); if(!entry)continue;
-      const doc=new DOMParser().parseFromString(await entry.async('text'),'text/html');
-      const text=localPptEbookTextClean(doc.body?.innerText||doc.documentElement?.textContent||'');
-      if(text)pages.push(text);
-    }
-  }else if(ext==='pdf'){
-    const pdfjs=await import('https://esm.sh/pdfjs-dist@4.10.38/legacy/build/pdf.mjs');
-    try{pdfjs.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs'}catch{}
-    const pdf=await pdfjs.getDocument({data:await file.arrayBuffer()}).promise;
-    for(let n=1;n<=pdf.numPages;n++){
-      const page=await pdf.getPage(n), tc=await page.getTextContent();
-      const text=localPptEbookTextClean(tc.items.map(x=>x.str||'').join(' '));
-      if(text)pages.push(text);
-    }
-  }else{
-    throw Error('目前手機電子書支援 EPUB、PDF、HTML、TXT、JSON。');
-  }
-  pages=pages.map(localPptEbookTextClean).filter(Boolean);
-  if(!pages.length)throw Error('沒有讀取到電子書文字內容。');
-  localPptEbook.file=file;
-  localPptEbook.title=localPptEbook.title||name.replace(/\\.[^.]+$/,'');
-  localPptEbook.pages=pages;
-  localPptEbook.units=localPptEbookMakeUnits(pages);
-  $('pptLocalEbookStatus').textContent='✅ 已讀取手機電子書：'+localPptEbook.title+'｜'+pages.length+' 個內容頁／'+localPptEbook.units.length+' 個專題單元';
-  return localPptEbook;
-}
-async function buildPptProjectFromLocalEbook(){
-  if(!localPptEbook.pages.length){$('pptProjectStatus').textContent='請先從手機選擇電子書。';return false;}
-  const bookTitle=localPptEbook.title||'手機電子書專題';
-  $('pptProjectStatus').textContent='正在把手機電子書整理成 PPT 專題報告…';
-  const slides=[
-    {kind:'cover',title:bookTitle,content:'PPT 專題報告\\n由手機本機電子書建立\\n\\n原始電子書檔案不會被修改，也不會上傳到 AIVAULT 電子書書架。'},
-    {kind:'overview',title:'專題大綱',content:'一、研究／學習問題\\n二、各章核心內容\\n三、重要概念與原文依據\\n四、問題分析與延伸研究\\n五、專題結論'}
-  ];
-  for(const u of localPptEbook.units){
-    const combined=u.pages.join('\\n\\n');
-    const chunks=combined.match(/[\\s\\S]{1,2200}/g)||[];
-    slides.push({kind:'section',title:'章節／單元：'+u.title,content:'本單元核心內容\\n\\n'+combined.slice(0,2200)});
-    chunks.slice(0,4).forEach((part,j)=>slides.push({kind:'content',title:u.title+'｜核心內容'+(chunks.length>1?'（'+(j+1)+'）':''),content:part}));
-    slides.push({kind:'analysis',title:u.title+'｜問題分析',content:'可供老師引導討論：\\n\\n1. 本單元的核心問題是什麼？\\n2. 原文提出哪些規範、概念或論證？\\n3. 與前後章節如何連結？\\n4. 哪些地方需要進一步查證或比較？'});
-  }
-  slides.push({kind:'research',title:'延伸研究問題',content:'可由老師指示暗星進行網路研究：\\n\\n• 最新法規、判決、學說或政策資料\\n• 與教材內容不同的觀點\\n• 原文需要驗證的爭點\\n• 國內外制度比較'});
-  slides.push({kind:'conclusion',title:'專題結論',content:'本專題由手機本機電子書建立。\\n\\n老師可以依序說明：\\n① 問題是什麼\\n② 教材如何回答\\n③ 哪些地方需要分析\\n④ 哪些地方需要暗星查證\\n⑤ 最後形成自己的結論\\n\\n原始手機電子書保持不變。'});
-  pptProjectMeta={title:bookTitle+'｜專題報告',sourceBook:bookTitle};
-  pptProject=slides.slice(0,160);pptProjectIndex=0;
-  $('ppt').style.display='block';$('ppt').classList.remove('ebookFocusShell');
-  await pptProjectRender();savePptProjectLocal();
-  $('pptProjectStatus').textContent='✅ 已由手機電子書建立 PPT 專題報告，共 '+pptProject.length+' 頁。';
-  say('已由手機電子書建立 PPT 專題報告。');
-  return true;
-}
 async function buildPptProjectFromEbook(){
   if(!ebookState.loaded){say('請先選擇並載入電子書教材。');$('pptProjectStatus').textContent='請先載入電子書教材。';return false;}
   const units=Array.isArray(ebookState.units)?ebookState.units:[];
@@ -209,19 +101,19 @@ function clearPptProjectLocal(){
   $('pptProjectStatus').textContent='PPT 專題報告已清除。';
 }
 $('pptProjectFromEbook').onclick=()=>buildPptProjectFromEbook();
-$('pptProjectFromLocalEbook').onclick=()=>buildPptProjectFromLocalEbook();
-$('pptLocalEbook').onchange=async e=>{
-  const f=e.target.files[0]; if(!f)return;
-  try{await parseLocalPptEbook(f)}catch(err){console.error(err);localPptEbook={file:null,title:'',pages:[],units:[]};$('pptLocalEbookStatus').textContent='❌ 電子書讀取失敗：'+(err.message||err);$('pptProjectStatus').textContent='手機電子書讀取失敗。';}
+$('ebookToPptProject').onclick=async()=>{
+  if(!ebookState.loaded){
+    $('pptProjectStatus').textContent='請先在上方選擇 AIVAULT 電子書並按「電子書 → 教材」。';
+    say('請先選擇並載入電子書。');
+    return;
+  }
+  await buildPptProjectFromEbook();
 };
 $('save').onclick=()=>{if(pptProject.length)savePptProjectLocal();};
 $('clear').onclick=()=>{if(confirm('確定清除目前 PPT 專題報告？'))clearPptProjectLocal();};
 loadPptProjectLocal();
 $('materialMode').onchange=e=>{
-  const project=e.target.value==='ppt-project';
-  $('pptFileBox').style.display=project?'none':'block';
-  $('pptLocalEbookBox').style.display=project?'block':'none';
-  $('pptProjectStatus').textContent=project?'PPT 專題報告只從手機本機電子書匯入；不使用 AIVAULT 電子書書架。':'尚未建立 PPT 專題報告';
+  if(e.target.value==='ppt-project')$('pptProjectStatus').textContent='請先在上方選擇 AIVAULT 電子書，再直接轉換成 PPT 專題報告。';
 };
 $('file').onchange=e=>e.target.files[0]&&loadPpt(e.target.files[0]);
 $('next').onclick=()=>{if(pptProject.length){pptProjectIndex=Math.min(pptProject.length-1,pptProjectIndex+1);pptProjectRender();say('下一頁。');}else{go(index+1);say('下一頁。')}};
