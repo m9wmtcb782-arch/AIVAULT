@@ -5,22 +5,59 @@ $('file').onchange=e=>e.target.files[0]&&loadPpt(e.target.files[0]);$('next').on
 const EBOOK_SUPABASE_URL='https://clcddygkaaqqtsbswgdf.supabase.co';
 const EBOOK_PUBLISHABLE_KEY='sb_publishable_1D05YGthBrNGg-5L92TLCw_GiLnInBu';
 const EBOOK_INGEST=EBOOK_SUPABASE_URL+'/functions/v1/dark-star-ebook-ingest';
-const CLASSROOM_REALTIME=EBOOK_SUPABASE_URL+'/rest/v1/rpc/broadcast';
+const CLASSROOM_API=EBOOK_SUPABASE_URL+'/functions/v1/dark-star-ebook-ingest';
+const CLASSROOM_REALTIME=EBOOK_SUPABASE_URL+'/realtime/v1/api/broadcast';
+let classroomActive=false;
+let classroomState={code:'',channel_token:'',owner_token:'',expires_at:''};
+let classroomSupabase=null;
+let classroomChannel=null;
+let lastClassroomPayload=null;
+function classroomApi(payload){
+  return fetch(CLASSROOM_API,{method:'POST',headers:{'Content-Type':'application/json',apikey:EBOOK_PUBLISHABLE_KEY},body:JSON.stringify(payload)})
+    .then(async r=>{const raw=await r.text();let d={};try{d=raw?JSON.parse(raw):{}}catch{}if(!r.ok)throw Error(d.error||d.message||('課堂服務 HTTP '+r.status));return d});
+}
+function classroomBadge(){
+  let el=document.getElementById('aivaultClassroomBadge');
+  if(!el){el=document.createElement('div');el.id='aivaultClassroomBadge';el.style.cssText='position:fixed;right:14px;top:12px;z-index:10001;padding:8px 14px;border-radius:12px;background:rgba(0,0,0,.82);color:#fff;font-size:22px;font-weight:800;letter-spacing:2px;display:none;box-shadow:0 4px 18px rgba(0,0,0,.25)';document.body.appendChild(el);}
+  el.textContent=classroomState.code?'教室 '+classroomState.code:'';
+  el.style.display=classroomState.code?'block':'none';
+}
+async function ensureClassroom(){
+  const saved=(()=>{try{return JSON.parse(sessionStorage.getItem('aivault_classroom')||'null')}catch{return null}})();
+  if(saved&&saved.code&&saved.channel_token&&saved.owner_token&&(!saved.expires_at||Date.parse(saved.expires_at)>Date.now()+60000)){classroomState=saved;classroomBadge();return classroomState;}
+  const d=await classroomApi({action:'classroom_create'});
+  const c=d.classroom;if(!c?.code||!c?.channel_token||!c?.owner_token)throw Error('未取得課堂入口');
+  classroomState={code:String(c.code),channel_token:String(c.channel_token),owner_token:String(c.owner_token),expires_at:c.expires_at||''};
+  sessionStorage.setItem('aivault_classroom',JSON.stringify(classroomState));
+  classroomBadge();
+  return classroomState;
+}
+async function classroomUpdateState(payload){
+  if(!classroomActive||!classroomState.owner_token)return;
+  lastClassroomPayload={type:payload.type||'page',page:Number(payload.page)||1,total:Number(payload.total)||0,content:String(payload.content||''),videos:Array.isArray(payload.videos)?payload.videos:[]};
+  try{await classroomApi({action:'classroom_update',channel_token:classroomState.channel_token,owner_token:classroomState.owner_token,state:lastClassroomPayload});}catch(e){console.warn('classroom state update',e);}
+}
 async function classroomBroadcast(payload){
-  const ebookId=ebookState.bookId;if(!ebookId)return;
+  if(!classroomActive||!classroomState.channel_token)return;
+  const clean={type:payload.type||'page',page:Number(payload.page)||1,total:Number(payload.total)||0,content:String(payload.content||''),videos:Array.isArray(payload.videos)?payload.videos:[]};
+  lastClassroomPayload=clean;
+  classroomUpdateState(clean);
   try{
     const r=await fetch(CLASSROOM_REALTIME,{
       method:'POST',
       headers:{'Content-Type':'application/json',apikey:EBOOK_PUBLISHABLE_KEY},
-      body:JSON.stringify({
-        topic:'student-classroom:'+String(ebookId),
-        event:'classroom_state',
-        payload:{...payload,ebook_id:String(ebookId),sent_at:new Date().toISOString()},
-        private:false
-      })
+      body:JSON.stringify({messages:[{topic:'student-classroom:'+classroomState.channel_token,event:'classroom_state',payload:clean}]})
     });
     if(!r.ok)throw Error('HTTP '+r.status);
   }catch(e){console.warn('student classroom sync',e);}
+}
+async function classroomPrepareRealtime(){
+  if(!classroomState.channel_token||!window.supabase?.createClient)return;
+  if(!classroomSupabase)classroomSupabase=window.supabase.createClient(EBOOK_SUPABASE_URL,EBOOK_PUBLISHABLE_KEY);
+  if(classroomChannel)await classroomSupabase.removeChannel(classroomChannel);
+  classroomChannel=classroomSupabase.channel('student-classroom:'+classroomState.channel_token,{config:{broadcast:{self:false}}})
+    .on('broadcast',{event:'classroom_request'},()=>{if(lastClassroomPayload)classroomBroadcast(lastClassroomPayload)})
+    .subscribe();
 }
 
 const ebookState={books:[],bookId:'',book:null,page:1,total:0,loaded:false,toc:[],units:[],unitIndex:-1,unitPages:[],pendingVideo:null};
@@ -163,11 +200,12 @@ async function exportTeachingToEbook(){
     $('ebookStatus').textContent='已轉換成電子書：'+title+(newId?'（已存入 AIVAULT 書架）':'');
     say('使用者提供的教學教材已轉換成電子書並存入 AIVAULT。');
     await ebookRefresh();
+(async()=>{try{const m=await import('https://esm.sh/@supabase/supabase-js@2.117.2');window.supabase=window.supabase||m;classroomBadge();}catch(e){console.warn('classroom realtime client load',e);}})();
     if(newId)$('ebookSelect').value=newId;
   }catch(e){$('ebookStatus').textContent='轉換電子書失敗：'+(e.message||e);say('教學教材轉換失敗。')}
 }
 ebookRefresh();
-async function enter(){if(!count&&!ebookState.loaded)return say('請先上傳 PPT 或匯入電子書教材。');classMode=true;$('panel').classList.add('class');$('ppt').classList.toggle('focusPpt',!!count&&!ebookState.loaded);$('ebookLesson').style.display=ebookState.loaded?'block':$('ebookLesson').style.display;$('start').style.display='none';$('exit').style.display='inline-block';document.body.style.overflow='hidden';if(ebookState.loaded&&!count){$('ppt').style.display='block';$('ppt').classList.add('ebookFocusShell');}else{$('ppt').style.display='block';$('ppt').classList.remove('ebookFocusShell');}try{await $('panel').requestFullscreen()}catch{}say('開始上課。',ebookState.loaded&&!count)}async function exit(){classMode=false;$('info').textContent=ebookState.loaded?'電子書教材｜第 '+(ebookState.page||1)+(ebookState.total?' / '+ebookState.total:''):count?'第 '+(index+1)+' / '+count+' 頁':'尚未載入';$('panel').classList.remove('class');$('ppt').classList.remove('focusPpt','ebookFocusShell');$('start').style.display='inline-block';$('exit').style.display='none';document.body.style.overflow='';hideResearch();stopReading();try{if(document.fullscreenElement)await document.exitFullscreen()}catch{}say('已回到主畫面。')}$('start').onclick=enter;$('exit').onclick=exit;
+async function enter(){if(!count&&!ebookState.loaded)return say('請先上傳 PPT 或匯入電子書教材。');try{await ensureClassroom();await classroomPrepareRealtime();}catch(e){say('課堂入口建立失敗：'+(e.message||e));return}classroomActive=true;classMode=true;$('panel').classList.add('class');$('ppt').classList.toggle('focusPpt',!!count&&!ebookState.loaded);$('ebookLesson').style.display=ebookState.loaded?'block':$('ebookLesson').style.display;$('start').style.display='none';$('exit').style.display='inline-block';document.body.style.overflow='hidden';if(ebookState.loaded&&!count){$('ppt').style.display='block';$('ppt').classList.add('ebookFocusShell');}else{$('ppt').style.display='block';$('ppt').classList.remove('ebookFocusShell');}classroomBadge();try{await $('panel').requestFullscreen()}catch{}say('開始上課。',ebookState.loaded&&!count);if(lastClassroomPayload)classroomBroadcast(lastClassroomPayload)}async function exit(){classroomActive=false;if(classroomState.channel_token&&classroomState.owner_token)classroomApi({action:'classroom_close',channel_token:classroomState.channel_token,owner_token:classroomState.owner_token}).catch(()=>{});if(classroomChannel&&classroomSupabase){classroomSupabase.removeChannel(classroomChannel);classroomChannel=null}classroomState={code:'',channel_token:'',owner_token:'',expires_at:''};try{sessionStorage.removeItem('aivault_classroom')}catch{}classroomBadge();classMode=false;$('info').textContent=ebookState.loaded?'電子書教材｜第 '+(ebookState.page||1)+(ebookState.total?' / '+ebookState.total:''):count?'第 '+(index+1)+' / '+count+' 頁':'尚未載入';$('panel').classList.remove('class');$('ppt').classList.remove('focusPpt','ebookFocusShell');$('start').style.display='inline-block';$('exit').style.display='none';document.body.style.overflow='';hideResearch();stopReading();try{if(document.fullscreenElement)await document.exitFullscreen()}catch{}say('已回到主畫面。')}$('start').onclick=enter;$('exit').onclick=exit;
 function hideResearch(){researchOpen=false;researchBig=false;$('research').classList.remove('on','big')}
 function showResearch(q){q=(q||'').trim();if(!q)return;researchOpen=true;$('q').value=q;$('research').classList.add('on');$('rbody').textContent=q;say('已開啟研究。')}
 $('search').onclick=()=>showResearch($('q').value);$('rClose').onclick=hideResearch;$('rPpt').onclick=()=>{hideResearch();say('已回到 PPT。')};$('rBig').onclick=()=>{$('research').classList.toggle('big')};$('rRead').onclick=()=>{const t=$('rbody').innerText.trim();if(t)speakText(t)};
@@ -193,3 +231,7 @@ async function detectMicrophone(){const el=$('mic');try{const stream=await navig
 function startRec(){if(!rec||listening)return;try{rec.start();listening=true}catch{}}
 function setup(){const S=window.SpeechRecognition||window.webkitSpeechRecognition;if(!S){voice=false;$('vs').textContent='此瀏覽器不支援語音辨識';return}rec=new S();rec.lang='zh-TW';rec.continuous=false;rec.interimResults=true;rec.onstart=()=>{listening=true;if(voice)$('vs').textContent='聲控啟用'};rec.onerror=()=>{listening=false};rec.onresult=e=>{let t='';for(let k=e.resultIndex;k<e.results.length;k++)if(e.results[k].isFinal)t+=e.results[k][0].transcript;if(t){$('tr').textContent=t}};rec.onend=()=>{listening=false;setTimeout(()=>{if(rec&&voice)startRec()},350)};$('voiceStart').onclick=()=>{voice=true;$('vs').textContent='聲控啟用';startRec()};$('voiceStop').onclick=()=>{voice=false;$('vs').textContent='聲控已取消';try{rec.stop()}catch{}};startRec()}
 setSpeechEnabled(true);detectMicrophone();setup();
+
+/* PPT classroom sync: wrap the existing PPT navigation without changing teaching-assistant.js. */
+const classroomOriginalGo=go;
+go=async function(k){await classroomOriginalGo(k);if(classroomActive&&count){const text=String(slideTexts[index]||'').trim();classroomBroadcast({type:'ppt',page:index+1,total:count,content:text,videos:[]});}};
