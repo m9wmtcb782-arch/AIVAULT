@@ -323,24 +323,15 @@ async function darkStarTeacherCommand(text){
   try{
     let webData=null;
     if(navigationIntent && !research){
-      // 先讓暗星取得當前教材脈絡；不讓模型直接改 DOM。
-      const navAnswer=await darkStarTeachingGateway(
-        String(text||'')+'\n請判斷這是否為教材導航命令。若是，只回傳「NAVIGATION_CONFIRMED」，不要自行修改頁面。',
-        null
-      );
-      if(!/NAVIGATION_CONFIRMED/i.test(navAnswer)){
-        $('tr').textContent='暗星未確認這個翻頁命令，未執行頁面變更。';
-        classVoiceControls();
-        return true;
-      }
-      // 暗星確認後，交由既有精準導航邏輯執行，避免 AI 自行猜頁碼。
+      // 教材導航是確定性操作，不再交給 AI 判斷有沒有按鈕。
+      // 第幾章會直接執行教材上方對應的章節按鈕。
       const handled=await runNavigationCommandDirect(text);
       if(handled){
-        $('tr').textContent='暗星已輔助完成翻頁。';
+        $('tr').textContent='暗星已完成老師指定的教材導航。';
         classVoiceControls();
         return true;
       }
-      $('tr').textContent='暗星理解了指令，但目前教材沒有對應的翻頁位置。';
+      $('tr').textContent='暗星找不到老師指定的教材章節或翻頁位置。';
       classVoiceControls();
       return true;
     }
@@ -710,14 +701,25 @@ async function voiceGotoChapter(text){
   const toc=Array.isArray(ebookState.toc)?ebookState.toc:[];
   const hit=toc.find(x=>x.level==='chapter'&&extractChapterNumber(x.title)===n)||toc.find(x=>extractChapterNumber(x.title)===n);
   if(!hit)return false;
-  const page=Number(hit.page_number)||1;
+  const outline=$('ebookLessonOutline');
+  const buttons=outline?[...outline.querySelectorAll('button')]:[];
+  const target=buttons.find(btn=>extractChapterNumber(btn.textContent)===n);
   try{
-    await ebookGo(page-(Number(ebookState.page)||1));
-    const title=String(hit.title||('第 '+n+' 章'));
-    $('tr').textContent='已跳到'+title;
+    if(target){
+      target.click();
+    }else{
+      const page=Number(hit.page_number)||1;
+      await ebookGo(page-(Number(ebookState.page)||1));
+    }
+    $('tr').textContent='暗星已點選上方章節：'+String(hit.title||('第 '+n+' 章'));
     classVoiceControls();
     return true;
-  }catch(e){console.warn('voice chapter',e);return true;}
+  }catch(e){
+    console.warn('voice chapter',e);
+    $('tr').textContent='章節切換失敗：'+(e.message||e);
+    classVoiceControls();
+    return true;
+  }
 }
 function voiceScrollLines(lines=3){
   if(!ebookState.loaded)return false;
