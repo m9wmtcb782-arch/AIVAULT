@@ -109,7 +109,11 @@ async function classroomBroadcast(payload){
   }catch(e){console.warn('student classroom sync',e);}
 }
 async function classroomPrepareRealtime(){
-  if(!classroomState.channel_token||!window.supabase?.createClient)return;
+  if(!classroomState.channel_token)return;
+  if(!window.supabase?.createClient){
+    try{const m=await import('https://esm.sh/@supabase/supabase-js@2.117.2');window.supabase=m;}
+    catch(e){console.warn('classroom realtime client load',e);throw Error('課堂即時連線元件載入失敗。');}
+  }
   if(!classroomSupabase)classroomSupabase=window.supabase.createClient(EBOOK_SUPABASE_URL,EBOOK_PUBLISHABLE_KEY);
   if(classroomChannel)await classroomSupabase.removeChannel(classroomChannel);
   classroomChannel=classroomSupabase.channel('student-classroom:'+classroomState.channel_token,{config:{broadcast:{self:false}}})
