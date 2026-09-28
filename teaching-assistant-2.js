@@ -26,6 +26,7 @@ let classroomChannel=null;
 let classroomRealtimeReady=false;
 let lastClassroomPayload=null;
 let classroomAudioRetryTimer=null;
+let darkStarVoiceState={id:'',text:'',action:'idle'};
 let classroomMicStream=null;
 const classroomPeers=new Map();
 const CLASSROOM_ICE_SERVERS=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}];
@@ -158,6 +159,7 @@ function classroomBuildPayload(payload){
     total:Number(payload.total)||0,
     content:String(payload.content||''),
     videos:Array.isArray(payload.videos)?payload.videos:[],
+    darkstar_voice:payload.darkstar_voice||null,
     research:payload.research===undefined?classroomPayloadResearch():payload.research
   };
 }
@@ -301,6 +303,26 @@ async function runNavigationCommandDirect(text){
   return false;
 }
 
+function stopDarkStarTeachingVoice(broadcast=true){
+  try{speechSynthesis.cancel()}catch{}
+  currentUtterance=null;
+  darkStarVoiceState={id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),text:'',action:'stop'};
+  $('readStatus').textContent='⏹ 暗星已停止說話';
+  $('tr').textContent='暗星已停止說話。';
+  if(broadcast&&classroomActive&&lastClassroomPayload){
+    classroomBroadcast({...lastClassroomPayload,darkstar_voice:{id:darkStarVoiceState.id,text:'',action:'stop'}});
+  }
+  voice=true;listening=false;setTimeout(()=>{if(voice&&!listening)startRec()},250);
+  return true;
+}
+function pauseDarkStarTeachingVoice(){
+  if(!speechSynthesis.speaking)return false;
+  try{speechSynthesis.pause()}catch{}
+  darkStarVoiceState.action='pause';
+  if(classroomActive&&lastClassroomPayload)classroomBroadcast({...lastClassroomPayload,darkstar_voice:{id:darkStarVoiceState.id,text:darkStarVoiceState.text,action:'pause'}});
+  $('readStatus').textContent='⏸ 暗星已暫停';
+  return true;
+}
 async function darkStarTeacherCommand(text){
   if(!classroomActive||!classroomState.owner_token)return false;
   darkStarSetColor(text);
@@ -359,32 +381,18 @@ async function darkStarTeacherCommand(text){
     // 搜尋、翻頁、改顏色等工作命令仍可執行，但不會搶答老師對學生提出的問題。
     if(explainIntent){
       $('tr').textContent='暗星正在直接說話…';
-      // 老師明確叫暗星解釋時，暗星直接開口，不需要老師再按播放。
-      // 說話期間暫停語音辨識，避免暗星自己的聲音被辨識成老師的新指令。
-      voice=false;
-      listening=false;
+      voice=false; listening=false;
       try{rec?.abort()}catch{}
       try{speechSynthesis.cancel()}catch{}
-      const u=new SpeechSynthesisUtterance(String(answer||''));
+      const voiceId=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random());
+      darkStarVoiceState={id:voiceId,text:String(answer||''),action:'speak'};
+      const u=new SpeechSynthesisUtterance(darkStarVoiceState.text);
       const v=(typeof chosenVoice==='function')?chosenVoice():null;
       if(v){u.voice=v;u.lang=v.lang||'zh-TW'}else{u.lang='zh-TW'}
-      u.rate=+$('rate').value||1;
-      u.pitch=1;
-      u.volume=1;
-      currentUtterance=u;
-      u.onstart=()=>{$('readStatus').textContent='🔊 暗星正在說話…'};
-      u.onend=()=>{
-        $('readStatus').textContent='✅ 暗星說完了';
-        currentUtterance=null;
-        voice=true;
-        setTimeout(()=>{if(voice&&!listening)startRec()},250);
-      };
-      u.onerror=()=>{
-        $('readStatus').textContent='⚠️ 暗星語音播放失敗';
-        currentUtterance=null;
-        voice=true;
-        setTimeout(()=>{if(voice&&!listening)startRec()},250);
-      };
+      u.rate=+$('rate').value||1;u.pitch=1;u.volume=1;currentUtterance=u;
+      u.onstart=()=>{$('readStatus').textContent='🔊 暗星正在說話…';};
+      u.onend=()=>{$('readStatus').textContent='✅ 暗星說完了';currentUtterance=null;darkStarVoiceState.action='idle';voice=true;setTimeout(()=>{if(voice&&!listening)startRec()},250);};
+      u.onerror=()=>{$('readStatus').textContent='⚠️ 暗星語音播放失敗';currentUtterance=null;darkStarVoiceState.action='idle';voice=true;setTimeout(()=>{if(voice&&!listening)startRec()},250);};
       speechSynthesis.speak(u);
     }
     if(research){
@@ -401,7 +409,7 @@ async function darkStarTeacherCommand(text){
         content:ebookState.loaded?String($('ebookLessonText')?.textContent||''):String(slideTexts[index]||''),
         videos:[]
       };
-      classroomBroadcast({...base,research:classroomPayloadResearch()});
+      classroomBroadcast({...base,research:classroomPayloadResearch(),darkstar_voice:darkStarVoiceState.action==='speak'?{id:darkStarVoiceState.id,text:darkStarVoiceState.text,action:'speak'}:null});
     }
     return true;
   }catch(e){
@@ -595,7 +603,20 @@ async function exportTeachingToEbook(){
 }
 ebookRefresh();
 async function enter(){if(!count&&!ebookState.loaded)return say('請先上傳 PPT 或匯入電子書教材。');try{await ensureClassroom();await classroomPrepareRealtime();}catch(e){say('課堂入口建立失敗：'+(e.message||e));return}classroomActive=true;classMode=true;classroomBadge();renderDarkStarClassroomAvatar();
-try{await classroomStartAudio();}catch(e){classroomActive=false;classMode=false;try{await classroomChannel?.unsubscribe?.()}catch{}say(e.message||'老師麥克風啟動失敗。');return;}$('panel').classList.add('class');classVoiceControls();$('ppt').classList.toggle('focusPpt',!!count&&!ebookState.loaded);$('ebookLesson').style.display=ebookState.loaded?'block':$('ebookLesson').style.display;$('start').style.display='none';$('exit').style.display='inline-block';document.body.style.overflow='hidden';if(ebookState.loaded&&!count){$('ppt').style.display='block';$('ppt').classList.add('ebookFocusShell');}else{$('ppt').style.display='block';$('ppt').classList.remove('ebookFocusShell');}classroomBadge();try{await $('panel').requestFullscreen()}catch{}renderDarkStarClassroomAvatar();say('開始上課。',ebookState.loaded&&!count);if(lastClassroomPayload)classroomBroadcast(lastClassroomPayload)}async function exit(){classroomActive=false;classroomStopAudio();if(classroomState.channel_token&&classroomState.owner_token)classroomApi({action:'classroom_close',channel_token:classroomState.channel_token,owner_token:classroomState.owner_token}).catch(()=>{});if(classroomChannel&&classroomSupabase){classroomSupabase.removeChannel(classroomChannel);classroomChannel=null}classroomState={code:'',channel_token:'',owner_token:'',expires_at:''};try{sessionStorage.removeItem('aivault_classroom')}catch{}classMode=false;hideDarkStarClassroomAvatar();classroomBadge();$('info').textContent=ebookState.loaded?'電子書教材｜第 '+(ebookState.page||1)+(ebookState.total?' / '+ebookState.total:''):count?'第 '+(index+1)+' / '+count+' 頁':'尚未載入';$('panel').classList.remove('class');document.getElementById('classVoiceControls')?.remove();$('ppt').classList.remove('focusPpt','ebookFocusShell');$('start').style.display='inline-block';$('exit').style.display='none';document.body.style.overflow='';hideResearch();stopReading();try{if(document.fullscreenElement)await document.exitFullscreen()}catch{}say('已回到主畫面。')}$('start').onclick=enter;$('exit').onclick=exit;
+try{await classroomStartAudio();}catch(e){classroomActive=false;classMode=false;try{await classroomChannel?.unsubscribe?.()}catch{}say(e.message||'老師麥克風啟動失敗。');return;}$('panel').classList.add('class');classVoiceControls();darkStarTeachingVoiceControls();$('ppt').classList.toggle('focusPpt',!!count&&!ebookState.loaded);$('ebookLesson').style.display=ebookState.loaded?'block':$('ebookLesson').style.display;$('start').style.display='none';$('exit').style.display='inline-block';document.body.style.overflow='hidden';if(ebookState.loaded&&!count){$('ppt').style.display='block';$('ppt').classList.add('ebookFocusShell');}else{$('ppt').style.display='block';$('ppt').classList.remove('ebookFocusShell');}classroomBadge();try{await $('panel').requestFullscreen()}catch{}renderDarkStarClassroomAvatar();say('開始上課。',ebookState.loaded&&!count);if(lastClassroomPayload)classroomBroadcast(lastClassroomPayload)}async function exit(){classroomActive=false;classroomStopAudio();if(classroomState.channel_token&&classroomState.owner_token)classroomApi({action:'classroom_close',channel_token:classroomState.channel_token,owner_token:classroomState.owner_token}).catch(()=>{});if(classroomChannel&&classroomSupabase){classroomSupabase.removeChannel(classroomChannel);classroomChannel=null}classroomState={code:'',channel_token:'',owner_token:'',expires_at:''};try{sessionStorage.removeItem('aivault_classroom')}catch{}classMode=false;hideDarkStarClassroomAvatar();classroomBadge();$('info').textContent=ebookState.loaded?'電子書教材｜第 '+(ebookState.page||1)+(ebookState.total?' / '+ebookState.total:''):count?'第 '+(index+1)+' / '+count+' 頁':'尚未載入';$('panel').classList.remove('class');document.getElementById('classVoiceControls')?.remove();hideDarkStarTeachingVoiceControls();$('ppt').classList.remove('focusPpt','ebookFocusShell');$('start').style.display='inline-block';$('exit').style.display='none';document.body.style.overflow='';hideResearch();stopReading();try{if(document.fullscreenElement)await document.exitFullscreen()}catch{}say('已回到主畫面。')}$('start').onclick=enter;$('exit').onclick=exit;
+function darkStarTeachingVoiceControls(){
+  if(!classroomActive)return;
+  let host=document.getElementById('darkStarVoiceControls');
+  if(!host){
+    host=document.createElement('div');host.id='darkStarVoiceControls';
+    host.style.cssText='position:fixed;left:10px;bottom:10px;z-index:9700;display:flex;gap:6px;';
+    host.innerHTML='<button type="button" id="darkStarPauseBtn" class="b">⏸ 暫停暗星</button><button type="button" id="darkStarStopBtn" class="b">⏹ 停止暗星</button>';
+    document.body.appendChild(host);
+    $('darkStarPauseBtn').onclick=()=>pauseDarkStarTeachingVoice();
+    $('darkStarStopBtn').onclick=()=>stopDarkStarTeachingVoice(true);
+  }
+}
+function hideDarkStarTeachingVoiceControls(){document.getElementById('darkStarVoiceControls')?.remove();}
 function hideResearch(){researchOpen=false;researchBig=false;$('research').classList.remove('on','big')}
 function showResearch(q){q=(q||'').trim();if(!q)return;researchOpen=true;$('q').value=q;$('research').classList.add('on');$('rbody').textContent=q;say('已開啟研究。')}
 $('search').onclick=()=>showResearch($('q').value);$('rClose').onclick=hideResearch;$('rPpt').onclick=()=>{hideResearch();say('已回到 PPT。')};$('rBig').onclick=()=>{$('research').classList.toggle('big')};$('rRead').onclick=()=>{const t=$('rbody').innerText.trim();if(t)speakText(t)};
@@ -777,6 +798,10 @@ async function voiceSearchAndJump(text){
 }
 function normalizeVoiceText(text){return String(text||'').replace(/[，。！？、,.!?\s]/g,'').trim();}
 async function runVoiceCommand(text){
+  const commandText=String(text||'').trim();
+  if(/(?:暗星|小助|小朱|小主)[，,、\s]*(停止說話|停止|閉嘴|停下來)/.test(commandText))return stopDarkStarTeachingVoice(true);
+  if(/(?:暗星|小助|小朱|小主)[，,、\s]*(暫停說話|暫停)/.test(commandText))return pauseDarkStarTeachingVoice();
+
   // 教材「第幾章」是確定性導航：先直接處理，絕不交給 AI 判斷按鈕。
   // 這也允許語音辨識成「第四章開始」「小助第四章開始」「暗星第四章」等形式。
   const directChapterText=String(text||'').trim();
