@@ -52,13 +52,20 @@ async function ebookLoad(){
     ebookState.units=Array.isArray(ebookPick(up,['units','items']))?ebookPick(up,['units','items']):[];
     ebookState.unitIndex=-1;ebookState.unitPages=[];ebookState.loaded=true;
     $('ebookLesson').style.display='block';
+    $('ppt').style.display='none';
+    $('ebookLesson').style.width='100%';
+    $('ebookLesson').style.maxWidth='none';
     $('ebookLessonTitle').textContent='📚 '+(ebookPick(b,['title','name'])||'電子書教材');
     $('ebookLessonPage').textContent='已選定教材｜原書共 '+(ebookState.total||'?')+' 頁';
     $('ebookLessonUnit').textContent='目前教學單元：尚未選取';
     $('ebookLessonText').textContent='教材已選定。原書內容保持不變；目前只載入書名與目錄。選擇章節或翻頁後，才逐頁載入原書內容。';
     $('ebookLessonVideo').innerHTML='';
     ebookRenderOutline();
-    $('ebookStatus').textContent='教材已選定：'+(ebookPick(b,['title','name'])||'電子書')+'；原書內容未改寫。';
+    // 載入後立即把原書第一個教學單元的內文提取到教學助理主區域。
+    // 不建立縮小視窗、不嵌入原電子書畫面；只做原文內容的教學呈現。
+    if(ebookState.units.length) await ebookLoadUnit(0);
+    else await ebookGo(0);
+    $('ebookStatus').textContent='教材已載入：'+(ebookPick(b,['title','name'])||'電子書')+'；原書內文已放入教學助理，原文未改寫。';
     say('已將選定電子書作為完整教材來源。原文不改寫，使用時逐頁載入。');
   }catch(e){$('ebookStatus').textContent='教材選定失敗：'+(e.message||e);say('電子書教材選定失敗。')}
 }
