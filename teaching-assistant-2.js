@@ -184,7 +184,9 @@ async function buildPptProjectFromEbook(){
         });
       }
       const concepts=combined.replace(/[\r\n]+/g,' ').slice(0,900);
-      slides.push({kind:'analysis',title:title+'｜問題分析',content:'可供老師引導討論：\n\n1. 本單元要解決的核心問題是什麼？\n2. 原文提出了哪些規範、概念或論證？\n3. 這些內容與前後章節如何連結？\n4. 哪些地方需要進一步查證或比較？\n\n教材依據摘要：\n'+concepts});
+      const keyLines=(combined.match(/[^。！？\n]{8,80}[。！？]/g)||[]).slice(0,5);
+      slides.push({kind:'keypoint',title:title+'｜重點整理',content:keyLines.length?keyLines.map((x,i)=>(i+1)+'．'+x.trim()).join('\n'):concepts});
+      slides.push({kind:'question',title:title+'｜問題討論',content:'1．本單元要解決的核心問題是什麼？\n2．原文提出哪些規範、概念或論證？\n3．這些內容與前後章節如何連結？\n4．哪些地方需要進一步查證或比較？'});
     }catch(e){console.warn('ebook to ppt project unit',u,e)}
   }
   if(!unitSummaries.length){$('pptProjectStatus').textContent='電子書沒有取得可轉換內容。';return false;}
