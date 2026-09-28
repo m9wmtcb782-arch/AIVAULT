@@ -675,7 +675,7 @@ function classVoiceControls(){
 }
 function chineseNumberToInt(s){
   s=String(s||'').trim();
-  if(/^\\d+$/.test(s))return Number(s);
+  if(/^\d+$/.test(s))return Number(s);
   const d={'零':0,'〇':0,'一':1,'二':2,'兩':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9};
   if(!s)return NaN;
   let total=0,section=0,num=0;
@@ -689,7 +689,7 @@ function chineseNumberToInt(s){
   return section+num;
 }
 function extractChapterNumber(t){
-  const m=String(t||'').match(/第\\s*([0-9０-９一二兩三四五六七八九十百千〇零]+)\\s*章/);
+  const m=String(t||'').match(/第\s*([0-9０-９一二兩三四五六七八九十百千〇零]+)\s*章/);
   if(!m)return NaN;
   const raw=m[1].replace(/[０-９]/g,x=>String('０１２３４５６７８９'.indexOf(x)));
   return chineseNumberToInt(raw);
