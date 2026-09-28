@@ -1055,30 +1055,28 @@ function installClassroomLayoutFix(){
   const st=document.createElement('style');st.id='aivaultClassroomLayoutFix';
   st.textContent=`
     .class .stage{position:relative;min-height:0;overflow:hidden!important}
-    .class .bar{position:absolute!important;top:0!important;left:0!important;right:0!important;min-height:58px!important;display:grid!important;grid-template-columns:minmax(0,1fr) minmax(110px,auto) auto!important;align-items:center!important;gap:8px!important;padding:calc(7px + env(safe-area-inset-top)) 10px 7px!important;box-sizing:border-box!important;overflow:visible!important}
-    .class .bar>div:first-child{min-width:0;display:flex;align-items:center;gap:5px;overflow-x:auto;overflow-y:hidden;white-space:nowrap;scrollbar-width:none}
-    .class .bar>div:first-child::-webkit-scrollbar{display:none}
-    .class .bar>div:last-child{display:flex;align-items:center;gap:5px;min-width:max-content}
-    .class .bar .b{min-height:40px;padding:7px 10px!important;font-size:16px!important;white-space:nowrap}
-    .class #info{min-width:0;max-width:34vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;font-size:14px!important}
-    .class .view{height:100vh!important;min-height:0!important;padding-top:calc(62px + env(safe-area-inset-top))!important;padding-bottom:calc(82px + env(safe-area-inset-bottom))!important;overflow:auto!important;box-sizing:border-box!important}
-    .class #ebookLesson{padding:calc(70px + env(safe-area-inset-top)) 16px calc(94px + env(safe-area-inset-bottom))!important;overflow:auto!important}
-    .class #ebookLesson>.voiceBtns:last-child{position:fixed!important;left:10px!important;right:10px!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;z-index:9750!important;margin:0!important;padding:7px!important;border:1px solid rgba(255,255,255,.25)!important;border-radius:12px!important;background:rgba(8,12,24,.92)!important;box-shadow:0 6px 22px rgba(0,0,0,.35)!important;backdrop-filter:blur(8px)!important}
+    /* 教室 UI 硬性規則：所有控制與提示都必須有自己的版面空間，禁止重疊。 */
+    .class .bar{position:absolute!important;top:0!important;left:0!important;right:0!important;min-height:0!important;height:auto!important;display:flex!important;flex-wrap:wrap!important;align-items:center!important;gap:8px!important;padding:calc(7px + env(safe-area-inset-top)) 10px 7px!important;box-sizing:border-box!important;overflow:visible!important;background:inherit!important}
+    .class .bar>div:first-child{order:1;flex:1 1 260px;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:5px;overflow:visible!important;white-space:normal!important}
+    .class .bar>div:last-child{order:2;flex:0 1 auto;display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:5px;min-width:0}
+    .class .bar .b{min-height:40px;padding:7px 10px!important;font-size:16px!important;white-space:nowrap;flex:0 0 auto}
+    .class #info{order:3;flex:1 1 100%;min-width:0;max-width:none!important;overflow:visible!important;text-overflow:clip!important;white-space:normal!important;text-align:center;font-size:14px!important;line-height:1.35!important;padding:3px 6px!important}
+    .class .view{height:100vh!important;min-height:0!important;padding-top:calc(112px + env(safe-area-inset-top))!important;padding-bottom:calc(120px + env(safe-area-inset-bottom))!important;overflow:auto!important;box-sizing:border-box!important}
+    .class #ebookLesson{padding:calc(70px + env(safe-area-inset-top)) 16px calc(150px + env(safe-area-inset-bottom))!important;overflow:auto!important}
+    .class #ebookLesson>.voiceBtns:last-child{position:static!important;display:flex!important;flex-wrap:wrap!important;gap:7px!important;z-index:auto!important;margin:10px 0!important;padding:7px!important;border:1px solid rgba(255,255,255,.25)!important;border-radius:12px!important;background:rgba(8,12,24,.92)!important;box-shadow:none!important}
     .class #ebookLesson>.voiceBtns:last-child .b{flex:1;min-width:0}
-    #classVoiceControls{position:fixed!important;left:50%!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;transform:translateX(-50%)!important;z-index:9760!important;margin:0!important;padding:6px!important;border-radius:12px!important;background:rgba(8,12,24,.94)!important;box-shadow:0 6px 22px rgba(0,0,0,.35)!important;max-width:calc(100vw - 20px)!important;overflow:auto!important}
+    #classVoiceControls{position:static!important;display:flex!important;flex-wrap:wrap!important;justify-content:center!important;gap:6px!important;z-index:auto!important;transform:none!important;margin:10px auto!important;padding:6px!important;border-radius:12px!important;background:rgba(8,12,24,.94)!important;box-shadow:none!important;max-width:calc(100% - 20px)!important;overflow:visible!important}
     #classVoiceControls .b{min-height:40px!important;white-space:nowrap}
-    #darkStarVoiceControls{left:auto!important;right:10px!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;z-index:9770!important;max-width:calc(50vw - 20px)!important}
+    #darkStarVoiceControls{position:static!important;left:auto!important;right:auto!important;bottom:auto!important;z-index:auto!important;transform:none!important;display:flex!important;flex-wrap:wrap!important;justify-content:center!important;gap:6px!important;max-width:calc(100% - 20px)!important;margin:10px auto!important}
     #darkStarVoiceControls .b{min-height:40px!important;white-space:nowrap}
-    #darkStarClassroomAvatar{right:10px!important;top:calc(68px + env(safe-area-inset-top))!important;bottom:auto!important;width:94px!important;min-height:76px!important;padding:5px!important;z-index:9740!important}
+    #darkStarClassroomAvatar{position:static!important;width:min(94px,28vw)!important;min-height:76px!important;padding:5px!important;margin:8px auto!important;z-index:auto!important}
     @media(max-width:700px){
-      .class .bar{grid-template-columns:minmax(0,1fr) auto!important}
-      .class #info{grid-column:1 / -1;grid-row:2;max-width:none;order:3;padding:2px 0}
-      .class .bar>div:last-child{grid-column:2;grid-row:1}
-      .class .bar>div:first-child{grid-column:1;grid-row:1}
-      .class .view{padding-top:calc(86px + env(safe-area-inset-top))!important}
-      #classVoiceControls{left:10px!important;right:10px!important;transform:none!important;max-width:none!important;justify-content:center}
-      #darkStarVoiceControls{bottom:calc(66px + env(safe-area-inset-bottom))!important;right:10px!important;left:auto!important}
-      #darkStarClassroomAvatar{display:none!important}
+      .class .bar{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:6px!important}
+      .class .bar>div:first-child,.class .bar>div:last-child{flex:1 1 auto!important;width:100%!important;justify-content:center!important}
+      .class #info{padding:2px 4px!important}
+      .class .view{padding-top:calc(150px + env(safe-area-inset-top))!important;padding-bottom:calc(130px + env(safe-area-inset-bottom))!important}
+      #classVoiceControls,#darkStarVoiceControls{max-width:calc(100% - 20px)!important}
+      #darkStarClassroomAvatar{display:block!important}
     }
   `;
   document.head.appendChild(st);
