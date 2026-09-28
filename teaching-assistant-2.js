@@ -11,7 +11,9 @@ let classroomActive=false;
 let classroomState={code:'',channel_token:'',owner_token:'',expires_at:''};
 let classroomSupabase=null;
 let classroomChannel=null;
+let classroomRealtimeReady=false;
 let lastClassroomPayload=null;
+let classroomAudioRetryTimer=null;
 let classroomMicStream=null;
 const classroomPeers=new Map();
 const CLASSROOM_ICE_SERVERS=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}];
@@ -31,10 +33,14 @@ function classroomStopAudio(){
 }
 async function classroomSendSignal(event,payload){
   if(!classroomChannel)return;
+  if(!classroomRealtimeReady){
+    await new Promise(resolve=>setTimeout(resolve,300));
+    if(!classroomChannel||!classroomRealtimeReady)return;
+  }
   try{await classroomChannel.send({type:'broadcast',event,payload});}catch(e){console.warn('classroom audio signal',e);}
 }
 async function classroomHandleAudioJoin(payload){
-  if(!classroomActive||!payload?.peer_id)return;
+  if(!classroomActive||!classroomRealtimeReady||!payload?.peer_id)return;
   const peerId=String(payload.peer_id);
   if(classroomPeers.has(peerId))return;
   try{
@@ -113,6 +119,7 @@ async function classroomBroadcast(payload){
 }
 async function classroomPrepareRealtime(){
   if(!classroomState.channel_token)return;
+  classroomRealtimeReady=false;
   if(!window.supabase?.createClient){
     try{const m=await import('https://esm.sh/@supabase/supabase-js@2.117.2');window.supabase=m;}
     catch(e){console.warn('classroom realtime client load',e);throw Error('課堂即時連線元件載入失敗。');}
@@ -124,7 +131,7 @@ async function classroomPrepareRealtime(){
     .on('broadcast',{event:'audio_join'},({payload})=>classroomHandleAudioJoin(payload))
     .on('broadcast',{event:'audio_answer'},({payload})=>classroomHandleAudioAnswer(payload))
     .on('broadcast',{event:'audio_ice'},({payload})=>classroomHandleAudioIce(payload))
-    .subscribe();
+    .subscribe(status=>{classroomRealtimeReady=status==='SUBSCRIBED';});
 }
 
 const ebookState={books:[],bookId:'',book:null,page:1,total:0,loaded:false,toc:[],units:[],unitIndex:-1,unitPages:[],pendingVideo:null};
@@ -323,6 +330,44 @@ function classVoiceControls(){
   if(s)s.textContent=(v?.textContent||'🎤 聲控').replace(/^正在準備聲控…$/,'🎤 聲控');
   if(s&&t&&t.textContent&&t.textContent!=='等待老師說話…')s.textContent='🎤 '+t.textContent;
 }
+function normalizeVoiceText(text){return String(text||'').replace(/[，。！？、,.!?\s]/g,'').trim();}
+async function runVoiceCommand(text){
+  const t=normalizeVoiceText(text);if(!t)return false;
+  const click=id=>{const el=$(id);if(!el||el.disabled)return false;el.click();return true;};
+  const bookSel=$('ebookSelect');
+  const pickBook=()=>{
+    if(!bookSel||!bookSel.options.length)return false;
+    const raw=String(text||'').trim().replace(/^(請|幫我|幫忙|我要|選擇|選|使用|打開|開啟)/,'').trim();
+    const q=normalizeVoiceText(raw);
+    let opt=[...bookSel.options].find(o=>normalizeVoiceText(o.textContent||'')===q||normalizeVoiceText(o.textContent||'').includes(q)||q.includes(normalizeVoiceText(o.textContent||'')));
+    if(!opt)return false;
+    bookSel.value=opt.value;bookSel.dispatchEvent(new Event('change',{bubbles:true}));
+    $('tr').textContent='已選擇教材：'+opt.textContent;classVoiceControls();return true;
+  };
+  if(/^(下一頁|下一張|下頁|下張|往下一頁|往下翻|往後一頁)$/.test(t)||t.includes('下一頁')||t.includes('下一張')||t.includes('往下翻')){return await handleVoicePageCommand('下一頁');}
+  if(/^(上一頁|上一張|上頁|上張|往上一頁|往上翻|往前一頁)$/.test(t)||t.includes('上一頁')||t.includes('上一張')||t.includes('往上翻')){return await handleVoicePageCommand('上一頁');}
+  if(t.includes('選擇教材')||t.startsWith('選擇')||t.startsWith('使用教材')||t.startsWith('打開教材')){if(pickBook())return true;}
+  if(t.includes('匯入教材')||t.includes('載入教材')||t.includes('導入教材')||t.includes('倒入教材')||t.includes('開始載入'))return click('ebookLoad');
+  if(t==='開始上課'||t.includes('開始上課'))return click('start');
+  if(t.includes('回主畫面')||t.includes('退出上課')||t.includes('結束上課'))return click('exit');
+  if(t.includes('停止聲控')||t.includes('取消聲控')){click('voiceStop');return true;}
+  if(t.includes('開始聽')||t.includes('啟動聲控')||t.includes('開始聲控')){click('voiceStart');return true;}
+  if(t.includes('朗讀本頁')||t.includes('讀這一頁')||t.includes('開始朗讀'))return click(ebookState.loaded?'ebookRead':'readPage');
+  if(t.includes('停止朗讀'))return click(ebookState.loaded?'ebookStop':'readStop');
+  if(t.includes('暫停朗讀'))return click('readPause');
+  if(t.includes('繼續朗讀'))return click('readResume');
+  if(t.includes('上一個單元')||t.includes('上一單元'))return click('ebookUnitPrev');
+  if(t.includes('下一個單元')||t.includes('下一單元'))return click('ebookUnitNext');
+  if(t.includes('PPT上一頁'))return click('prev');
+  if(t.includes('PPT下一頁'))return click('next');
+  if(t.includes('選擇')&&bookSel)return pickBook();
+  if(t.includes('開啟影片')||t.includes('播放影片'))return click('openV');
+  if(t.includes('儲存影片'))return click('saveV');
+  if(t.includes('關閉影片'))return click('closeV');
+  if(t.includes('重新整理教材')||t.includes('重新讀取教材'))return click('ebookRefresh');
+  if(t.includes('匯出電子書'))return click('ebookExport');
+  return false;
+}
 async function handleVoicePageCommand(text){
   const t=String(text||'').replace(/[，。！？、,.!?\s]/g,'').trim();
   if(!t)return false;
@@ -355,7 +400,7 @@ function setup(){
   rec=new S();rec.lang='zh-TW';rec.continuous=false;rec.interimResults=true;
   rec.onstart=()=>{listening=true;$('vs').textContent='🎤 聲控啟用，請說話'};
   rec.onerror=e=>{listening=false;console.warn('speech recognition',e);if(voice)$('vs').textContent=e?.error==='not-allowed'?'⚠️ 麥克風／語音辨識權限被拒絕':'⚠️ 聲控暫停，請按「開始聽」'};
-  rec.onresult=e=>{let t='';for(let k=e.resultIndex;k<e.results.length;k++)if(e.results[k].isFinal)t+=e.results[k][0].transcript;if(t){$('tr').textContent=t;classVoiceControls();handleVoicePageCommand(t)}};
+  rec.onresult=e=>{let t='';for(let k=e.resultIndex;k<e.results.length;k++)if(e.results[k].isFinal)t+=e.results[k][0].transcript;if(t){$('tr').textContent=t;classVoiceControls();runVoiceCommand(t).catch(e=>console.warn('voice command',e))}};
   rec.onend=()=>{listening=false;if(voice){$('vs').textContent='🎤 聲控已停止，重新啟動中…';setTimeout(()=>{if(rec&&voice&&!listening)startRec()},250)}};
   $('voiceStart').onclick=()=>{voice=true;$('vs').textContent='🎤 正在啟動聲控…';startRec()};
   $('voiceStop').onclick=()=>{voice=false;listening=false;$('vs').textContent='聲控已取消';try{rec.abort()}catch{}};
