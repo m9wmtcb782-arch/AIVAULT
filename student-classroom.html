@@ -49,9 +49,9 @@ video,iframe{display:block;width:100%;max-height:620px;margin:18px 0;border:0;bo
 </section>
 </div>
 <script>
-const URL='https://clcddygkaaqqtsbswgdf.supabase.co';
+const SUPABASE_URL='https://clcddygkaaqqtsbswgdf.supabase.co';
 const KEY='sb_publishable_1D05YGthBrNGg-5L92TLCw_GiLnInBu';
-const API=URL+'/functions/v1/dark-star-ebook-ingest';
+const API=SUPABASE_URL+'/functions/v1/dark-star-ebook-ingest';
 const $=id=>document.getElementById(id);
 let classroomCode='',channelToken='',channel=null,supabaseClient=null,total=0,page=1;
 let audioPc=null,audioRemoteStream=null,audioEnabled=true,audioPeerId=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random());
@@ -114,7 +114,7 @@ async function connect(){
   $('join').style.display='none';$('lesson').style.display='block';$('room').textContent='教室 '+classroomCode;
   if(state&&state.content)renderState(state);
   if(!window.supabase?.createClient)throw Error('即時課堂元件尚未載入，請重新整理學生頁面。');
-  supabaseClient=window.supabase.createClient(URL,KEY);
+  supabaseClient=window.supabase.createClient(SUPABASE_URL,KEY);
   channel=supabaseClient.channel('student-classroom:'+channelToken,{config:{broadcast:{self:false}}})
     .on('broadcast',{event:'classroom_state'},({payload})=>{
       if(!payload)return;
