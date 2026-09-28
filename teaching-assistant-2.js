@@ -1061,7 +1061,7 @@ function installClassroomLayoutFix(){
     /* 開始上課模式：上方只顯示暗星與回到教學助理，不顯示 PPT 翻頁控制。 */
     .class .bar>div:first-child{display:none!important}
     .class #info{display:none!important}
-    .class .bar{display:flex!important;justify-content:space-between!important;align-items:center!important}
+     .class .bar{display:flex!important;justify-content:flex-end!important;align-items:center!important;background:transparent!important;box-shadow:none!important;border:0!important}
     .class .bar>div:last-child{margin-left:auto!important}
     .class #info{min-width:0;max-width:34vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;font-size:14px!important}
     .class .view{height:100vh!important;min-height:0!important;padding-top:calc(62px + env(safe-area-inset-top))!important;padding-bottom:calc(82px + env(safe-area-inset-bottom))!important;overflow:auto!important;box-sizing:border-box!important}
@@ -1135,8 +1135,8 @@ function renderDarkStarClassroomAvatar(){
     host.title='暗星教學助理正在運作';
     host.style.cssText='position:static;width:42px;height:42px;min-width:42px;flex:0 0 42px;margin:0 6px 0 0;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;background:conic-gradient(#ff3b30 0deg,#ff9500 51deg,#ffcc00 102deg,#34c759 154deg,#00c7be 205deg,#5856d6 257deg,#af52de 308deg,#ff3b30 360deg);box-shadow:0 0 0 2px rgba(255,255,255,.9),0 2px 10px rgba(0,0,0,.2);z-index:2;color:#fff;pointer-events:none;text-align:center;';
     host.innerHTML='<div id="darkStarAvatarFace" style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;background:#0b1024;color:#fff;box-shadow:inset 0 0 8px rgba(255,255,255,.18);">✦</div>';
-    const first=bar.firstElementChild;
-    if(first)bar.insertBefore(host,first);
+    const dock=bar.lastElementChild;
+    if(dock)dock.insertBefore(host,dock.firstChild);
     else bar.appendChild(host);
   }
   const face=$('darkStarAvatarFace');
