@@ -162,7 +162,7 @@ function classroomBuildPayload(payload){
 }
 function renderDarkStarTeachingPanel(){
   let host=document.getElementById('darkStarTeachingResearch');
-  const target=$('ebookLesson')||$('ppt');
+  const target=ebookState.loaded?$('ebookLesson'):$('ppt');
   if(!target)return;
   if(!host){
     host=document.createElement('section');
@@ -290,7 +290,9 @@ async function darkStarTeacherCommand(text){
   darkStarSetColor(text);
   const research=darkStarResearchIntent(text);
   const verify=/查證|重新查證|交叉確認|確認答案|確認一下|如果錯誤|再找/.test(String(text||''));
-  if(!research && !/^暗星/.test(String(text||'')) && !darkStarTeachingState.visible)return false;
+  const explicitDarkStar=/^\s*暗星/.test(String(text||''));
+  const colorOnly=/(用|改成|換成|接下來).*?(紅色|藍色|綠色|黃色|紫色|橙色|黑色|灰色|白色).*?字?/.test(String(text||''));
+  if(!research && !explicitDarkStar && !colorOnly)return false;
   $('tr').textContent=research?'暗星正在上網收集資料…':'暗星正在執行老師命令…';
   classVoiceControls();
   try{
