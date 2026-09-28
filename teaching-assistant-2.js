@@ -27,6 +27,80 @@ function pptProjectRender(){
   if(classroomActive)classroomBroadcast({type:'ppt-project',page:pptProjectIndex+1,total:pptProject.length,content:String(s.content||''),project_title:String(pptProjectMeta.title||'PPT 專題報告'),project_page_title:String(s.title||''),project_kind:String(s.kind||'content'),videos:[]});
 }
 
+
+async function exportPptProjectToPptx(){
+  if(!Array.isArray(pptProject)||!pptProject.length){
+    $('pptProjectStatus').textContent='目前沒有可輸出的 PPT 投影片。';
+    return false;
+  }
+  if(typeof PptxGenJS==='undefined'){
+    $('pptProjectStatus').textContent='PPT 產生器尚未載入，請重新整理頁面後再試。';
+    say('PPT 產生器尚未載入。');
+    return false;
+  }
+  try{
+    $('pptProjectStatus').textContent='正在產生真正的 PowerPoint 投影片檔…';
+    const pptx=new PptxGenJS();
+    pptx.layout='LAYOUT_WIDE';
+    pptx.author='AIVAULT 教學助理';
+    pptx.subject=String(pptProjectMeta.title||'AIVAULT PPT 投影片');
+    pptx.title=String(pptProjectMeta.title||'AIVAULT PPT 投影片');
+    pptx.company='AIVAULT';
+    pptx.lang='zh-TW';
+    pptx.theme={
+      headFontFace:'Microsoft JhengHei',
+      bodyFontFace:'Microsoft JhengHei',
+      lang:'zh-TW'
+    };
+    for(const item of pptProject){
+      const slide=pptx.addSlide();
+      slide.background={color:'FFFFFF'};
+      const title=String(item&&item.title||'投影片');
+      let body=String(item&&item.content||'').replace(/\r/g,'').trim();
+      if(body.startsWith(title))body=body.slice(title.length).trim();
+      const isCover=item&&item.kind==='cover';
+      slide.addText(title,{
+        x:0.65,y:0.42,w:12.0,h:0.65,
+        fontFace:'Microsoft JhengHei',fontSize:isCover?28:24,
+        bold:true,color:'1F2937',margin:0.02,breakLine:false,
+        fit:'shrink'
+      });
+      if(isCover){
+        slide.addText(body,{
+          x:0.9,y:1.65,w:11.35,h:4.65,
+          fontFace:'Microsoft JhengHei',fontSize:22,
+          color:'374151',margin:0.08,breakLine:false,
+          valign:'mid',fit:'shrink',paraSpaceAfterPt:12
+        });
+      }else{
+        const maxChars=1800;
+        if(body.length>maxChars)body=body.slice(0,maxChars)+'…';
+        slide.addText(body||'（本頁無文字內容）',{
+          x:0.75,y:1.25,w:11.85,h:5.55,
+          fontFace:'Microsoft JhengHei',fontSize:18,
+          color:'374151',margin:0.08,
+          valign:'top',fit:'shrink',breakLine:false,
+          paraSpaceAfterPt:8
+        });
+      }
+      slide.addText('AIVAULT 教學助理',{
+        x:9.7,y:7.05,w:2.7,h:0.22,
+        fontFace:'Microsoft JhengHei',fontSize:8,
+        color:'6B7280',margin:0,align:'right'
+      });
+    }
+    const safeName=String(pptProjectMeta.sourceBook||pptProjectMeta.title||'AIVAULT_PPT')
+      .replace(/[\\/:*?"<>|]+/g,'_').replace(/\\s+/g,'_').slice(0,80);
+    await pptx.writeFile({fileName:safeName+'_投影片.pptx'});
+    $('pptProjectStatus').textContent='已產生真正的 PowerPoint 投影片檔，共 '+pptProject.length+' 張，可直接開啟或分享。';
+    return true;
+  }catch(e){
+    console.error('export pptx',e);
+    $('pptProjectStatus').textContent='PPT 投影片產生失敗：'+(e&&e.message?e.message:e);
+    return false;
+  }
+}
+
 async function buildPptProjectFromEbook(){
   if(!ebookState.loaded){say('請先選擇並載入電子書教材。');$('pptProjectStatus').textContent='請先載入電子書教材。';return false;}
   const units=Array.isArray(ebookState.units)?ebookState.units:[];
@@ -113,7 +187,8 @@ $('ebookToPptProject').onclick=async()=>{
     await ebookLoad();
     if(!ebookState.loaded||String(ebookState.bookId||'')!==selectedId)return;
   }
-  await buildPptProjectFromEbook();
+  const built=await buildPptProjectFromEbook();
+  if(built)await exportPptProjectToPptx();
 };
 $('save').onclick=()=>{if(pptProject.length)savePptProjectLocal();};
 $('clear').onclick=()=>{if(confirm('確定清除目前 PPT 專題報告？'))clearPptProjectLocal();};
