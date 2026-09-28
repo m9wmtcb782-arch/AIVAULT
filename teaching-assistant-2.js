@@ -436,6 +436,23 @@ async function classroomBroadcast(payload){
     if(!r.ok)throw Error('HTTP '+r.status);
   }catch(e){console.warn('student classroom sync',e);}
 }
+function classroomUpdateStudentCount(){
+  if(!classroomChannel)return;
+  const state=classroomChannel.presenceState();
+  let count=0;
+  Object.values(state||{}).forEach(metas=>{if(Array.isArray(metas))metas.forEach(m=>{if(m?.role==='student')count++;});});
+  let el=document.getElementById('aivaultClassroomStudentCount');
+  if(!el){
+    const startBtn=$('start');
+    if(!startBtn?.parentElement)return;
+    el=document.createElement('span');el.id='aivaultClassroomStudentCount';
+    el.style.cssText='display:none;align-items:center;gap:4px;margin-right:8px;padding:4px 8px;border:1px solid rgba(255,255,255,.35);border-radius:8px;background:rgba(0,0,0,.22);font-size:14px;line-height:1.1;white-space:nowrap;vertical-align:middle;';
+    startBtn.parentElement.insertBefore(el,startBtn);
+  }
+  el.textContent='👥 '+count+' 人線上';
+  el.style.display=classMode?'inline-flex':'none';
+}
+
 async function classroomPrepareRealtime(){
   if(!classroomState.channel_token)return;
   classroomRealtimeReady=false;
@@ -450,7 +467,10 @@ async function classroomPrepareRealtime(){
     .on('broadcast',{event:'audio_join'},({payload})=>classroomHandleAudioJoin(payload))
     .on('broadcast',{event:'audio_answer'},({payload})=>classroomHandleAudioAnswer(payload))
     .on('broadcast',{event:'audio_ice'},({payload})=>classroomHandleAudioIce(payload))
-    .subscribe(status=>{classroomRealtimeReady=status==='SUBSCRIBED';});
+    .on('presence',{event:'sync'},()=>classroomUpdateStudentCount())
+    .on('presence',{event:'join'},()=>classroomUpdateStudentCount())
+    .on('presence',{event:'leave'},()=>classroomUpdateStudentCount())
+    .subscribe(status=>{classroomRealtimeReady=status==='SUBSCRIBED';if(classroomRealtimeReady){classroomUpdateStudentCount();}});
 }
 
 const ebookState={books:[],bookId:'',book:null,page:1,total:0,loaded:false,toc:[],units:[],unitIndex:-1,unitPages:[],pendingVideo:null};
@@ -600,7 +620,7 @@ async function exportTeachingToEbook(){
 }
 ebookRefresh();
 async function enter(){if(!count&&!ebookState.loaded)return say('請先上傳 PPT 或匯入電子書教材。');try{await ensureClassroom();await classroomPrepareRealtime();}catch(e){say('課堂入口建立失敗：'+(e.message||e));return}classroomActive=true;classMode=true;classroomBadge();renderDarkStarClassroomAvatar();
-try{await classroomStartAudio();}catch(e){classroomActive=false;classMode=false;try{await classroomChannel?.unsubscribe?.()}catch{}say(e.message||'老師麥克風啟動失敗。');return;}$('panel').classList.add('class');document.documentElement.style.overflow='hidden';document.body.style.overflow='hidden';$('app').style.overflow='hidden';window.scrollTo(0,0);classVoiceControls();$('ppt').classList.toggle('focusPpt',!!count&&!ebookState.loaded);$('ebookLesson').style.display=ebookState.loaded?'block':$('ebookLesson').style.display;$('start').style.display='none';$('exit').style.display='inline-block';document.body.style.overflow='hidden';if(ebookState.loaded&&!count){$('ppt').style.display='block';$('ppt').classList.add('ebookFocusShell');}else{$('ppt').style.display='block';$('ppt').classList.remove('ebookFocusShell');}classroomBadge();try{await $('panel').requestFullscreen()}catch{}say('開始上課。',ebookState.loaded&&!count);if(lastClassroomPayload)classroomBroadcast(lastClassroomPayload)}async function exit(){classroomActive=false;classroomStopAudio();if(classroomState.channel_token&&classroomState.owner_token)classroomApi({action:'classroom_close',channel_token:classroomState.channel_token,owner_token:classroomState.owner_token}).catch(()=>{});if(classroomChannel&&classroomSupabase){classroomSupabase.removeChannel(classroomChannel);classroomChannel=null}classroomState={code:'',channel_token:'',owner_token:'',expires_at:''};try{sessionStorage.removeItem('aivault_classroom')}catch{}classMode=false;hideDarkStarClassroomAvatar();classroomBadge();$('info').textContent=ebookState.loaded?'電子書教材｜第 '+(ebookState.page||1)+(ebookState.total?' / '+ebookState.total:''):count?'第 '+(index+1)+' / '+count+' 頁':'尚未載入';$('panel').classList.remove('class');document.documentElement.style.overflow='';document.body.style.overflow='';$('app').style.overflow='';document.getElementById('classVoiceControls')?.remove();$('ppt').classList.remove('focusPpt','ebookFocusShell');$('start').style.display='inline-block';$('exit').style.display='none';document.body.style.overflow='';hideResearch();stopReading();try{if(document.fullscreenElement)await document.exitFullscreen()}catch{}say('已回到主畫面。')}$('start').onclick=enter;$('exit').onclick=exit;
+try{await classroomStartAudio();}catch(e){classroomActive=false;classMode=false;try{await classroomChannel?.unsubscribe?.()}catch{}say(e.message||'老師麥克風啟動失敗。');return;}$('panel').classList.add('class');document.documentElement.style.overflow='hidden';document.body.style.overflow='hidden';$('app').style.overflow='hidden';window.scrollTo(0,0);classVoiceControls();$('ppt').classList.toggle('focusPpt',!!count&&!ebookState.loaded);$('ebookLesson').style.display=ebookState.loaded?'block':$('ebookLesson').style.display;$('start').style.display='none';$('exit').style.display='inline-block';document.body.style.overflow='hidden';if(ebookState.loaded&&!count){$('ppt').style.display='block';$('ppt').classList.add('ebookFocusShell');}else{$('ppt').style.display='block';$('ppt').classList.remove('ebookFocusShell');}classroomBadge();try{await $('panel').requestFullscreen()}catch{}say('開始上課。',ebookState.loaded&&!count);if(lastClassroomPayload)classroomBroadcast(lastClassroomPayload)}async function exit(){classroomActive=false;classroomStopAudio();if(classroomState.channel_token&&classroomState.owner_token)classroomApi({action:'classroom_close',channel_token:classroomState.channel_token,owner_token:classroomState.owner_token}).catch(()=>{});if(classroomChannel&&classroomSupabase){classroomSupabase.removeChannel(classroomChannel);classroomChannel=null}classroomState={code:'',channel_token:'',owner_token:'',expires_at:''};try{sessionStorage.removeItem('aivault_classroom')}catch{}classMode=false;hideDarkStarClassroomAvatar();classroomBadge();classroomUpdateStudentCount();$('info').textContent=ebookState.loaded?'電子書教材｜第 '+(ebookState.page||1)+(ebookState.total?' / '+ebookState.total:''):count?'第 '+(index+1)+' / '+count+' 頁':'尚未載入';$('panel').classList.remove('class');document.documentElement.style.overflow='';document.body.style.overflow='';$('app').style.overflow='';document.getElementById('classVoiceControls')?.remove();$('ppt').classList.remove('focusPpt','ebookFocusShell');$('start').style.display='inline-block';$('exit').style.display='none';document.body.style.overflow='';hideResearch();stopReading();try{if(document.fullscreenElement)await document.exitFullscreen()}catch{}say('已回到主畫面。')}$('start').onclick=enter;$('exit').onclick=exit;
 function studentClassroomShareData(){
   const u=new URL('student-classroom.html',location.href);
   const code=classroomState.code?String(classroomState.code):'';
