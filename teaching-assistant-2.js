@@ -255,9 +255,61 @@ $('materialMode').onchange=e=>{
   if(e.target.value==='ppt-project')$('pptProjectStatus').textContent='請先在上方選擇 AIVAULT 電子書，再直接轉換成 PPT 專題報告。';
 };
 $('file').onchange=e=>e.target.files[0]&&loadPpt(e.target.files[0]);
-$('next').onclick=()=>{if(pptProject.length){pptProjectIndex=Math.min(pptProject.length-1,pptProjectIndex+1);pptProjectRender();say('下一頁。');}else{go(index+1);say('下一頁。')}};
-$('prev').onclick=()=>{if(pptProject.length){pptProjectIndex=Math.max(0,pptProjectIndex-1);pptProjectRender();say('上一頁。');}else{go(index-1);say('上一頁。')}};
-$('goto').onclick=()=>{const n=prompt('請輸入頁碼',index+1);if(n){go(Number(n)-1)}};function pageReadingText(){if(pptProject.length)return String(pptProject[pptProjectIndex]?.content||'');const t=slideTexts[index]||'';return t.trim()||'這一頁目前沒有擷取到可讀文字。'}$('readPage').onclick=()=>{const t=pageReadingText();if(!t)return;speakText(t)};
+async function classroomNavigatePpt(delta){
+  if(pptProject.length){
+    const before=pptProjectIndex;
+    pptProjectIndex=Math.max(0,Math.min(pptProject.length-1,pptProjectIndex+delta));
+    await pptProjectRender();
+    $('tr').textContent=pptProjectIndex===before?(delta>0?'已是最後一頁':'已是第一頁'):(delta>0?'已切換下一頁':'已切換上一頁');
+    classVoiceControls();
+    return true;
+  }
+  if(count){
+    const before=index;
+    await go(index+delta);
+    $('tr').textContent=index===before?(delta>0?'已是最後一頁':'已是第一頁'):(delta>0?'已切換下一頁':'已切換上一頁');
+    classVoiceControls();
+    return true;
+  }
+  return false;
+}
+async function classroomGoToPptPage(page){
+  const n=Number(page);
+  if(!Number.isFinite(n))return false;
+  if(pptProject.length){
+    pptProjectIndex=Math.max(0,Math.min(pptProject.length-1,n-1));
+    await pptProjectRender();
+    $('tr').textContent='暗星已切換到第 '+(pptProjectIndex+1)+' 頁。';
+    classVoiceControls();
+    return true;
+  }
+  if(count){
+    await go(n-1);
+    $('tr').textContent='暗星已切換到第 '+(index+1)+' 頁。';
+    classVoiceControls();
+    return true;
+  }
+  return false;
+}
+async function runClassroomPptVoiceNavigation(text){
+  if(!classroomActive)return false;
+  const t=String(text||'').trim()
+    .replace(/^(?:暗星|安心|暗心|暗新|暗欣|小助|小朱|小主)[，,、\s]*/,'')
+    .replace(/[，。！？、,.!?\s]/g,'');
+  if(!t)return false;
+  if(/^(下一頁|下一張|下頁|下張|往下一頁|往下翻|往後一頁)$/.test(t)||t.includes('下一頁')||t.includes('下一張')||t.includes('往下翻'))return classroomNavigatePpt(1);
+  if(/^(上一頁|上一張|上頁|上張|往上一頁|往上翻|往前一頁)$/.test(t)||t.includes('上一頁')||t.includes('上一張')||t.includes('往上翻'))return classroomNavigatePpt(-1);
+  const m=t.match(/(?:第|到|跳到|翻到)([0-9０-９一二兩三四五六七八九十百千〇零]+)頁/);
+  if(m){
+    const rawN=m[1].replace(/[０-９]/g,x=>String('０１２３４５６７８９'.indexOf(x)));
+    return classroomGoToPptPage(chineseNumberToInt(rawN));
+  }
+  return false;
+}
+$('next').onclick=()=>{classroomNavigatePpt(1)};
+$('prev').onclick=()=>{classroomNavigatePpt(-1)};
+$('goto').onclick=()=>{const n=prompt('請輸入頁碼',pptProject.length?pptProjectIndex+1:index+1);if(n)classroomGoToPptPage(n)};
+function pageReadingText(){if(pptProject.length)return String(pptProject[pptProjectIndex]?.content||'');const t=slideTexts[index]||'';return t.trim()||'這一頁目前沒有擷取到可讀文字。'}$('readPage').onclick=()=>{const t=pageReadingText();if(!t)return;speakText(t)};
 
 const EBOOK_SUPABASE_URL='https://clcddygkaaqqtsbswgdf.supabase.co';
 const EBOOK_PUBLISHABLE_KEY='sb_publishable_1D05YGthBrNGg-5L92TLCw_GiLnInBu';
@@ -939,7 +991,40 @@ async function exportTeachingToEbook(){
   }catch(e){$('ebookStatus').textContent='轉換電子書失敗：'+(e.message||e);say('教學教材轉換失敗。')}
 }
 ebookRefresh();
-async function enter(){if(!count&&!ebookState.loaded&&!pptProject.length)return say('請先上傳 PPT、建立 PPT 專題報告或匯入電子書教材。');try{await ensureClassroom();await classroomPrepareRealtime();}catch(e){say('課堂入口建立失敗：'+(e.message||e));return}classroomActive=true;classMode=true;classroomBadge();renderDarkStarClassroomAvatar();
+function installClassroomLayoutFix(){
+  if(document.getElementById('aivaultClassroomLayoutFix'))return;
+  const st=document.createElement('style');st.id='aivaultClassroomLayoutFix';
+  st.textContent=`
+    .class .stage{position:relative;min-height:0;overflow:hidden!important}
+    .class .bar{position:absolute!important;top:0!important;left:0!important;right:0!important;min-height:58px!important;display:grid!important;grid-template-columns:minmax(0,1fr) minmax(110px,auto) auto!important;align-items:center!important;gap:8px!important;padding:calc(7px + env(safe-area-inset-top)) 10px 7px!important;box-sizing:border-box!important;overflow:visible!important}
+    .class .bar>div:first-child{min-width:0;display:flex;align-items:center;gap:5px;overflow-x:auto;overflow-y:hidden;white-space:nowrap;scrollbar-width:none}
+    .class .bar>div:first-child::-webkit-scrollbar{display:none}
+    .class .bar>div:last-child{display:flex;align-items:center;gap:5px;min-width:max-content}
+    .class .bar .b{min-height:40px;padding:7px 10px!important;font-size:16px!important;white-space:nowrap}
+    .class #info{min-width:0;max-width:34vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;font-size:14px!important}
+    .class .view{height:100vh!important;min-height:0!important;padding-top:calc(62px + env(safe-area-inset-top))!important;padding-bottom:calc(82px + env(safe-area-inset-bottom))!important;overflow:auto!important;box-sizing:border-box!important}
+    .class #ebookLesson{padding:calc(70px + env(safe-area-inset-top)) 16px calc(94px + env(safe-area-inset-bottom))!important;overflow:auto!important}
+    .class #ebookLesson>.voiceBtns:last-child{position:fixed!important;left:10px!important;right:10px!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;z-index:9750!important;margin:0!important;padding:7px!important;border:1px solid rgba(255,255,255,.25)!important;border-radius:12px!important;background:rgba(8,12,24,.92)!important;box-shadow:0 6px 22px rgba(0,0,0,.35)!important;backdrop-filter:blur(8px)!important}
+    .class #ebookLesson>.voiceBtns:last-child .b{flex:1;min-width:0}
+    #classVoiceControls{position:fixed!important;left:50%!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;transform:translateX(-50%)!important;z-index:9760!important;margin:0!important;padding:6px!important;border-radius:12px!important;background:rgba(8,12,24,.94)!important;box-shadow:0 6px 22px rgba(0,0,0,.35)!important;max-width:calc(100vw - 20px)!important;overflow:auto!important}
+    #classVoiceControls .b{min-height:40px!important;white-space:nowrap}
+    #darkStarVoiceControls{left:auto!important;right:10px!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;z-index:9770!important;max-width:calc(50vw - 20px)!important}
+    #darkStarVoiceControls .b{min-height:40px!important;white-space:nowrap}
+    #darkStarClassroomAvatar{right:10px!important;top:calc(68px + env(safe-area-inset-top))!important;bottom:auto!important;width:94px!important;min-height:76px!important;padding:5px!important;z-index:9740!important}
+    @media(max-width:700px){
+      .class .bar{grid-template-columns:minmax(0,1fr) auto!important}
+      .class #info{grid-column:1 / -1;grid-row:2;max-width:none;order:3;padding:2px 0}
+      .class .bar>div:last-child{grid-column:2;grid-row:1}
+      .class .bar>div:first-child{grid-column:1;grid-row:1}
+      .class .view{padding-top:calc(86px + env(safe-area-inset-top))!important}
+      #classVoiceControls{left:10px!important;right:10px!important;transform:none!important;max-width:none!important;justify-content:center}
+      #darkStarVoiceControls{bottom:calc(66px + env(safe-area-inset-bottom))!important;right:10px!important;left:auto!important}
+      #darkStarClassroomAvatar{display:none!important}
+    }
+  `;
+  document.head.appendChild(st);
+}
+async function enter(){if(!count&&!ebookState.loaded&&!pptProject.length)return say('請先上傳 PPT、建立 PPT 專題報告或匯入電子書教材。');installClassroomLayoutFix();try{await ensureClassroom();await classroomPrepareRealtime();}catch(e){say('課堂入口建立失敗：'+(e.message||e));return}classroomActive=true;classMode=true;classroomBadge();renderDarkStarClassroomAvatar();
 try{await classroomStartAudio();}catch(e){classroomActive=false;classMode=false;try{await classroomChannel?.unsubscribe?.()}catch{}say(e.message||'老師麥克風啟動失敗。');return;}$('panel').classList.add('class');classVoiceControls();darkStarTeachingVoiceControls();$('ppt').classList.toggle('focusPpt',!!(count||pptProject.length)&&!ebookState.loaded);$('ebookLesson').style.display=ebookState.loaded?'block':$('ebookLesson').style.display;$('start').style.display='none';$('exit').style.display='inline-block';document.body.style.overflow='hidden';if(ebookState.loaded&&!count){$('ppt').style.display='block';$('ppt').classList.add('ebookFocusShell');}else{$('ppt').style.display='block';$('ppt').classList.remove('ebookFocusShell');}classroomBadge();try{await $('panel').requestFullscreen()}catch{}renderDarkStarClassroomAvatar();say('開始上課。',ebookState.loaded&&!count&&!pptProject.length);if(pptProject.length){pptProjectRender();}else if(lastClassroomPayload)classroomBroadcast(lastClassroomPayload)}async function exit(){classroomActive=false;classroomStopAudio();if(classroomState.channel_token&&classroomState.owner_token)classroomApi({action:'classroom_close',channel_token:classroomState.channel_token,owner_token:classroomState.owner_token}).catch(()=>{});if(classroomChannel&&classroomSupabase){classroomSupabase.removeChannel(classroomChannel);classroomChannel=null}classroomState={code:'',channel_token:'',owner_token:'',expires_at:''};try{sessionStorage.removeItem('aivault_classroom')}catch{}classMode=false;hideDarkStarClassroomAvatar();classroomBadge();$('info').textContent=ebookState.loaded?'電子書教材｜第 '+(ebookState.page||1)+(ebookState.total?' / '+ebookState.total:''):count?'第 '+(index+1)+' / '+count+' 頁':'尚未載入';$('panel').classList.remove('class');document.getElementById('classVoiceControls')?.remove();hideDarkStarTeachingVoiceControls();$('ppt').classList.remove('focusPpt','ebookFocusShell');$('start').style.display='inline-block';$('exit').style.display='none';document.body.style.overflow='';hideResearch();stopReading();try{if(document.fullscreenElement)await document.exitFullscreen()}catch{}say('已回到主畫面。')}$('start').onclick=enter;$('exit').onclick=exit;
 function darkStarTeachingVoiceControls(){
   if(!classroomActive)return;
@@ -1023,8 +1108,7 @@ function classVoiceControls(){
     const off=document.createElement('button');
     off.type='button';off.className='b';off.id='classVoiceOff';off.textContent='⏹ 停止聲控';
     box.append(status,on,off);
-    const left=bar.firstElementChild;
-    if(left)left.appendChild(box);else bar.appendChild(box);
+    document.body.appendChild(box);
     on.onclick=()=>{ voice=true; listening=false; $('vs').textContent='🎤 正在啟動聲控…'; startRec(); classVoiceControls(); };
     off.onclick=()=>{ voice=false; listening=false; $('vs').textContent='聲控已取消'; try{rec?.abort()}catch{} classVoiceControls(); };
   }
@@ -1136,6 +1220,7 @@ async function voiceSearchAndJump(text){
 function normalizeVoiceText(text){return String(text||'').replace(/[，。！？、,.!?\s]/g,'').trim();}
 async function runVoiceCommand(text){
   const commandText=String(text||'').trim();
+  if(await runClassroomPptVoiceNavigation(commandText))return true;
   if(/(?:暗星|小助|小朱|小主)[，,、\s]*(停止說話|停止|閉嘴|停下來)/.test(commandText))return stopDarkStarTeachingVoice(true);
   if(/(?:暗星|小助|小朱|小主)[，,、\s]*(暫停說話|暫停)/.test(commandText))return pauseDarkStarTeachingVoice();
 
