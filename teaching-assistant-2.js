@@ -87,6 +87,7 @@ $('ebookRead').onclick=()=>{const t=$('ebookLessonText').innerText.trim();if(t)s
 $('ebookStop').onclick=stopReading;
 $('ebookExport').onclick=exportTeachingToEbook;
 
+/* AIVAULT CONTENT RULE: This path is conversion-only. It may write only user-provided PPT/teacher text or already-loaded ebook content. Dark Star must never generate or append original book content here. */
 async function exportTeachingToEbook(){
   const title=($('ebookExportTitle')?.value||'').trim() || ('AIVAULT 教學教材 '+new Date().toLocaleDateString('zh-TW'));
   let parts=[];
@@ -96,7 +97,8 @@ async function exportTeachingToEbook(){
     parts=[($('ebookLessonTitle').textContent||'電子書教材'),($('ebookLessonText').innerText||'')].join('\n');
   }
   const teacherNotes=($('ebookExportText')?.value||'').trim();
-  if(teacherNotes) parts.push('【老師課堂補充】\n'+teacherNotes);
+  // Teacher notes are explicit user input. Never populate this field from Dark Star output.
+  if(teacherNotes) parts.push('【使用者提供的老師課堂補充】\n'+teacherNotes);
   const content=parts.join('\n\n');
   const exportVideo=parseVideoSource($('yu')?.value||'');
   if(exportVideo) ebookState.pendingVideo=exportVideo;
@@ -116,7 +118,7 @@ async function exportTeachingToEbook(){
       ebookState.pendingVideo=null;
     }
     $('ebookStatus').textContent='已轉換成電子書：'+title+(newId?'（已存入 AIVAULT 書架）':'');
-    say('教學教材已轉換成電子書並存入 AIVAULT。');
+    say('使用者提供的教學教材已轉換成電子書並存入 AIVAULT。');
     await ebookRefresh();
     if(newId)$('ebookSelect').value=newId;
   }catch(e){$('ebookStatus').textContent='轉換電子書失敗：'+(e.message||e);say('教學教材轉換失敗。')}
