@@ -74,21 +74,30 @@ function classroomApi(payload){
     .then(async r=>{const raw=await r.text();let d={};try{d=raw?JSON.parse(raw):{}}catch{}if(!r.ok)throw Error(d.error||d.message||('課堂服務 HTTP '+r.status));return d});
 }
 function classroomBadge(){
-  // 課堂代碼直接放在右上角控制列的按鈕群組內，絕不使用浮動層覆蓋「↩ 回主畫面」。
   let inline=document.getElementById('aivaultClassroomCodeInline');
-  const startBtn=$('start'), exitBtn=$('exit');
+  const startBtn=$('start');
   if(!inline && startBtn && startBtn.parentElement){
     inline=document.createElement('span');
     inline.id='aivaultClassroomCodeInline';
-    inline.style.cssText='position:static;display:inline-flex;align-items:center;justify-content:center;margin:0 8px 0 0;padding:5px 9px;border-radius:8px;font-size:16px;font-weight:800;letter-spacing:2px;text-align:center;color:#7567ff;background:rgba(255,255,255,.92);line-height:1.2;white-space:nowrap;pointer-events:none;vertical-align:middle;z-index:auto;';
+    inline.style.cssText='display:inline-flex;align-items:center;justify-content:center;margin:0 8px 0 0;padding:5px 9px;border-radius:8px;font-size:16px;font-weight:800;letter-spacing:2px;text-align:center;color:#7567ff;background:rgba(255,255,255,.92);line-height:1.2;white-space:nowrap;pointer-events:none;vertical-align:middle;z-index:31;';
     startBtn.parentElement.insertBefore(inline,startBtn);
   }
   if(inline){
     inline.textContent=classroomState.code?'教室 '+classroomState.code:'課堂代碼建立中…';
-    // 進入整頁授課後完全隱藏代碼，避免任何情況遮住「↩ 回主畫面」或其他控制鍵。
-    inline.style.display=(classroomState.code && !classMode)?'inline-flex':'none';
+    if(classMode){
+      inline.style.position='absolute';
+      inline.style.right='12px';
+      inline.style.top='8px';
+      inline.style.margin='0';
+      inline.style.display=classroomState.code?'inline-flex':'none';
+    }else{
+      inline.style.position='static';
+      inline.style.right='auto';
+      inline.style.top='auto';
+      inline.style.margin='0 8px 0 0';
+      inline.style.display=classroomState.code?'inline-flex':'none';
+    }
   }
-  // 移除舊版固定浮動代碼層，避免進入整頁後遮住控制列或下方按鍵。
   const oldBadge=document.getElementById('aivaultClassroomBadge');
   if(oldBadge)oldBadge.remove();
 }
