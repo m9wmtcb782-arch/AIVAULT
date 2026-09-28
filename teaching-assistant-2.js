@@ -11,10 +11,19 @@ function renderPptProjectOutline(){
 function pptProjectRender(){
   if(!pptProject.length)return;
   const s=pptProject[pptProjectIndex]||{};
-  $('view').innerHTML='<div style="padding:clamp(24px,5vw,70px);height:100%;overflow:auto;background:#fff"><div style="font-size:14px;color:#667085;margin-bottom:12px">PPT 專題報告｜第 '+(pptProjectIndex+1)+' / '+pptProject.length+' 頁</div><h2 style="font-size:clamp(24px,4vw,38px);margin:0 0 18px">'+htmlEscape(s.title||'專題頁')+'</h2><div style="font-size:clamp(18px,2.5vw,28px);line-height:1.9;white-space:pre-wrap">'+htmlEscape(s.content||'')+'</div></div>';
+  const isTeacherConclusion=s.kind==='teacher-conclusion';
+  $('view').innerHTML='<div style="padding:clamp(24px,5vw,70px);height:100%;overflow:auto;background:#fff"><div style="font-size:14px;color:#667085;margin-bottom:12px">PPT 專題報告｜第 '+(pptProjectIndex+1)+' / '+pptProject.length+' 頁</div><h2 style="font-size:clamp(24px,4vw,38px);margin:0 0 18px">'+htmlEscape(s.title||'專題頁')+'</h2>'+(isTeacherConclusion?'<textarea id="teacherConclusionEditor" style="width:100%;min-height:280px;box-sizing:border-box;padding:16px;border:1px solid #cbd5e1;border-radius:12px;font-size:clamp(18px,2.5vw,28px);line-height:1.8;resize:vertical">'+htmlEscape(s.content||'')+'</textarea><button type="button" id="saveTeacherConclusion" class="b primary" style="margin-top:10px">儲存老師結論並同步學生</button>':'<div style="font-size:clamp(18px,2.5vw,28px);line-height:1.9;white-space:pre-wrap">'+htmlEscape(s.content||'')+'</div>')+'</div>';
   $('pptTextStatus').textContent='PPT 專題報告：已載入，共 '+pptProject.length+' 頁';
   renderPptProjectOutline();
   $('info').textContent='PPT 專題報告｜第 '+(pptProjectIndex+1)+' / '+pptProject.length+' 頁';
+  if(isTeacherConclusion){
+    const editor=$('teacherConclusionEditor'),save=$('saveTeacherConclusion');
+    if(editor&&save)save.onclick=()=>{
+      s.content=String(editor.value||'').trim()||'請由老師整理本研究的課堂結論。\n\n（這一頁不由暗星代替老師下結論。）';
+      pptProjectRender();
+      $('pptProjectStatus').textContent='老師結論已儲存，並同步到學生課堂。';
+    };
+  }
   if(classroomActive)classroomBroadcast({type:'ppt-project',page:pptProjectIndex+1,total:pptProject.length,content:String(s.content||''),project_title:String(pptProjectMeta.title||'PPT 專題報告'),project_page_title:String(s.title||''),project_kind:String(s.kind||'content'),videos:[]});
 }
 async function buildPptProjectFromEbook(){
