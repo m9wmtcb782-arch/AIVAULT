@@ -460,10 +460,13 @@ function classroomBadge(){
   if(inline){
     inline.textContent=classroomState.code?'教室 '+classroomState.code:'課堂代碼建立中…';
     if(classMode){
-      inline.style.position='absolute';
-      inline.style.right='12px';
-      inline.style.top='8px';
-      inline.style.margin='0';
+      // 教室號碼只顯示，不覆蓋任何操作按鈕；固定在工具列正常排版流中。
+      inline.style.position='static';
+      inline.style.right='auto';
+      inline.style.top='auto';
+      inline.style.margin='0 8px 0 0';
+      inline.style.flex='0 0 auto';
+      inline.style.pointerEvents='none';
       inline.style.display=classroomState.code?'inline-flex':'none';
     }else{
       inline.style.position='static';
