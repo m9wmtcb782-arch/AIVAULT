@@ -297,6 +297,32 @@ $('openV').onclick=()=>{const v=parseVideoSource($('yu').value);if(!v)return say
 $('saveV').onclick=async()=>{const v=parseVideoSource($('yu').value);if(!v)return say('請先輸入影片網址。');if(!ebookState.loaded){ebookState.pendingVideo=v;$('videoStatus').textContent='影片已加入目前教學教材；轉成電子書時會一起寫入電子書。';return;}try{await ebookApi({action:'media',ebook_id:ebookState.bookId,page_number:ebookState.page,videos:[v]});$('videoStatus').textContent='已儲存到電子書第 '+ebookState.page+' 頁；影片仍可直接在 AIVAULT 內播放。';await ebookGo(0);}catch(e){$('videoStatus').textContent='影片儲存失敗：'+(e.message||e);}};
 $('closeV').onclick=()=>{$('video').innerHTML='';$('videoStatus').textContent='影片已關閉。'};
 async function detectMicrophone(){const el=$('mic');try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});stream.getTracks().forEach(t=>t.stop());el.className='mic ok';el.textContent='✅ 已偵測到麥克風';return true}catch(e){el.className='mic warn';el.textContent='⚠️ 麥克風尚未允許';return false}}
+function classVoiceControls(){
+  const bar=document.querySelector('#panel.class .stage .bar');
+  if(!bar)return;
+  let box=document.getElementById('classVoiceControls');
+  if(!box){
+    box=document.createElement('div');
+    box.id='classVoiceControls';
+    box.style.cssText='display:flex;align-items:center;gap:6px;margin-left:8px;z-index:30;';
+    const status=document.createElement('span');
+    status.id='classVoiceStatus';
+    status.textContent='🎤 聲控';
+    status.style.cssText='font-size:14px;white-space:nowrap;color:#fff;';
+    const on=document.createElement('button');
+    on.type='button';on.className='b';on.id='classVoiceOn';on.textContent='🎤 開始聽';
+    const off=document.createElement('button');
+    off.type='button';off.className='b';off.id='classVoiceOff';off.textContent='⏹ 停止聲控';
+    box.append(status,on,off);
+    const left=bar.firstElementChild;
+    if(left)left.appendChild(box);else bar.appendChild(box);
+    on.onclick=()=>{ $('voiceStart')?.click(); };
+    off.onclick=()=>{ $('voiceStop')?.click(); };
+  }
+  const s=$('classVoiceStatus'), v=$('vs'), t=$('tr');
+  if(s)s.textContent=(v?.textContent||'🎤 聲控').replace(/^正在準備聲控…$/,'🎤 聲控');
+  if(s&&t&&t.textContent&&t.textContent!=='等待老師說話…')s.textContent='🎤 '+t.textContent;
+}
 function startRec(){if(!rec||listening)return;try{rec.start()}catch(e){listening=false;console.warn('speech recognition start',e);$('vs').textContent='請再按一次「開始聽」'}}
 function setup(){
   const S=window.SpeechRecognition||window.webkitSpeechRecognition;
