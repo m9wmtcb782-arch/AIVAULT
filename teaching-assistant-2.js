@@ -21,8 +21,12 @@ async function buildPptProjectFromEbook(){
   if(!ebookState.loaded){say('請先選擇並載入電子書教材。');$('pptProjectStatus').textContent='請先載入電子書教材。';return false;}
   const units=Array.isArray(ebookState.units)?ebookState.units:[];
   if(!units.length){say('這本電子書沒有可轉換的教學單元。');return false;}
-  $('pptProjectStatus').textContent='正在從電子書建立 PPT 專題報告…';
+  const bookTitle=String(ebookPick(ebookState.book,['title','name'])||'電子書專題');
+  $('pptProjectStatus').textContent='正在建立專題報告結構…';
   const slides=[];
+  slides.push({kind:'cover',title:bookTitle,content:'PPT 專題報告\n由 AIVAULT 教學助理依電子書教材建立\n\n原電子書保持不變'});
+  slides.push({kind:'overview',title:'專題大綱',content:'一、研究／學習問題\n二、各章核心內容\n三、重要概念與原文依據\n四、問題分析與延伸研究\n五、專題結論'});
+  const unitSummaries=[];
   for(const u of units){
     try{
       const d=await ebookApi({action:'lesson_unit',ebook_id:ebookState.bookId,ordinal:Number(u.ordinal)});
@@ -30,20 +34,32 @@ async function buildPptProjectFromEbook(){
       const pages=Array.isArray(ebookPick(p,['pages','items']))?ebookPick(p,['pages','items']):[];
       if(!pages.length)continue;
       const title=String(ebookPick(u,['title','name','unit_title'])||'教學單元');
-      slides.push({title,content:'本單元重點\n'+pages.slice(0,3).map(x=>String(ebookPick(x,['content','page_content','text','body'])||'').replace(/<[^>]+>/g,'').trim()).filter(Boolean).join('\n\n')});
-      pages.forEach((x,i)=>{
-        const raw=String(ebookPick(x,['content','page_content','text','body'])||'').replace(/<[^>]+>/g,'').trim();
-        if(!raw)return;
-        const chunks=raw.match(/[\s\S]{1,2200}/g)||[];
-        chunks.slice(0,4).forEach((part,j)=>slides.push({title:title+'｜內容 '+(i+1)+(chunks.length>1?'（'+(j+1)+'）':''),content:part}));
-      });
+      const cleanPages=pages.map(x=>String(ebookPick(x,['content','page_content','text','body'])||'').replace(/<[^>]+>/g,'').replace(/\s+$/g,'').trim()).filter(Boolean);
+      const combined=cleanPages.join('\n\n');
+      const first=combined.slice(0,2200);
+      unitSummaries.push(title);
+      slides.push({kind:'section',title:'章節／單元：'+title,content:'本單元學習重點\n\n'+first});
+      if(cleanPages.length){
+        const chunks=combined.match(/[\\s\\S]{1,2200}/g)||[];
+        chunks.slice(0,4).forEach((part,j)=>{
+          slides.push({kind:'content',title:title+'｜核心內容'+(chunks.length>1?'（'+(j+1)+'）':''),content:part});
+        });
+      }
+      const concepts=combined.replace(/[\r\n]+/g,' ').slice(0,900);
+      slides.push({kind:'analysis',title:title+'｜問題分析',content:'可供老師引導討論：\n\n1. 本單元要解決的核心問題是什麼？\n2. 原文提出了哪些規範、概念或論證？\n3. 這些內容與前後章節如何連結？\n4. 哪些地方需要進一步查證或比較？\n\n教材依據摘要：\n'+concepts});
     }catch(e){console.warn('ebook to ppt project unit',u,e)}
   }
-  pptProject=slides.slice(0,160);pptProjectIndex=0;
-  if(!pptProject.length){$('pptProjectStatus').textContent='電子書沒有取得可轉換內容。';return false;}
-  $('pptProjectStatus').textContent='已建立 PPT 專題報告，共 '+pptProject.length+' 頁。';
-  $('ppt').style.display='block';$('ppt').classList.remove('ebookFocusShell');
-  await pptProjectRender();say('電子書已建立成 PPT 專題報告，共 '+pptProject.length+' 頁。');return true;
+  if(!unitSummaries.length){$('pptProjectStatus').textContent='電子書沒有取得可轉換內容。';return false;}
+  slides.push({kind:'research',title:'延伸研究問題',content:'可由老師指示暗星進行網路研究：\n\n• 最新法規、判決、學說或政策資料\n• 與教材內容不同的觀點\n• 原文需要驗證的爭點\n• 國內外制度比較\n\n暗星只在老師明確要求「暗星，你來解釋」時發聲。'});
+  slides.push({kind:'conclusion',title:'專題結論',content:'本專題將電子書原始教材轉為課堂報告結構。\n\n老師可以依序說明：\n① 問題是什麼\n② 教材如何回答\n③ 哪些地方需要分析\n④ 哪些地方需要暗星查證\n⑤ 最後形成自己的結論\n\n注意：這是教學報告版本，不會修改原電子書。'});
+  pptProject=slides.slice(0,160);
+  pptProjectIndex=0;
+  $('pptProjectStatus').textContent='已建立完整 PPT 專題報告，共 '+pptProject.length+' 頁（含封面、大綱、章節、分析、研究問題、結論）。';
+  $('ppt').style.display='block';
+  $('ppt').classList.remove('ebookFocusShell');
+  await pptProjectRender();
+  say('已建立完整 PPT 專題報告，共 '+pptProject.length+' 頁。');
+  return true;
 }
 $('pptProjectFromEbook').onclick=()=>buildPptProjectFromEbook();
 $('materialMode').onchange=e=>{if(e.target.value==='ppt-project')$('pptProjectStatus').textContent='可由電子書建立專題報告；原電子書不會被修改。';};
