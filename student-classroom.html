@@ -18,13 +18,11 @@ h1{font-size:clamp(28px,7vw,42px);margin:4px 0 8px}
 #title{font-size:clamp(28px,6vw,40px);font-weight:700;margin:22px 0 10px}
 #pageInfo{color:#667085;font-size:20px;margin-bottom:12px}
 #content{font-size:30px;line-height:2;white-space:pre-wrap;word-break:break-word;padding:18px 4px}
-.controls{display:flex;gap:10px;justify-content:center;position:sticky;bottom:0;background:rgba(255,255,255,.96);padding:12px 0;border-top:1px solid #e2e8f0}
-button.ctrl{padding:12px 22px;border:1px solid #d5dbe5;border-radius:10px;background:#fff;font-size:22px;cursor:pointer}
-button.ctrl.primary{background:#7567ff;color:#fff}
 video,iframe{display:block;width:100%;max-height:600px;margin:18px 0;border:0;border-radius:12px;background:#000}
 #videoBox{display:none}
 .err{padding:20px;border-radius:12px;background:#fff3f3;color:#b42318;margin-top:20px}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
 <div id="app">
@@ -35,10 +33,7 @@ video,iframe{display:block;width:100%;max-height:600px;margin:18px 0;border:0;bo
 <div id="pageInfo"></div>
 <div id="content"></div>
 <div id="videoBox"></div>
-<div class="controls">
-<button class="ctrl" id="prev">← 上一頁</button>
-<button class="ctrl primary" id="next">下一頁 →</button>
-</div>
+
 </section>
 </div>
 <script>
@@ -48,6 +43,24 @@ const API=URL+'/functions/v1/dark-star-ebook-ingest';
 const $=id=>document.getElementById(id);
 let bookId=new URLSearchParams(location.search).get('ebook_id')||'';
 let page=1,total=0,bookTitle='';
+let classroomChannel=null;
+const supabase=window.supabase.createClient(URL,KEY);
+function connectClassroom(){
+ if(!bookId)return;
+ if(classroomChannel)supabase.removeChannel(classroomChannel);
+ classroomChannel=supabase.channel('student-classroom:'+String(bookId),{config:{broadcast:{self:false}}})
+  .on('broadcast',{event:'classroom_state'},({payload})=>{
+    if(!payload||String(payload.ebook_id)!==String(bookId))return;
+    if(payload.title){bookTitle=payload.title;$('title').textContent=bookTitle}
+    if(payload.total)total=Number(payload.total);
+    if(payload.page)page=Number(payload.page);
+    render({page_number:page,content:payload.content||'',metadata:{videos:Array.isArray(payload.videos)?payload.videos:[]}});
+    $('status').textContent='老師上課中｜同步第 '+page+(total?' / '+total:'')+' 頁';
+  })
+  .subscribe(status=>{
+    if(status==='SUBSCRIBED')$('status').textContent='已連線老師上課畫面';
+  });
+}
 async function api(payload){
  const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json',apikey:KEY},body:JSON.stringify(payload)});
  const raw=await r.text();let d={};try{d=JSON.parse(raw)}catch{}
@@ -85,7 +98,8 @@ async function loadBook(){
   total=Number(pick(p,['total_pages','page_count'])||0);page=1;
   $('title').textContent=bookTitle;
   render(pick(p,['page'])||((pick(p,['pages','items'])||[])[0])||p);
-  $('status').textContent='教材已開始顯示';
+  connectClassroom();
+  $('status').textContent='已連線老師上課畫面';
  }catch(e){$('status').innerHTML='<div class="err">教材載入失敗：'+esc(e.message||e)+'</div>'}
 }
 function render(p){
@@ -109,7 +123,6 @@ async function go(delta){
   $('status').textContent='上課中';
  }catch(e){$('status').textContent='翻頁失敗：'+(e.message||e)}
 }
-$('prev').onclick=()=>go(-1);$('next').onclick=()=>go(1);
 loadBook().catch(e=>{ $('status').textContent='教材服務暫時無法連線'; });
 </script>
 </body>
