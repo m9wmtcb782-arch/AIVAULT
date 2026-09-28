@@ -99,7 +99,16 @@ function clearPptProjectLocal(){
   renderPptProjectOutline();
   $('pptProjectStatus').textContent='PPT 專題報告已清除。';
 }
+async function buildPptProjectFromSelectedEbook(){
+  const id=String($('pptEbookSelect')?.value||'');
+  if(!id){$('pptProjectStatus').textContent='請先選擇 AIVAULT 電子書。';return false;}
+  $('ebookSelect').value=id;
+  await ebookLoad();
+  if(!ebookState.loaded)return false;
+  return buildPptProjectFromEbook();
+}
 $('pptProjectFromEbook').onclick=()=>buildPptProjectFromEbook();
+$('pptProjectFromSelectedEbook').onclick=()=>buildPptProjectFromSelectedEbook();
 $('save').onclick=()=>{if(pptProject.length)savePptProjectLocal();};
 $('clear').onclick=()=>{if(confirm('確定清除目前 PPT 專題報告？'))clearPptProjectLocal();};
 loadPptProjectLocal();
@@ -644,6 +653,19 @@ async function ebookApi(payload){
   }finally{clearTimeout(timer)}
 }
 function ebookPick(data,keys){for(const k of keys)if(data&&data[k]!=null)return data[k];return null}
+function syncPptEbookSelector(){
+  const sel=$('pptEbookSelect'); if(!sel)return;
+  const current=String(sel.value||'');
+  sel.innerHTML='<option value="">請選擇 AIVAULT 電子書</option>';
+  ebookState.books.forEach(b=>{
+    const id=ebookPick(b,['ebook_id','id','book_id']); if(!id)return;
+    const o=document.createElement('option');
+    o.value=id;
+    o.textContent=String(ebookPick(b,['title','name'])||'電子書 '+id);
+    sel.appendChild(o);
+  });
+  if(current&&ebookState.books.some(b=>String(ebookPick(b,['ebook_id','id','book_id']))===current))sel.value=current;
+}
 async function ebookRefresh(){
   const sel=$('ebookSelect'), status=$('ebookStatus');
   status.textContent='正在讀取 AIVAULT 電子書書名…';
@@ -653,6 +675,7 @@ async function ebookRefresh(){
     const rows=ebookPick(payload,['books','ebooks','items'])||[];
     ebookState.books=Array.isArray(rows)?rows:[];
     sel.innerHTML='<option value="">請選擇上課教材</option>';
+    syncPptEbookSelector();
     ebookState.books.forEach(b=>{
       const id=ebookPick(b,['ebook_id','id','book_id']); if(!id)return;
       const o=document.createElement('option');o.value=id;o.textContent=ebookPick(b,['title','name'])||('電子書 '+id);sel.appendChild(o);
