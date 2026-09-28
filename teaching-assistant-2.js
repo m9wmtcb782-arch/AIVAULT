@@ -31,21 +31,29 @@ async function ebookRefresh(){
 }
 async function ebookLoad(){
   const id=$('ebookSelect').value;if(!id){say('請先選擇電子書教材。');return}
-  $('ebookStatus').textContent='正在載入教材…';
+  $('ebookStatus').textContent='正在選定電子書教材…';
   try{
-    const d=await ebookApi({action:'book',ebook_id:id,page_number:1});
-    const payload=ebookPick(d,['data'])||d;
-    const b=ebookPick(payload,['book','ebook'])||ebookState.books.find(x=>String(ebookPick(x,['ebook_id','id','book_id']))===String(id))||{};
-    const pages=ebookPick(payload,['pages','items'])||[];
-    ebookState.book=b;ebookState.bookId=id;ebookState.page=Number(ebookPick(payload,['page_number'])||1);ebookState.total=Number(ebookPick(payload,['total_pages','page_count'])||ebookPick(b,['total_pages','page_count'])||0);const td=await ebookApi({action:'toc',ebook_id:id});const tp=ebookPick(td,['data'])||td;ebookState.toc=Array.isArray(ebookPick(tp,['toc','items']))?ebookPick(tp,['toc','items']):[];const ud=await ebookApi({action:'lesson_units',ebook_id:id});const up=ebookPick(ud,['data'])||ud;ebookState.units=Array.isArray(ebookPick(up,['units','items']))?ebookPick(up,['units','items']):[];ebookState.unitIndex=-1;ebookState.unitPages=[];ebookState.loaded=true;
+    // 選定教材時不下載整本書；教材指向原電子書，內容仍完整保存在後端。
+    // 前端只取得目錄／單元索引，實際頁面在翻頁或選單元時逐頁載入。
+    const b=ebookState.books.find(x=>String(ebookPick(x,['ebook_id','id','book_id']))===String(id))||{};
+    ebookState.book=b;ebookState.bookId=id;ebookState.page=1;ebookState.total=Number(ebookPick(b,['total_pages','page_count'])||0);
+    const td=await ebookApi({action:'toc',ebook_id:id});
+    const tp=ebookPick(td,['data'])||td;
+    ebookState.toc=Array.isArray(ebookPick(tp,['toc','items']))?ebookPick(tp,['toc','items']):[];
+    const ud=await ebookApi({action:'lesson_units',ebook_id:id});
+    const up=ebookPick(ud,['data'])||ud;
+    ebookState.units=Array.isArray(ebookPick(up,['units','items']))?ebookPick(up,['units','items']):[];
+    ebookState.unitIndex=-1;ebookState.unitPages=[];ebookState.loaded=true;
     $('ebookLesson').style.display='block';
-    $('ebookStatus').textContent='教材已匯入：'+(ebookPick(b,['title','name'])||'電子書');
-    await ebookRender(pages[0]||ebookPick(payload,['page'])||payload);
-    // 大型電子書不在選書時整批載入：先顯示書名與結構，真正原文只在選定單元後載入。
-    $('ebookLessonUnit').textContent=ebookState.units.length?'目前教學單元：尚未選取（請從目錄或單元按鈕選擇）':'目前教學單元：尚未選取';
-    $('ebookLessonText').textContent='已選定：'+(ebookPick(b,['title','name'])||'電子書')+'。目前只載入書名與結構；選定單元後才轉換原文。';
-    say('已選定電子書，目前只顯示書名與結構；選定單元後才轉換教材。');
-  }catch(e){$('ebookStatus').textContent='教材載入失敗：'+(e.message||e);say('電子書教材載入失敗。')}
+    $('ebookLessonTitle').textContent='📚 '+(ebookPick(b,['title','name'])||'電子書教材');
+    $('ebookLessonPage').textContent='已選定教材｜原書共 '+(ebookState.total||'?')+' 頁';
+    $('ebookLessonUnit').textContent='目前教學單元：尚未選取';
+    $('ebookLessonText').textContent='教材已選定。原書內容保持不變；目前只載入書名與目錄。選擇章節或翻頁後，才逐頁載入原書內容。';
+    $('ebookLessonVideo').innerHTML='';
+    ebookRenderOutline();
+    $('ebookStatus').textContent='教材已選定：'+(ebookPick(b,['title','name'])||'電子書')+'；原書內容未改寫。';
+    say('已將選定電子書作為完整教材來源。原文不改寫，使用時逐頁載入。');
+  }catch(e){$('ebookStatus').textContent='教材選定失敗：'+(e.message||e);say('電子書教材選定失敗。')}
 }
 function videoIdFromUrl(u){
   try{const x=new URL(String(u||'')); if(x.hostname.includes('youtu.be')) return {provider:'youtube',id:x.pathname.split('/').filter(Boolean)[0]||''}; if(x.hostname.includes('youtube.com')) return {provider:'youtube',id:x.searchParams.get('v')||x.pathname.split('/').filter(Boolean).pop()||''}; if(x.hostname.includes('vimeo.com')) return {provider:'vimeo',id:x.pathname.split('/').filter(Boolean).pop()||''}; return null;}catch{return null}
