@@ -306,11 +306,14 @@ async function darkStarTeacherCommand(text){
   const research=darkStarResearchIntent(text);
   const verify=/查證|重新查證|交叉確認|確認答案|確認一下|如果錯誤|再找/.test(String(text||''));
   const rawText=String(text||'').trim();
-  // 暗星可以持續聽見老師，但只有老師明確叫「暗星你來解釋」時，才允許暗星用語音回答。
-  // 老師對學生提出的普通問題，不得被暗星誤認成對暗星的提問。
-  const explainIntent=/^\s*暗星[，,、\s]*(?:請|你)?[\s]*(?:來)?[\s]*(?:解釋|說明|講解)(?:一下)?(?:[：:，,、\s].*)?$/i.test(rawText)
-    || /^\s*暗星[，,、\s]+請你來解釋(?:[：:，,、\s].*)?$/i.test(rawText);
-  const explicitDarkStar=/^\s*暗星/.test(String(text||''));
+  // 語音辨識常把「暗星」誤轉成「安心／暗心」；因此教室改用「小助」作為主要喚醒詞，
+  // 同時保留「暗星」及常見誤辨識。只有聽到「小助／暗星」+明確要求解釋，暗星才開口。
+  const wakeText=String(rawText||'')
+    .replace(/[，。！？、,.!?：:；;\s]/g,'')
+    .replace(/^(?:安心|暗心|暗新|暗欣|暗星|小助|小朱|小主)/,'暗星');
+  const wakeMatch=/^暗星/.test(wakeText);
+  const explainIntent=wakeMatch && /(?:請)?(?:你)?(?:來)?(?:解釋|說明|講解)(?:一下)?/.test(wakeText);
+  const explicitDarkStar=wakeMatch;
   const colorOnly=/(用|改成|換成|接下來).*?(紅色|藍色|綠色|黃色|紫色|橙色|黑色|灰色|白色).*?字?/.test(String(text||''));
   const navigationIntent=/下一頁|下一張|上一頁|上一張|往下|向下|往上|向上|第[一二三四五六七八九十百千0-9]+章|跳到|翻到|下一個單元|上一個單元/.test(rawText);
   // 翻頁也由暗星輔助：暗星負責理解目前老師意圖，真正的頁面操作仍交給既有的確定性導航函式。
@@ -761,7 +764,14 @@ async function voiceSearchAndJump(text){
 }
 function normalizeVoiceText(text){return String(text||'').replace(/[，。！？、,.!?\s]/g,'').trim();}
 async function runVoiceCommand(text){
-  if(await darkStarTeacherCommand(text))return true;
+  // 先把語音辨識常見的「安心／暗心」及「小助」喚醒詞視為暗星稱呼。
+  // 這只做喚醒詞判定，不會把老師對學生的普通問題交給暗星回答。
+  const voiceRaw=String(text||'').trim();
+  const voiceWake=/^(?:暗星|安心|暗心|暗新|暗欣|小助|小朱|小主)[，,、\s]/.test(voiceRaw);
+  if(voiceWake){
+    const canonical=voiceRaw.replace(/^(暗星|安心|暗心|暗新|暗欣|小助|小朱|小主)/,'暗星');
+    if(await darkStarTeacherCommand(canonical))return true;
+  }else if(await darkStarTeacherCommand(text))return true;
   const t=normalizeVoiceText(text);if(!t)return false;
   const click=id=>{const el=$(id);if(!el||el.disabled)return false;el.click();return true;};
   const bookSel=$('ebookSelect');
