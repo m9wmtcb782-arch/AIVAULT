@@ -60,7 +60,7 @@ const KEY='sb_publishable_1D05YGthBrNGg-5L92TLCw_GiLnInBu';
 const API=SUPABASE_URL+'/functions/v1/dark-star-ebook-ingest';
 const $=id=>document.getElementById(id);
 let classroomCode='',channelToken='',channel=null,supabaseClient=null,total=0,page=1;
-let audioPc=null,audioRemoteStream=null,audioEnabled=true,audioPeerId=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random());
+let audioPc=null,audioRemoteStream=null,audioEnabled=true,audioPlaybackStarted=false,audioPeerId=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random());
 let pendingIce=[];
 let audioJoinTimer=null;
 
@@ -77,18 +77,18 @@ async function sendSignal(event,payload){if(!channel)return;try{await channel.se
 function setAudioStatus(t){$('audioStatus').textContent=t;}
 async function startStudentAudio(){
   if(!channel)return;
-  audioEnabled=true;$('classroomAudio').muted=false;$('audioToggle').textContent='🔊 接收老師聲音';setAudioStatus('正在連接老師即時聲音…');
+  audioEnabled=true;$('classroomAudio').muted=false;$('audioToggle').textContent='🔊 啟用老師聲音';setAudioStatus('正在連接老師即時聲音…');
   await sendSignal('audio_join',{peer_id:audioPeerId});
   clearInterval(audioJoinTimer);
   audioJoinTimer=setInterval(()=>{if(!channel)return;if(!audioPc||!['connected','completed'].includes(audioPc.connectionState))sendSignal('audio_join',{peer_id:audioPeerId}).catch(()=>{});else clearInterval(audioJoinTimer)},1800);
 }
-function stopStudentAudio(){clearInterval(audioJoinTimer);audioJoinTimer=null;if(audioPc){try{audioPc.close()}catch{}audioPc=null;}audioRemoteStream=null;$('classroomAudio').srcObject=null;pendingIce=[];}
+function stopStudentAudio(){clearInterval(audioJoinTimer);audioJoinTimer=null;if(audioPc){try{audioPc.close()}catch{}audioPc=null;}audioRemoteStream=null;$('classroomAudio').srcObject=null;audioPlaybackStarted=false;pendingIce=[];}
 async function handleAudioOffer(payload){
   if(!payload||payload.to!==audioPeerId||!payload.description)return;
   stopStudentAudio();
   audioPc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]});
   audioRemoteStream=new MediaStream();$('classroomAudio').srcObject=audioRemoteStream;$('classroomAudio').muted=!audioEnabled;
-  audioPc.ontrack=e=>{e.streams[0]?.getTracks().forEach(t=>audioRemoteStream.addTrack(t));if(audioEnabled){const p=$('classroomAudio').play();if(p) p.catch(()=>setAudioStatus('請按「🔊 接收老師聲音」開始播放。'));}};
+  audioPc.ontrack=e=>{e.streams[0]?.getTracks().forEach(t=>{if(!audioRemoteStream.getTracks().some(x=>x.id===t.id))audioRemoteStream.addTrack(t)});if(audioEnabled){const p=$('classroomAudio').play();if(p){p.then(()=>{audioPlaybackStarted=true;$('audioToggle').textContent='🔊 老師聲音已啟用';setAudioStatus('課堂聲音：已連線');}).catch(()=>{audioPlaybackStarted=false;$('audioToggle').textContent='🔊 啟用老師聲音';setAudioStatus('請按「🔊 啟用老師聲音」播放老師聲音。');});}}};
   audioPc.onicecandidate=e=>{if(e.candidate)sendSignal('audio_ice',{to:'teacher',from:'student',peer_id:audioPeerId,candidate:e.candidate});};
   audioPc.onconnectionstatechange=()=>{const s=audioPc?.connectionState;if(s==='connected'){clearInterval(audioJoinTimer);audioJoinTimer=null;setAudioStatus(audioEnabled?'課堂聲音：已連線':'課堂聲音：已靜音');}else if(['failed','disconnected','closed'].includes(s)){setAudioStatus('老師聲音連線中斷，正在重新連接…');if(channel)startStudentAudio().catch(()=>{});}};
   try{await audioPc.setRemoteDescription(payload.description);for(const c of pendingIce){try{await audioPc.addIceCandidate(c)}catch{}}pendingIce=[];const answer=await audioPc.createAnswer();await audioPc.setLocalDescription(answer);await sendSignal('audio_answer',{to:'teacher',from:'student',peer_id:audioPeerId,description:audioPc.localDescription});}catch(e){console.warn('student audio offer',e);setAudioStatus('課堂聲音連線失敗。');}
@@ -178,7 +178,7 @@ async function leaveClassroom(){
 }
 $('connect').onclick=connect;
 $('leaveClass').onclick=leaveClassroom;
-$('audioToggle').onclick=async()=>{if(audioEnabled){audioEnabled=false;$('classroomAudio').muted=true;$('audioToggle').textContent='🔇 已靜音老師聲音';setAudioStatus('課堂聲音：已靜音（只影響這台學生裝置）');}else{audioEnabled=true;$('classroomAudio').muted=false;$('audioToggle').textContent='🔊 接收老師聲音';setAudioStatus('課堂聲音：開啟');try{await $('classroomAudio').play()}catch{}if(!audioPc||!['connected','completed'].includes(audioPc.connectionState))await startStudentAudio();}};
+$('audioToggle').onclick=async()=>{if(!audioPlaybackStarted){audioEnabled=true;$('classroomAudio').muted=false;try{await $('classroomAudio').play();audioPlaybackStarted=true;$('audioToggle').textContent='🔊 老師聲音已啟用';setAudioStatus('課堂聲音：已啟用');}catch{setAudioStatus('瀏覽器仍未允許播放，請再按一次。');}if(!audioPc||!['connected','completed'].includes(audioPc.connectionState))await startStudentAudio();return;}if(audioEnabled){audioEnabled=false;$('classroomAudio').muted=true;$('audioToggle').textContent='🔇 已靜音老師聲音';setAudioStatus('課堂聲音：已靜音（只影響這台學生裝置）');}else{audioEnabled=true;$('classroomAudio').muted=false;try{await $('classroomAudio').play();audioPlaybackStarted=true;$('audioToggle').textContent='🔊 老師聲音已啟用';setAudioStatus('課堂聲音：已啟用');}catch{setAudioStatus('請按「🔊 啟用老師聲音」播放。');}if(!audioPc||!['connected','completed'].includes(audioPc.connectionState))await startStudentAudio();}};
 $('code').addEventListener('input',()=>{const v=$('code').value.replace(/D/g,'').slice(0,4);$('code').value=v;if(v.length===4)connect();});
 $('code').addEventListener('keydown',e=>{if(e.key==='Enter')connect();});
 </script>
