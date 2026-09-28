@@ -44,11 +44,16 @@ const $=id=>document.getElementById(id);
 let bookId=new URLSearchParams(location.search).get('ebook_id')||'';
 let page=1,total=0,bookTitle='';
 let classroomChannel=null;
-const supabase=window.supabase.createClient(URL,KEY);
+let supabaseClient=null;
 function connectClassroom(){
  if(!bookId)return;
- if(classroomChannel)supabase.removeChannel(classroomChannel);
- classroomChannel=supabase.channel('student-classroom:'+String(bookId),{config:{broadcast:{self:false}}})
+ if(!window.supabase||typeof window.supabase.createClient!=='function'){
+   $('status').textContent='教材已載入，但即時同步元件尚未載入；請重新整理學生頁面。';
+   return;
+ }
+ if(!supabaseClient)supabaseClient=window.supabase.createClient(URL,KEY);
+ if(classroomChannel)supabaseClient.removeChannel(classroomChannel);
+ classroomChannel=supabaseClient.channel('student-classroom:'+String(bookId),{config:{broadcast:{self:false}}})
   .on('broadcast',{event:'classroom_state'},({payload})=>{
     if(!payload||String(payload.ebook_id)!==String(bookId))return;
     if(payload.title){bookTitle=payload.title;$('title').textContent=bookTitle}
@@ -123,7 +128,10 @@ async function go(delta){
   $('status').textContent='上課中';
  }catch(e){$('status').textContent='翻頁失敗：'+(e.message||e)}
 }
-loadBook().catch(e=>{ $('status').textContent='教材服務暫時無法連線'; });
+window.addEventListener('error',e=>{
+  if($('status')&&$('status').textContent==='正在準備教材…')$('status').textContent='學生頁面載入失敗：'+(e.message||'請重新整理頁面');
+});
+loadBook().catch(e=>{ $('status').textContent='教材服務暫時無法連線：'+(e.message||e); });
 </script>
 </body>
 </html>
