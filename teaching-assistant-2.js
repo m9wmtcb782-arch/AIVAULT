@@ -327,8 +327,8 @@ function classVoiceControls(){
     box.append(status,on,off);
     const left=bar.firstElementChild;
     if(left)left.appendChild(box);else bar.appendChild(box);
-    on.onclick=()=>{ $('voiceStart')?.click(); };
-    off.onclick=()=>{ $('voiceStop')?.click(); };
+    on.onclick=()=>{ voice=true; listening=false; $('vs').textContent='🎤 正在啟動聲控…'; startRec(); classVoiceControls(); };
+    off.onclick=()=>{ voice=false; listening=false; $('vs').textContent='聲控已取消'; try{rec?.abort()}catch{} classVoiceControls(); };
   }
   const s=$('classVoiceStatus'), v=$('vs'), t=$('tr');
   if(s)s.textContent=(v?.textContent||'🎤 聲控').replace(/^正在準備聲控…$/,'🎤 聲控');
