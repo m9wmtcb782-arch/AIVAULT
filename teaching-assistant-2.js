@@ -379,6 +379,15 @@ async function runNavigationCommandDirect(text){
     if(/(?:專題|報告).*(?:上一頁|上一張)|上一頁|上一張|往上翻/.test(t)){if(pptProjectIndex>0){pptProjectIndex--;pptProjectRender();}return true;}
   }
   if(!ebookState.loaded)return false;
+  if(/第[一二三四五六七八九十百千0-9]+章/.test(t)){if(await voiceGotoChapter(t))return true;}
+  if(/^(往下|往下走|向下|下面三行|往下三行)$/.test(t))return voiceScrollLines(3);
+  if(/^(往上|向上|往上走)$/.test(t))return voiceScrollLines(-3);
+  if(/下一個單元|下一單元/.test(t)){if(ebookState.unitIndex+1<ebookState.units.length){await ebookLoadUnit(ebookState.unitIndex+1);return true;}return false;}
+  if(/上一個單元|上一單元/.test(t)){if(ebookState.unitIndex>0){await ebookLoadUnit(ebookState.unitIndex-1);return true;}return false;}
+  if(/下一頁|下一張|往下翻/.test(t)){await ebookGo(1);return true;}
+  if(/上一頁|上一張|往上翻/.test(t)){await ebookGo(-1);return true;}
+  return false;
+}
 function stopDarkStarTeachingVoice(broadcast=true){
   try{speechSynthesis.cancel()}catch{}
   currentUtterance=null;
