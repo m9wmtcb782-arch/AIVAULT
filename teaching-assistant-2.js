@@ -101,16 +101,44 @@ async function exportPptProjectToPptx(){
           slide.addText(title,{x:0.85,y:2.0,w:11.6,h:1.25,fontSize:32,bold:true,color:coverTitle,margin:0.02,fit:'shrink',align:'center'});
           slide.addText(body||'AIVAULT PPT 投影片',{x:1.2,y:3.65,w:10.9,h:1.5,fontSize:20,color:coverBody,margin:0.08,fit:'shrink',align:'center'});
         }
+      }else if(item.kind==='section'||item.kind==='overview'){
+        slide.background={color:theme.bg};
+        slide.addShape(pptx.ShapeType.rect,{x:0,y:0,w:3.25,h:7.5,fill:{color:theme.accent},line:{color:theme.accent}});
+        slide.addText(item.kind==='section'?'CHAPTER':'CONTENTS',{x:0.55,y:0.9,w:2.1,h:0.4,fontSize:13,bold:true,color:'FFFFFF',margin:0});
+        slide.addText(title,{x:0.55,y:1.8,w:2.15,h:2.2,fontSize:24,bold:true,color:'FFFFFF',margin:0.02,fit:'shrink',valign:'mid'});
+        slide.addText(body.slice(0,1100),{x:3.8,y:1.25,w:8.65,h:4.9,fontSize:20,color:theme.body,margin:0.12,fit:'shrink',valign:'mid'});
+        slide.addText(String(idx+1),{x:11.85,y:7.0,w:0.55,h:0.22,fontSize:9,color:theme.body,margin:0,align:'right'});
+      }else if(item.kind==='keypoint'){
+        slide.background={color:theme.bg};
+        slide.addText(title,{x:0.72,y:0.42,w:11.9,h:0.68,fontSize:25,bold:true,color:theme.title,margin:0.02,fit:'shrink'});
+        const lines=body.split(/\n+/).map(x=>x.trim()).filter(Boolean).slice(0,7);
+        lines.forEach((line,i)=>{
+          const y=1.45+i*0.72;
+          slide.addShape(pptx.ShapeType.roundRect,{x:0.85,y,w:0.5,h:0.5,rectRadius:0.06,fill:{color:theme.accent},line:{color:theme.accent}});
+          slide.addText(String(i+1),{x:0.85,y:y+0.1,w:0.5,h:0.24,fontSize:12,bold:true,color:'FFFFFF',margin:0,align:'center'});
+          slide.addText(line.replace(/^\d+[．.、]\s*/,''),{x:1.55,y:y-0.02,w:10.7,h:0.56,fontSize:18,color:theme.body,margin:0.02,fit:'shrink'});
+        });
+        slide.addText(String(idx+1),{x:11.85,y:7.0,w:0.55,h:0.22,fontSize:9,color:theme.body,margin:0,align:'right'});
+      }else if(item.kind==='question'||item.kind==='research'){
+        slide.background={color:theme.bg};
+        slide.addText(title,{x:0.72,y:0.42,w:11.9,h:0.68,fontSize:25,bold:true,color:theme.title,margin:0.02,fit:'shrink'});
+        slide.addShape(pptx.ShapeType.roundRect,{x:0.82,y:1.45,w:11.7,h:4.95,rectRadius:0.08,fill:{color:'FFFFFF'},line:{color:theme.accent,width:1.5}});
+        const qs=body.split(/\n+/).map(x=>x.trim()).filter(Boolean).slice(0,6);
+        qs.forEach((q,i)=>slide.addText(q,{x:1.2,y:1.85+i*0.68,w:10.9,h:0.46,fontSize:18,color:theme.body,margin:0.02,fit:'shrink',bullet:{type:'ul'}}));
+        slide.addText('課堂討論／研究引導',{x:9.4,y:5.95,w:2.5,h:0.3,fontSize:10,color:theme.accent,margin:0,align:'right'});
+        slide.addText(String(idx+1),{x:11.85,y:7.0,w:0.55,h:0.22,fontSize:9,color:theme.body,margin:0,align:'right'});
+      }else if(item.kind==='conclusion'){
+        slide.background={color:theme.accent};
+        slide.addText('CONCLUSION',{x:0.85,y:0.75,w:3,h:0.4,fontSize:13,bold:true,color:'FFFFFF',margin:0});
+        slide.addText(title,{x:0.85,y:1.5,w:11.5,h:0.85,fontSize:30,bold:true,color:'FFFFFF',margin:0.02,fit:'shrink'});
+        slide.addText(body,{x:1.0,y:2.7,w:11.2,h:3.0,fontSize:20,color:'FFFFFF',margin:0.12,fit:'shrink',valign:'mid'});
+        slide.addText(String(idx+1),{x:11.85,y:7.0,w:0.55,h:0.22,fontSize:9,color:'FFFFFF',margin:0,align:'right'});
       }else{
         slide.background={color:theme.bg};
         slide.addShape(pptx.ShapeType.rect,{x:0,y:0,w:13.333,h:0.14,fill:{color:theme.accent},line:{color:theme.accent}});
         slide.addText(title,{x:0.7,y:0.48,w:11.9,h:0.7,fontSize:25,bold:true,color:theme.title,margin:0.02,fit:'shrink'});
         const lines=body.split(/\n+/).map(x=>x.trim()).filter(Boolean);
-        const maxPerSlide=12;
-        const chunks=[];
-        for(let i=0;i<lines.length;i+=maxPerSlide)chunks.push(lines.slice(i,i+maxPerSlide).join('\n'));
-        const chunk=chunks[0]||'（本頁無文字內容）';
-        slide.addText(chunk.slice(0,1700),{x:0.82,y:1.45,w:11.65,h:5.25,fontSize:19,color:theme.body,margin:0.12,breakLine:false,fit:'shrink',valign:'top',bullet:{type:'ul'}});
+        lines.slice(0,9).forEach((line,i)=>slide.addText(line.slice(0,220),{x:0.92,y:1.5+i*0.58,w:11.4,h:0.43,fontSize:16,color:theme.body,margin:0.02,fit:'shrink',bullet:{type:'ul'}}));
         slide.addShape(pptx.ShapeType.line,{x:0.82,y:6.85,w:11.65,h:0,line:{color:theme.accent,width:1}});
         slide.addText(String(idx+1),{x:11.85,y:7.0,w:0.55,h:0.22,fontSize:9,color:theme.body,margin:0,align:'right'});
       }
