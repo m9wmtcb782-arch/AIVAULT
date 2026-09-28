@@ -64,19 +64,22 @@ function classroomApi(payload){
     .then(async r=>{const raw=await r.text();let d={};try{d=raw?JSON.parse(raw):{}}catch{}if(!r.ok)throw Error(d.error||d.message||('課堂服務 HTTP '+r.status));return d});
 }
 function classroomBadge(){
+  // 課堂代碼直接放在右上角控制列的按鈕群組內，絕不使用浮動層覆蓋「↩ 回主畫面」。
   let inline=document.getElementById('aivaultClassroomCodeInline');
-  if(!inline){
-    const startBtn=$('start');
-    if(startBtn&&startBtn.parentElement){
-      inline=document.createElement('div');inline.id='aivaultClassroomCodeInline';
-      inline.style.cssText='position:absolute;right:190px;top:50%;transform:translateY(-50%);margin:0;font-size:16px;font-weight:800;letter-spacing:2px;text-align:center;color:#7567ff;line-height:1.2;white-space:nowrap;pointer-events:none;z-index:5;';
-      const bar=startBtn.closest('.bar');if(bar){bar.style.position='relative';bar.appendChild(inline)}else startBtn.parentElement.appendChild(inline);
-    }
+  const startBtn=$('start'), exitBtn=$('exit');
+  if(!inline && startBtn && startBtn.parentElement){
+    inline=document.createElement('span');
+    inline.id='aivaultClassroomCodeInline';
+    inline.style.cssText='position:static;display:inline-flex;align-items:center;justify-content:center;margin:0 8px 0 0;padding:5px 9px;border-radius:8px;font-size:16px;font-weight:800;letter-spacing:2px;text-align:center;color:#7567ff;background:rgba(255,255,255,.92);line-height:1.2;white-space:nowrap;pointer-events:none;vertical-align:middle;z-index:auto;';
+    startBtn.parentElement.insertBefore(inline,startBtn);
   }
-  if(inline)inline.textContent=classroomState.code?'教室 '+classroomState.code:'課堂代碼建立中…';
-  let el=document.getElementById('aivaultClassroomBadge');
-  if(!el){el=document.createElement('div');el.id='aivaultClassroomBadge';el.style.cssText='position:fixed;right:14px;top:58px;z-index:19;padding:7px 12px;border-radius:12px;background:rgba(0,0,0,.82);color:#fff;font-size:20px;font-weight:800;letter-spacing:2px;display:none;box-shadow:0 4px 18px rgba(0,0,0,.25);pointer-events:none'}document.body.appendChild(el);
-  el.textContent=classroomState.code?'教室 '+classroomState.code:'';el.style.display=classroomState.code?'block':'none';
+  if(inline){
+    inline.textContent=classroomState.code?'教室 '+classroomState.code:'課堂代碼建立中…';
+    inline.style.display=classroomState.code?'inline-flex':'none';
+  }
+  // 移除舊版固定浮動代碼層，避免進入整頁後遮住控制列或下方按鍵。
+  const oldBadge=document.getElementById('aivaultClassroomBadge');
+  if(oldBadge)oldBadge.remove();
 }
 async function ensureClassroom(){
   const saved=(()=>{try{return JSON.parse(sessionStorage.getItem('aivault_classroom')||'null')}catch{return null}})();
