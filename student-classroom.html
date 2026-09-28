@@ -94,6 +94,35 @@ async function handleAudioOffer(payload){
   try{await audioPc.setRemoteDescription(payload.description);for(const c of pendingIce){try{await audioPc.addIceCandidate(c)}catch{}}pendingIce=[];const answer=await audioPc.createAnswer();await audioPc.setLocalDescription(answer);await sendSignal('audio_answer',{to:'teacher',from:'student',peer_id:audioPeerId,description:audioPc.localDescription});}catch(e){console.warn('student audio offer',e);setAudioStatus('課堂聲音連線失敗。');}
 }
 async function handleAudioIce(payload){if(!payload||payload.to!==audioPeerId||!payload.candidate)return;if(audioPc?.remoteDescription){try{await audioPc.addIceCandidate(payload.candidate)}catch(e){console.warn(e)}}else pendingIce.push(payload.candidate);}
+let darkStarStudentUtterance=null,darkStarStudentVoiceId='';
+function handleDarkStarVoice(v){
+  if(!v||!v.action)return;
+  if(v.action==='stop'){
+    try{speechSynthesis.cancel()}catch{}
+    darkStarStudentUtterance=null;
+    $('audioStatus').textContent='暗星語音：已停止';
+    return;
+  }
+  if(v.action==='pause'){
+    try{if(speechSynthesis.speaking)speechSynthesis.pause()}catch{}
+    $('audioStatus').textContent='暗星語音：已暫停';
+    return;
+  }
+  if(v.action!=='speak'||!v.text)return;
+  if(v.id&&v.id===darkStarStudentVoiceId)return;
+  darkStarStudentVoiceId=String(v.id||Date.now());
+  try{speechSynthesis.cancel()}catch{}
+  const u=new SpeechSynthesisUtterance(String(v.text));
+  u.lang='zh-TW';u.rate=1;u.pitch=1;u.volume=1;
+  const voices=speechSynthesis.getVoices?.()||[];
+  const zh=voices.find(x=>/^zh[-_]TW/i.test(x.lang))||voices.find(x=>/^zh/i.test(x.lang));
+  if(zh)u.voice=zh;
+  darkStarStudentUtterance=u;
+  u.onstart=()=>{setAudioStatus('✦ 暗星正在解釋…');};
+  u.onend=()=>{darkStarStudentUtterance=null;setAudioStatus('課堂聲音：已連線');};
+  u.onerror=()=>{darkStarStudentUtterance=null;setAudioStatus('暗星語音播放失敗，請點「🔊 啟用老師聲音」後再試。');};
+  speechSynthesis.speak(u);
+}
 function renderState(state){
  if(!state||typeof state!=='object')return;
  page=Number(state.page)||1;total=Number(state.total)||0;
@@ -142,6 +171,7 @@ async function connect(){
     .on('broadcast',{event:'classroom_state'},({payload})=>{
       if(!payload)return;
       renderState(payload);
+      handleDarkStarVoice(payload.darkstar_voice);
       setStatus('已連線教室 '+classroomCode+'，老師正在上課。');
     })
     .on('broadcast',{event:'audio_offer'},({payload})=>handleAudioOffer(payload))
@@ -161,6 +191,8 @@ async function connect(){
  }
 }
 async function leaveClassroom(){
+  try{speechSynthesis.cancel()}catch{}
+  darkStarStudentUtterance=null;
   stopStudentAudio();
   if(channel&&supabaseClient){try{await supabaseClient.removeChannel(channel)}catch{}}
   channel=null;channelToken='';classroomCode='';total=0;page=1;
