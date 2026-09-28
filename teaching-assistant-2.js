@@ -68,17 +68,15 @@ function classroomBadge(){
   if(!inline){
     const startBtn=$('start');
     if(startBtn&&startBtn.parentElement){
-      inline=document.createElement('div'); inline.id='aivaultClassroomCodeInline';
-      inline.style.cssText='position:absolute;right:92px;top:50%;transform:translateY(-50%);margin:0;font-size:16px;font-weight:800;letter-spacing:2px;text-align:center;color:#7567ff;line-height:1.2;white-space:nowrap;pointer-events:none;z-index:5;';
-      const bar=startBtn.closest('.bar');
-      if(bar){bar.style.position='relative';bar.appendChild(inline);}else{startBtn.parentElement.appendChild(inline);}
+      inline=document.createElement('div');inline.id='aivaultClassroomCodeInline';
+      inline.style.cssText='position:absolute;right:190px;top:50%;transform:translateY(-50%);margin:0;font-size:16px;font-weight:800;letter-spacing:2px;text-align:center;color:#7567ff;line-height:1.2;white-space:nowrap;pointer-events:none;z-index:5;';
+      const bar=startBtn.closest('.bar');if(bar){bar.style.position='relative';bar.appendChild(inline)}else startBtn.parentElement.appendChild(inline);
     }
   }
-  if(inline){inline.textContent=classroomState.code?'教室 '+classroomState.code:'課堂代碼建立中…';}
+  if(inline)inline.textContent=classroomState.code?'教室 '+classroomState.code:'課堂代碼建立中…';
   let el=document.getElementById('aivaultClassroomBadge');
-  if(!el){el=document.createElement('div');el.id='aivaultClassroomBadge';el.style.cssText='position:fixed;right:14px;top:12px;z-index:10001;padding:8px 14px;border-radius:12px;background:rgba(0,0,0,.82);color:#fff;font-size:22px;font-weight:800;letter-spacing:2px;display:none;box-shadow:0 4px 18px rgba(0,0,0,.25)';document.body.appendChild(el);}
-  el.textContent=classroomState.code?'教室 '+classroomState.code:'';
-  el.style.display=classroomState.code?'block':'none';
+  if(!el){el=document.createElement('div');el.id='aivaultClassroomBadge';el.style.cssText='position:fixed;right:14px;top:58px;z-index:19;padding:7px 12px;border-radius:12px;background:rgba(0,0,0,.82);color:#fff;font-size:20px;font-weight:800;letter-spacing:2px;display:none;box-shadow:0 4px 18px rgba(0,0,0,.25);pointer-events:none'}document.body.appendChild(el);
+  el.textContent=classroomState.code?'教室 '+classroomState.code:'';el.style.display=classroomState.code?'block':'none';
 }
 async function ensureClassroom(){
   const saved=(()=>{try{return JSON.parse(sessionStorage.getItem('aivault_classroom')||'null')}catch{return null}})();
@@ -295,8 +293,19 @@ $('openV').onclick=()=>{const v=parseVideoSource($('yu').value);if(!v)return say
 $('saveV').onclick=async()=>{const v=parseVideoSource($('yu').value);if(!v)return say('請先輸入影片網址。');if(!ebookState.loaded){ebookState.pendingVideo=v;$('videoStatus').textContent='影片已加入目前教學教材；轉成電子書時會一起寫入電子書。';return;}try{await ebookApi({action:'media',ebook_id:ebookState.bookId,page_number:ebookState.page,videos:[v]});$('videoStatus').textContent='已儲存到電子書第 '+ebookState.page+' 頁；影片仍可直接在 AIVAULT 內播放。';await ebookGo(0);}catch(e){$('videoStatus').textContent='影片儲存失敗：'+(e.message||e);}};
 $('closeV').onclick=()=>{$('video').innerHTML='';$('videoStatus').textContent='影片已關閉。'};
 async function detectMicrophone(){const el=$('mic');try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});stream.getTracks().forEach(t=>t.stop());el.className='mic ok';el.textContent='✅ 已偵測到麥克風';return true}catch(e){el.className='mic warn';el.textContent='⚠️ 麥克風尚未允許';return false}}
-function startRec(){if(!rec||listening)return;try{rec.start();listening=true}catch{}}
-function setup(){const S=window.SpeechRecognition||window.webkitSpeechRecognition;if(!S){voice=false;$('vs').textContent='此瀏覽器不支援語音辨識';return}rec=new S();rec.lang='zh-TW';rec.continuous=false;rec.interimResults=true;rec.onstart=()=>{listening=true;if(voice)$('vs').textContent='聲控啟用'};rec.onerror=()=>{listening=false};rec.onresult=e=>{let t='';for(let k=e.resultIndex;k<e.results.length;k++)if(e.results[k].isFinal)t+=e.results[k][0].transcript;if(t){$('tr').textContent=t}};rec.onend=()=>{listening=false;setTimeout(()=>{if(rec&&voice)startRec()},350)};$('voiceStart').onclick=()=>{voice=true;$('vs').textContent='聲控啟用';startRec()};$('voiceStop').onclick=()=>{voice=false;$('vs').textContent='聲控已取消';try{rec.stop()}catch{}};startRec()}
+function startRec(){if(!rec||listening)return;try{rec.start()}catch(e){listening=false;console.warn('speech recognition start',e);$('vs').textContent='請再按一次「開始聽」'}}
+function setup(){
+  const S=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!S){voice=false;$('vs').textContent='此瀏覽器不支援語音辨識';return}
+  rec=new S();rec.lang='zh-TW';rec.continuous=false;rec.interimResults=true;
+  rec.onstart=()=>{listening=true;$('vs').textContent='🎤 聲控啟用，請說話'};
+  rec.onerror=e=>{listening=false;console.warn('speech recognition',e);if(voice)$('vs').textContent=e?.error==='not-allowed'?'⚠️ 麥克風／語音辨識權限被拒絕':'⚠️ 聲控暫停，請按「開始聽」'};
+  rec.onresult=e=>{let t='';for(let k=e.resultIndex;k<e.results.length;k++)if(e.results[k].isFinal)t+=e.results[k][0].transcript;if(t)$('tr').textContent=t};
+  rec.onend=()=>{listening=false;if(voice){$('vs').textContent='🎤 聲控已停止，重新啟動中…';setTimeout(()=>{if(rec&&voice&&!listening)startRec()},250)}};
+  $('voiceStart').onclick=()=>{voice=true;$('vs').textContent='🎤 正在啟動聲控…';startRec()};
+  $('voiceStop').onclick=()=>{voice=false;listening=false;$('vs').textContent='聲控已取消';try{rec.abort()}catch{}};
+  $('vs').textContent='🎤 請按「開始聽」啟用聲控';
+}
 setSpeechEnabled(true);detectMicrophone();setup();
 
 /* Generate the classroom code as soon as a teacher has loaded teaching material. */
