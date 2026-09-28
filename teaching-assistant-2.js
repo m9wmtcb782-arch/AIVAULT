@@ -5,6 +5,17 @@ $('file').onchange=e=>e.target.files[0]&&loadPpt(e.target.files[0]);$('next').on
 const EBOOK_SUPABASE_URL='https://clcddygkaaqqtsbswgdf.supabase.co';
 const EBOOK_PUBLISHABLE_KEY='sb_publishable_1D05YGthBrNGg-5L92TLCw_GiLnInBu';
 const EBOOK_INGEST=EBOOK_SUPABASE_URL+'/functions/v1/dark-star-ebook-ingest';
+const DARK_STAR_TEACHING_RESEARCH=EBOOK_SUPABASE_URL+'/functions/v1/dark-star-web-research';
+const DARK_STAR_TEACHING_GATEWAY=EBOOK_SUPABASE_URL+'/functions/v1/ai-gateway';
+const darkStarTeachingState={
+  color:'#2563eb',
+  domains:[],
+  lastQuery:'',
+  lastResearch:[],
+  lastAnswer:'',
+  visible:false
+};
+
 const CLASSROOM_API=EBOOK_SUPABASE_URL+'/functions/v1/dark-star-ebook-ingest';
 const CLASSROOM_REALTIME=EBOOK_SUPABASE_URL+'/realtime/v1/api/broadcast';
 let classroomActive=false;
@@ -122,13 +133,219 @@ async function ensureClassroom(){
   classroomBadge();
   return classroomState;
 }
+
+function classroomPayloadResearch(){
+  return darkStarTeachingState.visible&&darkStarTeachingState.lastAnswer
+    ? {
+        answer:String(darkStarTeachingState.lastAnswer||''),
+        color:String(darkStarTeachingState.color||'#2563eb'),
+        query:String(darkStarTeachingState.lastQuery||''),
+        sources:Array.isArray(darkStarTeachingState.lastResearch)
+          ? darkStarTeachingState.lastResearch.map(s=>({
+              title:String(s.title||''),
+              url:String(s.url||''),
+              snippet:String(s.snippet||'')
+            }))
+          : []
+      }
+    : null;
+}
+function classroomBuildPayload(payload){
+  return {
+    type:payload.type||'page',
+    page:Number(payload.page)||1,
+    total:Number(payload.total)||0,
+    content:String(payload.content||''),
+    videos:Array.isArray(payload.videos)?payload.videos:[],
+    research:payload.research===undefined?classroomPayloadResearch():payload.research
+  };
+}
+function renderDarkStarTeachingPanel(){
+  let host=document.getElementById('darkStarTeachingResearch');
+  const target=$('ebookLesson')||$('ppt');
+  if(!target)return;
+  if(!host){
+    host=document.createElement('section');
+    host.id='darkStarTeachingResearch';
+    host.style.cssText='margin:12px 0;padding:14px 16px;border:1px solid #ddd;border-radius:12px;background:#fff;box-shadow:0 4px 16px rgba(0,0,0,.08);position:relative;z-index:25;';
+    target.appendChild(host);
+  }
+  if(!darkStarTeachingState.visible||!darkStarTeachingState.lastAnswer){
+    host.style.display='none';
+    host.innerHTML='';
+    return;
+  }
+  host.style.display='block';
+  const color=darkStarTeachingState.color||'#2563eb';
+  const safeText=String(darkStarTeachingState.lastAnswer||'');
+  host.innerHTML='<div style="font-weight:800;margin-bottom:7px">✦ 暗星教學研究</div>'+
+    '<div style="white-space:pre-wrap;line-height:1.8;color:'+color+'">'+E.esc(safeText)+'</div>'+
+    (darkStarTeachingState.lastResearch.length
+      ? '<div style="margin-top:10px;padding-top:9px;border-top:1px solid #eee;font-size:13px;color:#666"><b>資料來源</b><br>'+
+        darkStarTeachingState.lastResearch.map(s=>'<div style="margin-top:4px">'+E.esc(s.title||s.url||'來源')+(s.url?' — <a href="'+E.esc(s.url)+'" target="_blank" rel="noopener" style="color:#155eef">'+E.esc(s.url)+'</a>':'')+'</div>').join('')+
+        '</div>'
+      : '');
+}
+async function darkStarTeachingResearchApi(payload){
+  const r=await fetch(DARK_STAR_TEACHING_RESEARCH,{
+    method:'POST',
+    headers:{'Content-Type':'application/json',apikey:EBOOK_PUBLISHABLE_KEY},
+    body:JSON.stringify(payload)
+  });
+  const raw=await r.text();let d={};try{d=raw?JSON.parse(raw):{}}catch{}
+  if(!r.ok)throw Error(d.error||d.message||('暗星網路研究 HTTP '+r.status));
+  return d;
+}
+function darkStarResearchDomains(text){
+  const t=String(text||'');
+  const map=[
+    ['司法院','judicial.gov.tw'],
+    ['全國法規資料庫','law.moj.gov.tw'],
+    ['法務部','moj.gov.tw'],
+    ['行政院','ey.gov.tw'],
+    ['立法院','ly.gov.tw'],
+    ['教育部','moe.gov.tw'],
+    ['衛福部','mohw.gov.tw'],
+    ['衛生福利部','mohw.gov.tw'],
+    ['內政部','moi.gov.tw'],
+    ['最高人民法院','court.gov.cn'],
+    ['中國政府網','gov.cn']
+  ];
+  const out=[];
+  for(const [name,domain] of map)if(t.includes(name)&&!out.includes(domain))out.push(domain);
+  const found=t.match(/(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:\/[^\s，。！？]*)?/ig)||[];
+  for(const x of found){
+    const d=x.replace(/^https?:\/\//i,'').replace(/^www\./i,'').split('/')[0];
+    if(d&&!out.includes(d))out.push(d);
+  }
+  return out.slice(0,8);
+}
+function darkStarResearchIntent(text){
+  const t=String(text||'');
+  return /搜尋|搜索|上網|查資料|找資料|收集資料|研究一下|網路資料|網上資料|大數據|查證|交叉確認|確認一下/.test(t);
+}
+function darkStarResearchQuery(text){
+  return String(text||'')
+    .replace(/^[，。\s]*(暗星|暗星，|暗星:|暗星：)/,'')
+    .replace(/^(請|幫我|幫忙|老師要|我要)?\s*(搜尋|搜索|上網搜尋|上網找|查資料|找資料|收集資料|研究一下|網路搜尋|網上搜尋)/,'')
+    .replace(/只找[^，。；;]+/,'')
+    .replace(/用(紅色|藍色|綠色|黃色|紫色|橙色|黑色|灰色)字/,'')
+    .replace(/(如果錯誤|再查證|重新查證|交叉確認|確認答案|確認一下).*/,'')
+    .trim() || String(text||'').trim();
+}
+function darkStarSetColor(text){
+  const map={紅色:'#dc2626',藍色:'#2563eb',綠色:'#16a34a',黃色:'#ca8a04',紫色:'#9333ea',橙色:'#ea580c',黑色:'#111827',灰色:'#6b7280',白色:'#ffffff'};
+  const m=String(text||'').match(/(紅色|藍色|綠色|黃色|紫色|橙色|黑色|灰色|白色)字?/);
+  if(!m)return false;
+  darkStarTeachingState.color=map[m[1]];
+  return true;
+}
+function darkStarTeachingContext(){
+  const current={
+    book:ebookState.book?.title||ebookState.book?.name||'',
+    chapter:ebookState.unitPages?.length?ebookState.unitPages[0]?.title||'':ebookState.book?.title||'',
+    page:ebookState.page||index+1,
+    total:ebookState.total||count||0,
+    unit:ebookState.unitIndex>=0?ebookState.units?.[ebookState.unitIndex]?.title||'':'',
+    original_content:ebookState.loaded
+      ? String($('ebookLessonText')?.textContent||'').slice(0,30000)
+      : String(slideTexts[index]||'').slice(0,30000)
+  };
+  return current;
+}
+async function darkStarTeachingGateway(command,research){
+  const topic='teaching-classroom-'+String(classroomState.code||'teacher');
+  const researchText=(research?.sources||[]).map((s,i)=>
+    '來源 '+(i+1)+': '+String(s.title||'')+'\nURL: '+String(s.url||'')+'\n內容: '+String(s.content||s.snippet||'').slice(0,9000)
+  ).join('\n\n');
+  const prompt=
+    '你是 AIVAULT 的 Technical Dark Star（暗星），現在以老師的教學 Agent 身分工作。'+
+    '你必須服從老師目前這一則命令。你只能產生課堂補充、研究、解釋或教學操作建議，絕對不能改寫或覆蓋原始教材。'+
+    '如果有網路研究資料，必須以資料來源為依據；來源互相矛盾時明確指出，不可假裝確定。'+
+    '你的回答會直接顯示在開始上課的頁面，所以請直接給老師要呈現的內容，不要說自己是模型。\n\n'+
+    '目前課堂狀態：'+JSON.stringify(darkStarTeachingContext())+
+    '\n\n老師命令：'+String(command||'')+
+    (researchText?'\n\n暗星剛剛取得的網路資料：\n'+researchText:'');
+  const r=await fetch(DARK_STAR_TEACHING_GATEWAY,{
+    method:'POST',
+    headers:{'Content-Type':'application/json',apikey:EBOOK_PUBLISHABLE_KEY},
+    body:JSON.stringify({
+      engine:'technical-dark-star',
+      agent_id:'technical-dark-star',
+      source:'teaching-assistant',
+      topic_id:topic,
+      owner_question:String(command||''),
+      message:prompt,
+      stream:false
+    })
+  });
+  const raw=await r.text();let d={};try{d=raw?JSON.parse(raw):{}}catch{}
+  if(!r.ok)throw Error(d.error||d.message||('暗星教學 Gateway HTTP '+r.status));
+  const answer=String(d.content||d.text||d.message||d.answer||'').trim();
+  if(!answer)throw Error('暗星沒有回傳可呈現的教學內容。');
+  return answer;
+}
+async function darkStarTeacherCommand(text){
+  if(!classroomActive||!classroomState.owner_token)return false;
+  darkStarSetColor(text);
+  const research=darkStarResearchIntent(text);
+  const verify=/查證|重新查證|交叉確認|確認答案|確認一下|如果錯誤|再找/.test(String(text||''));
+  if(!research && !/^暗星/.test(String(text||'')) && !darkStarTeachingState.visible)return false;
+  $('tr').textContent=research?'暗星正在上網收集資料…':'暗星正在執行老師命令…';
+  classVoiceControls();
+  try{
+    let webData=null;
+    if(research){
+      const q=darkStarResearchQuery(text);
+      const domains=darkStarResearchDomains(text);
+      webData=await darkStarTeachingResearchApi({
+        channel_token:classroomState.channel_token,
+        owner_token:classroomState.owner_token,
+        query:q,
+        domains:domains.length?domains:darkStarTeachingState.domains,
+        max_sources:verify?8:6,
+        verify
+      });
+      darkStarTeachingState.lastQuery=q;
+      darkStarTeachingState.domains=domains.length?domains:darkStarTeachingState.domains;
+      darkStarTeachingState.lastResearch=Array.isArray(webData.sources)?webData.sources:[];
+    }
+    const answer=await darkStarTeachingGateway(text,webData);
+    darkStarTeachingState.lastAnswer=answer;
+    darkStarTeachingState.visible=true;
+    renderDarkStarTeachingPanel();
+    if(research){
+      $('tr').textContent='暗星已完成網路研究並呈現在課堂頁面';
+    }else{
+      $('tr').textContent='暗星已依老師命令完成課堂處理';
+    }
+    classVoiceControls();
+    if(classroomActive){
+      const base=lastClassroomPayload||{
+        type:ebookState.loaded?'page':'ppt',
+        page:ebookState.loaded?ebookState.page:index+1,
+        total:ebookState.loaded?ebookState.total:count,
+        content:ebookState.loaded?String($('ebookLessonText')?.textContent||''):String(slideTexts[index]||''),
+        videos:[]
+      };
+      classroomBroadcast({...base,research:classroomPayloadResearch()});
+    }
+    return true;
+  }catch(e){
+    console.warn('dark star teaching command',e);
+    $('tr').textContent='暗星執行失敗：'+(e.message||e);
+    classVoiceControls();
+    return true;
+  }
+}
+
 async function classroomUpdateState(payload){
   if(!classroomActive||!classroomState.owner_token)return;
-  lastClassroomPayload={type:payload.type||'page',page:Number(payload.page)||1,total:Number(payload.total)||0,content:String(payload.content||''),videos:Array.isArray(payload.videos)?payload.videos:[]};
+  lastClassroomPayload=classroomBuildPayload(payload);
   try{await classroomApi({action:'classroom_update',channel_token:classroomState.channel_token,owner_token:classroomState.owner_token,state:lastClassroomPayload});}catch(e){console.warn('classroom state update',e);}
 }
 async function classroomBroadcast(payload){
-  const clean={type:payload.type||'page',page:Number(payload.page)||1,total:Number(payload.total)||0,content:String(payload.content||''),videos:Array.isArray(payload.videos)?payload.videos:[]};
+  const clean=classroomBuildPayload(payload);
   lastClassroomPayload=clean;
   if(!classroomActive||!classroomState.channel_token)return;
   classroomUpdateState(clean);
@@ -436,6 +653,7 @@ async function voiceSearchAndJump(text){
 }
 function normalizeVoiceText(text){return String(text||'').replace(/[，。！？、,.!?\s]/g,'').trim();}
 async function runVoiceCommand(text){
+  if(await darkStarTeacherCommand(text))return true;
   const t=normalizeVoiceText(text);if(!t)return false;
   const click=id=>{const el=$(id);if(!el||el.disabled)return false;el.click();return true;};
   const bookSel=$('ebookSelect');
