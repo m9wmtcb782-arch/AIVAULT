@@ -1119,28 +1119,22 @@ $('closeV').onclick=()=>{$('video').innerHTML='';$('videoStatus').textContent='�
 async function detectMicrophone(){const el=$('mic');try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});stream.getTracks().forEach(t=>t.stop());el.className='mic ok';el.textContent='✅ 已偵測到麥克風';return true}catch(e){el.className='mic warn';el.textContent='⚠️ 麥克風尚未允許';return false}}
 function renderDarkStarClassroomAvatar(){
   if(!classroomActive)return;
-  const panel=$('panel');
-  if(!panel)return;
-  let host=$('darkStarClassroomAvatar');
+  const bar=document.querySelector('#panel.class .stage .bar');
+  if(!bar)return;
+  let host=document.getElementById('darkStarClassroomAvatar');
   if(!host){
     host=document.createElement('div');
     host.id='darkStarClassroomAvatar';
-    // 教室中的暗星只做小型狀態指示，不能遮住老師的教材。
-    host.style.cssText='position:fixed;right:10px;bottom:10px;width:118px;min-height:92px;padding:7px 7px 6px;border-radius:14px;background:rgba(8,12,24,.86);border:1px solid rgba(130,150,255,.5);box-shadow:0 6px 18px rgba(0,0,0,.3);z-index:9600;color:#fff;pointer-events:none;text-align:center;backdrop-filter:blur(6px);';
-    host.innerHTML='<div id="darkStarAvatarFace" style="width:42px;height:42px;margin:0 auto 4px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;background:radial-gradient(circle at 50% 42%,#dbe5ff 0 8%,#6f82ff 9% 22%,#17224b 48%,#050816 72%);box-shadow:0 0 12px rgba(105,125,255,.55);">✦</div>'+
-      '<div style="font-size:14px;font-weight:900;letter-spacing:.5px;">暗星</div>'+
-      '<div id="darkStarAvatarStatus" style="margin-top:3px;font-size:10px;line-height:1.25;color:#b9c5ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">🎤 正在聽</div>';
-    panel.appendChild(host);
-  }
-  const status=$('darkStarAvatarStatus');
-  const tr=$('tr')?.textContent||'';
-  if(status){
-    if(currentUtterance)status.textContent='🔊 暗星正在說話';
-    else if(tr&&tr!=='等待老師說話…')status.textContent='🎤 '+tr.slice(0,32);
-    else status.textContent='🎤 正在聽老師';
+    host.setAttribute('aria-label','暗星教學助理');
+    host.title='暗星教學助理正在運作';
+    host.style.cssText='position:static;width:42px;height:42px;min-width:42px;flex:0 0 42px;margin:0 6px 0 0;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;background:conic-gradient(#ff3b30 0deg,#ff9500 51deg,#ffcc00 102deg,#34c759 154deg,#00c7be 205deg,#5856d6 257deg,#af52de 308deg,#ff3b30 360deg);box-shadow:0 0 0 2px rgba(255,255,255,.9),0 2px 10px rgba(0,0,0,.2);z-index:2;color:#fff;pointer-events:none;text-align:center;';
+    host.innerHTML='<div id="darkStarAvatarFace" style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;background:#0b1024;color:#fff;box-shadow:inset 0 0 8px rgba(255,255,255,.18);">✦</div>';
+    const first=bar.firstElementChild;
+    if(first)bar.insertBefore(host,first);
+    else bar.appendChild(host);
   }
   const face=$('darkStarAvatarFace');
-  if(face)face.style.transform=currentUtterance?'scale(1.06)':'scale(1)';
+  if(face)face.style.transform=currentUtterance?'scale(1.08)':'scale(1)';
 }
 function hideDarkStarClassroomAvatar(){
   $('darkStarClassroomAvatar')?.remove();
