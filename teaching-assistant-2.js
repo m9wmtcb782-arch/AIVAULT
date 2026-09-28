@@ -407,6 +407,18 @@ async function darkStarTeachingGateway(command,research){
 async function runNavigationCommandDirect(text){
   const t=String(text||'').trim();
   if(pptProject.length){
+    const sectionRules=[
+      [/研究問題|研究問題頁/, 'research-question'],
+      [/研究資料|資料來源|研究來源/, 'research-sources'],
+      [/暗星分析|研究分析/, 'research-analysis'],
+      [/老師結論|教師結論/, 'teacher-conclusion']
+    ];
+    for(const [re,kind] of sectionRules){
+      if(re.test(t)){
+        const idx=pptProject.findIndex(x=>x&&x.kind===kind);
+        if(idx>=0){pptProjectIndex=idx;pptProjectRender();return true;}
+      }
+    }
     if(/(?:專題|報告).*(?:封面|首頁)|回專題封面/.test(t)){pptProjectIndex=0;pptProjectRender();return true;}
     if(/(?:專題|報告).*(?:下一頁|下一張)|下一頁|下一張|往下翻/.test(t)){if(pptProjectIndex+1<pptProject.length){pptProjectIndex++;pptProjectRender();}return true;}
     if(/(?:專題|報告).*(?:上一頁|上一張)|上一頁|上一張|往上翻/.test(t)){if(pptProjectIndex>0){pptProjectIndex--;pptProjectRender();}return true;}
