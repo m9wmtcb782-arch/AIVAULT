@@ -5,10 +5,22 @@ $('file').onchange=e=>e.target.files[0]&&loadPpt(e.target.files[0]);$('next').on
 const EBOOK_SUPABASE_URL='https://clcddygkaaqqtsbswgdf.supabase.co';
 const EBOOK_PUBLISHABLE_KEY='sb_publishable_1D05YGthBrNGg-5L92TLCw_GiLnInBu';
 const EBOOK_INGEST=EBOOK_SUPABASE_URL+'/functions/v1/dark-star-ebook-ingest';
-const CLASSROOM_REALTIME=EBOOK_SUPABASE_URL+'/realtime/v1/api/broadcast';
+const CLASSROOM_REALTIME=EBOOK_SUPABASE_URL+'/rest/v1/rpc/broadcast';
 async function classroomBroadcast(payload){
   const ebookId=ebookState.bookId;if(!ebookId)return;
-  try{await fetch(CLASSROOM_REALTIME,{method:'POST',headers:{'Content-Type':'application/json',apikey:EBOOK_PUBLISHABLE_KEY},body:JSON.stringify({messages:[{topic:'student-classroom:'+String(ebookId),event:'classroom_state',payload:{...payload,ebook_id:String(ebookId),sent_at:new Date().toISOString()}}]})});}catch(e){console.warn('student classroom sync',e);}
+  try{
+    const r=await fetch(CLASSROOM_REALTIME,{
+      method:'POST',
+      headers:{'Content-Type':'application/json',apikey:EBOOK_PUBLISHABLE_KEY},
+      body:JSON.stringify({
+        topic:'student-classroom:'+String(ebookId),
+        event:'classroom_state',
+        payload:{...payload,ebook_id:String(ebookId),sent_at:new Date().toISOString()},
+        private:false
+      })
+    });
+    if(!r.ok)throw Error('HTTP '+r.status);
+  }catch(e){console.warn('student classroom sync',e);}
 }
 
 const ebookState={books:[],bookId:'',book:null,page:1,total:0,loaded:false,toc:[],units:[],unitIndex:-1,unitPages:[],pendingVideo:null};
