@@ -671,12 +671,12 @@ function classVoiceControls(){
     off.type='button';off.className='b';off.id='classVoiceOff';off.innerHTML='<span aria-hidden="true">⏹</span>';off.setAttribute('aria-label','停止聲控');
     status.style.display='none'; box.append(on,off);
     const left=bar.firstElementChild;
-    if(left){ left.style.cssText+=';display:flex;align-items:center;flex-wrap:nowrap;white-space:nowrap;'; left.appendChild(box); const exitBtn=$('exit'); if(exitBtn){ exitBtn.style.display='inline-block'; exitBtn.style.marginLeft='0'; left.appendChild(exitBtn); } }else bar.appendChild(box);
+    if(left){ left.style.cssText+=';display:flex;align-items:center;flex-wrap:nowrap;white-space:nowrap;'; left.appendChild(box); }else bar.appendChild(box);
     on.onclick=()=>{ voice=true; listening=false; $('vs').textContent='🎤 正在啟動聲控…'; startRec(); classVoiceControls(); };
     off.onclick=()=>{ voice=false; listening=false; $('vs').textContent='聲控已取消'; try{rec?.abort()}catch{} classVoiceControls(); };
   }
-  const left=bar.firstElementChild, exitBtn=$('exit');
-  if(left){ left.style.cssText+=';display:flex;align-items:center;flex-wrap:nowrap;white-space:nowrap;'; left.appendChild(box); if(exitBtn){ exitBtn.style.display='inline-block'; exitBtn.style.marginLeft='0'; left.appendChild(exitBtn); } }
+  const left=bar.firstElementChild;
+  if(left){ left.style.cssText+=';display:flex;align-items:center;flex-wrap:nowrap;white-space:nowrap;'; left.appendChild(box); }
   const s=$('classVoiceStatus'), v=$('vs'), t=$('tr');
   const micSvg='<svg class="darkStarLineMic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><path d="M12 18v3"></path><path d="M9 21h6"></path></svg>';
   if(s){const txt=(v?.textContent||'聲控').replace(/^🎤\\s*/,'').replace(/^正在準備聲控…$/,'聲控');s.innerHTML=micSvg+'<span>'+txt+'</span>';}
