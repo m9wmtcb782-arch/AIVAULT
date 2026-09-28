@@ -305,9 +305,13 @@ async function darkStarTeacherCommand(text){
   darkStarSetColor(text);
   const research=darkStarResearchIntent(text);
   const verify=/查證|重新查證|交叉確認|確認答案|確認一下|如果錯誤|再找/.test(String(text||''));
+  const rawText=String(text||'').trim();
+  // 暗星可以持續聽見老師，但只有老師明確叫「暗星你來解釋」時，才允許暗星用語音回答。
+  // 老師對學生提出的普通問題，不得被暗星誤認成對暗星的提問。
+  const explainIntent=/^\s*暗星[，,、\s]*(?:請|你)?[\s]*(?:來)?[\s]*(?:解釋|說明|講解)(?:一下)?(?:[：:，,、\s].*)?$/i.test(rawText)
+    || /^\s*暗星[，,、\s]+請你來解釋(?:[：:，,、\s].*)?$/i.test(rawText);
   const explicitDarkStar=/^\s*暗星/.test(String(text||''));
   const colorOnly=/(用|改成|換成|接下來).*?(紅色|藍色|綠色|黃色|紫色|橙色|黑色|灰色|白色).*?字?/.test(String(text||''));
-  const navigationIntent=/下一頁|下一張|上一頁|上一張|往下|向下|往上|向上|第[一二三四五六七八九十百千0-9]+章|跳到|翻到|下一個單元|上一個單元/.test(String(text||''));
   // 翻頁也由暗星輔助：暗星負責理解目前老師意圖，真正的頁面操作仍交給既有的確定性導航函式。
   if(!research && !explicitDarkStar && !colorOnly && !navigationIntent)return false;
   $('tr').textContent=research?'暗星正在上網收集資料…':(navigationIntent?'暗星正在判斷老師的翻頁指令…':'暗星正在執行老師命令…');
@@ -355,6 +359,12 @@ async function darkStarTeacherCommand(text){
     darkStarTeachingState.lastAnswer=answer;
     darkStarTeachingState.visible=true;
     renderDarkStarTeachingPanel();
+    // 只有「暗星你來解釋／暗星請你來解釋」才讓暗星真正開口。
+    // 搜尋、翻頁、改顏色等工作命令仍可執行，但不會搶答老師對學生提出的問題。
+    if(explainIntent){
+      $('tr').textContent='暗星正在依老師要求解釋…';
+      say(answer);
+    }
     if(research){
       $('tr').textContent='暗星已完成網路研究並呈現在課堂頁面';
     }else{
