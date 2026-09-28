@@ -225,6 +225,8 @@ function classroomBuildPayload(payload){
     total:Number(payload.total)||0,
     content:String(payload.content||''),
     project_title:String(payload.project_title||''),
+    project_page_title:String(payload.project_page_title||''),
+    project_kind:String(payload.project_kind||''),
     videos:Array.isArray(payload.videos)?payload.videos:[],
     darkstar_voice:payload.darkstar_voice||null,
     research:payload.research===undefined?classroomPayloadResearch():payload.research
@@ -311,7 +313,22 @@ function darkStarSetColor(text){
   return true;
 }
 function darkStarTeachingContext(){
-  const current={
+  if(pptProject.length){
+    const s=pptProject[pptProjectIndex]||{};
+    return {
+      mode:'ppt-project',
+      project_title:String(pptProjectMeta.title||'PPT 專題報告'),
+      source_book:String(pptProjectMeta.sourceBook||''),
+      project_page:pptProjectIndex+1,
+      project_total:pptProject.length,
+      project_page_title:String(s.title||''),
+      project_kind:String(s.kind||'content'),
+      current_content:String(s.content||'').slice(0,30000),
+      original_content:ebookState.loaded?String($('ebookLessonText')?.textContent||'').slice(0,30000):''
+    };
+  }
+  return {
+    mode:ebookState.loaded?'ebook':'ppt',
     book:ebookState.book?.title||ebookState.book?.name||'',
     chapter:ebookState.unitPages?.length?ebookState.unitPages[0]?.title||'':ebookState.book?.title||'',
     page:ebookState.page||index+1,
@@ -321,7 +338,6 @@ function darkStarTeachingContext(){
       ? String($('ebookLessonText')?.textContent||'').slice(0,30000)
       : String(slideTexts[index]||'').slice(0,30000)
   };
-  return current;
 }
 async function darkStarTeachingGateway(command,research){
   const topic='teaching-classroom-'+String(classroomState.code||'teacher');
@@ -357,19 +373,12 @@ async function darkStarTeachingGateway(command,research){
 }
 async function runNavigationCommandDirect(text){
   const t=String(text||'').trim();
-  if(!ebookState.loaded)return false;
-  if(/第[一二三四五六七八九十百千0-9]+章/.test(t)){
-    if(await voiceGotoChapter(t))return true;
+  if(pptProject.length){
+    if(/(?:專題|報告).*(?:封面|首頁)|回專題封面/.test(t)){pptProjectIndex=0;pptProjectRender();return true;}
+    if(/(?:專題|報告).*(?:下一頁|下一張)|下一頁|下一張|往下翻/.test(t)){if(pptProjectIndex+1<pptProject.length){pptProjectIndex++;pptProjectRender();}return true;}
+    if(/(?:專題|報告).*(?:上一頁|上一張)|上一頁|上一張|往上翻/.test(t)){if(pptProjectIndex>0){pptProjectIndex--;pptProjectRender();}return true;}
   }
-  if(/^(往下|往下走|向下|下面三行|往下三行)$/.test(t))return voiceScrollLines(3);
-  if(/^(往上|向上|往上走)$/.test(t))return voiceScrollLines(-3);
-  if(/下一個單元|下一單元/.test(t)){ if(ebookState.unitIndex+1<ebookState.units.length){await ebookLoadUnit(ebookState.unitIndex+1);return true;} return false; }
-  if(/上一個單元|上一單元/.test(t)){ if(ebookState.unitIndex>0){await ebookLoadUnit(ebookState.unitIndex-1);return true;} return false; }
-  if(/下一頁|下一張|往下翻/.test(t)){await ebookGo(1);return true;}
-  if(/上一頁|上一張|往上翻/.test(t)){await ebookGo(-1);return true;}
-  return false;
-}
-
+  if(!ebookState.loaded)return false;
 function stopDarkStarTeachingVoice(broadcast=true){
   try{speechSynthesis.cancel()}catch{}
   currentUtterance=null;
