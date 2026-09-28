@@ -1,11 +1,19 @@
 function htmlEscape(value){return String(value??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 async function extractPptText(file){slideTexts=[];$('pptTextStatus').textContent='PPT 文字索引：正在建立…';try{const JSZip=(await import('https://esm.sh/jszip@3.10.1')).default;const zip=await JSZip.loadAsync(await file.arrayBuffer());const names=Object.keys(zip.files).filter(n=>/^ppt\/slides\/slide\d+\.xml$/i.test(n));names.sort((a,b)=>Number(a.match(/slide(\d+)/i)[1])-Number(b.match(/slide(\d+)/i)[1]));for(const name of names){const xml=await zip.files[name].async('text');const doc=new DOMParser().parseFromString(xml,'application/xml');const arr=[...doc.getElementsByTagName('a:t')].map(x=>x.textContent||'').filter(Boolean);slideTexts.push(arr.join(' '))}$('pptTextStatus').textContent='PPT 文字索引：已完成，共 '+slideTexts.length+' 頁';return true}catch(e){console.warn('PPT text extraction',e);$('pptTextStatus').textContent='PPT 文字索引：瀏覽器無法擷取文字，但投影片仍可播放';return false}}
 async function loadPpt(f){stopReading();$('view').textContent='正在解析 PPT…';$('thumbs').textContent='正在建立縮圖…';try{const textPromise=extractPptText(f);const m=await import('https://esm.sh/@aiden0z/pptx-renderer@1.2.4');viewer=await m.PptxViewer.open(await f.arrayBuffer(),$('view'),{renderMode:'slide',fitMode:'contain'});count=Number(viewer.slideCount)||0;if(!count)throw Error('沒有投影片');await textPromise;$('thumbs').innerHTML='';for(let k=0;k<count;k++){const t=document.createElement('div');t.className='thumb';t.innerHTML='<div>第 '+(k+1)+' 頁</div>';const box=document.createElement('div');box.className='tp';t.appendChild(box);t.onclick=()=>go(k);$('thumbs').appendChild(t);try{const h=viewer.renderThumbnailToContainer(k,box,{width:105});if(h&&h.ready)await h.ready}catch(e){console.warn('thumbnail',k,e)}}index=0;await go(0);say('PPT 已載入，共 '+count+' 頁。')}catch(e){console.error(e);$('view').textContent='PPT 預覽失敗：'+(e.message||e);say('PPT 預覽失敗。')}}
+function renderPptProjectOutline(){
+  const el=$('pptProjectOutline'); if(!el)return;
+  if(!pptProject.length){el.style.display='none';el.innerHTML='';return;}
+  el.style.display='block';
+  el.innerHTML='<b>📑 專題大綱</b>'+pptProject.map((s,i)=>'<button type="button" class="b" data-ppt-project-index="'+i+'" style="display:block;width:100%;margin:3px 0;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'+(i===pptProjectIndex?'font-weight:800;border-color:#7567ff;':'')+'">'+(i+1)+'. '+htmlEscape(s.title||'專題頁')+'</button>').join('');
+  el.querySelectorAll('[data-ppt-project-index]').forEach(b=>b.onclick=()=>{pptProjectIndex=Number(b.dataset.pptProjectIndex)||0;pptProjectRender();});
+}
 function pptProjectRender(){
   if(!pptProject.length)return;
   const s=pptProject[pptProjectIndex]||{};
   $('view').innerHTML='<div style="padding:clamp(24px,5vw,70px);height:100%;overflow:auto;background:#fff"><div style="font-size:14px;color:#667085;margin-bottom:12px">PPT 專題報告｜第 '+(pptProjectIndex+1)+' / '+pptProject.length+' 頁</div><h2 style="font-size:clamp(24px,4vw,38px);margin:0 0 18px">'+htmlEscape(s.title||'專題頁')+'</h2><div style="font-size:clamp(18px,2.5vw,28px);line-height:1.9;white-space:pre-wrap">'+htmlEscape(s.content||'')+'</div></div>';
   $('pptTextStatus').textContent='PPT 專題報告：已載入，共 '+pptProject.length+' 頁';
+  renderPptProjectOutline();
   $('info').textContent='PPT 專題報告｜第 '+(pptProjectIndex+1)+' / '+pptProject.length+' 頁';
   if(classroomActive)classroomBroadcast({type:'ppt-project',page:pptProjectIndex+1,total:pptProject.length,content:String(s.content||''),project_title:String(s.title||''),videos:[]});
 }
@@ -38,6 +46,7 @@ async function buildPptProjectFromEbook(){
   await pptProjectRender();say('電子書已建立成 PPT 專題報告，共 '+pptProject.length+' 頁。');return true;
 }
 $('pptProjectFromEbook').onclick=()=>buildPptProjectFromEbook();
+$('materialMode').onchange=e=>{if(e.target.value==='ppt-project')$('pptProjectStatus').textContent='可由電子書建立專題報告；原電子書不會被修改。';};
 $('file').onchange=e=>e.target.files[0]&&loadPpt(e.target.files[0]);
 $('next').onclick=()=>{if(pptProject.length){pptProjectIndex=Math.min(pptProject.length-1,pptProjectIndex+1);pptProjectRender();say('下一頁。');}else{go(index+1);say('下一頁。')}};
 $('prev').onclick=()=>{if(pptProject.length){pptProjectIndex=Math.max(0,pptProjectIndex-1);pptProjectRender();say('上一頁。');}else{go(index-1);say('上一頁。')}};
