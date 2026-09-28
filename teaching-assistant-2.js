@@ -293,16 +293,56 @@ async function classroomGoToPptPage(page){
 }
 async function runClassroomPptVoiceNavigation(text){
   if(!classroomActive)return false;
-  const t=String(text||'').trim()
+  const raw=String(text||'').trim();
+  const t=raw
     .replace(/^(?:暗星|安心|暗心|暗新|暗欣|小助|小朱|小主)[，,、\s]*/,'')
     .replace(/[，。！？、,.!?\s]/g,'');
   if(!t)return false;
-  if(/^(下一頁|下一張|下頁|下張|往下一頁|往下翻|往後一頁)$/.test(t)||t.includes('下一頁')||t.includes('下一張')||t.includes('往下翻'))return classroomNavigatePpt(1);
-  if(/^(上一頁|上一張|上頁|上張|往上一頁|往上翻|往前一頁)$/.test(t)||t.includes('上一頁')||t.includes('上一張')||t.includes('往上翻'))return classroomNavigatePpt(-1);
-  const m=t.match(/(?:第|到|跳到|翻到)([0-9０-９一二兩三四五六七八九十百千〇零]+)頁/);
-  if(m){
-    const rawN=m[1].replace(/[０-９]/g,x=>String('０１２３４５６７８９'.indexOf(x)));
-    return classroomGoToPptPage(chineseNumberToInt(rawN));
+
+  // 「開始上課」後，暗星是統一的教學控制核心：
+  // 先判斷目前是否正在教學教材（電子書），再判斷 PPT。
+  if(ebookState.loaded){
+    if(/^(下一頁|下一張|下頁|下張|往下一頁|往下翻|往後一頁)$/.test(t)||t.includes('下一頁')||t.includes('下一張')||t.includes('往下翻')){
+      await ebookGo(1);
+      $('tr').textContent='暗星已切換到下一頁。';
+      classVoiceControls();
+      return true;
+    }
+    if(/^(上一頁|上一張|上頁|上張|往上一頁|往上翻|往前一頁)$/.test(t)||t.includes('上一頁')||t.includes('上一張')||t.includes('往上翻')){
+      await ebookGo(-1);
+      $('tr').textContent='暗星已切換到上一頁。';
+      classVoiceControls();
+      return true;
+    }
+    if(/下一個單元|下一單元/.test(t)){
+      if(ebookState.unitIndex+1<ebookState.units.length)await ebookLoadUnit(ebookState.unitIndex+1);
+      $('tr').textContent='暗星已切換到下一個教材單元。';
+      classVoiceControls();
+      return true;
+    }
+    if(/上一個單元|上一單元/.test(t)){
+      if(ebookState.unitIndex>0)await ebookLoadUnit(ebookState.unitIndex-1);
+      $('tr').textContent='暗星已切換到上一個教材單元。';
+      classVoiceControls();
+      return true;
+    }
+    if(/第[一二兩三四五六七八九十百千0-9０-９]+章/.test(t)){
+      if(await voiceGotoChapter(raw)){
+        $('tr').textContent='暗星已切換到指定章節。';
+        classVoiceControls();
+        return true;
+      }
+    }
+  }
+
+  if(pptProject.length||count){
+    if(/^(下一頁|下一張|下頁|下張|往下一頁|往下翻|往後一頁)$/.test(t)||t.includes('下一頁')||t.includes('下一張')||t.includes('往下翻'))return classroomNavigatePpt(1);
+    if(/^(上一頁|上一張|上頁|上張|往上一頁|往上翻|往前一頁)$/.test(t)||t.includes('上一頁')||t.includes('上一張')||t.includes('往上翻'))return classroomNavigatePpt(-1);
+    const m=t.match(/(?:第|到|跳到|翻到)([0-9０-９一二兩三四五六七八九十百千〇零]+)頁/);
+    if(m){
+      const rawN=m[1].replace(/[０-９]/g,x=>String('０１２３４５６７８９'.indexOf(x)));
+      return classroomGoToPptPage(chineseNumberToInt(rawN));
+    }
   }
   return false;
 }
