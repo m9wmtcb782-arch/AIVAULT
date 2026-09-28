@@ -20,6 +20,9 @@ h1{font-size:clamp(30px,8vw,44px);margin:4px 0 8px}
 #pageInfo{font-size:20px;color:#667085;margin-bottom:12px}
 #content{font-size:30px;line-height:2;white-space:pre-wrap;word-break:break-word}
 #videoBox{margin-top:20px}
+#audioPanel{display:none;margin:0 0 18px;padding:12px 16px;border:1px solid #dfe4ec;border-radius:12px;background:#f7f9fc;text-align:center}
+#audioToggle{padding:10px 18px;border:0;border-radius:10px;background:#7567ff;color:#fff;font-size:22px;font-weight:800}
+#audioStatus{font-size:18px;color:#667085;margin-top:7px}
 video,iframe{display:block;width:100%;max-height:620px;margin:18px 0;border:0;border-radius:12px;background:#000}
 .msg{padding:18px;border-radius:12px;background:#f7f9fc;color:#475467}
 .err{color:#b42318;background:#fff3f3}
@@ -39,6 +42,7 @@ video,iframe{display:block;width:100%;max-height:620px;margin:18px 0;border:0;bo
 </section>
 <section id="lesson">
 <div id="room"></div>
+<div id="audioPanel"><button id="audioToggle" type="button">🔊 接收老師聲音</button><div id="audioStatus">課堂聲音：開啟</div><audio id="classroomAudio" autoplay playsinline></audio></div>
 <div id="pageInfo"></div>
 <div id="content" class="msg"></div>
 <div id="videoBox"></div>
@@ -50,6 +54,8 @@ const KEY='sb_publishable_1D05YGthBrNGg-5L92TLCw_GiLnInBu';
 const API=URL+'/functions/v1/dark-star-ebook-ingest';
 const $=id=>document.getElementById(id);
 let classroomCode='',channelToken='',channel=null,supabaseClient=null,total=0,page=1;
+let audioPc=null,audioRemoteStream=null,audioEnabled=true,audioPeerId=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random());
+let pendingIce=[];
 
 function setStatus(t,error=false){$('status').textContent=t;$('status').classList.toggle('err',error);}
 function esc(s){return String(s??'').replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));}
@@ -60,6 +66,25 @@ function videoHtml(v){
  if(provider==='direct'&&u)return '<video controls playsinline preload="metadata" src="'+esc(u)+'"></video>';
  return '';
 }
+async function sendSignal(event,payload){if(!channel)return;try{await channel.send({type:'broadcast',event,payload});}catch(e){console.warn('student audio signal',e);}}
+function setAudioStatus(t){$('audioStatus').textContent=t;}
+async function startStudentAudio(){
+  if(!channel)return;
+  audioEnabled=true;$('classroomAudio').muted=false;$('audioToggle').textContent='🔊 接收老師聲音';setAudioStatus('課堂聲音：開啟');
+  await sendSignal('audio_join',{peer_id:audioPeerId});
+}
+function stopStudentAudio(){if(audioPc){try{audioPc.close()}catch{}audioPc=null;}audioRemoteStream=null;$('classroomAudio').srcObject=null;}
+async function handleAudioOffer(payload){
+  if(!payload||payload.to!==audioPeerId||!payload.description)return;
+  stopStudentAudio();
+  audioPc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]});
+  audioRemoteStream=new MediaStream();$('classroomAudio').srcObject=audioRemoteStream;$('classroomAudio').muted=!audioEnabled;
+  audioPc.ontrack=e=>{e.streams[0]?.getTracks().forEach(t=>audioRemoteStream.addTrack(t));if(audioEnabled){const p=$('classroomAudio').play();if(p) p.catch(()=>setAudioStatus('請按「🔊 接收老師聲音」開始播放。'));}};
+  audioPc.onicecandidate=e=>{if(e.candidate)sendSignal('audio_ice',{to:'teacher',from:'student',peer_id:audioPeerId,candidate:e.candidate});};
+  audioPc.onconnectionstatechange=()=>{if(audioPc?.connectionState==='connected')setAudioStatus(audioEnabled?'課堂聲音：已連線':'課堂聲音：已靜音');};
+  try{await audioPc.setRemoteDescription(payload.description);for(const c of pendingIce){try{await audioPc.addIceCandidate(c)}catch{}}pendingIce=[];const answer=await audioPc.createAnswer();await audioPc.setLocalDescription(answer);await sendSignal('audio_answer',{to:'teacher',from:'student',peer_id:audioPeerId,description:audioPc.localDescription});}catch(e){console.warn('student audio offer',e);setAudioStatus('課堂聲音連線失敗。');}
+}
+async function handleAudioIce(payload){if(!payload||payload.to!==audioPeerId||!payload.candidate)return;if(audioPc?.remoteDescription){try{await audioPc.addIceCandidate(payload.candidate)}catch(e){console.warn(e)}}else pendingIce.push(payload.candidate);}
 function renderState(state){
  if(!state||typeof state!=='object')return;
  page=Number(state.page)||1;total=Number(state.total)||0;
@@ -96,8 +121,12 @@ async function connect(){
       renderState(payload);
       setStatus('已連線教室 '+classroomCode+'，老師正在上課。');
     })
+    .on('broadcast',{event:'audio_offer'},({payload})=>handleAudioOffer(payload))
+    .on('broadcast',{event:'audio_ice'},({payload})=>handleAudioIce(payload))
     .subscribe(status=>{
       if(status==='SUBSCRIBED'){
+        $('audioPanel').style.display='block';
+        startStudentAudio().catch(e=>setAudioStatus(e.message||'等待老師音訊…'));
         setStatus(state&&state.content?'已連線教室 '+classroomCode+'，內容會隨老師同步。':'已連線教室 '+classroomCode+'，等待老師上課內容…');
       }else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
         setStatus('教室連線失敗，請重新輸入 4 位數入口。',true);
@@ -109,6 +138,7 @@ async function connect(){
  }
 }
 $('connect').onclick=connect;
+$('audioToggle').onclick=async()=>{if(audioEnabled){audioEnabled=false;$('classroomAudio').muted=true;$('audioToggle').textContent='🔇 已靜音老師聲音';setAudioStatus('課堂聲音：已靜音（只影響這台學生裝置）');}else{audioEnabled=true;$('classroomAudio').muted=false;$('audioToggle').textContent='🔊 接收老師聲音';setAudioStatus('課堂聲音：開啟');try{await $('classroomAudio').play()}catch{}if(!audioPc)await startStudentAudio();}};
 $('code').addEventListener('input',()=>{const v=$('code').value.replace(/D/g,'').slice(0,4);$('code').value=v;if(v.length===4)connect();});
 $('code').addEventListener('keydown',e=>{if(e.key==='Enter')connect();});
 </script>
