@@ -460,13 +460,10 @@ function classroomBadge(){
   if(inline){
     inline.textContent=classroomState.code?'教室 '+classroomState.code:'課堂代碼建立中…';
     if(classMode){
-      // 教室號碼只顯示，不覆蓋任何操作按鈕；固定在工具列正常排版流中。
-      inline.style.position='static';
-      inline.style.right='auto';
-      inline.style.top='auto';
-      inline.style.margin='0 8px 0 0';
-      inline.style.flex='0 0 auto';
-      inline.style.pointerEvents='none';
+      inline.style.position='absolute';
+      inline.style.right='12px';
+      inline.style.top='8px';
+      inline.style.margin='0';
       inline.style.display=classroomState.code?'inline-flex':'none';
     }else{
       inline.style.position='static';
@@ -965,7 +962,7 @@ async function ebookLoad(){
     if(ebookState.units.length) await ebookLoadUnit(0);
     else await ebookGo(0);
     $('ebookStatus').textContent='教材已載入：'+(ebookPick(b,['title','name'])||'電子書')+'；原書內文已放入教學助理，原文未改寫。';$('info').textContent='電子書教材｜第 '+(ebookState.page||1)+(ebookState.total?' / '+ebookState.total:'');
-    // 選定教材後不再在教室上方顯示長提示；避免遮擋控制列與教材內容。
+    say('已將選定電子書作為完整教材來源。原文不改寫，使用時逐頁載入。');
   }catch(e){$('ebookStatus').textContent='教材選定失敗：'+(e.message||e);say('電子書教材選定失敗。')}
 }
 function videoIdFromUrl(u){
@@ -1055,29 +1052,30 @@ function installClassroomLayoutFix(){
   const st=document.createElement('style');st.id='aivaultClassroomLayoutFix';
   st.textContent=`
     .class .stage{position:relative;min-height:0;overflow:hidden!important}
-    /* 教室 UI 硬性規則：所有控制與提示都必須有自己的版面空間，禁止重疊。 */
-    .class .bar{position:absolute!important;top:0!important;left:0!important;right:0!important;min-height:0!important;height:auto!important;display:flex!important;flex-wrap:wrap!important;align-items:center!important;gap:8px!important;padding:calc(7px + env(safe-area-inset-top)) 10px 7px!important;box-sizing:border-box!important;overflow:visible!important;background:inherit!important}
-    .class .bar>div:first-child{order:1;flex:1 1 260px;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:5px;overflow:visible!important;white-space:normal!important}
-    .class .bar>div:last-child{order:2;flex:0 1 auto;display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:5px;min-width:0}
-    .class .bar .b{min-height:40px;padding:7px 10px!important;font-size:16px!important;white-space:nowrap;flex:0 0 auto}
-    .class #info{order:3;flex:1 1 100%;min-width:0;max-width:none!important;overflow:visible!important;text-overflow:clip!important;white-space:normal!important;text-align:center;font-size:14px!important;line-height:1.35!important;padding:3px 6px!important}
-    .class .view{height:100vh!important;min-height:0!important;padding-top:calc(112px + env(safe-area-inset-top))!important;padding-bottom:calc(120px + env(safe-area-inset-bottom))!important;overflow:auto!important;box-sizing:border-box!important}
-    .class #ebookLesson{padding:calc(70px + env(safe-area-inset-top)) 16px calc(150px + env(safe-area-inset-bottom))!important;overflow:auto!important}
-    .class #ebookLesson>.voiceBtns:last-child{position:static!important;display:flex!important;flex-wrap:wrap!important;gap:7px!important;z-index:auto!important;margin:10px 0!important;padding:7px!important;border:1px solid rgba(255,255,255,.25)!important;border-radius:12px!important;background:rgba(8,12,24,.92)!important;box-shadow:none!important}
+    .class .bar{position:absolute!important;top:0!important;left:0!important;right:0!important;min-height:58px!important;display:grid!important;grid-template-columns:minmax(0,1fr) minmax(110px,auto) auto!important;align-items:center!important;gap:8px!important;padding:calc(7px + env(safe-area-inset-top)) 10px 7px!important;box-sizing:border-box!important;overflow:visible!important}
+    .class .bar>div:first-child{min-width:0;display:flex;align-items:center;gap:5px;overflow-x:auto;overflow-y:hidden;white-space:nowrap;scrollbar-width:none}
+    .class .bar>div:first-child::-webkit-scrollbar{display:none}
+    .class .bar>div:last-child{display:flex;align-items:center;gap:5px;min-width:max-content}
+    .class .bar .b{min-height:40px;padding:7px 10px!important;font-size:16px!important;white-space:nowrap}
+    .class #info{min-width:0;max-width:34vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;font-size:14px!important}
+    .class .view{height:100vh!important;min-height:0!important;padding-top:calc(62px + env(safe-area-inset-top))!important;padding-bottom:calc(82px + env(safe-area-inset-bottom))!important;overflow:auto!important;box-sizing:border-box!important}
+    .class #ebookLesson{padding:calc(70px + env(safe-area-inset-top)) 16px calc(94px + env(safe-area-inset-bottom))!important;overflow:auto!important}
+    .class #ebookLesson>.voiceBtns:last-child{position:fixed!important;left:10px!important;right:10px!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;z-index:9750!important;margin:0!important;padding:7px!important;border:1px solid rgba(255,255,255,.25)!important;border-radius:12px!important;background:rgba(8,12,24,.92)!important;box-shadow:0 6px 22px rgba(0,0,0,.35)!important;backdrop-filter:blur(8px)!important}
     .class #ebookLesson>.voiceBtns:last-child .b{flex:1;min-width:0}
-    #classVoiceControls{position:static!important;display:flex!important;flex-wrap:wrap!important;justify-content:center!important;align-items:center!important;gap:6px!important;z-index:auto!important;transform:none!important;margin:8px auto!important;padding:6px!important;border-radius:12px!important;background:rgba(8,12,24,.94)!important;box-shadow:none!important;max-width:calc(100% - 20px)!important;overflow:visible!important}
+    #classVoiceControls{position:fixed!important;left:50%!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;transform:translateX(-50%)!important;z-index:9760!important;margin:0!important;padding:6px!important;border-radius:12px!important;background:rgba(8,12,24,.94)!important;box-shadow:0 6px 22px rgba(0,0,0,.35)!important;max-width:calc(100vw - 20px)!important;overflow:auto!important}
     #classVoiceControls .b{min-height:40px!important;white-space:nowrap}
-    #darkStarVoiceControls{position:static!important;left:auto!important;right:auto!important;bottom:auto!important;z-index:auto!important;transform:none!important;display:flex!important;flex-wrap:wrap!important;justify-content:center!important;gap:6px!important;max-width:calc(100% - 20px)!important;margin:10px auto!important}
+    #darkStarVoiceControls{left:auto!important;right:10px!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;z-index:9770!important;max-width:calc(50vw - 20px)!important}
     #darkStarVoiceControls .b{min-height:40px!important;white-space:nowrap}
-    #darkStarClassroomAvatar{position:static!important;width:42px!important;height:42px!important;min-height:42px!important;flex:0 0 42px!important;padding:0!important;margin:0 3px!important;border-radius:50%!important;display:flex!important;align-items:center!important;justify-content:center!important;background:conic-gradient(#ff3b30 0deg,#ff9500 51deg,#ffcc00 102deg,#34c759 154deg,#00c7be 205deg,#5856d6 257deg,#af52de 308deg,#ff3b30 360deg)!important;box-shadow:0 0 0 2px rgba(255,255,255,.75),0 3px 12px rgba(0,0,0,.2)!important;z-index:auto!important;color:#fff!important;pointer-events:none!important;text-align:center!important}
-    #darkStarAvatarFace{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:900;background:#0b1024;color:#fff;box-shadow:inset 0 0 10px rgba(255,255,255,.18)}
+    #darkStarClassroomAvatar{right:10px!important;top:calc(68px + env(safe-area-inset-top))!important;bottom:auto!important;width:94px!important;min-height:76px!important;padding:5px!important;z-index:9740!important}
     @media(max-width:700px){
-      .class .bar{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:6px!important}
-      .class .bar>div:first-child,.class .bar>div:last-child{flex:1 1 auto!important;width:100%!important;justify-content:center!important}
-      .class #info{padding:2px 4px!important}
-      .class .view{padding-top:calc(150px + env(safe-area-inset-top))!important;padding-bottom:calc(130px + env(safe-area-inset-bottom))!important}
-      #classVoiceControls,#darkStarVoiceControls{max-width:calc(100% - 20px)!important}
-      #darkStarClassroomAvatar{display:flex!important}
+      .class .bar{grid-template-columns:minmax(0,1fr) auto!important}
+      .class #info{grid-column:1 / -1;grid-row:2;max-width:none;order:3;padding:2px 0}
+      .class .bar>div:last-child{grid-column:2;grid-row:1}
+      .class .bar>div:first-child{grid-column:1;grid-row:1}
+      .class .view{padding-top:calc(86px + env(safe-area-inset-top))!important}
+      #classVoiceControls{left:10px!important;right:10px!important;transform:none!important;max-width:none!important;justify-content:center}
+      #darkStarVoiceControls{bottom:calc(66px + env(safe-area-inset-bottom))!important;right:10px!important;left:auto!important}
+      #darkStarClassroomAvatar{display:none!important}
     }
   `;
   document.head.appendChild(st);
@@ -1121,52 +1119,58 @@ $('closeV').onclick=()=>{$('video').innerHTML='';$('videoStatus').textContent='�
 async function detectMicrophone(){const el=$('mic');try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});stream.getTracks().forEach(t=>t.stop());el.className='mic ok';el.textContent='✅ 已偵測到麥克風';return true}catch(e){el.className='mic warn';el.textContent='⚠️ 麥克風尚未允許';return false}}
 function renderDarkStarClassroomAvatar(){
   if(!classroomActive)return;
-  const view=$('view');
-  if(!view)return;
+  const panel=$('panel');
+  if(!panel)return;
   let host=$('darkStarClassroomAvatar');
   if(!host){
     host=document.createElement('div');
     host.id='darkStarClassroomAvatar';
-    host.setAttribute('aria-label','暗星七彩 Logo');
-    host.title='暗星';
-    host.innerHTML='<div id="darkStarAvatarFace">✦</div>';
-    view.insertBefore(host,view.firstChild);
+    // 教室中的暗星只做小型狀態指示，不能遮住老師的教材。
+    host.style.cssText='position:fixed;right:10px;bottom:10px;width:118px;min-height:92px;padding:7px 7px 6px;border-radius:14px;background:rgba(8,12,24,.86);border:1px solid rgba(130,150,255,.5);box-shadow:0 6px 18px rgba(0,0,0,.3);z-index:9600;color:#fff;pointer-events:none;text-align:center;backdrop-filter:blur(6px);';
+    host.innerHTML='<div id="darkStarAvatarFace" style="width:42px;height:42px;margin:0 auto 4px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;background:radial-gradient(circle at 50% 42%,#dbe5ff 0 8%,#6f82ff 9% 22%,#17224b 48%,#050816 72%);box-shadow:0 0 12px rgba(105,125,255,.55);">✦</div>'+
+      '<div style="font-size:14px;font-weight:900;letter-spacing:.5px;">暗星</div>'+
+      '<div id="darkStarAvatarStatus" style="margin-top:3px;font-size:10px;line-height:1.25;color:#b9c5ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">🎤 正在聽</div>';
+    panel.appendChild(host);
+  }
+  const status=$('darkStarAvatarStatus');
+  const tr=$('tr')?.textContent||'';
+  if(status){
+    if(currentUtterance)status.textContent='🔊 暗星正在說話';
+    else if(tr&&tr!=='等待老師說話…')status.textContent='🎤 '+tr.slice(0,32);
+    else status.textContent='🎤 正在聽老師';
   }
   const face=$('darkStarAvatarFace');
-  if(face){
-    face.style.transform=currentUtterance?'scale(1.08)':'scale(1)';
-    face.style.boxShadow=currentUtterance?'inset 0 0 12px rgba(255,255,255,.28),0 0 12px rgba(255,255,255,.45)':'inset 0 0 10px rgba(255,255,255,.18)';
-  }
+  if(face)face.style.transform=currentUtterance?'scale(1.06)':'scale(1)';
 }
-function hideDarkStarClassroomAvatar(){$('darkStarClassroomAvatar')?.remove();}
+function hideDarkStarClassroomAvatar(){
+  $('darkStarClassroomAvatar')?.remove();
+}
 
 function classVoiceControls(){
-  if(!classroomActive)return;
-  const view=$('view');
-  if(!view)return;
+  const bar=document.querySelector('#panel.class .stage .bar');
+  if(!bar)return;
   renderDarkStarClassroomAvatar();
   let box=document.getElementById('classVoiceControls');
   if(!box){
     box=document.createElement('div');
     box.id='classVoiceControls';
-    box.style.cssText='display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px;margin:8px auto;padding:6px;';
+    box.style.cssText='display:flex;align-items:center;gap:6px;margin-left:8px;z-index:30;';
     const status=document.createElement('span');
     status.id='classVoiceStatus';
-    status.textContent='🎤 暗星聲控';
-    status.style.cssText='font-size:14px;white-space:nowrap;color:#fff;font-weight:800;';
+    status.textContent='🎤 聲控';
+    status.style.cssText='font-size:14px;white-space:nowrap;color:#fff;';
     const on=document.createElement('button');
-    on.type='button';on.className='b';on.id='classVoiceOn';on.textContent='🎤 開始聽暗星';
+    on.type='button';on.className='b';on.id='classVoiceOn';on.textContent='🎤 開始聽';
     const off=document.createElement('button');
     off.type='button';off.className='b';off.id='classVoiceOff';off.textContent='⏹ 停止聲控';
     box.append(status,on,off);
-    const logo=$('darkStarClassroomAvatar');
-    if(logo&&logo.parentElement===view)box.insertBefore(logo,status);
-    view.insertBefore(box,view.firstChild);
-    on.onclick=()=>{voice=true;listening=false;$('vs').textContent='🎤 暗星正在聽…';startRec();classVoiceControls();};
-    off.onclick=()=>{voice=false;listening=false;$('vs').textContent='暗星聲控已取消';try{rec?.abort()}catch{}classVoiceControls();};
+    document.body.appendChild(box);
+    on.onclick=()=>{ voice=true; listening=false; $('vs').textContent='🎤 正在啟動聲控…'; startRec(); classVoiceControls(); };
+    off.onclick=()=>{ voice=false; listening=false; $('vs').textContent='聲控已取消'; try{rec?.abort()}catch{} classVoiceControls(); };
   }
-  const ss=$('classVoiceStatus'),v=$('vs'),t=$('tr');
-  if(ss)ss.textContent=(t?.textContent&&t.textContent!=='等待老師說話…')?'🎤 暗星：'+t.textContent.slice(0,28):((v?.textContent||'🎤 暗星聲控').replace(/^正在準備聲控…$/,'🎤 暗星聲控'));
+  const s=$('classVoiceStatus'), v=$('vs'), t=$('tr');
+  if(s)s.textContent=(v?.textContent||'🎤 聲控').replace(/^正在準備聲控…$/,'🎤 聲控');
+  if(s&&t&&t.textContent&&t.textContent!=='等待老師說話…')s.textContent='🎤 '+t.textContent;
 }
 function chineseNumberToInt(s){
   s=String(s||'').trim();
