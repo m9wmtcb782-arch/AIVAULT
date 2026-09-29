@@ -203,7 +203,10 @@ async function connect(){
         channel.track({role:'student',online_at:new Date().toISOString()}).catch(e=>console.warn('student presence track',e));
         $('audioPanel').style.display='block';
         startStudentAudio().catch(e=>setAudioStatus(e.message||'等待老師音訊…'));
-        setStatus(state&&state.content?'已連線教室 '+classroomCode+'，內容會隨老師同步。':'已連線教室 '+classroomCode+'，等待老師上課內容…');
+        // 學生剛進教室時，不只依賴 classroom_resolve 的快照。
+        // 主動向老師端要求目前教材狀態，避免老師尚未點擊第一章／下一頁時學生畫面為空白。
+        setTimeout(()=>sendSignal('classroom_request',{}).catch(()=>{}),150);
+        setStatus(state&&state.content?'已連線教室 '+classroomCode+'，內容會隨老師同步。':'已連線教室 '+classroomCode+'，正在取得老師目前教材…');
       }else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
         setStatus('教室連線失敗，請重新輸入 4 位數入口。',true);
       }
