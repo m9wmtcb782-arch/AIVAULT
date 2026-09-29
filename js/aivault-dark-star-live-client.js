@@ -141,15 +141,33 @@
     this.emit("speaking", { speaking: false, energy: 0 });
   };
 
+  function ensureTopicId() {
+    var key = "technical-dark-star-topic-id";
+    try {
+      var existing = String(localStorage.getItem(key) || "").trim();
+      if (existing) return existing;
+      var id = "";
+      if (root.crypto && typeof root.crypto.randomUUID === "function") {
+        id = "technical-dark-star-" + root.crypto.randomUUID();
+      } else {
+        id = "technical-dark-star-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+      }
+      localStorage.setItem(key, id);
+      return id;
+    } catch (e) {
+      return "technical-dark-star-" + Date.now();
+    }
+  }
+
   Client.prototype._query = function () {
     var q = new URLSearchParams();
     q.set("voice", this.voice);
     q.set("agent_id", this.agentId);
     q.set("client", "aivault-dark-star-digital-human");
-    var topicId = localStorage.getItem("technical-dark-star-topic-id") || "";
+    var topicId = ensureTopicId();
     var conversationId = localStorage.getItem("technical_dark_star_conversation_id") || "";
     var tok = accessToken();
-    if (topicId) q.set("topic_id", topicId);
+    q.set("topic_id", topicId);
     if (conversationId) q.set("conversation_id", conversationId);
     if (tok) q.set("access_token", tok);
     return q.toString();
