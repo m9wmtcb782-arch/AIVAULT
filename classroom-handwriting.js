@@ -152,24 +152,29 @@
       if(!all.length)return;
       let minX=Math.min(...all.map(p=>p.x)),maxX=Math.max(...all.map(p=>p.x));
       let minY=Math.min(...all.map(p=>p.y)),maxY=Math.max(...all.map(p=>p.y));
+      /* 停筆後自動縮字：不只縮座標，也同步縮筆畫粗細，讓「字體」真的變小。 */
       const marginX=.06,marginY=.06;
       const targetW=1-marginX*2,targetH=1-marginY*2;
       const bw=Math.max(maxX-minX,.001),bh=Math.max(maxY-minY,.001);
       const scale=Math.min(1,targetW/bw,targetH/bh);
-      if(scale>=.999)return;
       const cx=(minX+maxX)/2,cy=(minY+maxY)/2;
       for(const s of strokes){
         for(const p of (Array.isArray(s?.points)?s.points:[])){
-          p.x=Math.max(0,Math.min(1,.5+(Number(p.x)-cx)*scale));
-          p.y=Math.max(0,Math.min(1,.5+(Number(p.y)-cy)*scale));
+          p.x=Math.max(marginX,Math.min(1-marginX,.5+(Number(p.x)-cx)*scale));
+          p.y=Math.max(marginY,Math.min(1-marginY,.5+(Number(p.y)-cy)*scale));
+        }
+        if(Number.isFinite(Number(s.width))) {
+          s.width=Math.max(1.25,Number(s.width)*scale);
         }
       }
+      /* 即使剛好沒有超出，也把內容置中；只有超大內容才會縮小。 */
+      return scale;
     }
     const end=async e=>{
       if(!activeStroke)return;
       e.preventDefault();
       activeStroke=null;
-      /* 停筆後才重新排版：把整段手寫等比例縮小，保留相對位置，確保完整落在學生手寫板內。 */
+      /* 老師停筆：自動把這次手寫內容縮放、置中，連筆畫粗細一起縮小，再同步給學生。 */
       fitHandwritingToBoard();
       redraw(canvas,ctx,strokes);
       try{
