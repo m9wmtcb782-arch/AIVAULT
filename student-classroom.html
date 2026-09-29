@@ -50,7 +50,7 @@ video,iframe{display:block;width:100%;max-height:620px;margin:18px 0;border:0;bo
 <div id="room"><span id="roomName"></span><button id="leaveClass" type="button">🚪 退出教室</button></div>
 <div id="audioPanel"><button id="audioToggle" type="button">🔊 接收老師聲音</button><div id="audioStatus">課堂聲音：開啟</div><audio id="classroomAudio" autoplay playsinline></audio></div>
 <div id="pageInfo"></div>
-<div id="content" class="msg"></div>
+<div id="content" class="msg"></div><div id="teacherHandwriting" aria-label="老師手寫區" style="display:none;position:relative;width:100%;height:min(68vh,720px);margin:18px 0;border:1px solid #dfe4ec;border-radius:12px;overflow:hidden;background:#fff"><div style="position:absolute;z-index:2;left:10px;top:8px;padding:4px 8px;border-radius:8px;background:rgba(255,255,255,.9);font-weight:800;font-size:16px">✍️ 老師手寫</div><canvas id="teacherHandwritingCanvas" style="position:absolute;inset:0;width:100%;height:100%;display:block"></canvas></div>
 <div id="videoBox"></div><section id="darkStarResearch"><div id="darkStarResearchTitle">✦ 暗星教學研究</div><div id="darkStarResearchBody"></div><div id="darkStarResearchSources"></div></section>
 </section>
 </div>
@@ -63,6 +63,7 @@ let classroomCode='',channelToken='',channel=null,supabaseClient=null,total=0,pa
 let audioPc=null,audioRemoteStream=null,audioEnabled=true,audioPlaybackStarted=false,audioPeerId=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random());
 let pendingIce=[];
 let audioJoinTimer=null;
+let teacherHandwritingStrokes=[];
 
 function setStatus(t,error=false){$('status').textContent=t;$('status').classList.toggle('err',error);}
 function esc(s){return String(s??'').replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));}
@@ -140,6 +141,25 @@ function handleClassroomReading(reading){
  u.onerror=()=>{darkStarStudentUtterance=null;setAudioStatus(audioEnabled?'課堂朗讀播放失敗':'課堂聲音：已靜音');};
  speechSynthesis.speak(u);
 }
+function renderTeacherHandwriting(list){
+  const wrap=$('teacherHandwriting'),canvas=$('teacherHandwritingCanvas');
+  if(!wrap||!canvas)return;
+  teacherHandwritingStrokes=Array.isArray(list)?list:[];
+  wrap.style.display=teacherHandwritingStrokes.length?'block':'none';
+  const rect=canvas.getBoundingClientRect(),d=Math.max(1,Math.min(window.devicePixelRatio||1,2));
+  canvas.width=Math.max(1,Math.round(rect.width*d));canvas.height=Math.max(1,Math.round(rect.height*d));
+  const ctx=canvas.getContext('2d');ctx.setTransform(d,0,0,d,0,0);
+  ctx.clearRect(0,0,rect.width,rect.height);ctx.lineCap='round';ctx.lineJoin='round';
+  for(const s of teacherHandwritingStrokes){
+    const pts=Array.isArray(s?.points)?s.points:[];if(!pts.length)continue;
+    const w=rect.width,h=rect.height,base=Number(s.width)||4;
+    ctx.strokeStyle=s.color||'#111';ctx.beginPath();ctx.moveTo(pts[0].x*w,pts[0].y*h);
+    for(let i=1;i<pts.length;i++){const p=pts[i];ctx.lineWidth=base*(.75+.5*(Number(p.p)||.5));ctx.lineTo(p.x*w,p.y*h);}
+    if(pts.length===1){ctx.lineWidth=base;ctx.lineTo(pts[0].x*w+.1,pts[0].y*h+.1)}
+    ctx.stroke();
+  }
+}
+window.addEventListener('resize',()=>{if(teacherHandwritingStrokes.length)renderTeacherHandwriting(teacherHandwritingStrokes)});
 function renderState(state){
  if(!state||typeof state!=='object')return;
  page=Number(state.page)||1;total=Number(state.total)||0;
@@ -185,17 +205,23 @@ async function connect(){
   channelToken=String(c.channel_token);
   const state=c.current_state||{};
   $('join').style.display='none';$('lesson').style.display='block';$('roomName').textContent='教室 '+classroomCode;
-  if(state&&state.content)renderState(state);
+  if(state&&typeof state==='object'){renderState(state);renderTeacherHandwriting(state.handwriting||[]);}
   if(!window.supabase?.createClient)throw Error('即時課堂元件尚未載入，請重新整理學生頁面。');
   supabaseClient=window.supabase.createClient(SUPABASE_URL,KEY);
   channel=supabaseClient.channel('student-classroom:'+channelToken,{config:{broadcast:{self:false},presence:{key:'student-'+(crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random())}}})
     .on('broadcast',{event:'classroom_state'},({payload})=>{
       if(!payload)return;
       renderState(payload);
+      renderTeacherHandwriting(payload.handwriting||[]);
       handleClassroomReading(payload.reading);
       handleDarkStarVoice(payload.darkstar_voice);
       setStatus('已連線教室 '+classroomCode+'，老師正在上課。');
     })
+    .on('broadcast',{event:'handwriting_stroke'},({payload})=>{
+      const s=payload?.stroke;if(!s)return;
+      teacherHandwritingStrokes.push(s);renderTeacherHandwriting(teacherHandwritingStrokes);
+    })
+    .on('broadcast',{event:'handwriting_clear'},()=>renderTeacherHandwriting([]))
     .on('broadcast',{event:'audio_offer'},({payload})=>handleAudioOffer(payload))
     .on('broadcast',{event:'audio_ice'},({payload})=>handleAudioIce(payload))
     .subscribe(status=>{
@@ -255,6 +281,5 @@ if(/^\d{4}$/.test(String(sharedClassroomCode||''))){
   setTimeout(()=>connect(),0);
 }
 </script>
-<script src="classroom-handwriting.js?v=20260929-01"></script>
 </body>
 </html>
