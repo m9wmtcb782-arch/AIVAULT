@@ -427,7 +427,9 @@ async function classroomBroadcast(payload){
   const clean=classroomBuildPayload(payload);
   lastClassroomPayload=clean;
   if(!classroomActive||!classroomState.channel_token)return;
-  classroomUpdateState(clean);
+  // 先完成 current_state 持久化，再發送 Realtime。
+  // 學生進教室時會先讀 current_state；若兩者同時發生，學生可能只拿到舊的第 1 頁。
+  await classroomUpdateState(clean);
   try{
     const r=await fetch(CLASSROOM_REALTIME,{
       method:'POST',
