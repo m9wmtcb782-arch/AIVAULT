@@ -157,7 +157,8 @@ function classroomBuildPayload(payload){
     total:Number(payload.total)||0,
     content:String(payload.content||''),
     videos:Array.isArray(payload.videos)?payload.videos:[],
-    research:payload.research===undefined?classroomPayloadResearch():payload.research
+    research:payload.research===undefined?classroomPayloadResearch():payload.research,
+    reading:payload.reading||null
   };
 }
 function renderDarkStarTeachingPanel(){
