@@ -74,7 +74,8 @@ textarea{min-height:68px;resize:vertical}
       <span id="speakBadge" class="badge">未說話</span>
     </div>
     <canvas id="stage" width="720" height="900" aria-label="暗星數字人" style="display:none"></canvas>
-    <video id="photoAvatarVideo" playsinline muted preload="auto" style="width:100%;height:auto;aspect-ratio:4/5;object-fit:cover;border-radius:14px;background:#05060c;display:block"></video>
+    <img id="photoAvatarImage" alt="目前使用中的照片數字人" style="width:100%;height:auto;aspect-ratio:4/5;object-fit:cover;border-radius:14px;background:#05060c;display:none">
+    <video id="photoAvatarVideo" playsinline muted preload="auto" style="width:100%;height:auto;aspect-ratio:4/5;object-fit:cover;border-radius:14px;background:#05060c;display:none"></video>
     <div class="status" id="photoAvatarStatus">照片數字人尚未載入。</div>
     <div class="row">
       <button class="btn primary" id="btnStart" type="button">開始即時語音</button>
@@ -288,12 +289,32 @@ textarea{min-height:68px;resize:vertical}
   }
   function findVideoUrl(x){
     if(!x) return "";
-    if(typeof x==="string" && /^https?:\\/\\//.test(x)) return x;
+    if(typeof x==="string" && x.indexOf("http")===0) return x;
     if(typeof x!=="object") return "";
     if(x.video && x.video.url) return x.video.url;
     if(x.data && x.data.video && x.data.video.url) return x.data.video.url;
     if(x.result) return findVideoUrl(x.result);
     return "";
+  }
+  async function loadSelectedPhoto(){
+    var imageId=selectedImageId(), humanId=digitalHumanId(), img=$("photoAvatarImage"), ps=$("photoAvatarStatus");
+    if(!imageId) return;
+    var tok="";
+    try{
+      var raw=localStorage.getItem("sb-clcddygkaaqqtsbswgdf-auth-token");
+      var j=raw?JSON.parse(raw):null; tok=String(j&&j.access_token||"").trim();
+    }catch(e){}
+    if(!tok) return;
+    try{
+      var u="https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/aivault-photo-avatar?action=image&image_id="+encodeURIComponent(imageId);
+      if(humanId) u+="&digital_human_id="+encodeURIComponent(humanId);
+      var r=await fetch(u,{headers:{Authorization:"Bearer "+tok}});
+      var j=await r.json().catch(function(){return {};});
+      if(r.ok && j.image_url){
+        img.src=j.image_url; img.style.display="block";
+        ps.textContent="CONFIRMED：目前使用中的照片已接入數字人層。";
+      }
+    }catch(e){}
   }
   async function generatePhotoAvatar(){
     if(photoBusy || !photoPcm.length) return;
@@ -333,7 +354,7 @@ textarea{min-height:68px;resize:vertical}
         if(sj.status==="COMPLETED"){
           var url=findVideoUrl(sj.result);
           if(!url) throw new Error("PHOTO_AVATAR_VIDEO_URL_MISSING");
-          vs.src=url; vs.style.display="block"; vs.load();
+          vs.src=url; vs.style.display="block"; $("photoAvatarImage").style.display="none"; vs.load();
           ps.textContent="CONFIRMED：照片已交給照片數字人引擎並取得動畫影片。";
           try{await vs.play();}catch(e){}
           break;
@@ -346,6 +367,7 @@ textarea{min-height:68px;resize:vertical}
       photoBusy=false; photoPcm=[];
     }
   }
+  loadSelectedPhoto();
   client.on("audioPcm", function(d){
     if(d && d.pcm && d.pcm.length) photoPcm.push(d.pcm);
   });
