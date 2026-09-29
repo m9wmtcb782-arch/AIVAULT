@@ -310,6 +310,7 @@
         self.emit("speaking", { speaking: false, energy: 0 });
       }
     };
+    this.emit("audioPcm", { pcm: pcm.slice(0), sampleRate: 24000, samples: pcm.length });
     this.emit("audioOut", { packets: this.audioPacketsOut, energy: energy, samples: pcm.length });
     this.emit("speaking", { speaking: true, energy: energy });
   };
