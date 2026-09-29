@@ -509,7 +509,8 @@ async function ebookRefresh(){
   try{
     const d=await ebookApi({action:'list',limit:80});
     const payload=ebookPick(d,['data'])||d;
-    const rows=ebookPick(payload,['books','ebooks','items'])||[];
+    const payload2=ebookPick(payload,['data'])||payload;
+    const rows=ebookPick(payload2,['books','ebooks','items'])||[];
     ebookState.books=Array.isArray(rows)?rows:[];
     sel.innerHTML='<option value="">請選擇上課教材</option>';
     ebookState.books.forEach(b=>{
