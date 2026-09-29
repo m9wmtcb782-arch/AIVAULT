@@ -222,6 +222,10 @@ async function connect(){
       teacherHandwritingStrokes.push(s);renderTeacherHandwriting(teacherHandwritingStrokes);
     })
     .on('broadcast',{event:'handwriting_clear'},()=>renderTeacherHandwriting([]))
+    .on('broadcast',{event:'handwriting_snapshot'},({payload})=>{
+      const list=Array.isArray(payload?.strokes)?payload.strokes:[];
+      renderTeacherHandwriting(list);
+    })
     .on('broadcast',{event:'audio_offer'},({payload})=>handleAudioOffer(payload))
     .on('broadcast',{event:'audio_ice'},({payload})=>handleAudioIce(payload))
     .subscribe(status=>{
