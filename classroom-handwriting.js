@@ -141,10 +141,37 @@
       activeStroke.points.push(p);drawStroke(canvas,ctx,{...activeStroke,points:[last,p]});
       broadcast('handwriting_stroke',{stroke:{...activeStroke,points:[last,p]}}); 
     });
+    function fitHandwritingToBoard(){
+      if(!strokes.length)return;
+      const all=[];
+      for(const s of strokes){
+        for(const p of (Array.isArray(s?.points)?s.points:[])){
+          if(Number.isFinite(Number(p.x))&&Number.isFinite(Number(p.y)))all.push({x:Number(p.x),y:Number(p.y)});
+        }
+      }
+      if(!all.length)return;
+      let minX=Math.min(...all.map(p=>p.x)),maxX=Math.max(...all.map(p=>p.x));
+      let minY=Math.min(...all.map(p=>p.y)),maxY=Math.max(...all.map(p=>p.y));
+      const marginX=.06,marginY=.06;
+      const targetW=1-marginX*2,targetH=1-marginY*2;
+      const bw=Math.max(maxX-minX,.001),bh=Math.max(maxY-minY,.001);
+      const scale=Math.min(1,targetW/bw,targetH/bh);
+      if(scale>=.999)return;
+      const cx=(minX+maxX)/2,cy=(minY+maxY)/2;
+      for(const s of strokes){
+        for(const p of (Array.isArray(s?.points)?s.points:[])){
+          p.x=Math.max(0,Math.min(1,.5+(Number(p.x)-cx)*scale));
+          p.y=Math.max(0,Math.min(1,.5+(Number(p.y)-cy)*scale));
+        }
+      }
+    }
     const end=async e=>{
       if(!activeStroke)return;
       e.preventDefault();
-      const done=activeStroke;activeStroke=null;
+      activeStroke=null;
+      /* 停筆後才重新排版：把整段手寫等比例縮小，保留相對位置，確保完整落在學生手寫板內。 */
+      fitHandwritingToBoard();
+      redraw(canvas,ctx,strokes);
       try{
         await broadcast('handwriting_snapshot',{strokes:strokes.map(s=>({...s,points:s.points.map(p=>({...p}))}))});
       }catch(x){console.warn('handwriting snapshot',x)}
