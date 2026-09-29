@@ -79,7 +79,22 @@
       if(typeof classroomChannel!=='undefined'&&classroomChannel?.send){
         await classroomChannel.send({type:'broadcast',event,payload});
       }
-    }catch(e){console.warn('classroom handwriting broadcast',e)}
+    }catch(e){console.warn('classroom handwriting websocket broadcast',e)}
+    if(event==='handwriting_snapshot'){
+      try{
+        const base=(typeof EBOOK_SUPABASE_URL!=='undefined')?EBOOK_SUPABASE_URL:'';
+        const key=(typeof EBOOK_PUBLISHABLE_KEY!=='undefined')?EBOOK_PUBLISHABLE_KEY:'';
+        const token=(typeof classroomState!=='undefined')?classroomState?.channel_token:'';
+        if(base&&key&&token){
+          const r=await fetch(base+'/realtime/v1/api/broadcast',{
+            method:'POST',
+            headers:{'Content-Type':'application/json',apikey:key},
+            body:JSON.stringify({messages:[{topic:'student-classroom:'+String(token),event:'handwriting_snapshot',payload:payload||{strokes:[]}}]})
+          });
+          if(!r.ok)throw Error('HTTP '+r.status);
+        }
+      }catch(e){console.warn('classroom handwriting REST snapshot',e)}
+    }
   }
 
   function addTeacherButton(){
