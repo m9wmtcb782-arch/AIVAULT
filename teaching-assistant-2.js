@@ -494,7 +494,8 @@ async function ebookRefresh(){
   try{
     const d=await ebookApi({action:'list',limit:80});
     const payload=ebookPick(d,['data'])||d;
-    const rows=ebookPick(payload,['books','ebooks','items'])||[];
+    const payload2=ebookPick(payload,['data'])||payload;
+    const rows=ebookPick(payload2,['books','ebooks','items'])||[];
     ebookState.books=Array.isArray(rows)?rows:[];
     sel.innerHTML='<option value="">請選擇上課教材</option>';
     ebookState.books.forEach(b=>{
@@ -898,7 +899,7 @@ function setup(){
   rec.onstart=()=>{listening=true;$('vs').textContent='🎤 聲控啟用，請說話'};
   rec.onerror=e=>{listening=false;console.warn('speech recognition',e);if(voice)$('vs').textContent=e?.error==='not-allowed'?'⚠️ 麥克風／語音辨識權限被拒絕':'⚠️ 聲控暫停，請按「開始聽」'};
   rec.onresult=e=>{let t='';for(let k=e.resultIndex;k<e.results.length;k++)if(e.results[k].isFinal)t+=e.results[k][0].transcript;if(t){$('tr').textContent=t;classVoiceControls();runVoiceCommand(t).catch(e=>console.warn('voice command',e));}classroomKeepAudioAlive();};
-  rec.onend=()=>{listening=false;classroomKeepAudioAlive();if(voice){$('vs').textContent='🎤 聲控已停止，重新啟動中…';setTimeout(()=>{if(rec&&voice&&!listening)startRec()},250)}};
+  rec.onend=()=>{listening=false;classroomKeepAudioAlive();if(voice){$('vs').textContent='🎤 等待說話…';setTimeout(()=>{if(rec&&voice&&!listening)startRec()},700)}};
   $('voiceStart').onclick=()=>{voice=true;$('vs').textContent='🎤 正在啟動聲控…';startRec()};
   $('voiceStop').onclick=()=>{voice=false;listening=false;$('vs').textContent='聲控已取消';try{rec.abort()}catch{}};
   $('vs').textContent='🎤 請按「開始聽」啟用聲控';
