@@ -50,7 +50,7 @@ video,iframe{display:block;width:100%;max-height:620px;margin:18px 0;border:0;bo
 <div id="room"><span id="roomName"></span><button id="leaveClass" type="button">🚪 退出教室</button></div>
 <div id="audioPanel"><button id="audioToggle" type="button">🔊 接收老師聲音</button><div id="audioStatus">課堂聲音：開啟</div><audio id="classroomAudio" autoplay playsinline></audio></div>
 <div id="pageInfo"></div>
-<div id="content" class="msg"></div><div id="teacherHandwriting" aria-label="老師手寫區" style="display:none;position:relative;width:100%;height:min(68vh,720px);margin:18px 0;border:1px solid #dfe4ec;border-radius:12px;overflow:hidden;background:#fff"><div style="position:absolute;z-index:2;left:10px;top:8px;padding:4px 8px;border-radius:8px;background:rgba(255,255,255,.9);font-weight:800;font-size:16px">✍️ 老師手寫</div><canvas id="teacherHandwritingCanvas" style="position:absolute;inset:0;width:100%;height:100%;display:block"></canvas></div>
+<div id="content" class="msg"></div><div id="teacherHandwriting" aria-label="老師手寫區" style="display:none;position:relative;width:100%;height:clamp(240px,42vw,520px);margin:14px 0;padding:0;border:1px solid #dfe4ec;border-radius:12px;overflow:hidden;background:#fff;box-sizing:border-box"><div style="position:absolute;z-index:2;left:8px;top:7px;padding:3px 7px;border-radius:7px;background:rgba(255,255,255,.9);font-weight:800;font-size:14px;line-height:1.3">✍️ 老師手寫</div><canvas id="teacherHandwritingCanvas" style="position:absolute;inset:0;width:100%;height:100%;display:block"></canvas></div>
 <div id="videoBox"></div><section id="darkStarResearch"><div id="darkStarResearchTitle">✦ 暗星教學研究</div><div id="darkStarResearchBody"></div><div id="darkStarResearchSources"></div></section>
 </section>
 </div>
@@ -150,9 +150,12 @@ function renderTeacherHandwriting(list){
   canvas.width=Math.max(1,Math.round(rect.width*d));canvas.height=Math.max(1,Math.round(rect.height*d));
   const ctx=canvas.getContext('2d');ctx.setTransform(d,0,0,d,0,0);
   ctx.clearRect(0,0,rect.width,rect.height);ctx.lineCap='round';ctx.lineJoin='round';
+  /* Teacher coordinates are normalized 0..1, so keep the same page layout on every device.
+     Stroke thickness scales with the student's page width instead of staying at a fixed 4px. */
+  const pageScale=Math.max(.42,Math.min(1,rect.width/900));
   for(const s of teacherHandwritingStrokes){
     const pts=Array.isArray(s?.points)?s.points:[];if(!pts.length)continue;
-    const w=rect.width,h=rect.height,base=Number(s.width)||4;
+    const w=rect.width,h=rect.height,base=(Number(s.width)||4)*pageScale;
     ctx.strokeStyle=s.color||'#111';ctx.beginPath();ctx.moveTo(pts[0].x*w,pts[0].y*h);
     for(let i=1;i<pts.length;i++){const p=pts[i];ctx.lineWidth=base*(.75+.5*(Number(p.p)||.5));ctx.lineTo(p.x*w,p.y*h);}
     if(pts.length===1){ctx.lineWidth=base;ctx.lineTo(pts[0].x*w+.1,pts[0].y*h+.1)}
