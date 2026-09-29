@@ -143,6 +143,7 @@ function handleClassroomReading(reading){
 function renderState(state){
  if(!state||typeof state!=='object')return;
  page=Number(state.page)||1;total=Number(state.total)||0;
+ const scrollRatio=Math.max(0,Math.min(1,Number(state.scrollRatio)||0));
  const isProject=state.type==='ppt-project';
  $('pageInfo').textContent=(isProject?'📊 '+(state.project_title||'PPT 專題報告')+'｜':'')+'第 '+page+(total?' / '+total:'')+' 頁';
  if(isProject&&state.project_page_title){ $('contentTitle').textContent=String(state.project_page_title||''); $('contentTitle').style.display='block'; } else if($('contentTitle')) { $('contentTitle').style.display='none'; }
@@ -166,7 +167,7 @@ function renderState(state){
    $('darkStarResearchBody').textContent='';
    $('darkStarResearchSources').innerHTML='';
  }
- window.scrollTo({top:0,behavior:'smooth'});
+ requestAnimationFrame(()=>{const el=document.getElementById('lesson');if(el){const max=Math.max(0,el.scrollHeight-el.clientHeight);el.scrollTo({top:max*scrollRatio,behavior:'smooth'});}});
 }
 async function api(payload){
  const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json',apikey:KEY},body:JSON.stringify(payload)});
