@@ -76,7 +76,7 @@
 
   async function broadcast(event,payload){
     try{
-      if(window.classroomChannel?.send){
+      if((typeof classroomChannel!=='undefined'&&classroomChannel)?.send){
         await window.classroomChannel.send({type:'broadcast',event,payload});
       }
     }catch(e){console.warn('classroom handwriting broadcast',e)}
@@ -111,8 +111,8 @@
       strokes=[];redraw(canvas,ctx,strokes);
       await broadcast('handwriting_clear',{});
       try{
-        if(window.lastClassroomPayload)window.lastClassroomPayload.handwriting=[];
-        if(typeof window.classroomBroadcast==='function')await window.classroomBroadcast({type:'handwriting',handwriting:[]});
+        if((typeof lastClassroomPayload!=='undefined'&&lastClassroomPayload))(typeof lastClassroomPayload!=='undefined'&&lastClassroomPayload).handwriting=[];
+        if(typeof (typeof classroomBroadcast==='function'&&classroomBroadcast)==='function')await (typeof classroomBroadcast==='function'&&classroomBroadcast)({type:'handwriting',handwriting:[]});
       }catch(e){console.warn('handwriting snapshot clear',e)}
     };
     close.onclick=()=>setTeacherOpen(false);
@@ -136,8 +136,8 @@
       const done=activeStroke;activeStroke=null;
       await broadcast('handwriting_stroke',{stroke:done});
       try{
-        if(window.lastClassroomPayload)window.lastClassroomPayload.handwriting=strokes;
-        if(typeof window.classroomBroadcast==='function')await window.classroomBroadcast({type:'handwriting',handwriting:strokes});
+        if((typeof lastClassroomPayload!=='undefined'&&lastClassroomPayload))(typeof lastClassroomPayload!=='undefined'&&lastClassroomPayload).handwriting=strokes;
+        if(typeof (typeof classroomBroadcast==='function'&&classroomBroadcast)==='function')await (typeof classroomBroadcast==='function'&&classroomBroadcast)({type:'handwriting',handwriting:strokes});
       }catch(x){console.warn('handwriting snapshot',x)}
     };
     canvas.addEventListener('pointerup',end);canvas.addEventListener('pointercancel',end);
@@ -148,7 +148,7 @@
     open=!!v;
     const b=el('handwriteToggle'),layer=el('aivaultHandwritingLayer');
     if(!b||!layer)return;
-    b.style.display=window.classroomActive?'inline-block':'none';
+    b.style.display=(typeof classroomActive!=='undefined'&&classroomActive)?'inline-block':'none';
     layer.style.display=open?'block':'none';
     if(open){resize(canvas,ctx);b.textContent='✍️ 手寫中';}
     else b.textContent='✍️ 手寫';
@@ -156,13 +156,13 @@
 
   function hookTeacherClass(){
     addTeacherButton();buildTeacherOverlay();
-    const originalEnter=window.enter;
+    const originalEnter=enter;
     if(typeof originalEnter==='function'){
-      window.enter=async function(){const r=await originalEnter.apply(this,arguments);setTeacherOpen(false);const b=el('handwriteToggle');if(b)b.style.display='inline-block';return r};
+      enter=async function(){const r=await originalEnter.apply(this,arguments);setTeacherOpen(false);const b=el('handwriteToggle');if(b)b.style.display='inline-block';return r};
     }
-    const originalExit=window.exit;
+    const originalExit=exit;
     if(typeof originalExit==='function'){
-      window.exit=async function(){setTeacherOpen(false);return originalExit.apply(this,arguments)};
+      exit=async function(){setTeacherOpen(false);return originalExit.apply(this,arguments)};
     }
   }
 
@@ -191,30 +191,30 @@
 
   function hookStudent(){
     ensureStudentCanvas();
-    const originalRender=window.renderState;
+    const originalRender=renderState;
     if(typeof originalRender==='function'){
-      window.renderState=function(state){
+      renderState=function(state){
         const r=originalRender.apply(this,arguments);
         renderStudent(state?.handwriting||[]);
         return r;
       };
     }
-    const originalLeave=window.leaveClassroom;
+    const originalLeave=leaveClassroom;
     if(typeof originalLeave==='function'){
-      window.leaveClassroom=function(){renderStudent([]);return originalLeave.apply(this,arguments)};
+      leaveClassroom=function(){renderStudent([]);return originalLeave.apply(this,arguments)};
     }
-    const oldConnect=window.connect;
+    const oldConnect=connect;
     if(typeof oldConnect==='function'){
-      window.connect=async function(){const r=await oldConnect.apply(this,arguments);return r};
+      connect=async function(){const r=await oldConnect.apply(this,arguments);return r};
     }
-    const originalSendSignal=window.sendSignal;
+    const originalSendSignal=sendSignal;
     if(typeof originalSendSignal==='function'){
       /* No change to audio signaling; handwriting uses its own Broadcast event. */
     }
     const originalChannelFactory=window.supabase?.createClient;
     /* Channel listeners are attached after connect by polling for the existing channel. */
     const timer=setInterval(()=>{
-      const ch=window.channel;
+      const ch=channel;
       if(ch&&ch.__aivaultHandwritingBound)return;
       if(ch?.on){
         ch.__aivaultHandwritingBound=true;
@@ -230,7 +230,7 @@
 
   if(isTeacher){
     hookTeacherClass();
-    const t=setInterval(()=>{if(window.classroomActive){const b=el('handwriteToggle');if(b)b.style.display='inline-block'}else{setTeacherOpen(false)}},300);
+    const t=setInterval(()=>{if((typeof classroomActive!=='undefined'&&classroomActive)){const b=el('handwriteToggle');if(b)b.style.display='inline-block'}else{setTeacherOpen(false)}},300);
     setTimeout(()=>clearInterval(t),86400000);
   }else{
     hookStudent();
