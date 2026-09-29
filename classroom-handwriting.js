@@ -134,7 +134,6 @@
       if(!activeStroke)return;
       e.preventDefault();
       const done=activeStroke;activeStroke=null;
-      await broadcast('handwriting_stroke',{stroke:done});
       try{
         if((typeof lastClassroomPayload!=='undefined'&&lastClassroomPayload))(typeof lastClassroomPayload!=='undefined'&&lastClassroomPayload).handwriting=strokes;
         if(typeof (typeof classroomBroadcast==='function'&&classroomBroadcast)==='function')await (typeof classroomBroadcast==='function'&&classroomBroadcast)({type:'handwriting',handwriting:strokes});
