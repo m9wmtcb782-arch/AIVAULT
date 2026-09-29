@@ -109,13 +109,7 @@
     tools.append(clear,close);layer.appendChild(tools);panel.appendChild(layer);
     clear.onclick=async()=>{
       strokes=[];redraw(canvas,ctx,strokes);
-      await broadcast('handwriting_clear',{});
-      try{
-        if(typeof lastClassroomPayload!=='undefined'&&lastClassroomPayload){
-          lastClassroomPayload.handwriting=[];
-          await classroomChannel?.send({type:'broadcast',event:'classroom_state',payload:{...lastClassroomPayload,handwriting:[]}});
-        }
-      }catch(e){console.warn('handwriting snapshot clear',e)}
+      await broadcast('handwriting_snapshot',{strokes:[]});
     };
     close.onclick=()=>setTeacherOpen(false);
     canvas.addEventListener('pointerdown',e=>{
@@ -137,10 +131,7 @@
       e.preventDefault();
       const done=activeStroke;activeStroke=null;
       try{
-        if(typeof lastClassroomPayload!=='undefined'&&lastClassroomPayload){
-          lastClassroomPayload.handwriting=strokes.map(s=>({...s,points:s.points.map(p=>({...p}))}));
-          await classroomChannel?.send({type:'broadcast',event:'classroom_state',payload:{...lastClassroomPayload,handwriting:lastClassroomPayload.handwriting}});
-        }
+        await broadcast('handwriting_snapshot',{strokes:strokes.map(s=>({...s,points:s.points.map(p=>({...p}))}))});
       }catch(x){console.warn('handwriting snapshot',x)}
     };
     canvas.addEventListener('pointerup',end);canvas.addEventListener('pointercancel',end);
@@ -223,8 +214,7 @@
         ch.__aivaultHandwritingBound=true;
         if(isStudent) ch.send({type:'broadcast',event:'classroom_request',payload:{source:'handwriting'}}).catch(()=>{});
         if(isTeacher) ch.on('broadcast',{event:'classroom_request'},()=>{
-          if(typeof lastClassroomPayload!=='undefined'&&lastClassroomPayload)
-            ch.send({type:'broadcast',event:'classroom_state',payload:{...lastClassroomPayload,handwriting:Array.isArray(strokes)?strokes:[]}}).catch(()=>{});
+          ch.send({type:'broadcast',event:'handwriting_snapshot',payload:{strokes:Array.isArray(strokes)?strokes:[]}}).catch(()=>{});
         });
         ch.on('broadcast',{event:'handwriting_stroke'},({payload})=>{
           const s=payload?.stroke;if(!s)return;
