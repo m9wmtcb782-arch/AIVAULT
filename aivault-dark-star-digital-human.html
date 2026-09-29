@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#07080d">
+<title>AIVAULT｜暗星即時語音＋數字人</title>
+<style>
+:root{
+  --bg:#07080d;--panel:#10131c;--line:#262b39;--text:#e8edf7;--muted:#8b93a7;
+  --ok:#34d399;--warn:#fbbf24;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif}
+body{min-height:100dvh}
+header{
+  display:flex;align-items:center;gap:10px;padding:10px 14px;
+  border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(7,8,13,.92);z-index:5
+}
+.mark{width:32px;height:32px;border-radius:10px;background:#111;display:grid;place-items:center;border:1px solid #2a2f3d}
+.title{font-weight:750;font-size:15px}
+.sub{font-size:11px;color:var(--muted)}
+.grow{flex:1}
+.nav a,.btn{
+  display:inline-flex;align-items:center;justify-content:center;height:34px;padding:0 11px;
+  border:1px solid var(--line);border-radius:9px;background:#161924;color:var(--text);
+  text-decoration:none;font-size:12px;font-weight:700;cursor:pointer
+}
+.btn.primary{background:linear-gradient(135deg,#f43f5e,#7c3aed);border-color:transparent}
+.btn.danger{border-color:#7f1d1d;color:#fecaca;background:#1a1012}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.wrap{max-width:1080px;margin:0 auto;padding:14px 14px 28px;display:grid;gap:12px}
+@media(min-width:880px){.wrap{grid-template-columns:1.15fr .85fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px}
+canvas#stage{width:100%;height:auto;border-radius:14px;background:#05060c;display:block;aspect-ratio:4/5}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+select,textarea{
+  width:100%;border:1px solid var(--line);border-radius:10px;background:#0c0f16;color:var(--text);
+  padding:9px 10px;font:inherit
+}
+textarea{min-height:68px;resize:vertical}
+.status{font-size:12px;color:var(--muted);padding:8px 10px;border-radius:10px;background:#0c0f16;margin-top:8px;white-space:pre-wrap}
+.caps{min-height:96px;max-height:220px;overflow:auto;font-size:13px;line-height:1.55}
+.cap{margin:0 0 8px;padding:8px 10px;border-radius:10px}
+.cap.user{background:#152033}
+.cap.ai{background:#19131f}
+.engines{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.eng{font-size:11px;padding:8px;border-radius:10px;border:1px solid var(--line);background:#0c0f16}
+.eng b{display:block;font-size:12px;margin-bottom:2px}
+.live{color:var(--ok)}.res{color:var(--warn)}
+.log{font:11px/1.45 ui-monospace,Menlo,monospace;white-space:pre-wrap;max-height:180px;overflow:auto;color:#cbd5e1}
+.badge{font-size:10px;padding:2px 7px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.badge.on{border-color:#065f46;color:#6ee7b7}
+</style>
+</head>
+<body>
+<header>
+  <div class="mark">✦</div>
+  <div>
+    <div class="title">暗星即時語音＋數字人</div>
+    <div class="sub">大腦 = Technical Dark Star　數字人只是身體</div>
+  </div>
+  <div class="grow"></div>
+  <nav class="nav">
+    <a href="technical-dark-star.html">暗星本體</a>
+    <a href="aivault-video-studio.html">Video Studio</a>
+    <a href="aivault-home.html">Home</a>
+  </nav>
+</header>
+<div class="wrap">
+  <section class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <strong>數字人畫面</strong>
+      <span id="speakBadge" class="badge">未說話</span>
+    </div>
+    <canvas id="stage" width="720" height="900" aria-label="暗星數字人"></canvas>
+    <div class="row">
+      <button class="btn primary" id="btnStart" type="button">開始即時語音</button>
+      <button class="btn danger" id="btnStop" type="button" disabled>停止</button>
+      <button class="btn" id="btnInterrupt" type="button" disabled>立即打斷</button>
+    </div>
+    <div class="row">
+      <label class="sub" style="flex:1">音色
+        <select id="voiceSelect"></select>
+      </label>
+    </div>
+    <div class="status" id="status">尚未連線。按下後走既有 technical-dark-star-live-voice，不是上傳錄音再 TTS。</div>
+  </section>
+  <section>
+    <div class="card">
+      <strong>字幕（只顯示，不是語音系統）</strong>
+      <div class="caps" id="caps"></div>
+      <textarea id="textIn" placeholder="可打字給暗星。語言不鎖死，可中英混合。"></textarea>
+      <div class="row">
+        <button class="btn" id="btnText" type="button">送文字到暗星</button>
+      </div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <strong>引擎接口</strong>
+      <div class="engines" id="engines"></div>
+      <div class="status" id="sessionHint">後端 session function 尚未部署時，前端仍直接連 live-voice。</div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <strong>事件</strong>
+      <div class="log" id="log"></div>
+    </div>
+  </section>
+</div>
+<script src="js/aivault-engine-bus.js?v=dh1"></script>
+<script src="js/aivault-dark-star-live-client.js?v=dh1"></script>
+<script src="js/aivault-dark-star-avatar.js?v=dh1"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var avatar = new AIVAULTDarkStarAvatar($("stage"));
+  avatar.start();
+  var client = new AIVAULTDarkStarLiveClient({ voice: localStorage.getItem("darkStarVoice") || "Kore" });
+  var userCap = null, aiCap = null;
+  function log(msg){
+    var el = $("log");
+    el.textContent += "[" + new Date().toLocaleTimeString("zh-TW",{hour12:false}) + "] " + msg + "\n";
+    el.scrollTop = el.scrollHeight;
+  }
+  function setStatus(s){ $("status").textContent = s; }
+  function setSpeak(on){
+    $("speakBadge").textContent = on ? "暗星說話中" : "等待／聆聽";
+    $("speakBadge").className = "badge" + (on ? " on" : "");
+  }
+  function cap(role, text, replace){
+    var box = $("caps");
+    if(replace && role === "user" && userCap){ userCap.textContent = text; return; }
+    if(replace && role === "ai" && aiCap){ aiCap.textContent = text; return; }
+    var d = document.createElement("div");
+    d.className = "cap " + (role === "user" ? "user" : "ai");
+    d.innerHTML = "<b>" + (role === "user" ? "你" : "暗星") + "</b><div></div>";
+    d.lastChild.textContent = text;
+    box.appendChild(d);
+    box.scrollTop = box.scrollHeight;
+    if(role === "user") userCap = d.lastChild; else aiCap = d.lastChild;
+  }
+  var sel = $("voiceSelect");
+  AIVAULTDarkStarLiveClient.VOICES.forEach(function(pair){
+    var o = document.createElement("option");
+    o.value = pair[0];
+    o.textContent = pair[0] + " — " + pair[1];
+    sel.appendChild(o);
+  });
+  sel.value = client.voice;
+  sel.onchange = function(){ client.setVoice(sel.value); log("voice=" + sel.value); };
+  var engines = $("engines");
+  AIVAULTEngineBus.list().forEach(function(e){
+    var d = document.createElement("div");
+    d.className = "eng";
+    d.innerHTML = "<b>" + e.id + "</b><span class='" + (e.status==="LIVE"?"live":"res") + "'>" + e.status + "</span>";
+    engines.appendChild(d);
+  });
+  client.on("log", function(d){ log(d.message); });
+  client.on("open", function(d){
+    setStatus("已連上 technical-dark-star-live-voice｜session " + d.sessionId + "｜brain=" + d.brain);
+    log("WS OPEN brain=" + d.brain);
+  });
+  client.on("live_open", function(d){ log("Gemini Live via Dark Star " + (d.model||"")); setStatus("暗星即時通道已啟動 " + (d.model||"")); });
+  client.on("close", function(d){ log("CLOSE " + d.code + " " + d.reason); setStatus("已斷線 " + d.code); });
+  client.on("error", function(d){ log("ERR " + d.message); setStatus("錯誤：" + d.message); });
+  client.on("speaking", function(d){
+    avatar.setSpeaking(d.speaking, d.energy);
+    setSpeak(d.speaking);
+  });
+  client.on("interrupted", function(d){
+    avatar.setSpeaking(false, 0);
+    setSpeak(false);
+    log("interrupt " + d.reason + " sessionKept=" + d.sessionKept);
+  });
+  client.on("inputTranscription", function(d){ cap("user", d.buffer, true); });
+  client.on("outputTranscription", function(d){
+    cap("ai", d.buffer, true);
+    avatar.setEmotionFromText(d.buffer);
+  });
+  client.on("turnComplete", function(){
+    userCap = null; aiCap = null;
+    log("turnComplete");
+    avatar.setEmotion("neutral");
+  });
+  client.on("textSent", function(d){ cap("user", d.text, false); userCap = null; });
+  client.on("started", function(){
+    $("btnStart").disabled = true;
+    $("btnStop").disabled = false;
+    $("btnInterrupt").disabled = false;
+    avatar.setEmotion("listening");
+    log("mic 16k PCM -> Dark Star -> 24k PCM");
+  });
+  client.on("stopped", function(){
+    $("btnStart").disabled = false;
+    $("btnStop").disabled = true;
+    $("btnInterrupt").disabled = true;
+    avatar.setSpeaking(false, 0);
+    setSpeak(false);
+  });
+  $("btnStart").onclick = function(){
+    client.setVoice(sel.value);
+    client.start().catch(function(e){ setStatus("無法啟動：" + (e.message||e)); log("start fail " + (e.message||e)); });
+  };
+  $("btnStop").onclick = function(){ client.stop(); };
+  $("btnInterrupt").onclick = function(){ client.interrupt("manual"); };
+  $("btnText").onclick = function(){
+    var t = $("textIn").value;
+    if(client.sendText(t)) $("textIn").value = "";
+  };
+  $("textIn").addEventListener("keydown", function(e){
+    if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); $("btnText").click(); }
+  });
+  var FN = "https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/aivault-digital-human-session";
+  fetch(FN + "?action=config").then(function(r){ return r.json().then(function(j){ return {ok:r.ok,j:j}; }); })
+    .then(function(x){
+      if(x.ok && x.j && x.j.brain === "technical-dark-star"){
+        $("sessionHint").textContent = "session function 已回應 brain=technical-dark-star";
+      } else {
+        $("sessionHint").textContent = "NOT VERIFIED：session function 尚未部署。前端已直連 live-voice。";
+      }
+    }).catch(function(){
+      $("sessionHint").textContent = "NOT VERIFIED：無法讀取 aivault-digital-human-session。前端已直連 live-voice。";
+    });
+})();
+</script>
+</body>
+</html>
