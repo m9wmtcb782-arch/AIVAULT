@@ -157,10 +157,7 @@ function classroomBuildPayload(payload){
     total:Number(payload.total)||0,
     content:String(payload.content||''),
     videos:Array.isArray(payload.videos)?payload.videos:[],
-    research:payload.research===undefined?classroomPayloadResearch():payload.research,
-    reading:payload.reading||null,
-    scrollTop:Number.isFinite(Number(payload.scrollTop))?Number(payload.scrollTop):0,
-    scrollRatio:Number.isFinite(Number(payload.scrollRatio))?Math.max(0,Math.min(1,Number(payload.scrollRatio))):0
+    research:payload.research===undefined?classroomPayloadResearch():payload.research
   };
 }
 function renderDarkStarTeachingPanel(){
@@ -316,17 +313,7 @@ async function darkStarTeacherCommand(text){
   const explicitDarkStar=/^\s*暗星/.test(String(text||''));
   const colorOnly=/(用|改成|換成|接下來).*?(紅色|藍色|綠色|黃色|紫色|橙色|黑色|灰色|白色).*?字?/.test(String(text||''));
   const navigationIntent=/下一頁|下一張|上一頁|上一張|往下|向下|往上|向上|第[一二三四五六七八九十百千0-9]+章|跳到|翻到|下一個單元|上一個單元/.test(rawText);
-  // 常用翻頁語音命令直接交給既有確定性導航，不再要求 Gemini 先回傳固定字串。
-  // 避免模型回答稍有不同時，暗星已聽懂但頁面卻不動。
-  if(navigationIntent){
-    const handled=await runNavigationCommandDirect(rawText);
-    if(handled){
-      $('tr').textContent='暗星已完成翻頁。';
-      classVoiceControls();
-      return true;
-    }
-  }
-  // 其他複合導航仍可由暗星理解後交給確定性導航函式。
+  // 翻頁也由暗星輔助：暗星負責理解目前老師意圖，真正的頁面操作仍交給既有的確定性導航函式。
   if(!research && !explicitDarkStar && !colorOnly && !navigationIntent)return false;
   $('tr').textContent=research?'暗星正在上網收集資料…':(navigationIntent?'暗星正在判斷老師的翻頁指令…':'暗星正在執行老師命令…');
   classVoiceControls();
@@ -430,18 +417,16 @@ async function darkStarTeacherCommand(text){
   }
 }
 
-async async function classroomUpdateState(payload){
+async function classroomUpdateState(payload){
   if(!classroomActive||!classroomState.owner_token)return;
   lastClassroomPayload=classroomBuildPayload(payload);
   try{await classroomApi({action:'classroom_update',channel_token:classroomState.channel_token,owner_token:classroomState.owner_token,state:lastClassroomPayload});}catch(e){console.warn('classroom state update',e);}
 }
-async async function classroomBroadcast(payload){
+async function classroomBroadcast(payload){
   const clean=classroomBuildPayload(payload);
   lastClassroomPayload=clean;
   if(!classroomActive||!classroomState.channel_token)return;
-  // 先完成 current_state 持久化，再發送 Realtime。
-  // 學生進教室時會先讀 current_state；若兩者同時發生，學生可能只拿到舊的第 1 頁。
-  await classroomUpdateState(clean);
+  classroomUpdateState(clean);
   try{
     const r=await fetch(CLASSROOM_REALTIME,{
       method:'POST',
@@ -509,8 +494,7 @@ async function ebookRefresh(){
   try{
     const d=await ebookApi({action:'list',limit:80});
     const payload=ebookPick(d,['data'])||d;
-    const payload2=ebookPick(payload,['data'])||payload;
-    const rows=ebookPick(payload2,['books','ebooks','items'])||[];
+    const rows=ebookPick(payload,['books','ebooks','items'])||[];
     ebookState.books=Array.isArray(rows)?rows:[];
     sel.innerHTML='<option value="">請選擇上課教材</option>';
     ebookState.books.forEach(b=>{
@@ -574,11 +558,9 @@ function ebookRenderOutline(){const el=$('ebookLessonOutline');if(!el)return;con
   const current=ebookCurrentHeading();const hierarchy=ebookCurrentHierarchy();$('ebookLessonTitle').textContent='📚 '+(ebookPick(ebookState.book,['title','name'])||'電子書教材')+(current?'｜'+(current.title||''):'');$('ebookLessonText').dataset.part=hierarchy.part||'';$('ebookLessonText').dataset.chapter=hierarchy.chapter||'';$('ebookLessonText').dataset.section=hierarchy.section||'';$('ebookLessonText').dataset.article=hierarchy.article||'';const unit=[hierarchy.part,hierarchy.chapter,hierarchy.section,hierarchy.article].filter(Boolean);$('ebookLessonUnit').textContent='目前教學單元：'+(unit.length?unit.join(' → '):'本頁原文');const ui=ebookUnitIndex();$('ebookUnitInfo').textContent=ui>=0?'單元 '+(ui+1)+' / '+ebookState.toc.length:'單元 0 / 0';ebookRenderOutline();
   $('ebookLessonPage').textContent='';$('info').textContent='';
   $('ebookLessonText').textContent=text||'本頁沒有可讀文字。';
-  // 每次真正換頁都從教材頂端開始；後續老師手動下拉再同步給所有學生。
-  $('ebookLesson').scrollTop=0;
   const videos=Array.isArray(p?.metadata?.videos)?p.metadata.videos:[];
   $('ebookLessonVideo').innerHTML=videos.map(renderInlineVideo).join('');
-  classroomBroadcast({type:'page',page:n,total:ebookState.total||0,title:ebookPick(ebookState.book,['title','name'])||'電子書教材',content:text,videos,scrollTop:0,scrollRatio:0});
+  classroomBroadcast({type:'page',page:n,total:ebookState.total||0,title:ebookPick(ebookState.book,['title','name'])||'電子書教材',content:text,videos});
 }
 async function ebookGo(delta){
   if(!ebookState.loaded)return;
@@ -638,25 +620,7 @@ async function exportTeachingToEbook(){
 }
 ebookRefresh();
 async function enter(){if(!count&&!ebookState.loaded)return say('請先上傳 PPT 或匯入電子書教材。');try{await ensureClassroom();await classroomPrepareRealtime();}catch(e){say('課堂入口建立失敗：'+(e.message||e));return}classroomActive=true;classMode=true;$('app')?.classList.add('classroomOnly');classroomBadge();renderDarkStarClassroomAvatar();
-try{await classroomStartAudio();}catch(e){classroomActive=false;classMode=false;try{await classroomChannel?.unsubscribe?.()}catch{}say(e.message||'老師麥克風啟動失敗。');return;}$('panel').classList.add('class');document.documentElement.style.overflow='hidden';document.body.style.overflow='hidden';$('app').style.overflow='hidden';window.scrollTo(0,0);classVoiceControls();$('ppt').classList.toggle('focusPpt',!!count&&!ebookState.loaded);$('ebookLesson').style.display=ebookState.loaded?'block':$('ebookLesson').style.display;$('start').style.display='none';$('exit').style.display='inline-block';document.body.style.overflow='hidden';if(ebookState.loaded&&!count){$('ppt').style.display='block';$('ppt').classList.add('ebookFocusShell');}else{$('ppt').style.display='block';$('ppt').classList.remove('ebookFocusShell');}classroomBadge();try{await $('panel').requestFullscreen()}catch{}say('開始上課。',ebookState.loaded&&!count);
-  // 開始上課時立即建立目前教材的初始同步狀態，不必再按第一章。
-  const initialClassroomPayload=ebookState.loaded
-    ? {
-        type:ebookState.unitIndex>=0?'unit':'page',
-        page:ebookState.page||1,
-        total:ebookState.total||0,
-        content:String($('ebookLessonText')?.textContent||''),
-        videos:Array.isArray(ebookState.unitPages)?ebookState.unitPages.flatMap(x=>Array.isArray(x?.metadata?.videos)?x.metadata.videos:[]):[]
-      }
-    : {
-        type:'ppt',
-        page:index+1,
-        total:count,
-        content:String(slideTexts[index]||''),
-        videos:[]
-      };
-  lastClassroomPayload=classroomBuildPayload(initialClassroomPayload);
-  await classroomBroadcast(lastClassroomPayload)}async function exit(){classroomActive=false;classroomStopAudio();if(classroomState.channel_token&&classroomState.owner_token)classroomApi({action:'classroom_close',channel_token:classroomState.channel_token,owner_token:classroomState.owner_token}).catch(()=>{});if(classroomChannel&&classroomSupabase){classroomSupabase.removeChannel(classroomChannel);classroomChannel=null}classroomState={code:'',channel_token:'',owner_token:'',expires_at:''};try{sessionStorage.removeItem('aivault_classroom')}catch{}classMode=false;hideDarkStarClassroomAvatar();classroomBadge();classroomUpdateStudentCount();$('app')?.classList.remove('classroomOnly');$('info').textContent=ebookState.loaded?'電子書教材｜第 '+(ebookState.page||1)+(ebookState.total?' / '+ebookState.total:''):count?'第 '+(index+1)+' / '+count+' 頁':'尚未載入';$('panel').classList.remove('class');document.documentElement.style.overflow='';document.body.style.overflow='';$('app').style.overflow='';document.getElementById('classVoiceControls')?.remove();$('ppt').classList.remove('focusPpt','ebookFocusShell');$('start').style.display='inline-block';$('exit').style.display='none';document.body.style.overflow='';hideResearch();stopReading();try{if(document.fullscreenElement)await document.exitFullscreen()}catch{}say('已回到主畫面。')}$('start').onclick=enter;$('exit').onclick=exit;
+try{await classroomStartAudio();}catch(e){classroomActive=false;classMode=false;try{await classroomChannel?.unsubscribe?.()}catch{}say(e.message||'老師麥克風啟動失敗。');return;}$('panel').classList.add('class');document.documentElement.style.overflow='hidden';document.body.style.overflow='hidden';$('app').style.overflow='hidden';window.scrollTo(0,0);classVoiceControls();$('ppt').classList.toggle('focusPpt',!!count&&!ebookState.loaded);$('ebookLesson').style.display=ebookState.loaded?'block':$('ebookLesson').style.display;$('start').style.display='none';$('exit').style.display='inline-block';document.body.style.overflow='hidden';if(ebookState.loaded&&!count){$('ppt').style.display='block';$('ppt').classList.add('ebookFocusShell');}else{$('ppt').style.display='block';$('ppt').classList.remove('ebookFocusShell');}classroomBadge();try{await $('panel').requestFullscreen()}catch{}say('開始上課。',ebookState.loaded&&!count);if(lastClassroomPayload)classroomBroadcast(lastClassroomPayload)}async function exit(){classroomActive=false;classroomStopAudio();if(classroomState.channel_token&&classroomState.owner_token)classroomApi({action:'classroom_close',channel_token:classroomState.channel_token,owner_token:classroomState.owner_token}).catch(()=>{});if(classroomChannel&&classroomSupabase){classroomSupabase.removeChannel(classroomChannel);classroomChannel=null}classroomState={code:'',channel_token:'',owner_token:'',expires_at:''};try{sessionStorage.removeItem('aivault_classroom')}catch{}classMode=false;hideDarkStarClassroomAvatar();classroomBadge();classroomUpdateStudentCount();$('app')?.classList.remove('classroomOnly');$('info').textContent=ebookState.loaded?'電子書教材｜第 '+(ebookState.page||1)+(ebookState.total?' / '+ebookState.total:''):count?'第 '+(index+1)+' / '+count+' 頁':'尚未載入';$('panel').classList.remove('class');document.documentElement.style.overflow='';document.body.style.overflow='';$('app').style.overflow='';document.getElementById('classVoiceControls')?.remove();$('ppt').classList.remove('focusPpt','ebookFocusShell');$('start').style.display='inline-block';$('exit').style.display='none';document.body.style.overflow='';hideResearch();stopReading();try{if(document.fullscreenElement)await document.exitFullscreen()}catch{}say('已回到主畫面。')}$('start').onclick=enter;$('exit').onclick=exit;
 function studentClassroomShareData(){
   const u=new URL('student-classroom.html',location.href);
   const code=classroomState.code?String(classroomState.code):'';
@@ -768,13 +732,8 @@ function classVoiceControls(){
     status.style.display='none'; box.append(on,off);
     const left=bar.firstElementChild;
     if(left){ left.style.cssText+=';display:flex;align-items:center;flex-wrap:nowrap;white-space:nowrap;'; left.appendChild(box); }else bar.appendChild(box);
-    on.onclick=async()=>{
-      voice=true; listening=false; $('vs').textContent='🎤 正在啟動聲控…';
-      try{if(classroomActive)await classroomStartAudio();startRec();}
-      catch(e){voice=false;listening=false;$('vs').textContent='⚠️ 麥克風無法啟用：'+(e.message||e);}
-      classVoiceControls();
-    };
-    off.onclick=()=>{voice=false;listening=false;$('vs').textContent='⏹ 聲控已關閉';try{rec?.abort()}catch{}classVoiceControls();};
+    on.onclick=()=>{ voice=true; listening=false; $('vs').textContent='🎤 正在啟動聲控…'; startRec(); classVoiceControls(); };
+    off.onclick=()=>{ voice=false; listening=false; $('vs').textContent='聲控已取消'; try{rec?.abort()}catch{} classVoiceControls(); };
   }
   const left=bar.firstElementChild;
   if(left){ left.style.cssText+=';display:flex;align-items:center;flex-wrap:nowrap;white-space:nowrap;'; left.appendChild(box); }
@@ -944,31 +903,6 @@ function setup(){
   $('voiceStop').onclick=()=>{voice=false;listening=false;$('vs').textContent='聲控已取消';try{rec.abort()}catch{}};
   $('vs').textContent='🎤 請按「開始聽」啟用聲控';
 }
-
-// 教師電子書畫面手動上下捲動時，同步目前閱讀位置給所有學生。
-// 使用比例而不是絕對像素，避免老師與學生裝置螢幕高度不同造成位置失真。
-let classroomScrollSyncTimer=null;
-$('ebookLesson')?.addEventListener('scroll',()=>{
-  if(!classroomActive||!ebookState.loaded)return;
-  if(classroomScrollSyncTimer)clearTimeout(classroomScrollSyncTimer);
-  classroomScrollSyncTimer=setTimeout(()=>{
-    classroomScrollSyncTimer=null;
-    const el=$('ebookLesson');
-    if(!el)return;
-    const max=Math.max(0,el.scrollHeight-el.clientHeight);
-    const ratio=max>0?el.scrollTop/max:0;
-    const content=String($('ebookLessonText')?.textContent||'');
-    classroomBroadcast({
-      type:'page',
-      page:ebookState.page||1,
-      total:ebookState.total||0,
-      content,
-      videos:[],
-      scrollTop:el.scrollTop,
-      scrollRatio:ratio
-    });
-  },180);
-});
 setSpeechEnabled(true);detectMicrophone();setup();
 
 /* Generate the classroom code as soon as a teacher has loaded teaching material. */
