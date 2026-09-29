@@ -314,7 +314,17 @@ async function darkStarTeacherCommand(text){
   const explicitDarkStar=/^\s*暗星/.test(String(text||''));
   const colorOnly=/(用|改成|換成|接下來).*?(紅色|藍色|綠色|黃色|紫色|橙色|黑色|灰色|白色).*?字?/.test(String(text||''));
   const navigationIntent=/下一頁|下一張|上一頁|上一張|往下|向下|往上|向上|第[一二三四五六七八九十百千0-9]+章|跳到|翻到|下一個單元|上一個單元/.test(rawText);
-  // 翻頁也由暗星輔助：暗星負責理解目前老師意圖，真正的頁面操作仍交給既有的確定性導航函式。
+  // 常用翻頁語音命令直接交給既有確定性導航，不再要求 Gemini 先回傳固定字串。
+  // 避免模型回答稍有不同時，暗星已聽懂但頁面卻不動。
+  if(navigationIntent){
+    const handled=await runNavigationCommandDirect(rawText);
+    if(handled){
+      $('tr').textContent='暗星已完成翻頁。';
+      classVoiceControls();
+      return true;
+    }
+  }
+  // 其他複合導航仍可由暗星理解後交給確定性導航函式。
   if(!research && !explicitDarkStar && !colorOnly && !navigationIntent)return false;
   $('tr').textContent=research?'暗星正在上網收集資料…':(navigationIntent?'暗星正在判斷老師的翻頁指令…':'暗星正在執行老師命令…');
   classVoiceControls();
