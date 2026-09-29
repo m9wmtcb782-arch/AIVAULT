@@ -106,15 +106,78 @@ textarea{min-height:68px;resize:vertical}
     </div>
   </section>
 </div>
-<script src="js/aivault-engine-bus.js?v=dh1"></script>
-<script src="js/aivault-dark-star-live-client.js?v=dh2"></script>
-<script src="js/aivault-dark-star-avatar.js?v=dh1"></script>
+<script src="js/aivault-engine-bus.js?v=dh2"></script>
+<script src="js/aivault-dark-star-live-client.js?v=dh3"></script>
+<script src="js/aivault-dark-star-avatar.js?v=dh2"></script>
 <script>
 (function(){
   var $ = function(id){ return document.getElementById(id); };
-  var avatar = new AIVAULTDarkStarAvatar($("stage"));
+
+  // UI safety layer: bind controls BEFORE optional avatar/engine/session initialization.
+  // If a non-critical initializer fails on iPhone Safari, the whole UI must not become dead.
+  var safeClient = null;
+  function ensureSafeClient(){
+    if (safeClient) return safeClient;
+    if (!window.AIVAULTDarkStarLiveClient) throw new Error("Live client script not loaded");
+    safeClient = new AIVAULTDarkStarLiveClient({
+      voice: localStorage.getItem("darkStarVoice") || "Kore"
+    });
+    return safeClient;
+  }
+  $("btnStart").onclick = function(){
+    try {
+      var c = ensureSafeClient();
+      var v = $("voiceSelect").value || localStorage.getItem("darkStarVoice") || "Kore";
+      c.setVoice(v);
+      $("btnStart").disabled = true;
+      $("btnStop").disabled = false;
+      $("btnInterrupt").disabled = false;
+      c.start().catch(function(e){
+        $("btnStart").disabled = false;
+        $("btnStop").disabled = true;
+        $("btnInterrupt").disabled = true;
+        $("status").textContent = "無法啟動：" + (e.message || e);
+      });
+    } catch(e) {
+      $("status").textContent = "初始化失敗：" + (e.message || e);
+    }
+  };
+  $("btnStop").onclick = function(){
+    try { if (safeClient) safeClient.stop(); }
+    catch(e) { $("status").textContent = "停止失敗：" + (e.message || e); }
+  };
+  $("btnInterrupt").onclick = function(){
+    try { if (safeClient) safeClient.interrupt("manual"); }
+    catch(e) { $("status").textContent = "打斷失敗：" + (e.message || e); }
+  };
+  $("btnText").onclick = function(){
+    try {
+      var t = $("textIn").value;
+      if (!t.trim()) return;
+      var c = ensureSafeClient();
+      if (c.sendText(t)) $("textIn").value = "";
+    } catch(e) {
+      $("status").textContent = "文字送出失敗：" + (e.message || e);
+    }
+  };
+
+  var avatar = null;
+  try {
+    avatar = new AIVAULTDarkStarAvatar($("stage"));
+    avatar.start();
+  } catch(e) {
+    $("status").textContent = "數字人畫面初始化失敗，但語音控制仍可使用。";
+  }
+
+  var client = null;
+  try {
+    client = ensureSafeClient();
+  } catch(e) {
+    log("Live client deferred: " + (e.message || e));
+  }
+  var clientForEvents = client || safeClient;
   avatar.start();
-  var client = new AIVAULTDarkStarLiveClient({ voice: localStorage.getItem("darkStarVoice") || "Kore" });
+  client = client || safeClient;
   var userCap = null, aiCap = null;
   function log(msg){
     var el = $("log");
@@ -196,16 +259,7 @@ textarea{min-height:68px;resize:vertical}
     avatar.setSpeaking(false, 0);
     setSpeak(false);
   });
-  $("btnStart").onclick = function(){
-    client.setVoice(sel.value);
-    client.start().catch(function(e){ setStatus("無法啟動：" + (e.message||e)); log("start fail " + (e.message||e)); });
-  };
-  $("btnStop").onclick = function(){ client.stop(); };
-  $("btnInterrupt").onclick = function(){ client.interrupt("manual"); };
-  $("btnText").onclick = function(){
-    var t = $("textIn").value;
-    if(client.sendText(t)) $("textIn").value = "";
-  };
+  // Button handlers are installed by the safety layer above and are intentionally not replaced here.
   $("textIn").addEventListener("keydown", function(e){
     if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); $("btnText").click(); }
   });
