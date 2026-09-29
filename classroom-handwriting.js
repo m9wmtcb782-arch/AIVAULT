@@ -76,8 +76,8 @@
 
   async function broadcast(event,payload){
     try{
-      if((typeof classroomChannel!=='undefined'&&classroomChannel)?.send){
-        await window.classroomChannel.send({type:'broadcast',event,payload});
+      if(typeof classroomChannel!=='undefined'&&classroomChannel?.send){
+        await classroomChannel.send({type:'broadcast',event,payload});
       }
     }catch(e){console.warn('classroom handwriting broadcast',e)}
   }
@@ -111,8 +111,10 @@
       strokes=[];redraw(canvas,ctx,strokes);
       await broadcast('handwriting_clear',{});
       try{
-        if((typeof lastClassroomPayload!=='undefined'&&lastClassroomPayload))(typeof lastClassroomPayload!=='undefined'&&lastClassroomPayload).handwriting=[];
-        if(typeof (typeof classroomBroadcast==='function'&&classroomBroadcast)==='function')await (typeof classroomBroadcast==='function'&&classroomBroadcast)({type:'handwriting',handwriting:[]});
+        if(typeof lastClassroomPayload!=='undefined'&&lastClassroomPayload){
+          lastClassroomPayload.handwriting=[];
+          await classroomChannel?.send({type:'broadcast',event:'classroom_state',payload:{...lastClassroomPayload,handwriting:[]}});
+        }
       }catch(e){console.warn('handwriting snapshot clear',e)}
     };
     close.onclick=()=>setTeacherOpen(false);
@@ -135,8 +137,10 @@
       e.preventDefault();
       const done=activeStroke;activeStroke=null;
       try{
-        if((typeof lastClassroomPayload!=='undefined'&&lastClassroomPayload))(typeof lastClassroomPayload!=='undefined'&&lastClassroomPayload).handwriting=strokes;
-        if(typeof (typeof classroomBroadcast==='function'&&classroomBroadcast)==='function')await (typeof classroomBroadcast==='function'&&classroomBroadcast)({type:'handwriting',handwriting:strokes});
+        if(typeof lastClassroomPayload!=='undefined'&&lastClassroomPayload){
+          lastClassroomPayload.handwriting=strokes.map(s=>({...s,points:s.points.map(p=>({...p}))}));
+          await classroomChannel?.send({type:'broadcast',event:'classroom_state',payload:{...lastClassroomPayload,handwriting:lastClassroomPayload.handwriting}});
+        }
       }catch(x){console.warn('handwriting snapshot',x)}
     };
     canvas.addEventListener('pointerup',end);canvas.addEventListener('pointercancel',end);
@@ -219,7 +223,7 @@
         ch.__aivaultHandwritingBound=true;
         if(isStudent) ch.send({type:'broadcast',event:'classroom_request',payload:{source:'handwriting'}}).catch(()=>{});
         if(isTeacher) ch.on('broadcast',{event:'classroom_request'},()=>{
-          if((typeof lastClassroomPayload!=='undefined'&&lastClassroomPayload))
+          if(typeof lastClassroomPayload!=='undefined'&&lastClassroomPayload)
             ch.send({type:'broadcast',event:'classroom_state',payload:{...lastClassroomPayload,handwriting:Array.isArray(strokes)?strokes:[]}}).catch(()=>{});
         });
         ch.on('broadcast',{event:'handwriting_stroke'},({payload})=>{
