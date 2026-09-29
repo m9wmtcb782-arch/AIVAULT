@@ -767,8 +767,13 @@ function classVoiceControls(){
     status.style.display='none'; box.append(on,off);
     const left=bar.firstElementChild;
     if(left){ left.style.cssText+=';display:flex;align-items:center;flex-wrap:nowrap;white-space:nowrap;'; left.appendChild(box); }else bar.appendChild(box);
-    on.onclick=()=>{ voice=true; listening=false; $('vs').textContent='🎤 正在啟動聲控…'; startRec(); classVoiceControls(); };
-    off.onclick=()=>{ voice=false; listening=false; $('vs').textContent='聲控已取消'; try{rec?.abort()}catch{} classVoiceControls(); };
+    on.onclick=async()=>{
+      voice=true; listening=false; $('vs').textContent='🎤 正在啟動聲控…';
+      try{if(classroomActive)await classroomStartAudio();startRec();}
+      catch(e){voice=false;listening=false;$('vs').textContent='⚠️ 麥克風無法啟用：'+(e.message||e);}
+      classVoiceControls();
+    };
+    off.onclick=()=>{voice=false;listening=false;$('vs').textContent='⏹ 聲控已關閉';try{rec?.abort()}catch{}classVoiceControls();};
   }
   const left=bar.firstElementChild;
   if(left){ left.style.cssText+=';display:flex;align-items:center;flex-wrap:nowrap;white-space:nowrap;'; left.appendChild(box); }
