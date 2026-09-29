@@ -77,7 +77,7 @@ async function sendSignal(event,payload){if(!channel)return;try{await channel.se
 function setAudioStatus(t){$('audioStatus').textContent=t;}
 async function startStudentAudio(){
   if(!channel)return;
-  $('classroomAudio').muted=!audioEnabled;$('audioToggle').textContent=audioEnabled?'🔊 課堂聲音':'🔇 課堂靜音';setAudioStatus(audioEnabled?'正在連接老師即時聲音…':'課堂聲音：已靜音');
+  audioEnabled=true;$('classroomAudio').muted=false;$('audioToggle').textContent='🔊 啟用老師聲音';setAudioStatus('正在連接老師即時聲音…');
   await sendSignal('audio_join',{peer_id:audioPeerId});
   clearInterval(audioJoinTimer);
   audioJoinTimer=setInterval(()=>{if(!channel)return;if(!audioPc||!['connected','completed'].includes(audioPc.connectionState))sendSignal('audio_join',{peer_id:audioPeerId}).catch(()=>{});else clearInterval(audioJoinTimer)},1800);
@@ -123,27 +123,9 @@ function handleDarkStarVoice(v){
   u.onerror=()=>{darkStarStudentUtterance=null;setAudioStatus('暗星語音播放失敗，請點「🔊 啟用老師聲音」後再試。');};
   speechSynthesis.speak(u);
 }
-function handleClassroomReading(reading){
- if(!reading||reading.action!=='speak'||!reading.text||!audioEnabled)return;
- const id=String(reading.id||'');
- if(id&&id===darkStarStudentVoiceId)return;
- darkStarStudentVoiceId=id||darkStarStudentVoiceId;
- try{speechSynthesis.cancel()}catch{}
- const u=new SpeechSynthesisUtterance(String(reading.text));
- u.lang='zh-TW';u.rate=1;u.pitch=1;u.volume=1;
- const voices=speechSynthesis.getVoices?.()||[];
- const zh=voices.find(x=>/^zh[-_]TW/i.test(x.lang))||voices.find(x=>/^zh/i.test(x.lang));
- if(zh)u.voice=zh;
- darkStarStudentUtterance=u;
- u.onstart=()=>setAudioStatus('📖 課堂朗讀中…');
- u.onend=()=>{darkStarStudentUtterance=null;setAudioStatus(audioEnabled?'課堂聲音：已連線':'課堂聲音：已靜音');};
- u.onerror=()=>{darkStarStudentUtterance=null;setAudioStatus(audioEnabled?'課堂朗讀播放失敗':'課堂聲音：已靜音');};
- speechSynthesis.speak(u);
-}
 function renderState(state){
  if(!state||typeof state!=='object')return;
  page=Number(state.page)||1;total=Number(state.total)||0;
- const scrollRatio=Math.max(0,Math.min(1,Number(state.scrollRatio)||0));
  const isProject=state.type==='ppt-project';
  $('pageInfo').textContent=(isProject?'📊 '+(state.project_title||'PPT 專題報告')+'｜':'')+'第 '+page+(total?' / '+total:'')+' 頁';
  if(isProject&&state.project_page_title){ $('contentTitle').textContent=String(state.project_page_title||''); $('contentTitle').style.display='block'; } else if($('contentTitle')) { $('contentTitle').style.display='none'; }
@@ -167,7 +149,7 @@ function renderState(state){
    $('darkStarResearchBody').textContent='';
    $('darkStarResearchSources').innerHTML='';
  }
- requestAnimationFrame(()=>{const el=document.getElementById('lesson');if(el){const max=Math.max(0,el.scrollHeight-el.clientHeight);el.scrollTo({top:max*scrollRatio,behavior:'smooth'});}});
+ window.scrollTo({top:0,behavior:'smooth'});
 }
 async function api(payload){
  const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json',apikey:KEY},body:JSON.stringify(payload)});
@@ -193,7 +175,6 @@ async function connect(){
     .on('broadcast',{event:'classroom_state'},({payload})=>{
       if(!payload)return;
       renderState(payload);
-      handleClassroomReading(payload.reading);
       handleDarkStarVoice(payload.darkstar_voice);
       setStatus('已連線教室 '+classroomCode+'，老師正在上課。');
     })
@@ -204,10 +185,7 @@ async function connect(){
         channel.track({role:'student',online_at:new Date().toISOString()}).catch(e=>console.warn('student presence track',e));
         $('audioPanel').style.display='block';
         startStudentAudio().catch(e=>setAudioStatus(e.message||'等待老師音訊…'));
-        // 學生剛進教室時，不只依賴 classroom_resolve 的快照。
-        // 主動向老師端要求目前教材狀態，避免老師尚未點擊第一章／下一頁時學生畫面為空白。
-        setTimeout(()=>sendSignal('classroom_request',{}).catch(()=>{}),150);
-        setStatus(state&&state.content?'已連線教室 '+classroomCode+'，內容會隨老師同步。':'已連線教室 '+classroomCode+'，正在取得老師目前教材…');
+        setStatus(state&&state.content?'已連線教室 '+classroomCode+'，內容會隨老師同步。':'已連線教室 '+classroomCode+'，等待老師上課內容…');
       }else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
         setStatus('教室連線失敗，請重新輸入 4 位數入口。',true);
       }
@@ -247,7 +225,7 @@ $('leaveClass').onclick=leaveClassroom;
     }
   }catch(e){console.warn('shared classroom code',e);}
 })();
-$('audioToggle').onclick=async()=>{if(audioEnabled){audioEnabled=false;$('classroomAudio').muted=true;$('audioToggle').textContent='🔇 課堂靜音';try{speechSynthesis.cancel()}catch{}darkStarStudentUtterance=null;setAudioStatus('課堂聲音：已靜音（老師＋暗星＋課堂朗讀）');return;}audioEnabled=true;$('classroomAudio').muted=false;$('audioToggle').textContent='🔊 課堂聲音';try{await $('classroomAudio').play();audioPlaybackStarted=true;setAudioStatus('課堂聲音：已啟用');}catch{setAudioStatus('瀏覽器仍未允許播放，請再按一次。');}if(!audioPc||!['connected','completed'].includes(audioPc.connectionState))await startStudentAudio();};
+$('audioToggle').onclick=async()=>{if(!audioPlaybackStarted){audioEnabled=true;$('classroomAudio').muted=false;try{await $('classroomAudio').play();audioPlaybackStarted=true;$('audioToggle').textContent='🔊 老師聲音已啟用';setAudioStatus('課堂聲音：已啟用');}catch{setAudioStatus('瀏覽器仍未允許播放，請再按一次。');}if(!audioPc||!['connected','completed'].includes(audioPc.connectionState))await startStudentAudio();return;}if(audioEnabled){audioEnabled=false;$('classroomAudio').muted=true;$('audioToggle').textContent='🔇 已靜音老師聲音';setAudioStatus('課堂聲音：已靜音（只影響這台學生裝置）');}else{audioEnabled=true;$('classroomAudio').muted=false;try{await $('classroomAudio').play();audioPlaybackStarted=true;$('audioToggle').textContent='🔊 老師聲音已啟用';setAudioStatus('課堂聲音：已啟用');}catch{setAudioStatus('請按「🔊 啟用老師聲音」播放。');}if(!audioPc||!['connected','completed'].includes(audioPc.connectionState))await startStudentAudio();}};
 $('code').addEventListener('input',()=>{const v=$('code').value.replace(/D/g,'').slice(0,4);$('code').value=v;if(v.length===4)connect();});
 $('code').addEventListener('keydown',e=>{if(e.key==='Enter')connect();});
 
