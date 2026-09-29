@@ -218,6 +218,11 @@
       if(ch&&ch.__aivaultHandwritingBound)return;
       if(ch?.on){
         ch.__aivaultHandwritingBound=true;
+        if(isStudent) ch.send({type:'broadcast',event:'classroom_request',payload:{source:'handwriting'}}).catch(()=>{});
+        if(isTeacher) ch.on('broadcast',{event:'classroom_request'},()=>{
+          if((typeof lastClassroomPayload!=='undefined'&&lastClassroomPayload))
+            ch.send({type:'broadcast',event:'classroom_state',payload:{...lastClassroomPayload,handwriting:Array.isArray(strokes)?strokes:[]}}).catch(()=>{});
+        });
         ch.on('broadcast',{event:'handwriting_stroke'},({payload})=>{
           const s=payload?.stroke;if(!s)return;
           strokes.push(s);renderStudent(strokes);
