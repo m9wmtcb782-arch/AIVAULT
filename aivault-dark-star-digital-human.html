@@ -73,7 +73,9 @@ textarea{min-height:68px;resize:vertical}
       <strong>數字人畫面</strong>
       <span id="speakBadge" class="badge">未說話</span>
     </div>
-    <canvas id="stage" width="720" height="900" aria-label="暗星數字人"></canvas>
+    <canvas id="stage" width="720" height="900" aria-label="暗星數字人" style="display:none"></canvas>
+    <video id="photoAvatarVideo" playsinline muted preload="auto" style="width:100%;height:auto;aspect-ratio:4/5;object-fit:cover;border-radius:14px;background:#05060c;display:block"></video>
+    <div class="status" id="photoAvatarStatus">照片數字人尚未載入。</div>
     <div class="row">
       <button class="btn primary" id="btnStart" type="button">開始即時語音</button>
       <button class="btn danger" id="btnStop" type="button" disabled>停止</button>
@@ -107,7 +109,7 @@ textarea{min-height:68px;resize:vertical}
   </section>
 </div>
 <script src="js/aivault-engine-bus.js?v=dh2"></script>
-<script src="js/aivault-dark-star-live-client.js?v=dh3"></script>
+<script src="js/aivault-dark-star-live-client.js?v=dh4"></script>
 <script src="js/aivault-dark-star-avatar.js?v=dh2"></script>
 <script>
 (function(){
@@ -176,7 +178,6 @@ textarea{min-height:68px;resize:vertical}
     log("Live client deferred: " + (e.message || e));
   }
   var clientForEvents = client || safeClient;
-  avatar.start();
   client = client || safeClient;
   if (avatar) avatar.start();
   var userCap = null, aiCap = null;
@@ -240,9 +241,122 @@ textarea{min-height:68px;resize:vertical}
     cap("ai", d.buffer, true);
     avatar.setEmotionFromText(d.buffer);
   });
+  var photoPcm = [];
+  var photoBusy = false;
+  function localValue(name){
+    try { return String(localStorage.getItem(name) || "").trim(); } catch(e){ return ""; }
+  }
+  function findLocalId(pattern, preferred){
+    var v = localValue(preferred);
+    if(v) return v;
+    try {
+      for(var i=0;i<localStorage.length;i++){
+        var k=localStorage.key(i)||"";
+        if(pattern.test(k)){
+          var x=String(localStorage.getItem(k)||"").trim();
+          if(x) return x;
+        }
+      }
+    } catch(e){}
+    return "";
+  }
+  function selectedImageId(){
+    var v=findLocalId(/selected[_-]?image[_-]?id/i,"selected_image_id");
+    if(v) return v;
+    var q=new URLSearchParams(location.search);
+    return String(q.get("selected_image_id")||q.get("image_id")||"").trim();
+  }
+  function digitalHumanId(){
+    var v=findLocalId(/digital[_-]?human[_-]?id/i,"digital_human_id");
+    if(v) return v;
+    var q=new URLSearchParams(location.search);
+    return String(q.get("digital_human_id")||"").trim();
+  }
+  function wavFromPcm(chunks, sampleRate){
+    var total=0;
+    for(var i=0;i<chunks.length;i++) total += chunks[i].length;
+    var pcm=new Int16Array(total), off=0;
+    for(var j=0;j<chunks.length;j++){ pcm.set(chunks[j],off); off+=chunks[j].length; }
+    var buf=new ArrayBuffer(44+pcm.length*2), view=new DataView(buf);
+    function w32(p,n){view.setUint32(p,n,true)} function w16(p,n){view.setUint16(p,n,true)}
+    w32(0,0x46464952); w32(4,36+pcm.length*2); w32(8,0x45564157);
+    w32(12,0x20746d66); w32(16,16); w16(20,1); w16(22,1);
+    w32(24,sampleRate); w32(28,sampleRate*2); w16(32,2); w16(34,16);
+    w32(36,0x61746164); w32(40,pcm.length*2);
+    for(var k=0;k<pcm.length;k++) view.setInt16(44+k*2,pcm[k],true);
+    return new Blob([buf],{type:"audio/wav"});
+  }
+  function findVideoUrl(x){
+    if(!x) return "";
+    if(typeof x==="string" && /^https?:\\/\\//.test(x)) return x;
+    if(typeof x!=="object") return "";
+    if(x.video && x.video.url) return x.video.url;
+    if(x.data && x.data.video && x.data.video.url) return x.data.video.url;
+    if(x.result) return findVideoUrl(x.result);
+    return "";
+  }
+  async function generatePhotoAvatar(){
+    if(photoBusy || !photoPcm.length) return;
+    var imageId=selectedImageId(), humanId=digitalHumanId();
+    var vs=$("photoAvatarVideo"), ps=$("photoAvatarStatus");
+    if(!imageId){
+      ps.textContent="NOT VERIFIED：找不到 selected_image_id，照片尚未接入數字人引擎。";
+      return;
+    }
+    var tok="";
+    try{
+      var raw=localStorage.getItem("sb-clcddygkaaqqtsbswgdf-auth-token");
+      var j=raw?JSON.parse(raw):null; tok=String(j&&j.access_token||"").trim();
+    }catch(e){}
+    if(!tok){ ps.textContent="NOT VERIFIED：目前頁面沒有可用登入 token，無法安全呼叫照片數字人後端。"; return; }
+    photoBusy=true;
+    ps.textContent="照片數字人生成中：正在把暗星本次語音交給照片動畫引擎。";
+    try{
+      var fd=new FormData();
+      fd.append("image_id",imageId);
+      if(humanId) fd.append("digital_human_id",humanId);
+      fd.append("audio",wavFromPcm(photoPcm,24000),"dark-star-turn.wav");
+      var rr=await fetch("https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/aivault-photo-avatar",{
+        method:"POST",headers:{Authorization:"Bearer "+tok},body:fd
+      });
+      var jj=await rr.json().catch(function(){return {};});
+      if(!rr.ok || !jj.success) throw new Error(jj.message||jj.error||("HTTP "+rr.status));
+      var id=jj.request_id;
+      if(!id) throw new Error("PHOTO_AVATAR_REQUEST_ID_MISSING");
+      ps.textContent="照片數字人正在生成……";
+      for(var p=0;p<60;p++){
+        await new Promise(function(res){setTimeout(res,2000);});
+        var sr=await fetch("https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/aivault-photo-avatar?request_id="+encodeURIComponent(id),{
+          headers:{Authorization:"Bearer "+tok}
+        });
+        var sj=await sr.json().catch(function(){return {};});
+        if(sj.status==="COMPLETED"){
+          var url=findVideoUrl(sj.result);
+          if(!url) throw new Error("PHOTO_AVATAR_VIDEO_URL_MISSING");
+          vs.src=url; vs.style.display="block"; vs.load();
+          ps.textContent="CONFIRMED：照片已交給照片數字人引擎並取得動畫影片。";
+          try{await vs.play();}catch(e){}
+          break;
+        }
+        if(sj.status==="FAILED" || sj.status==="ERROR") throw new Error("PHOTO_AVATAR_PROVIDER_FAILED");
+      }
+    }catch(e){
+      ps.textContent="照片數字人失敗："+(e.message||e);
+    }finally{
+      photoBusy=false; photoPcm=[];
+    }
+  }
+  client.on("audioPcm", function(d){
+    if(d && d.pcm && d.pcm.length) photoPcm.push(d.pcm);
+  });
+  client.on("interrupted", function(){
+    photoPcm=[];
+    $("photoAvatarStatus").textContent="暗星被打斷；本次照片動畫取消，連線保留。";
+  });
   client.on("turnComplete", function(){
     userCap = null; aiCap = null;
     log("turnComplete");
+    setTimeout(generatePhotoAvatar, 250);
     avatar.setEmotion("neutral");
   });
   client.on("textSent", function(d){ cap("user", d.text, false); userCap = null; });
