@@ -14,7 +14,7 @@ function on(){return lsGet(KEY)==='1'}
 function rate(){let n=parseFloat(lsGet(RATE_KEY));if(!isFinite(n))n=1;return Math.min(1.3,Math.max(0.7,n))}
 function toast(msg){const el=document.getElementById('voiceStatus');if(!el){return}el.textContent=msg;el.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>el.classList.remove('show'),2400)}
 function paint(){const btn=document.getElementById('darkStarMyVoiceButton');if(!btn)return;btn.classList.toggle('active',on());btn.textContent=on()?'我的聲音 ✓':'我的聲音'}
-function stopSpeak(){speaking=false;if(!audio)return;try{audio.pause()}catch(e){}}
+function stopNative(){try{if(window.speechSynthesis){window.speechSynthesis.cancel();window.speechSynthesis.pause();window.speechSynthesis.resume()}}catch(e){}}\nfunction stopSpeak(){speaking=false;stopNative();if(!audio)return;try{audio.pause()}catch(e){}}
 function unlockAudio(){if(!audio)audio=new Audio();audio.volume=1;audio.src='data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';return audio.play().catch(function(){}).then(function(){try{audio.pause()}catch(e){}})}
 function wrongLang(s){return false}
 function setInput(text){const input=document.getElementById('composerInput');if(!input)return;input.value=String(text||'');input.dispatchEvent(new Event('input',{bubbles:true}))}
@@ -105,8 +105,8 @@ function addDrawerSettings(){
     collapse();
   };
 }
-window.speakText=function(text){if(on()){if(text)speakMine(text);return}if(typeof originalSpeak==='function')return originalSpeak(text)};
-function addButton(){if(document.getElementById('darkStarMyVoiceButton'))return;const top=document.querySelector('.topbar');if(!top)return;const btn=document.createElement('button');btn.id='darkStarMyVoiceButton';btn.type='button';btn.style.cssText='margin-left:6px;border:1px solid #ddd;background:#fff;border-radius:9px;padding:7px 10px;font-size:12px;white-space:nowrap';btn.addEventListener('click',function(){if(on()){lsSet(KEY,'0');paint();stopSpeak();stopRec();return}navigator.mediaDevices.getUserMedia({audio:true,video:false}).then(function(s){stream=s;lsSet(KEY,'1');paint();unlockAudio();startRec()}).catch(function(){toast('請允許麥克風')})});const home=document.getElementById('homeButton')||document.querySelector('.brand-home');if(home)home.before(btn);else top.appendChild(btn);paint()}
+window.speakText=function(text){if(on()){stopNative();if(text)speakMine(text);return}if(typeof originalSpeak==='function')return originalSpeak(text)};
+function addButton(){if(document.getElementById('darkStarMyVoiceButton'))return;const top=document.querySelector('.topbar');if(!top)return;const btn=document.createElement('button');btn.id='darkStarMyVoiceButton';btn.type='button';btn.style.cssText='margin-left:6px;border:1px solid #ddd;background:#fff;border-radius:9px;padding:7px 10px;font-size:12px;white-space:nowrap';btn.addEventListener('click',function(){if(on()){lsSet(KEY,'0');paint();stopSpeak();stopRec();return}navigator.mediaDevices.getUserMedia({audio:true,video:false}).then(function(s){stream=s;stopNative();lsSet(KEY,'1');paint();unlockAudio();startRec()}).catch(function(){toast('請允許麥克風')})});const home=document.getElementById('homeButton')||document.querySelector('.brand-home');if(home)home.before(btn);else top.appendChild(btn);paint()}
 function init(){lsSet(KEY,'0');addButton();addDrawerSettings();const inner=document.getElementById('messagesInner');if(inner)new MutationObserver(watchTyped).observe(inner,{childList:true,subtree:true,characterData:true})}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
