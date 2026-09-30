@@ -122,6 +122,25 @@ function ensureSettingsPanel(){
  const select=document.getElementById('darkStarVoiceSelect');
  const big=document.getElementById('readabilityToggle');
  const video=document.getElementById('darkStarLiveVideoButton');
+ const speedKey='darkStarMyVoiceRate';
+ let speed=document.getElementById('darkStarSpeechSpeed');
+ let speedValue=document.getElementById('darkStarSpeechSpeedValue');
+ if(!speed){
+   speed=document.createElement('input');
+   speed.id='darkStarSpeechSpeed';
+   speed.type='range';
+   speed.min='0.7';
+   speed.max='1.3';
+   speed.step='0.05';
+   speed.value=localStorage.getItem(speedKey)||'1';
+   speed.style.cssText='display:block;width:100%;height:36px;margin:4px 0 0';
+ }
+ if(!speedValue){
+   speedValue=document.createElement('span');
+   speedValue.id='darkStarSpeechSpeedValue';
+   speedValue.style.cssText='font-size:12px;color:#666;min-width:48px;text-align:right';
+ }
+ speedValue.textContent=parseFloat(speed.value).toFixed(2)+'×';
 
  if(live){
    live.className='drawer-item';
@@ -148,6 +167,16 @@ function ensureSettingsPanel(){
      if(select)select.style.display=select.style.display==='none'?'block':'none';
    };
  }
+ if(sound){
+   sound.className='drawer-item';
+   sound.textContent='🔊 聲音';
+   sound.style.removeProperty('display');
+   if(sound.parentElement!==panel)panel.appendChild(sound);
+   sound.onclick=function(e){
+     e.preventDefault();e.stopPropagation();
+     if(select)select.style.display=select.style.display==='none'?'block':'none';
+   };
+ }
  if(select){
    select.className='drawer-voice-select';
    select.style.position='static';
@@ -158,6 +187,23 @@ function ensureSettingsPanel(){
    if(!select.dataset.settingsInitialized){select.style.display='none';select.dataset.settingsInitialized='1';}
    select.onchange=()=>localStorage.setItem('darkStarVoice',select.value);
  }
+ const speedRow=document.getElementById('darkStarSpeechSpeedRow')||document.createElement('div');
+ speedRow.id='darkStarSpeechSpeedRow';
+ speedRow.style.cssText='padding:8px 4px 4px';
+ speedRow.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#555"><span>語速快慢</span><span id="darkStarSpeechSpeedValue"></span></div>';
+ speedRow.appendChild(speed);
+ if(speedValue.parentElement!==speedRow){
+   speedRow.querySelector('#darkStarSpeechSpeedValue').replaceWith(speedValue);
+ }
+ if(speedRow.parentElement!==panel)panel.appendChild(speedRow);
+ speed.oninput=function(){
+   const v=Math.min(1.3,Math.max(0.7,parseFloat(speed.value)||1));
+   speed.value=String(v);
+   speedValue.textContent=v.toFixed(2)+'×';
+   localStorage.setItem(speedKey,String(v));
+   try{if(window.speechSynthesis){/* browser voice follows the same preference on next utterance */}}catch(e){}
+ };
+ speed.oninput();
  if(big){
    big.className='drawer-item';
    big.style.removeProperty('display');
