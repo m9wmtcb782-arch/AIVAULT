@@ -85,14 +85,18 @@ async function connect(){
   forceAuthRefresh=false;
   if(topicId)q.set('topic_id',topicId);if(conversationId)q.set('conversation_id',conversationId);if(tok)q.set('access_token',tok);
   log('連線 '+FN);ws=new WebSocket(FN+'?'+q.toString());ws.binaryType='arraybuffer';
-  await new Promise((resolve,reject)=>{
-    const t=setTimeout(()=>{try{ws&&ws.close()}catch(e){}reject(new Error('連線逾時'))},8000);
-    ws.onopen=()=>{clearTimeout(t);status('🟢 已連線 live-voice');log('OPEN');flushPending();resolve()};
-    ws.onerror=()=>{clearTimeout(t);log('WS error');reject(new Error('WebSocket error'))};
-    ws.onclose=function(ev){clearTimeout(t);log('CLOSE code='+ev.code+' reason='+(ev.reason||'')+' clean='+ev.wasClean);ws=null;if(auto&&wanted)scheduleReconnect();else status('⚪ 已斷線 '+ev.code)};
-    ws.onmessage=e=>handleMessage(e.data);
-  })().finally(()=>{connectPromise=null});
-  return connectPromise;
+  try{
+    await new Promise((resolve,reject)=>{
+      const t=setTimeout(()=>{try{socket.close()}catch(e){}reject(new Error('連線逾時'))},8000);
+      socket.onopen=()=>{clearTimeout(t);status('🟢 已連線 live-voice');log('OPEN');flushPending();resolve()};
+      socket.onerror=()=>{clearTimeout(t);log('WS error');reject(new Error('WebSocket error'))};
+      socket.onclose=function(ev){clearTimeout(t);log('CLOSE code='+ev.code+' reason='+(ev.reason||'')+' clean='+ev.wasClean);if(ws===socket)ws=null;if(auto&&wanted)scheduleReconnect();else status('⚪ 已斷線 '+ev.code)};
+      socket.onmessage=e=>handleMessage(e.data);
+    });
+    return;
+  }finally{
+    connectPromise=null;
+  }
 }
 function takeAudio(d){
   if(!d||typeof d!=='object')return;
