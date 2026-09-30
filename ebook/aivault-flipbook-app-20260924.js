@@ -491,7 +491,7 @@
         const localPages = await E.pagesOf(id);
         // 遠端教材若只有書籍殼、沒有實際頁面，不能把它當成完整 local 書；
         // 否則會跳過 Supabase 遠端內容，造成「有書名、沒內容」。
-        if (localPages && localPages.length > 0) {
+        if (local.source === "local" && localPages && localPages.length > 0) {
           state.source = "local";
           state.book = local;
           state.remoteId = local.remote_id || null;
