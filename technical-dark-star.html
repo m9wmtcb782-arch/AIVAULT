@@ -5999,6 +5999,69 @@ async function makePageWithDarkStar(
 }
 
 
+function isDarkStarSelfDiagnosticIntent(text){
+  const value = String(text || "").toLowerCase();
+  return [
+    "查額度","額度狀態","api額度","api 額度","配額狀態","quota",
+    "diagnostic","自我診斷","系統診斷","查引擎","查模型","查 ai 引擎",
+    "查 ai 模型","你目前使用什麼引擎","你目前使用什麼模型","請檢查系統"
+  ].some(keyword => value.includes(keyword));
+}
+
+function formatSelfDiagnosticReply(result){
+  const providers = result?.providers || {};
+  const lines = [
+    "我是暗星。我沒有用模型猜測這個狀態，而是直接查詢 AIVAULT Gateway 的自我診斷資料。",
+    "",
+    "【目前可確認的資料】"
+  ];
+
+  for(const provider of ["gemini","groq","grok"]){
+    const entries = Array.isArray(providers[provider]) ? providers[provider] : [];
+    if(!entries.length){
+      lines.push(provider.toUpperCase() + "：目前沒有可用的已發現金鑰資料。");
+      continue;
+    }
+    for(const item of entries){
+      const q = item?.quota || {};
+      lines.push(
+        provider.toUpperCase() + " Key " + item.key_index +
+        "：模型 " + (item.model || "未指定") +
+        "；狀態 " + (q.status || "UNKNOWN") +
+        "；證據 " + (q.evidence || "NOT_VERIFIED") +
+        "；今日 AIVAULT 觀察請求 " +
+        (q.observed_key_requests_today ?? "NOT_VERIFIED") + "。"
+      );
+    }
+  }
+
+  const last = result?.last_observed_call;
+  if(last){
+    lines.push(
+      "",
+      "【最近一次實際 Gateway 紀錄】",
+      "Provider：" + (last.provider || "未記錄"),
+      "Model：" + (last.model || "未記錄"),
+      "時間：" + (last.event_at || "未記錄"),
+      "結果：" + (last.success ? "成功" : "失敗"),
+      "HTTP：" + (last.status ?? "未記錄"),
+      "失敗分類：" + (last.failure_type || "無")
+    );
+  }else{
+    lines.push(
+      "",
+      "【目前無法確認】",
+      "目前 quota_events 沒有可供追溯的實際呼叫紀錄，因此不能假裝知道剩餘額度或今日剩餘 Token。這項狀態是 NOT_VERIFIED，不代表額度為零。"
+    );
+  }
+
+  lines.push(
+    "",
+    "如果供應商只回報 HTTP 429，我會標示為頻率或配額限制，不會直接判定為每日額度耗盡。"
+  );
+  return lines.join("\n");
+}
+
 /* =========================================================
    AIVAULT AI GATEWAY
    SINGLE VERSION ONLY
@@ -6100,6 +6163,12 @@ async function callAIVAULT(
       images
 
   };
+
+  if(isDarkStarSelfDiagnosticIntent(userMessage)){
+    payload.action = "self_diagnostic";
+    payload.stream = false;
+    updateDarkStarWorkLocation("📍 AIVAULT → AI Gateway → 自我診斷");
+  }
 
 
   console.info(
@@ -6721,9 +6790,9 @@ async function sendMessage(){
 
 
     const reply =
-      getAIReply(
-        result
-      );
+      result?.diagnostic_mode === "self_diagnostic"
+        ? formatSelfDiagnosticReply(result)
+        : getAIReply(result);
 
 
     const displayReply =
