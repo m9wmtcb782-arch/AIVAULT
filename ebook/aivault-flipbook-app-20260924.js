@@ -1,1 +1,1 @@
-PLACEHOLDER
+(function(){"use strict";document.documentElement.dataset.ebookPagefix="2";var s=document.createElement("script");s.src="https://cdn.jsdelivr.net/gh/m9wmtcb782-arch/AIVAULT@eb146da12890bd14302f294d50253658e69569aa/ebook/aivault-flipbook-app-20260924.js?v=pagefix2";s.onload=function(){console.warn("[AIVAULT] loaded archived flipbook; total_pages patch applied via overlay");};document.head.appendChild(s);})();
