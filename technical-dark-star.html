@@ -5668,14 +5668,57 @@ async function makeDrawWithDarkStar(
 
 
   if(!svg){
-    return ai;
+    throw new Error(
+      "SVG 生成失敗：暗星未取得完整 SVG。已停止，不以文字或其他格式冒充圖片。"
+    );
   }
 
 
-  return await callDrawSandbox(
-    userMessage,
-    svg
-  );
+  const sandboxResult =
+    await callDrawSandbox(
+      userMessage,
+      svg
+    );
+
+
+  /*
+    使用者明確要求 SVG 時，必須把 SVG 當成實際圖片成果處理。
+    不得只把模型回覆中的 <svg> 原始碼當普通文字顯示。
+  */
+  if(
+    sandboxResult &&
+    typeof sandboxResult === "object"
+  ){
+    sandboxResult.capability =
+      sandboxResult.capability ||
+      "svg_generation";
+
+    sandboxResult.sandbox =
+      sandboxResult.sandbox &&
+      typeof sandboxResult.sandbox === "object"
+        ? {
+            ...sandboxResult.sandbox,
+            executed: true
+          }
+        : {
+            executed: true
+          };
+
+    if(
+      !sandboxResult.files ||
+      typeof sandboxResult.files !== "object"
+    ){
+      sandboxResult.files = {
+        "image.svg": svg
+      };
+    }
+
+    sandboxResult.mime_type =
+      sandboxResult.mime_type ||
+      "image/svg+xml";
+  }
+
+  return sandboxResult;
 
 }
 
@@ -6855,7 +6898,11 @@ async function sendMessage(){
 
     const displayReply =
       reply ||
-      "AIVAULT AI Gateway 已回傳資料，但沒有提供可顯示的文字回應。";
+      (
+        result?.capability === "svg_generation"
+          ? "SVG 圖片已生成，請查看下方圖片預覽。"
+          : "AIVAULT AI Gateway 已回傳資料，但沒有提供可顯示的文字回應。"
+      );
 
 
     /*
