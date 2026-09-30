@@ -185,4 +185,4 @@ async function toggleAuto(){if(auto&&wanted){await stop();return}await start()}
 async function switchCamera(){if(mode!=='video'||!stream)return;facing=facing==='user'?'environment':'user';const old=stream;const ns=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing},audio:{echoCancellation:true}});old.getTracks().forEach(t=>t.stop());stream=ns;const p=$('preview');if(p){p.srcObject=ns;p.classList.toggle('mirror',facing==='user')}if(processor){try{processor.disconnect()}catch(_){}processor=null;source=null;startAudio()}if(ws&&ws.readyState===1)startVideo();}
 function bootFromQuery(){const q=new URLSearchParams(location.search);const m=q.get('mode')==='voice'?'voice':'video';mode='';setMode(m)}
 if($('liveInput'))$('liveInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendTyped()}});
-initVoices();bootFromQuery();
+initVoices();bootFromQuery();window.__AIVAULT_DARK_STAR_START__=start;window.__AIVAULT_DARK_STAR_STOP__=stop;window.__AIVAULT_DARK_STAR_TOGGLE_AUTO__=toggleAuto;
