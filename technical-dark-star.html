@@ -1795,6 +1795,7 @@ document
 
     messagesHistory = [];
 
+
     attachments = [];
 
     /*
@@ -4746,14 +4747,65 @@ function isExplicitSvgIntent(text){
 }
 
 
-function isJpgImageIntent(
-  text,
-  files
-){
+/*
+  ========================================================
+   IMAGE CONTEXT / INTENT
+  ========================================================
 
-  const value =
-    String(text || "").trim();
+  上一個任務若已經是圖片生成，後續只描述
+  構圖、人物、服裝、背景、風格等內容時，
+  視為同一圖片任務的延續，不要求使用者再次說 JPG。
+*/
 
+function getLatestImageTask(){
+
+  for(let i = messagesHistory.length - 1; i >= 0; i--){
+
+    const item = messagesHistory[i];
+
+    if(
+      item &&
+      item.role === "assistant" &&
+      item.result &&
+      item.result.capability === "image_generation"
+    ){
+
+      const previousUser =
+        messagesHistory
+          .slice(0, i)
+          .reverse()
+          .find(message =>
+            message &&
+            message.role === "user" &&
+            String(message.text || "").trim()
+          );
+
+      return {
+        prompt:
+          String(
+            item.result.image_prompt ||
+            previousUser?.text ||
+            ""
+          ).trim(),
+        format:
+          String(
+            item.result.mime_type ||
+            "image/jpeg"
+          ).toLowerCase(),
+        result: item.result
+      };
+
+    }
+
+  }
+
+  return null;
+}
+
+
+function isImageContinuationIntent(text, files){
+
+  const value = String(text || "").trim();
 
   if(
     !value ||
@@ -4761,15 +4813,39 @@ function isJpgImageIntent(
     hasImageAttachment(files) ||
     isExplicitSvgIntent(value)
   ){
-
     return false;
-
   }
 
+  if(!getLatestImageTask()){
+    return false;
+  }
 
-  return /JPG|JPEG|jpg|jpeg|點陣圖|生成圖片|產生圖片|生成一張圖|產生一張圖|生成照片|產生照片|圖片生成|圖片|照片|生圖|畫一張|畫個|畫一個|做一張圖|做個圖/i
+  return /近距離|遠距離|特寫|半身|全身|胸|身材|性感|漂亮|美麗|髮型|頭髮|臉|五官|眼睛|嘴唇|衣服|服裝|裙子|背景|光線|色調|姿勢|動作|角度|構圖|鏡頭|風格|寫實|逼真|更像|換成|改成|增加|減少|再近|再遠|不要|保留|重新生成|再生成|再做一張|再來一張/i
     .test(value);
+}
 
+
+function isJpgImageIntent(text, files){
+
+  const value = String(text || "").trim();
+
+  if(
+    !value ||
+    isDebugIntent(value) ||
+    hasImageAttachment(files) ||
+    isExplicitSvgIntent(value)
+  ){
+    return false;
+  }
+
+  if(
+    /JPG|JPEG|jpg|jpeg|點陣圖|生成圖片|產生圖片|生成一張圖|產生一張圖|生成照片|產生照片|圖片生成|圖片|照片|生圖|畫一張|畫個|畫一個|做一張圖|做個圖/i
+      .test(value)
+  ){
+    return true;
+  }
+
+  return isImageContinuationIntent(value, files);
 }
 
 
@@ -4787,15 +4863,12 @@ function isDrawIntent(
     hasImageAttachment(files) ||
     isJpgImageIntent(value, files)
   ){
-
     return false;
-
   }
 
 
   return /畫|繪|蝴蝶|圖片|生圖|動畫|svg|sketch/i
     .test(value);
-
 }
 
 
@@ -5085,6 +5158,20 @@ async function makeJpgImageWithDarkStar(
     "📍 AIVAULT → Image Generation → Gemini 3.1 Flash Image"
   );
 
+  const latestImageTask = getLatestImageTask();
+  const continuation = isImageContinuationIntent(userMessage, files);
+  const imagePrompt =
+    continuation && latestImageTask?.prompt
+      ? (
+          "沿用上一個圖片任務的主體與整體要求。\n" +
+          "上一個圖片要求：\n" +
+          latestImageTask.prompt +
+          "\n\n本輪修改要求：\n" +
+          String(userMessage || "").trim() +
+          "\n\n請保留原任務核心設定，只依本輪要求修改圖片。"
+        )
+      : String(userMessage || "").trim();
+
 
   const response =
     await fetch(
@@ -5103,9 +5190,7 @@ async function makeJpgImageWithDarkStar(
           JSON.stringify({
 
             prompt:
-              String(
-                userMessage || ""
-              ).trim(),
+              imagePrompt,
 
             mime_type:
               "image/jpeg",
@@ -5213,6 +5298,9 @@ async function makeJpgImageWithDarkStar(
     mime_type:
       generated?.mime_type ||
       "image/jpeg",
+
+    image_prompt:
+      imagePrompt,
 
     artifact:
       artifact ||
