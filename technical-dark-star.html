@@ -5999,6 +5999,26 @@ async function makePageWithDarkStar(
 }
 
 
+function getAIVAULTAccessToken(){
+  try{
+    const raw=localStorage.getItem("sb-clcddygkaaqqtsbswgdf-auth-token");
+    if(!raw)return "";
+    const j=JSON.parse(raw);
+    return String(j?.access_token || j?.currentSession?.access_token || "").trim();
+  }catch(error){
+    return "";
+  }
+}
+
+function isDarkStarSelfRepairIntent(text){
+  const value = String(text || "").trim().toLowerCase();
+  return [
+    "開始自我修復","開始自我修復。","開始自我修復自己",
+    "依照你剛才的診斷修復","依照剛才的診斷修復",
+    "修復這個故障","暗星，開始自我修復","暗星開始自我修復"
+  ].some(keyword => value.includes(keyword));
+}
+
 function isDarkStarSelfDiagnosticIntent(text){
   const value = String(text || "").toLowerCase();
   return [
@@ -6006,6 +6026,31 @@ function isDarkStarSelfDiagnosticIntent(text){
     "diagnostic","自我診斷","系統診斷","查引擎","查模型","查 ai 引擎",
     "查 ai 模型","你目前使用什麼引擎","你目前使用什麼模型","請檢查系統"
   ].some(keyword => value.includes(keyword));
+}
+
+function formatSelfRepairReply(result){
+  if(!result?.success){
+    return [
+      "【自我修復未啟動】",
+      result?.message || "Owner 授權沒有建立，因此我不會修改自己的程式或後端。",
+      "",
+      "證據：NOT_AUTHORIZED",
+      result?.error ? "工程代碼：" + result.error : ""
+    ].filter(Boolean).join("\n");
+  }
+  const a=result.authorization||{};
+  return [
+    "【Owner 自我修復授權已建立】",
+    "我只在你明確下達修復命令後取得這一次授權。",
+    "command_id：" + (a.command_id || "未回傳"),
+    "有效時間：10 分鐘",
+    "一次性授權：是",
+    "",
+    "允許範圍：Gateway 路由、Provider cooldown、配額事件儲存、記憶完整性檢查、Runtime 健康檢查。",
+    "禁止：任意 SQL、任意程式碼執行、刪除資料、未經另外確認的架構變更。",
+    "",
+    "狀態：AUTHORIZATION_CONFIRMED"
+  ].join("\n");
 }
 
 function formatSelfDiagnosticReply(result){
@@ -6164,7 +6209,13 @@ async function callAIVAULT(
 
   };
 
-  if(isDarkStarSelfDiagnosticIntent(userMessage)){
+  if(isDarkStarSelfRepairIntent(userMessage)){
+    payload.action = "self_repair_authorize";
+    payload.command_text = userMessage;
+    payload.issue_summary = "Owner 明確要求 Technical Dark Star 進入自我修復授權流程";
+    payload.stream = false;
+    updateDarkStarWorkLocation("📍 AIVAULT → AI Gateway → Owner 自我修復授權");
+  }else if(isDarkStarSelfDiagnosticIntent(userMessage)){
     payload.action = "self_diagnostic";
     payload.stream = false;
     updateDarkStarWorkLocation("📍 AIVAULT → AI Gateway → 自我診斷");
@@ -6214,7 +6265,10 @@ async function callAIVAULT(
           "Content-Type":
             "application/json",
           "Accept":
-            "text/event-stream, application/json"
+            "text/event-stream, application/json",
+          ...(getAIVAULTAccessToken()
+            ? { "Authorization": "Bearer " + getAIVAULTAccessToken() }
+            : {})
         },
 
         body:
@@ -6792,9 +6846,11 @@ async function sendMessage(){
 
 
     const reply =
-      result?.diagnostic_mode === "self_diagnostic"
-        ? formatSelfDiagnosticReply(result)
-        : getAIReply(result);
+      result?.diagnostic_mode === "self_repair_authorization"
+        ? formatSelfRepairReply(result)
+        : result?.diagnostic_mode === "self_diagnostic"
+          ? formatSelfDiagnosticReply(result)
+          : getAIReply(result);
 
 
     const displayReply =
