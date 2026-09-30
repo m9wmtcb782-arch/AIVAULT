@@ -5,7 +5,7 @@ let forceAuthRefresh=false;
 const TURNS_KEY='aivault_ds_live_turns';
 const DRAFT_KEY='aivault_ds_live_draft';
 const CTX_KEY='technical_dark_star_live_context';
-const VOICES=[['Kore','穩重'],['Puck','活潑'],['Charon','資訊型'],['Zephyr','明亮'],['Leda','年輕'],['Aoede','輕快'],['Orus','穩重'],['Fenrir','興奮'],['Gacrux','成熟'],['Achird','友善']];
+const VOICES=[['Zephyr','Zephyr｜明亮'],['Puck','Puck｜歡快'],['Charon','Charon｜資訊豐富'],['Kore','Kore｜堅定'],['Fenrir','Fenrir｜興奮'],['Leda','Leda｜年輕'],['Orus','Orus｜堅定'],['Aoede','Aoede｜輕快'],['Callirrhoe','Callirrhoe｜隨和'],['Autonoe','Autonoe｜明亮'],['Enceladus','Enceladus｜氣聲'],['Iapetus','Iapetus｜清晰'],['Umbriel','Umbriel｜隨和'],['Algieba','Algieba｜柔順'],['Despina','Despina｜柔順'],['Erinome','Erinome｜清晰'],['Algenib','Algenib｜粗獷'],['Rasalgethi','Rasalgethi｜資訊豐富'],['Laomedeia','Laomedeia｜歡快'],['Achernar','Achernar｜柔和'],['Alnilam','Alnilam｜堅定'],['Schedar','Schedar｜均衡'],['Gacrux','Gacrux｜成熟'],['Pulcherrima','Pulcherrima｜前進感'],['Achird','Achird｜友善'],['Zubenelgenubi','Zubenelgenubi｜隨性'],['Vindemiatrix','Vindemiatrix｜溫和'],['Sadachbia','Sadachbia｜活潑'],['Sadaltager','Sadaltager｜知識豐富'],['Sulafat','Sulafat｜溫暖']];
 let ws=null,stream=null,auto=false,facing='user',mode='video',videoTimer=null,inputCtx=null,processor=null,source=null,playCtx=null,nextPlayTime=0,audioPackets=0,audioBytes=0,reconnecting=false,wanted=false,starting=false,connectPromise=null;
 let pendingText=[], inBuf='', outBuf='', userEl=null, aiEl=null, playSources=[], userTalkingUntil=0;
 const $=id=>document.getElementById(id);
