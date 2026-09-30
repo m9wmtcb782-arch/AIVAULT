@@ -4790,6 +4790,67 @@ function isExplicitSvgIntent(text){
    4. 新人物/全新圖片等明確要求才建立新圖片任務。
 */
 
+function normalizeImageTaskText(value){
+  return String(value || "").replace(/\s+/g," ").trim();
+}
+
+function buildImageTaskState(previousTask, userMessage, continuation){
+  const previous = previousTask?.image_task && typeof previousTask.image_task === "object"
+    ? previousTask.image_task : {};
+  const text = normalizeImageTaskText(userMessage);
+  const task = {
+    ethnicity: previous.ethnicity || "",
+    face: previous.face || "",
+    skin_tone: previous.skin_tone || "",
+    hair: previous.hair || "",
+    clothing: previous.clothing || "",
+    body: previous.body || "",
+    pose: previous.pose || "",
+    camera: previous.camera || "",
+    background: previous.background || "",
+    lighting: previous.lighting || "",
+    style: previous.style || ""
+  };
+  if(!continuation){
+    if(/亞洲|亞裔|東亞|中國人|華人|日本人|韓國人|台灣人|東南亞/i.test(text)){
+      task.ethnicity="亞洲／東亞成人女性面部外觀；維持自然一致的亞洲面部結構。";
+      task.face="自然亞洲成人女性五官與臉型；眼睛、眉骨、鼻部、嘴唇與整體面部結構保持一致。";
+    }else if(/白人|歐美人|歐洲人|西方人|高加索|Caucasian|European/i.test(text)){
+      task.ethnicity="歐美／白人成年人面部外觀；維持一致的歐美面部結構。";
+      task.face="自然一致的歐美成人五官與臉型。";
+    }else if(/非裔|黑人|African/i.test(text)){
+      task.ethnicity="非洲裔成人面部外觀；維持自然一致的面部結構。";
+    }else if(/南亞|印度人|印度裔|South Asian|Indian/i.test(text)){
+      task.ethnicity="南亞成人面部外觀；維持自然一致的面部結構。";
+    }
+    if(/黑髮|黑色頭髮|黑長髮|長髮/i.test(text)) task.hair="黑色長髮";
+    if(/性感/i.test(text)) task.style="性感但非露骨的成人肖像風格";
+  }
+  if(/豐滿|胸大|胸部大|胸部豐滿/i.test(text)) task.body="上半身比例豐滿；只在使用者要求時調整身體比例。";
+  if(/近距離|近景|上半身|半身|特寫/i.test(text)) task.camera="中近景／上半身構圖；完整頭部、完整臉部、雙肩與足夠上半身可見，不裁切臉或頭。";
+  if(/全身/i.test(text)) task.camera="全身構圖";
+  if(/背景/i.test(text)) task.background=text;
+  if(/光線|柔光|逆光|燈光/i.test(text)) task.lighting=text;
+  if(/姿勢|動作/i.test(text)) task.pose=text;
+  if(/衣服|服裝|裙子|上衣/i.test(text)) task.clothing=text;
+  if(/寫實|逼真/i.test(text)) task.style="寫實成人肖像";
+  return task;
+}
+
+function imageTaskLockPrompt(task){
+  const entries=[
+    ["人物族群",task.ethnicity],["面部",task.face],["膚色",task.skin_tone],
+    ["髮型",task.hair],["服裝",task.clothing],["身體比例",task.body],
+    ["姿勢",task.pose],["鏡頭構圖",task.camera],["背景",task.background],
+    ["光線",task.lighting],["風格",task.style]
+  ].filter(([,value])=>String(value || "").trim());
+  if(!entries.length)return "";
+  return "【IMAGE TASK LOCK】\n"+
+    entries.map(([name,value])=>name+"："+value).join("\n")+
+    "\n以上是目前圖片任務狀態。後續修改只能改變使用者本輪明確要求的欄位；未被要求的欄位必須保持不變。\n"+
+    "人物族群、面部結構與身份是獨立鎖定條件。除非使用者明確要求換人物或改變族群，不得因鏡頭、身材、服裝、背景或風格修改而改變臉部或族群外觀。\n";
+}
+
 function getLatestImageTask(){
 
   for(let i = messagesHistory.length - 1; i >= 0; i--){
@@ -4820,6 +4881,11 @@ function getLatestImageTask(){
             previousUser?.text ||
             ""
           ).trim(),
+        image_task:
+          item.result.image_task &&
+          typeof item.result.image_task === "object"
+            ? item.result.image_task
+            : null,
         format:
           String(
             item.result.mime_type ||
@@ -5237,24 +5303,27 @@ async function makeJpgImageWithDarkStar(
 
   const latestImageTask = getLatestImageTask();
   const continuation = isImageContinuationIntent(userMessage, files);
+  const imageTask = buildImageTaskState(latestImageTask, userMessage, continuation);
   const imagePrompt =
     continuation && latestImageTask?.prompt
       ? (
-          "你正在修改上一張實際生成的圖片，不是在重新創造一個新人物。\n" +
-          "人物族群與面部結構是獨立的鎖定條件；若上一張已經確定人物族群，後續只改構圖、身材、服裝或背景時不得自行改變族群或面部結構。\n" +
-          "上一張圖片是本次修改的視覺基準；若提供 reference image，必須以該圖片中的同一人物、臉部、膚色、髮型、服裝、配件與整體外觀為基準。\n" +
-          "除非使用者明確要求，絕對不要自行換人、換人種、換膚色、換髮型、換衣服、換配件或換整體風格。\n" +
-          "上一個圖片任務：\n" +
+          "你正在修改上一張實際生成的 JPG 圖片，不是在重新創造一個新人物。\\n" +
+          imageTaskLockPrompt(imageTask) +
+          "上一張圖片是本次修改的唯一視覺基準；必須使用上一張實際 JPG 作為 reference image。\\n" +
+          "除非使用者明確要求，絕對不要自行換人、換人種、換膚色、換髮型、換衣服、換配件或換整體風格。\\n" +
+          "上一個圖片任務文字基準：\\n" +
           latestImageTask.prompt +
-          "\n\n本輪使用者修改：\n" +
+          "\\n\\n本輪使用者修改：\\n" +
           String(userMessage || "").trim() +
-          "\n\n只修改使用者本輪明確要求的部分；其他條件全部保持不變。\n" +
-          "若本輪說「近距離」，必須理解為鏡頭拉近、人物佔據主要畫面、胸像或上半身近景，而不是全身照。\n" +
-          "若本輪說「胸大」或「胸部豐滿」，必須把豐滿上半身比例作為主要視覺要求，不得忽略。"
+          "\\n\\n只修改使用者本輪明確要求的部分；其他鎖定欄位全部保持不變。\\n" +
+          "若本輪說「近距離」，理解為中近景／上半身構圖，完整頭部、完整臉部、雙肩與足夠上半身可見，不得裁掉臉或頭。\\n" +
+          "若本輪說「胸大」或「胸部豐滿」，只調整身體比例，不得藉此換人或改變臉部。"
         )
       : (
-          "請完整理解使用者的圖片需求，不要自行加入未要求的構圖、人物、膚色、人種、服裝或風格變化。\n" +
-          getRequestedImageAppearanceGuidance(userMessage) + "\n" +
+          "這是新的 JPG 圖片任務。請完整理解使用者需求。\\n" +
+          imageTaskLockPrompt(imageTask) +
+          "不要自行加入未要求的構圖、人物、膚色、人種、服裝或風格變化。\\n" +
+          getRequestedImageAppearanceGuidance(userMessage) + "\\n" +
           String(userMessage || "").trim()
         );
 
@@ -5392,6 +5461,9 @@ async function makeJpgImageWithDarkStar(
 
     image_prompt:
       imagePrompt,
+
+    image_task:
+      imageTask,
 
     artifact:
       artifact ||
