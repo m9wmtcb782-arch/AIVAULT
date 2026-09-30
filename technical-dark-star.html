@@ -4842,6 +4842,23 @@ function getLatestImageTask(){
 }
 
 
+function getRequestedImageAppearanceGuidance(text){
+  const value = String(text || "").trim();
+  if(/亞洲|亞裔|東亞|中國人|華人|日本人|韓國人|台灣人|東南亞/i.test(value)){
+    return "人物族群外觀要求：請維持明確的亞洲／東亞面部外觀與自然的亞洲成人五官比例；不要自動轉成歐美白人面部結構。這不是單純膚色要求，還包括臉型、眼睛、眉骨、鼻部、嘴唇與整體面部結構的協調一致。";
+  }
+  if(/白人|歐美人|歐洲人|西方人|高加索|Caucasian|European/i.test(value)){
+    return "人物族群外觀要求：請維持明確的歐美／白人成年人面部外觀與自然一致的面部結構；不要在未要求時改成亞洲面部外觀。";
+  }
+  if(/非裔|黑人|African/i.test(value)){
+    return "人物族群外觀要求：請維持明確且自然一致的非洲裔成人面部外觀；不要在未要求時改成其他族群的面部外觀。";
+  }
+  if(/南亞|印度人|印度裔|South Asian|Indian/i.test(value)){
+    return "人物族群外觀要求：請維持明確且自然一致的南亞成人面部外觀；不要在未要求時改成其他族群的面部外觀。";
+  }
+  return "";
+}
+
 function isImageContinuationIntent(text, files){
 
   const value = String(text || "").trim();
@@ -5224,6 +5241,7 @@ async function makeJpgImageWithDarkStar(
     continuation && latestImageTask?.prompt
       ? (
           "你正在修改上一張實際生成的圖片，不是在重新創造一個新人物。\n" +
+          "人物族群與面部結構是獨立的鎖定條件；若上一張已經確定人物族群，後續只改構圖、身材、服裝或背景時不得自行改變族群或面部結構。\n" +
           "上一張圖片是本次修改的視覺基準；若提供 reference image，必須以該圖片中的同一人物、臉部、膚色、髮型、服裝、配件與整體外觀為基準。\n" +
           "除非使用者明確要求，絕對不要自行換人、換人種、換膚色、換髮型、換衣服、換配件或換整體風格。\n" +
           "上一個圖片任務：\n" +
@@ -5236,6 +5254,7 @@ async function makeJpgImageWithDarkStar(
         )
       : (
           "請完整理解使用者的圖片需求，不要自行加入未要求的構圖、人物、膚色、人種、服裝或風格變化。\n" +
+          getRequestedImageAppearanceGuidance(userMessage) + "\n" +
           String(userMessage || "").trim()
         );
 
