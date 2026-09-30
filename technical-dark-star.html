@@ -6758,10 +6758,7 @@ async function sendMessage(){
       sendId,
       {
         jpg:
-          isJpgImageIntent(
-            text,
-            outgoingFiles
-          ),
+          jpgImageIntent,
 
         draw:
           isDrawIntent(
@@ -6782,10 +6779,7 @@ async function sendMessage(){
           ),
 
         normal:
-          !isJpgImageIntent(
-            text,
-            outgoingFiles
-          ) &&
+          !jpgImageIntent &&
           !isDrawIntent(
             text,
             outgoingFiles
@@ -6809,8 +6803,34 @@ async function sendMessage(){
 
     let result;
 
+    /*
+      AIVAULT_IMAGE_ROUTER_V3
+      HARD ROUTING:
+      - 一般圖片／照片需求優先走真正 JPG 圖片生成。
+      - SVG 只有使用者明確指定 SVG／向量圖時才允許。
+      - 不讓模型自行輸出 SVG 搶走圖片生成路由。
+    */
+    const explicitSvgIntent =
+      isExplicitSvgIntent(text);
 
-    if(isExplicitSvgIntent(text)){
+    const jpgImageIntent =
+      isJpgImageIntent(
+        text,
+        outgoingFiles
+      );
+
+    console.info(
+      "[DarkStar][IMAGE ROUTER V3]",
+      {
+        explicitSvgIntent,
+        jpgImageIntent,
+        text
+      }
+    );
+
+    if(
+      explicitSvgIntent
+    ){
 
       result =
         await makeDrawWithDarkStar(
@@ -6819,10 +6839,7 @@ async function sendMessage(){
         );
 
     }else if(
-      isJpgImageIntent(
-        text,
-        outgoingFiles
-      )
+      jpgImageIntent
     ){
 
       result =
