@@ -16,7 +16,7 @@ function toast(msg){const el=document.getElementById('voiceStatus');if(!el){retu
 function paint(){const btn=document.getElementById('darkStarMyVoiceButton');if(!btn)return;btn.classList.toggle('active',on());btn.textContent=on()?'我的聲音 ✓':'我的聲音'}
 function stopSpeak(){speaking=false;if(!audio)return;try{audio.pause()}catch(e){}}
 function unlockAudio(){if(!audio)audio=new Audio();audio.volume=1;audio.src='data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';return audio.play().catch(function(){}).then(function(){try{audio.pause()}catch(e){}})}
-function wrongLang(s){return /[ऀ-ॿ가-힣぀-ヿЀ-ӿ؀-ۿ฀-๿]/.test(String(s||''))}
+function wrongLang(s){return false}
 function setInput(text){const input=document.getElementById('composerInput');if(!input)return;input.value=String(text||'');input.dispatchEvent(new Event('input',{bubbles:true}))}
 function sendOfficial(text){
   const raw=String(text||'').trim();
@@ -27,7 +27,7 @@ function sendOfficial(text){
   hold='';
 }
 function lastAI(){const nodes=document.querySelectorAll('.message.ai .message-text, .message.assistant .message-text');const el=nodes[nodes.length-1];const t=el?String(el.innerText||'').trim():'';if(!t||/思考中|正在思考/.test(t))return '';return t}
-function speakChinese(text){const raw=String(text||'').trim();const lines=raw.split(/\n+/).map(s=>s.trim()).filter(Boolean);const zh=lines.filter(s=>/[一-鿿]/.test(s)&&!wrongLang(s));return zh.length?zh.join('。'):raw}
+function speakChinese(text){return String(text||'').trim()}
 async function speakMine(text){
   const raw=speakChinese(text);const id=voiceId();
   if(!raw||raw.length<2||!id||speaking||wrongLang(raw)||raw===last)return;
@@ -67,7 +67,7 @@ function addDrawerSettings(){
   const box=document.createElement('div');
   box.id='dsMyVoiceSettings';
   box.style.cssText='padding:10px 12px 12px;border-bottom:1px solid #eee';
-  const saved=!!(lsGet('FISH_API_KEY')||lsGet('FISH_VOICE_ID'));
+  const saved=!!lsGet('FISH_VOICE_ID');
   box.innerHTML='<div style="font-size:12px;font-weight:600;margin-bottom:8px">我的聲音</div><button id="dsMyVoiceToggle" type="button" class="drawer-item" style="width:100%">'+(saved?'密碼已儲存，點此展開更改':'設定 API Key 與 Voice ID')+'</button><div id="dsMyVoiceFields" hidden><p style="font-size:11px;color:#888;margin:8px 0">不顯示明文。留空儲存不會覆蓋舊值。</p><label style="display:block;font-size:11px;color:#666;margin:8px 0 6px">我的聲音 API Key<br><input id="dsFishKeyIn" type="password" autocomplete="new-password" placeholder="••••••••" style="width:100%;margin-top:4px;padding:7px;border:1px solid #ddd;border-radius:8px"></label><label style="display:block;font-size:11px;color:#666">我的聲音 Voice ID<br><input id="dsFishVoiceIn" type="password" autocomplete="new-password" placeholder="••••••••" style="width:100%;margin-top:4px;padding:7px;border:1px solid #ddd;border-radius:8px"></label><div style="display:flex;gap:8px"><button id="dsFishPeek" type="button" class="drawer-item" style="flex:1">顯示/隱藏</button><button id="dsFishSave" type="button" class="drawer-item" style="flex:1">儲存並收起</button></div></div>';
   bottom.insertBefore(box,bottom.firstChild);
   const fields=document.getElementById('dsMyVoiceFields');
@@ -106,7 +106,7 @@ function addDrawerSettings(){
   };
 }
 window.speakText=function(text){if(on()){if(text)speakMine(text);return}if(typeof originalSpeak==='function')return originalSpeak(text)};
-function addButton(){if(document.getElementById('darkStarMyVoiceButton'))return;const top=document.querySelector('.topbar');if(!top)return;const btn=document.createElement('button');btn.id='darkStarMyVoiceButton';btn.type='button';btn.style.cssText='margin-left:6px;border:1px solid #ddd;background:#fff;border-radius:9px;padding:7px 10px;font-size:12px;white-space:nowrap';btn.addEventListener('click',function(){if(on()){lsSet(KEY,'0');paint();stopSpeak();stopRec();return}navigator.mediaDevices.getUserMedia({audio:true,video:false}).then(function(s){stream=s;lsSet(KEY,'1');paint();unlockAudio();startRec()}).catch(function(){toast('請允許麥克風')})});const home=document.getElementById('homeButton')||document.querySelector('.brand-home');if(home)home.before(btn);else top.appendChild(btn);lsSet(KEY,'0');paint()}
+function addButton(){if(document.getElementById('darkStarMyVoiceButton'))return;const top=document.querySelector('.topbar');if(!top)return;const btn=document.createElement('button');btn.id='darkStarMyVoiceButton';btn.type='button';btn.style.cssText='margin-left:6px;border:1px solid #ddd;background:#fff;border-radius:9px;padding:7px 10px;font-size:12px;white-space:nowrap';btn.addEventListener('click',function(){if(on()){if(!localStorage.getItem(KEY))lsSet(KEY,'0');paint();stopSpeak();stopRec();return}navigator.mediaDevices.getUserMedia({audio:true,video:false}).then(function(s){stream=s;lsSet(KEY,'1');paint();unlockAudio();startRec()}).catch(function(){toast('請允許麥克風')})});const home=document.getElementById('homeButton')||document.querySelector('.brand-home');if(home)home.before(btn);else top.appendChild(btn);lsSet(KEY,'0');paint()}
 function init(){addButton();addDrawerSettings();const inner=document.getElementById('messagesInner');if(inner)new MutationObserver(watchTyped).observe(inner,{childList:true,subtree:true,characterData:true})}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
