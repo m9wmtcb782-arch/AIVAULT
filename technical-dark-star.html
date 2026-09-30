@@ -5584,6 +5584,37 @@ async function makeJpgImageWithDarkStar(
 
   }
 
+  /*
+    AIVAULT_OUTPUT_CONTRACT_V1
+    前端最後一道硬閘門：
+    一般圖片任務要求 JPG 時，只接受後端已驗證的真正 JPEG。
+    不接受 SVG、文字、未驗證的 MIME 或其他格式冒充 JPG。
+  */
+  const verifiedMime =
+    String(
+      generated?.mime_type ||
+      data?.mime_type ||
+      ""
+    ).toLowerCase();
+
+  if(
+    data?.format_verified !== true ||
+    verifiedMime !== "image/jpeg"
+  ){
+    throw new Error(
+      "JPG 輸出驗證失敗：後端沒有提供已驗證的 image/jpeg。SVG／文字 fallback 已禁止。"
+    );
+  }
+
+  if(
+    artifact?.signed_url &&
+    !/^https?:\/\//i.test(String(artifact.signed_url))
+  ){
+    throw new Error(
+      "JPG 輸出驗證失敗：圖片 URL 格式不正確。"
+    );
+  }
+
 
   return {
 
