@@ -3,6 +3,9 @@
   if (window.__AIVAULT_DS_STRIP_DIAGNOSTIC__) return;
   window.__AIVAULT_DS_STRIP_DIAGNOSTIC__ = true;
 
+  const USER_VISIBLE_QUOTA_NOTICE =
+    '主要 AI 通道剛才受到每日配額限制，我已保留技術診斷資料並使用可用的備援通道。';
+
   const MARKERS = [
     'Dark Star Runtime Diagnostic Report',
     'aivault-frontend-worker',
@@ -19,6 +22,34 @@
     let hits = 0;
     for (const m of MARKERS) if (s.indexOf(m) !== -1) hits += 1;
     return hits >= 2;
+  }
+
+  function stripUserVisibleQuotaNotice(text) {
+    const s = String(text || '');
+    if (!s) return s;
+    return s
+      .split(USER_VISIBLE_QUOTA_NOTICE).join('')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
+  function hideQuotaNoticeInElement(el) {
+    if (!el || !el.isConnected) return false;
+    if (el.closest && !el.closest('.message.ai, .message.assistant, .message-text')) return false;
+
+    const before = el.textContent || '';
+    if (!before.includes(USER_VISIBLE_QUOTA_NOTICE)) return false;
+
+    const after = stripUserVisibleQuotaNotice(before);
+    if (el.textContent !== after) {
+      el.textContent = after;
+      return true;
+    }
+    return false;
+  }
+
+  function sweepQuotaNotice() {
+    document.querySelectorAll('.message.ai .message-text, .message.assistant .message-text, .message-text').forEach(hideQuotaNoticeInElement);
   }
 
   function composer() {
@@ -41,7 +72,17 @@
       try { console.info('[DarkStar] stripped runtime diagnostic from composer'); } catch (e) {}
     }
     document.querySelectorAll('textarea, input[type="text"]').forEach(clearIfDiagnostic);
+    sweepQuotaNotice();
   }
+
+  const observer = new MutationObserver(() => {
+    sweepQuotaNotice();
+  });
+  observer.observe(document.documentElement, {
+    subtree: true,
+    childList: true,
+    characterData: true
+  });
 
   const NativeFetch = window.fetch;
   if (typeof NativeFetch === 'function' && !NativeFetch.__AIVAULT_DS_STRIP_DIAG__) {
