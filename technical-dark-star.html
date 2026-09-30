@@ -4809,7 +4809,8 @@ function buildImageTaskState(previousTask, userMessage, continuation){
     camera: previous.camera || "",
     background: previous.background || "",
     lighting: previous.lighting || "",
-    style: previous.style || ""
+    style: previous.style || "",
+    anatomy: previous.anatomy || ""
   };
   if(!continuation){
     if(/亞洲|亞裔|東亞|中國人|華人|日本人|韓國人|台灣人|東南亞/i.test(text)){
@@ -4834,6 +4835,9 @@ function buildImageTaskState(previousTask, userMessage, continuation){
   if(/姿勢|動作/i.test(text)) task.pose=text;
   if(/衣服|服裝|裙子|上衣/i.test(text)) task.clothing=text;
   if(/寫實|逼真/i.test(text)) task.style="寫實成人肖像";
+  if(/人體工學|人體結構|人體比例|骨架|關節|姿勢分析|人體研究|人體藝術/i.test(text)){
+    task.anatomy="人體結構研究：頭身比例、肩胯比例、脊柱與四肢長度、主要關節位置、姿勢與重心保持自然一致；以人體結構與工學為主要研究目標。";
+  }
   return task;
 }
 
@@ -4842,7 +4846,7 @@ function imageTaskLockPrompt(task){
     ["人物族群",task.ethnicity],["面部",task.face],["膚色",task.skin_tone],
     ["髮型",task.hair],["服裝",task.clothing],["身體比例",task.body],
     ["姿勢",task.pose],["鏡頭構圖",task.camera],["背景",task.background],
-    ["光線",task.lighting],["風格",task.style]
+    ["光線",task.lighting],["風格",task.style],["人體結構",task.anatomy]
   ].filter(([,value])=>String(value || "").trim());
   if(!entries.length)return "";
   return "【IMAGE TASK LOCK】\n"+
@@ -4955,7 +4959,7 @@ function isImageContinuationIntent(text, files){
     return false;
   }
 
-  return /上一張|上一個圖片|目前這張|這張圖|這張照片|修改圖片|修改照片|修改上一張|調整上一張|改上一張|繼續修改|幫我修改|幫我調整|近距離|遠距離|近景|特寫|半身|上半身|全身|胸|身材|比例|大小|人物佔比|性感|漂亮|美麗|美女|男性|女性|人物|髮型|頭髮|臉|五官|眼睛|嘴唇|衣服|服裝|裙子|背景|光線|色調|姿勢|動作|角度|構圖|鏡頭|畫面|留白|裁切|裁剪|完整臉|不要裁臉|不要裁頭|風格|寫實|逼真|更像|換成|改成|調整|增加|減少|縮小|放大|再近|再遠|不要|保留|重新生成|再生成|再做一張|再來一張/i
+  return /上一張|上一個圖片|目前這張|這張圖|這張照片|修改圖片|修改照片|修改上一張|調整上一張|改上一張|繼續修改|幫我修改|幫我調整|近距離|遠距離|近景|特寫|半身|上半身|全身|胸|身材|比例|大小|人物佔比|性感|漂亮|美麗|美女|男性|女性|人物|髮型|頭髮|臉|五官|眼睛|嘴唇|衣服|服裝|裙子|背景|光線|色調|姿勢|動作|角度|構圖|鏡頭|畫面|留白|裁切|裁剪|完整臉|不要裁臉|不要裁頭|風格|寫實|逼真|人體工學|人體結構|人體比例|骨架|關節|姿勢分析|人體研究|人體藝術|更像|換成|改成|調整|增加|減少|縮小|放大|再近|再遠|不要|保留|重新生成|再生成|再做一張|再來一張/i
     .test(value);
 }
 
