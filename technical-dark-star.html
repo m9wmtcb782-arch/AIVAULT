@@ -4792,6 +4792,12 @@ function getLatestImageTask(){
             item.result.mime_type ||
             "image/jpeg"
           ).toLowerCase(),
+        reference_url:
+          String(
+            item.result.artifact?.signed_url ||
+            item.result.images?.[0]?.url ||
+            ""
+          ).trim(),
         result: item.result
       };
 
@@ -5163,14 +5169,21 @@ async function makeJpgImageWithDarkStar(
   const imagePrompt =
     continuation && latestImageTask?.prompt
       ? (
-          "沿用上一個圖片任務的主體與整體要求。\n" +
-          "上一個圖片要求：\n" +
+          "你正在修改上一張實際生成的圖片，不是在重新創造一個新人物。\n" +
+          "上一張圖片是本次修改的視覺基準；若提供 reference image，必須以該圖片中的同一人物、臉部、膚色、髮型、服裝、配件與整體外觀為基準。\n" +
+          "除非使用者明確要求，絕對不要自行換人、換人種、換膚色、換髮型、換衣服、換配件或換整體風格。\n" +
+          "上一個圖片任務：\n" +
           latestImageTask.prompt +
-          "\n\n本輪修改要求：\n" +
+          "\n\n本輪使用者修改：\n" +
           String(userMessage || "").trim() +
-          "\n\n請保留原任務核心設定，只依本輪要求修改圖片。"
+          "\n\n只修改使用者本輪明確要求的部分；其他條件全部保持不變。\n" +
+          "若本輪說「近距離」，必須理解為鏡頭拉近、人物佔據主要畫面、胸像或上半身近景，而不是全身照。\n" +
+          "若本輪說「胸大」或「胸部豐滿」，必須把豐滿上半身比例作為主要視覺要求，不得忽略。"
         )
-      : String(userMessage || "").trim();
+      : (
+          "請完整理解使用者的圖片需求，不要自行加入未要求的構圖、人物、膚色、人種、服裝或風格變化。\n" +
+          String(userMessage || "").trim()
+        );
 
 
   const response =
@@ -5199,7 +5212,12 @@ async function makeJpgImageWithDarkStar(
               "1:1",
 
             image_size:
-              "1K"
+              "1K",
+
+            reference_image_urls:
+              continuation && latestImageTask?.reference_url
+                ? [latestImageTask.reference_url]
+                : []
 
           })
 
