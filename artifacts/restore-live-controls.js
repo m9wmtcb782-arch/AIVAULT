@@ -67,7 +67,7 @@ function restore(){
    settings.style.removeProperty('display');
    settings.removeAttribute('aria-hidden');
    if(settings.parentElement!==bottom)bottom.insertBefore(settings,live.nextSibling);
-   if(video.parentElement!==bottom)bottom.insertBefore(video,settings);
+   if(video.parentElement!==bottom)bottom.insertBefore(video,bottom.firstChild);
  }
  if(!live.dataset.liveVoiceBound){
    live.dataset.liveVoiceBound='1';
