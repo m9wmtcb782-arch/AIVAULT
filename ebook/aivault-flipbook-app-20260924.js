@@ -289,6 +289,13 @@
     el.innerHTML = "<h3>【教材原文】" + (bits ? ("　" + E.esc(bits)) : "") + "</h3>" + body;
   }
 
+  function currentPairFor(pageNumber) {
+    if (!useSpread()) return [pageNumber];
+    const left = pageNumber % 2 === 0 ? pageNumber - 1 : pageNumber;
+    const right = left + 1;
+    return [Math.max(1, left), right <= state.totalPages ? right : null].filter(Boolean);
+  }
+
   function currentPair() {
     if (!useSpread()) return [state.pageNumber, null];
     const left = state.pageNumber % 2 === 0 ? state.pageNumber - 1 : state.pageNumber;
@@ -393,8 +400,13 @@
       renderSpread();
       return;
     }
-    const nextTargets = [n - 1, n, n + 1, n + 2].filter(function (x) { return x > 0; });
-    await Promise.all(nextTargets.map(getPage));
+    // 翻頁不能等待四個遠端請求全部完成；iPhone／行動網路下其中一個預載請求
+    // 卡住就會讓「下一頁」看起來完全沒有反應。只等待目前要顯示的頁面，
+    // 其餘頁面改為背景預載，不阻塞翻頁。
+    const targetPair = useSpread()
+      ? currentPairFor(n)
+      : [n];
+    await Promise.all(targetPair.filter(function (x) { return x > 0 && x <= state.totalPages; }).map(getPage));
     if (animate && dir) {
       await runFlip(dir, n);
     } else {
@@ -402,6 +414,12 @@
       renderSpread();
     }
     setQS(state.bookId, state.pageNumber, "read");
+    // 背景預載不影響目前翻頁；失敗也不能阻塞閱讀器。
+    if (state.source === "remote" || state.remoteId) {
+      [n - 1, n + 1, n + 2].filter(function (x) { return x > 0 && x <= state.totalPages; }).forEach(function (x) {
+        getPage(x).catch(function () {});
+      });
+    }
     persistProgress();
     if (state.source === "remote" || state.remoteId) {
       E.fetchRemoteContext(state.remoteId || state.bookId, state.pageNumber, 1).then(function (r) {
