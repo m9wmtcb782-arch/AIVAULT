@@ -2,7 +2,7 @@
 'use strict';
 if(window.__AIVAULT_DARK_STAR_RESTORE_LIVE_CONTROLS__)return;
 window.__AIVAULT_DARK_STAR_RESTORE_LIVE_CONTROLS__=true;
-const LIVE_VIDEO='technical-dark-star-live-video-test.html?mode=video&autostart=1&v=4';
+const LIVE_VIDEO='technical-dark-star-live-video-test.html?mode=video&autostart=1&v=5';
 const LIVE_VOICE='technical-dark-star-live-video-test.html?mode=voice&v=3';
 const VIDEO_CHANNEL_NAME='aivault-dark-star-video';
 const VOICES=[['Zephyr','Zephyr｜明亮'],['Puck','Puck｜歡快'],['Charon','Charon｜資訊豐富'],['Kore','Kore｜堅定'],['Fenrir','Fenrir｜興奮'],['Leda','Leda｜年輕'],['Orus','Orus｜堅定'],['Aoede','Aoede｜輕快'],['Callirrhoe','Callirrhoe｜隨和'],['Autonoe','Autonoe｜明亮'],['Enceladus','Enceladus｜氣聲'],['Iapetus','Iapetus｜清晰'],['Umbriel','Umbriel｜隨和'],['Algieba','Algieba｜柔順'],['Despina','Despina｜柔順'],['Erinome','Erinome｜清晰'],['Algenib','Algenib｜粗獷'],['Rasalgethi','Rasalgethi｜資訊豐富'],['Laomedeia','Laomedeia｜歡快'],['Achernar','Achernar｜柔和'],['Alnilam','Alnilam｜堅定'],['Schedar','Schedar｜均衡'],['Gacrux','Gacrux｜成熟'],['Pulcherrima','Pulcherrima｜前進感'],['Achird','Achird｜友善'],['Zubenelgenubi','Zubenelgenubi｜隨性'],['Vindemiatrix','Vindemiatrix｜溫和'],['Sadachbia','Sadachbia｜活潑'],['Sadaltager','Sadaltager｜知識豐富'],['Sulafat','Sulafat｜溫暖']];
