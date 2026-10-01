@@ -5763,15 +5763,20 @@ async function makeJpgImageWithDarkStar(
     );
 
 
-  const data =
-    await response.json()
-      .catch(
-        ()=>({
-          success:false,
-          error:
-            "Image generation returned invalid JSON."
-        })
-      );
+  // AIVAULT_IMAGE_RESPONSE_HARDENING_V1
+  // Safari/iOS can surface a generic "Load failed" while reading a
+  // completed fetch body. Read text first so the real backend error/result
+  // is preserved and can be parsed explicitly.
+  const responseText = await response.text();
+  let data = {};
+  try{
+    data = responseText ? JSON.parse(responseText) : {};
+  }catch(parseError){
+    throw new Error(
+      "JPG 後端回應不是有效 JSON：" +
+      responseText.slice(0, 800)
+    );
+  }
 
 
   if(
@@ -5825,6 +5830,20 @@ async function makeJpgImageWithDarkStar(
     generated?.signed_url ||
     data?.signed_url ||
     null;
+
+  const inlineDataUrl =
+    artifact?.inline_data_url ||
+    generated?.inline_data_url ||
+    data?.inline_data_url ||
+    null;
+
+  // Prefer the backend's verified JPEG bytes for rendering on iPhone/Safari.
+  // Keep the signed URL as the persistent/downloadable artifact reference.
+  const renderUrl =
+    typeof inlineDataUrl === "string" &&
+    inlineDataUrl.startsWith("data:image/jpeg;base64,")
+      ? inlineDataUrl
+      : signedUrl;
 
 
   if(!signedUrl){
@@ -5914,10 +5933,10 @@ async function makeJpgImageWithDarkStar(
           "image",
 
         url:
-          signedUrl,
+          renderUrl,
 
         preview:
-          signedUrl
+          renderUrl
       }
     ]
 
