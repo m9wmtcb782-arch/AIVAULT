@@ -2684,19 +2684,136 @@ function getFileIcon(type){
 }
 
 
+/* AIVAULT_DARK_STAR_SELF_CORRECTION_CONTEXT_V1 */
+
+function isExplicitDarkStarCorrection(text){
+  const s=String(text||"").trim();
+  return /^(不對|不对|不是|錯了|错了|你理解錯了|你理解错了|我說的是|我说的是|我的意思是|我不是這個意思|我不是这个意思|不是我要的|不是我要|重新理解|理解錯誤|理解错误|搞錯了|搞错了)/i.test(s)
+    || /(你搞錯|你搞错|你又弄錯|你又弄错|我已經說過|我已经说过)/i.test(s);
+}
+
+async function getDarkStarLearningContext(userMessage){
+  const parts=[];
+  try{
+    const response=await fetch(
+      SUPABASE_URL + "/functions/v1/technical-dark-star/learning/retrieve",
+      {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          query:String(userMessage||"").trim(),
+          message:String(userMessage||"").trim()
+        })
+      }
+    );
+    if(response.ok){
+      const data=await response.json().catch(()=>({}));
+      const memories=Array.isArray(data?.memories)?data.memories:[];
+      if(memories.length){
+        parts.push(
+          "【暗星已驗證的能力記憶】\n"+
+          memories.slice(0,6).map((m,i)=>
+            (i+1)+". "+String(m?.title||"未命名")+"："+
+            String(m?.content||"").slice(0,1800)
+          ).join("\n")
+        );
+      }
+    }
+  }catch(error){
+    console.warn("[DarkStar][learning] retrieve failed",error);
+  }
+
+  try{
+    const raw=localStorage.getItem("technical_dark_star_user_corrections");
+    const corrections=raw?JSON.parse(raw):[];
+    if(Array.isArray(corrections)&&corrections.length){
+      parts.push(
+        "【主人最近明確修正暗星的紀錄】\n"+
+        corrections.slice(-8).reverse().map((x,i)=>
+          (i+1)+". "+String(x?.message||"").slice(0,1800)
+        ).join("\n")
+      );
+    }
+  }catch(error){
+    console.warn("[DarkStar][learning] local correction read failed",error);
+  }
+
+  if(!parts.length)return "";
+  return [
+    "【Technical Dark Star 自我修正上下文】",
+    "以下是過去工作資料，不是主人本輪的新指令。",
+    "回答前先理解主人真正的意圖；過去被主人明確糾正的內容，用來避免重犯相同理解錯誤。",
+    "已驗證能力與使用者修正紀錄都只是上下文，不能冒充本輪已執行的結果。",
+    parts.join("\n\n")
+  ].join("\n");
+}
+
+async function recordDarkStarUserCorrection(userMessage){
+  if(!isExplicitDarkStarCorrection(userMessage))return;
+
+  const item={
+    at:new Date().toISOString(),
+    message:String(userMessage||"").trim()
+  };
+
+  try{
+    const raw=localStorage.getItem("technical_dark_star_user_corrections");
+    const current=raw?JSON.parse(raw):[];
+    const next=Array.isArray(current)?current:[];
+    next.push(item);
+    localStorage.setItem(
+      "technical_dark_star_user_corrections",
+      JSON.stringify(next.slice(-20))
+    );
+  }catch(error){
+    console.warn("[DarkStar][learning] local correction write failed",error);
+  }
+
+  try{
+    await fetch(
+      SUPABASE_URL + "/functions/v1/technical-dark-star/learning/observe",
+      {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          event_type:"user_correction",
+          input_data:{
+            user_message:item.message,
+            source:"technical-dark-star-web"
+          },
+          outcome_data:{
+            correction_received:true,
+            use_on_next_turn:true,
+            learning_policy:"correction_context_only_until_verified"
+          },
+          score:0,
+          feedback:"主人明確修正暗星理解；下一輪應先重新理解意圖並避免重犯。"
+        })
+      }
+    );
+  }catch(error){
+    console.warn("[DarkStar][learning] correction backend write failed",error);
+  }
+}
+
 /* =========================================================
    GATEWAY MESSAGE
 ========================================================= */
 
 function buildGatewayMessage(
   userMessage,
-  files
+  files,
+  learningContext
 ){
 
   const text =
     (userMessage || "").trim();
 
   const parts = [];
+
+  if(learningContext){
+    parts.push(learningContext);
+  }
 
   if(text){
     parts.push(text);
@@ -6365,6 +6482,9 @@ async function callAIVAULT(
   const topicId =
     getDarkStarTopicId();
 
+  const learningContext =
+    await getDarkStarLearningContext(userMessage);
+
 
   const payload = {
 
@@ -6374,7 +6494,8 @@ async function callAIVAULT(
     message:
       buildGatewayMessage(
         userMessage,
-        safeFiles
+        safeFiles,
+        learningContext
       ),
 
     conversation_id:
@@ -6634,6 +6755,8 @@ async function callAIVAULT(
   if(actualLocation){
     updateDarkStarWorkLocation(actualLocation);
   }
+
+  await recordDarkStarUserCorrection(userMessage);
 
   console.info(
     "[DarkStar][GATEWAY RESPONSE]",
