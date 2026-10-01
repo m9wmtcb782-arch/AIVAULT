@@ -4972,8 +4972,18 @@ function normalizeImageTaskText(value){
 }
 
 function buildImageTaskState(previousTask, userMessage, continuation){
-  const previous = previousTask?.image_task && typeof previousTask.image_task === "object"
-    ? previousTask.image_task : {};
+  /*
+    AIVAULT_IMAGE_TASK_STATE_V3
+    任務狀態只有在「延續／修改」時才繼承上一張。
+    全新生成必須建立乾淨 task state，避免上一張人物身份
+    （例如 Arnold Schwarzenegger）滲入新的圖片提示詞。
+  */
+  const previous =
+    continuation &&
+    previousTask?.image_task &&
+    typeof previousTask.image_task === "object"
+      ? previousTask.image_task
+      : {};
   const text = normalizeImageTaskText(userMessage);
   const task = {
     ethnicity: previous.ethnicity || "",
