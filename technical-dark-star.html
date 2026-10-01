@@ -4857,6 +4857,62 @@ function hasImageAttachment(
 }
 
 
+function chooseDarkStarImageFormat(){
+  return new Promise((resolve)=>{
+    const existing = document.getElementById("darkStarImageFormatModal");
+    if(existing) existing.remove();
+
+    const styleId = "darkStarImageFormatModalStyle";
+    if(!document.getElementById(styleId)){
+      const style = document.createElement("style");
+      style.id = styleId;
+      style.textContent = `
+        #darkStarImageFormatModal{
+          position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;
+          padding:20px;background:rgba(0,0,0,.48);backdrop-filter:blur(4px);
+        }
+        #darkStarImageFormatModal .format-card{
+          width:min(420px,92vw);background:#fff;color:#111;border-radius:20px;padding:22px;
+          box-shadow:0 20px 60px rgba(0,0,0,.28);
+        }
+        #darkStarImageFormatModal .format-title{font-size:19px;font-weight:700;margin-bottom:8px}
+        #darkStarImageFormatModal .format-note{font-size:14px;color:#666;margin-bottom:18px;line-height:1.55}
+        #darkStarImageFormatModal .format-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+        #darkStarImageFormatModal button{
+          border:1px solid #ddd;border-radius:14px;padding:15px 10px;background:#fafafa;
+          color:#111;font-size:16px;font-weight:650;cursor:pointer;
+        }
+        #darkStarImageFormatModal button:hover{background:#f0f0f0}
+        #darkStarImageFormatModal .format-sub{display:block;font-size:12px;font-weight:400;color:#777;margin-top:5px}
+      `;
+      document.head.appendChild(style);
+    }
+
+    const modal=document.createElement("div");
+    modal.id="darkStarImageFormatModal";
+    modal.innerHTML=`
+      <div class="format-card" role="dialog" aria-modal="true" aria-labelledby="darkStarImageFormatTitle">
+        <div id="darkStarImageFormatTitle" class="format-title">暗星要生成圖片</div>
+        <div class="format-note">請選擇這一次的輸出格式。未選擇前，暗星不會自行決定 SVG 或 JPG。</div>
+        <div class="format-actions">
+          <button type="button" data-format="jpg">JPG<span class="format-sub">一般照片／點陣圖片</span></button>
+          <button type="button" data-format="svg">SVG<span class="format-sub">向量圖／SVG 沙盒</span></button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const finish=(format)=>{
+      modal.remove();
+      resolve(format);
+    };
+    modal.querySelectorAll("[data-format]").forEach(btn=>{
+      btn.addEventListener("click",()=>finish(btn.dataset.format));
+    });
+  });
+}
+
+
 function isExplicitSvgIntent(text){
 
   const value = String(text || "").trim();
@@ -6868,17 +6924,46 @@ async function sendMessage(){
     const explicitSvgIntent =
       isExplicitSvgIntent(text);
 
+    const explicitJpgIntent =
+      /JPG|JPEG|照片|相片|點陣圖|點陣圖片|轉成JPG|轉成JPEG|改成JPG|改成JPEG/i.test(String(text || ""));
+
+    const drawIntent =
+      isDrawIntent(
+        text,
+        outgoingFiles
+      );
+
+    let selectedImageFormat = null;
+
+    /*
+      AIVAULT_IMAGE_FORMAT_CHOICE_V1
+      使用者未明確指定 SVG/JPG 時，不讓暗星自行決定格式。
+      先由使用者選擇，再進入對應的實際生成路由。
+    */
+    if(
+      (jpgImageIntent || drawIntent) &&
+      !explicitSvgIntent &&
+      !explicitJpgIntent
+    ){
+      selectedImageFormat =
+        await chooseDarkStarImageFormat();
+    }
+
     console.info(
-      "[DarkStar][IMAGE ROUTER V3]",
+      "[DarkStar][IMAGE ROUTER V4]",
       {
         explicitSvgIntent,
+        explicitJpgIntent,
+        selectedImageFormat,
         jpgImageIntent,
+        drawIntent,
         text
       }
     );
 
     if(
-      explicitSvgIntent
+      explicitSvgIntent ||
+      selectedImageFormat === "svg"
     ){
 
       result =
@@ -6888,7 +6973,9 @@ async function sendMessage(){
         );
 
     }else if(
-      jpgImageIntent
+      explicitJpgIntent ||
+      jpgImageIntent ||
+      selectedImageFormat === "jpg"
     ){
 
       result =
@@ -6898,10 +6985,7 @@ async function sendMessage(){
         );
 
     }else if(
-      isDrawIntent(
-        text,
-        outgoingFiles
-      )
+      drawIntent
     ){
 
       result =
