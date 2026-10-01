@@ -5302,6 +5302,21 @@ function isImageContinuationIntent(text, files){
 }
 
 
+/* AIVAULT_HARD_JPG_VISUAL_ROUTER_V1
+   Final safety net: any ordinary natural-language visual request must never
+   fall through to Gateway text/SVG generation. Explicit SVG remains allowed.
+*/
+function isHardJpgVisualRequest(text, files){
+  const value = String(text || "").trim();
+  if(!value || isExplicitSvgIntent(value) || hasImageAttachment(files)) return false;
+  return (
+    /(?:生成|產生|畫|繪製|做|製作|給我|來一張|来一张|傳|传)/i.test(value) &&
+    /(?:圖片|图|照片|相片|女性|女人|女生|男性|男人|人物|肖像|旗袍|漢服|汉服|狗|貓|猫|風景|风景|街頭|街头|上海|夜景|霓虹|建築|建筑|汽車|汽车|場景|场景)/i.test(value)
+  ) || (
+    /(?:旗袍|漢服|汉服|女性|女人|女生|男性|男人|人物|肖像|上海街頭|上海街头|夜景|霓虹|街頭|街头|風景|风景)/i.test(value)
+  );
+}
+
 function isJpgImageIntent(text, files){
 
   const value = String(text || "").trim();
@@ -7084,11 +7099,15 @@ async function sendMessage(){
 
   try{
 
+    const hardJpgVisualRequest =
+      isHardJpgVisualRequest(text, outgoingFiles);
+
     const jpgImageIntent =
       isJpgImageIntent(
         text,
         outgoingFiles
-      );
+      ) ||
+      hardJpgVisualRequest;
 
     console.info(
       "[DarkStar][TASK]",
@@ -7247,6 +7266,17 @@ async function sendMessage(){
 
       result =
         await makePageWithDarkStar(
+          text,
+          outgoingFiles
+        );
+
+    }else if(
+      isHardJpgVisualRequest(text, outgoingFiles)
+    ){
+
+      // Final hard stop: visual requests cannot fall through to text/SVG.
+      result =
+        await makeJpgImageWithDarkStar(
           text,
           outgoingFiles
         );
