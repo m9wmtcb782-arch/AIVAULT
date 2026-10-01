@@ -5653,8 +5653,14 @@ async function makeJpgImageWithDarkStar(
       ""
     ).toLowerCase();
 
+  /*
+    AIVAULT_OUTPUT_CONTRACT_V2
+    technical-dark-star/image/generate 會把真正的
+    dark-star-image-generation 回應包在 data.image_generation。
+    驗證必須讀取「實際下游結果」generated，而不是外層 wrapper。
+  */
   if(
-    data?.format_verified !== true ||
+    generated?.format_verified !== true ||
     verifiedMime !== "image/jpeg"
   ){
     throw new Error(
