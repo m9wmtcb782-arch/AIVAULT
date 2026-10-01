@@ -5316,14 +5316,49 @@ function isJpgImageIntent(text, files){
   }
 
   /*
-    AIVAULT_JPG_DEFAULT_ROUTER_V4
+    AIVAULT_JPG_DEFAULT_ROUTER_V5
 
-    一般圖片生成不需要使用者再說 JPG／照片。
-    只有使用者明確指定 SVG 時才離開 JPG 路由。
+    自然語言視覺描述也屬於真正圖片任務。
+    不要求使用者說「生成圖片」或「JPG」。
+    例如：
+      「傳旗袍的女性」
+      「夜色上海街頭，身著紅色旗袍的優雅女性」
+    都必須進入真正的 JPG 圖片生成器，而不是一般文字回應或 SVG Sandbox。
   */
   if(
     /JPG|JPEG|照片|相片|圖片|生成圖片|產生圖片|生成一張圖|產生一張圖|生成照片|產生照片|圖片生成|生圖|畫一張|畫個|畫一個|做一張圖|做個圖|做張圖|生成美女|產生美女|生成女性|產生女性|生成男性|產生男性|性感美女|人物肖像|人像照片|一張照片|一張圖片/i
       .test(value)
+  ){
+    return true;
+  }
+
+  /*
+    AIVAULT_NATURAL_VISUAL_INTENT_V1
+    視覺主體＋服裝／場景／外觀描述，即使沒有「生成」動詞，
+    仍視為圖片生成意圖。這是給暗星自然語意理解層的入口。
+  */
+  if(
+    /(?:旗袍|漢服|汉服|西裝|西装|洋裝|连衣裙|制服|晚禮服|婚紗|泳裝|衣服|服裝|服饰|qipao|cheongsam|hanfu|suit|dress)/i.test(value)
+    &&
+    /(?:女性|女人|女生|女子|女孩子|男性|男人|男生|男子|男孩子|人物|人像|肖像|美女|美人|woman|female|girl|man|male|boy|person|portrait)/i.test(value)
+  ){
+    return true;
+  }
+
+  if(
+    /(?:上海街頭|上海街头|街頭|街头|夜色|夜晚|夜景|霓虹|雨夜|咖啡廳|咖啡厅|室內|室内|戶外|户外|風景|风景|山景|海景|城市景觀|城市景观)/i.test(value)
+    &&
+    /(?:女性|女人|女生|女子|男性|男人|男生|男子|人物|人像|肖像|美女|美人|woman|female|girl|man|male|boy|person|portrait|建築|建筑|汽車|汽车|動物|动物)/i.test(value)
+  ){
+    return true;
+  }
+
+  /*
+    「傳旗袍的女性」這類口語省略句：
+    在圖片上下文中，「傳」不是檔案上傳，而是要求呈現該視覺主體。
+  */
+  if(
+    /^(?:請|幫我|帮我|麻煩|麻烦)?\s*(?:傳|传|給我|给我|來一張|来一张|來個|来个)?\s*(?:一位|一名|一個|一个)?\s*(?:穿著|穿着|身著|身着)?\s*(?:紅色|红色|黑色|白色|藍色|蓝色|綠色|绿色|紫色|粉色)?\s*(?:旗袍|漢服|汉服|qipao|cheongsam|hanfu)\s*(?:的)?\s*(?:女性|女人|女生|女子|女孩子|美女|美人|woman|female|girl)/i.test(value)
   ){
     return true;
   }
@@ -7117,8 +7152,13 @@ async function sendMessage(){
       !explicitSvgIntent &&
       !explicitJpgIntent
     ){
-      selectedImageFormat =
-        await chooseDarkStarImageFormat();
+      /*
+        AIVAULT_JPG_FIRST_IMAGE_ROUTER_V5
+        自然圖片需求直接走真正 JPG 圖片生成。
+        SVG 只有使用者明確要求 SVG 時才允許。
+        不再讓格式選擇視窗把一般圖片任務送進 SVG Sandbox。
+      */
+      selectedImageFormat = "jpg";
     }
 
     console.info(
