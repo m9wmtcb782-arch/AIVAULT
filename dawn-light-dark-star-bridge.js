@@ -48,7 +48,9 @@
 
   function setStatus(text) {
     var chip = document.getElementById("dawnLightChip");
-    if (chip) chip.textContent = text;
+    if (!chip) return;
+    chip.title = text;
+    chip.setAttribute("aria-label", text);
   }
 
   function router() {
@@ -282,9 +284,12 @@
     if (brand && !document.getElementById("dawnLightChip")) {
       var chip = document.createElement("div");
       chip.id = "dawnLightChip";
-      chip.textContent = "曙光已登記";
-      chip.style.fontSize = "12px";
+      chip.title = "曙光";
+      chip.setAttribute("aria-label", "曙光");
+      chip.style.display = "inline-flex";
+      chip.style.alignItems = "center";
       chip.style.marginTop = "2px";
+      chip.appendChild(sunMark());
       brand.insertAdjacentElement("afterend", chip);
     }
     var drawer = document.querySelector(".drawer-bottom");
