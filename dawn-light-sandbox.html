@@ -9,7 +9,8 @@
     main { max-width: 720px; margin: auto; padding: 16px 14px 40px; }
     a { color: #f0c36a; }
     button, textarea { font: inherit; }
-    button { border: 0; border-radius: 12px; padding: 10px 12px; background: #d7a441; color: #1b1408; }
+    button { border: 0; border-radius: 12px; padding: 10px 12px; background: #d7a441; color: #1b1408; margin-right: 8px; }
+    .actions { display: none; gap: 8px; margin: 10px 0; }
     textarea { width: 100%; box-sizing: border-box; min-height: 88px; margin: 8px 0; padding: 10px; border-radius: 10px; border: 1px solid #3c4634; background: #181d16; color: #fff; }
     .card { background: #1a2118; border: 1px solid #31402c; border-radius: 16px; padding: 14px; margin: 12px 0; }
     img { max-width: 100%; border-radius: 12px; background: #fff; }
@@ -24,17 +25,52 @@
   <section class="card">
     <textarea id="prompt">白色背景正中央一個藍色圓形，不要文字</textarea>
     <button id="run" type="button">產生 JPG</button>
+    <div class="actions" id="actions">
+      <button id="download" type="button">下載 JPG</button>
+      <button id="copy" type="button">複製圖片</button>
+    </div>
     <div id="view"></div>
     <pre id="out">尚未產生</pre>
   </section>
 </main>
 <script src="dawn-light-runtime.js?v=2"></script>
 <script>
+  var lastBlob = null;
+  var lastUrl = "";
+  function hideActions() {
+    document.getElementById("actions").style.display = "none";
+    lastBlob = null;
+    lastUrl = "";
+  }
+  document.getElementById("download").onclick = function () {
+    if (!lastBlob) return;
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(lastBlob);
+    a.download = "dawn-light-" + Date.now() + ".jpg";
+    a.click();
+  };
+  document.getElementById("copy").onclick = async function () {
+    var out = document.getElementById("out");
+    try {
+      if (lastBlob && navigator.clipboard && window.ClipboardItem) {
+        await navigator.clipboard.write([new ClipboardItem({ "image/jpeg": lastBlob })]);
+        out.textContent = "已複製 JPG 到剪貼簿。";
+        return;
+      }
+    } catch (e) {}
+    if (lastUrl && navigator.clipboard) {
+      await navigator.clipboard.writeText(lastUrl);
+      out.textContent = "這台瀏覽器不能直接複製圖片，已改複製 JPG 網址。";
+      return;
+    }
+    out.textContent = "無法複製。可長按圖片，或用下載 JPG。";
+  };
   document.getElementById("run").onclick = async function () {
     var out = document.getElementById("out");
     var view = document.getElementById("view");
     out.textContent = "曙光沙盒產生 JPEG…";
     view.innerHTML = "";
+    hideActions();
     try {
       var result = await window.DawnLightRuntime.image(document.getElementById("prompt").value);
       out.textContent = JSON.stringify(result, null, 2);
@@ -43,10 +79,19 @@
         return;
       }
       if (result.url && result.jpeg_magic) {
+        var response = await fetch(result.url);
+        lastBlob = await response.blob();
+        if (!/^image\/jpeg/.test(lastBlob.type) && lastBlob.type) {
+          out.textContent = "不是 JPEG，不下載、不複製。";
+          lastBlob = null;
+          return;
+        }
+        lastUrl = result.url;
         var img = document.createElement("img");
         img.alt = "曙光沙盒 JPEG";
-        img.src = result.url;
+        img.src = URL.createObjectURL(lastBlob);
         view.appendChild(img);
+        document.getElementById("actions").style.display = "flex";
       }
     } catch (e) {
       out.textContent = String(e.message || e);
