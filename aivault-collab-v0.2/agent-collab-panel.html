@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Agent 協作</title></head>
+<body>
+<h1>Agent 協作</h1>
+<p>只顯示 agent_messages 的實際列。</p>
+<div id="log">尚未讀取</div>
+<script type="module">
+const url = "https://clcddygkaaqqtsbswgdf.supabase.co";
+const key = new URLSearchParams(location.search).get("key");
+const log = document.getElementById("log");
+if (!key) log.textContent = "需要登入後的 access token，加在 ?key=";
+else {
+  const res = await fetch(url + "/rest/v1/agent_messages?select=created_at,sender_agent_id,receiver_agent_id,message_type,content,status&or=(sender_agent_id.eq.dawn-light,receiver_agent_id.eq.dawn-light)&order=created_at.asc", { headers: { apikey: key, Authorization: "Bearer " + key } });
+  const rows = await res.json();
+  log.textContent = Array.isArray(rows) && rows.length ? rows.map(r => "【" + r.sender_agent_id + " → " + r.receiver_agent_id + "】\n" + r.content).join("\n\n") : "沒有實際訊息";
+}
+</script>
+</body>
+</html>
