@@ -1,0 +1,2 @@
+-- 011 agent modules. Does not touch agent_events.
+-- Applied live. Full source also in artifacts/aivault-011-agent-modules.sql
