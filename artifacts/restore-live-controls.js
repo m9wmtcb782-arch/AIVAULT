@@ -119,7 +119,16 @@ function ensureSettingsPanel(){
  }
 
  const sound=document.getElementById('darkStarSoundButton');
- const select=document.getElementById('darkStarVoiceSelect');
+ const select=document.getElementById('darkStarVoiceSelect') || document.createElement('select');
+ if(!select.id){
+   select.id='darkStarVoiceSelect';
+   select.className='drawer-voice-select';
+   VOICES.forEach(([v,l])=>{
+     const o=document.createElement('option');
+     o.value=v;o.textContent=l;select.appendChild(o);
+   });
+   select.value=localStorage.getItem('darkStarVoice')||'Kore';
+ }
  const big=document.getElementById('readabilityToggle');
  const video=document.getElementById('darkStarLiveVideoButton');
  const speedKey='darkStarMyVoiceRate';
