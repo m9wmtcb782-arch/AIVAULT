@@ -301,7 +301,14 @@
       button.type = "button";
       drawer.prepend(button);
     }
-    if (button && !button.dataset.bound) {
+    if (drawer && !document.getElementById("dawnLightSandboxButton")) {
+      var sandbox = document.createElement("a");
+      sandbox.id = "dawnLightSandboxButton";
+      sandbox.className = "drawer-item";
+      sandbox.href = "dawn-light-sandbox.html";
+      sandbox.textContent = "曙光沙盒 JPG";
+      drawer.appendChild(sandbox);
+    }
       button.dataset.bound = "1";
       button.textContent = "";
       button.appendChild(sunMark());

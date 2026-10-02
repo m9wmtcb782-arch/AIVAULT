@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>曙光沙盒</title>
+  <style>
+    body { margin: 0; background: #10140f; color: #f4f1e8; font: 16px/1.45 -apple-system, BlinkMacSystemFont, "PingFang TC", sans-serif; }
+    main { max-width: 720px; margin: auto; padding: 16px 14px 40px; }
+    a { color: #f0c36a; }
+    button, textarea { font: inherit; }
+    button { border: 0; border-radius: 12px; padding: 10px 12px; background: #d7a441; color: #1b1408; }
+    textarea { width: 100%; box-sizing: border-box; min-height: 88px; margin: 8px 0; padding: 10px; border-radius: 10px; border: 1px solid #3c4634; background: #181d16; color: #fff; }
+    .card { background: #1a2118; border: 1px solid #31402c; border-radius: 16px; padding: 14px; margin: 12px 0; }
+    img { max-width: 100%; border-radius: 12px; background: #fff; }
+    pre { white-space: pre-wrap; word-break: break-word; background: #0d110c; padding: 10px; border-radius: 10px; }
+  </style>
+</head>
+<body>
+<main>
+  <p><a href="technical-dark-star.html">回暗星</a></p>
+  <h1>曙光沙盒</h1>
+  <p>agent_id = dawn-light。只出 JPEG。不是 SVG，也不用暗星繪圖沙盒。</p>
+  <section class="card">
+    <textarea id="prompt">白色背景正中央一個藍色圓形，不要文字</textarea>
+    <button id="run" type="button">產生 JPG</button>
+    <div id="view"></div>
+    <pre id="out">尚未產生</pre>
+  </section>
+</main>
+<script src="dawn-light-runtime.js?v=2"></script>
+<script>
+  document.getElementById("run").onclick = async function () {
+    var out = document.getElementById("out");
+    var view = document.getElementById("view");
+    out.textContent = "曙光沙盒產生 JPEG…";
+    view.innerHTML = "";
+    try {
+      var result = await window.DawnLightRuntime.image(document.getElementById("prompt").value);
+      out.textContent = JSON.stringify(result, null, 2);
+      if (result.svg_rejected) {
+        view.textContent = "拒絕 SVG。沒有顯示。";
+        return;
+      }
+      if (result.url && result.jpeg_magic) {
+        var img = document.createElement("img");
+        img.alt = "曙光沙盒 JPEG";
+        img.src = result.url;
+        view.appendChild(img);
+      }
+    } catch (e) {
+      out.textContent = String(e.message || e);
+    }
+  };
+</script>
+</body>
+</html>

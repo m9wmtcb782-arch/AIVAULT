@@ -69,36 +69,48 @@
 
   async function image(prompt) {
     var result = await post(ENDPOINTS.image, {
+      agent_id: "dawn-light",
+      sandbox: "dawn-light",
       prompt: prompt,
       mime_type: "image/jpeg",
-      aspect_ratio: "1:1"
+      aspect_ratio: "1:1",
+      reject_svg: true
     });
     var artifact = result.data.artifact || {};
     var url = artifact.signed_url || "";
     var verified = false;
     var downloadedMime = "";
+    var svg = false;
     if (url) {
       var imageResponse = await fetch(url);
       downloadedMime = imageResponse.headers.get("content-type") || "";
       var bytes = new Uint8Array(await imageResponse.arrayBuffer());
       verified = bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+      var head = "";
+      for (var i = 0; i < Math.min(bytes.length, 80); i++) head += String.fromCharCode(bytes[i]);
+      svg = /svg/i.test(downloadedMime) || /<svg/i.test(head);
     }
-    var pass = result.data.ok === true && result.data.format_verified === true && result.data.mime_type === "image/jpeg" && verified;
+    var mime = result.data.mime_type || downloadedMime;
+    if (/svg/i.test(mime)) svg = true;
+    var pass = !svg && result.data.ok === true && result.data.format_verified === true && result.data.mime_type === "image/jpeg" && verified;
     return {
       capability: "image",
+      sandbox: "dawn-light",
+      agent_id: "dawn-light",
       status: pass ? "CONFIRMED" : "NOT_VERIFIED",
       request_http: result.http,
       provider: result.data.provider || null,
       model: result.data.model || null,
-      mime_type: result.data.mime_type || null,
+      mime_type: mime || null,
       downloaded_mime: downloadedMime,
       jpeg_magic: verified,
+      svg_rejected: svg,
       format_verified: result.data.format_verified === true,
       latency_ms: result.latency_ms,
-      url: url,
+      url: pass ? url : "",
       bytes: result.data.bytes || null,
       runtime: "dark-star-image-generation",
-      note: "重用現有圖片函式，不是新的 Gateway，也沒有改暗星頁面。"
+      note: svg ? "曙光沙盒拒絕 SVG，沒有拿向量圖充當 JPG。" : "曙光沙盒只接受 JPEG。出圖函式仍是現有 dark-star-image-generation，repo 沒有另一個 dawn image function。"
     };
   }
 
