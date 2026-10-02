@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#12141a">
+<title>AIVAULT 因序 Causality 後端測試</title>
+<style>
+:root{--bg:#12141a;--card:#1c2029;--line:#2c3340;--text:#e8e6e1;--muted:#9aa3b2;--ok:#3dd68c;--bad:#ff6b6b;--wait:#e2b657;--accent:#7eb6ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif}
+header{padding:16px 16px 8px}
+h1{font-size:20px;margin:0 0 4px}
+.sub{color:var(--muted);font-size:13px}
+main{padding:0 12px 40px;display:grid;gap:12px}
+section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
+h2{font-size:16px;margin:0 0 8px}
+button,select,input,textarea{font:inherit}
+button{background:#2a3344;color:var(--text);border:1px solid #3d485c;border-radius:10px;padding:10px 12px;margin:4px 4px 4px 0}
+button:active{transform:translateY(1px)}
+button.primary{background:#1d4e89;border-color:#3d7ec8}
+button.hold{min-width:140px;background:#243044}
+button.hold.on{background:#8a2a2a;border-color:#ff6b6b}
+input,textarea,select{width:100%;background:#0f1218;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px}
+textarea{min-height:72px}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.badge{display:inline-block;border-radius:999px;padding:2px 8px;font-size:12px;font-weight:700}
+.CONFIRMED{background:#143524;color:var(--ok)}
+.NOT.VERIFIED,.NOTVERIFIED{background:#3a1818;color:var(--bad)}
+.REQUIRES.TEST,.REQUIRESTEST{background:#3a3014;color:var(--wait)}
+pre{white-space:pre-wrap;word-break:break-word;background:#0c0e13;border-radius:10px;padding:10px;max-height:320px;overflow:auto;font-size:12px}
+.meta{color:var(--muted);font-size:13px}
+ul{padding-left:18px;margin:8px 0}
+li{margin:4px 0}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<header>
+  <h1>因序 Causality 後端測試</h1>
+  <div class="sub">獨立頁。不改暗星、電子書、ai-gateway。只顯示後端真實回傳。</div>
+</header>
+<main>
+<section>
+  <h2>1. 後端健康</h2>
+  <div class="row"><button id="btnHealth" class="primary">GET health</button><span id="healthBadge" class="badge REQUIRESTEST">REQUIRES TEST</span></div>
+  <div id="healthMeta" class="meta"></div>
+  <pre id="healthOut">尚未呼叫</pre>
+</section>
+
+<section>
+  <h2>2. 建立測試故事</h2>
+  <button id="btnCreate" class="primary">建立測試故事</button>
+  <span id="createBadge" class="badge REQUIRESTEST">REQUIRES TEST</span>
+  <div id="ids" class="meta"></div>
+  <pre id="createOut">尚未呼叫</pre>
+</section>
+
+<section>
+  <h2>3. 匯入現有電子書</h2>
+  <div class="row">
+    <button id="btnList">讀取現有電子書清單</button>
+    <button id="btnImport" class="primary">匯入現有電子書</button>
+  </div>
+  <select id="ebookSelect"></select>
+  <div class="meta">預設：憲法解釋與行政法學研究方法論。不重新上傳。</div>
+  <span id="importBadge" class="badge REQUIRESTEST">REQUIRES TEST</span>
+  <div id="importMeta" class="meta"></div>
+  <pre id="importOut">尚未呼叫</pre>
+</section>
+
+<section>
+  <h2>4. 因序提取</h2>
+  <button id="btnExtract" class="primary">開始因序提取</button>
+  <span id="extractBadge" class="badge REQUIRESTEST">REQUIRES TEST</span>
+  <div id="extractView"></div>
+  <pre id="extractOut">尚未呼叫</pre>
+</section>
+
+<section>
+  <h2>5. 啟動因序閱讀</h2>
+  <button id="btnStart" class="primary">啟動因序閱讀</button>
+  <span id="startBadge" class="badge REQUIRESTEST">REQUIRES TEST</span>
+  <div id="worldMeta" class="meta">目前世界線：—<br>目前章節：—<br>事件：—</div>
+  <pre id="startOut">尚未呼叫</pre>
+</section>
+
+<section>
+  <h2>6. 正常閱讀</h2>
+  <button id="btnAdvance" class="primary">繼續故事</button>
+  <span id="advanceBadge" class="badge REQUIRESTEST">REQUIRES TEST</span>
+  <div id="readView"></div>
+  <pre id="advanceOut">尚未呼叫</pre>
+</section>
+
+<section>
+  <h2>7. 語音／文字介入</h2>
+  <div class="row">
+    <button id="btnMic" class="hold">🎙️ 按住說話</button>
+    <span id="micBadge" class="badge REQUIRESTEST">REQUIRES TEST</span>
+  </div>
+  <div id="micMsg" class="meta"></div>
+  <textarea id="userInput">我沒有進入車站，我轉身離開。</textarea>
+  <button id="btnIntervene" class="primary">送出因果介入</button>
+  <span id="interveneBadge" class="badge REQUIRESTEST">REQUIRES TEST</span>
+  <div id="interveneView"></div>
+  <pre id="interveneOut">尚未呼叫</pre>
+</section>
+
+<section>
+  <h2>8. 查看世界線</h2>
+  <button id="btnInspect" class="primary">查看世界線</button>
+  <span id="inspectBadge" class="badge REQUIRESTEST">REQUIRES TEST</span>
+  <div id="inspectView" class="meta"></div>
+  <pre id="inspectOut">尚未呼叫</pre>
+</section>
+
+<section>
+  <h2>9. 再次介入</h2>
+  <textarea id="userInput2">我回到車站，但沒有跟女子說話。</textarea>
+  <button id="btnIntervene2">再次介入</button>
+  <span id="intervene2Badge" class="badge REQUIRESTEST">REQUIRES TEST</span>
+  <pre id="intervene2Out">尚未呼叫</pre>
+</section>
+
+<section>
+  <h2>音訊輸出</h2>
+  <span class="badge NOTVERIFIED">NOT VERIFIED / Phase 2</span>
+  <div class="meta">後端表 aivault_causality_audio 已預留。本頁不產生 MP3。</div>
+</section>
+
+<section>
+  <h2>驗收</h2>
+  <div id="passLine" class="meta">尚未跑完。禁止前端假資料。</div>
+  <ul id="checks"></ul>
+</section>
+</main>
+<script>
+(function () {
+  var SUPABASE = "https://clcddygkaaqqtsbswgdf.supabase.co";
+  var CAUSALITY = SUPABASE + "/functions/v1/aivault-causality";
+  var INGEST = SUPABASE + "/functions/v1/dark-star-ebook-ingest";
+  var ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE";
+  var DEFAULT_EBOOK = "1ac8a4c1-ad5e-4934-94b8-fc0d936d878b";
+  var state = load();
+  var rec = null;
+  var checks = {
+    health: "REQUIRES TEST",
+    create: "REQUIRES TEST",
+    importBook: "REQUIRES TEST",
+    chapters: "REQUIRES TEST",
+    extract: "REQUIRES TEST",
+    worldline: "REQUIRES TEST",
+    session: "REQUIRES TEST",
+    advance: "REQUIRES TEST",
+    intervene: "REQUIRES TEST",
+    causal: "REQUIRES TEST",
+    event: "REQUIRES TEST",
+    worldUpdate: "REQUIRES TEST",
+    second: "REQUIRES TEST",
+    originalUntouched: "REQUIRES TEST",
+    restore: "REQUIRES TEST",
+    mic: "REQUIRES TEST"
+  };
+
+  function load() {
+    try { return JSON.parse(sessionStorage.getItem("aivault_causality_test") || "{}"); }
+    catch (e) { return {}; }
+  }
+  function save() { sessionStorage.setItem("aivault_causality_test", JSON.stringify(state)); }
+  function badge(id, value) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.className = "badge " + value.replace(/\s/g, "");
+    el.textContent = value;
+  }
+  function show(id, data) {
+    document.getElementById(id).textContent = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+  }
+  function headers() {
+    var h = { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + ANON };
+    if (state.session_token) h["x-aivault-session"] = state.session_token;
+    return h;
+  }
+  async function call(url, method, body) {
+    var res = await fetch(url, { method: method, headers: headers(), body: body ? JSON.stringify(body) : undefined });
+    var text = await res.text();
+    var data;
+    try { data = text ? JSON.parse(text) : {}; } catch (e) { data = { raw: text }; }
+    return { http: res.status, ok: res.ok && data.ok !== false, data: data };
+  }
+  function pick(obj, keys) {
+    if (!obj) return null;
+    for (var i = 0; i < keys.length; i++) if (obj[keys[i]] != null) return obj[keys[i]];
+    return null;
+  }
+  function renderChecks() {
+    var items = [
+      ["1 API health", checks.health],
+      ["2 建立故事", checks.create],
+      ["3 匯入現有電子書", checks.importBook],
+      ["4 章節建立", checks.chapters],
+      ["5 AI 因序提取", checks.extract],
+      ["6 原著世界線", checks.worldline],
+      ["7 啟動 session", checks.session],
+      ["8 正常閱讀", checks.advance],
+      ["9 使用者介入", checks.intervene],
+      ["10 AI 因果結果", checks.causal],
+      ["11 event 寫入", checks.event],
+      ["12 worldline 更新", checks.worldUpdate],
+      ["13 再次介入讀前因", checks.second],
+      ["14 原著未被修改", checks.originalUntouched],
+      ["15 refresh 可恢復", checks.restore],
+      ["麥克風", checks.mic]
+    ];
+    document.getElementById("checks").innerHTML = items.map(function (it) {
+      return "<li><span class='badge " + it[1].replace(/\s/g, "") + "'>" + it[1] + "</span> " + it[0] + "</li>";
+    }).join("");
+    var pass = items.slice(0, 15).every(function (it) { return it[1] === "CONFIRMED"; });
+    document.getElementById("passLine").textContent = pass ? "PASS" : "NOT PASS";
+  }
+  function paintIds() {
+    document.getElementById("ids").textContent = "story.id=" + (state.story_id || "—") + "  worldline.id=" + (state.worldline_id || "—") + "  session=" + (state.session_token ? "已取得（不寫死）" : "—");
+    document.getElementById("worldMeta").innerHTML = "目前世界線：" + (state.worldline_label || state.worldline_id || "—") + "<br>目前章節：" + (state.chapter || "—") + "<br>事件：" + (state.event_count == null ? "—" : state.event_count);
+  }
+
+  document.getElementById("btnHealth").onclick = async function () {
+    var r = await call(CAUSALITY, "GET");
+    show("healthOut", r);
+    var d = r.data || {};
+    document.getElementById("healthMeta").textContent = "API=" + r.http + " version=" + (d.version || "—") + " service=" + (d.service || "—") + " status=" + (d.status || "—");
+    checks.health = r.ok && d.status ? "CONFIRMED" : "NOT VERIFIED";
+    badge("healthBadge", checks.health);
+    renderChecks();
+  };
+
+  document.getElementById("btnCreate").onclick = async function () {
+    var r = await call(CAUSALITY, "POST", {
+      action: "create_story",
+      title: "因序測試：消失的車站",
+      source_type: "text",
+      content: "午夜十二點，林默走進廢棄車站。他在月台看見一名陌生女子。原著結局是林默離開車站。",
+      world_rules: { time: "現代", supernatural: false, original_ending_preserved: true }
+    });
+    show("createOut", r);
+    var story = r.data.story || r.data;
+    var world = r.data.worldline || {};
+    var session = r.data.session || {};
+    state.story_id = pick(story, ["id", "story_id"]) || state.story_id;
+    state.worldline_id = pick(world, ["id", "worldline_id"]) || pick(r.data, ["worldline_id"]) || state.worldline_id;
+    state.session_token = pick(session, ["session_token"]) || pick(r.data, ["session_token"]) || state.session_token;
+    state.worldline_label = "原著世界線";
+    save();
+    paintIds();
+    checks.create = r.ok && state.story_id ? "CONFIRMED" : "NOT VERIFIED";
+    checks.worldline = r.ok && state.worldline_id ? "CONFIRMED" : "NOT VERIFIED";
+    badge("createBadge", checks.create);
+    renderChecks();
+  };
+
+  document.getElementById("btnList").onclick = async function () {
+    var r = await call(INGEST, "POST", { action: "list", limit: 40 });
+    show("importOut", r);
+    var books = (r.data && (r.data.books || r.data.items || r.data.data)) || [];
+    var sel = document.getElementById("ebookSelect");
+    sel.innerHTML = "";
+    books.forEach(function (b) {
+      var id = b.id || b.ebook_id;
+      var opt = document.createElement("option");
+      opt.value = id;
+      opt.textContent = (b.title || id);
+      if (id === DEFAULT_EBOOK) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    if (!sel.options.length) {
+      var opt = document.createElement("option");
+      opt.value = DEFAULT_EBOOK;
+      opt.textContent = "憲法解釋與行政法學研究方法論";
+      sel.appendChild(opt);
+    }
+  };
+
+  document.getElementById("btnImport").onclick = async function () {
+    var ebookId = document.getElementById("ebookSelect").value || DEFAULT_EBOOK;
+    var r = await call(CAUSALITY, "POST", { action: "import_ebook", ebook_id: ebookId });
+    show("importOut", r);
+    var d = r.data || {};
+    state.story_id = pick(d, ["story_id"]) || pick(d.story || {}, ["id", "story_id"]) || state.story_id;
+    state.ebook_id = ebookId;
+    save();
+    paintIds();
+    document.getElementById("importMeta").textContent = [
+      "story_id=" + (state.story_id || "—"),
+      "原書名=" + (d.title || d.source_title || (d.story && d.story.title) || "—"),
+      "page=" + (d.page_count || d.pages || "—"),
+      "chapter=" + (d.chapter_count || d.chapters || "—"),
+      "character=" + (d.character_count || d.characters || "—"),
+      "source_type=" + (d.source_type || "—"),
+      "extraction_status=" + (d.extraction_status || "—")
+    ].join(" | ");
+    checks.importBook = r.ok && state.story_id ? "CONFIRMED" : "NOT VERIFIED";
+    checks.chapters = r.ok && (d.chapter_count || d.chapters) ? "CONFIRMED" : "NOT VERIFIED";
+    badge("importBadge", checks.importBook);
+    renderChecks();
+  };
+
+  document.getElementById("btnExtract").onclick = async function () {
+    if (!state.story_id) { show("extractOut", { error: "沒有 story_id" }); return; }
+    var r = await call(CAUSALITY, "POST", { action: "extract", story_id: state.story_id });
+    show("extractOut", r);
+    var d = r.data.extraction || r.data.result || r.data;
+    document.getElementById("extractView").innerHTML = "<div class='meta'>Characters / Locations / Events / Causal constraints / Ending facts / Open threads 見下方 JSON，不只顯示成功。</div>";
+    checks.extract = r.ok && (d.characters || d.Characters || d.events || d.Events || d.extraction) ? "CONFIRMED" : (r.ok ? "NOT VERIFIED" : "NOT VERIFIED");
+    badge("extractBadge", checks.extract);
+    renderChecks();
+  };
+
+  document.getElementById("btnStart").onclick = async function () {
+    if (!state.story_id) { show("startOut", { error: "沒有 story_id" }); return; }
+    var r = await call(CAUSALITY, "POST", { action: "start_session", story_id: state.story_id });
+    show("startOut", r);
+    state.session_token = pick(r.data, ["session_token"]) || pick(r.data.session || {}, ["session_token"]) || state.session_token;
+    state.worldline_id = pick(r.data, ["worldline_id"]) || pick(r.data.worldline || {}, ["id"]) || state.worldline_id;
+    state.worldline_label = "原著世界線";
+    state.chapter = pick(r.data, ["chapter", "chapter_no"]) || 1;
+    state.event_count = pick(r.data, ["event_count"]) || 0;
+    save();
+    paintIds();
+    checks.session = r.ok && state.session_token ? "CONFIRMED" : "NOT VERIFIED";
+    if (r.ok && state.worldline_id) checks.worldline = "CONFIRMED";
+    badge("startBadge", checks.session);
+    renderChecks();
+  };
+
+  document.getElementById("btnAdvance").onclick = async function () {
+    if (!state.session_token) { show("advanceOut", { error: "沒有 session_token" }); return; }
+    var r = await call(CAUSALITY, "POST", { action: "advance", session_token: state.session_token, max_chars: 7000 });
+    show("advanceOut", r);
+    var d = r.data || {};
+    document.getElementById("readView").innerHTML = "<div>章節 " + (d.chapter || d.chapter_no || "—") + " " + (d.chapter_title || d.title || "") + "</div><div class='meta'>原著文字</div><pre>" + (d.original_text || d.text || d.content || "—") + "</pre><div class='meta'>下一章 " + (d.next_chapter || "—") + "</div>";
+    checks.advance = r.ok ? "CONFIRMED" : "NOT VERIFIED";
+    checks.originalUntouched = r.ok && d.original_modified !== true ? "NOT VERIFIED" : checks.originalUntouched;
+    if (r.ok && d.original_modified === false) checks.originalUntouched = "CONFIRMED";
+    badge("advanceBadge", checks.advance);
+    renderChecks();
+  };
+
+  function bindMic() {
+    var Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var btn = document.getElementById("btnMic");
+    if (!Speech || !navigator.mediaDevices) {
+      checks.mic = "NOT VERIFIED";
+      badge("micBadge", checks.mic);
+      document.getElementById("micMsg").textContent = "此瀏覽器沒有語音辨識。已保留文字框，不假裝成功。";
+      renderChecks();
+      return;
+    }
+    function start(e) {
+      e.preventDefault();
+      rec = new Speech();
+      rec.lang = "zh-TW";
+      rec.onresult = function (ev) {
+        var text = ev.results[0][0].transcript;
+        document.getElementById("userInput").value = text;
+        checks.mic = "CONFIRMED";
+        badge("micBadge", checks.mic);
+        document.getElementById("micMsg").textContent = "辨識：" + text;
+        renderChecks();
+      };
+      rec.onerror = function (ev) {
+        checks.mic = "NOT VERIFIED";
+        badge("micBadge", checks.mic);
+        document.getElementById("micMsg").textContent = "語音辨識失敗：" + ev.error;
+        renderChecks();
+      };
+      rec.start();
+      btn.classList.add("on");
+    }
+    function stop(e) {
+      e.preventDefault();
+      btn.classList.remove("on");
+      if (rec) rec.stop();
+    }
+    btn.addEventListener("mousedown", start);
+    btn.addEventListener("mouseup", stop);
+    btn.addEventListener("touchstart", start, { passive: false });
+    btn.addEventListener("touchend", stop, { passive: false });
+  }
+
+  async function intervene(text, outId, badgeId, second) {
+    if (!state.session_token) { show(outId, { error: "沒有 session_token" }); return; }
+    var r = await call(CAUSALITY, "POST", { action: "intervene", session_token: state.session_token, user_input: text });
+    show(outId, r);
+    var d = r.data || {};
+    if (!second) {
+      document.getElementById("interveneView").innerHTML = [
+        "<div>使用者造成的因</div><pre>" + text + "</pre>",
+        "<div>AI 行動</div><pre>" + JSON.stringify(d.action_summary || null, null, 2) + "</pre>",
+        "<div>下一場</div><pre>" + JSON.stringify(d.next_scene || null, null, 2) + "</pre>",
+        "<div>因果變化</div><pre>" + JSON.stringify(d.causal_changes || null, null, 2) + "</pre>",
+        "<div>世界狀態</div><pre>" + JSON.stringify(d.world_state || null, null, 2) + "</pre>",
+        "<div>結局狀態</div><pre>" + JSON.stringify((d.ending && d.ending.status) || d.ending || null, null, 2) + "</pre>"
+      ].join("");
+    }
+    var ok = r.ok && (d.action_summary || d.causal_changes || d.world_state);
+    if (second) {
+      checks.second = r.ok ? "CONFIRMED" : "NOT VERIFIED";
+      badge(badgeId, checks.second);
+    } else {
+      checks.intervene = r.ok ? "CONFIRMED" : "NOT VERIFIED";
+      checks.causal = ok ? "CONFIRMED" : "NOT VERIFIED";
+      badge(badgeId, checks.intervene);
+    }
+    renderChecks();
+  }
+
+  document.getElementById("btnIntervene").onclick = function () {
+    intervene(document.getElementById("userInput").value, "interveneOut", "interveneBadge", false);
+  };
+  document.getElementById("btnIntervene2").onclick = function () {
+    intervene(document.getElementById("userInput2").value, "intervene2Out", "intervene2Badge", true);
+  };
+
+  document.getElementById("btnInspect").onclick = async function () {
+    if (!state.story_id) { show("inspectOut", { error: "沒有 story_id" }); return; }
+    var r = await call(CAUSALITY, "POST", { action: "inspect", story_id: state.story_id });
+    show("inspectOut", r);
+    var events = (r.data && (r.data.events || r.data.causal_events)) || [];
+    state.event_count = Array.isArray(events) ? events.length : state.event_count;
+    save();
+    paintIds();
+    document.getElementById("inspectView").textContent = Array.isArray(events) && events.length ? "原著世界線 → 使用者介入 → 新的因果事件（後端 events=" + events.length + "）" : "後端沒有回傳 event。不能把畫面上的文字當成已寫入。";
+    checks.event = r.ok && Array.isArray(events) && events.length ? "CONFIRMED" : "NOT VERIFIED";
+    checks.worldUpdate = r.ok && (r.data.worldline || r.data.worldlines) ? "CONFIRMED" : "NOT VERIFIED";
+    badge("inspectBadge", checks.event);
+    renderChecks();
+  };
+
+  if (state.story_id || state.session_token) {
+    checks.restore = "CONFIRMED";
+    paintIds();
+  }
+  bindMic();
+  renderChecks();
+  document.getElementById("ebookSelect").innerHTML = "<option value='" + DEFAULT_EBOOK + "'>憲法解釋與行政法學研究方法論</option>";
+})();
+</script>
+</body>
+</html>
