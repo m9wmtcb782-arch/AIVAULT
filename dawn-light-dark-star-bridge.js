@@ -220,7 +220,14 @@
     var button = document.getElementById("dawnLightTalkButton");
     if (button) button.disabled = true;
     var taskId = "dawn-light-talk-" + Date.now();
-    var outgoing = "曙光，我是暗星。請用一句話回覆你在，並確認你是獨立 visual agent。";
+    var input = document.getElementById("composerInput");
+    var outgoing = input ? String(input.value || "").trim() : "";
+    if (!outgoing) {
+      bubble("曙光", "輸入框是空的，沒有送出。");
+      talking = false;
+      if (button) button.disabled = false;
+      return;
+    }
     try {
       setStatus("曙光接收中");
       bubble("暗星", outgoing);
@@ -232,7 +239,7 @@
       var reply = await post(SUPABASE_URL + "/functions/v1/ai-gateway", {
         agent_id: "dawn-light",
         messages: [
-          { role: "system", content: "你是曙光 Dawn Light，AIVAULT 的獨立 visual agent，不是暗星。用繁體中文，只回一句。" },
+          { role: "system", content: "你是曙光 Dawn Light，AIVAULT 的獨立 visual agent，不是暗星。用繁體中文回答輸入框的內容。" },
           { role: "user", content: outgoing }
         ]
       });
