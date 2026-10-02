@@ -321,7 +321,6 @@
       button.appendChild(sunMark());
       button.appendChild(document.createTextNode(" 曙光 Dawn Light"));
       button.addEventListener("click", talk);
-    }
     if (!document.getElementById("dawnSunStyle")) {
       var style = document.createElement("style");
       style.id = "dawnSunStyle";
@@ -330,7 +329,104 @@
     }
   }
 
+  function speakerWanted(text) {
+    var t = String(text || "");
+    var dark = /暗星|dark\s*star/i.test(t);
+    var dawn = /曙光|dawn\s*light/i.test(t);
+    if (/曙光先說|曙光先/.test(t)) return "dawn-light";
+    if (/暗星先說|暗星先/.test(t)) return "technical-dark-star";
+    if (dawn && !dark) return "dawn-light";
+    if (dark && !dawn) return "technical-dark-star";
+    if (dark && dawn) return "technical-dark-star";
+    return "";
+  }
+
+  function coordLine(row, text) {
+    if (!row) return;
+    var line = row.querySelector(".agent-coord");
+    if (!line) {
+      var host = row.querySelector(".message-text") || row;
+      line = document.createElement("div");
+      line.className = "agent-coord";
+      line.style.cssText = "display:block;margin-top:4px;font-size:13px;line-height:1.45;color:#666";
+      host.appendChild(line);
+    }
+    line.textContent = text;
+  }
+
+  async function oneTurn(agentId, userText, heard) {
+    var reply = await post(SUPABASE_URL + "/functions/v1/ai-gateway", {
+      agent_id: agentId,
+      messages: [
+        { role: "system", content: agentId === "dawn-light" ? "你是曙光，獨立 visual agent，不是暗星。用繁體中文，只根據這次輸入回答，不要套固定開場白。" : "你是暗星。用繁體中文，只根據這次輸入回答，不要套固定開場白。" },
+        { role: "user", content: heard ? "使用者說：" + userText + "\n另一位剛說：" + heard : userText }
+      ]
+    });
+    return String(reply.content || reply.text || reply.message || "").trim();
+  }
+
+  async function coordinate(text, row) {
+    var wanted = speakerWanted(text);
+    if (!wanted) return "";
+    var first = wanted === "dawn-light" ? "technical-dark-star" : "dawn-light";
+    var firstName = first === "dawn-light" ? "曙光" : "暗星";
+    var secondName = wanted === "dawn-light" ? "曙光" : "暗星";
+    coordLine(row, firstName + "協調中");
+    var a = await oneTurn(first, text, "");
+    coordLine(row, firstName + "：" + a);
+    var b = await oneTurn(wanted, text, a);
+    coordLine(row, firstName + "：" + a + " ｜ " + secondName + "：" + b);
+    return b;
+  }
+
+  function installComposerRoute() {
+    if (window.__AIVAULT_COORD_SEND__ || typeof window.sendMessage !== "function") return;
+    window.__AIVAULT_COORD_SEND__ = true;
+    var original = window.sendMessage;
+    window.sendMessage = async function () {
+      var input = document.getElementById("composerInput");
+      var text = input ? String(input.value || "").trim() : "";
+      var wanted = speakerWanted(text);
+      if (wanted !== "dawn-light") {
+        window.__AIVAULT_COORD_TEXT__ = text;
+        return original.apply(this, arguments);
+      }
+      if (window.isSending) return;
+      window.isSending = true;
+      var sendButton = document.getElementById("sendButton");
+      if (sendButton) sendButton.disabled = true;
+      if (typeof window.renderUserMessage === "function") window.renderUserMessage(text, []);
+      if (input) input.value = "";
+      var row = typeof window.createLoadingMessage === "function" ? window.createLoadingMessage() : null;
+      try {
+        var answer = await coordinate(text, row);
+        if (row && typeof row.remove === "function") row.remove();
+        bubble("曙光", answer || "這次沒有文字");
+      } catch (error) {
+        if (row && typeof row.remove === "function") row.remove();
+        bubble("曙光", "這次沒有完成回覆：" + (error.message || error));
+      } finally {
+        window.isSending = false;
+        if (sendButton) sendButton.disabled = false;
+      }
+    };
+    var oldCreate = window.createLoadingMessage;
+    if (typeof oldCreate === "function" && !oldCreate.__coord) {
+      window.createLoadingMessage = function () {
+        var row = oldCreate.apply(this, arguments);
+        var text = window.__AIVAULT_COORD_TEXT__ || "";
+        window.__AIVAULT_COORD_TEXT__ = "";
+        if (speakerWanted(text) === "technical-dark-star" && /曙光|dawn\s*light/i.test(text)) {
+          coordinate(text, row).catch(function () {});
+        }
+        return row;
+      };
+      window.createLoadingMessage.__coord = true;
+    }
+  }
+
   function boot() {
+    installComposerRoute();
     if (window.AivaultAgentRouter) {
       mount();
       return;
