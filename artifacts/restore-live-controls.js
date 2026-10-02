@@ -27,7 +27,7 @@ function restore(){
    live.id='darkStarLiveButton';
    live.type='button';
    live.className='drawer-item';
-   live.textContent='即時語音';
+   live.textContent='暗星即時';
  }
  let settings=document.getElementById('darkStarSettingsButton');
  if(!settings){
@@ -58,7 +58,7 @@ function restore(){
  select.value=localStorage.getItem('darkStarVoice')||'Kore';
  if(bottom){
    live.className='drawer-item';
-   live.textContent='即時語音';
+   live.textContent='暗星即時';
    live.style.removeProperty('display');
    live.removeAttribute('aria-hidden');
    if(live.parentElement!==bottom)bottom.insertBefore(live,bottom.firstChild);
@@ -73,9 +73,26 @@ function restore(){
    live.dataset.liveVoiceBound='1';
    live.addEventListener('click',async event=>{
      event.preventDefault();event.stopPropagation();
+     if(window.AivaultDualAgentLive&&window.AivaultDualAgentLive.toggleArm)return window.AivaultDualAgentLive.toggleArm('dark');
      const toggle=window.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__;
      if(typeof toggle==='function')await toggle();
      else console.error('[DarkStar] live voice toggle is not ready');
+   });
+ }
+ let dawnLive=document.getElementById('dawnLightLiveButton');
+ if(!dawnLive){
+   dawnLive=document.createElement('button');
+   dawnLive.id='dawnLightLiveButton';
+   dawnLive.type='button';
+   dawnLive.className='drawer-item';
+   dawnLive.textContent='曙光即時';
+ }
+ if(bottom&&dawnLive.parentElement!==bottom)bottom.insertBefore(dawnLive,live.nextSibling);
+ if(!dawnLive.dataset.liveVoiceBound){
+   dawnLive.dataset.liveVoiceBound='1';
+   dawnLive.addEventListener('click',function(event){
+     event.preventDefault();event.stopPropagation();
+     if(window.AivaultDualAgentLive&&window.AivaultDualAgentLive.toggleArm)window.AivaultDualAgentLive.toggleArm('dawn');
    });
  }
  var videoWindow=null,videoOpen=false,videoChannel=null;
@@ -97,7 +114,7 @@ function ensureSettingsPanel(){
 
  if(live){
    live.className='drawer-item';
-   live.textContent='即時語音';
+   live.textContent='暗星即時';
    live.style.removeProperty('display');
    if(live.parentElement!==bottom)bottom.insertBefore(live,bottom.firstChild);
  }
@@ -153,7 +170,7 @@ function ensureSettingsPanel(){
 
  if(live){
    live.className='drawer-item';
-   live.textContent='即時語音';
+   live.textContent='暗星即時';
    live.style.removeProperty('display');
    live.removeAttribute('aria-hidden');
    if(live.parentElement!==bottom)bottom.insertBefore(live,bottom.firstChild);

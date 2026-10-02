@@ -11,7 +11,11 @@
   var currentTranscript = "";
   var darkSocket = null;
   var darkOpen = false;
-  var userInterruptUntil = 0;
+  var armed = { dark: false, dawn: false };
+  var floor = null;
+  var waiting = null;
+  var darkHoldUntil = 0;
+  var darkHoldQueue = [];
   var dawnHoldUntil = 0;
   var dawnHoldQueue = [];
   var userBuf = "";
@@ -124,7 +128,47 @@
 
   function wakeAllows(agentId, payload) {
     if (payload && isAgentContext(payload)) return true;
+    if (agentId === DARK && !armed.dark) return false;
+    if (agentId === DAWN && !armed.dawn) return false;
+    if (floor === SPEAKER_DARK && agentId === DAWN && Date.now() < dawnHoldUntil) return false;
+    if (floor === SPEAKER_DAWN && agentId === DARK && Date.now() < darkHoldUntil) return false;
     return currentWake.indexOf(agentId) !== -1;
+  }
+
+  function namedFirst(text) {
+    var t = String(text || "");
+    if (/暗星先說|暗星先/.test(t)) return SPEAKER_DARK;
+    if (/曙光先說|曙光先/.test(t)) return SPEAKER_DAWN;
+    var darkAt = t.search(/暗星|dark\s*star/i);
+    var dawnAt = t.search(/曙光|dawn\s*light/i);
+    if (darkAt >= 0 && (dawnAt < 0 || darkAt <= dawnAt)) return SPEAKER_DARK;
+    if (dawnAt >= 0) return SPEAKER_DAWN;
+    return null;
+  }
+
+  function releaseNext(finished) {
+    if (floor !== finished || !waiting) return;
+    var next = waiting;
+    waiting = finished;
+    floor = next;
+    if (next === SPEAKER_DAWN) {
+      dawnHoldUntil = 0;
+      flushDawnHold();
+    } else {
+      darkHoldUntil = 0;
+      flushDarkHold();
+    }
+    root.AivaultAudioMixer.solo(next);
+  }
+
+  function flushDarkHold() {
+    if (Date.now() < darkHoldUntil) return;
+    var queued = darkHoldQueue.splice(0);
+    queued.forEach(function (data) {
+      if (darkSocket && darkSocket.readyState === 1) {
+        try { darkSocket.send(data); } catch (e) {}
+      }
+    });
   }
 
   function isAgentContext(payload) {
@@ -221,12 +265,16 @@
       if (root.DawnLightLiveVoice) root.DawnLightLiveVoice.interrupt("not-woken");
       return Promise.resolve(fresh);
     }
-    var both = fresh.agents.indexOf(DARK) !== -1 && fresh.agents.indexOf(DAWN) !== -1;
+    var both = fresh.agents.indexOf(DARK) !== -1 && fresh.agents.indexOf(DAWN) !== -1 && armed.dark && armed.dawn;
     if (both) {
-      root.AivaultAudioMixer.solo(SPEAKER_DARK);
-      dawnHoldUntil = Date.now() + 700;
-      setTimeout(flushDawnHold, 700);
-    } else if (fresh.agents.indexOf(DAWN) !== -1) {
+      var first = namedFirst(fresh.transcript) || SPEAKER_DARK;
+      var second = first === SPEAKER_DARK ? SPEAKER_DAWN : SPEAKER_DARK;
+      floor = first;
+      waiting = second;
+      root.AivaultAudioMixer.solo(first);
+      if (first === SPEAKER_DARK) dawnHoldUntil = Date.now() + 120000;
+      else darkHoldUntil = Date.now() + 120000;
+    } else if (fresh.agents.indexOf(DAWN) !== -1 && armed.dawn) {
       root.AivaultAudioMixer.solo(SPEAKER_DAWN);
       dawnHoldUntil = 0;
       startCountdown();
@@ -303,7 +351,7 @@
     if (agent === DARK || (String(ws.url || "").indexOf("agent_id=dawn-light") === -1 && String(ws.url || "").indexOf("technical-dark-star-live-voice") !== -1)) {
       ws.__aivaultAgent = DARK;
       darkSocket = ws;
-      ws.addEventListener("open", function () { darkOpen = true; if (root.DawnLightLiveVoice) root.DawnLightLiveVoice.start(); });
+      ws.addEventListener("open", function () { darkOpen = true; if (armed.dawn && root.DawnLightLiveVoice) root.DawnLightLiveVoice.start(); });
       ws.addEventListener("close", function () { darkOpen = false; if (root.DawnLightLiveVoice) root.DawnLightLiveVoice.stop(); });
       ws.addEventListener("message", function (ev) { observeDark(ev.data); });
     }
@@ -327,7 +375,10 @@
         setTimeout(flushDawnHold, 400);
       }
     }
-    if (content.turnComplete || msg.turnComplete || msg.type === "turnComplete") finishUserUtterance();
+    if (content.turnComplete || msg.turnComplete || msg.type === "turnComplete") {
+      finishUserUtterance();
+      releaseNext(SPEAKER_DARK);
+    }
   }
 
   function installWebSocketTag() {
@@ -351,7 +402,11 @@
       var origSend = ws.send.bind(ws);
       ws.send = function (data) {
         if (ws.__aivaultAgent === DARK && audioPayload(data)) {
-          if (!wakeAllows(DARK, data)) return;
+          if (!wakeAllows(DARK, data)) {
+            if (floor === SPEAKER_DAWN && armed.dark) darkHoldQueue.push(data);
+            forwardToDawn(data);
+            return;
+          }
           forwardToDawn(data);
         }
         if (ws.__aivaultAgent === DAWN && audioPayload(data) && !wakeAllows(DAWN, data)) return;
@@ -397,21 +452,34 @@
     }
     root.addEventListener("aivault-conversation-event", function (e) {
       var detail = e.detail || {};
-      if (detail.speaker === SPEAKER_DAWN) {
-        stopCountdown();
-        agentSpeaking = true;
-        if (!detail.partial && darkSocket && darkSocket.readyState === 1) {
-          try {
-            darkSocket.send(JSON.stringify({
-              type: "text",
-              speaker: SPEAKER_DAWN,
-              agent_id: DAWN,
-              text: "[speaker=DAWN_LIGHT agent_id=dawn-light] " + detail.text
-            }));
-          } catch (err) {}
-        }
+      if (detail.speaker !== SPEAKER_DAWN) return;
+      stopCountdown();
+      agentSpeaking = true;
+      if (!detail.partial && darkSocket && darkSocket.readyState === 1) {
+        try {
+          darkSocket.send(JSON.stringify({
+            type: "text",
+            speaker: SPEAKER_DAWN,
+            agent_id: DAWN,
+            text: "[speaker=DAWN_LIGHT agent_id=dawn-light] " + detail.text
+          }));
+        } catch (err) {}
       }
+      if (!detail.partial) releaseNext(SPEAKER_DAWN);
     });
+  }
+
+  function paintArms() {
+    var darkBtn = document.getElementById("darkStarLiveButton");
+    var dawnBtn = document.getElementById("dawnLightLiveButton");
+    if (darkBtn) {
+      darkBtn.textContent = armed.dark ? "暗星即時 ✓" : "暗星即時";
+      darkBtn.classList.toggle("active", armed.dark);
+    }
+    if (dawnBtn) {
+      dawnBtn.textContent = armed.dawn ? "曙光即時 ✓" : "曙光即時";
+      dawnBtn.classList.toggle("active", armed.dawn);
+    }
   }
 
   root.AivaultDualAgentLive = {
@@ -422,6 +490,22 @@
     finishUserUtterance: finishUserUtterance,
     deliverAgentText: deliverAgentText,
     videoGate: videoGate,
+    namedFirst: namedFirst,
+    arm: function (which, on) {
+      if (which === "dark") armed.dark = !!on;
+      if (which === "dawn") armed.dawn = !!on;
+      paintArms();
+      if (armed.dawn && root.DawnLightLiveVoice) root.DawnLightLiveVoice.start();
+      if (!armed.dawn && root.DawnLightLiveVoice) root.DawnLightLiveVoice.stop();
+      var toggle = root.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__;
+      var needMic = armed.dark || armed.dawn;
+      if (typeof toggle === "function" && needMic !== darkOpen) return toggle();
+    },
+    toggleArm: function (which) {
+      var on = which === "dark" ? !armed.dark : !armed.dawn;
+      return root.AivaultDualAgentLive.arm(which, on);
+    },
+    armed: function () { return { dark: armed.dark, dawn: armed.dawn, floor: floor, waiting: waiting }; },
     currentWake: function () { return currentWake.slice(); },
     speakDawn: function () { return Promise.resolve(); }
   };
