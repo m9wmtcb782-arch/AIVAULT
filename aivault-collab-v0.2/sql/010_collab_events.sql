@@ -1,0 +1,4 @@
+-- 010 collab events + scalable pool + simulated lifecycle.
+-- Does not DROP, ALTER, or rewrite public.agent_events.
+-- Applied to clcddygkaaqqtsbswgdf after this file was written.
+-- See live report. This file is the trackable source.
