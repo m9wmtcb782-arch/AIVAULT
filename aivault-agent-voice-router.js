@@ -1,7 +1,5 @@
 (function (root) {
   "use strict";
-  if (root.AivaultAgentRouter) return;
-
   var AGENTS = {
     "technical-dark-star": {
       id: "technical-dark-star",
@@ -14,8 +12,8 @@
       aliases: ["曙光", "dawnlight", "dawn light"]
     }
   };
-
-  var boundAgent = null;
+  var ORDER = ["technical-dark-star", "dawn-light"];
+  var activeAgents = [];
   var phase = "idle";
   var listeners = {
     "technical-dark-star": [],
@@ -26,20 +24,21 @@
     return String(text || "").toLowerCase().replace(/[\s,，.。!！?？、]/g, "");
   }
 
-  function findWake(transcript) {
-    var raw = String(transcript || "");
-    var folded = compact(raw);
+  function hasAlias(folded, agentId) {
+    var aliases = AGENTS[agentId].aliases;
+    for (var i = 0; i < aliases.length; i++) {
+      if (folded.indexOf(compact(aliases[i])) >= 0) return true;
+    }
+    return false;
+  }
+
+  function detectWakeAgents(transcript) {
+    var folded = compact(transcript);
     var found = [];
-    Object.keys(AGENTS).forEach(function (id) {
-      AGENTS[id].aliases.forEach(function (alias) {
-        var needle = compact(alias);
-        var at = folded.indexOf(needle);
-        if (at >= 0) found.push({ id: id, at: at, alias: alias });
-      });
+    ORDER.forEach(function (id) {
+      if (hasAlias(folded, id)) found.push(id);
     });
-    if (!found.length) return null;
-    found.sort(function (a, b) { return a.at - b.at; });
-    return found[0].id;
+    return found;
   }
 
   function stripWake(transcript, agentId) {
@@ -62,40 +61,55 @@
   function setPhase(next, agentId) {
     phase = next || "idle";
     emit("aivault-agent-phase", {
-      agent_id: agentId || boundAgent,
+      agent_id: agentId || null,
       phase: phase,
-      bound: boundAgent
+      active: activeAgents.slice()
     });
   }
 
   function decide(transcript) {
-    var wake = findWake(transcript);
-    var target = wake || boundAgent;
+    var agents = detectWakeAgents(transcript);
     return {
       transcript: String(transcript || ""),
-      wake: wake,
-      target: target,
-      bound_before: boundAgent,
-      deliver: !!target,
-      reason: wake ? "wake" : (boundAgent ? "bound-session" : "no-agent")
+      agents: agents,
+      wake: agents[0] || null,
+      target: agents[0] || null,
+      bound_before: null,
+      bound_after: null,
+      deliver: agents.length > 0,
+      reason: agents.length ? (agents.length > 1 ? "wake-both" : "wake") : "no-agent"
     };
   }
 
   function route(transcript, meta) {
     var decision = decide(transcript);
     decision.meta = meta || {};
-    if (decision.wake) boundAgent = decision.wake;
-    decision.bound_after = boundAgent;
-    decision.target = decision.wake || boundAgent;
-    decision.deliver = !!decision.target;
-    decision.payload = decision.target ? stripWake(transcript, decision.target) : "";
-    emit("aivault-agent-route", decision);
-    if (!decision.deliver) return decision;
-    setPhase("listen", decision.target);
-    listeners[decision.target].forEach(function (handler) {
-      try { handler(decision); } catch (e) { console.warn("[agent-router]", e); }
+    activeAgents = decision.agents.slice();
+    decision.payloads = {};
+    decision.agents.forEach(function (id) {
+      decision.payloads[id] = stripWake(transcript, id);
     });
-    return decision;
+    decision.payload = decision.agents.length === 1 ? decision.payloads[decision.agents[0]] : "";
+    emit("aivault-agent-route", decision);
+    if (!decision.deliver) {
+      setPhase("idle", null);
+      return Promise.resolve(decision);
+    }
+    var chain = Promise.resolve();
+    decision.agents.forEach(function (id) {
+      chain = chain.then(function () {
+        setPhase("listen", id);
+        var pending = listeners[id].map(function (handler) {
+          try { return handler(decision); } catch (e) { console.warn("[agent-router]", e); }
+        });
+        return Promise.all(pending);
+      });
+    });
+    return chain.then(function () {
+      activeAgents = [];
+      setPhase("idle", null);
+      return decision;
+    });
   }
 
   function subscribe(agentId, handler) {
@@ -106,21 +120,17 @@
     };
   }
 
-  function bind(agentId) {
-    boundAgent = AGENTS[agentId] ? agentId : null;
-    emit("aivault-agent-route", { wake: boundAgent, target: boundAgent, bound_after: boundAgent, deliver: false, reason: "bind" });
-    return boundAgent;
-  }
-
   root.AivaultAgentRouter = {
     agents: AGENTS,
+    detectWakeAgents: detectWakeAgents,
     decide: decide,
     route: route,
     subscribe: subscribe,
-    bind: bind,
-    bound: function () { return boundAgent; },
+    bind: function () { return null; },
+    bound: function () { return null; },
+    active: function () { return activeAgents.slice(); },
     phase: function () { return phase; },
     setPhase: setPhase,
-    clear: function () { boundAgent = null; setPhase("idle", null); }
+    clear: function () { activeAgents = []; setPhase("idle", null); }
   };
 })(typeof window !== "undefined" ? window : globalThis);

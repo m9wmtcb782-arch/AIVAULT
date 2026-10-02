@@ -6,8 +6,6 @@
   var SUPABASE_URL = "https://clcddygkaaqqtsbswgdf.supabase.co";
   var ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE";
   var talking = false;
-  var recognition = null;
-  var heard = "";
 
   function headers() {
     return {
@@ -57,6 +55,10 @@
     return window.AivaultAgentRouter;
   }
 
+  function selected(decision, agentId) {
+    return decision && decision.agents && decision.agents.indexOf(agentId) >= 0;
+  }
+
   function installRelayGate() {
     if (window.__AIVAULT_AGENT_ROUTE_WS_GATE__) return;
     window.__AIVAULT_AGENT_ROUTE_WS_GATE__ = true;
@@ -65,92 +67,135 @@
       var url = "";
       try { url = String(this.url || ""); } catch (e) {}
       var darkRelay = url.indexOf("technical-dark-star") !== -1;
-      var bound = router() ? router().bound() : null;
-      if (darkRelay && bound !== "technical-dark-star") return;
+      var active = router() ? router().active() : [];
+      if (darkRelay && active.indexOf("technical-dark-star") === -1) return;
       return original.apply(this, arguments);
     };
   }
 
+  function installSendGate() {
+    if (window.__AIVAULT_WAKE_SEND_GATE__ || typeof window.sendMessage !== "function") return;
+    window.__AIVAULT_WAKE_SEND_GATE__ = true;
+    var original = window.sendMessage;
+    window.sendMessage = function () {
+      if (window.__AIVAULT_LAST_ROUTE_SOURCE__ === "speech-recognition") {
+        var active = router() ? router().active() : [];
+        if (active.indexOf("technical-dark-star") === -1) return Promise.resolve();
+      }
+      return original.apply(this, arguments);
+    };
+  }
+
+  function startReadSeconds() {
+    if (typeof window.createLoadingMessage === "function") return window.createLoadingMessage();
+    return null;
+  }
+
+  function stopReadSeconds(loading) {
+    if (loading && typeof loading.remove === "function") loading.remove();
+  }
+
   async function answerDawn(decision) {
+    if (!selected(decision, "dawn-light")) return;
     var taskId = "dawn-light-voice-" + Date.now();
-    var content = decision.payload || decision.transcript;
+    var content = (decision.payloads && decision.payloads["dawn-light"]) || decision.payload || decision.transcript;
+    var loading = startReadSeconds();
     setStatus("曙光接收中");
     if (router()) router().setPhase("speak", "dawn-light");
     bubble("你", decision.transcript);
-    var reply = await post(SUPABASE_URL + "/functions/v1/ai-gateway", {
-      agent_id: "dawn-light",
-      messages: [
-        { role: "system", content: "你是曙光 Dawn Light，AIVAULT 的獨立 visual agent，不是暗星。用繁體中文，只回一句。" },
-        { role: "user", content: content || "使用者呼叫曙光" }
-      ]
-    });
-    var text = String(reply.content || reply.text || reply.message || "").trim();
-    if (!text) throw new Error("曙光 Gateway 沒有文字");
-    bubble("曙光", text, "task " + taskId);
-    setStatus("曙光已回覆");
-    speak(text);
-    return text;
+    try {
+      var reply = await post(SUPABASE_URL + "/functions/v1/ai-gateway", {
+        agent_id: "dawn-light",
+        messages: [
+          { role: "system", content: "你是曙光 Dawn Light，AIVAULT 的獨立 visual agent，不是暗星。用繁體中文，只回一句。" },
+          { role: "user", content: content || "使用者呼叫曙光" }
+        ]
+      });
+      var text = String(reply.content || reply.text || reply.message || "").trim();
+      if (!text) throw new Error("曙光 Gateway 沒有文字");
+      stopReadSeconds(loading);
+      bubble("曙光", text, "task " + taskId);
+      setStatus("曙光已回覆");
+      await speak(text);
+      return text;
+    } catch (error) {
+      stopReadSeconds(loading);
+      throw error;
+    }
   }
 
   function speak(text) {
-    if (!window.speechSynthesis || !text) {
-      if (router()) router().setPhase("idle", "dawn-light");
-      return;
-    }
-    window.speechSynthesis.cancel();
-    var utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "zh-TW";
-    utterance.onend = function () { if (router()) router().setPhase("idle", "dawn-light"); };
-    utterance.onerror = utterance.onend;
-    window.speechSynthesis.speak(utterance);
+    return new Promise(function (resolve) {
+      if (!window.speechSynthesis || !text) {
+        if (router()) router().setPhase("idle", "dawn-light");
+        resolve();
+        return;
+      }
+      window.speechSynthesis.cancel();
+      var utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "zh-TW";
+      utterance.onend = function () {
+        if (router()) router().setPhase("idle", "dawn-light");
+        resolve();
+      };
+      utterance.onerror = utterance.onend;
+      window.speechSynthesis.speak(utterance);
+    });
+  }
+
+  function waitForDarkStarTurn() {
+    return new Promise(function (resolve) {
+      var host = list();
+      var seen = false;
+      var timer = setTimeout(finish, 20000);
+      function finish() {
+        clearTimeout(timer);
+        if (host) host.removeEventListener("DOMNodeRemoved", check);
+        resolve();
+      }
+      function check() {
+        if (!host) return finish();
+        if (host.querySelector(".think-timer")) seen = true;
+        if (seen && !host.querySelector(".think-timer")) finish();
+      }
+      if (host) host.addEventListener("DOMNodeRemoved", check);
+      setTimeout(check, 300);
+    });
   }
 
   function deliverDarkStar(decision) {
+    if (!selected(decision, "technical-dark-star")) return Promise.resolve();
     var input = document.getElementById("composerInput");
     var send = document.getElementById("sendButton");
-    if (!input || !send) return;
-    input.value = decision.payload || decision.transcript;
+    if (!input || !send) return Promise.resolve();
+    input.value = (decision.payloads && decision.payloads["technical-dark-star"]) || decision.payload || decision.transcript;
     input.dispatchEvent(new Event("input", { bubbles: true }));
     send.click();
+    return waitForDarkStarTurn();
   }
 
+  var handled = null;
+
   function onRoute(decision) {
-    if (!decision.deliver) return;
-    if (decision.target === "dawn-light") {
-      if (talking) return;
-      talking = true;
-      answerDawn(decision).catch(function (error) {
+    if (!decision || !decision.deliver) return;
+    var key = decision.transcript + "|" + (decision.agents || []).join(",");
+    if (handled === key) return;
+    handled = key;
+    if (talking) return;
+    talking = true;
+    var job = Promise.resolve();
+    if (selected(decision, "technical-dark-star")) job = job.then(function () { return deliverDarkStar(decision); });
+    if (selected(decision, "dawn-light")) {
+      job = job.then(function () { return answerDawn(decision); }).catch(function (error) {
         bubble("曙光", "這次沒有完成回覆：" + (error.message || error));
         setStatus("曙光未完成");
         if (router()) router().setPhase("idle", "dawn-light");
-      }).finally(function () { talking = false; });
-      return;
+      });
     }
-    if (decision.target === "technical-dark-star") deliverDarkStar(decision);
-  }
-
-  function startRouterMic() {
-    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition || recognition || window.__AIVAULT_AGENT_ROUTER_MIC__) return;
-    window.__AIVAULT_AGENT_ROUTER_MIC__ = true;
-    recognition = new SpeechRecognition();
-    recognition.lang = "zh-TW";
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.onresult = function (event) {
-      var finalText = "";
-      for (var i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) finalText += event.results[i][0].transcript;
-      }
-      if (!finalText.trim() || !router()) return;
-      heard = finalText.trim();
-      router().route(heard, { source: "speech-recognition" });
-    };
-    recognition.onend = function () {
-      if (!window.__AIVAULT_AGENT_ROUTER_MIC__) return;
-      try { recognition.start(); } catch (e) {}
-    };
-    try { recognition.start(); } catch (e) {}
+    return job.finally(function () {
+      talking = false;
+      window.__AIVAULT_LAST_ROUTE_SOURCE__ = "";
+    });
   }
 
   async function talk() {
@@ -213,6 +258,7 @@
 
   function mount() {
     installRelayGate();
+    installSendGate();
     if (router()) {
       router().subscribe("dawn-light", onRoute);
       router().subscribe("technical-dark-star", onRoute);
@@ -249,8 +295,6 @@
       style.textContent = ".dawn-sun{position:relative;display:inline-block;width:22px;height:22px;vertical-align:-4px}.dawn-sun .core,.dawn-sun .glow,.dawn-sun .rays{position:absolute;inset:0;border-radius:50%}.dawn-sun .core{background:radial-gradient(circle,#fff7d6 0 38%,#f0b429 70%,rgba(240,180,41,0) 72%);transform:scale(.72)}.dawn-sun .glow{background:radial-gradient(circle,rgba(255,214,120,.55),rgba(255,214,120,0) 68%);animation:dawnBreath 4.8s ease-in-out infinite}.dawn-sun .rays{background:conic-gradient(from 0deg,rgba(255,196,92,.0),rgba(255,196,92,.55),rgba(255,196,92,0) 18%);animation:dawnSpin 18s linear infinite;opacity:.45}.dawn-sun.listen .glow{animation-duration:2.4s}.dawn-sun.speak .core{transform:scale(.84)}.dawn-sun.speak .glow{opacity:.95}@keyframes dawnBreath{0%,100%{transform:scale(.86);opacity:.45}50%{transform:scale(1);opacity:.8}}@keyframes dawnSpin{to{transform:rotate(360deg)}}";
       document.head.appendChild(style);
     }
-    startRouterMic();
-    if (new URLSearchParams(location.search).get("dawn") === "1") talk();
   }
 
   function boot() {
@@ -259,7 +303,7 @@
       return;
     }
     var script = document.createElement("script");
-    script.src = "aivault-agent-voice-router.js?v=1";
+    script.src = "aivault-agent-voice-router.js?v=3";
     script.onload = mount;
     script.onerror = mount;
     document.head.appendChild(script);

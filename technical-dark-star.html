@@ -7605,6 +7605,8 @@ function createLoadingMessage(){
 
 }
 
+window.createLoadingMessage = createLoadingMessage;
+
 
 /*
   ========================================================
@@ -7696,6 +7698,21 @@ if(SpeechRecognition){
 
       }
 
+      var finalText = "";
+      for (var ri = event.resultIndex; ri < event.results.length; ri++) {
+        if (event.results[ri].isFinal) finalText += event.results[ri][0].transcript;
+      }
+      if (finalText.trim() && window.AivaultAgentRouter) {
+        window.__AIVAULT_LAST_ROUTE_SOURCE__ = "speech-recognition";
+        var wakeDecision = window.AivaultAgentRouter.decide(finalText.trim());
+        window.AivaultAgentRouter.route(finalText.trim(), { source: "speech-recognition" });
+        if (!wakeDecision.deliver) {
+          window.__AIVAULT_LAST_ROUTE_SOURCE__ = "";
+          input.value = "";
+          sendButton.disabled = true;
+          return;
+        }
+      }
 
       input.value =
         transcript;
@@ -8419,6 +8436,8 @@ window.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__=async()=>{if(state.active||state.
 <script src="artifacts/restore-live-controls.js?v=18"></script>
 <script src="technical-dark-star-strip-diagnostic.js?v=1"></script>
 <!-- prior file ended at a truncated script src=tec; closed without inventing that script -->
-<script src="dawn-light-dark-star-bridge.js?v=1"></script>
+<script>window.sendMessage = sendMessage;</script>
+<script src="aivault-agent-voice-router.js?v=3"></script>
+<script src="dawn-light-dark-star-bridge.js?v=3"></script>
 </body>
 </html>
