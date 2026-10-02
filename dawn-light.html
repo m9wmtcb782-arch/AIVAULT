@@ -16,25 +16,45 @@
     img { max-width: 100%; border-radius: 12px; }
     pre { white-space: pre-wrap; word-break: break-word; background: #0d110c; padding: 10px; border-radius: 10px; }
     .tag { display: inline-block; margin-right: 6px; padding: 2px 8px; border-radius: 999px; background: #2c3828; }
+    .logo-row { display: flex; gap: 14px; align-items: center; }
+    .dawn-sun { position: relative; width: 84px; height: 84px; flex: 0 0 84px; }
+    .dawn-sun .core, .dawn-sun .glow, .dawn-sun .rays { position: absolute; inset: 0; border-radius: 50%; }
+    .dawn-sun .core { background: radial-gradient(circle, #fff8df 0 28%, #f3c15a 58%, rgba(243,193,90,0) 62%); transform: scale(.62); }
+    .dawn-sun .glow { background: radial-gradient(circle, rgba(255,210,120,.42), rgba(255,210,120,0) 70%); animation: dawnBreath 4.8s ease-in-out infinite; }
+    .dawn-sun .rays { background: conic-gradient(from 0deg, rgba(255,196,92,0) 0 8%, rgba(255,196,92,.5) 12%, rgba(255,196,92,0) 18% 100%); animation: dawnSpin 18s linear infinite; opacity: .4; }
+    .dawn-sun.listen .glow { animation-duration: 2.2s; }
+    .dawn-sun.listen .core { transform: scale(.7); }
+    .dawn-sun.speak .core { transform: scale(.78); }
+    .dawn-sun.speak .glow { opacity: .95; animation-duration: 1.6s; }
+    @keyframes dawnBreath { 0%,100% { transform: scale(.88); opacity: .42; } 50% { transform: scale(1); opacity: .78; } }
+    @keyframes dawnSpin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
 <main>
-  <h1>曙光 / Dawn Light</h1>
-  <p>獨立 visual agent。這一頁只呼叫現有 Gateway、圖片函式與影片結果函式，不建立第二個大腦，也不改暗星。</p>
+  <div class="logo-row">
+    <div id="dawnSun" class="dawn-sun idle" aria-hidden="true"><i class="core"></i><i class="glow"></i><i class="rays"></i></div>
+    <div>
+      <h1>曙光 / Dawn Light</h1>
+      <p>獨立 visual agent。語音先經 routing，只有呼叫曙光才送到 dawn-light。</p>
+    </div>
+  </div>
   <div class="card">
     <span class="tag">agent_id dawn-light</span>
-    <span class="tag">未改 model_registry</span>
-    <span class="tag">未改暗星檔案</span>
+    <span class="tag" id="routeState">尚未綁定</span>
+    <span class="tag">未改暗星核心</span>
   </div>
-
+  <section class="card">
+    <h2>語音 routing</h2>
+    <p id="heard">等待喚醒。只說「曙光」才會由這一頁回答。</p>
+    <pre id="routeOut">尚未收到</pre>
+  </section>
   <section class="card">
     <h2>Vision</h2>
     <input id="visionFile" type="file" accept="image/*">
     <button id="visionBtn" type="button">分析圖片</button>
     <pre id="visionOut">尚未測試</pre>
   </section>
-
   <section class="card">
     <h2>Image</h2>
     <input id="imagePrompt" value="生成一張測試圖片：白色背景正中央一個藍色圓形，不要文字">
@@ -42,7 +62,6 @@
     <div id="imageView"></div>
     <pre id="imageOut">尚未測試</pre>
   </section>
-
   <section class="card">
     <h2>Video</h2>
     <p>只查既有任務，不在此頁建立新任務。</p>
@@ -50,21 +69,23 @@
     <button id="videoBtn" type="button">查結果</button>
     <pre id="videoOut">BLOCKED：aivault-videos bucket 不存在</pre>
   </section>
-
   <section class="card">
     <h2>3D</h2>
     <pre id="threeOut">BLOCKED</pre>
   </section>
 </main>
+<script src="aivault-agent-voice-router.js?v=1"></script>
 <script src="dawn-light-runtime.js"></script>
+<script src="dawn-light-dark-star-bridge.js?v=2"></script>
 <script>
   var runtime = window.DawnLightRuntime;
+  var sun = document.getElementById("dawnSun");
   document.getElementById("threeOut").textContent = JSON.stringify(runtime.blocked3d(), null, 2);
   document.getElementById("visionBtn").onclick = async function () {
     var file = document.getElementById("visionFile").files[0];
     var out = document.getElementById("visionOut");
-    if (!file) { out.textContent = "需要一張圖片"; return; }
-    out.textContent = "呼叫現有 ai-gateway…";
+    if (!file) { out.textContent = "請先選圖片"; return; }
+    out.textContent = "呼叫現有 Gateway…";
     try { out.textContent = JSON.stringify(await runtime.vision(file), null, 2); }
     catch (e) { out.textContent = String(e.message || e); }
   };
@@ -84,6 +105,17 @@
     try { out.textContent = JSON.stringify(await runtime.videoResult(document.getElementById("videoId").value), null, 2); }
     catch (e) { out.textContent = String(e.message || e); }
   };
+  window.AivaultAgentRouter.subscribe("dawn-light", function (decision) {
+    document.getElementById("heard").textContent = decision.transcript;
+    document.getElementById("routeOut").textContent = JSON.stringify(decision, null, 2);
+    document.getElementById("routeState").textContent = "綁定 dawn-light";
+    sun.className = "dawn-sun listen";
+  });
+  window.addEventListener("aivault-agent-phase", function (event) {
+    var detail = event.detail || {};
+    if (detail.agent_id !== "dawn-light") { sun.className = "dawn-sun idle"; return; }
+    sun.className = "dawn-sun " + (detail.phase || "idle");
+  });
 </script>
 </body>
 </html>
