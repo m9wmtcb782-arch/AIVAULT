@@ -1,8 +1,9 @@
 -- 100 Worker instance seed. NOT APPLIED.
 -- Same model_version_id. Not 100 models. Not a second registry.
--- Idempotent: agent_id is primary key. Re-run does not duplicate.
--- Worker-001..090 extract, Worker-091..100 verify.
--- device_id stays null until a node_id is written later.
+-- Worker-001..090 extract, Worker-091..100 verify. device_id left null.
+-- ON CONFLICT updates only role and model_version_id.
+-- Does not clear status, connection_status, current_task_id, current_action,
+-- last_activity_at, last_heartbeat, lease_until, attempt, idempotency_key, device_id.
 
 INSERT INTO agent_registry (
   agent_id, display_name, role, capability, abilities, status, connection_status, model_version_id
