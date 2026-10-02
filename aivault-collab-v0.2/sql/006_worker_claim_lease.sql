@@ -1,7 +1,7 @@
--- AIVAULT Worker state + claim/lease v0.2.1
+-- AIVAULT Worker state + claim/lease v0.2.2
 -- Additive. No DROP TABLE. No second task table. No provider name.
--- Does not modify Technical Dark Star, AI Gateway, or Compute Mesh files.
--- Live apply still requires Owner SQL Editor. This file is the trackable migration.
+-- Does not modify Technical Dark Star core, AI Gateway, or Compute Mesh files.
+-- NOT APPLIED. Live apply still requires Owner SQL Editor.
 
 ALTER TABLE agent_registry
   ADD COLUMN IF NOT EXISTS model_version_id text,
@@ -19,6 +19,13 @@ ALTER TABLE agent_subtasks
   ADD COLUMN IF NOT EXISTS attempt integer NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS idempotency_key text,
   ADD COLUMN IF NOT EXISTS result_status text;
+
+DO $$ BEGIN
+  ALTER TABLE agent_subtasks
+    ADD CONSTRAINT agent_subtasks_status_chk
+    CHECK (status IN ('DRAFT', 'READY', 'CLAIMED', 'DONE'));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_agent_subtasks_ready
   ON agent_subtasks(role, status, created_at);
@@ -90,6 +97,17 @@ BEGIN
     AND role = w.role
     AND (model_version_id IS NULL OR model_version_id = w.model_version_id)
     AND (lease_until IS NULL OR lease_until < now())
+    AND (
+      w.role <> 'verify'
+      OR EXISTS (
+        SELECT 1
+        FROM agent_subtasks e
+        WHERE e.parent_task_id = agent_subtasks.parent_task_id
+          AND e.role = 'extract'
+          AND e.status = 'DONE'
+          AND e.result_status = 'accepted'
+      )
+    )
   ORDER BY created_at
   FOR UPDATE SKIP LOCKED
   LIMIT 1;
@@ -108,7 +126,12 @@ BEGIN
       result_status = NULL,
       updated_at = now()
   WHERE subtask_id = s.subtask_id
+    AND status = 'READY'
   RETURNING * INTO s;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('claimed', false);
+  END IF;
 
   UPDATE agent_registry
   SET status = 'WORKING',
@@ -179,7 +202,9 @@ BEGIN
       result_status = 'accepted',
       lease_until = NULL,
       updated_at = now()
-  WHERE subtask_id = p_subtask_id;
+  WHERE subtask_id = p_subtask_id
+    AND status = 'CLAIMED'
+    AND claimed_by = p_worker_id;
 
   UPDATE agent_registry
   SET status = 'WAITING',
@@ -196,6 +221,8 @@ BEGIN
 END;
 $$;
 
+-- Caller is the Dark Star control loop via agent_darkstar_tick().
+-- pg_cron on this project is NOT VERIFIED. No second scheduler is created here.
 CREATE OR REPLACE FUNCTION agent_expire_leases()
 RETURNS jsonb
 LANGUAGE plpgsql
