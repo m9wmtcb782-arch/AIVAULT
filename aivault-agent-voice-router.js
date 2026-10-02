@@ -76,6 +76,7 @@
       target: agents[0] || null,
       bound_before: null,
       bound_after: null,
+      this_turn_only: true,
       deliver: agents.length > 0,
       reason: agents.length ? (agents.length > 1 ? "wake-both" : "wake") : "no-agent"
     };

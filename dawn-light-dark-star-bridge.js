@@ -66,9 +66,17 @@
     WebSocket.prototype.send = function (data) {
       var url = "";
       try { url = String(this.url || ""); } catch (e) {}
-      var darkRelay = url.indexOf("technical-dark-star") !== -1;
-      var active = router() ? router().active() : [];
-      if (darkRelay && active.indexOf("technical-dark-star") === -1) return;
+      var agent = this.__aivaultAgent || "";
+      var liveRelay = url.indexOf("technical-dark-star-live-voice") !== -1;
+      if (!liveRelay) return original.apply(this, arguments);
+      var payload = typeof data === "string" ? data : "";
+      var agentContext = payload.indexOf("[speaker=") !== -1 || payload.indexOf("\"speaker\":\"dark-star\"") !== -1 || payload.indexOf("\"speaker\":\"dawn-light\"") !== -1;
+      if (agentContext) return original.apply(this, arguments);
+      var target = agent === "dawn-light" ? "dawn-light" : "technical-dark-star";
+      var allowed = window.AivaultDualAgentLive && window.AivaultDualAgentLive.wakeAllows
+        ? window.AivaultDualAgentLive.wakeAllows(target, payload)
+        : ((router() ? router().active() : []).indexOf(target) !== -1);
+      if (!allowed) return;
       return original.apply(this, arguments);
     };
   }
@@ -79,8 +87,10 @@
     var original = window.sendMessage;
     window.sendMessage = function () {
       if (window.__AIVAULT_LAST_ROUTE_SOURCE__ === "speech-recognition") {
-        var active = router() ? router().active() : [];
-        if (active.indexOf("technical-dark-star") === -1) return Promise.resolve();
+        var allowed = window.AivaultDualAgentLive && window.AivaultDualAgentLive.wakeAllows
+          ? window.AivaultDualAgentLive.wakeAllows("technical-dark-star")
+          : ((router() ? router().active() : []).indexOf("technical-dark-star") !== -1);
+        if (!allowed) return Promise.resolve();
       }
       return original.apply(this, arguments);
     };
@@ -125,6 +135,7 @@
   }
 
   function speak(text) {
+    if (window.AivaultDualAgentLive) return Promise.resolve();
     return new Promise(function (resolve) {
       if (!window.speechSynthesis || !text) {
         if (router()) router().setPhase("idle", "dawn-light");
@@ -177,6 +188,9 @@
   var handled = null;
 
   function onRoute(decision) {
+    if (window.AivaultDualAgentLive && typeof window.AivaultDualAgentLive.handleRoute === "function") {
+      return window.AivaultDualAgentLive.handleRoute(decision);
+    }
     if (!decision || !decision.deliver) return;
     var key = decision.transcript + "|" + (decision.agents || []).join(",");
     if (handled === key) return;

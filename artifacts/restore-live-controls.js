@@ -186,6 +186,35 @@ function ensureSettingsPanel(){
    if(select.parentElement!==panel)panel.appendChild(select);
    if(!select.dataset.settingsInitialized){select.style.display='none';select.dataset.settingsInitialized='1';}
    select.onchange=()=>localStorage.setItem('darkStarVoice',select.value);
+   let dawnLabel=document.getElementById('dawnLightVoiceLabel');
+   if(!dawnLabel){
+     dawnLabel=document.createElement('div');
+     dawnLabel.id='dawnLightVoiceLabel';
+     dawnLabel.textContent='曙光聲音';
+     dawnLabel.style.cssText='font-size:12px;color:#555;margin:8px 0 2px';
+     select.insertAdjacentElement('afterend',dawnLabel);
+   }
+   let darkLabel=document.getElementById('darkStarVoiceLabel');
+   if(!darkLabel){
+     darkLabel=document.createElement('div');
+     darkLabel.id='darkStarVoiceLabel';
+     darkLabel.textContent='暗星聲音';
+     darkLabel.style.cssText='font-size:12px;color:#555;margin:6px 0 2px';
+     select.parentNode.insertBefore(darkLabel,select);
+   }
+   let dawnSelect=document.getElementById('dawnLightVoiceSelect');
+   if(!dawnSelect){
+     dawnSelect=document.createElement('select');
+     dawnSelect.id='dawnLightVoiceSelect';
+     dawnSelect.className='drawer-voice-select';
+     VOICES.forEach(([v,l])=>{const o=document.createElement('option');o.value=v;o.textContent=l;dawnSelect.appendChild(o)});
+     dawnLabel.insertAdjacentElement('afterend',dawnSelect);
+   }
+   dawnSelect.value=localStorage.getItem('dawnLightVoice')||'Aoede';
+   dawnSelect.style.cssText='position:static;width:100%;height:42px;margin-top:4px';
+   dawnSelect.onchange=()=>localStorage.setItem('dawnLightVoice',dawnSelect.value);
+   const videoBtn=document.getElementById('darkStarLiveVideoButton');
+   if(videoBtn){videoBtn.dataset.videoAgent='technical-dark-star';videoBtn.dataset.videoEnabled='1'}
  }
  const speedRow=document.getElementById('darkStarSpeechSpeedRow')||document.createElement('div');
  speedRow.id='darkStarSpeechSpeedRow';
@@ -215,6 +244,9 @@ function ensureSettingsPanel(){
    e.preventDefault();e.stopPropagation();
    const open=panel.style.display!=='none';
    panel.style.display=open?'none':'block';
+   if(!open&&select)select.style.display='block';
+   var dawnVoice=document.getElementById('dawnLightVoiceSelect');
+   if(!open&&dawnVoice)dawnVoice.style.display='block';
    if(open&&select)select.style.display='none';
  };
  return true
