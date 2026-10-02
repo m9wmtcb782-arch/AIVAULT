@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>曙光 / Dawn Light</title>
+  <style>
+    body { margin: 0; background: #10140f; color: #f4f1e8; font: 16px/1.45 -apple-system, BlinkMacSystemFont, "PingFang TC", sans-serif; }
+    main { max-width: 720px; margin: auto; padding: 16px 14px 40px; }
+    h1 { font-size: 22px; margin: 0 0 6px; }
+    p, li { color: #d9d3c5; }
+    button, input { font: inherit; }
+    button { border: 0; border-radius: 12px; padding: 10px 12px; background: #d7a441; color: #1b1408; }
+    input { width: 100%; box-sizing: border-box; margin: 8px 0; padding: 10px; border-radius: 10px; border: 1px solid #3c4634; background: #181d16; color: #fff; }
+    .card { background: #1a2118; border: 1px solid #31402c; border-radius: 16px; padding: 14px; margin: 12px 0; }
+    img { max-width: 100%; border-radius: 12px; }
+    pre { white-space: pre-wrap; word-break: break-word; background: #0d110c; padding: 10px; border-radius: 10px; }
+    .tag { display: inline-block; margin-right: 6px; padding: 2px 8px; border-radius: 999px; background: #2c3828; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>曙光 / Dawn Light</h1>
+  <p>獨立 visual agent。這一頁只呼叫現有 Gateway、圖片函式與影片結果函式，不建立第二個大腦，也不改暗星。</p>
+  <div class="card">
+    <span class="tag">agent_id dawn-light</span>
+    <span class="tag">未改 model_registry</span>
+    <span class="tag">未改暗星檔案</span>
+  </div>
+
+  <section class="card">
+    <h2>Vision</h2>
+    <input id="visionFile" type="file" accept="image/*">
+    <button id="visionBtn" type="button">分析圖片</button>
+    <pre id="visionOut">尚未測試</pre>
+  </section>
+
+  <section class="card">
+    <h2>Image</h2>
+    <input id="imagePrompt" value="生成一張測試圖片：白色背景正中央一個藍色圓形，不要文字">
+    <button id="imageBtn" type="button">生成 JPEG</button>
+    <div id="imageView"></div>
+    <pre id="imageOut">尚未測試</pre>
+  </section>
+
+  <section class="card">
+    <h2>Video</h2>
+    <p>只查既有任務，不在此頁建立新任務。</p>
+    <input id="videoId" value="cmurgk2v9017cg901d9zcmpif">
+    <button id="videoBtn" type="button">查結果</button>
+    <pre id="videoOut">BLOCKED：aivault-videos bucket 不存在</pre>
+  </section>
+
+  <section class="card">
+    <h2>3D</h2>
+    <pre id="threeOut">BLOCKED</pre>
+  </section>
+</main>
+<script src="dawn-light-runtime.js"></script>
+<script>
+  var runtime = window.DawnLightRuntime;
+  document.getElementById("threeOut").textContent = JSON.stringify(runtime.blocked3d(), null, 2);
+  document.getElementById("visionBtn").onclick = async function () {
+    var file = document.getElementById("visionFile").files[0];
+    var out = document.getElementById("visionOut");
+    if (!file) { out.textContent = "需要一張圖片"; return; }
+    out.textContent = "呼叫現有 ai-gateway…";
+    try { out.textContent = JSON.stringify(await runtime.vision(file), null, 2); }
+    catch (e) { out.textContent = String(e.message || e); }
+  };
+  document.getElementById("imageBtn").onclick = async function () {
+    var out = document.getElementById("imageOut");
+    var view = document.getElementById("imageView");
+    out.textContent = "呼叫現有 image runtime…";
+    try {
+      var result = await runtime.image(document.getElementById("imagePrompt").value);
+      out.textContent = JSON.stringify(result, null, 2);
+      view.innerHTML = result.url ? '<img alt="dawn light result" src="' + result.url + '">' : "";
+    } catch (e) { out.textContent = String(e.message || e); }
+  };
+  document.getElementById("videoBtn").onclick = async function () {
+    var out = document.getElementById("videoOut");
+    out.textContent = "查現有影片結果…";
+    try { out.textContent = JSON.stringify(await runtime.videoResult(document.getElementById("videoId").value), null, 2); }
+    catch (e) { out.textContent = String(e.message || e); }
+  };
+</script>
+</body>
+</html>
