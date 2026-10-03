@@ -429,6 +429,11 @@
       };
       return ws;
     }
+    // Preserve native WebSocket static constants used by the existing Dark Star Live session.
+    Tagged.CONNECTING = Base.CONNECTING;
+    Tagged.OPEN = Base.OPEN;
+    Tagged.CLOSING = Base.CLOSING;
+    Tagged.CLOSED = Base.CLOSED;
     Tagged.prototype = Base.prototype;
     root.WebSocket = Tagged;
   }
