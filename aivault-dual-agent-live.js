@@ -199,7 +199,9 @@
   }
 
   function forwardToDawn(data) {
-    if (!root.DawnLightLiveVoice || !wakeAllows(DAWN)) return;
+    // 暗星開著且曙光也開著時，共用暗星唯一的麥克風 PCM。
+    // 不以喚醒詞限制原始 PCM；喚醒詞只決定回應，不決定是否收音。
+    if (!armed.dark || !armed.dawn || !root.DawnLightLiveVoice) return;
     if (Date.now() < dawnHoldUntil) {
       dawnHoldQueue.push(data);
       return;
