@@ -101,12 +101,18 @@
     hook();
   }
   function startMic() {
-    // 暗星啟用時，曙光絕不另開第二支麥克風；由既有共享輸入轉送給曙光。
+    // 雙 Agent 模式只允許暗星持有實體麥克風；曙光只接收暗星轉送的 PCM。
     if (on || !dawnOn() || darkOn() || !window.DawnLightLiveVoice) return;
     on = true;
     connect();
     navigator.mediaDevices.getUserMedia({ audio: true }).then(function (media) {
-      if (!media || !on || !dawnOn()) { on = false; if (media) media.getTracks().forEach(function (t) { t.stop(); }); return; }
+      // getUserMedia 是非同步的；請在權限回來的瞬間再次檢查暗星，
+      // 避免暗星剛啟動時曙光搶到第二支麥克風。
+      if (!media || !on || !dawnOn() || darkOn()) {
+        on = false;
+        if (media) media.getTracks().forEach(function (t) { t.stop(); });
+        return;
+      }
       stream = media;
       var AC = window.AudioContext || window.webkitAudioContext;
       ctx = new AC();
@@ -131,13 +137,32 @@
       src.connect(proc); proc.connect(silent); silent.connect(ctx.destination);
     }).catch(function () { on = false; });
   }
-  function stop() {
+  function stopMicOnly() {
     on = false;
     if (proc) { try { proc.disconnect(); } catch (e) {} }
     if (ctx) { try { ctx.close(); } catch (e) {} }
-    if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+    if (stream) stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
     proc = null; ctx = null; stream = null;
+  }
+  function stop() {
+    stopMicOnly();
     if (window.DawnLightLiveVoice) window.DawnLightLiveVoice.stop();
   }
-  setInterval(function () { hook(); if (dawnOn()) { connect(); if (!on && !darkOn()) startMic(); } if ((!dawnOn() || darkOn()) && on) stop(); }, 400);
+  // 讓雙 Agent 控制器在暗星啟動的同一刻立即釋放曙光麥克風，
+  // 但保留曙光 WebSocket 與播放，不把曙光整個 Session 關掉。
+  window.__AIVAULT_DAWN_STOP_MIC__ = stopMicOnly;
+  setInterval(function () {
+    hook();
+    if (darkOn()) {
+      if (on) stopMicOnly();
+      if (dawnOn()) connect();
+      return;
+    }
+    if (dawnOn()) {
+      connect();
+      if (!on) startMic();
+    } else if (on) {
+      stopMicOnly();
+    }
+  }, 100);
 })();
