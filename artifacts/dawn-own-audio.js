@@ -81,7 +81,7 @@
       var result = origMsg.call(this, raw);
       if (typeof raw !== "string") return result;
       var msg; try { msg = JSON.parse(raw); } catch (e) { return result; }
-      playFields(this, msg);
+      // 音訊已由 DawnLightLiveVoice.onMessage() 播放；這裡只處理字幕，禁止第二次 playPcm。
       var content = msg.serverContent || {};
       var inn = (content.inputTranscription && content.inputTranscription.text) || (msg.type === "inputTranscription" ? msg.text : "");
       var out = (content.outputTranscription && content.outputTranscription.text) || (msg.type === "outputTranscription" ? msg.text : "");
