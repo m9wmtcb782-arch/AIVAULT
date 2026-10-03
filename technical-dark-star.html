@@ -8441,7 +8441,7 @@ async function startVoice(){if(state.active||state.starting)return;state.liveWan
 send.addEventListener('click',event=>{if(!state.active)return;event.preventDefault();event.stopImmediatePropagation();const text=input.value.trim();if(!text)return;if(state.ws?.readyState===WebSocket.OPEN){state.ws.send(JSON.stringify({type:'text',text}));if(!state.userTextEl)state.userTextEl=makeBubble('user');state.userTextEl.textContent=text;state.inputText=text;input.value='';input.dispatchEvent(new Event('input',{bubbles:true}));scrollBottom()}},true);
 input.addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey&&state.active){event.preventDefault();send.click()}},true);
 setMic(false);
-window.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__=async()=>{if(state.liveWanted){state.liveWanted=false;clearLiveVoiceRetry();return stopVoice(true,false)}state.liveWanted=true;syncLiveVoiceChecked();return startVoice()};
+window.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__=async()=>{if(state.active||state.starting){state.liveWanted=false;clearLiveVoiceRetry();return stopVoice(true,false)}state.liveWanted=true;syncLiveVoiceChecked();setStatus('正在啟動即時語音……',true);return startVoice()};document.addEventListener('click',function(e){var t=e.target&&e.target.closest&&e.target.closest('#darkStarLiveButton');if(!t)return;setStatus('正在啟動即時語音……',true);setTimeout(function(){if(!state.active&&!state.starting){state.liveWanted=true;syncLiveVoiceChecked();startVoice()}},0)},true);
 })();
 </script>
 <!-- /AIVAULT_DARK_STAR_REALTIME_VOICE_V1 -->
@@ -8456,7 +8456,7 @@ window.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__=async()=>{if(state.liveWanted){st
 <script src="aivault-agent-voice-router.js?v=4"></script>
 <script src="dawn-light-live-voice.js?v=3"></script>
 <script src="aivault-dual-agent-live.js?v=3"></script>
-<script src="artifacts/live-voice-show.js?v=2"></script>
+<script src="artifacts/live-voice-show.js?v=3"></script>
 <script src="dawn-light-dark-star-bridge.js?v=8"></script>
 </body>
 </html>
