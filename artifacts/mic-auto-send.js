@@ -83,11 +83,35 @@
     voice.session.__blobSafe = true;
   }
 
+  function patchSocketBlob() {
+    if (window.__AIVAULT_BLOB_JSON__ || !window.__AIVAULT_LIVE_VOICE_SHOW__) return;
+    window.__AIVAULT_BLOB_JSON__ = true;
+    var Base = window.WebSocket;
+    function SafeSocket(url, protocols) {
+      var ws = protocols === undefined ? new Base(url, protocols) : new Base(url, protocols);
+      if (String(url || "").indexOf("technical-dark-star-live-voice") !== -1) {
+        ws.addEventListener("message", function (ev) {
+          if (typeof Blob === "undefined" || !(ev.data instanceof Blob)) return;
+          ev.data.text().then(function (text) {
+            try {
+              JSON.parse(text);
+              ws.dispatchEvent(new MessageEvent("message", { data: text }));
+            } catch (e) {}
+          }).catch(function () {});
+        });
+      }
+      return ws;
+    }
+    SafeSocket.prototype = Base.prototype;
+    window.WebSocket = SafeSocket;
+  }
+
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind);
   else bind();
   var n = 0;
   var timer = setInterval(function () {
     patchDawnBlob();
-    if ((bind() && window.DawnLightLiveVoice) || ++n > 40) clearInterval(timer);
+    patchSocketBlob();
+    if ((bind() && window.__AIVAULT_BLOB_JSON__) || ++n > 40) clearInterval(timer);
   }, 250);
 })();
