@@ -7,6 +7,20 @@
   var on = false;
   var dawnEl = null;
   var dawnText = "";
+  var sharedTracks = [];
+
+  if (navigator.mediaDevices && !navigator.mediaDevices.__aivaultOneMic) {
+    var origGet = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+    navigator.mediaDevices.getUserMedia = function (constraints) {
+      var live = sharedTracks.filter(function (track) { return track.readyState === "live"; })[0];
+      if (constraints && constraints.audio && live) return Promise.resolve(new MediaStream([live]));
+      return origGet(constraints).then(function (media) {
+        if (constraints && constraints.audio) media.getAudioTracks().forEach(function (track) { sharedTracks.push(track); });
+        return media;
+      });
+    };
+    navigator.mediaDevices.__aivaultOneMic = true;
+  }
 
   function payload(bytes) {
     var bin = "";
@@ -22,12 +36,12 @@
   }
   function darkOn() { return pressed("darkStarLiveButton") || !!window.__AIVAULT_LIVE_VOICE_WANTED__; }
   function dawnOn() { return pressed("dawnLightLiveButton"); }
-  function renderDawn(text, partial) {
+  function renderDawn(text) {
     var inner = document.getElementById("messagesInner");
     if (!inner || !text) return;
     var welcome = document.getElementById("welcome");
     if (welcome) welcome.remove();
-    if (!dawnEl || !partial) {
+    if (!dawnEl) {
       var row = document.createElement("div");
       row.className = "message assistant";
       row.dataset.speaker = "dawn-light";
@@ -45,6 +59,13 @@
     dawnEl.textContent = text;
     var box = document.getElementById("messages");
     if (box) box.scrollTop = box.scrollHeight;
+  }
+  function unmute() {
+    var mixer = window.AivaultAudioMixer;
+    if (!mixer) return;
+    mixer.values["dark-star"] = 1;
+    mixer.values["dawn-light"] = 1;
+    if (mixer.apply) mixer.apply();
   }
 
   window.__AIVAULT_COPY_PCM_TO_DAWN__ = function (data) {
@@ -87,7 +108,7 @@
     if (!piece) return;
     if (detail.partial) dawnText += piece;
     else dawnText = piece;
-    renderDawn(dawnText, true);
+    renderDawn(dawnText);
     if (!detail.partial) { dawnText = ""; dawnEl = null; }
   });
 
@@ -99,11 +120,7 @@
     Promise.resolve(opening).then(function () {
       return navigator.mediaDevices.getUserMedia({ audio: true });
     }).then(function (media) {
-      if (!media || !on || darkOn()) {
-        if (media) media.getTracks().forEach(function (track) { track.stop(); });
-        on = false;
-        return;
-      }
+      if (!media || !on || darkOn()) { on = false; return; }
       stream = media;
       var AC = window.AudioContext || window.webkitAudioContext;
       ctx = new AC();
@@ -147,13 +164,12 @@
     if (proc) { try { proc.disconnect(); } catch (e) {} }
     if (ctx) { try { ctx.close(); } catch (e) {} }
     if (stream) stream.getTracks().forEach(function (track) { track.stop(); });
-    proc = null;
-    ctx = null;
-    stream = null;
+    proc = null; ctx = null; stream = null;
   }
 
   setInterval(function () {
     hookText();
+    unmute();
     var voice = window.DawnLightLiveVoice;
     if (dawnOn() && voice && voice.isOpen && !voice.isOpen()) voice.start();
     if (dawnOn() && !darkOn() && !on) start();
