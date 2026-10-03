@@ -405,14 +405,16 @@
       var origSend = ws.send.bind(ws);
       ws.send = function (data) {
         if (ws.__aivaultAgent === DARK && audioPayload(data)) {
-          if (!wakeAllows(DARK, data)) {
-            if (floor === SPEAKER_DAWN && armed.dark) darkHoldQueue.push(data);
-            forwardToDawn(data);
-            return;
-          }
-          forwardToDawn(data);
+          // 已選取的 Agent 必須先收到使用者麥克風，才能取得 inputTranscription；
+          // 喚醒詞只決定本回合誰回答，不應阻止「聽見」使用者。
+          if (armed.dawn) forwardToDawn(data);
+          if (armed.dark) return origSend(data);
+          return;
         }
-        if (ws.__aivaultAgent === DAWN && audioPayload(data) && !wakeAllows(DAWN, data)) return;
+        if (ws.__aivaultAgent === DAWN && audioPayload(data)) {
+          if (armed.dawn) return origSend(data);
+          return;
+        }
         return origSend(data);
       };
       return ws;
