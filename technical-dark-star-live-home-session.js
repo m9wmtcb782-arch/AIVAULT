@@ -10,7 +10,7 @@ const SUPABASE_PUBLIC_KEY='sb_publishable_1D05YGthBrNGg-5L92TLCw_GiLnInBu';
 const state={
   ws:null,stream:null,inputCtx:null,playCtx:null,source:null,processor:null,silent:null,
   wanted:false,auto:false,starting:false,reconnecting:false,connectPromise:null,
-  nextPlayTime:0,playSources:[],inText:'',outText:'',userEl:null,assistantEl:null,
+  nextPlayTime:0,playSources:[],audioPackets:0,audioBytes:0,userTalkingUntil:0,inText:'',outText:'',userEl:null,assistantEl:null,
   forceAuthRefresh:false
 };
 
@@ -93,14 +93,16 @@ async function openAudio(){
 }
 function bargeIn(){
   state.playSources.forEach(s=>{try{s.stop()}catch(e){}});
-  state.playSources=[];state.nextPlayTime=0;
+  state.playSources=[];state.nextPlayTime=0;state.userTalkingUntil=Date.now()+700;
 }
 function playPCM(buf){
   if(!state.playCtx)return;
-  const bytes=new Uint8Array(buf);
-  if(bytes.byteLength<2)return;
-  const pcm=new Int16Array(bytes.buffer,bytes.byteOffset,Math.floor(bytes.byteLength/2));
+  if(Date.now()<state.userTalkingUntil)return;
+  const bytes=new Uint8Array(buf),pcm=new Int16Array(bytes.buffer,bytes.byteOffset,Math.floor(bytes.byteLength/2));
   if(!pcm.length)return;
+  state.audioPackets++;state.audioBytes+=bytes.byteLength;
+  const stat=$('audioStat');if(stat)stat.textContent=String(state.audioPackets);
+  const bs=$('byteStat');if(bs)bs.textContent=state.audioBytes.toLocaleString();
   if(state.playCtx.state!=='running')state.playCtx.resume().catch(()=>{});
   const b=state.playCtx.createBuffer(1,pcm.length,24000),d=b.getChannelData(0);
   for(let i=0;i<pcm.length;i++)d[i]=pcm[i]/32768;
@@ -123,10 +125,13 @@ function handleMessage(raw){
   let d;try{d=JSON.parse(raw)}catch(e){return}
   const sc=d.serverContent||d;
   if(d.type==='interrupted'||sc.interrupted)bargeIn();
-  if(d.audio?.data)playB64(d.audio.data);
+  if(d.audio&&d.audio.data)playB64(d.audio.data);
   if(d.data&&d.mimeType&&String(d.mimeType).indexOf('audio')===0)playB64(d.data);
-  const parts=(sc.modelTurn&&sc.modelTurn.parts)||[];
-  parts.forEach(p=>{if(p?.inlineData?.data)playB64(p.inlineData.data)});
+  const parts=(sc.modelTurn&&sc.modelTurn.parts)||(d.modelTurn&&d.modelTurn.parts)||[];
+  parts.forEach(p=>{
+    const id=p&&p.inlineData;
+    if(id&&id.data&&String(id.mimeType||'').indexOf('audio')===0)playB64(id.data);
+  });
   const inn=(sc.inputTranscription&&sc.inputTranscription.text)||(d.type==='inputTranscription'?d.text:'');
   const out=(sc.outputTranscription&&sc.outputTranscription.text)||(d.type==='outputTranscription'?d.text:'');
   const input=$('composerInput');
