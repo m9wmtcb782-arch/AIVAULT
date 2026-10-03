@@ -27,7 +27,7 @@ function restore(){
    live.id='darkStarLiveButton';
    live.type='button';
    live.className='drawer-item';
-   live.textContent='暗星即時';
+   if(!live.classList.contains('active')&&live.textContent.indexOf('✓')<0)live.textContent='暗星即時';
  }
  let settings=document.getElementById('darkStarSettingsButton');
  if(!settings){
@@ -58,7 +58,7 @@ function restore(){
  select.value=localStorage.getItem('darkStarVoice')||'Kore';
  if(bottom){
    live.className='drawer-item';
-   live.textContent='暗星即時';
+   if(!live.classList.contains('active')&&live.textContent.indexOf('✓')<0)live.textContent='暗星即時';
    live.style.removeProperty('display');
    live.removeAttribute('aria-hidden');
    if(live.parentElement!==bottom)bottom.insertBefore(live,bottom.firstChild);
@@ -114,7 +114,7 @@ function ensureSettingsPanel(){
 
  if(live){
    live.className='drawer-item';
-   live.textContent='暗星即時';
+   if(!live.classList.contains('active')&&live.textContent.indexOf('✓')<0)live.textContent='暗星即時';
    live.style.removeProperty('display');
    if(live.parentElement!==bottom)bottom.insertBefore(live,bottom.firstChild);
  }
@@ -170,7 +170,7 @@ function ensureSettingsPanel(){
 
  if(live){
    live.className='drawer-item';
-   live.textContent='暗星即時';
+   if(!live.classList.contains('active')&&live.textContent.indexOf('✓')<0)live.textContent='暗星即時';
    live.style.removeProperty('display');
    live.removeAttribute('aria-hidden');
    if(live.parentElement!==bottom)bottom.insertBefore(live,bottom.firstChild);
