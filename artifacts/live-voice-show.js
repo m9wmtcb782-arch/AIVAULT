@@ -116,4 +116,69 @@
   }
   ShownSocket.prototype = Base.prototype;
   window.WebSocket = ShownSocket;
+
+  // Keep 「即時語音」 checked unless the user explicitly toggles it off.
+  var liveWanted = false;
+  var userToggle = false;
+  function liveButtons() {
+    return [document.getElementById("darkStarLiveButton"), document.getElementById("micButton")].filter(Boolean);
+  }
+  function paintChecked(on) {
+    liveButtons().forEach(function (el) {
+      el.setAttribute("aria-pressed", on ? "true" : "false");
+      el.classList.toggle("recording", on);
+      el.classList.toggle("live-voice-on", on);
+      if ("checked" in el) el.checked = on;
+    });
+    document.querySelectorAll("input[data-live-voice], #liveVoiceToggle, #instantVoiceToggle").forEach(function (el) {
+      el.checked = on;
+    });
+    window.__AIVAULT_LIVE_VOICE_WANTED__ = on;
+  }
+  document.addEventListener("click", function (e) {
+    var t = e.target && e.target.closest && e.target.closest("#darkStarLiveButton");
+    if (!t) return;
+    userToggle = true;
+    liveWanted = !liveWanted;
+    paintChecked(liveWanted);
+    setTimeout(function () { userToggle = false; if (liveWanted) paintChecked(true); }, 0);
+  }, true);
+  var origSet = Element.prototype.setAttribute;
+  Element.prototype.setAttribute = function (name, value) {
+    if (!userToggle && liveWanted && name === "aria-pressed" && value === "false" && (this.id === "micButton" || this.id === "darkStarLiveButton")) {
+      return origSet.call(this, name, "true");
+    }
+    return origSet.call(this, name, value);
+  };
+  var origToggle = DOMTokenList.prototype.toggle;
+  DOMTokenList.prototype.toggle = function (token, force) {
+    if (!userToggle && liveWanted && force === false && (token === "recording" || token === "live-voice-on") && this.ownerElement && (this.ownerElement.id === "micButton" || this.ownerElement.id === "darkStarLiveButton")) {
+      return origToggle.call(this, token, true);
+    }
+    return origToggle.apply(this, arguments);
+  };
+  var origRemove = DOMTokenList.prototype.remove;
+  DOMTokenList.prototype.remove = function () {
+    if (!userToggle && liveWanted && this.ownerElement && (this.ownerElement.id === "micButton" || this.ownerElement.id === "darkStarLiveButton")) {
+      var args = Array.prototype.filter.call(arguments, function (c) { return c !== "recording" && c !== "live-voice-on"; });
+      if (!args.length) return;
+      return origRemove.apply(this, args);
+    }
+    return origRemove.apply(this, arguments);
+  };
+  var origChecked = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "checked");
+  if (origChecked && origChecked.set) {
+    Object.defineProperty(HTMLInputElement.prototype, "checked", {
+      configurable: true,
+      enumerable: origChecked.enumerable,
+      get: origChecked.get,
+      set: function (v) {
+        if (!userToggle && liveWanted && (this.id === "liveVoiceToggle" || this.id === "instantVoiceToggle" || this.getAttribute("data-live-voice") != null) && !v) {
+          return origChecked.set.call(this, true);
+        }
+        return origChecked.set.call(this, v);
+      }
+    });
+  }
+
 })();
