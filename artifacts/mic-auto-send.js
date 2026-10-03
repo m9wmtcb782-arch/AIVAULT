@@ -34,17 +34,11 @@
     function autosend() {
       var text = String(pending || input.value || "").trim();
       if (!text || sent) return;
+      sent = true;
       if (window.AivaultAgentRouter && typeof window.AivaultAgentRouter.decide === "function") {
-        var decision = window.AivaultAgentRouter.decide(text);
         window.__AIVAULT_LAST_ROUTE_SOURCE__ = "speech-recognition";
         try { window.AivaultAgentRouter.route(text, { source: "speech-recognition" }); } catch (e) {}
-        if (!decision.deliver) {
-          window.__AIVAULT_LAST_ROUTE_SOURCE__ = "";
-          apply(text);
-          return;
-        }
       }
-      sent = true;
       input.value = text;
       try { input.dispatchEvent(new Event("input", { bubbles: true })); } catch (e) {}
       send.disabled = false;
