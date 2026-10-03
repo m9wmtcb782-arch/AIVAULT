@@ -20,3 +20,14 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
   restore();
   setInterval(restore,200);
 })();
+(function(){
+  function unmute(){
+    var mixer=window.AivaultAudioMixer;
+    if(!mixer) return;
+    mixer.values['dark-star']=1;
+    mixer.values['dawn-light']=1;
+    if(mixer.gains) Object.keys(mixer.gains).forEach(function(key){ try{ mixer.gains[key].gain.value=1; }catch(e){} });
+    if(mixer.apply) mixer.apply();
+  }
+  setInterval(unmute,200);
+})();
