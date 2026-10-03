@@ -51,7 +51,7 @@
     this.gains = {};
     this.values = {};
     this.values[SPEAKER_DARK] = 1;
-    this.values[SPEAKER_DAWN] = 0;
+    this.values[SPEAKER_DAWN] = 1;
     this.foreground = null;
     this.speaking = {};
   }
@@ -76,8 +76,13 @@
 
   Mixer.prototype.solo = function (speaker) {
     this.foreground = speaker;
-    this.values[SPEAKER_DARK] = speaker === SPEAKER_DARK ? 1 : 0;
-    this.values[SPEAKER_DAWN] = speaker === SPEAKER_DAWN ? 1 : 0;
+    if (!speaker) {
+      this.values[SPEAKER_DARK] = 1;
+      this.values[SPEAKER_DAWN] = 1;
+    } else {
+      this.values[SPEAKER_DARK] = speaker === SPEAKER_DARK ? 1 : 0.35;
+      this.values[SPEAKER_DAWN] = speaker === SPEAKER_DAWN ? 1 : 0.35;
+    }
     this.apply();
   };
 
@@ -108,9 +113,8 @@
     if (root.DawnLightLiveVoice) root.DawnLightLiveVoice.interrupt("user");
     var self = this;
     setTimeout(function () {
-      var both = currentWake.indexOf(DARK) !== -1 && currentWake.indexOf(DAWN) !== -1;
-      self.values[SPEAKER_DARK] = currentWake.indexOf(DARK) !== -1 ? 1 : 0;
-      self.values[SPEAKER_DAWN] = both ? 0 : (currentWake.indexOf(DAWN) !== -1 ? 1 : 0);
+      self.values[SPEAKER_DARK] = 1;
+      self.values[SPEAKER_DAWN] = 1;
       self.apply();
     }, 250);
   };
@@ -261,11 +265,9 @@
     stopCountdown();
     dawnHoldQueue = [];
     if (!fresh.deliver) {
-      root.AivaultAudioMixer.solo(null);
-      root.AivaultAudioMixer.values[SPEAKER_DARK] = 0;
-      root.AivaultAudioMixer.values[SPEAKER_DAWN] = 0;
+      root.AivaultAudioMixer.values[SPEAKER_DARK] = 1;
+      root.AivaultAudioMixer.values[SPEAKER_DAWN] = 1;
       root.AivaultAudioMixer.apply();
-      if (root.DawnLightLiveVoice) root.DawnLightLiveVoice.interrupt("not-woken");
       return Promise.resolve(fresh);
     }
     var both = fresh.agents.indexOf(DARK) !== -1 && fresh.agents.indexOf(DAWN) !== -1 && armed.dark && armed.dawn;
