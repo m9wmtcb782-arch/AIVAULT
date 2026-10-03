@@ -7,20 +7,6 @@
   var on = false;
   var dawnEl = null;
   var dawnText = "";
-  var sharedTracks = [];
-
-  if (navigator.mediaDevices && !navigator.mediaDevices.__aivaultOneMic) {
-    var origGet = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-    navigator.mediaDevices.getUserMedia = function (constraints) {
-      var live = sharedTracks.filter(function (track) { return track.readyState === "live"; })[0];
-      if (constraints && constraints.audio && live) return Promise.resolve(new MediaStream([live]));
-      return origGet(constraints).then(function (media) {
-        if (constraints && constraints.audio) media.getAudioTracks().forEach(function (track) { sharedTracks.push(track); });
-        return media;
-      });
-    };
-    navigator.mediaDevices.__aivaultOneMic = true;
-  }
 
   function payload(bytes) {
     var bin = "";
@@ -36,6 +22,7 @@
   }
   function darkOn() { return pressed("darkStarLiveButton") || !!window.__AIVAULT_LIVE_VOICE_WANTED__; }
   function dawnOn() { return pressed("dawnLightLiveButton"); }
+  function anyOn() { return darkOn() || dawnOn(); }
   function renderDawn(text) {
     var inner = document.getElementById("messagesInner");
     if (!inner || !text) return;
@@ -60,13 +47,6 @@
     var box = document.getElementById("messages");
     if (box) box.scrollTop = box.scrollHeight;
   }
-  function unmute() {
-    var mixer = window.AivaultAudioMixer;
-    if (!mixer) return;
-    mixer.values["dark-star"] = 1;
-    mixer.values["dawn-light"] = 1;
-    if (mixer.apply) mixer.apply();
-  }
 
   window.__AIVAULT_COPY_PCM_TO_DAWN__ = function (data) {
     var voice = window.DawnLightLiveVoice;
@@ -78,9 +58,7 @@
     WebSocket.prototype.send = function (data) {
       var result = origSend.apply(this, arguments);
       var url = String(this.url || "");
-      if (url.indexOf("agent_id=technical-dark-star") !== -1 && typeof data === "string" && data.indexOf('"type":"audio"') !== -1) {
-        window.__AIVAULT_COPY_PCM_TO_DAWN__(data);
-      }
+      if (url.indexOf("agent_id=technical-dark-star") !== -1 && typeof data === "string" && data.indexOf('"type":"audio"') !== -1) window.__AIVAULT_COPY_PCM_TO_DAWN__(data);
       return result;
     };
     WebSocket.prototype.__aivaultCopyDawn = true;
@@ -100,27 +78,26 @@
     };
     voice.session.__textHook = true;
   }
-
   window.addEventListener("aivault-conversation-event", function (event) {
     var detail = event.detail || {};
     if (detail.speaker !== "dawn-light") return;
     var piece = String(detail.text || "");
     if (!piece) return;
-    if (detail.partial) dawnText += piece;
-    else dawnText = piece;
+    if (detail.partial) dawnText += piece; else dawnText = piece;
     renderDawn(dawnText);
     if (!detail.partial) { dawnText = ""; dawnEl = null; }
   });
 
   function start() {
     var voice = window.DawnLightLiveVoice;
-    if (!voice || on || darkOn()) return;
+    if (!dawnOn() || !voice || on) return;
     on = true;
     var opening = voice.isOpen && voice.isOpen() ? Promise.resolve(true) : voice.start();
     Promise.resolve(opening).then(function () {
-      return navigator.mediaDevices.getUserMedia({ audio: true });
+      if (darkOn()) return null;
+      return navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: false, noiseSuppression: true, autoGainControl: true } });
     }).then(function (media) {
-      if (!media || !on || darkOn()) { on = false; return; }
+      if (!media || !on || !dawnOn() || darkOn()) { on = false; return; }
       stream = media;
       var AC = window.AudioContext || window.webkitAudioContext;
       ctx = new AC();
@@ -131,7 +108,7 @@
       silent.gain.value = 0;
       proc.onaudioprocess = function (event) {
         var current = window.DawnLightLiveVoice;
-        if (!on || darkOn() || !current || !current.isOpen || !current.isOpen()) return;
+        if (!on || !dawnOn() || !current || !current.isOpen || !current.isOpen()) return;
         var input = event.inputBuffer.getChannelData(0);
         var samples = input;
         if (sourceRate !== 16000) {
@@ -167,13 +144,18 @@
     proc = null; ctx = null; stream = null;
   }
 
+  document.addEventListener("click", function (event) {
+    var btn = event.target && event.target.closest ? event.target.closest("#dawnLightLiveButton,#darkStarLiveButton") : null;
+    if (!btn) return;
+    setTimeout(function () { if (dawnOn()) start(); }, 0);
+  }, true);
+
   setInterval(function () {
     hookText();
-    unmute();
     var voice = window.DawnLightLiveVoice;
-    if (dawnOn() && voice && voice.isOpen && !voice.isOpen()) voice.start();
-    if (dawnOn() && !darkOn() && !on) start();
-    if ((darkOn() || !dawnOn()) && on) stopMic();
-    if (!dawnOn() && voice) voice.stop();
+    if (dawnOn()) start();
+    if (!dawnOn() && on) stopMic();
+    if (!dawnOn() && !darkOn() && voice) voice.stop();
+    if (!anyOn()) stopMic();
   }, 400);
 })();
