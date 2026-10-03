@@ -162,17 +162,38 @@ function handleMessage(raw){
 function startAudio(){
   if(!state.stream||!state.inputCtx||state.processor)return;
   state.source=state.inputCtx.createMediaStreamSource(state.stream);
-  state.processor=state.inputCtx.createScriptProcessor(2048,1,1);
+  state.processor=state.inputCtx.createScriptProcessor(4096,1,1);
   state.silent=state.inputCtx.createGain();state.silent.gain.value=0;
+  const sourceRate=Number(state.inputCtx.sampleRate)||16000;
+  const targetRate=16000;
   state.processor.onaudioprocess=e=>{
     if(!state.ws||state.ws.readyState!==WebSocket.OPEN)return;
-    const a=e.inputBuffer.getChannelData(0),pcm=new Int16Array(a.length);
-    for(let i=0;i<a.length;i++){const v=Math.max(-1,Math.min(1,a[i]));pcm[i]=v<0?v*32768:v*32767}
+    const input=e.inputBuffer.getChannelData(0);
+    let samples=input;
+    if(sourceRate!==targetRate){
+      const outLength=Math.max(1,Math.round(input.length*targetRate/sourceRate));
+      const out=new Float32Array(outLength);
+      const ratio=sourceRate/targetRate;
+      for(let i=0;i<outLength;i++){
+        const pos=i*ratio,idx=Math.floor(pos),frac=pos-idx;
+        const x=input[Math.min(idx,input.length-1)]||0;
+        const y=input[Math.min(idx+1,input.length-1)]||x;
+        out[i]=x+(y-x)*frac;
+      }
+      samples=out;
+    }
+    const pcm=new Int16Array(samples.length);
+    for(let i=0;i<samples.length;i++){
+      const v=Math.max(-1,Math.min(1,samples[i]));
+      pcm[i]=v<0?v*32768:v*32767;
+    }
     let bin='';const u=new Uint8Array(pcm.buffer);
     for(let i=0;i<u.length;i++)bin+=String.fromCharCode(u[i]);
     try{state.ws.send(JSON.stringify({type:'audio',data:btoa(bin),mimeType:'audio/pcm;rate=16000'}))}catch(e){}
   };
-  state.source.connect(state.processor);state.processor.connect(state.silent);state.silent.connect(state.inputCtx.destination);
+  state.source.connect(state.processor);
+  state.processor.connect(state.silent);
+  state.silent.connect(state.inputCtx.destination);
 }
 function scheduleReconnect(){
   if(!state.auto||!state.wanted||state.reconnecting)return;
