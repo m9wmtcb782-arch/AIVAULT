@@ -11,24 +11,47 @@
     for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
     return JSON.stringify({ type: "audio", data: btoa(bin), mimeType: "audio/pcm;rate=16000" });
   }
-
-  function checked() {
-    var btn = document.getElementById("dawnLightLiveButton");
+  function pressed(id) {
+    var btn = document.getElementById(id);
     if (!btn) return false;
     if (btn.getAttribute("aria-pressed") === "true") return true;
     if (btn.classList.contains("active") || btn.classList.contains("live-voice-on")) return true;
     return /\u2713|\u2714/.test(btn.textContent || "");
   }
+  function darkOn() { return pressed("darkStarLiveButton") || !!window.__AIVAULT_LIVE_VOICE_WANTED__; }
+  function dawnOn() { return pressed("dawnLightLiveButton"); }
+
+  window.__AIVAULT_COPY_PCM_TO_DAWN__ = function (data) {
+    var voice = window.DawnLightLiveVoice;
+    if (!dawnOn() || !voice || !voice.isOpen || !voice.isOpen()) return;
+    voice.sendRaw(data);
+  };
+  if (!WebSocket.prototype.__aivaultCopyDawn) {
+    var origSend = WebSocket.prototype.send;
+    WebSocket.prototype.send = function (data) {
+      var result = origSend.apply(this, arguments);
+      var url = String(this.url || "");
+      if (url.indexOf("agent_id=technical-dark-star") !== -1 && typeof data === "string" && data.indexOf('"type":"audio"') !== -1) {
+        window.__AIVAULT_COPY_PCM_TO_DAWN__(data);
+      }
+      return result;
+    };
+    WebSocket.prototype.__aivaultCopyDawn = true;
+  }
 
   function start() {
     var voice = window.DawnLightLiveVoice;
-    if (!voice || on) return;
+    if (!voice || on || darkOn()) return;
     on = true;
     var opening = voice.isOpen && voice.isOpen() ? Promise.resolve(true) : voice.start();
     Promise.resolve(opening).then(function () {
       return navigator.mediaDevices.getUserMedia({ audio: true });
     }).then(function (media) {
-      if (!media || !on) return;
+      if (!media || !on || darkOn()) {
+        if (media) media.getTracks().forEach(function (track) { track.stop(); });
+        on = false;
+        return;
+      }
       stream = media;
       var AC = window.AudioContext || window.webkitAudioContext;
       ctx = new AC();
@@ -39,7 +62,7 @@
       silent.gain.value = 0;
       proc.onaudioprocess = function (event) {
         var current = window.DawnLightLiveVoice;
-        if (!on || !current || !current.isOpen || !current.isOpen()) return;
+        if (!on || darkOn() || !current || !current.isOpen || !current.isOpen()) return;
         var input = event.inputBuffer.getChannelData(0);
         var samples = input;
         if (sourceRate !== 16000) {
@@ -47,9 +70,7 @@
           var out = new Float32Array(outLength);
           var ratio = sourceRate / 16000;
           for (var i = 0; i < outLength; i++) {
-            var pos = i * ratio;
-            var idx = Math.floor(pos);
-            var frac = pos - idx;
+            var pos = i * ratio, idx = Math.floor(pos), frac = pos - idx;
             var x = input[Math.min(idx, input.length - 1)] || 0;
             var y = input[Math.min(idx + 1, input.length - 1)] || x;
             out[i] = x + (y - x) * frac;
@@ -69,7 +90,7 @@
     }).catch(function () { on = false; });
   }
 
-  function stop() {
+  function stopMic() {
     on = false;
     if (proc) { try { proc.disconnect(); } catch (e) {} }
     if (ctx) { try { ctx.close(); } catch (e) {} }
@@ -77,17 +98,13 @@
     proc = null;
     ctx = null;
     stream = null;
-    if (window.DawnLightLiveVoice) window.DawnLightLiveVoice.stop();
   }
 
-  document.addEventListener("click", function (event) {
-    var btn = event.target && event.target.closest ? event.target.closest("#dawnLightLiveButton") : null;
-    if (!btn) return;
-    setTimeout(function () { if (checked() && !on) start(); if (!checked() && on) stop(); }, 0);
-  }, true);
-
   setInterval(function () {
-    if (checked() && !on) start();
-    if (!checked() && on) stop();
+    var voice = window.DawnLightLiveVoice;
+    if (dawnOn() && voice && voice.isOpen && !voice.isOpen()) voice.start();
+    if (dawnOn() && !darkOn() && !on) start();
+    if ((darkOn() || !dawnOn()) && on) stopMic();
+    if (!dawnOn() && voice) voice.stop();
   }, 400);
 })();
