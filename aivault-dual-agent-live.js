@@ -507,9 +507,19 @@
         if (!armed.dawn && root.DawnLightLiveVoice) root.DawnLightLiveVoice.stop();
       }
       if (which !== "dark") return;
-      var toggle = root.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__;
       var needMic = armed.dark || armed.dawn;
-      if (typeof toggle === "function" && needMic !== darkOpen) return toggle();
+      if (!needMic) {
+        if (typeof root.__AIVAULT_DARK_STAR_STOP__ === "function") return root.__AIVAULT_DARK_STAR_STOP__();
+        if (typeof root.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__ === "function" && darkOpen) return root.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__();
+        return;
+      }
+      if (typeof root.__AIVAULT_DARK_STAR_START__ === "function") {
+        if (!darkOpen) return root.__AIVAULT_DARK_STAR_START__();
+        return;
+      }
+      if (typeof root.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__ === "function" && !darkOpen) {
+        return root.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__();
+      }
     },
     toggleArm: function (which) {
       var on = which === "dark" ? !armed.dark : !armed.dawn;
