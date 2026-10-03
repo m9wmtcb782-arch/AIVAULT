@@ -8,6 +8,13 @@
   var dawnEl = null;
   var dawnText = "";
 
+  var AC = window.AudioContext || window.webkitAudioContext;
+  if (AC && AC.prototype.__aivaultMixer && AC.prototype.__aivaultOrigCreateBufferSource) {
+    AC.prototype.createBufferSource = AC.prototype.__aivaultOrigCreateBufferSource;
+  }
+  window.__AIVAULT_SUPPRESS_DARK_AUDIO__ = false;
+  window.__AIVAULT_SUPPRESS_DAWN_AUDIO__ = false;
+
   function payload(bytes) {
     var bin = "";
     for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
@@ -22,7 +29,6 @@
   }
   function darkOn() { return pressed("darkStarLiveButton") || !!window.__AIVAULT_LIVE_VOICE_WANTED__; }
   function dawnOn() { return pressed("dawnLightLiveButton"); }
-  function anyOn() { return darkOn() || dawnOn(); }
   function renderDawn(text) {
     var inner = document.getElementById("messagesInner");
     if (!inner || !text) return;
@@ -47,6 +53,15 @@
     var box = document.getElementById("messages");
     if (box) box.scrollTop = box.scrollHeight;
   }
+  function unmute() {
+    window.__AIVAULT_SUPPRESS_DARK_AUDIO__ = false;
+    window.__AIVAULT_SUPPRESS_DAWN_AUDIO__ = false;
+    var mixer = window.AivaultAudioMixer;
+    if (!mixer) return;
+    mixer.values["dark-star"] = 1;
+    mixer.values["dawn-light"] = 1;
+    if (mixer.apply) mixer.apply();
+  }
 
   window.__AIVAULT_COPY_PCM_TO_DAWN__ = function (data) {
     var voice = window.DawnLightLiveVoice;
@@ -63,7 +78,6 @@
     };
     WebSocket.prototype.__aivaultCopyDawn = true;
   }
-
   function hookText() {
     var voice = window.DawnLightLiveVoice;
     if (!voice || !voice.session || voice.session.__textHook) return;
@@ -90,52 +104,33 @@
 
   function start() {
     var voice = window.DawnLightLiveVoice;
-    if (!dawnOn() || !voice || on) return;
+    if (!dawnOn() || darkOn() || !voice || on) return;
     on = true;
     var opening = voice.isOpen && voice.isOpen() ? Promise.resolve(true) : voice.start();
     Promise.resolve(opening).then(function () {
-      if (darkOn()) return null;
-      return navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: false, noiseSuppression: true, autoGainControl: true } });
+      return navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
     }).then(function (media) {
-      if (!media || !on || !dawnOn() || darkOn()) { on = false; return; }
+      if (!media || !on || !dawnOn() || darkOn()) { on = false; if (media) media.getTracks().forEach(function (track) { track.stop(); }); return; }
       stream = media;
-      var AC = window.AudioContext || window.webkitAudioContext;
       ctx = new AC();
       var sourceRate = Number(ctx.sampleRate) || 16000;
       var src = ctx.createMediaStreamSource(stream);
       proc = ctx.createScriptProcessor(4096, 1, 1);
-      var silent = ctx.createGain();
-      silent.gain.value = 0;
+      var silent = ctx.createGain(); silent.gain.value = 0;
       proc.onaudioprocess = function (event) {
         var current = window.DawnLightLiveVoice;
-        if (!on || !dawnOn() || !current || !current.isOpen || !current.isOpen()) return;
+        if (!on || !dawnOn() || darkOn() || !current || !current.isOpen || !current.isOpen()) return;
         var input = event.inputBuffer.getChannelData(0);
-        var samples = input;
-        if (sourceRate !== 16000) {
-          var outLength = Math.max(1, Math.round(input.length * 16000 / sourceRate));
-          var out = new Float32Array(outLength);
-          var ratio = sourceRate / 16000;
-          for (var i = 0; i < outLength; i++) {
-            var pos = i * ratio, idx = Math.floor(pos), frac = pos - idx;
-            var x = input[Math.min(idx, input.length - 1)] || 0;
-            var y = input[Math.min(idx + 1, input.length - 1)] || x;
-            out[i] = x + (y - x) * frac;
-          }
-          samples = out;
-        }
-        var pcm = new Int16Array(samples.length);
-        for (var j = 0; j < samples.length; j++) {
-          var v = Math.max(-1, Math.min(1, samples[j]));
+        var pcm = new Int16Array(input.length);
+        for (var j = 0; j < input.length; j++) {
+          var v = Math.max(-1, Math.min(1, input[j]));
           pcm[j] = v < 0 ? v * 32768 : v * 32767;
         }
         current.sendRaw(payload(new Uint8Array(pcm.buffer)));
       };
-      src.connect(proc);
-      proc.connect(silent);
-      silent.connect(ctx.destination);
+      src.connect(proc); proc.connect(silent); silent.connect(ctx.destination);
     }).catch(function () { on = false; });
   }
-
   function stopMic() {
     on = false;
     if (proc) { try { proc.disconnect(); } catch (e) {} }
@@ -143,19 +138,14 @@
     if (stream) stream.getTracks().forEach(function (track) { track.stop(); });
     proc = null; ctx = null; stream = null;
   }
-
-  document.addEventListener("click", function (event) {
-    var btn = event.target && event.target.closest ? event.target.closest("#dawnLightLiveButton,#darkStarLiveButton") : null;
-    if (!btn) return;
-    setTimeout(function () { if (dawnOn()) start(); }, 0);
-  }, true);
-
   setInterval(function () {
     hookText();
+    unmute();
     var voice = window.DawnLightLiveVoice;
-    if (dawnOn()) start();
+    if (dawnOn() && voice && voice.isOpen && !voice.isOpen()) voice.start();
+    if (dawnOn() && !darkOn() && !on) start();
+    if (darkOn() && on) stopMic();
     if (!dawnOn() && on) stopMic();
-    if (!dawnOn() && !darkOn() && voice) voice.stop();
-    if (!anyOn()) stopMic();
+    if (!dawnOn() && voice) voice.stop();
   }, 400);
 })();
