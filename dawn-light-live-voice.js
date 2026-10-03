@@ -2,7 +2,7 @@
   "use strict";
   if (root.DawnLightLiveVoice) return;
 
-  var RELAY = "wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-voice";
+  var RELAY = "wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-voice-v2";
   var VOICE_KEY = "dawnLightVoice";
   var TOPIC_KEY = "dawn-light-topic-id";
   var CONVERSATION_KEY = "dawn_light_conversation_id";

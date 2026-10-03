@@ -132,6 +132,9 @@
     if (agentId === DAWN && !armed.dawn) return false;
     if (floor === SPEAKER_DARK && agentId === DAWN && Date.now() < dawnHoldUntil) return false;
     if (floor === SPEAKER_DAWN && agentId === DARK && Date.now() < darkHoldUntil) return false;
+    // Same as working live video: an armed agent must receive mic audio.
+    // Name rule only applies when both are armed.
+    if (armed.dark !== armed.dawn) return true;
     return currentWake.indexOf(agentId) !== -1;
   }
 
