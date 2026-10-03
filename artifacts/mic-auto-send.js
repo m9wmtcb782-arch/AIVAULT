@@ -19,11 +19,18 @@
     var pending = "";
     var sent = false;
     var recording = false;
+    function clearInput() {
+      input.value = "";
+      pending = "";
+      window.__AIVAULT_LAST_SPEECH_TEXT__ = "";
+      send.disabled = true;
+      try { input.dispatchEvent(new Event("input", { bubbles: true })); } catch (e) {}
+    }
     function apply(text) {
+      if (sent) return;
       pending = String(text || "").trim();
       window.__AIVAULT_LAST_SPEECH_TEXT__ = pending;
       input.value = pending;
-      try { input.dispatchEvent(new Event("input", { bubbles: true })); } catch (e) {}
       send.disabled = !pending;
     }
     function autosend() {
@@ -36,6 +43,8 @@
         input.value = text;
         if (typeof window.sendMessage === "function") window.sendMessage();
         else send.click();
+        clearInput();
+        setTimeout(clearInput, 300);
       }, 0);
     }
     rec.onstart = function () { recording = true; clone.classList.add("recording"); };
@@ -49,8 +58,6 @@
       recording = false;
       clone.classList.remove("recording");
       autosend();
-      pending = "";
-      sent = false;
     };
     clone.addEventListener("click", function (event) {
       event.preventDefault();
