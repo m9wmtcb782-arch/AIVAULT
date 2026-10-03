@@ -178,6 +178,10 @@
         this.playPcm(bytesFromB64(inline.data));
       }
     }
+    var inn = (content.inputTranscription && content.inputTranscription.text) || (msg.type === "inputTranscription" ? msg.text : "");
+    if (inn && root.AivaultConversationBus && !(root.AivaultDualAgentLive && root.AivaultDualAgentLive.armed && root.AivaultDualAgentLive.armed().dark)) {
+      root.AivaultConversationBus.publish({speaker:"user",agent_id:null,text:inn,partial:true});
+    }
     var out = "";
     if (content.outputTranscription && content.outputTranscription.text) out = content.outputTranscription.text;
     if (msg.type === "outputTranscription" && msg.text) out = msg.text;
