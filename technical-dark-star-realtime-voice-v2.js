@@ -20,4 +20,4 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
   restore();
   setInterval(restore,200);
 })();
-(function(){if(window.__AIVAULT_DAWN_OWN_AUDIO_LOADER__)return;window.__AIVAULT_DAWN_OWN_AUDIO_LOADER__=true;var s=document.createElement('script');s.src='artifacts/dawn-own-audio.js?v=7';document.body.appendChild(s);})();
+(function(){if(window.__AIVAULT_DAWN_OWN_AUDIO_LOADER__)return;window.__AIVAULT_DAWN_OWN_AUDIO_LOADER__=true;var s=document.createElement('script');s.src='artifacts/dawn-own-audio.js?v=8';document.body.appendChild(s);})();
