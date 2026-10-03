@@ -14,43 +14,10 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 })();
 (function(){if(window.__AIVAULT_MIC_AUTOSEND_LOADER__)return;window.__AIVAULT_MIC_AUTOSEND_LOADER__=true;var s=document.createElement('script');s.src='artifacts/mic-auto-send.js?v=5';document.body.appendChild(s);})();
 (function(){
-  if(window.__AIVAULT_DAWN_TEXT_ONLY__)return;
-  window.__AIVAULT_DAWN_TEXT_ONLY__=true;
-  var nativeSend=WebSocket.prototype.send;
-  var installedOn=null;
-  function directDark(){
-    if(!window.AivaultDualAgentLive)return;
-    if(window.WebSocket===installedOn)return;
-    var Current=window.WebSocket;
-    function Direct(url,protocols){
-      var u=String(url||'');
-      var ws=protocols===undefined?new Current(url):new Current(url,protocols);
-      if(u.indexOf('agent_id=dawn-light')!==-1){
-        var orig=ws.send.bind(ws);
-        ws.send=function(data){
-          if(typeof data!=='string')return;
-          if(data.indexOf('"type":"audio"')!==-1)return;
-          return orig(data);
-        };
-        return ws;
-      }
-      if(u.indexOf('technical-dark-star-live-voice')!==-1){ws.send=function(data){return nativeSend.call(ws,data);};}
-      return ws;
-    }
-    Direct.prototype=Current.prototype;
-    window.WebSocket=Direct;
-    installedOn=Direct;
-  }
-  window.addEventListener('aivault-conversation-event',function(event){
-    var detail=event.detail||{};
-    if(detail.speaker!=='user'||detail.partial)return;
-    var live=window.AivaultDualAgentLive;
-    var voice=window.DawnLightLiveVoice;
-    if(!live||!voice||!live.armed||!live.armed().dawn)return;
-    var text=String(detail.text||'').trim();
-    if(!text||!voice.sendText)return;
-    voice.sendText(text,'user',null);
-  });
-  directDark();
-  setInterval(directDark,400);
+  if(window.__AIVAULT_DARK_DIRECT_WS__)return;
+  window.__AIVAULT_DARK_DIRECT_WS__=true;
+  var Native=window.WebSocket;
+  function restore(){ if(window.WebSocket!==Native) window.WebSocket=Native; }
+  restore();
+  setInterval(restore,200);
 })();
