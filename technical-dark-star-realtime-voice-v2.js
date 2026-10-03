@@ -13,3 +13,37 @@ function init(){ui();loadMyVoice();setInterval(hideDupVoice,800)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
 (function(){if(window.__AIVAULT_MIC_AUTOSEND_LOADER__)return;window.__AIVAULT_MIC_AUTOSEND_LOADER__=true;var s=document.createElement('script');s.src='artifacts/mic-auto-send.js?v=5';document.body.appendChild(s);})();
+(function(){
+  if(window.__AIVAULT_DAWN_LIVE_ISOLATED__)return;
+  window.__AIVAULT_DAWN_LIVE_ISOLATED__=true;
+  function isolate(){
+    var voice=window.DawnLightLiveVoice;
+    if(voice&&!voice.__isolated){
+      try{voice.stop();}catch(e){}
+      voice.start=function(){return Promise.resolve(false);};
+      voice.sendRaw=function(){return false;};
+      voice.sendText=function(){return false;};
+      voice.isOpen=function(){return false;};
+      voice.__isolated=true;
+    }
+    var live=window.AivaultDualAgentLive;
+    if(live&&!live.__dawnIsolated&&typeof live.arm==='function'){
+      var origArm=live.arm;
+      live.arm=function(which,on){
+        if(which==='dawn'){
+          try{if(window.DawnLightLiveVoice)window.DawnLightLiveVoice.stop();}catch(e){}
+          return;
+        }
+        return origArm.call(live,which,on);
+      };
+      live.toggleArm=function(which){
+        if(which==='dawn')return;
+        var armed=live.armed?live.armed():{};
+        return live.arm(which,!armed.dark);
+      };
+      live.__dawnIsolated=true;
+    }
+  }
+  isolate();
+  setInterval(isolate,400);
+})();
