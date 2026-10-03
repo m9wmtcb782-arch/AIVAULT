@@ -5,6 +5,8 @@
   var proc = null;
   var ctx = null;
   var on = false;
+  var dawnEl = null;
+  var dawnText = "";
 
   function payload(bytes) {
     var bin = "";
@@ -20,6 +22,30 @@
   }
   function darkOn() { return pressed("darkStarLiveButton") || !!window.__AIVAULT_LIVE_VOICE_WANTED__; }
   function dawnOn() { return pressed("dawnLightLiveButton"); }
+  function renderDawn(text, partial) {
+    var inner = document.getElementById("messagesInner");
+    if (!inner || !text) return;
+    var welcome = document.getElementById("welcome");
+    if (welcome) welcome.remove();
+    if (!dawnEl || !partial) {
+      var row = document.createElement("div");
+      row.className = "message assistant";
+      row.dataset.speaker = "dawn-light";
+      var avatar = document.createElement("div");
+      avatar.className = "message-avatar";
+      avatar.textContent = "曙光";
+      var body = document.createElement("div");
+      body.className = "message-body";
+      dawnEl = document.createElement("div");
+      dawnEl.className = "message-text";
+      body.appendChild(dawnEl);
+      row.append(avatar, body);
+      inner.appendChild(row);
+    }
+    dawnEl.textContent = text;
+    var box = document.getElementById("messages");
+    if (box) box.scrollTop = box.scrollHeight;
+  }
 
   window.__AIVAULT_COPY_PCM_TO_DAWN__ = function (data) {
     var voice = window.DawnLightLiveVoice;
@@ -38,6 +64,32 @@
     };
     WebSocket.prototype.__aivaultCopyDawn = true;
   }
+
+  function hookText() {
+    var voice = window.DawnLightLiveVoice;
+    if (!voice || !voice.session || voice.session.__textHook) return;
+    var orig = voice.session.onMessage;
+    voice.session.onMessage = function (raw) {
+      if (typeof Blob !== "undefined" && raw instanceof Blob) {
+        var self = this;
+        raw.text().then(function (text) { self.onMessage(text); }).catch(function () {});
+        return;
+      }
+      return orig.call(this, raw);
+    };
+    voice.session.__textHook = true;
+  }
+
+  window.addEventListener("aivault-conversation-event", function (event) {
+    var detail = event.detail || {};
+    if (detail.speaker !== "dawn-light") return;
+    var piece = String(detail.text || "");
+    if (!piece) return;
+    if (detail.partial) dawnText += piece;
+    else dawnText = piece;
+    renderDawn(dawnText, true);
+    if (!detail.partial) { dawnText = ""; dawnEl = null; }
+  });
 
   function start() {
     var voice = window.DawnLightLiveVoice;
@@ -101,6 +153,7 @@
   }
 
   setInterval(function () {
+    hookText();
     var voice = window.DawnLightLiveVoice;
     if (dawnOn() && voice && voice.isOpen && !voice.isOpen()) voice.start();
     if (dawnOn() && !darkOn() && !on) start();
