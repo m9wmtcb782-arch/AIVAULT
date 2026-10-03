@@ -88,7 +88,7 @@
     window.__AIVAULT_BLOB_JSON__ = true;
     var Base = window.WebSocket;
     function SafeSocket(url, protocols) {
-      var ws = protocols === undefined ? new Base(url, protocols) : new Base(url, protocols);
+      var ws = protocols === undefined ? new Base(url) : new Base(url, protocols);
       if (String(url || "").indexOf("technical-dark-star-live-voice") !== -1) {
         ws.addEventListener("message", function (ev) {
           if (typeof Blob === "undefined" || !(ev.data instanceof Blob)) return;
