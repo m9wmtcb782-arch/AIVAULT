@@ -106,8 +106,10 @@
   };
 
   Mixer.prototype.userInterrupt = function () {
-    this.values[SPEAKER_DARK] = 0;
-    this.values[SPEAKER_DAWN] = 0;
+    // 使用者插話時不要把兩個 Agent 的播放 Gain 設成 0。
+    // 真正的播放中斷由各自的 Live Session 處理。
+    this.values[SPEAKER_DARK] = 1;
+    this.values[SPEAKER_DAWN] = 1;
     this.apply();
     userInterruptUntil = Date.now() + 700;
     if (root.DawnLightLiveVoice) root.DawnLightLiveVoice.interrupt("user");
@@ -430,23 +432,10 @@
   }
 
   function installPlaybackRoute() {
-    var AC = root.AudioContext || root.webkitAudioContext;
-    if (!AC || AC.prototype.__aivaultMixer) return;
-    AC.prototype.__aivaultMixer = true;
-    var orig = AC.prototype.createBufferSource;
-    AC.prototype.createBufferSource = function () {
-      var src = orig.call(this);
-      var origConnect = src.connect;
-      var ctx = this;
-      src.connect = function (dest) {
-        if (dest === ctx.destination && root.AivaultAudioMixer) {
-          var node = root.AivaultAudioMixer.gain(SPEAKER_DARK, ctx);
-          if (node) return origConnect.call(this, node);
-        }
-        return origConnect.apply(this, arguments);
-      };
-      return src;
-    };
+    // 保留函式名稱以維持既有 boot 流程，但不再攔截
+    // AudioContext.prototype.createBufferSource。
+    // 暗星必須維持原生播放鏈；曙光由自己的 Session Gain 控制。
+    return false;
   }
 
   function boot() {
@@ -509,6 +498,9 @@
       if (which === "dawn") {
         if (armed.dawn && root.DawnLightLiveVoice) root.DawnLightLiveVoice.start();
         if (!armed.dawn && root.DawnLightLiveVoice) root.DawnLightLiveVoice.stop();
+      }
+      if (which === "dark" && armed.dark && typeof root.__AIVAULT_DAWN_STOP_MIC__ === "function") {
+        root.__AIVAULT_DAWN_STOP_MIC__();
       }
       if (which !== "dark") return;
       var needMic = armed.dark || armed.dawn;
