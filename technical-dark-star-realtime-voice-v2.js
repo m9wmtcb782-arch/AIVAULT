@@ -22,11 +22,9 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 })();
 (function(){
   var AC=window.AudioContext||window.webkitAudioContext;
-  if(AC&&!AC.prototype.__aivaultDirectPlay){
-    AC.prototype.__aivaultDirectPlay=AC.prototype.createBufferSource;
-  }
+  if(AC&&!AC.prototype.__aivaultDirectPlay) AC.prototype.__aivaultDirectPlay=AC.prototype.createBufferSource;
   function directPlay(){
-    if(AC&&AC.prototype.__aivaultMixer&&AC.prototype.__aivaultDirectPlay){
+    if(AC&&AC.prototype.__aivaultDirectPlay){
       AC.prototype.createBufferSource=AC.prototype.__aivaultDirectPlay;
       AC.prototype.__aivaultMixer=false;
     }
@@ -34,7 +32,11 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
     if(mixer){
       mixer.values['dark-star']=1;
       mixer.values['dawn-light']=1;
+      mixer.userInterrupt=function(){};
+      mixer.duck=function(){};
+      mixer.solo=function(){};
       if(mixer.apply)mixer.apply();
+      Object.keys(mixer.gains||{}).forEach(function(key){ try{ mixer.gains[key].gain.value=1; }catch(e){} });
     }
     window.__AIVAULT_SUPPRESS_DARK_AUDIO__=false;
     window.__AIVAULT_SUPPRESS_DAWN_AUDIO__=false;
