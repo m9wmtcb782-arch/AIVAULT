@@ -8,6 +8,8 @@
   var CONVERSATION_KEY = "dawn_light_conversation_id";
   var VIDEO_ENABLED = false;
   var LIPSYNC_ENABLED = false;
+  // 曙光固定使用載入時取得的原生 WebSocket；不攔截、不接管暗星 WebSocket。
+  var NativeWebSocket = root.WebSocket;
 
   function voiceName() {
     try { return localStorage.getItem(VOICE_KEY) || "Aoede"; } catch (e) { return "Aoede"; }
@@ -140,7 +142,7 @@
     this.ensureAudio();
     return new Promise(function (resolve) {
       var ws;
-      try { ws = new root.WebSocket(self.url()); } catch (e) { resolve(false); return; }
+      try { ws = new NativeWebSocket(self.url()); } catch (e) { resolve(false); return; }
       ws.__aivaultAgent = "dawn-light";
       ws.__aivaultVideo = false;
       self.ws = ws;
