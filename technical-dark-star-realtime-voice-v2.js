@@ -12,3 +12,4 @@ function loadMyVoice(){if(document.getElementById('dsMyVoiceScript'))return;cons
 function init(){ui();loadMyVoice();setInterval(hideDupVoice,800)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
+(function(){if(window.__AIVAULT_MIC_AUTOSEND_LOADER__)return;window.__AIVAULT_MIC_AUTOSEND_LOADER__=true;var s=document.createElement('script');s.src='artifacts/mic-auto-send.js?v=1';document.body.appendChild(s);})();
