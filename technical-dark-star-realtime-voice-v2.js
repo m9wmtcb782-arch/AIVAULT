@@ -14,16 +14,10 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 })();
 (function(){if(window.__AIVAULT_MIC_AUTOSEND_LOADER__)return;window.__AIVAULT_MIC_AUTOSEND_LOADER__=true;var s=document.createElement('script');s.src='artifacts/mic-auto-send.js?v=5';document.body.appendChild(s);})();
 (function(){
-  if(window.__AIVAULT_DAWN_LIVE_ISOLATED__)return;
-  window.__AIVAULT_DAWN_LIVE_ISOLATED__=true;
+  if(window.__AIVAULT_DAWN_TEXT_ONLY__)return;
+  window.__AIVAULT_DAWN_TEXT_ONLY__=true;
   var nativeSend=WebSocket.prototype.send;
   var installedOn=null;
-  function hideDrawerDawn(){
-    ['dawnLightLiveButton','dawnLightVoiceLabel','dawnLightVoiceSelect'].forEach(function(id){
-      var el=document.getElementById(id);
-      if(el&&el.parentNode)el.parentNode.removeChild(el);
-    });
-  }
   function directDark(){
     if(!window.AivaultDualAgentLive)return;
     if(window.WebSocket===installedOn)return;
@@ -31,7 +25,15 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
     function Direct(url,protocols){
       var u=String(url||'');
       var ws=protocols===undefined?new Current(url):new Current(url,protocols);
-      if(u.indexOf('agent_id=dawn-light')!==-1){ws.send=function(){};try{ws.close();}catch(e){}return ws;}
+      if(u.indexOf('agent_id=dawn-light')!==-1){
+        var orig=ws.send.bind(ws);
+        ws.send=function(data){
+          if(typeof data!=='string')return;
+          if(data.indexOf('"type":"audio"')!==-1)return;
+          return orig(data);
+        };
+        return ws;
+      }
       if(u.indexOf('technical-dark-star-live-voice')!==-1){ws.send=function(data){return nativeSend.call(ws,data);};}
       return ws;
     }
@@ -39,26 +41,16 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
     window.WebSocket=Direct;
     installedOn=Direct;
   }
-  function isolate(){
-    hideDrawerDawn();
-    directDark();
-    var voice=window.DawnLightLiveVoice;
-    if(voice&&!voice.__isolated){
-      try{voice.stop();}catch(e){}
-      voice.start=function(){return Promise.resolve(false);};
-      voice.sendRaw=function(){return false;};
-      voice.sendText=function(){return false;};
-      voice.isOpen=function(){return false;};
-      voice.__isolated=true;
-    }
+  window.addEventListener('aivault-conversation-event',function(event){
+    var detail=event.detail||{};
+    if(detail.speaker!=='user'||detail.partial)return;
     var live=window.AivaultDualAgentLive;
-    if(live&&!live.__dawnIsolated&&typeof live.arm==='function'){
-      var origArm=live.arm;
-      live.arm=function(which,on){if(which==='dawn')return;return origArm.call(live,which,on);};
-      live.toggleArm=function(which){if(which==='dawn')return;var armed=live.armed?live.armed():{};return live.arm(which,!armed.dark);};
-      live.__dawnIsolated=true;
-    }
-  }
-  isolate();
-  setInterval(isolate,400);
+    var voice=window.DawnLightLiveVoice;
+    if(!live||!voice||!live.armed||!live.armed().dawn)return;
+    var text=String(detail.text||'').trim();
+    if(!text||!voice.sendText)return;
+    voice.sendText(text,'user',null);
+  });
+  directDark();
+  setInterval(directDark,400);
 })();
