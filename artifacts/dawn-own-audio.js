@@ -23,6 +23,10 @@
     var live = window.AivaultDualAgentLive;
     return pressed("dawnLightLiveButton") || !!(live && live.armed && live.armed().dawn);
   }
+  function darkOn() {
+    var live = window.AivaultDualAgentLive;
+    return pressed("darkStarLiveButton") || !!(live && live.armed && live.armed().dark);
+  }
   function bubble(label) {
     var inner = document.getElementById("messagesInner");
     if (!inner) return null;
@@ -97,7 +101,8 @@
     hook();
   }
   function startMic() {
-    if (on || !dawnOn() || !window.DawnLightLiveVoice) return;
+    // 暗星啟用時，曙光絕不另開第二支麥克風；由既有共享輸入轉送給曙光。
+    if (on || !dawnOn() || darkOn() || !window.DawnLightLiveVoice) return;
     on = true;
     connect();
     navigator.mediaDevices.getUserMedia({ audio: true }).then(function (media) {
@@ -134,5 +139,5 @@
     proc = null; ctx = null; stream = null;
     if (window.DawnLightLiveVoice) window.DawnLightLiveVoice.stop();
   }
-  setInterval(function () { hook(); if (dawnOn()) { connect(); if (!on) startMic(); } if (!dawnOn() && on) stop(); }, 400);
+  setInterval(function () { hook(); if (dawnOn()) { connect(); if (!on && !darkOn()) startMic(); } if ((!dawnOn() || darkOn()) && on) stop(); }, 400);
 })();
