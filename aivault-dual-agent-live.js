@@ -354,8 +354,8 @@
     if (agent === DARK || (String(ws.url || "").indexOf("agent_id=dawn-light") === -1 && String(ws.url || "").indexOf("technical-dark-star-live-voice") !== -1)) {
       ws.__aivaultAgent = DARK;
       darkSocket = ws;
-      ws.addEventListener("open", function () { darkOpen = true; if (armed.dawn && root.DawnLightLiveVoice) root.DawnLightLiveVoice.start(); });
-      ws.addEventListener("close", function () { darkOpen = false; if (root.DawnLightLiveVoice) root.DawnLightLiveVoice.stop(); });
+      ws.addEventListener("open", function () { darkOpen = true; });
+      ws.addEventListener("close", function () { darkOpen = false; });
       ws.addEventListener("message", function (ev) { observeDark(ev.data); });
     }
   }
@@ -500,8 +500,11 @@
       if (which === "dark") armed.dark = !!on;
       if (which === "dawn") armed.dawn = !!on;
       paintArms();
-      if (armed.dawn && root.DawnLightLiveVoice) root.DawnLightLiveVoice.start();
-      if (!armed.dawn && root.DawnLightLiveVoice) root.DawnLightLiveVoice.stop();
+      if (which === "dawn") {
+        if (armed.dawn && root.DawnLightLiveVoice) root.DawnLightLiveVoice.start();
+        if (!armed.dawn && root.DawnLightLiveVoice) root.DawnLightLiveVoice.stop();
+      }
+      if (which !== "dark") return;
       var toggle = root.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__;
       var needMic = armed.dark || armed.dawn;
       if (typeof toggle === "function" && needMic !== darkOpen) return toggle();
