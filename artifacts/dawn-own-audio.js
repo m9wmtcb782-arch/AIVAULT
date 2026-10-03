@@ -14,36 +14,23 @@
     if (btn.classList.contains("active") || btn.classList.contains("live-voice-on")) return true;
     return /\u2713|\u2714/.test(btn.textContent || "");
   }
-  function darkOn() { return pressed("darkStarLiveButton") || !!window.__AIVAULT_LIVE_VOICE_WANTED__; }
   function dawnOn() {
     var live = window.AivaultDualAgentLive;
     return pressed("dawnLightLiveButton") || !!(live && live.armed && live.armed().dawn);
   }
-  function hookPlay() {
+  function connect() {
     var voice = window.DawnLightLiveVoice;
-    if (!voice || !voice.session || voice.session.__blobPlay) return;
-    var orig = voice.session.onMessage;
-    voice.session.onMessage = function (raw) {
-      if (typeof Blob !== "undefined" && raw instanceof Blob) {
-        var self = this;
-        raw.text().then(function (text) { self.onMessage(text); }).catch(function () {});
-        return;
-      }
-      return orig.call(this, raw);
-    };
-    voice.session.__blobPlay = true;
+    if (!voice) return;
+    if (!voice.isOpen || !voice.isOpen()) voice.start();
     if (voice.setGain) voice.setGain(1);
   }
-  function start() {
+  function startMic() {
     var voice = window.DawnLightLiveVoice;
-    if (!voice || on || darkOn() || !dawnOn()) return;
+    if (!voice || on || !dawnOn()) return;
     on = true;
-    var opening = voice.isOpen && voice.isOpen() ? Promise.resolve(true) : voice.start();
-    Promise.resolve(opening).then(function () {
-      if (voice.setGain) voice.setGain(1);
-      return navigator.mediaDevices.getUserMedia({ audio: true });
-    }).then(function (media) {
-      if (!media || !on || darkOn() || !dawnOn()) {
+    connect();
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (media) {
+      if (!media || !on || !dawnOn()) {
         on = false;
         if (media) media.getTracks().forEach(function (track) { track.stop(); });
         return;
@@ -58,7 +45,7 @@
       silent.gain.value = 0;
       proc.onaudioprocess = function (event) {
         var current = window.DawnLightLiveVoice;
-        if (!on || darkOn() || !dawnOn() || !current || !current.isOpen || !current.isOpen()) return;
+        if (!on || !dawnOn() || !current || !current.isOpen || !current.isOpen()) return;
         var input = event.inputBuffer.getChannelData(0);
         var pcm = new Int16Array(input.length);
         for (var j = 0; j < input.length; j++) {
@@ -78,11 +65,18 @@
     if (ctx) { try { ctx.close(); } catch (e) {} }
     if (stream) stream.getTracks().forEach(function (track) { track.stop(); });
     proc = null; ctx = null; stream = null;
-    if (!dawnOn() && window.DawnLightLiveVoice) window.DawnLightLiveVoice.stop();
+    if (window.DawnLightLiveVoice) window.DawnLightLiveVoice.stop();
   }
+  document.addEventListener("click", function (event) {
+    var btn = event.target && event.target.closest ? event.target.closest("#dawnLightLiveButton") : null;
+    if (!btn) return;
+    setTimeout(function () {
+      if (dawnOn()) { connect(); startMic(); }
+      else stop();
+    }, 0);
+  }, true);
   setInterval(function () {
-    hookPlay();
-    if (dawnOn() && !darkOn() && !on) start();
-    if ((!dawnOn() || darkOn()) && on) stop();
+    if (dawnOn()) { connect(); if (!on) startMic(); }
+    if (!dawnOn() && on) stop();
   }, 400);
 })();
