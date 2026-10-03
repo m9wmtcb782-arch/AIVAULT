@@ -111,7 +111,6 @@
     this.values[SPEAKER_DARK] = 1;
     this.values[SPEAKER_DAWN] = 1;
     this.apply();
-    userInterruptUntil = Date.now() + 700;
     if (root.DawnLightLiveVoice) root.DawnLightLiveVoice.interrupt("user");
     var self = this;
     setTimeout(function () {
@@ -391,7 +390,11 @@
   }
 
   function installWebSocketTag() {
-    if (root.__AIVAULT_DUAL_WS__) return;
+    var existing = root.__AIVAULT_DUAL_WS_TAG__;
+    if (existing) {
+      if (root.WebSocket !== existing) root.WebSocket = existing;
+      return existing;
+    }
     root.__AIVAULT_DUAL_WS__ = true;
     var Base = root.WebSocket;
     function Tagged(url, protocols) {
@@ -435,7 +438,20 @@
     Tagged.CLOSING = Base.CLOSING;
     Tagged.CLOSED = Base.CLOSED;
     Tagged.prototype = Base.prototype;
+    root.__AIVAULT_DUAL_WS_TAG__ = Tagged;
     root.WebSocket = Tagged;
+    return Tagged;
+  }
+
+  function hookDarkStart() {
+    var start = root.__AIVAULT_DARK_STAR_START__;
+    if (typeof start !== "function" || start.__aivaultDualHook) return;
+    var wrapped = function () {
+      installWebSocketTag();
+      return start.apply(this, arguments);
+    };
+    wrapped.__aivaultDualHook = true;
+    root.__AIVAULT_DARK_STAR_START__ = wrapped;
   }
 
   function installPlaybackRoute() {
@@ -447,6 +463,7 @@
 
   function boot() {
     installWebSocketTag();
+    hookDarkStart();
     installPlaybackRoute();
     var n = 0;
     var timer = setInterval(function () {
