@@ -16,7 +16,20 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 (function(){
   if(window.__AIVAULT_DAWN_LIVE_ISOLATED__)return;
   window.__AIVAULT_DAWN_LIVE_ISOLATED__=true;
+  function hideDrawerDawn(){
+    ['dawnLightLiveButton','dawnLightVoiceLabel','dawnLightVoiceSelect'].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el&&el.parentNode)el.parentNode.removeChild(el);
+    });
+    document.querySelectorAll('#drawer button, #drawer div, #drawer label, #drawer select').forEach(function(el){
+      var text=String(el.textContent||'').replace(/\s+/g,'');
+      if(text==='曙光即時'||text==='曙光即時✓'||text==='曙光聲音'||text==='DawnLight'||text==='dawnlight'){
+        if(el.parentNode)el.parentNode.removeChild(el);
+      }
+    });
+  }
   function isolate(){
+    hideDrawerDawn();
     var voice=window.DawnLightLiveVoice;
     if(voice&&!voice.__isolated){
       try{voice.stop();}catch(e){}
