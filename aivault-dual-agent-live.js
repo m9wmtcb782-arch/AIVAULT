@@ -407,8 +407,12 @@
       var origSend = ws.send.bind(ws);
       ws.send = function (data) {
         if (ws.__aivaultAgent === DARK && audioPayload(data)) {
-          // 已選取的 Agent 必須先收到使用者麥克風，才能取得 inputTranscription；
-          // 喚醒詞只決定本回合誰回答，不應阻止「聽見」使用者。
+          // 暗星單獨測試：曙光未勾選時完全放行原始暗星 PCM，
+          // 不經雙 Agent 音訊轉送／攔截。曙光功能保留，只有在曙光勾選時才介入。
+          if (!armed.dawn) {
+            if (armed.dark) return origSend(data);
+            return;
+          }
           if (armed.dawn) forwardToDawn(data);
           if (armed.dark) return origSend(data);
           return;
