@@ -16,8 +16,8 @@
     var voice = window.DawnLightLiveVoice;
     if (!voice || on) return;
     on = true;
-    voice.start().then(function (ok) {
-      if (!ok) { on = false; return; }
+    var opening = voice.isOpen && voice.isOpen() ? Promise.resolve(true) : voice.start();
+    Promise.resolve(opening).then(function () {
       return navigator.mediaDevices.getUserMedia({ audio: true });
     }).then(function (media) {
       if (!media || !on) return;
@@ -31,7 +31,7 @@
       silent.gain.value = 0;
       proc.onaudioprocess = function (event) {
         var current = window.DawnLightLiveVoice;
-        if (!on || !current || !current.isOpen()) return;
+        if (!on || !current || !current.isOpen || !current.isOpen()) return;
         var input = event.inputBuffer.getChannelData(0);
         var samples = input;
         if (sourceRate !== 16000) {
@@ -81,13 +81,4 @@
     if (dawnOn() && !on) start();
     if (!dawnOn() && on) stop();
   }, 400);
-
-  window.addEventListener("aivault-conversation-event", function (event) {
-    var detail = event.detail || {};
-    if (detail.speaker !== "user" || detail.partial || !dawnOn()) return;
-    var voice = window.DawnLightLiveVoice;
-    var text = String(detail.text || "").trim();
-    if (!voice || !voice.isOpen || !voice.isOpen() || !text) return;
-    voice.sendText(text, "user", null);
-  });
 })();
