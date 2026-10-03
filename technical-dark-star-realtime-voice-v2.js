@@ -16,20 +16,32 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 (function(){
   if(window.__AIVAULT_DAWN_LIVE_ISOLATED__)return;
   window.__AIVAULT_DAWN_LIVE_ISOLATED__=true;
+  var nativeSend=WebSocket.prototype.send;
+  var installedOn=null;
   function hideDrawerDawn(){
     ['dawnLightLiveButton','dawnLightVoiceLabel','dawnLightVoiceSelect'].forEach(function(id){
       var el=document.getElementById(id);
       if(el&&el.parentNode)el.parentNode.removeChild(el);
     });
-    document.querySelectorAll('#drawer button, #drawer div, #drawer label, #drawer select').forEach(function(el){
-      var text=String(el.textContent||'').replace(/\s+/g,'');
-      if(text==='曙光即時'||text==='曙光即時✓'||text==='曙光聲音'||text==='DawnLight'||text==='dawnlight'){
-        if(el.parentNode)el.parentNode.removeChild(el);
-      }
-    });
+  }
+  function directDark(){
+    if(!window.AivaultDualAgentLive)return;
+    if(window.WebSocket===installedOn)return;
+    var Current=window.WebSocket;
+    function Direct(url,protocols){
+      var u=String(url||'');
+      var ws=protocols===undefined?new Current(url):new Current(url,protocols);
+      if(u.indexOf('agent_id=dawn-light')!==-1){ws.send=function(){};try{ws.close();}catch(e){}return ws;}
+      if(u.indexOf('technical-dark-star-live-voice')!==-1){ws.send=function(data){return nativeSend.call(ws,data);};}
+      return ws;
+    }
+    Direct.prototype=Current.prototype;
+    window.WebSocket=Direct;
+    installedOn=Direct;
   }
   function isolate(){
     hideDrawerDawn();
+    directDark();
     var voice=window.DawnLightLiveVoice;
     if(voice&&!voice.__isolated){
       try{voice.stop();}catch(e){}
@@ -42,18 +54,8 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
     var live=window.AivaultDualAgentLive;
     if(live&&!live.__dawnIsolated&&typeof live.arm==='function'){
       var origArm=live.arm;
-      live.arm=function(which,on){
-        if(which==='dawn'){
-          try{if(window.DawnLightLiveVoice)window.DawnLightLiveVoice.stop();}catch(e){}
-          return;
-        }
-        return origArm.call(live,which,on);
-      };
-      live.toggleArm=function(which){
-        if(which==='dawn')return;
-        var armed=live.armed?live.armed():{};
-        return live.arm(which,!armed.dark);
-      };
+      live.arm=function(which,on){if(which==='dawn')return;return origArm.call(live,which,on);};
+      live.toggleArm=function(which){if(which==='dawn')return;var armed=live.armed?live.armed():{};return live.arm(which,!armed.dark);};
       live.__dawnIsolated=true;
     }
   }
