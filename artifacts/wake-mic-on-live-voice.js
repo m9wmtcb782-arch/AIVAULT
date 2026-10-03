@@ -45,27 +45,8 @@
     };
   }
 
-  function isLiveButton(el) {
-    if (!el) return false;
-    if (el.id === "darkStarLiveButton" || el.id === "dawnLightLiveButton") return true;
-    var text = String(el.textContent || "").replace(/\s+/g, "");
-    return text.indexOf("即時語音") >= 0;
-  }
-
-  function bind(el) {
-    if (!el || el.dataset.wakeMicBound) return;
-    el.dataset.wakeMicBound = "1";
-    el.addEventListener("pointerdown", function () { wake().catch(function () {}); }, true);
-    el.addEventListener("click", function () { wake().catch(function () {}); }, true);
-  }
-
-  function scan() {
-    document.querySelectorAll("#darkStarLiveButton, #dawnLightLiveButton, button, a").forEach(function (el) {
-      if (isLiveButton(el)) bind(el);
-    });
-  }
-
-  scan();
-  setInterval(scan, 500);
-  document.addEventListener("DOMContentLoaded", scan);
+  // 不在即時按鈕的 pointerdown/click 預先呼叫 getUserMedia。
+  // 預先請求麥克風會在 iPhone/Safari 上消耗第一次點擊的手勢，
+  // 導致第一次只開麥克風、第二次才進入「暗星即時」。
+  // 現在由真正的即時語音 start() 在同一次 click 內取得麥克風。
 })();
