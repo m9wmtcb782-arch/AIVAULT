@@ -32,6 +32,11 @@
 </head>
 <body>
 <main>
+  <section class="card">
+    <h2>即時語音</h2>
+    <button id="dawnLightLiveButton" type="button">即時語音</button>
+    <p id="dawnMicState">按下才喚醒麥克風。</p>
+  </section>
   <div class="logo-row">
     <div id="dawnSun" class="dawn-sun idle" aria-hidden="true"><i class="core"></i><i class="glow"></i><i class="rays"></i></div>
     <div>
@@ -74,6 +79,8 @@
     <pre id="threeOut">BLOCKED</pre>
   </section>
 </main>
+<script src="artifacts/wake-mic-on-live-voice.js?v=1"></script>
+<script src="dawn-light-live-voice.js?v=2"></script>
 <script src="aivault-agent-voice-router.js?v=1"></script>
 <script src="dawn-light-runtime.js"></script>
 <script src="dawn-light-dark-star-bridge.js?v=2"></script>
@@ -111,6 +118,19 @@
     document.getElementById("routeState").textContent = "綁定 dawn-light";
     sun.className = "dawn-sun listen";
   });
+  
+  document.getElementById("dawnLightLiveButton").addEventListener("click", async function () {
+    var state = document.getElementById("dawnMicState");
+    state.textContent = "正在喚醒麥克風……";
+    try {
+      await window.__AIVAULT_WAKE_MIC__();
+      state.textContent = "麥克風已喚醒";
+      if (window.DawnLightLiveVoice && window.DawnLightLiveVoice.start) window.DawnLightLiveVoice.start();
+    } catch (e) {
+      state.textContent = e && e.message ? e.message : "麥克風未允許";
+    }
+  });
+
   window.addEventListener("aivault-agent-phase", function (event) {
     var detail = event.detail || {};
     if (detail.agent_id !== "dawn-light") { sun.className = "dawn-sun idle"; return; }
