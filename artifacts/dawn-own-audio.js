@@ -7,6 +7,11 @@
     for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
     return JSON.stringify({ type: "audio", data: btoa(bin), mimeType: "audio/pcm;rate=16000" });
   }
+  function b64(data) {
+    var bin = atob(data), out = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
   function pressed(id) {
     var btn = document.getElementById(id);
     if (!btn) return false;
@@ -35,33 +40,44 @@
     body.appendChild(text);
     row.append(avatar, body);
     inner.appendChild(row);
-    var box = document.getElementById("messages");
-    if (box) box.scrollTop = box.scrollHeight;
     return text;
   }
   function show(kind, text) {
     if (!text) return;
-    if (kind === "user") {
-      if (!userEl) userEl = bubble("\u4f60");
-      if (userEl) userEl.textContent = text;
-    } else {
-      if (!dawnEl) dawnEl = bubble("\u66d9\u5149");
-      if (dawnEl) dawnEl.textContent = text;
-    }
+    if (kind === "user") { if (!userEl) userEl = bubble("\u4f60"); if (userEl) userEl.textContent = text; }
+    else { if (!dawnEl) dawnEl = bubble("\u66d9\u5149"); if (dawnEl) dawnEl.textContent = text; }
+  }
+  function playFields(session, msg) {
+    var content = msg.serverContent || {};
+    if (msg.audio && msg.audio.data) session.playPcm(b64(msg.audio.data));
+    if (msg.data && msg.mimeType && String(msg.mimeType).indexOf("audio") === 0) session.playPcm(b64(msg.data));
+    var parts = (content.modelTurn && content.modelTurn.parts) || [];
+    parts.forEach(function (part) {
+      var inline = part && part.inlineData;
+      if (inline && inline.data && String(inline.mimeType || "").indexOf("audio") === 0) session.playPcm(b64(inline.data));
+    });
   }
   function hook() {
     var voice = window.DawnLightLiveVoice;
-    if (!voice || !voice.session || voice.session.__dawnText) return;
-    var orig = voice.session.onMessage;
+    if (!voice || !voice.session || voice.session.__dawnPlay) return;
+    var orig = voice.session.playPcm;
+    voice.session.playPcm = function (bytes) {
+      var result = orig.call(this, bytes);
+      if (this.gain) this.gain.gain.value = 1;
+      if (this.playCtx && this.playCtx.state === "suspended") this.playCtx.resume();
+      return result;
+    };
+    var origMsg = voice.session.onMessage;
     voice.session.onMessage = function (raw) {
       if (typeof Blob !== "undefined" && raw instanceof Blob) {
         var self = this;
         raw.text().then(function (text) { self.onMessage(text); }).catch(function () {});
         return;
       }
-      var result = orig.call(this, raw);
+      var result = origMsg.call(this, raw);
       if (typeof raw !== "string") return result;
       var msg; try { msg = JSON.parse(raw); } catch (e) { return result; }
+      playFields(this, msg);
       var content = msg.serverContent || {};
       var inn = (content.inputTranscription && content.inputTranscription.text) || (msg.type === "inputTranscription" ? msg.text : "");
       var out = (content.outputTranscription && content.outputTranscription.text) || (msg.type === "outputTranscription" ? msg.text : "");
@@ -70,7 +86,7 @@
       if (content.turnComplete || msg.turnComplete || msg.type === "turnComplete") { userEl = null; dawnEl = null; userText = ""; dawnText = ""; }
       return result;
     };
-    voice.session.__dawnText = true;
+    voice.session.__dawnPlay = true;
     if (voice.setGain) voice.setGain(1);
   }
   function connect() {
@@ -81,12 +97,11 @@
     hook();
   }
   function startMic() {
-    var voice = window.DawnLightLiveVoice;
-    if (!voice || on || !dawnOn()) return;
+    if (on || !dawnOn() || !window.DawnLightLiveVoice) return;
     on = true;
     connect();
     navigator.mediaDevices.getUserMedia({ audio: true }).then(function (media) {
-      if (!media || !on || !dawnOn()) { on = false; if (media) media.getTracks().forEach(function (track) { track.stop(); }); return; }
+      if (!media || !on || !dawnOn()) { on = false; if (media) media.getTracks().forEach(function (t) { t.stop(); }); return; }
       stream = media;
       var AC = window.AudioContext || window.webkitAudioContext;
       ctx = new AC();
@@ -98,12 +113,10 @@
       proc.onaudioprocess = function (event) {
         var current = window.DawnLightLiveVoice;
         if (!on || !dawnOn() || !current || !current.isOpen || !current.isOpen()) return;
-        var input = event.inputBuffer.getChannelData(0);
-        var samples = input;
+        var input = event.inputBuffer.getChannelData(0), samples = input;
         if (rate !== 16000) {
-          var n = Math.max(1, Math.round(input.length * 16000 / rate));
-          var out = new Float32Array(n), ratio = rate / 16000;
-          for (var i = 0; i < n; i++) { var pos = i * ratio, idx = Math.floor(pos), frac = pos - idx; var x = input[Math.min(idx, input.length - 1)] || 0; var y = input[Math.min(idx + 1, input.length - 1)] || x; out[i] = x + (y - x) * frac; }
+          var n = Math.max(1, Math.round(input.length * 16000 / rate)), out = new Float32Array(n), ratio = rate / 16000;
+          for (var i = 0; i < n; i++) { var pos = i * ratio, idx = Math.floor(pos), frac = pos - idx, x = input[Math.min(idx, input.length - 1)] || 0, y = input[Math.min(idx + 1, input.length - 1)] || x; out[i] = x + (y - x) * frac; }
           samples = out;
         }
         var pcm = new Int16Array(samples.length);
@@ -117,13 +130,9 @@
     on = false;
     if (proc) { try { proc.disconnect(); } catch (e) {} }
     if (ctx) { try { ctx.close(); } catch (e) {} }
-    if (stream) stream.getTracks().forEach(function (track) { track.stop(); });
+    if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
     proc = null; ctx = null; stream = null;
     if (window.DawnLightLiveVoice) window.DawnLightLiveVoice.stop();
   }
-  setInterval(function () {
-    hook();
-    if (dawnOn()) { connect(); if (!on) startMic(); }
-    if (!dawnOn() && on) stop();
-  }, 400);
+  setInterval(function () { hook(); if (dawnOn()) { connect(); if (!on) startMic(); } if (!dawnOn() && on) stop(); }, 400);
 })();
