@@ -71,7 +71,8 @@
     Object.keys(this.gains).forEach(function (key) {
       try { self.gains[key].gain.value = self.values[key]; } catch (e) {}
     });
-    if (root.DawnLightLiveVoice) root.DawnLightLiveVoice.setGain(this.values[SPEAKER_DAWN]);
+    // Playback gain is intentionally not applied to another agent's session.
+    // Live sessions own their own output gain/channel.
   };
 
   Mixer.prototype.solo = function (speaker) {
@@ -223,8 +224,9 @@
 
   function noteUserTranscript(text) {
     userBuf += String(text || "");
-    // Live input belongs to the currently selected Live session only.
-    // Do not mute the other agent and do not publish a second user bubble.
+    // Live input is observed for routing/diagnostics only.
+    // The Live session itself owns the user bubble/audio path.
+    publish({ speaker: SPEAKER_USER, agent_id: null, text: userBuf, partial: true });
     return setWakeFromTranscript(userBuf);
   }
 
