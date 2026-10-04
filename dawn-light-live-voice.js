@@ -164,7 +164,7 @@
     if (!AC || !root.navigator || !root.navigator.mediaDevices || !root.navigator.mediaDevices.getUserMedia) return Promise.resolve(false);
     this.ensureAudio();
     var MicAC = root.AudioContext || root.webkitAudioContext;
-    this.micCtx = new MicAC({ sampleRate: 16000 });
+    this.micCtx = new MicAC();
     if (this.micCtx.state === "suspended") this.micCtx.resume().catch(function () {});
     return root.navigator.mediaDevices.getUserMedia({
       audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
@@ -199,7 +199,7 @@
             sink.connect(ctx.destination);
             processor.onaudioprocess = function (event) {
               if (!self.open || !self.ws || self.ws.readyState !== 1) return;
-              var pcm = floatToPCM16(event.inputBuffer.getChannelData(0), event.inputBuffer.sampleRate, 16000);
+              var input = event.inputBuffer && event.inputBuffer.getChannelData(0);\n              if (!input || !input.length) return;\n              var pcm = floatToPCM16(input, event.inputBuffer.sampleRate, 16000);
               if (!pcm.length) return;
               try {
                 self.ws.send(JSON.stringify({
