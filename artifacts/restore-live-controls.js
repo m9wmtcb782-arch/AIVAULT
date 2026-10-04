@@ -299,5 +299,5 @@ function ensureSettingsPanel(){
  return true
 }
 
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',restore);else restore();let n=0;const t=setInterval(()=>{if(restore()){ensureSettingsPanel();}if(++n>40)clearInterval(t)},250);
+if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',()=>{restore();ensureSettingsPanel()});}else{restore();ensureSettingsPanel();}
 })();
