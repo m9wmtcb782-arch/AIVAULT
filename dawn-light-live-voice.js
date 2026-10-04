@@ -49,6 +49,10 @@
     this.gain = null;
     this.outBuf = "";
     this.videoEnabled = VIDEO_ENABLED;
+    this.micStream = null;
+    this.micSource = null;
+    this.micProcessor = null;
+    this.micSink = null;
     this.lipSyncEnabled = LIPSYNC_ENABLED;
   }
 
@@ -100,7 +104,6 @@
       var idx = self.sources.indexOf(src);
       if (idx >= 0) self.sources.splice(idx, 1);
     };
-    if (root.AivaultAudioMixer) root.AivaultAudioMixer.noteSpeaking("dawn-light");
   };
 
   Session.prototype.interrupt = function (reason) {
@@ -137,26 +140,95 @@
   Session.prototype.start = function () {
     var self = this;
     if (this.ws && (this.ws.readyState === 0 || this.ws.readyState === 1)) return Promise.resolve(false);
+    var AC = root.AudioContext || root.webkitAudioContext;
+    if (!AC || !root.navigator || !root.navigator.mediaDevices || !root.navigator.mediaDevices.getUserMedia) return Promise.resolve(false);
     this.ensureAudio();
-    return new Promise(function (resolve) {
-      var ws;
-      try { ws = new root.WebSocket(self.url()); } catch (e) { resolve(false); return; }
-      ws.__aivaultAgent = "dawn-light";
-      ws.__aivaultVideo = false;
-      self.ws = ws;
-      ws.onopen = function () {
-        self.open = true;
-        resolve(true);
-      };
-      ws.onerror = function () { resolve(false); };
-      ws.onclose = function () { self.open = false; self.ws = null; };
-      ws.onmessage = function (ev) { self.onMessage(ev.data); };
+    return root.navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+    }).then(function (stream) {
+      self.micStream = stream;
+      var track = stream.getAudioTracks()[0];
+      if (!track || track.readyState === "ended") throw new Error("沒有取得曙光麥克風音軌");
+      return new Promise(function (resolve) {
+        var ws;
+        try { ws = new root.WebSocket(self.url()); } catch (e) {
+          self.cleanupMic();
+          resolve(false);
+          return;
+        }
+        ws.__aivaultAgent = "dawn-light";
+        ws.__aivaultVideo = false;
+        self.ws = ws;
+        ws.onopen = function () {
+          self.open = true;
+          try {
+            var ctx = self.playCtx;
+            if (ctx && ctx.state === "suspended") ctx.resume().catch(function () {});
+            var src = ctx.createMediaStreamSource(self.micStream);
+            var processor = ctx.createScriptProcessor(2048, 1, 1);
+            var sink = ctx.createGain();
+            sink.gain.value = 0;
+            self.micSource = src;
+            self.micProcessor = processor;
+            self.micSink = sink;
+            src.connect(processor);
+            processor.connect(sink);
+            sink.connect(ctx.destination);
+            processor.onaudioprocess = function (event) {
+              if (!self.open || !self.ws || self.ws.readyState !== 1) return;
+              var pcm = floatToPCM16(event.inputBuffer.getChannelData(0), event.inputBuffer.sampleRate, 16000);
+              if (!pcm.length) return;
+              try {
+                self.ws.send(JSON.stringify({
+                  type: "audio",
+                  data: b64(pcm),
+                  mimeType: "audio/pcm;rate=16000"
+                }));
+              } catch (e) {}
+            };
+          } catch (e) {
+            self.stop();
+            resolve(false);
+            return;
+          }
+          resolve(true);
+        };
+        ws.onerror = function () {
+          self.cleanupMic();
+          self.open = false;
+          try { ws.close(); } catch (e) {}
+          self.ws = null;
+          resolve(false);
+        };
+        ws.onclose = function () {
+          self.cleanupMic();
+          self.open = false;
+          self.ws = null;
+        };
+        ws.onmessage = function (ev) { self.onMessage(ev.data); };
+      });
+    }).catch(function () {
+      self.cleanupMic();
+      return false;
     });
+  };
+
+  Session.prototype.cleanupMic = function () {
+    try { if (this.micProcessor) this.micProcessor.onaudioprocess = null; } catch (e) {}
+    try { if (this.micProcessor) this.micProcessor.disconnect(); } catch (e) {}
+    try { if (this.micSource) this.micSource.disconnect(); } catch (e) {}
+    try { if (this.micSink) this.micSink.disconnect(); } catch (e) {}
+    try { if (this.micStream) this.micStream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+    this.micProcessor = null;
+    this.micSource = null;
+    this.micSink = null;
+    this.micStream = null;
   };
 
   Session.prototype.stop = function () {
     this.interrupt("stop");
     this.open = false;
+    this.cleanupMic();
     if (this.ws) {
       try { this.ws.close(); } catch (e) {}
       this.ws = null;
@@ -207,6 +279,40 @@
       this.outBuf = "";
     }
   };
+
+  function b64(bytes) {
+    var s = "";
+    var u = new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    for (var i = 0; i < u.length; i += 32768) {
+      s += String.fromCharCode.apply(null, u.subarray(i, i + 32768));
+    }
+    return btoa(s);
+  }
+
+  function floatToPCM16(inputSamples, inputRate, targetRate) {
+    targetRate = targetRate || 16000;
+    var samples = inputSamples;
+    if (inputRate !== targetRate) {
+      var ratio = inputRate / targetRate;
+      var outLength = Math.max(1, Math.round(inputSamples.length / ratio));
+      var out = new Float32Array(outLength);
+      for (var i = 0; i < outLength; i++) {
+        var pos = i * ratio;
+        var left = Math.floor(pos);
+        var frac = pos - left;
+        var a = inputSamples[left] || 0;
+        var b = inputSamples[Math.min(left + 1, inputSamples.length - 1)] || a;
+        out[i] = a + (b - a) * frac;
+      }
+      samples = out;
+    }
+    var pcm = new Int16Array(samples.length);
+    for (var j = 0; j < samples.length; j++) {
+      var v = Math.max(-1, Math.min(1, samples[j]));
+      pcm[j] = v < 0 ? v * 32768 : v * 32767;
+    }
+    return pcm;
+  }
 
   function bytesFromB64(b64) {
     var bin = atob(b64);
