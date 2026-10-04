@@ -7712,28 +7712,19 @@ if(SpeechRecognition){
       for (var ri = event.resultIndex; ri < event.results.length; ri++) {
         if (event.results[ri].isFinal) finalText += event.results[ri][0].transcript;
       }
-      if (finalText.trim() && window.AivaultAgentRouter) {
-        window.__AIVAULT_LAST_ROUTE_SOURCE__ = "speech-recognition";
-        var wakeDecision = window.AivaultAgentRouter.decide(finalText.trim());
-        window.AivaultAgentRouter.route(finalText.trim(), { source: "speech-recognition" });
-        if (!wakeDecision.deliver) {
-          window.__AIVAULT_LAST_ROUTE_SOURCE__ = "";
-          input.value = "";
-          sendButton.disabled = true;
-          return;
-        }
-      }
 
       input.value =
         transcript;
 
-
       resizeInput();
-
 
       sendButton.disabled =
         isSending ||
         !transcript.trim();
+
+      if (finalText.trim() && !isSending) {
+        sendButton.click();
+      }
 
     };
 
