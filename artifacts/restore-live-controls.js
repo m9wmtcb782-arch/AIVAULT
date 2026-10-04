@@ -26,8 +26,8 @@ function restore(){
    live=document.createElement('button');
    live.id='darkStarLiveButton';
    live.type='button';
-   live.className='drawer-item';
-   if(!live.classList.contains('active')&&live.textContent.indexOf('✓')<0)live.textContent='暗星即時';
+   live.classList.add('drawer-item');
+   if(!live.dataset.liveVoiceBound&&!live.classList.contains('active')&&live.textContent.indexOf('✓')<0)live.textContent='暗星即時';
  }
  let settings=document.getElementById('darkStarSettingsButton');
  if(!settings){
@@ -57,8 +57,8 @@ function restore(){
  }
  select.value=localStorage.getItem('darkStarVoice')||'Kore';
  if(bottom){
-   live.className='drawer-item';
-   if(!live.classList.contains('active')&&live.textContent.indexOf('✓')<0)live.textContent='暗星即時';
+   live.classList.add('drawer-item');
+   if(!live.dataset.liveVoiceBound&&!live.classList.contains('active')&&live.textContent.indexOf('✓')<0)live.textContent='暗星即時';
    live.style.removeProperty('display');
    live.removeAttribute('aria-hidden');
    if(live.parentElement!==bottom)bottom.insertBefore(live,bottom.firstChild);
