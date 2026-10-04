@@ -55,6 +55,8 @@
     this.micProcessor = null;
     this.micSink = null;
     this.lipSyncEnabled = LIPSYNC_ENABLED;
+    this.reconnectTimer = null;
+    this.reconnectDelay = 800;
   }
 
   Session.prototype.url = function () {
@@ -138,8 +140,25 @@
     try { this.ws.send(JSON.stringify(body)); return true; } catch (e) { return false; }
   };
 
+  Session.prototype.scheduleReconnect = function () {
+    var self = this;
+    if (this.reconnectTimer) return;
+    var armed = false;
+    try { armed = !!(root.AivaultDualAgentLive && root.AivaultDualAgentLive.armed && root.AivaultDualAgentLive.armed().dawn); } catch (e) {}
+    if (!armed) return;
+    var delay = Math.min(this.reconnectDelay || 800, 5000);
+    this.reconnectTimer = setTimeout(function () {
+      self.reconnectTimer = null;
+      self.start().then(function (ok) {
+        if (ok) self.reconnectDelay = 800;
+        else { self.reconnectDelay = Math.min((self.reconnectDelay || 800) * 2, 5000); self.scheduleReconnect(); }
+      });
+    }, delay);
+  };
+
   Session.prototype.start = function () {
     var self = this;
+    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
     if (this.ws && (this.ws.readyState === 0 || this.ws.readyState === 1)) return Promise.resolve(false);
     var AC = root.AudioContext || root.webkitAudioContext;
     if (!AC || !root.navigator || !root.navigator.mediaDevices || !root.navigator.mediaDevices.getUserMedia) return Promise.resolve(false);
@@ -202,12 +221,14 @@
           self.open = false;
           try { ws.close(); } catch (e) {}
           self.ws = null;
+          self.scheduleReconnect();
           resolve(false);
         };
         ws.onclose = function () {
           self.cleanupMic();
           self.open = false;
           self.ws = null;
+          self.scheduleReconnect();
         };
         ws.onmessage = function (ev) { self.onMessage(ev.data); };
       });
@@ -230,6 +251,8 @@
   };
 
   Session.prototype.stop = function () {
+    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
+    this.reconnectDelay = 800;
     this.interrupt("stop");
     this.open = false;
     this.cleanupMic();
