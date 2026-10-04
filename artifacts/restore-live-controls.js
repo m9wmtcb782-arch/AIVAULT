@@ -88,6 +88,11 @@ function restore(){
    live.dataset.liveVoiceBound='1';
    live.addEventListener('click',async event=>{
      event.preventDefault();event.stopPropagation();
+     const dual=window.AivaultDualAgentLive;
+     const next=dual&&typeof dual.armed==='function'?!dual.armed().dark:true;
+     live.textContent=next?'暗星即時 ✓':'暗星即時';
+     live.classList.toggle('active',next);
+     live.setAttribute('aria-pressed',String(next));
      await toggleDualAgent('dark');
    });
  }
