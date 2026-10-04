@@ -139,8 +139,9 @@
     if (floor === SPEAKER_DAWN && agentId === DARK && Date.now() < darkHoldUntil) return false;
     // Same as working live video: an armed agent must receive mic audio.
     // Name rule only applies when both are armed.
-    if (armed.dark !== armed.dawn) return true;
-    return currentWake.indexOf(agentId) !== -1;
+    // Each armed Live agent must continuously receive its own microphone stream.
+    // Wake/name routing decides who answers; it must never gate the audio transport itself.
+    return true;
   }
 
   function namedFirst(text) {
