@@ -64,7 +64,13 @@
   window.addEventListener("aivault-conversation-event", function (e) {
     const d = e.detail || {};
     if (!d.text) return;
-    if (d.speaker === "user") commit(d.text, "user");
+    if (d.speaker === "user") {
+      const darkLive = window.AivaultDualAgentLive &&
+        window.AivaultDualAgentLive.armed &&
+        window.AivaultDualAgentLive.armed().dark;
+      // Dark Star Live renders its own input transcript; don't render a second bubble.
+      if (!darkLive) commit(d.text, "user");
+    }
     else if (d.speaker === "dawn-light") commit(d.text, "dawn");
     else if (d.speaker === "dark-star") commit(d.text, "dark");
     if (d.partial === false) open[d.speaker === "dawn-light" ? "dawn" : (d.speaker === "dark-star" ? "dark" : "user")] = null;
