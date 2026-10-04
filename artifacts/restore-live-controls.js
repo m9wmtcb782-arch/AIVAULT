@@ -131,7 +131,7 @@ function ensureSettingsPanel(){
 
  if(live){
    live.classList.add('drawer-item');
-   if(!live.classList.contains('active')&&live.textContent.indexOf('✓')<0)live.textContent='暗星即時';
+   const dualState=window.AivaultDualAgentLive&&typeof window.AivaultDualAgentLive.armed==='function'?window.AivaultDualAgentLive.armed():null; const liveOn=!!(dualState&&dualState.dark); live.classList.toggle('active',liveOn); live.setAttribute('aria-pressed',String(liveOn)); live.textContent=liveOn?'暗星即時 ✓':'暗星即時';
    live.style.removeProperty('display');
    if(live.parentElement!==bottom)bottom.insertBefore(live,bottom.firstChild);
  }
@@ -187,7 +187,7 @@ function ensureSettingsPanel(){
 
  if(live){
    live.classList.add('drawer-item');
-   if(!live.classList.contains('active')&&live.textContent.indexOf('✓')<0)live.textContent='暗星即時';
+   const dualState=window.AivaultDualAgentLive&&typeof window.AivaultDualAgentLive.armed==='function'?window.AivaultDualAgentLive.armed():null; const liveOn=!!(dualState&&dualState.dark); live.classList.toggle('active',liveOn); live.setAttribute('aria-pressed',String(liveOn)); live.textContent=liveOn?'暗星即時 ✓':'暗星即時';
    live.style.removeProperty('display');
    live.removeAttribute('aria-hidden');
    if(live.parentElement!==bottom)bottom.insertBefore(live,bottom.firstChild);
