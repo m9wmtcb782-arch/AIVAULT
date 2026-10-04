@@ -69,31 +69,6 @@
     else if (d.speaker === "dark-star") commit(d.text, "dark");
     if (d.partial === false) open[d.speaker === "dawn-light" ? "dawn" : (d.speaker === "dark-star" ? "dark" : "user")] = null;
   });
-  let lastMic = "";
-  setInterval(function () {
-    const input = document.getElementById("composerInput");
-    if (!input) return;
-    const v = String(input.value || "").trim();
-    if (v && v !== lastMic) {
-      lastMic = v;
-      commit(v, "user");
-    }
-    const live = window.AivaultDualAgentLive;
-    if (live && !live.__repairArm && live.arm) {
-      const orig = live.arm;
-      live.arm = function (which, on) {
-        const out = orig.call(live, which, on);
-        const armed = live.armed ? live.armed() : {};
-        if ((armed.dark || armed.dawn) && !live.__micStarted) {
-          live.__micStarted = true;
-          if (typeof window.__AIVAULT_DARK_STAR_START__ === "function") window.__AIVAULT_DARK_STAR_START__();
-          else if (typeof window.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__ === "function") window.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__();
-        }
-        if (!armed.dark && !armed.dawn) live.__micStarted = false;
-        if (window.DawnLightLiveVoice && window.DawnLightLiveVoice.setGain) window.DawnLightLiveVoice.setGain(1);
-        return out;
-      };
-      live.__repairArm = true;
-    }
-  }, 400);
+  // No shared-microphone polling and no automatic cross-start.
+  // Each Live button owns only its own Live session.
 })();
