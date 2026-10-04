@@ -125,7 +125,7 @@ function ensureSettingsPanel(){
  if(!bottom||!settings)return false;
 
  if(live){
-   live.className='drawer-item';
+   live.classList.add('drawer-item');
    if(!live.classList.contains('active')&&live.textContent.indexOf('✓')<0)live.textContent='暗星即時';
    live.style.removeProperty('display');
    if(live.parentElement!==bottom)bottom.insertBefore(live,bottom.firstChild);
@@ -181,7 +181,7 @@ function ensureSettingsPanel(){
  speedValue.textContent=parseFloat(speed.value).toFixed(2)+'×';
 
  if(live){
-   live.className='drawer-item';
+   live.classList.add('drawer-item');
    if(!live.classList.contains('active')&&live.textContent.indexOf('✓')<0)live.textContent='暗星即時';
    live.style.removeProperty('display');
    live.removeAttribute('aria-hidden');
