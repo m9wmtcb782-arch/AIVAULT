@@ -44,6 +44,7 @@
     this.ws = null;
     this.open = false;
     this.playCtx = null;
+    this.micCtx = null;
     this.nextPlay = 0;
     this.sources = [];
     this.gain = null;
@@ -143,6 +144,9 @@
     var AC = root.AudioContext || root.webkitAudioContext;
     if (!AC || !root.navigator || !root.navigator.mediaDevices || !root.navigator.mediaDevices.getUserMedia) return Promise.resolve(false);
     this.ensureAudio();
+    var MicAC = root.AudioContext || root.webkitAudioContext;
+    this.micCtx = new MicAC({ sampleRate: 16000 });
+    if (this.micCtx.state === "suspended") this.micCtx.resume().catch(function () {});
     return root.navigator.mediaDevices.getUserMedia({
       audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
     }).then(function (stream) {
@@ -162,7 +166,7 @@
         ws.onopen = function () {
           self.open = true;
           try {
-            var ctx = self.playCtx;
+            var ctx = self.micCtx || self.playCtx;
             if (ctx && ctx.state === "suspended") ctx.resume().catch(function () {});
             var src = ctx.createMediaStreamSource(self.micStream);
             var processor = ctx.createScriptProcessor(2048, 1, 1);
