@@ -69,14 +69,26 @@ function restore(){
    if(settings.parentElement!==bottom)bottom.insertBefore(settings,live.nextSibling);
    if(video.parentElement!==bottom)bottom.insertBefore(video,bottom.firstChild);
  }
+ async function toggleDualAgent(which){
+   for(let i=0;i<40;i++){
+     const dual=window.AivaultDualAgentLive;
+     if(dual&&typeof dual.toggleArm==='function'){
+       await dual.toggleArm(which);
+       const state=typeof dual.armed==='function'?dual.armed():null;
+       const id=which==='dark'?'darkStarLiveButton':'dawnLightLiveButton';
+       const b=document.getElementById(id);
+       if(b&&state){const on=which==='dark'?!!state.dark:!!state.dawn;b.textContent=which==='dark'?(on?'暗星即時 ✓':'暗星即時'):(on?'曙光即時 ✓':'曙光即時');b.classList.toggle('active',on)}
+       return;
+     }
+     await new Promise(r=>setTimeout(r,50));
+   }
+   console.error('[AIVAULT] dual-agent live controller is not ready');
+ }
  if(!live.dataset.liveVoiceBound){
    live.dataset.liveVoiceBound='1';
    live.addEventListener('click',async event=>{
      event.preventDefault();event.stopPropagation();
-     if(window.AivaultDualAgentLive&&window.AivaultDualAgentLive.toggleArm)return window.AivaultDualAgentLive.toggleArm('dark');
-     const toggle=window.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__;
-     if(typeof toggle==='function')await toggle();
-     else console.error('[DarkStar] live voice toggle is not ready');
+     await toggleDualAgent('dark');
    });
  }
  let dawnLive=document.getElementById('dawnLightLiveButton');
@@ -90,9 +102,9 @@ function restore(){
  if(bottom&&dawnLive.parentElement!==bottom)bottom.insertBefore(dawnLive,live.nextSibling);
  if(!dawnLive.dataset.liveVoiceBound){
    dawnLive.dataset.liveVoiceBound='1';
-   dawnLive.addEventListener('click',function(event){
+   dawnLive.addEventListener('click',async function(event){
      event.preventDefault();event.stopPropagation();
-     if(window.AivaultDualAgentLive&&window.AivaultDualAgentLive.toggleArm)window.AivaultDualAgentLive.toggleArm('dawn');
+     await toggleDualAgent('dawn');
    });
  }
  var videoWindow=null,videoOpen=false,videoChannel=null;
