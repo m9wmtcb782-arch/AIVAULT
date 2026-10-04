@@ -7470,11 +7470,18 @@ async function sendMessage(){
     isSending =
       false;
 
+    window.__AIVAULT_LAST_SPEECH_SUBMIT__ = "";
 
     sendButton.disabled =
       !input.value.trim() &&
       attachments.length === 0;
 
+    if(window.__AIVAULT_SPEECH_AUTO_RESTART__ && !window.__AIVAULT_LIVE_VOICE_WANTED__ && recognition && !isRecording){
+      window.__AIVAULT_SPEECH_AUTO_RESTART__ = false;
+      setTimeout(function(){
+        try{ startRecording(); }catch(e){}
+      },250);
+    }
 
     renderHistory();
 
@@ -7724,6 +7731,7 @@ if(SpeechRecognition){
 
       if (finalText.trim() && !isSending && finalText.trim() !== window.__AIVAULT_LAST_SPEECH_SUBMIT__) {
         window.__AIVAULT_LAST_SPEECH_SUBMIT__ = finalText.trim();
+        window.__AIVAULT_SPEECH_AUTO_RESTART__ = true;
         document.querySelectorAll('[data-aivault-live-user="1"]').forEach(function(el) {
           var t = el.querySelector(".message-text");
           if (t && t.textContent.trim() === finalText.trim()) el.remove();
