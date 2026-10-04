@@ -84,18 +84,8 @@
   }
 
   function installSendGate() {
-    if (window.__AIVAULT_WAKE_SEND_GATE__ || typeof window.sendMessage !== "function") return;
-    window.__AIVAULT_WAKE_SEND_GATE__ = true;
-    var original = window.sendMessage;
-    window.sendMessage = function () {
-      if (window.__AIVAULT_LAST_ROUTE_SOURCE__ === "speech-recognition") {
-        var allowed = window.AivaultDualAgentLive && window.AivaultDualAgentLive.wakeAllows
-          ? window.AivaultDualAgentLive.wakeAllows("technical-dark-star")
-          : ((router() ? router().active() : []).indexOf("technical-dark-star") !== -1);
-        if (!allowed) return Promise.resolve();
-      }
-      return original.apply(this, arguments);
-    };
+    // Normal composer/microphone input is independent of all Live-agent arming.
+    return;
   }
 
   function startReadSeconds() {
