@@ -86,15 +86,19 @@ function restore(){
  }
  if(!live.dataset.liveVoiceBound){
    live.dataset.liveVoiceBound='1';
+   // Capture-phase + stopImmediatePropagation: this button must have exactly one owner.
+   // Prevent legacy realtime handlers from toggling Dark Star a second time on the same click.
    live.addEventListener('click',async event=>{
-     event.preventDefault();event.stopPropagation();
+     event.preventDefault();
+     event.stopPropagation();
+     event.stopImmediatePropagation();
      const dual=window.AivaultDualAgentLive;
      const next=dual&&typeof dual.armed==='function'?!dual.armed().dark:true;
      live.textContent=next?'暗星即時 ✓':'暗星即時';
      live.classList.toggle('active',next);
      live.setAttribute('aria-pressed',String(next));
      await toggleDualAgent('dark');
-   });
+   },true);
  }
  let dawnLive=document.getElementById('dawnLightLiveButton');
  if(!dawnLive){
