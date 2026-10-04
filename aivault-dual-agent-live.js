@@ -218,25 +218,14 @@
     var label = fromSpeaker === SPEAKER_DARK ? "DARK_STAR" : "DAWN_LIGHT";
     var packed = "[speaker=" + label + " agent_id=" + agentId + "] " + text;
     publish({ speaker: fromSpeaker, agent_id: agentId, text: text, partial: false });
-    if (fromSpeaker === SPEAKER_DARK && root.DawnLightLiveVoice) {
-      root.DawnLightLiveVoice.sendText(packed, SPEAKER_DARK, DARK);
-    }
-    if (fromSpeaker === SPEAKER_DAWN && darkSocket && darkSocket.readyState === 1) {
-      try {
-        darkSocket.send(JSON.stringify({ type: "text", speaker: SPEAKER_DAWN, agent_id: DAWN, text: packed }));
-      } catch (e) {}
-    }
+    // No cross-agent text injection. Each Live session is its own channel.
   }
 
   function noteUserTranscript(text) {
     userBuf += String(text || "");
-    if (agentSpeaking && !interruptedThisUtterance) {
-      interruptedThisUtterance = true;
-      root.AivaultAudioMixer.userInterrupt();
-    }
-    var decision = setWakeFromTranscript(userBuf);
-    publish({ speaker: SPEAKER_USER, agent_id: null, text: userBuf, partial: true });
-    return decision;
+    // Live input belongs to the currently selected Live session only.
+    // Do not mute the other agent and do not publish a second user bubble.
+    return setWakeFromTranscript(userBuf);
   }
 
   function finishUserUtterance() {
@@ -270,7 +259,7 @@
       root.AivaultAudioMixer.apply();
       return Promise.resolve(fresh);
     }
-    var both = fresh.agents.indexOf(DARK) !== -1 && fresh.agents.indexOf(DAWN) !== -1 && armed.dark && armed.dawn;
+    var both = false;
     if (both) {
       var first = namedFirst(fresh.transcript) || SPEAKER_DARK;
       var second = first === SPEAKER_DARK ? SPEAKER_DAWN : SPEAKER_DARK;
@@ -279,13 +268,10 @@
       root.AivaultAudioMixer.solo(first);
       if (first === SPEAKER_DARK) dawnHoldUntil = Date.now() + 120000;
       else darkHoldUntil = Date.now() + 120000;
-    } else if (fresh.agents.indexOf(DAWN) !== -1 && armed.dawn) {
-      root.AivaultAudioMixer.solo(SPEAKER_DAWN);
-      dawnHoldUntil = 0;
-      startCountdown();
     } else {
-      root.AivaultAudioMixer.solo(SPEAKER_DARK);
+      // No mixer/foreground arbitration. Selected Live sessions remain independent.
       dawnHoldUntil = 0;
+      darkHoldUntil = 0;
     }
     publish({ speaker: SPEAKER_USER, agent_id: null, text: fresh.transcript, partial: false });
     return Promise.resolve(fresh);
@@ -373,12 +359,6 @@
     if (out) {
       agentSpeaking = true;
       publish({ speaker: SPEAKER_DARK, agent_id: DARK, text: out, partial: true });
-      if (root.DawnLightLiveVoice) root.DawnLightLiveVoice.sendText("[speaker=DARK_STAR agent_id=technical-dark-star] " + out, SPEAKER_DARK, DARK);
-      root.AivaultAudioMixer.noteSpeaking(SPEAKER_DARK);
-      if (currentWake.indexOf(DAWN) !== -1) {
-        dawnHoldUntil = Math.min(dawnHoldUntil || Date.now() + 400, Date.now() + 400);
-        setTimeout(flushDawnHold, 400);
-      }
     }
     if (content.turnComplete || msg.turnComplete || msg.type === "turnComplete") {
       finishUserUtterance();
@@ -409,7 +389,6 @@
         if (ws.__aivaultAgent === DARK && audioPayload(data)) {
           // 已選取的 Agent 必須先收到使用者麥克風，才能取得 inputTranscription；
           // 喚醒詞只決定本回合誰回答，不應阻止「聽見」使用者。
-          if (armed.dawn) forwardToDawn(data);
           if (armed.dark) return origSend(data);
           return;
         }
@@ -426,28 +405,12 @@
   }
 
   function installPlaybackRoute() {
-    var AC = root.AudioContext || root.webkitAudioContext;
-    if (!AC || AC.prototype.__aivaultMixer) return;
-    AC.prototype.__aivaultMixer = true;
-    var orig = AC.prototype.createBufferSource;
-    AC.prototype.createBufferSource = function () {
-      var src = orig.call(this);
-      var origConnect = src.connect;
-      var ctx = this;
-      src.connect = function (dest) {
-        if (dest === ctx.destination && root.AivaultAudioMixer) {
-          var node = root.AivaultAudioMixer.gain(SPEAKER_DARK, ctx);
-          if (node) return origConnect.call(this, node);
-        }
-        return origConnect.apply(this, arguments);
-      };
-      return src;
-    };
+    // Disabled: Live playback is owned directly by each agent session.
   }
 
   function boot() {
     installWebSocketTag();
-    installPlaybackRoute();
+    // No shared playback mixer.
     var n = 0;
     var timer = setInterval(function () {
       if (installVoiceSelectors() || ++n > 40) clearInterval(timer);
@@ -462,17 +425,6 @@
       if (detail.speaker !== SPEAKER_DAWN) return;
       stopCountdown();
       agentSpeaking = true;
-      if (!detail.partial && darkSocket && darkSocket.readyState === 1) {
-        try {
-          darkSocket.send(JSON.stringify({
-            type: "text",
-            speaker: SPEAKER_DAWN,
-            agent_id: DAWN,
-            text: "[speaker=DAWN_LIGHT agent_id=dawn-light] " + detail.text
-          }));
-        } catch (err) {}
-      }
-      if (!detail.partial) releaseNext(SPEAKER_DAWN);
     });
   }
 
