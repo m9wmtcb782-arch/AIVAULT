@@ -80,7 +80,24 @@
       $('learn').innerHTML=engine.data.learning.filter(l=>l.task_id===selected).map(l=>`<div class="card"><b>candidate</b><div>${esc(l.problem)}</div><div class="muted">promoted=${esc(l.promoted)}</div></div>`).join('')||'<div class="muted">尚無 Learning Candidate</div>';
       $('poolMeta').textContent=`目前 Task：${task()?task().name:selected} · ${engine.data.messages.filter(m=>m.task_id===selected).length} 筆協作紀錄`;
     }
-    $('btnNewTask').onclick=()=>{const t=engine.createTask({name:prompt('Task 名稱','新的 AI 協作任務')||'新的 AI 協作任務',title:'新的 AI 協作任務'});selected=t.task_id;render();};
+    async function dispatchToPool(task){
+      const authKeys=Object.keys(root.localStorage||{}).filter(k=>k.startsWith('sb-')&&k.endsWith('-auth-token'));
+      let access='';
+      for(const k of authKeys){try{const v=JSON.parse(root.localStorage.getItem(k)||'{}');if(v.access_token){access=v.access_token;break;}}catch(e){}}
+      if(!access){
+        $('connNote').textContent='協作池已就緒，但目前瀏覽器沒有 Supabase 登入工作階段；任務已建立，尚未派發。';
+        return;
+      }
+      try{
+        $('connNote').textContent='正在把任務派給協作池 AI…';
+        const r=await fetch('https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/aivault-collaboration-dispatch',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+access},body:JSON.stringify({task:task.description,title:task.title,max_agents:3})});
+        const d=await r.json();
+        if(!r.ok||!d.success)throw Error(d.message||d.error||('HTTP '+r.status));
+        $('connNote').textContent='協作池已實際派發：'+d.dispatched+' 個 AI；完成 '+(d.results||[]).filter(x=>x.ok).length+' 個。';
+        task.status=(d.results||[]).some(x=>x.ok)?'COMPLETED':'BLOCKED';task.progress=(Math.round(((d.results||[]).filter(x=>x.ok).length/Math.max(1,d.dispatched))*100))+'%';task.progress_note='COLLABORATION_POOL_RUNTIME_DISPATCH';engine.persist();render();
+      }catch(e){$('connNote').textContent='協作池派發失敗：'+e.message;}
+    }
+    $('btnNewTask').onclick=async()=>{const name=prompt('Task 名稱','新的 AI 協作任務')||'新的 AI 協作任務';const t=engine.createTask({name,title:name,description:name,status:'READY'});selected=t.task_id;render();await dispatchToPool(t);};
     $('btnAddAgent').onclick=()=>{const a=engine.addAgent({agent_id:$('newAgentId').value.trim(),display_name:$('newAgentName').value.trim()||$('newAgentId').value.trim(),role:$('newAgentRole').value.trim()||'agent',capability:$('newAgentCap').value.trim()||''});$('newAgentId').value='';$('newAgentName').value='';$('newAgentRole').value='';$('newAgentCap').value='';render();};
     $('btnSend').onclick=()=>{const body=$('msgBody').value.trim();if(!body)return;engine.message(selected,$('msgAs').value,body,$('msgType').value,$('msgTo').value||null,{mentions:(body.match(/@[A-Za-z0-9_-]+/g)||[]).map(x=>x.slice(1))});if($('asLearning').checked)engine.learning(selected,$('msgAs').value,$('learnProblem').value,$('learnProposal').value,$('learnReason').value);$('msgBody').value='';render();};
     $('btnReviewReq').onclick=()=>{engine.review(selected,$('msgAs').value==='owner'?'chatgpt':$('msgAs').value,$('msgTo').value||null,'PENDING','Owner requested review');render();};
