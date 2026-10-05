@@ -16,11 +16,15 @@ input,select,textarea,button{font:inherit}input,select,textarea{width:100%;borde
 textarea{min-height:220px;resize:vertical}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
 button{border:1px solid #ccc;background:#fff;border-radius:10px;padding:10px 14px;cursor:pointer}
 button.primary{background:#202123;color:#fff;border-color:#202123}
+button:disabled{opacity:.5;cursor:not-allowed}
 .status{font-size:13px;padding:9px 11px;border-radius:9px;background:#f1f1f1}
-.status.confirmed{background:#edf8f0}.status.warn{background:#fff6df}
+.status.confirmed{background:#edf8f0}.status.warn{background:#fff6df}.status.error{background:#fff0f0}
 .result{white-space:pre-wrap;line-height:1.75;border-top:1px solid #eee;padding-top:14px}
 .badge{display:inline-block;padding:3px 7px;border-radius:7px;background:#eee;font-size:11px;margin-left:6px}
-@media(max-width:760px){.grid{grid-template-columns:1fr 1fr}main{padding:12px}}
+.voicebox{margin-top:14px;padding:14px;border:1px solid #e5e5e5;border-radius:12px;background:#fafafa}
+.voice-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.voice-row select{width:auto;min-width:190px}
+.live-state{font-size:13px;color:#555}
+@media(max-width:760px){.grid{grid-template-columns:1fr 1fr}main{padding:12px}.voice-row select{width:100%}}
 </style>
 </head>
 <body>
@@ -38,24 +42,43 @@ button.primary{background:#202123;color:#fff;border-color:#202123}
 <div class="actions"><button class="primary" id="build">建立導讀＋報告架構</button><button id="clear">清除</button></div>
 <div id="state" class="status" style="margin-top:12px">尚未執行</div>
 </section>
+
 <section class="card">
 <strong>輸出</strong><span class="badge">三段式</span>
 <div id="result" class="result">等待資料。</div>
+<div class="voicebox">
+<strong>🎙 暗星自然口語導讀</strong>
+<p style="margin:7px 0;color:#666;font-size:13px">文稿是內容依據；Gemini Live 負責把內容自然地說出來，不是把文字機械逐字朗讀。</p>
+<div class="voice-row">
+<select id="voiceSelect" aria-label="暗星聲音"></select>
+<button class="primary" id="speakGuide">▶ 用暗星開始導讀</button>
+<button id="stopGuide">■ 停止</button>
+<span id="liveState" class="live-state">⚪ 尚未連線</span>
+</div>
+</div>
 </section>
+
 <section class="card">
 <strong>暗星生成規則</strong>
 <div class="result">導讀：背景 → 為何重要 → 核心問題 → 閱讀地圖
 報告：依資料性質自行組織內容，不預設固定學科模板
 結論：回答「所以呢？」並收束核心發現
-禁止：導讀提前講完整正文、虛構案例、把未驗證資料寫成已確認事實。</div>
+語音：文稿提供事實與內容邊界，Gemini Live 以自然繁體中文口語表達；不得虛構案例、引用或已確認事實。
+注意：目前這一頁先測試「既有導讀文字 → Gemini Live 自然口語」。真正完整的 AI 導讀內容生成仍未接線。</div>
 </section>
 </main>
 <script>
 const $=id=>document.getElementById(id);
+const LIVE_FN='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-voice-v2';
+const SUPABASE_URL='https://clcddygkaaqqtsbswgdf.supabase.co';
+const SUPABASE_PUBLIC_KEY='sb_publishable_1D05YGthBrNGg-5L92TLCw_GiLnInBu';
+const VOICES=[['Zephyr','Zephyr｜明亮'],['Puck','Puck｜歡快'],['Charon','Charon｜資訊豐富'],['Kore','Kore｜堅定'],['Fenrir','Fenrir｜興奮'],['Leda','Leda｜年輕'],['Orus','Orus｜堅定'],['Aoede','Aoede｜輕快'],['Callirrhoe','Callirrhoe｜隨和'],['Autonoe','Autonoe｜明亮'],['Enceladus','Enceladus｜氣聲'],['Iapetus','Iapetus｜清晰'],['Umbriel','Umbriel｜隨和'],['Algieba','Algieba｜柔順'],['Despina','Despina｜柔順'],['Erinome','Erinome｜清晰'],['Algenib','Algenib｜粗獷'],['Rasalgethi','Rasalgethi｜資訊豐富'],['Laomedeia','Laomedeia｜歡快'],['Achernar','Achernar｜柔和'],['Alnilam','Alnilam｜堅定'],['Schedar','Schedar｜均衡'],['Gacrux','Gacrux｜成熟'],['Pulcherrima','Pulcherrima｜前進感'],['Achird','Achird｜友善'],['Zubenelgenubi','Zubenelgenubi｜隨性'],['Vindemiatrix','Vindemiatrix｜溫和'],['Sadachbia','Sadachbia｜活潑'],['Sadaltager','Sadaltager｜知識豐富'],['Sulafat','Sulafat｜溫暖']];
+let ws=null,playCtx=null,nextPlayTime=0,playSources=[],speaking=false;
+
 function makeStructure(){
  const title=$('title').value.trim()||'未命名主題', source=$('source').value.trim();
  if(!source){$('state').textContent='REQUIRES TEST：請先提供教材或資料。';$('state').className='status warn';return;}
- const m=$('minutes').value, kind=$('kind').value, aud=$('audience').value, dep=$('depth').value;
+ const m=$('minutes').value,kind=$('kind').value,aud=$('audience').value,dep=$('depth').value;
  const out=
 `【暗星導讀】
 主題：${title}
@@ -91,8 +114,86 @@ function makeStructure(){
  $('state').textContent='CONFIRMED：獨立結構生成器已執行。AI 模型生成尚未接線。';
  $('state').className='status confirmed';
 }
+
+function initVoices(){
+ const sel=$('voiceSelect');sel.innerHTML='';
+ VOICES.forEach(([id,label])=>{const o=document.createElement('option');o.value=id;o.textContent=id+' — '+label;sel.appendChild(o)});
+ sel.value=localStorage.getItem('darkStarVoice')||'Kore';
+ sel.onchange=()=>localStorage.setItem('darkStarVoice',sel.value);
+}
+function setLiveState(s,cls=''){const e=$('liveState');e.textContent=s;e.className='live-state '+cls;}
+function readAuthSession(){try{const raw=localStorage.getItem('sb-clcddygkaaqqtsbswgdf-auth-token');return raw?JSON.parse(raw):null}catch(e){return null}}
+async function accessToken(){
+ const j=readAuthSession();if(!j)return '';
+ return String(j.access_token||(j.currentSession&&j.currentSession.access_token)||'').trim();
+}
+function ensureAudio(){
+ if(!playCtx)playCtx=new AudioContext();
+ return playCtx.state==='running'?Promise.resolve():playCtx.resume();
+}
+function stopAudio(){playSources.forEach(s=>{try{s.stop()}catch(e){}});playSources=[];nextPlayTime=0;}
+function playPCM(buf){
+ if(!playCtx)return;
+ const bytes=new Uint8Array(buf),pcm=new Int16Array(bytes.buffer,bytes.byteOffset,Math.floor(bytes.byteLength/2));
+ if(!pcm.length)return;
+ const audio=playCtx.createBuffer(1,pcm.length,24000),data=audio.getChannelData(0);
+ for(let i=0;i<pcm.length;i++)data[i]=pcm[i]/32768;
+ const src=playCtx.createBufferSource();src.buffer=audio;src.connect(playCtx.destination);
+ const now=playCtx.currentTime;if(nextPlayTime<now+.03)nextPlayTime=now+.03;
+ src.start(nextPlayTime);nextPlayTime+=audio.duration;playSources.push(src);
+ src.onended=()=>{const i=playSources.indexOf(src);if(i>=0)playSources.splice(i,1)};
+}
+function playBase64PCM(b64){try{const bin=atob(b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);playPCM(u.buffer)}catch(e){}}
+function handleLiveMessage(raw){
+ if(raw instanceof ArrayBuffer){playPCM(raw);return}
+ let d;try{d=JSON.parse(raw)}catch(e){return}
+ const sc=d.serverContent||d;
+ if(d.type==='live_open'||d.setupComplete)setLiveState=''; 
+ if(d.type==='live_open'||d.setupComplete){setLiveState('🟢 Gemini Live 已啟動');}
+ const parts=(sc.modelTurn&&sc.modelTurn.parts)||(d.modelTurn&&d.modelTurn.parts)||[];
+ parts.forEach(p=>{const x=p&&p.inlineData;if(x&&x.data&&String(x.mimeType||'').startsWith('audio/'))playBase64PCM(x.data)});
+ if(d.audio&&d.audio.data)playBase64PCM(d.audio.data);
+ if(d.data&&String(d.mimeType||'').startsWith('audio/'))playBase64PCM(d.data);
+ if(sc.turnComplete||d.turnComplete||d.type==='turnComplete'){speaking=false;setLiveState('🟢 導讀完成');}
+ if(d.type==='error'||d.error){const m=d.message||(d.error&&d.error.message)||JSON.stringify(d.error);setLiveState('🔴 '+m);speaking=false;}
+}
+async function connectLive(){
+ const q=new URLSearchParams();
+ q.set('voice',$('voiceSelect').value||'Kore');
+ q.set('agent_id','technical-dark-star');
+ const topicId=localStorage.getItem('technical-dark-star-topic-id')||'';
+ const conversationId=localStorage.getItem('technical_dark_star_conversation_id')||'';
+ const tok=await accessToken();
+ if(topicId)q.set('topic_id',topicId);
+ if(conversationId)q.set('conversation_id',conversationId);
+ if(tok)q.set('access_token',tok);
+ ws=new WebSocket(LIVE_FN+'?'+q.toString());
+ ws.binaryType='arraybuffer';
+ ws.onopen=()=>setLiveState('🟢 Gemini Live 已連線');
+ ws.onmessage=e=>handleLiveMessage(e.data);
+ ws.onerror=()=>setLiveState('🔴 WebSocket 錯誤');
+ ws.onclose=()=>{if(speaking)setLiveState('⚪ 已斷線');speaking=false;ws=null;};
+ await new Promise((resolve,reject)=>{const t=setTimeout(()=>reject(new Error('連線逾時')),8000);const old=ws.onopen;ws.onopen=()=>{clearTimeout(t);old&&old();resolve()};ws.onerror=()=>{clearTimeout(t);reject(new Error('WebSocket error'))};});
+}
+async function speakGuide(){
+ const result=$('result').textContent.trim();
+ if(!result||result==='等待資料。'){setLiveState('⚠️ 請先建立導讀內容');return;}
+ await ensureAudio();stopAudio();
+ if(ws){try{ws.close()}catch(e){}ws=null}
+ speaking=true;setLiveState('🟡 連接 Gemini Live…');
+ try{
+  await connectLive();
+  const prompt='請以暗星的身份，用自然、流暢、像老師親自講解的繁體中文口語來進行導讀。不要機械逐字朗讀；可以調整句子節奏、停頓、語氣與銜接，但不得新增原稿沒有根據的事實、案例、引用或結論。以下是目前的導讀／報告內容依據：\n\n'+result;
+  ws.send(JSON.stringify({type:'text',text:prompt}));
+  setLiveState('🟢 暗星正在自然口語導讀…');
+ }catch(e){speaking=false;setLiveState('🔴 無法啟動：'+(e.message||e));if(ws){try{ws.close()}catch(_){}ws=null}}
+}
+function stopGuide(){speaking=false;stopAudio();if(ws){try{ws.close()}catch(e){}ws=null}setLiveState('⚪ 已停止');}
 $('build').onclick=makeStructure;
-$('clear').onclick=()=>{ $('source').value='';$('title').value='';$('result').textContent='等待資料。';$('state').textContent='尚未執行';$('state').className='status'; };
+$('clear').onclick=()=>{$('source').value='';$('title').value='';$('result').textContent='等待資料。';$('state').textContent='尚未執行';$('state').className='status';stopGuide()};
+$('speakGuide').onclick=speakGuide;
+$('stopGuide').onclick=stopGuide;
+initVoices();
 </script>
 </body>
 </html>
