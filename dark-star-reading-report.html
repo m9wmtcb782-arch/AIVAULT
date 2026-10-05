@@ -31,8 +31,8 @@ button{border:1px solid #ccc;background:#fff;border-radius:10px;padding:10px 14p
 </div>
 <div style="margin-top:12px"><label>主題／標題</label><input id="title" placeholder="例如：第九章 決算制度"></div>
 <div style="margin-top:12px"><label>教材或資料</label><textarea id="source" placeholder="貼上教材、章節、講義或資料。系統會先建立導讀與報告結構，不會把導讀當成正文重複一次。"></textarea></div>
-<div class="actions"><button class="primary" id="build">建立導讀＋報告架構</button><button id="clear">清除</button></div>
-<div id="state" class="status" style="margin-top:12px">尚未執行</div>
+<div class="actions"><button class="primary" id="build">建立導讀＋報告架構</button><button class="primary" id="generateAI">讓暗星真正生成導讀＋報告</button><button id="clear">清除</button></div>
+<div id="state" class="status" style="margin-top:12px">尚未執行</div><div id="aiState" class="status warn" style="margin-top:8px">AI 生成：尚未執行</div>
 </section>
 <section class="card">
 <strong>輸出</strong><span class="badge">三段式</span><div id="result" class="result">等待資料。</div>
@@ -45,7 +45,7 @@ button{border:1px solid #ccc;background:#fff;border-radius:10px;padding:10px 14p
 報告：依資料性質自行組織內容，不預設固定學科模板
 結論：回答「所以呢？」並收束核心發現
 語音：文稿提供事實與內容邊界，Gemini Live 以自然繁體中文口語表達；不得虛構案例、引用或已確認事實。
-注意：目前這一頁先測試「既有導讀文字 → Gemini Live 自然口語」。真正完整的 AI 導讀內容生成仍未接線。</div>
+AI 生成：教材 → 暗星獨立導讀／報告生成服務 → AIVAULT AI Gateway → Gemini 3.6 Flash；只有模型實際回傳完整稿件才顯示為生成成功。語音：生成完成後再交給 Gemini Live 自然口語表達。</div>
 </section>
 </main>
 <script>
@@ -83,6 +83,27 @@ function makeStructure(){const title=$('title').value.trim()||'未命名主題',
 【狀態】
 此頁目前完成「報告結構生成器」的獨立前端測試。
 真正由暗星模型產生完整內容，仍需接入已驗證的 AIVAULT AI Gateway，因此不能把本次結構輸出冒充成 AI 生成結果。`;$('result').textContent=out;$('state').textContent='CONFIRMED：獨立結構生成器已執行。AI 模型生成尚未接線。';$('state').className='status confirmed';}
+const READING_REPORT_API='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/dark-star-reading-report';
+async function generateAI(){
+  const source=$('source').value.trim();
+  if(!source){$('aiState').textContent='REQUIRES TEST：請先提供教材或資料。';$('aiState').className='status warn';return;}
+  $('generateAI').disabled=true;$('aiState').textContent='🟡 暗星正在分析教材並生成完整導讀、報告與結論…';$('aiState').className='status warn';
+  try{
+    const r=await fetch(READING_REPORT_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      title:$('title').value.trim()||'未命名主題',kind:$('kind').value,audience:$('audience').value,depth:$('depth').value,minutes:$('minutes').value,source
+    })});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.success)throw new Error(d.error||d.message||('HTTP '+r.status));
+    const x=d.result;
+    $('result').textContent='【暗星導讀】\n'+x.guide_title+'\n\n'+x.guide+'\n\n【正式報告】\n'+x.report+'\n\n【結論】\n'+x.conclusion+'\n\n【證據／查證備註】\n'+(Array.isArray(x.evidence_notes)?x.evidence_notes.join('\n'):String(x.evidence_notes||''))+'\n\n【需要查證】\n'+(Array.isArray(x.verification_notes)?x.verification_notes.join('\n'):String(x.verification_notes||'')); 
+    $('aiState').textContent='CONFIRMED：暗星 AI 已回傳完整導讀＋報告＋結論。模型：'+(d.model||'gemini-3.6-flash');
+    $('aiState').className='status confirmed';
+    $('state').textContent='CONFIRMED：已由暗星 AI 生成內容，不是前端固定模板。';$('state').className='status confirmed';
+  }catch(e){
+    $('aiState').textContent='🔴 AI 生成失敗：'+(e.message||e);
+    $('aiState').className='status warn';
+  }finally{$('generateAI').disabled=false;}
+}
 function initVoices(){const sel=$('voiceSelect');VOICES.forEach(([id,label])=>{const o=document.createElement('option');o.value=id;o.textContent=id+' — '+label;sel.appendChild(o)});sel.value=localStorage.getItem('darkStarVoice')||'Kore';sel.onchange=()=>localStorage.setItem('darkStarVoice',sel.value);}
 function setLiveState(s){$('liveState').textContent=s;}
 function readAuthSession(){try{const raw=localStorage.getItem('sb-clcddygkaaqqtsbswgdf-auth-token');return raw?JSON.parse(raw):null}catch(e){return null}}
@@ -95,7 +116,7 @@ function handleLiveMessage(raw){if(raw instanceof ArrayBuffer){playPCM(raw);retu
 async function connectLive(){const q=new URLSearchParams();q.set('voice',$('voiceSelect').value||'Kore');q.set('agent_id','technical-dark-star');const topicId=localStorage.getItem('technical-dark-star-topic-id')||'',conversationId=localStorage.getItem('technical_dark_star_conversation_id')||'',tok=await accessToken();if(topicId)q.set('topic_id',topicId);if(conversationId)q.set('conversation_id',conversationId);if(tok)q.set('access_token',tok);ws=new WebSocket(LIVE_FN+'?'+q.toString());ws.binaryType='arraybuffer';await new Promise((resolve,reject)=>{const socket=ws,t=setTimeout(()=>{try{socket.close()}catch(e){}reject(new Error('連線逾時'))},8000);socket.onopen=()=>{clearTimeout(t);setLiveState('🟢 Gemini Live 已連線');resolve()};socket.onerror=()=>{clearTimeout(t);reject(new Error('WebSocket error'))};socket.onmessage=e=>handleLiveMessage(e.data);socket.onclose=()=>{if(speaking)setLiveState('⚪ 已斷線');speaking=false;ws=null;}});}
 async function speakGuide(){const result=$('result').textContent.trim();if(!result||result==='等待資料。'){setLiveState('⚠️ 請先建立導讀內容');return}await ensureAudio();stopAudio();if(ws){try{ws.close()}catch(e){}ws=null}speaking=true;setLiveState('🟡 連接 Gemini Live…');try{await connectLive();const prompt='請以暗星的身份，用自然、流暢、像老師親自講解的繁體中文口語來進行導讀。不要機械逐字朗讀；可以調整句子節奏、停頓、語氣與銜接，但不得新增原稿沒有根據的事實、案例、引用或結論。以下是目前的導讀／報告內容依據：\n\n'+result;ws.send(JSON.stringify({type:'text',text:prompt}));setLiveState('🟢 暗星正在自然口語導讀…')}catch(e){speaking=false;setLiveState('🔴 無法啟動：'+(e.message||e));if(ws){try{ws.close()}catch(_){}ws=null}}}
 function stopGuide(){speaking=false;stopAudio();if(ws){try{ws.close()}catch(e){}ws=null}setLiveState('⚪ 已停止');}
-$('build').onclick=makeStructure;$('clear').onclick=()=>{$('source').value='';$('title').value='';$('result').textContent='等待資料。';$('state').textContent='尚未執行';$('state').className='status';stopGuide()};$('speakGuide').onclick=speakGuide;$('stopGuide').onclick=stopGuide;initVoices();
+$('build').onclick=makeStructure;$('generateAI').onclick=generateAI;$('clear').onclick=()=>{$('source').value='';$('title').value='';$('result').textContent='等待資料。';$('state').textContent='尚未執行';$('state').className='status';stopGuide()};$('speakGuide').onclick=speakGuide;$('stopGuide').onclick=stopGuide;initVoices();
 </script>
 </body>
 </html>
