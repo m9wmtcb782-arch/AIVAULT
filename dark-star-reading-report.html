@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>暗星｜導讀與報告工作站</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f7f7f8;color:#202123;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif}
+header{background:#fff;border-bottom:1px solid #e5e5e5;padding:18px 20px;position:sticky;top:0;z-index:2}
+h1{margin:0;font-size:20px}header p{margin:6px 0 0;color:#666;font-size:13px}
+main{max-width:1100px;margin:auto;padding:18px;display:grid;gap:16px}
+.card{background:#fff;border:1px solid #e5e5e5;border-radius:14px;padding:16px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+label{font-size:13px;color:#555;display:block;margin-bottom:6px}
+input,select,textarea,button{font:inherit}input,select,textarea{width:100%;border:1px solid #d7d7d7;border-radius:10px;padding:10px;background:#fff}
+textarea{min-height:220px;resize:vertical}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+button{border:1px solid #ccc;background:#fff;border-radius:10px;padding:10px 14px;cursor:pointer}
+button.primary{background:#202123;color:#fff;border-color:#202123}
+.status{font-size:13px;padding:9px 11px;border-radius:9px;background:#f1f1f1}
+.status.confirmed{background:#edf8f0}.status.warn{background:#fff6df}
+.result{white-space:pre-wrap;line-height:1.75;border-top:1px solid #eee;padding-top:14px}
+.badge{display:inline-block;padding:3px 7px;border-radius:7px;background:#eee;font-size:11px;margin-left:6px}
+@media(max-width:760px){.grid{grid-template-columns:1fr 1fr}main{padding:12px}}
+</style>
+</head>
+<body>
+<header><h1>暗星｜導讀與報告工作站</h1><p>獨立測試模組｜不修改 Technical Dark Star 核心頁面</p></header>
+<main>
+<section class="card">
+<div class="grid">
+<div><label>內容類型</label><select id="kind"><option>教材／課本</option><option>論文</option><option>法律／行政資料</option><option>小說／故事</option><option>一般資料</option></select></div>
+<div><label>報告時間</label><select id="minutes"><option>10</option><option selected>25</option><option>40</option><option>60</option></select></div>
+<div><label>讀者</label><select id="audience"><option>一般讀者</option><option selected>大學生／研究生</option><option>教師</option><option>專業人士</option></select></div>
+<div><label>深度</label><select id="depth"><option>入門</option><option selected>中等</option><option>深入</option></select></div>
+</div>
+<div style="margin-top:12px"><label>主題／標題</label><input id="title" placeholder="例如：第九章 決算制度"></div>
+<div style="margin-top:12px"><label>教材或資料</label><textarea id="source" placeholder="貼上教材、章節、講義或資料。系統會先建立導讀與報告結構，不會把導讀當成正文重複一次。"></textarea></div>
+<div class="actions"><button class="primary" id="build">建立導讀＋報告架構</button><button id="clear">清除</button></div>
+<div id="state" class="status" style="margin-top:12px">尚未執行</div>
+</section>
+<section class="card">
+<strong>輸出</strong><span class="badge">三段式</span>
+<div id="result" class="result">等待資料。</div>
+</section>
+<section class="card">
+<strong>暗星生成規則</strong>
+<div class="result">導讀：背景 → 為何重要 → 核心問題 → 閱讀地圖
+報告：依資料性質自行組織內容，不預設固定學科模板
+結論：回答「所以呢？」並收束核心發現
+禁止：導讀提前講完整正文、虛構案例、把未驗證資料寫成已確認事實。</div>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+function makeStructure(){
+ const title=$('title').value.trim()||'未命名主題', source=$('source').value.trim();
+ if(!source){$('state').textContent='REQUIRES TEST：請先提供教材或資料。';$('state').className='status warn';return;}
+ const m=$('minutes').value, kind=$('kind').value, aud=$('audience').value, dep=$('depth').value;
+ const out=
+`【暗星導讀】
+主題：${title}
+內容類型：${kind}
+對象：${aud}
+報告時間：${m} 分鐘
+深度：${dep}
+
+一、背景：說明這份材料為何出現、處理什麼問題。
+二、核心問題：提出讀者進入正文前最需要掌握的問題。
+三、閱讀地圖：說明接下來報告將如何回答這些問題。
+※ 導讀只負責建立理解方向，不提前取代正式報告。
+
+【正式報告】
+第一部分｜主題與基本概念
+第二部分｜材料的核心論點／制度／情節
+第三部分｜重要證據與資料依據
+第四部分｜爭點、因果關係或不同觀點
+第五部分｜實例與實務連結（有可靠資料才使用）
+第六部分｜綜合分析
+第七部分｜本章小結
+
+【結論】
+一、最重要的發現
+二、前面提出的核心問題如何被回答
+三、仍存在的問題／限制
+四、讀者應帶走的一個核心觀念
+
+【狀態】
+此頁目前完成「報告結構生成器」的獨立前端測試。
+真正由暗星模型產生完整內容，仍需接入已驗證的 AIVAULT AI Gateway，因此不能把本次結構輸出冒充成 AI 生成結果。`;
+ $('result').textContent=out;
+ $('state').textContent='CONFIRMED：獨立結構生成器已執行。AI 模型生成尚未接線。';
+ $('state').className='status confirmed';
+}
+$('build').onclick=makeStructure;
+$('clear').onclick=()=>{ $('source').value='';$('title').value='';$('result').textContent='等待資料。';$('state').textContent='尚未執行';$('state').className='status'; };
+</script>
+</body>
+</html>
