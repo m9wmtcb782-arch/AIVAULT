@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AIVAULT｜Agent 協作池文字對話</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif;margin:0;background:#0b1020;color:#eef2ff}
+header{padding:18px 20px;background:#111936;position:sticky;top:0;z-index:2}
+h1{margin:0 0 6px;font-size:22px}.sub{color:#9da9c9;font-size:13px}
+main{max-width:1000px;margin:auto;padding:16px}
+.panel{background:#121a32;border:1px solid #293556;border-radius:14px;padding:14px;margin-bottom:14px}
+.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1;min-width:140px}
+input,select,button{box-sizing:border-box;width:100%;padding:11px;border-radius:9px;border:1px solid #344366;background:#0d1428;color:#fff}
+button{cursor:pointer;background:#263b72;border-color:#4d6fbd;font-weight:700}
+button:disabled{opacity:.5}
+#status{font-size:13px;color:#aeb9d6;margin-top:9px}
+#chat{min-height:55vh;max-height:70vh;overflow:auto}
+.msg{padding:12px 13px;border-bottom:1px solid #222d49}.name{font-weight:800;margin-bottom:5px}.meta{font-size:11px;color:#7180a3;margin-bottom:5px}.text{white-space:pre-wrap;line-height:1.55}
+.empty{text-align:center;color:#7886a8;padding:50px 10px}
+.badge{display:inline-block;padding:3px 7px;border:1px solid #3b4b70;border-radius:999px;font-size:11px;color:#b9c6e7;margin-left:5px}
+</style></head>
+<body>
+<header><h1>AIVAULT｜Agent 協作池文字對話</h1><div class="sub">1000 個獨立 Agent · 可看見真實對話文字</div></header>
+<main>
+<section class="panel">
+<div class="row">
+<div><label>聊天場 ID</label><input id="thread" placeholder="貼上聊天場 UUID"></div>
+<div><label>討論主題</label><input id="topic" value="如果一個決策可能帶來巨大收益，但也可能傷害少數人，你會怎麼判斷？"></div>
+<div><label>輪數（1–3）</label><input id="rounds" type="number" min="1" max="3" value="1"></div>
+</div>
+<div style="margin-top:10px"><button id="start">開始讓 Agent 對話</button></div>
+<div id="status">等待開始。</div>
+</section>
+<section class="panel"><div id="chat"><div class="empty">輸入聊天場 ID 後開始。這裡只顯示資料庫實際寫入的 Agent 發言。</div></div></section>
+</main>
+<script>
+const SUPABASE_URL="https://clcddygkaaqqtsbswgdf.supabase.co";
+const FUNCTION_URL=SUPABASE_URL+"/functions/v1/aivault-agent-collaboration-chat";
+const chat=document.querySelector("#chat"),status=document.querySelector("#status");
+function render(messages){
+ chat.innerHTML="";
+ if(!messages.length){chat.innerHTML='<div class="empty">目前沒有對話。</div>';return}
+ for(const m of messages){
+  const d=document.createElement("div");d.className="msg";
+  d.innerHTML='<div class="name">'+escapeHtml(m.display_name||m.sender_agent_id)+' <span class="badge">'+escapeHtml(m.sender_agent_id)+'</span></div>'+
+   '<div class="meta">'+new Date(m.created_at||Date.now()).toLocaleString("zh-TW")+'</div>'+
+   '<div class="text">'+escapeHtml(m.content||"")+'</div>';
+  chat.appendChild(d);
+ }
+ chat.scrollTop=chat.scrollHeight;
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+async function loadMessages(thread){
+ const r=await fetch(SUPABASE_URL+"/rest/v1/aivault_agent_chat_messages?thread_id=eq."+encodeURIComponent(thread)+"&select=id,sender_agent_id,content,created_at&order=created_at.asc",{headers:{apikey:"__PUBLIC_ANON_KEY_REQUIRED__"}});
+ if(!r.ok) throw new Error("無法讀取聊天訊息："+r.status);
+ const data=await r.json();render(data);
+}
+document.querySelector("#start").onclick=async()=>{
+ const thread=document.querySelector("#thread").value.trim();
+ const topic=document.querySelector("#topic").value.trim();
+ const rounds=Math.min(3,Math.max(1,Number(document.querySelector("#rounds").value)||1));
+ if(!thread){status.textContent="請先輸入聊天場 ID。";return}
+ status.textContent="正在讓 Agent 依序思考與發言……";
+ document.querySelector("#start").disabled=true;
+ try{
+  const r=await fetch(FUNCTION_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({thread_id:thread,topic,rounds})});
+  const data=await r.json();
+  if(!r.ok||!data.success) throw new Error(data.message||data.error||("HTTP "+r.status));
+  const messages=(data.messages||[]).map(m=>({ ...m, display_name:m.sender_agent_id }));
+  render(messages);
+  status.textContent="CONFIRMED｜本次寫入 "+messages.length+" 則 Agent 真實模型回覆。";
+ }catch(e){status.textContent="NOT VERIFIED｜"+e.message}
+ finally{document.querySelector("#start").disabled=false}
+};
+</script>
+</body></html>
