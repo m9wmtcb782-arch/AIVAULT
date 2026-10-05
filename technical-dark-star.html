@@ -5149,9 +5149,15 @@ function buildImageTaskState(previousTask, userMessage, continuation){
     if(/黑髮|黑色頭髮|黑長髮|長髮/i.test(text)) task.hair="黑色長髮";
     if(/性感/i.test(text)) task.style="性感成人肖像風格";
   }
-  if(/豐滿|胸大|胸部大|胸部豐滿/i.test(text)) task.body="上半身比例豐滿；只在使用者要求時調整身體比例。";
-  if(/近距離|近景|上半身|半身|特寫/i.test(text)) task.camera="中近景／上半身構圖；完整頭部、完整臉部、雙肩與足夠上半身可見，不裁切臉或頭。";
-  if(/全身/i.test(text)) task.camera="全身構圖";
+  if(/豐滿|豐腴|曲線豐滿|身材豐滿/i.test(text)){
+    task.body="成人身體比例較豐滿、自然有曲線；肩、腰、臀與四肢比例協調，保持自然人體結構。身材描述不等同於鏡頭構圖要求。";
+  }
+  if(/纖細|苗條|瘦|修長/i.test(text)){
+    task.body="成人身體比例較纖細、自然修長；肩、腰、臀與四肢比例協調，保持自然人體結構。";
+  }
+  if(/近距離|近景|特寫/i.test(text)) task.camera="中近景構圖；完整頭部與臉部可見，不裁切臉或頭。";
+  if(/上半身|半身/i.test(text)) task.camera="上半身／半身構圖；完整頭部、完整臉部與雙肩可見，不裁切臉或頭。";
+  if(/全身/i.test(text)) task.camera="全身構圖；從頭到腳完整入鏡，不裁切頭部或腳部。";
   if(/背景/i.test(text)) task.background=text;
   if(/光線|柔光|逆光|燈光/i.test(text)) task.lighting=text;
   if(/姿勢|動作/i.test(text)) task.pose=text;
@@ -5239,6 +5245,17 @@ function getLatestImageTask(){
   return null;
 }
 
+
+function getRequestedImageAspectRatio(text){
+  const value=String(text||"").trim();
+  if(/(?:手機直式|直式|豎版|豎直|9[:：]16|9／16)/i.test(value)) return "9:16";
+  if(/(?:橫式|橫向|寬幅|橫幅|16[:：]9|16／9)/i.test(value)) return "16:9";
+  if(/(?:全身|站立全身|從頭到腳|完整全身)/i.test(value)) return "2:3";
+  if(/(?:上半身|半身)/i.test(value)) return "3:4";
+  if(/(?:近距離|近景|特寫|頭像|頭部特寫)/i.test(value)) return "4:5";
+  if(/(?:正方形|方形|1[:：]1|1／1)/i.test(value)) return "1:1";
+  return "3:4";
+}
 
 function getRequestedImageAppearanceGuidance(text){
   const value = String(text || "").trim();
@@ -5778,7 +5795,7 @@ async function makeJpgImageWithDarkStar(
               "image/jpeg",
 
             aspect_ratio:
-              "1:1",
+              getRequestedImageAspectRatio(userMessage),
 
             image_size:
               "1K",
