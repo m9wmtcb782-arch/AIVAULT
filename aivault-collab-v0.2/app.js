@@ -66,50 +66,53 @@
       root.document.querySelectorAll('[data-task]').forEach(x=>x.onclick=()=>{selected=x.dataset.task;render();});
       $('agentList').innerHTML=engine.data.agents.map(a=>`<div class="card"><div class="row"><span class="name">${esc(a.display_name)}</span><span class="status ${a.status==='WORKING'?'ok':'idle'}">${esc(a.status)}</span></div><div class="muted">${esc(a.role)} · ${esc(a.connection_status)}</div><div class="muted">${esc(a.capability)}</div></div>`).join('');
       $('msgType').innerHTML=TYPES.map(x=>`<option>${x}</option>`).join('');
-      $('msgAs').innerHTML='<option value="owner">Owner</option>'+engine.data.agents.map(a=>`<option value="${esc(a.agent_id)}">${esc(a.display_name)}</option>`).join('');
-      $('msgTo').innerHTML='<option value="">廣播 / 不指定</option>'+engine.data.agents.map(a=>`<option value="${esc(a.agent_id)}">${esc(a.display_name)}</option>`).join('');
-      $('filterType').innerHTML='<option value="">全部類型</option>'+TYPES.map(x=>`<option>${x}</option>`).join('');
-      $('pool').innerHTML=(engine.data.messages.filter(m=>m.task_id===selected&&(!$('filterType').value||m.message_type===$('filterType').value)).slice().reverse().map(m=>`<div class="msg"><div class="meta"><span class="tag ${esc(m.message_type)}">${esc(m.message_type)}</span>${esc((engine.agent(m.sender_agent_id)||{}).display_name||m.sender_agent_id)} → ${esc((engine.agent(m.receiver_agent_id)||{}).display_name||m.receiver_agent_id||'Pool')} · ${esc(m.created_at)}</div><div>${esc(m.content)}</div>${m.owner_proxy?'<div class="muted">OWNER_PROXY · agent action is recorded, not fabricated as external execution</div>':''}</div>`).join(''))||'<div class="empty">尚無工作紀錄</div>';
-      const gates=engine.data.gates.filter(g=>g.task_id===selected);$('gates').innerHTML=(gates.map(g=>`<div class="gate"><span>${esc(g.gate_key)}</span><span>${esc(g.state)}</span></div>`).join(''))||'<div class="muted">尚無 Gate</div>';
-      $('subs').innerHTML=engine.data.subtasks.filter(s=>s.parent_task_id===selected).map(s=>`<div class="card"><b>${esc(s.subtask_id)}</b><div class="muted">${esc(s.assigned_agent||'unassigned')} · ${esc(s.status)}</div>${esc(s.description)}</div>`).join('')||'<div class="muted">尚無 Subtask</div>';
-      $('codes').innerHTML=engine.data.codes.filter(c=>c.task_id===selected).map(c=>`<div class="card"><b>${esc(c.file_path)}</b><div class="muted">${esc(c.branch)} · ${esc(c.commit_hash||'NOT AVAILABLE')}</div></div>`).join('')||'<div class="muted">尚無 Code Ref</div>';
-      $('reviews').innerHTML=engine.data.reviews.filter(r=>r.task_id===selected).map(r=>`<div class="card"><b>${esc(r.status)}</b><div class="muted">${esc(r.reviewer_agent_id)} → ${esc(r.target_agent_id)}</div>${esc(r.findings)}</div>`).join('')||'<div class="muted">尚無 Review</div>';
-      $('tests').innerHTML=engine.data.tests.filter(t=>t.task_id===selected).map(t=>`<div class="card"><b>${esc(t.status)}</b><div class="muted">${esc(t.agent_id)} · ${esc(t.test_type)}</div>${esc(t.result)}</div>`).join('')||'<div class="muted">尚無 Test</div>';
-      $('actions').innerHTML=engine.data.actions.filter(a=>a.task_id===selected).map(a=>`<div class="card"><b>${esc(a.action_type)}</b><div class="muted">${esc(a.agent_id)} · ${esc(a.status)}</div></div>`).join('')||'<div class="muted">尚無 Action</div>';
-      $('events').innerHTML=engine.data.events.filter(e=>e.task_id===selected).slice(-15).reverse().map(e=>`<div class="muted">${esc(e.created_at)} · ${esc(e.event_type)} · ${esc(e.actor_id)}</div>`).join('')||'<div class="muted">尚無 Event</div>';
-      $('learn').innerHTML=engine.data.learning.filter(l=>l.task_id===selected).map(l=>`<div class="card"><b>candidate</b><div>${esc(l.problem)}</div><div class="muted">promoted=${esc(l.promoted)}</div></div>`).join('')||'<div class="muted">尚無 Learning Candidate</div>';
-      $('poolMeta').textContent=`目前 Task：${task()?task().name:selected} · ${engine.data.messages.filter(m=>m.task_id===selected).length} 筆協作紀錄`;
+      if($('msgAs')) $('msgAs').innerHTML='<option value="owner">Owner</option>'+engine.data.agents.map(a=>`<option value="${esc(a.agent_id)}">${esc(a.display_name)}</option>`).join('');
+      if($('msgTo')) $('msgTo').innerHTML='<option value="">廣播 / 不指定</option>'+engine.data.agents.map(a=>`<option value="${esc(a.agent_id)}">${esc(a.display_name)}</option>`).join('');
+      if($('filterType')) $('filterType').innerHTML='<option value="">全部類型</option>'+TYPES.map(x=>`<option>${x}</option>`).join('');
+      if($('pool')) $('pool').innerHTML=(engine.data.messages.filter(m=>m.task_id===selected&&(!($('filterType')?$('filterType').value:'')||m.message_type===($('filterType')?$('filterType').value:''))).slice().reverse().map(m=>`<div class="msg"><div class="meta"><span class="tag ${esc(m.message_type)}">${esc(m.message_type)}</span>${esc((engine.agent(m.sender_agent_id)||{}).display_name||m.sender_agent_id)} → ${esc((engine.agent(m.receiver_agent_id)||{}).display_name||m.receiver_agent_id||'Pool')} · ${esc(m.created_at)}</div><div>${esc(m.content)}</div>${m.owner_proxy?'<div class="muted">OWNER_PROXY · agent action is recorded, not fabricated as external execution</div>':''}</div>`).join(''))||'<div class="empty">尚無工作紀錄</div>';
+      const gates=engine.data.gates.filter(g=>g.task_id===selected);if($('gates')) $('gates').innerHTML=(gates.map(g=>`<div class="gate"><span>${esc(g.gate_key)}</span><span>${esc(g.state)}</span></div>`).join(''))||'<div class="muted">尚無 Gate</div>';
+      if($('subs')) $('subs').innerHTML=engine.data.subtasks.filter(s=>s.parent_task_id===selected).map(s=>`<div class="card"><b>${esc(s.subtask_id)}</b><div class="muted">${esc(s.assigned_agent||'unassigned')} · ${esc(s.status)}</div>${esc(s.description)}</div>`).join('')||'<div class="muted">尚無 Subtask</div>';
+      if($('codes')) $('codes').innerHTML=engine.data.codes.filter(c=>c.task_id===selected).map(c=>`<div class="card"><b>${esc(c.file_path)}</b><div class="muted">${esc(c.branch)} · ${esc(c.commit_hash||'NOT AVAILABLE')}</div></div>`).join('')||'<div class="muted">尚無 Code Ref</div>';
+      if($('reviews')) $('reviews').innerHTML=engine.data.reviews.filter(r=>r.task_id===selected).map(r=>`<div class="card"><b>${esc(r.status)}</b><div class="muted">${esc(r.reviewer_agent_id)} → ${esc(r.target_agent_id)}</div>${esc(r.findings)}</div>`).join('')||'<div class="muted">尚無 Review</div>';
+      if($('tests')) $('tests').innerHTML=engine.data.tests.filter(t=>t.task_id===selected).map(t=>`<div class="card"><b>${esc(t.status)}</b><div class="muted">${esc(t.agent_id)} · ${esc(t.test_type)}</div>${esc(t.result)}</div>`).join('')||'<div class="muted">尚無 Test</div>';
+      if($('actions')) $('actions').innerHTML=engine.data.actions.filter(a=>a.task_id===selected).map(a=>`<div class="card"><b>${esc(a.action_type)}</b><div class="muted">${esc(a.agent_id)} · ${esc(a.status)}</div></div>`).join('')||'<div class="muted">尚無 Action</div>';
+      if($('events')) $('events').innerHTML=engine.data.events.filter(e=>e.task_id===selected).slice(-15).reverse().map(e=>`<div class="muted">${esc(e.created_at)} · ${esc(e.event_type)} · ${esc(e.actor_id)}</div>`).join('')||'<div class="muted">尚無 Event</div>';
+      if($('learn')) $('learn').innerHTML=engine.data.learning.filter(l=>l.task_id===selected).map(l=>`<div class="card"><b>candidate</b><div>${esc(l.problem)}</div><div class="muted">promoted=${esc(l.promoted)}</div></div>`).join('')||'<div class="muted">尚無 Learning Candidate</div>';
+      if($('poolMeta')) $('poolMeta').textContent=`目前 Task：${task()?task().name:selected} · ${engine.data.messages.filter(m=>m.task_id===selected).length} 筆協作紀錄`;
     }
     async function dispatchToPool(task){
       const authKeys=Object.keys(root.localStorage||{}).filter(k=>k.startsWith('sb-')&&k.endsWith('-auth-token'));
       let access='';
       for(const k of authKeys){try{const v=JSON.parse(root.localStorage.getItem(k)||'{}');if(v.access_token){access=v.access_token;break;}}catch(e){}}
       if(!access){
-        $('connNote').textContent='協作池已就緒，但目前瀏覽器沒有 Supabase 登入工作階段；任務已建立，尚未派發。';
+        if($('connNote')) $('connNote').textContent='協作池已就緒，但目前瀏覽器沒有 Supabase 登入工作階段；任務已建立，尚未派發。';
         return;
       }
       try{
-        $('connNote').textContent='正在把任務派給協作池 AI…';
+        if($('connNote')) $('connNote').textContent='正在把任務派給協作池 AI…';
         const r=await fetch('https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/aivault-collaboration-dispatch',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+access},body:JSON.stringify({task:task.description,title:task.title,max_agents:3})});
         const d=await r.json();
         if(!r.ok||!d.success)throw Error(d.message||d.error||('HTTP '+r.status));
-        $('connNote').textContent='協作池已實際派發：'+d.dispatched+' 個 AI；完成 '+(d.results||[]).filter(x=>x.ok).length+' 個。';
-        task.status=(d.results||[]).some(x=>x.ok)?'COMPLETED':'BLOCKED';task.progress=(Math.round(((d.results||[]).filter(x=>x.ok).length/Math.max(1,d.dispatched))*100))+'%';task.progress_note='COLLABORATION_POOL_RUNTIME_DISPATCH';engine.persist();render();
-      }catch(e){$('connNote').textContent='協作池派發失敗：'+e.message;}
+        const results=d.results||[]; const done=results.filter(x=>x.ok).length;
+        if($('connNote')) $('connNote').textContent='協作池已實際派發：'+d.dispatched+' 個 AI；完成 '+done+' 個。';
+        else if($('events')) $('events').textContent='協作池已實際派發 '+d.dispatched+' 個 AI；完成 '+done+' 個。';
+        results.forEach(x=>{const answer=x.data?.decision?.answer||x.data?.answer||x.data?.content||x.data?.result||x.data?.message||x.error||'';engine.message(task.task_id,x.agent_id,answer,x.ok?'ANSWER':'FAIL',null,{evidence:x.ok?'MODEL_INFERENCE_CONNECTED':'MODEL_INFERENCE_FAILED'});});
+        task.status=done?'COMPLETED':'BLOCKED';task.progress=(Math.round((done/Math.max(1,d.dispatched))*100))+'%';task.progress_note='COLLABORATION_POOL_RUNTIME_DISPATCH';engine.persist();render();
+      }catch(e){if($('connNote')) $('connNote').textContent='協作池派發失敗：'+e.message;}
     }
     $('btnNewTask').onclick=async()=>{const name=prompt('Task 名稱','新的 AI 協作任務')||'新的 AI 協作任務';const t=engine.createTask({name,title:name,description:name,status:'READY'});selected=t.task_id;render();await dispatchToPool(t);};
-    $('btnAddAgent').onclick=()=>{const a=engine.addAgent({agent_id:$('newAgentId').value.trim(),display_name:$('newAgentName').value.trim()||$('newAgentId').value.trim(),role:$('newAgentRole').value.trim()||'agent',capability:$('newAgentCap').value.trim()||''});$('newAgentId').value='';$('newAgentName').value='';$('newAgentRole').value='';$('newAgentCap').value='';render();};
-    $('btnSend').onclick=()=>{const body=$('msgBody').value.trim();if(!body)return;engine.message(selected,$('msgAs').value,body,$('msgType').value,$('msgTo').value||null,{mentions:(body.match(/@[A-Za-z0-9_-]+/g)||[]).map(x=>x.slice(1))});if($('asLearning').checked)engine.learning(selected,$('msgAs').value,$('learnProblem').value,$('learnProposal').value,$('learnReason').value);$('msgBody').value='';render();};
-    $('btnReviewReq').onclick=()=>{engine.review(selected,$('msgAs').value==='owner'?'chatgpt':$('msgAs').value,$('msgTo').value||null,'PENDING','Owner requested review');render();};
-    $('btnSubtask').onclick=()=>{engine.subtask(selected,$('msgTo').value||null,'由 Owner 建立的協作子任務');render();};
-    $('btnTest').onclick=()=>{engine.test(selected,$('msgAs').value,'Test record created','NOT_RUN','尚未執行；不得偽造 PASS');render();};
-    $('btnDecision').onclick=()=>{engine.decision(selected,$('msgAs').value,'DECISION',$('msgBody').value||'待決策方案','協作池決策紀錄',true);render();};
-    $('filterType').onchange=render;
+    if($('btnAddAgent')) $('btnAddAgent').onclick=()=>{const a=engine.addAgent({agent_id:$('newAgentId').value.trim(),display_name:$('newAgentName').value.trim()||$('newAgentId').value.trim(),role:$('newAgentRole').value.trim()||'agent',capability:$('newAgentCap').value.trim()||''});$('newAgentId').value='';$('newAgentName').value='';$('newAgentRole').value='';$('newAgentCap').value='';render();};
+    if($('btnSend')) $('btnSend').onclick=()=>{const body=$('msgBody').value.trim();if(!body)return;engine.message(selected,$('msgAs')?$('msgAs').value:'owner',body,$('msgType')?$('msgType').value:'MESSAGE',$('msgTo')?$('msgTo').value||null:null,{mentions:(body.match(/@[A-Za-z0-9_-]+/g)||[]).map(x=>x.slice(1))});if($('asLearning')&&$('asLearning').checked)engine.learning(selected,$('msgAs')?$('msgAs').value:'owner',$('learnProblem')?$('learnProblem').value:'',$('learnProposal')?$('learnProposal').value:'',$('learnReason')?$('learnReason').value:'');$('msgBody').value='';render();};
+    if($('btnReviewReq')) $('btnReviewReq').onclick=()=>{engine.review(selected,($('msgAs')&&$('msgAs').value==='owner')?'chatgpt':($('msgAs')?$('msgAs').value:'chatgpt'),$('msgTo')?$('msgTo').value||null:null,'PENDING','Owner requested review');render();};
+    if($('btnSubtask')) $('btnSubtask').onclick=()=>{engine.subtask(selected,$('msgTo')?$('msgTo').value||null:null,'由 Owner 建立的協作子任務');render();};
+    if($('btnTest')) $('btnTest').onclick=()=>{engine.test(selected,$('msgAs')?$('msgAs').value:'owner','Test record created','NOT_RUN','尚未執行；不得偽造 PASS');render();};
+    if($('btnDecision')) $('btnDecision').onclick=()=>{engine.decision(selected,$('msgAs')?$('msgAs').value:'owner','DECISION',$('msgBody').value||'待決策方案','協作池決策紀錄',true);render();};
+    if($('filterType')) $('filterType').onchange=render;
     root.document.querySelectorAll('[data-own]').forEach(b=>b.onclick=()=>{engine.owner(selected,b.dataset.own);render();});
     root.document.querySelectorAll('[data-pane]').forEach(b=>b.onclick=()=>root.document.getElementById('pane-'+b.dataset.pane).scrollIntoView({behavior:'smooth'}));
-    $('btnExport').onclick=()=>{const blob=new Blob([JSON.stringify(engine.data,null,2)],{type:'application/json'});const a=root.document.createElement('a');a.href=URL.createObjectURL(blob);a.download='aivault-collaboration-'+Date.now()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);};
-    $('btnReloadDb').onclick=()=>{engine=new Engine(new LocalAdapter());selected=(engine.data.tasks[0]||selected).task_id||selected;render();$('connNote').textContent='LOCAL STORE LOADED';};
-    $('btnConnect').onclick=async()=>{const url=$('sbUrl').value.trim(),key=$('sbKey').value.trim();if(!url||!key){$('connNote').textContent='請提供 TEST Supabase URL + anon key';return;}try{const ad=new SupabaseAdapter(url,key);const d=await ad.loadLive();engine=new Engine(new MemoryAdapter(d));selected=(engine.data.tasks[0]||{}).task_id||selected;engine.data.agents.forEach(a=>a.connection_status='connected');$('badgeConn').textContent='SUPABASE CONNECTED';$('badgeConn').className='badge';$('connNote').textContent='LIVE ROWS LOADED · CLIENT USES ANON KEY ONLY';render();}catch(e){$('connNote').textContent='連線失敗：'+e.message;}};
+    if($('btnExport')) $('btnExport').onclick=()=>{const blob=new Blob([JSON.stringify(engine.data,null,2)],{type:'application/json'});const a=root.document.createElement('a');a.href=URL.createObjectURL(blob);a.download='aivault-collaboration-'+Date.now()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);};
+    if($('btnReloadDb')) $('btnReloadDb').onclick=()=>{engine=new Engine(new LocalAdapter());selected=(engine.data.tasks[0]||selected).task_id||selected;render();if($('connNote')) $('connNote').textContent='LOCAL STORE LOADED';};
+    if($('btnConnect')) $('btnConnect').onclick=async()=>{const url=$('sbUrl').value.trim(),key=$('sbKey').value.trim();if(!url||!key){if($('connNote')) $('connNote').textContent='請提供 TEST Supabase URL + anon key';return;}try{const ad=new SupabaseAdapter(url,key);const d=await ad.loadLive();engine=new Engine(new MemoryAdapter(d));selected=(engine.data.tasks[0]||{}).task_id||selected;engine.data.agents.forEach(a=>a.connection_status='connected');$('badgeConn').textContent='SUPABASE CONNECTED';$('badgeConn').className='badge';if($('connNote')) $('connNote').textContent='LIVE ROWS LOADED · CLIENT USES ANON KEY ONLY';render();}catch(e){if($('connNote')) $('connNote').textContent='連線失敗：'+e.message;}};
     render();
   }
   if(root.document)root.document.readyState==='loading'?root.document.addEventListener('DOMContentLoaded',boot):boot();
