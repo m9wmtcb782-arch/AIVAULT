@@ -11,14 +11,16 @@
 - 保留 CONFIRMED / NOT VERIFIED / REQUIRES TEST。
 
 ## 第一階段
-`dark-star-reading-report.html` 為獨立測試前台，可輸入教材並建立三段式報告結構。
+`dark-star-reading-report.html` 為獨立測試前台。研究生為預設對象，深度只有「研究生｜分析型」與「研究型｜論文型」，不提供兒童、入門、大學、中等等低階模式。
 
-## 尚未完成
-真正的暗星模型生成尚未接入；需要先確認 AIVAULT 現行 AI Gateway 的實際請求契約，再以最小增量接線。不得猜測 endpoint、JWT 或 request body。
+AI 生成已接入 `dark-star-reading-report` Edge Function。研究生模式必須真正分析問題意識、核心概念、論證、證據、因果／制度關係、爭點、不同觀點、限制與實務意義；研究型／論文型再增加理論／文獻比較、研究問題、方法限制與研究缺口。
+
+即時語音不屬於本次修改範圍，`technical-dark-star.html` 與 Live voice 程式維持不動。
 
 ## 驗收
 1. 不修改 `technical-dark-star.html`。
 2. 導讀與正式報告內容分離。
 3. 10/25/40/60 分鐘可改變報告規模。
-4. 可依內容類型、讀者、深度調整。
-5. AI 生成接線後再做實機內容測試。
+4. 可依內容類型、研究生／專業讀者與兩級深度調整。
+5. AI 生成必須產出實質分析，不得以結構、目錄或摘要冒充。
+6. 即時語音鏈路不得因本功能修改而變更。
