@@ -1,4 +1,4 @@
-// dark-star-reading-report v16
+// dark-star-reading-report v27
 // deployment trigger: direct report retry fix
 // v16: tolerate plain Markdown/text model output and accumulate continuation safely.
 // Fixes truncated generation: v14 returned 30-400 chars and failed JSON contract,
@@ -11,7 +11,7 @@ const CORS: Record<string, string> = {
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 
-const VERSION = "v16";
+const VERSION = "v27";
 const MODEL = "gemini-3.6-flash";
 
 function json(body: unknown, status = 200) {
@@ -145,6 +145,144 @@ Deno.serve(async (req: Request) => {
   if (mode === "version" || mode === "health") {
     return json({ success: true, result: { version: VERSION, model: MODEL, function: "dark-star-reading-report" } });
   }
+  if (mode === "multimodal") {
+    const mediaType = String(body.media_type || "").toLowerCase();
+    const media = String(body.media || "").trim();
+    if (!media || !["image","audio","video"].includes(mediaType)) {
+      return json({ success:false, error:"MEDIA_REQUIRED", allowed:["image","audio","video"], version:VERSION },400);
+    }
+    const capability = mediaType === "image" ? "vision" : mediaType;
+    const prompt = String(body.prompt || (
+      mediaType === "image"
+        ? "你是暗星的圖片理解與OCR分析層。你必須先做OCR，再做視覺分析，最後綜合判讀。請嚴格按照以下固定格式輸出：\n\n【圖片文字（OCR）】\n逐項轉錄圖片中實際可見的文字，包括標題、段落、表格、欄位、圖例、座標軸、數字、註記、頁首頁尾；盡可能保留原本閱讀順序。任何看不清楚的文字必須寫〔無法辨識〕，絕對不能猜字或補寫圖片不存在的文字。\n\n【圖像分析】\n描述圖片中可直接觀察到的物件、人物、場景、圖表結構、位置、數量、視覺關係與版面結構。\n\n【綜合判讀】\n只根據OCR與可直接觀察的視覺資訊，說明圖片主題、內容關係與可用於研究導讀的重點。任何無法由圖片直接確認的推論必須標示〔INFERENCE〕。不得虛構。"
+        : mediaType === "audio"
+        ? "你是暗星。完整理解這段音訊。若為語音，分析語意、重點與說話內容；若為音樂，分析人聲、樂器、節奏、段落、情緒、歌詞可辨識內容與聲音事件。不得虛構。"
+        : "你是暗星。完整理解這段影片的畫面、語音、字幕、事件與時間關係，建立可供研究導讀使用的時間軸分析。不得虛構。"
+    ));
+    const baseUrl = Deno.env.get("SUPABASE_URL") || "https://clcddygkaaqqtsbswgdf.supabase.co";
+    const upstream = await fetch(baseUrl + "/functions/v1/ai-gateway", {
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        authorization:req.headers.get("authorization") || "",
+        apikey:req.headers.get("apikey") || "",
+      },
+      body:JSON.stringify({
+        agent_id:"technical-dark-star",
+        capability,
+        model:MODEL,
+        requestedModel:MODEL,
+        messages:[{role:"user",content:prompt,media_type:mediaType,media}],
+        media
+      })
+    });
+    let data = await upstream.json().catch(()=>({}));
+    let text = String(data.content || data.text || data.output || data.message || data.reply || data?.result?.content || data?.choices?.[0]?.message?.content || "");
+
+    // 圖片不是「有回應」就算 OCR 成功；必須真的交付 OCR、圖像分析、綜合判讀三個區塊。
+    if (upstream.ok && mediaType === "image" &&
+        (!text.includes("【圖片文字（OCR）】") ||
+         !text.includes("【圖像分析】") ||
+         !text.includes("【綜合判讀】"))) {
+      const retryPrompt = prompt +
+        "\n\n這是 OCR 合約重試。你上一個回應沒有完整符合格式，現在必須重新分析同一張圖片。只准輸出以下三個標題，順序不可改："+
+        "\n【圖片文字（OCR）】"+
+        "\n【圖像分析】"+
+        "\n【綜合判讀】"+
+        "\nOCR 必須逐項轉錄實際可見文字；看不清楚一律寫〔無法辨識〕，不可猜字。任何無法由圖片直接確認的內容標示〔INFERENCE〕。不得以「無法存取圖片」或泛泛而談取代實際辨識。";
+      const retry = await fetch(baseUrl + "/functions/v1/ai-gateway", {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          authorization:req.headers.get("authorization") || "",
+          apikey:req.headers.get("apikey") || "",
+        },
+        body:JSON.stringify({
+          agent_id:"technical-dark-star",
+          capability,
+          model:MODEL,
+          requestedModel:MODEL,
+          messages:[{role:"user",content:retryPrompt,media_type:mediaType,media}],
+          media
+        })
+      });
+      const retryData = await retry.json().catch(()=>({}));
+      const retryText = String(retryData.content || retryData.text || retryData.output || retryData.message || retryData.reply || retryData?.result?.content || retryData?.choices?.[0]?.message?.content || "");
+      if (retry.ok && retryText) {
+        data = retryData;
+        text = retryText;
+      }
+    }
+
+    if (!upstream.ok && !text) {
+      return json({ success:false, error:"MULTIMODAL_UPSTREAM_FAILED", media_type:mediaType, capability, version:VERSION, upstream_status:upstream.status, upstream_error:data?.error || data?.message || "unknown" }, upstream.status || 502);
+    }
+    if (mediaType === "image" &&
+        (!text.includes("【圖片文字（OCR）】") ||
+         !text.includes("【圖像分析】") ||
+         !text.includes("【綜合判讀】"))) {
+      return json({ success:false, error:"IMAGE_OCR_CONTRACT_FAILED", media_type:mediaType, capability, version:VERSION, upstream_status:upstream.status, content_length:text.length, content_prefix:text.slice(0,300) }, 502);
+    }
+    return json({
+      success:upstream.ok && data.success !== false,
+      result:{analysis:text,media_type:mediaType,capability,version:VERSION,upstream_status:upstream.status,ocr_verified_structure:mediaType==="image"},
+      status:upstream.ok ? "NOT_VERIFIED" : "FAILED"
+    }, upstream.ok ? 200 : upstream.status);
+  }
+
+
+  if (mode === "url") {
+    const rawUrl = String(body.url || "").trim();
+    let parsedUrl: URL;
+    try { parsedUrl = new URL(rawUrl); } catch {
+      return json({ success: false, error: "INVALID_URL" }, 400);
+    }
+    if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+      return json({ success: false, error: "URL_PROTOCOL_NOT_ALLOWED" }, 400);
+    }
+    const host = parsedUrl.hostname.toLowerCase();
+    const blockedHost = host === "localhost" || host === "::1" ||
+      host.startsWith("127.") || host.startsWith("10.") ||
+      host.startsWith("192.168.") || host.startsWith("169.254.") ||
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host);
+    if (blockedHost) return json({ success:false, error:"URL_HOST_NOT_ALLOWED" }, 400);
+    try {
+      const upstream = await fetch(parsedUrl.toString(), {
+        method:"GET",
+        redirect:"follow",
+        headers:{ "User-Agent":"AIVAULT-Reading-Report/1.0" },
+      });
+      const contentType = String(upstream.headers.get("content-type") || "").toLowerCase();
+      const raw = await upstream.text();
+      if (!upstream.ok) {
+        return json({ success:false, error:"URL_FETCH_FAILED", upstream_status:upstream.status }, 502);
+      }
+      if (!raw.trim()) return json({ success:false, error:"URL_CONTENT_EMPTY" }, 422);
+      let text = raw;
+      if (contentType.includes("text/html") || /<html[\s>]/i.test(raw)) {
+        text = raw
+          .replace(/<script[\s\S]*?<\/script>/gi," ")
+          .replace(/<style[\s\S]*?<\/style>/gi," ")
+          .replace(/<noscript[\s\S]*?<\/noscript>/gi," ")
+          .replace(/<svg[\s\S]*?<\/svg>/gi," ")
+          .replace(/<[^>]+>/g," ")
+          .replace(/&nbsp;/gi," ")
+          .replace(/&amp;/gi,"&")
+          .replace(/&lt;/gi,"<")
+          .replace(/&gt;/gi,">")
+          .replace(/&#39;/gi,"'")
+          .replace(/&quot;/gi,'"')
+          .replace(/\\s+/g," ")
+          .trim();
+      }
+      text = text.slice(0, 200000).trim();
+      if (text.length < 20) return json({ success:false, error:"URL_TEXT_TOO_SHORT", content_length:text.length }, 422);
+      return json({ success:true, result:{ url:parsedUrl.toString(), text, content_type:contentType, content_length:text.length, version:VERSION } });
+    } catch (error) {
+      return json({ success:false, error:"URL_FETCH_FAILED", message:error instanceof Error ? error.message : String(error) }, 502);
+    }
+  }
+
   const source = requireSource(body);
   if (!source) return json({ success: false, error: "SOURCE_REQUIRED" }, 400);
   const title = String(body.title || "未命名主題");
@@ -254,91 +392,6 @@ Deno.serve(async (req: Request) => {
     const overall = failed ? "NEEDS_REVISION" : "PASS";
     const score = Math.max(0, 100 - failed * 25);
     return json({ success: true, result: { overall, score, checks, version: VERSION } });
-  }
-
-  if (mode === "multimodal") {
-    const mediaType = String(body.media_type || "").toLowerCase();
-    const media = String(body.media || "").trim();
-    if (!media || !["image","audio","video"].includes(mediaType)) {
-      return json({ success:false, error:"MEDIA_REQUIRED", allowed:["image","audio","video"], version:VERSION },400);
-    }
-    const capability = mediaType === "image" ? "vision" : mediaType;
-    const prompt = String(body.prompt || (
-      mediaType === "image"
-        ? "你是暗星的圖片理解與OCR分析層。你必須先做OCR，再做視覺分析，最後綜合判讀。請嚴格按照以下固定格式輸出：\n\n【圖片文字（OCR）】\n逐項轉錄圖片中實際可見的文字，包括標題、段落、表格、欄位、圖例、座標軸、數字、註記、頁首頁尾；盡可能保留原本閱讀順序。任何看不清楚的文字必須寫〔無法辨識〕，絕對不能猜字或補寫圖片不存在的文字。\n\n【圖像分析】\n描述圖片中可直接觀察到的物件、人物、場景、圖表結構、位置、數量、視覺關係與版面結構。\n\n【綜合判讀】\n只根據OCR與可直接觀察的視覺資訊，說明圖片主題、內容關係與可用於研究導讀的重點。任何無法由圖片直接確認的推論必須標示〔INFERENCE〕。不得虛構。"
-        : mediaType === "audio"
-        ? "你是暗星。完整理解這段音訊。若為語音，分析語意、重點與說話內容；若為音樂，分析人聲、樂器、節奏、段落、情緒、歌詞可辨識內容與聲音事件。不得虛構。"
-        : "你是暗星。完整理解這段影片的畫面、語音、字幕、事件與時間關係，建立可供研究導讀使用的時間軸分析。不得虛構。"
-    ));
-    const baseUrl = Deno.env.get("SUPABASE_URL") || "https://clcddygkaaqqtsbswgdf.supabase.co";
-    const upstream = await fetch(baseUrl + "/functions/v1/ai-gateway", {
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        authorization:req.headers.get("authorization") || "",
-        apikey:req.headers.get("apikey") || "",
-      },
-      body:JSON.stringify({
-        agent_id:"technical-dark-star",
-        capability,
-        model:MODEL,
-        requestedModel:MODEL,
-        messages:[{role:"user",content:prompt,media_type:mediaType,media}],
-        media
-      })
-    });
-    let data = await upstream.json().catch(()=>({}));
-    let text = String(data.content || data.text || data.output || data.message || data.reply || data?.result?.content || data?.choices?.[0]?.message?.content || "");
-
-    // 圖片不是「有回應」就算 OCR 成功；必須真的交付 OCR、圖像分析、綜合判讀三個區塊。
-    if (upstream.ok && mediaType === "image" &&
-        (!text.includes("【圖片文字（OCR）】") ||
-         !text.includes("【圖像分析】") ||
-         !text.includes("【綜合判讀】"))) {
-      const retryPrompt = prompt +
-        "\n\n這是 OCR 合約重試。你上一個回應沒有完整符合格式，現在必須重新分析同一張圖片。只准輸出以下三個標題，順序不可改："+
-        "\n【圖片文字（OCR）】"+
-        "\n【圖像分析】"+
-        "\n【綜合判讀】"+
-        "\nOCR 必須逐項轉錄實際可見文字；看不清楚一律寫〔無法辨識〕，不可猜字。任何無法由圖片直接確認的內容標示〔INFERENCE〕。不得以「無法存取圖片」或泛泛而談取代實際辨識。";
-      const retry = await fetch(baseUrl + "/functions/v1/ai-gateway", {
-        method:"POST",
-        headers:{
-          "Content-Type":"application/json",
-          authorization:req.headers.get("authorization") || "",
-          apikey:req.headers.get("apikey") || "",
-        },
-        body:JSON.stringify({
-          agent_id:"technical-dark-star",
-          capability,
-          model:MODEL,
-          requestedModel:MODEL,
-          messages:[{role:"user",content:retryPrompt,media_type:mediaType,media}],
-          media
-        })
-      });
-      const retryData = await retry.json().catch(()=>({}));
-      const retryText = String(retryData.content || retryData.text || retryData.output || retryData.message || retryData.reply || retryData?.result?.content || retryData?.choices?.[0]?.message?.content || "");
-      if (retry.ok && retryText) {
-        data = retryData;
-        text = retryText;
-      }
-    }
-
-    if (!upstream.ok && !text) {
-      return json({ success:false, error:"MULTIMODAL_UPSTREAM_FAILED", media_type:mediaType, capability, version:VERSION, upstream_status:upstream.status, upstream_error:data?.error || data?.message || "unknown" }, upstream.status || 502);
-    }
-    if (mediaType === "image" &&
-        (!text.includes("【圖片文字（OCR）】") ||
-         !text.includes("【圖像分析】") ||
-         !text.includes("【綜合判讀】"))) {
-      return json({ success:false, error:"IMAGE_OCR_CONTRACT_FAILED", media_type:mediaType, capability, version:VERSION, upstream_status:upstream.status, content_length:text.length, content_prefix:text.slice(0,300) }, 502);
-    }
-    return json({
-      success:upstream.ok && data.success !== false,
-      result:{analysis:text,media_type:mediaType,capability,version:VERSION,upstream_status:upstream.status,ocr_verified_structure:mediaType==="image"},
-      status:upstream.ok ? "NOT_VERIFIED" : "FAILED"
-    }, upstream.ok ? 200 : upstream.status);
   }
 
   return json({ success: false, error: "UNKNOWN_MODE", version: VERSION }, 400);
