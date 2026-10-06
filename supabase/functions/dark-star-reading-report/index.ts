@@ -1,4 +1,5 @@
-// dark-star-reading-report v15
+// dark-star-reading-report v16
+// v16: tolerate plain Markdown/text model output and accumulate continuation safely.
 // Fixes truncated generation: v14 returned 30-400 chars and failed JSON contract,
 // so the frontend never received a guide/report long enough for page 2.
 // Voice, Live, and ai-gateway source are not modified. This function only calls ai-gateway.
@@ -9,7 +10,7 @@ const CORS: Record<string, string> = {
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 
-const VERSION = "v15";
+const VERSION = "v16";
 const MODEL = "gemini-3.6-flash";
 
 function json(body: unknown, status = 200) {
@@ -110,9 +111,18 @@ async function generateLong(req: Request, prompt: string, minLen: number, label:
       continue;
     }
     const parsed = extractJson(got.text);
-    const piece = String(parsed?.guide || parsed?.report_part || parsed?.conclusion || parsed?.analysis_context || parsed?.content || got.text);
-    if (piece && !acc.includes(piece.slice(0, 40))) acc = (acc ? acc + "\n\n" : "") + piece;
-    else if (!acc) acc = piece || got.text;
+    const piece = String(parsed?.guide || parsed?.report_part || parsed?.conclusion || parsed?.analysis_context || parsed?.content || got.text).trim();
+    if (piece) {
+      if (!acc) {
+        acc = piece;
+      } else if (piece === acc || acc.includes(piece)) {
+      } else {
+        const tail = acc.slice(-240);
+        const overlapAt = piece.indexOf(tail);
+        if (overlapAt >= 0) acc += piece.slice(overlapAt + tail.length);
+        else acc += "\n\n" + piece;
+      }
+    }
     if (acc.length >= minLen) return { text: acc, diagnostics };
   }
   return { text: acc, diagnostics, error: acc.length ? "OUTPUT_TOO_SHORT" : "EMPTY_MODEL_OUTPUT" };
@@ -145,11 +155,13 @@ Deno.serve(async (req: Request) => {
   if (mode === "parse") {
     const prompt = base + "\n\n只回傳 JSON：{\"analysis_context\":\"不少於900字的分析底稿，含主旨、問題意識、概念、論證、證據、因果、爭點\"}";
     const got = await generateLong(req, prompt, 900, "parse");
-    const analysis = salvageField(got.text, "analysis_context") || got.text;
-    if (analysis.length < 400) {
-      return json({ success: false, error: "AI_OUTPUT_CONTRACT_FAILED", version: VERSION, content_length: analysis.length, content_prefix: analysis.slice(0, 180), diagnostics: got.diagnostics }, 502);
+    const parsed = extractJson(got.text);
+    const field = salvageField(got.text, "analysis_context");
+    const analysis = String(parsed?.analysis_context || field || got.text || "").trim();
+    if (!analysis) {
+      return json({ success: false, error: "AI_OUTPUT_EMPTY", version: VERSION, content_length: 0, diagnostics: got.diagnostics }, 502);
     }
-    return json({ success: true, result: { analysis_context: analysis, version: VERSION, content_length: analysis.length } });
+    return json({ success: true, result: { analysis_context: analysis, version: VERSION, content_length: analysis.length, output_format: parsed?.analysis_context || field ? "structured_or_field" : "plain_text" } });
   }
 
   if (mode === "guide") {
@@ -178,6 +190,27 @@ Deno.serve(async (req: Request) => {
     return json({ success: true, result: { guide_title: title, guide, section_count: count, guide_length: guide.length, batch_diagnostics: diagnostics.map((d) => ({ batch: d.batch, length: d.length })), version: VERSION } });
   }
 
+  if (mode === "report_direct") {
+    const part = Number(body.part || 1);
+    const analysis = String(body.analysis_context || "").trim();
+    const prompt = base + `\\n\\n文章解析底稿：\\n${analysis.slice(0, 7000)}\\n\\n請不要先寫導讀，直接撰寫「專題報告」第${part}/3部分。這是一份研究生等級的正式專題報告，不是導讀、不是目錄、不是摘要。必須直接提出問題、分析材料中的核心概念與論點，建立證據與因果／制度關係，處理爭點與不同觀點，並在材料允許的範圍內提出實務意義。不得虛構案例、法源、文獻或材料沒有提供的事實；推論請標記〔INFERENCE〕，材料明示內容標記〔TEXT〕。\\n第1部分：研究問題、背景、核心概念與材料主要論點。\\n第2部分：證據、論證結構、因果／制度關係、爭點與不同觀點。\\n第3部分：綜合分析、限制、實務意義與可延伸研究問題。\\n每部分至少1400字。只回傳 JSON：{"report_part":"..."}`;
+    let got = await generateLong(req, prompt, 1400, `report-direct-${part}`);
+    let report = salvageField(got.text, "report_part") || got.text;
+    if (report.length < 500) {
+      const retryPrompt = base + "\n\n文章解析底稿：\n" + analysis.slice(0, 7000) +
+        "\n\n直接完成「專題報告」第" + part + "/3部分。只輸出完整報告正文，不要 JSON、不要摘要、不要目錄、不要只寫開頭。這是研究生等級正式專題報告，至少1400字。\n" +
+        "第1部分：研究問題、背景、核心概念與材料主要論點。\n" +
+        "第2部分：證據、論證結構、因果／制度關係、爭點與不同觀點。\n" +
+        "第3部分：綜合分析、限制、實務意義與可延伸研究問題。";
+      got = await generateLong(req, retryPrompt, 1000, "report-direct-retry-" + part);
+      report = salvageField(got.text, "report_part") || got.text;
+    }
+    if (report.length < 500) {
+      return json({ success: false, error: "DIRECT_REPORT_TOO_SHORT", version: VERSION, content_length: report.length, content_prefix: report.slice(0, 180), diagnostics: got.diagnostics }, 502);
+    }
+    return json({ success: true, result: { report_part: report, part, direct: true, content_length: report.length, version: VERSION } });
+  }
+
   if (mode === "report") {
     const part = Number(body.part || 1);
     const prompt = base + `\n導讀：\n${String(body.guide || "").slice(0, 5000)}\n解析：\n${String(body.analysis_context || "").slice(0, 3000)}\n已完成報告：\n${String(body.previous_report || "").slice(-1500)}\n\n請寫正式報告第${part}/3部分，至少1400字，不可摘要。第1部分處理主題、概念與材料論點；第2部分處理證據、爭點與因果；第3部分處理綜合分析、限制與實務意義。只回傳 JSON：{"report_part":"..."}`;
@@ -204,12 +237,18 @@ Deno.serve(async (req: Request) => {
     const report = String(body.report || "");
     const conclusion = String(body.conclusion || "");
     const count = sectionCount(guide);
-    const checks = [
-      { item: "導讀段數", status: count >= 9 ? "PASS" : "FAIL", finding: `section_count=${count}` },
-      { item: "導讀字數", status: guide.length >= 6500 ? "PASS" : "FAIL", finding: `guide_length=${guide.length}` },
-      { item: "正式報告", status: report.length >= 2500 ? "PASS" : "FAIL", finding: `report_length=${report.length}` },
-      { item: "結論", status: conclusion.length >= 400 ? "PASS" : "FAIL", finding: `conclusion_length=${conclusion.length}` },
-    ];
+    const direct = body.direct === true;
+    const checks = direct
+      ? [
+          { item: "直接專題報告", status: report.length >= 3500 ? "PASS" : "FAIL", finding: `report_length=${report.length}` },
+          { item: "結論", status: conclusion.length >= 400 ? "PASS" : "FAIL", finding: `conclusion_length=${conclusion.length}` },
+        ]
+      : [
+          { item: "導讀段數", status: count >= 9 ? "PASS" : "FAIL", finding: `section_count=${count}` },
+          { item: "導讀字數", status: guide.length >= 6500 ? "PASS" : "FAIL", finding: `guide_length=${guide.length}` },
+          { item: "正式報告", status: report.length >= 2500 ? "PASS" : "FAIL", finding: `report_length=${report.length}` },
+          { item: "結論", status: conclusion.length >= 400 ? "PASS" : "FAIL", finding: `conclusion_length=${conclusion.length}` },
+        ];
     const failed = checks.filter((c) => c.status !== "PASS").length;
     const overall = failed ? "NEEDS_REVISION" : "PASS";
     const score = Math.max(0, 100 - failed * 25);
