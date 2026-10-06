@@ -333,7 +333,7 @@ async function askDarkStar(){
     darkStarConversation.push({role:'user',content:question});
     const r=await callReportAPI({mode:'chat',question,context,history:darkStarConversation.slice(-12),control:true});
     if(r&&r.action&&r.action!=='NONE'){
-      const actionResult=await darkStarRunAction(r.action);
+      const actionResult=await darkStarRunAction(r.action,r.params||{});
       appendDarkStarChat('darkstar',String(r.reply||'')+'\n\n'+actionResult);
       darkStarConversation.push({role:'assistant',content:String(r.reply||'')+' '+actionResult});
       $('darkStarChatState').textContent='🟢 暗星已完成本次控制並回報結果';
@@ -350,23 +350,28 @@ async function askDarkStar(){
     input.focus();
   }
 }
-async function darkStarRunAction(action){
+async function darkStarRunAction(action,params={}){
   const a=String(action||'').toUpperCase();
-  const map={
-    GUIDE:'build',REPORT:'generateAI',PPT:'generatePPT',
-    SPEAK:'speakGuide',STOP:'stopGuide',NEXT_PAGE:'pageNext',
-    PREV_PAGE:'pagePrev',CLEAR_MATERIALS:'clearMaterials',CLEAR:'clear',
-    DIRECT_SPEAK:'directSpeak'
-  };
+  const fields={SET_TITLE:'title',SET_KIND:'kind',SET_AUDIENCE:'audience',SET_DEPTH:'depth',SET_MINUTES:'minutes'};
+  if(fields[a]){
+    const id=fields[a], el=$(id), value=String(params.value??params[id]??'').trim();
+    if(!el||!value)return '🔴 ERROR：暗星沒有取得可套用的修改內容。';
+    if(el.tagName==='SELECT'){
+      const ok=[...el.options].some(o=>o.value===value||o.textContent.trim()===value);
+      if(!ok)return '🔴 ERROR：暗星要求的「'+value+'」不是目前可用選項。';
+      el.value=[...el.options].find(o=>o.value===value||o.textContent.trim()===value).value;
+    }else el.value=value;
+    el.dispatchEvent(new Event('change',{bubbles:true}));
+    if(a==='SET_TITLE'||a==='SET_KIND'||a==='SET_AUDIENCE'||a==='SET_DEPTH'||a==='SET_MINUTES') await new Promise(r=>setTimeout(r,300));
+    return '🟢 ACTION EXECUTED：暗星已修改「'+id+'」為「'+el.value+'」。';
+  }
+  const map={GUIDE:'build',REPORT:'generateAI',PPT:'generatePPT',SPEAK:'speakGuide',STOP:'stopGuide',NEXT_PAGE:'pageNext',PREV_PAGE:'pagePrev',CLEAR_MATERIALS:'clearMaterials',CLEAR:'clear',DIRECT_SPEAK:'directSpeak'};
   const id=map[a];
-  if(!id||!$(id)) return '🔴 ERROR：暗星要求的操作不存在。';
+  if(!id||!$(id))return '🔴 ERROR：暗星要求的操作不存在。';
   $(id).click();
   await new Promise(r=>setTimeout(r,800));
-  const state=$('state')?.textContent||'';
-  const ai=$('aiState')?.textContent||'';
-  return '🟡 ACTION EXECUTED：暗星已控制「'+id+'」。目前頁面狀態：'+state+'；AI狀態：'+ai+'。';
+  return '🟡 ACTION EXECUTED：暗星已控制「'+id+'」。目前頁面狀態：'+($('state')?.textContent||'')+'；AI狀態：'+($('aiState')?.textContent||'')+'。';
 }
-
 async function callReportAPI(body){
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),90000);
