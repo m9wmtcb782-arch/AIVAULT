@@ -75,6 +75,7 @@ button{border:1px solid #ccc;background:#fff;border-radius:10px;padding:10px 14p
 </section>
 <section class="card">
 <strong>輸出</strong><span class="badge">多段式</span><div id="result" class="result">等待資料。</div>
+<div id="guideVisuals" style="margin-top:12px;display:grid;gap:12px"></div>
 <div class="pagination" aria-label="輸出翻頁">
 <button id="pagePrev">‹ 上一頁</button>
 <span id="pageIndicator" class="page-indicator">第 0／0 頁</span>
@@ -115,6 +116,7 @@ let outputPages=[],currentPage=0;
 let readingMaterials=[];
 let materialAnalysisBusy=0;
 let generatedSlides=[];
+let guideVisuals=[];
 function renderMaterials(){
   const box=$('materialList'); box.innerHTML='';
   readingMaterials.forEach((m,i)=>{
@@ -269,15 +271,37 @@ function renderPageControls(){
   for(let i=0;i<n;i++){const o=document.createElement('option');o.value=String(i);o.textContent='第 '+(i+1)+' 頁';sel.appendChild(o);}
   sel.value=String(currentPage);
 }
+function renderGuideVisuals(){
+  const box=$('guideVisuals');
+  if(!box)return;
+  box.innerHTML='';
+  const items=guideVisuals.filter(x=>x.page===currentPage);
+  items.forEach((item)=>{
+    const wrap=document.createElement('figure');
+    wrap.style.cssText='margin:0;padding:10px;border:1px solid #ddd;border-radius:12px;background:#fff';
+    const img=document.createElement('img');
+    img.src=item.url;
+    img.alt=item.prompt||'暗星生成導讀圖片';
+    img.style.cssText='display:block;width:100%;height:auto;border-radius:8px';
+    wrap.appendChild(img);
+    const cap=document.createElement('figcaption');
+    cap.style.cssText='margin-top:8px;font-size:12px;color:#666;line-height:1.5';
+    cap.textContent='暗星生成圖片｜已回輸暗星視覺分析｜'+(item.analysis_status||'REQUIRES TEST');
+    wrap.appendChild(cap);
+    box.appendChild(wrap);
+  });
+}
 function showOutputPage(index){
-  if(!outputPages.length){currentPage=0;$('result').textContent='等待資料。';renderPageControls();return;}
+  if(!outputPages.length){currentPage=0;$('result').textContent='等待資料。';renderGuideVisuals();renderPageControls();return;}
   currentPage=Math.max(0,Math.min(index,outputPages.length-1));
   $('result').textContent=outputPages[currentPage];
   $('result').dataset.currentPage=String(currentPage+1);
+  renderGuideVisuals();
   renderPageControls();
 }
 function renderFullOutput(text){
   const full=String(text||'').trim();
+  guideVisuals=[];
   outputPages=splitOutputPages(full,1800);
   currentPage=0;
   $('result').dataset.pageCount=String(outputPages.length);
@@ -541,6 +565,36 @@ async function darkStarRunAction(action,params={}){
     return null;
   };
 
+  if(a==='GENERATE_IMAGE'){
+    const prompt=String(params.prompt||params.value||'').trim() || ('請為「'+(($('title')?.value||'未命名主題').trim())+'」目前導讀第'+(currentPage+1)+'頁製作研究型資訊圖／架構圖，忠實呈現本頁核心概念、關係與論證，不添加材料沒有的事實。');
+    try{
+      $('state').textContent='🟡 暗星正在生成導讀圖片……';
+      const resp=await fetch('https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/dark-star-image-generation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({agent_id:'technical-dark-star',prompt,mime_type:'image/jpeg',aspect_ratio:String(params.aspect_ratio||'16:9'),image_size:String(params.image_size||'1K'),reject_svg:true})});
+      const data=await resp.json().catch(()=>({}));
+      if(!resp.ok||data.ok!==true) throw new Error(String(data?.error?.message||data?.error||('HTTP '+resp.status)));
+      const url=String(data?.artifact?.inline_data_url||data?.artifact?.signed_url||'').trim();
+      if(!url)throw new Error('IMAGE_ARTIFACT_URL_EMPTY');
+      let analysis='';
+      let analysisStatus='NOT_VERIFIED';
+      if(String(data?.artifact?.inline_data_url||'').startsWith('data:image/')){
+        const vr=await callReportAPI({mode:'multimodal',media_type:'image',media:String(data.artifact.inline_data_url),prompt:'這是暗星剛剛生成的導讀圖片。請重新實際看圖，先辨識圖片中的文字與結構，再分析圖像。固定輸出：【圖片文字（OCR）】、【圖像分析】、【綜合判讀】；不得因為這是自己生成的圖片就假設內容正確。'});
+        analysis=String(vr?.analysis||'').trim();
+        if(!analysis||!hasVerifiedImageAnalysis(analysis))throw new Error('GENERATED_IMAGE_REINPUT_CONTRACT_FAILED');
+        analysisStatus='CONFIRMED';
+      }
+      const item={page:currentPage,url,prompt,analysis,analysis_status:analysisStatus};
+      guideVisuals.push(item);
+      readingMaterials.push({name:'暗星生成導讀圖片｜第'+(currentPage+1)+'頁',type:'image/jpeg',status:analysisStatus==='CONFIRMED'?'已生成並回輸暗星分析':'已生成，回輸分析未驗證',url,text:analysis||'【生成圖片】'+prompt});
+      renderGuideVisuals();
+      $('state').textContent='CONFIRMED：圖片已生成、回輸暗星視覺分析，並放入目前導讀頁。';
+      $('state').className='status confirmed';
+      return '🟢 IMAGE EXECUTED：已生成 JPEG、回輸暗星分析並插入第'+(currentPage+1)+'頁。';
+    }catch(e){
+      $('state').textContent='REQUIRES TEST：圖片生成／回輸失敗｜'+String(e.message||e);
+      $('state').className='status warn';
+      return '🔴 ERROR：'+String(e.message||e);
+    }
+  }
   const fields={SET_TITLE:'title',SET_KIND:'kind',SET_AUDIENCE:'audience',SET_DEPTH:'depth',SET_MINUTES:'minutes',SET_SOURCE:'source',SET_DIRECT_SPEECH:'directSpeechText',SET_VOICE:'voiceSelect',JUMP_PAGE:'pageJump',SET_FIELD:null};
   if(a==='SET_FIELD'){
     const id=String(params.field_id||params.id||'').trim();
