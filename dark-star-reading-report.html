@@ -541,7 +541,27 @@ async function darkStarRunAction(action,params={}){
     return null;
   };
 
-  const fields={SET_TITLE:'title',SET_KIND:'kind',SET_AUDIENCE:'audience',SET_DEPTH:'depth',SET_MINUTES:'minutes',SET_SOURCE:'source',SET_DIRECT_SPEECH:'directSpeechText',SET_VOICE:'voiceSelect',JUMP_PAGE:'pageJump'};
+  const fields={SET_TITLE:'title',SET_KIND:'kind',SET_AUDIENCE:'audience',SET_DEPTH:'depth',SET_MINUTES:'minutes',SET_SOURCE:'source',SET_DIRECT_SPEECH:'directSpeechText',SET_VOICE:'voiceSelect',JUMP_PAGE:'pageJump',SET_FIELD:null};
+  if(a==='SET_FIELD'){
+    const id=String(params.field_id||params.id||'').trim();
+    if(!id)return '🔴 ERROR：暗星沒有取得要填寫的欄位 ID。';
+    const el=$(id);
+    if(!el)return '🔴 ERROR：找不到欄位「'+id+'」。';
+    if(el.type==='file')return '🔴 ERROR：檔案選擇欄位不能由暗星代替使用者選檔。';
+    const v=String(params.value??params.text??'');
+    if(el.tagName==='SELECT'){
+      const opt=[...el.options].find(o=>o.value===v||o.textContent.trim()===v);
+      if(!opt)return '🔴 ERROR：欄位「'+id+'」沒有「'+v+'」這個選項。';
+      el.value=opt.value;
+    }else{
+      el.value=v;
+    }
+    el.dispatchEvent(new Event('input',{bubbles:true}));
+    el.dispatchEvent(new Event('change',{bubbles:true}));
+    if(id==='networkUrl')$('confirmUrl')?.click();
+    return '🟢 ACTION EXECUTED：暗星已將文字填入「'+id+'」。';
+  }
+
   if(fields[a]){
     if(!value && a!=='JUMP_PAGE')return '🔴 ERROR：暗星沒有取得可套用的修改內容。';
     const id=fields[a];
