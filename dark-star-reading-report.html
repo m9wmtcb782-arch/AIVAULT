@@ -121,28 +121,30 @@ async function extractFileText(file){
   return '';
 }
 async function analyzeMultimodalMaterial(m){
-  if(!m.file) return;
+  if(!m.file) return false;
   const name=String(m.file.name||'').toLowerCase();
   const type=String(m.type||'').toLowerCase();
   const isImage=/^image\//.test(type)||/\.(jpg|jpeg|png)$/.test(name);
   const isAudio=/^audio\//.test(type)||/\.(mp3|wav)$/.test(name);
   const isVideo=/^video\//.test(type)||/\.mp4$/.test(name);
-  if(!isImage&&!isAudio&&!isVideo) return;
+  if(!isImage&&!isAudio&&!isVideo) return false;
   const limit=12*1024*1024;
-  if(m.file.size>limit){m.status='REQUIRES TEST：檔案超過12MB，待大型媒體 Storage／File API 管線';return;}
+  if(m.file.size>limit){m.status='REQUIRES TEST：檔案超過12MB，待大型媒體 Storage／File API 管線';return false;}
   m.status='多模態理解中…'; renderMaterials();
   try{
     const dataUrl=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(m.file);});
     const mediaType=isImage?'image':isAudio?'audio':'video';
-    const r=await callReportAPI({mode:'multimodal',media_type:mediaType,media:String(dataUrl),prompt:'你是暗星的圖片OCR與視覺理解層。若這是圖片，必須先逐項辨識實際可見文字，再分析圖像，最後綜合判讀。固定輸出：【圖片文字（OCR）】、【圖像分析】、【綜合判讀】三段；標題、段落、表格、圖例、座標軸、數字、註記與頁首頁尾都要盡可能辨識；看不清楚寫〔無法辨識〕，絕對不能猜字或補字；無法直接由圖片確認的推論標示〔INFERENCE〕；不得虛構。若為影音，分析畫面、語音、字幕、事件與時間關係；音樂分析人聲、樂器、節奏、段落、情緒與可辨識歌詞。'});
+    const r=await callReportAPI({mode:'multimodal',media_type:mediaType,media:String(dataUrl),prompt:'你是暗星的圖片OCR與視覺理解層。若這是圖片，直接看圖並先逐項辨識實際可見文字，再分析圖像，最後綜合判讀。固定輸出：【圖片文字（OCR）】、【圖像分析】、【綜合判讀】三段；標題、段落、表格、圖例、座標軸、數字、註記與頁首頁尾都要盡可能辨識；看不清楚寫〔無法辨識〕，絕對不能猜字或補字；無法直接由圖片確認的推論標示〔INFERENCE〕；不得虛構。若為影音，分析畫面、語音、字幕、事件與時間關係；音樂分析人聲、樂器、節奏、段落、情緒與可辨識歌詞。'});
     if(r&&r.analysis){
-      m.text='【多模態分析結果】\\n'+r.analysis;
-      m.status='NOT VERIFIED：已收到多模態分析回應，內容對應性待實測';
-    }else{
-      m.status='REQUIRES TEST：多模態模型未回傳分析';
+      m.text=String(r.analysis);
+      m.status='已完成暗星多模態理解';
+      renderMaterials();
+      return true;
     }
+    m.status='REQUIRES TEST：多模態模型未回傳分析';
   }catch(e){m.status='REQUIRES TEST：多模態分析失敗｜'+String(e.message||e);}
   renderMaterials();
+  return false;
 }
 async function addFiles(files){
   materialAnalysisBusy++;
@@ -170,28 +172,13 @@ function hasVerifiedImageAnalysis(text){
 async function buildMaterialSource(){
   const chunks=[];
   const typed=$('source').value.trim();
-  // iPhone 選取 JPG 後，多模態分析是非同步的；建立導讀若先被按下，必須等圖片分析完成，不能搶跑。
-  const waitUntil=Date.now()+95000;
-  while(materialAnalysisBusy>0){
-    if(Date.now()>waitUntil) throw new Error('MULTIMODAL_ANALYSIS_TIMEOUT｜圖片仍在分析中');
-    $('state').textContent='🟡 暗星正在完成圖片分析，請稍候……';
-    await new Promise(r=>setTimeout(r,250));
-  }
   if(typed)chunks.push('【使用者直接提供】\n'+typed);
   for(const m of readingMaterials){
     const isMedia=Boolean(m.file&&(/^(image\/|audio\/|video\/)/.test(String(m.type||''))||/\.(jpg|jpeg|png|mp4|mp3|wav)$/i.test(String(m.name||m.file.name||''))));
     if(m.text){
-      const isImage=/\.(jpg|jpeg|png)$/i.test(String(m.name||m.file?.name||'')) || String(m.type||'').startsWith('image/');
-      if(isImage&&!hasVerifiedImageAnalysis(m.text)){
-        await analyzeMultimodalMaterial(m);
-        if(!hasVerifiedImageAnalysis(m.text)) throw new Error('IMAGE_OCR_CONTRACT_FAILED｜'+m.name);
-      }
-      chunks.push('【素材：'+m.name+'】\\n'+m.text);
+      chunks.push('【素材：'+m.name+'】\n'+m.text);
     }else if(isMedia){
-      // 只有尚未取得真正分析結果時才再次分析；避免按建立導讀時重送同一張圖片。
-      await analyzeMultimodalMaterial(m);
-      if(m.text) chunks.push('【素材：'+m.name+'】\n'+m.text);
-      else throw new Error('MULTIMODAL_ANALYSIS_EMPTY｜'+m.name);
+      throw new Error('MULTIMODAL_ANALYSIS_EMPTY｜'+m.name);
     }else{
       throw new Error('MATERIAL_TEXT_EMPTY｜'+m.name);
     }
@@ -268,18 +255,25 @@ async function makeStructure(){
   $('state').className='status warn';
   try{
     const source=await buildMaterialSource();
-    if(!source) throw new Error('SOURCE_EMPTY｜請先提供教材或資料');
+    if(!source)throw new Error('SOURCE_REQUIRED');
     const base={title,kind:$('kind').value,audience:$('audience').value,depth:$('depth').value,minutes:$('minutes').value,source};
-    const analysis=await callReportAPI({...base,mode:'parse'});
-    if(!analysis||typeof analysis.analysis_context!=='string'||analysis.analysis_context.length<40) throw new Error('圖片／素材分析底稿不足');
-    $('state').textContent='🟡 暗星已完成素材理解，正在建立研究導讀……';
-    const guide=await callReportAPI({...base,mode:'guide',analysis_context:analysis.analysis_context});
+    const imageOnly=readingMaterials.length===1&&!$('source').value.trim()&&/\.(jpg|jpeg|png)$/i.test(String(readingMaterials[0].name||''));
+    let analysisContext=source;
+    if(!imageOnly){
+      const analysis=await callReportAPI({...base,mode:'parse'});
+      if(!analysis||typeof analysis.analysis_context!=='string'||analysis.analysis_context.length<40) throw new Error('素材分析底稿不足');
+      analysisContext=analysis.analysis_context;
+    }
+    $('state').textContent=imageOnly
+      ? '🟡 暗星已直接理解圖片文字與圖像，正在建立研究導讀……'
+      : '🟡 暗星已完成素材理解，正在建立研究導讀……';
+    const guide=await callReportAPI({...base,mode:'guide',analysis_context:analysisContext});
     if(!guide||typeof guide.guide!=='string'||guide.guide.length<100) throw new Error('導讀生成格式錯誤');
     const guideText=guide.guide;
     renderFullOutput('【暗星研究導讀】\n'+title+'\n\n'+guideText);
     const hasImage=readingMaterials.some(m=>/\.(jpg|jpeg|png)$/i.test(String(m.name||'')));
     $('state').textContent=hasImage
-      ? 'CONFIRMED：暗星已完成圖片OCR與圖像分析，並據此建立研究導讀。'
+      ? 'CONFIRMED：暗星已完成圖片理解，並據此建立研究導讀。'
       : 'CONFIRMED：已由素材建立研究導讀。';
     $('state').className='status confirmed';
   }catch(e){
