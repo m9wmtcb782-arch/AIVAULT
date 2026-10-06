@@ -1,4 +1,5 @@
 // dark-star-reading-report v16
+// deployment trigger: direct report retry fix
 // v16: tolerate plain Markdown/text model output and accumulate continuation safely.
 // Fixes truncated generation: v14 returned 30-400 chars and failed JSON contract,
 // so the frontend never received a guide/report long enough for page 2.
