@@ -283,6 +283,32 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  if (mode === "chat") {
+    const question = String(body.question || "").trim();
+    const context = body.context && typeof body.context === "object" ? body.context : {};
+    if (!question) return json({ success:false, error:"CHAT_QUESTION_REQUIRED", version:VERSION },400);
+    const prompt = `你是暗星，現在位於 AIVAULT「導讀與報告工作站」內，直接和使用者對話。
+你不是泛用客服；你必須優先依照使用者這次工作站提供的實際狀態、素材狀態、輸出內容與錯誤訊息回答。
+規則：
+1. 已確認的事情才說 CONFIRMED。
+2. 沒有實際結果的事情說 NOT VERIFIED 或 REQUIRES TEST。
+3. 發生錯誤時，明確指出「哪一步、實際錯誤、目前影響、下一步」，不要猜原因。
+4. 可以分析目前已讀取的教材內容；不能把沒有出現在素材或工作站狀態中的事實當成已知。
+5. 使用繁體中文，直接回答問題，不要長篇說明自己是 AI。
+6. 如果使用者問「剛才發生什麼」，優先解讀工作站狀態與素材 status。
+
+目前工作站實際狀態（由頁面傳入）：
+${JSON.stringify(context).slice(0,30000)}
+
+使用者問題：${question}
+請直接回答。`;
+    const got = await callGateway(req, prompt);
+    if (!got.ok || !got.text.trim()) {
+      return json({ success:false, error:"CHAT_UPSTREAM_FAILED", upstream_status:got.status, upstream_error:got.data?.error || got.data?.message || "EMPTY_MODEL_OUTPUT", version:VERSION }, got.status || 502);
+    }
+    return json({ success:true, result:{ reply:got.text.trim(), version:VERSION, model:MODEL, status:"CONFIRMED" } });
+  }
+
   const source = requireSource(body);
   if (!source) return json({ success: false, error: "SOURCE_REQUIRED" }, 400);
   const title = String(body.title || "未命名主題");
