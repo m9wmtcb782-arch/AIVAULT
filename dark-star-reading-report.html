@@ -85,21 +85,42 @@ function makeStructure(){const title=$('title').value.trim()||'未命名主題',
 此頁目前完成「報告結構生成器」的獨立前端測試。
 真正由暗星模型產生完整內容，仍需接入已驗證的 AIVAULT AI Gateway，因此不能把本次結構輸出冒充成 AI 生成結果。`;$('result').textContent=out;$('state').textContent='CONFIRMED：獨立結構生成器已執行。AI 模型生成尚未接線。';$('state').className='status confirmed';}
 const READING_REPORT_API='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/dark-star-reading-report';
+async function callReportAPI(body){
+  const r=await fetch(READING_REPORT_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok||!d.success)throw new Error(d.error||d.message||('HTTP '+r.status));
+  return d.result;
+}
 async function generateAI(){
   const source=$('source').value.trim();
   if(!source){$('aiState').textContent='REQUIRES TEST：請先提供教材或資料。';$('aiState').className='status warn';return;}
-  $('generateAI').disabled=true;$('aiState').textContent='🟡 暗星正在分析教材並生成完整導讀、報告與結論…';$('aiState').className='status warn';
+  $('generateAI').disabled=true;
+  $('aiState').textContent='🟡 暗星正在分段理解教材：先生成9段導讀…';
+  $('aiState').className='status warn';
   try{
-    const r=await fetch(READING_REPORT_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-      title:$('title').value.trim()||'未命名主題',kind:$('kind').value,audience:$('audience').value,depth:$('depth').value,minutes:$('minutes').value,source
-    })});
-    const d=await r.json().catch(()=>({}));
-    if(!r.ok||!d.success)throw new Error(d.error||d.message||('HTTP '+r.status));
-    const x=d.result;
-    $('result').textContent='【暗星導讀】\n'+x.guide_title+'\n\n'+x.guide+'\n\n【正式報告】\n'+x.report+'\n\n【結論】\n'+x.conclusion+'\n\n【證據／查證備註】\n'+(Array.isArray(x.evidence_notes)?x.evidence_notes.join('\n'):String(x.evidence_notes||''))+'\n\n【需要查證】\n'+(Array.isArray(x.verification_notes)?x.verification_notes.join('\n'):String(x.verification_notes||''));\n    speechText='【導讀】\n'+x.guide_title+'\n'+x.guide+'\n\n【正式報告】\n'+x.report+'\n\n【結論】\n'+x.conclusion;\n    speechSegments=buildSpeechSegments(x.guide_title,x.guide,x.report,x.conclusion); 
-    $('aiState').textContent='CONFIRMED：暗星 AI 已回傳完整導讀＋報告＋結論。';
+    const base={title:$('title').value.trim()||'未命名主題',kind:$('kind').value,audience:$('audience').value,depth:$('depth').value,minutes:$('minutes').value,source};
+    const guide=await callReportAPI({...base,mode:'guide'});
+    if(!guide||typeof guide.guide!=='string')throw new Error('導讀生成格式錯誤');
+    $('aiState').textContent='🟡 導讀完成，正在分段生成正式報告 1／3…';
+    let reportParts=[];
+    for(let i=1;i<=3;i++){
+      const part=await callReportAPI({...base,mode:'report',part:i,total_parts:3,guide:guide.guide,previous_report:reportParts.join('\n\n')});
+      if(!part||typeof part.report_part!=='string')throw new Error('正式報告第 '+i+' 段格式錯誤');
+      reportParts.push(part.report_part);
+      $('aiState').textContent='🟡 正式報告生成中：'+i+'／3…';
+    }
+    const report=reportParts.join('\n\n');
+    $('aiState').textContent='🟡 正在生成最後結論…';
+    const conclusion=await callReportAPI({...base,mode:'conclusion',guide:guide.guide,report});
+    if(!conclusion||typeof conclusion.conclusion!=='string')throw new Error('結論生成格式錯誤');
+    const x={guide_title:guide.guide_title||base.title,guide:guide.guide,report,conclusion:conclusion.conclusion,evidence_notes:guide.evidence_notes||[],verification_notes:guide.verification_notes||[]};
+    $('result').textContent='【暗星導讀】\n'+x.guide_title+'\n\n'+x.guide+'\n\n【正式報告】\n'+x.report+'\n\n【結論】\n'+x.conclusion;
+    speechText='【導讀】\n'+x.guide_title+'\n'+x.guide+'\n\n【正式報告】\n'+x.report+'\n\n【結論】\n'+x.conclusion;
+    speechSegments=buildSpeechSegments(x.guide_title,x.guide,x.report,x.conclusion);
+    $('aiState').textContent='CONFIRMED：暗星已完成「9段導讀 → 3段正式報告 → 結論」分段生成。';
     $('aiState').className='status confirmed';
-    $('state').textContent='CONFIRMED：已由暗星 AI 生成內容，不是前端固定模板。';$('state').className='status confirmed';
+    $('state').textContent='CONFIRMED：已使用分段 AI 生成，避免單次長請求 EarlyDrop。';
+    $('state').className='status confirmed';
   }catch(e){
     $('aiState').textContent='🔴 AI 生成失敗：'+(e.message||e);
     $('aiState').className='status warn';
