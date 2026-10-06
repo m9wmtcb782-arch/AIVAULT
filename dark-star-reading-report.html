@@ -46,13 +46,6 @@ button{border:1px solid #ccc;background:#fff;border-radius:10px;padding:10px 14p
 <div class="actions"><button class="primary" id="build">建立導讀＋報告架構</button><button class="primary" id="generateAI">讓暗星直接生成專題報告</button><button id="clear">清除</button></div>
 <div id="state" class="status" style="margin-top:12px">尚未執行</div><div id="aiState" class="status warn" style="margin-top:8px">AI 生成：尚未執行</div>
 </section>
-<section class="card" id="darkStarManager">
-<strong>🌑 暗星管理</strong>
-<span class="badge">主控</span>
-<p style="margin:7px 0;color:#666;font-size:13px">這個工作站由暗星管理素材讀取、內容理解、導讀與報告流程。Gemini 只負責模型運算與即時語音，不取代暗星的管理角色。</p>
-<div id="darkStarManagerState" class="status">🟢 暗星已接管本工作站，等待素材。</div>
-<div class="actions"><button class="primary" id="darkStarTakeOver" type="button">🌑 交給暗星管理</button><button id="darkStarStop" type="button">停止暗星任務</button></div>
-</section>
 <section class="card">
 <strong>輸出</strong><span class="badge">多段式</span><div id="result" class="result">等待資料。</div>
 <div class="pagination" aria-label="輸出翻頁">
@@ -588,52 +581,14 @@ async function speakDirectText(){
     $('directSpeechState').textContent='🔴 語音中斷（本段不重送）：'+(e.message||e);
   }
 }
-let darkStarManaging=false;
-let darkStarManagerSerial=0;
-function setDarkStarManagerState(text,kind='status'){
-  const el=$('darkStarManagerState'); if(!el)return;
-  el.textContent=text; el.className='status '+(kind==='confirmed'?'confirmed':kind==='warn'?'warn':'');
-}
-async function darkStarManage(){
-  const serial=++darkStarManagerSerial;
-  darkStarManaging=true;
-  $('darkStarTakeOver').disabled=true;
-  setDarkStarManagerState('🟡 暗星正在接管：先檢查素材，再決定讀取與分析流程。','warn');
-  try{
-    const source=await buildMaterialSource();
-    if(serial!==darkStarManagerSerial||!darkStarManaging)throw new Error('暗星任務已停止');
-    if(!source)throw new Error('SOURCE_REQUIRED｜目前沒有可供暗星管理的素材。');
-    $('state').textContent='🟡 暗星已取得全部素材，正在建立研究導讀與報告架構…';
-    $('state').className='status warn';
-    await makeStructure();
-    if(serial!==darkStarManagerSerial||!darkStarManaging)throw new Error('暗星任務已停止');
-    setDarkStarManagerState('🟢 CONFIRMED：暗星已完成素材讀取與研究導讀建立。接下來可生成專題報告或用暗星自然口語導讀。','confirmed');
-  }catch(e){
-    if(serial===darkStarManagerSerial){
-      setDarkStarManagerState('🔴 暗星管理失敗：'+String(e.message||e),'warn');
-      $('state').textContent='REQUIRES TEST：暗星管理失敗｜'+String(e.message||e);
-      $('state').className='status warn';
-    }
-  }finally{
-    if(serial===darkStarManagerSerial)$('darkStarTakeOver').disabled=false;
-  }
-}
-function stopDarkStarManager(){
-  darkStarManaging=false;
-  darkStarManagerSerial++;
-  setDarkStarManagerState('⚪ 暗星任務已停止。','');
-  $('state').textContent='⚪ 暗星管理已停止';
-  $('state').className='status';
-}
+
 $('build').onclick=()=>makeStructure();
 $('generateAI').onclick=()=>generateAI();
-$('darkStarTakeOver').onclick=darkStarManage;
-$('darkStarStop').onclick=stopDarkStarManager;
 $('pagePrev').onclick=()=>showOutputPage(currentPage-1);
 $('pageNext').onclick=()=>showOutputPage(currentPage+1);
 $('pageJump').onchange=()=>showOutputPage(Number($('pageJump').value));
 $('generatePPT').onclick=generateReadingPPT;
-$('materialFiles').onchange=e=>addFiles(e.target.files);
+$('materialFiles').onchange=async e=>{await addFiles(e.target.files);await darkStarAutoAssist();};
 $('confirmUrl').onclick=async()=>{
   const input=$('networkUrl');
   const button=$('confirmUrl');
@@ -669,11 +624,35 @@ $('confirmUrl').onclick=async()=>{
   }
 };
 $('clearMaterials').onclick=()=>{readingMaterials=[];renderMaterials();};
+$('source').addEventListener('change',()=>darkStarAutoAssist());
 $('clear').onclick=()=>{$('source').value='';$('title').value='';outputPages=[];currentPage=0;renderPageControls();$('result').textContent='等待資料。';$('state').textContent='尚未執行';$('state').className='status';speechText='';speechSegments=[];stopGuide()};
 $('speakGuide').onclick=speakGuide;$('stopGuide').onclick=stopGuide;
 $('directSpeak').onclick=speakDirectText;
 $('directStop').onclick=()=>{$('directSpeechState').textContent='⚪ 已停止';stopGuide()};
 initVoices();renderPageControls();
+let darkStarManaging=true;
+let darkStarManagerSerial=0;
+async function darkStarAutoAssist(){
+  const serial=++darkStarManagerSerial;
+  try{
+    const hasTyped=$('source').value.trim();
+    const hasFiles=readingMaterials.length>0;
+    if(!hasTyped&&!hasFiles){
+      $('state').textContent='🟢 暗星已在導讀工作站待命。你加入素材後，暗星會自動讀取、理解並協助建立導讀。';
+      $('state').className='status';
+      return;
+    }
+    $('state').textContent='🟡 暗星正在協助處理素材……';
+    $('state').className='status warn';
+    const source=await buildMaterialSource();
+    if(serial!==darkStarManagerSerial||!darkStarManaging)return;
+    if(!source)throw new Error('SOURCE_REQUIRED｜沒有取得可分析內容。');
+    await makeStructure();
+  }catch(e){
+    $('state').textContent='REQUIRES TEST：暗星輔助失敗｜'+String(e.message||e);
+    $('state').className='status warn';
+  }
+}
 $('state').textContent='🟢 已就緒：等待執行導讀';
 $('state').className='status';
 </script>
