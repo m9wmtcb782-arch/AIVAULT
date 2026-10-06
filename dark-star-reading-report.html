@@ -99,33 +99,33 @@ function renderMaterials(){
 function escapeHtml(v){return String(v||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 async function extractFileText(file){
   const name=file.name.toLowerCase();
-  if(/\\.(txt|md|csv)$/.test(name)) return await file.text();
-  if(/\\.docx$/.test(name) && window.mammoth){
+  if(/\.(txt|md|csv)$/.test(name)) return await file.text();
+  if(/\.docx$/.test(name) && window.mammoth){
     const r=await mammoth.extractRawText({arrayBuffer:await file.arrayBuffer()}); return r.value||'';
   }
-  if(/\\.xlsx?$/.test(name) && window.XLSX){
+  if(/\.xlsx?$/.test(name) && window.XLSX){
     const wb=XLSX.read(await file.arrayBuffer(),{type:'array'});
     return wb.SheetNames.map(n=>'【工作表：'+n+'】\\n'+XLSX.utils.sheet_to_csv(wb.Sheets[n])).join('\\n\\n');
   }
-  if(/\\.pptx$/.test(name) && window.JSZip){
+  if(/\.pptx$/.test(name) && window.JSZip){
     const z=await JSZip.loadAsync(await file.arrayBuffer()); const out=[];
-    const keys=Object.keys(z.files).filter(k=>/^ppt\\/slides\\/slide\\d+\\.xml$/.test(k)).sort((a,b)=>Number(a.match(/slide(\\d+)/)[1])-Number(b.match(/slide(\\d+)/)[1]));
+    const keys=Object.keys(z.files).filter(k=>/^ppt\/slides\/slide\\d+\.xml$/.test(k)).sort((a,b)=>Number(a.match(/slide(\\d+)/)[1])-Number(b.match(/slide(\\d+)/)[1]));
     for(const k of keys){const xml=await z.files[k].async('text'); const doc=new DOMParser().parseFromString(xml,'application/xml'); out.push('【投影片 '+k.match(/slide(\\d+)/)[1]+'】\\n'+Array.from(doc.getElementsByTagName('a:t')).map(x=>x.textContent).join(' '));}
     return out.join('\\n\\n');
   }
   // 圖片、音訊、影片必須進入真正的多模態分析，不在前端用假文字佔位。
-  if(/\\.(jpg|jpeg|png)$/.test(name)) return '';
-  if(/\\.(mp4|mp3|wav)$/.test(name)) return '';
-  if(/\\.pdf$/.test(name)) return '【PDF 多模態素材】 '+file.name+'\\nPDF 頁面視覺／掃描內容待多模態理解層解析。';
+  if(/\.(jpg|jpeg|png)$/.test(name)) return '';
+  if(/\.(mp4|mp3|wav)$/.test(name)) return '';
+  if(/\.pdf$/.test(name)) return '【PDF 多模態素材】 '+file.name+'\\nPDF 頁面視覺／掃描內容待多模態理解層解析。';
   return '';
 }
 async function analyzeMultimodalMaterial(m){
   if(!m.file) return;
   const name=String(m.file.name||'').toLowerCase();
   const type=String(m.type||'').toLowerCase();
-  const isImage=/^image\\//.test(type)||/\\.(jpg|jpeg|png)$/.test(name);
-  const isAudio=/^audio\\//.test(type)||/\\.(mp3|wav)$/.test(name);
-  const isVideo=/^video\\//.test(type)||/\\.mp4$/.test(name);
+  const isImage=/^image\//.test(type)||/\.(jpg|jpeg|png)$/.test(name);
+  const isAudio=/^audio\//.test(type)||/\.(mp3|wav)$/.test(name);
+  const isVideo=/^video\//.test(type)||/\.mp4$/.test(name);
   if(!isImage&&!isAudio&&!isVideo) return;
   const limit=12*1024*1024;
   if(m.file.size>limit){m.status='REQUIRES TEST：檔案超過12MB，待大型媒體 Storage／File API 管線';return;}
@@ -150,7 +150,7 @@ async function addFiles(files){
     try{
       m.text=await extractFileText(file);
       m.status=m.text?'已取得可分析文字':'準備進行多模態分析';
-      const mediaFile=/^(image\\/|audio\\/|video\\/)/.test(m.type||'')||/\\.(jpg|jpeg|png|mp4|mp3|wav)$/i.test(file.name);
+      const mediaFile=/^(image\/|audio\/|video\/)/.test(m.type||'')||/\.(jpg|jpeg|png|mp4|mp3|wav)$/i.test(file.name);
       if(mediaFile) await analyzeMultimodalMaterial(m);
     }catch(e){m.status='REQUIRES TEST：解析失敗';m.error=String(e.message||e);}
     renderMaterials();
@@ -178,7 +178,7 @@ async function generateReadingPPT(){
     if(typeof slide.addNotes==='function') slide.addNotes('暗星講解稿：\\n'+sl.body);
     slide.addText('第 '+sl.page+' 頁',{x:11.2,y:7.05,w:1.2,h:0.25,fontSize:9,color:'666666',align:'right'});
   });
-  const filename=(($('title').value.trim()||'暗星導讀').replace(/[\\/:*?"<>|]/g,'_'))+'｜暗星導讀.pptx';
+  const filename=(($('title').value.trim()||'暗星導讀').replace(/[\/:*?"<>|]/g,'_'))+'｜暗星導讀.pptx';
   await ppt.writeFile({fileName:filename});
   $('pptMeta').textContent='CONFIRMED：已生成 '+generatedSlides.length+' 頁 PPT；每頁均保留對應講解稿，Gemini Live 可依頁序講解。';
 }
