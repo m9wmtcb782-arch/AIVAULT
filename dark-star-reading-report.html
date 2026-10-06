@@ -567,7 +567,13 @@ async function speakDirectText(){
     $('directSpeechState').textContent='🔴 語音中斷（本段不重送）：'+(e.message||e);
   }
 }
-$('build').onclick=makeStructure;$('generateAI').onclick=generateAI;
+document.addEventListener('click',e=>{
+  const target=e.target&&e.target.closest?e.target.closest('#build, #generateAI'):null;
+  if(!target)return;
+  e.preventDefault();
+  if(target.id==='build') makeStructure();
+  else if(target.id==='generateAI') generateAI();
+},true);
 $('pagePrev').onclick=()=>showOutputPage(currentPage-1);
 $('pageNext').onclick=()=>showOutputPage(currentPage+1);
 $('pageJump').onchange=()=>showOutputPage(Number($('pageJump').value));
@@ -580,6 +586,8 @@ $('speakGuide').onclick=speakGuide;$('stopGuide').onclick=stopGuide;
 $('directSpeak').onclick=speakDirectText;
 $('directStop').onclick=()=>{$('directSpeechState').textContent='⚪ 已停止';stopGuide()};
 initVoices();renderPageControls();
+$('state').textContent='🟢 已就緒：等待執行導讀';
+$('state').className='status';
 </script>
 </body>
 </html>
