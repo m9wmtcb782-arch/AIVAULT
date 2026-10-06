@@ -100,6 +100,7 @@ function showOutputPage(index){
   if(!outputPages.length){currentPage=0;$('result').textContent='等待資料。';renderPageControls();return;}
   currentPage=Math.max(0,Math.min(index,outputPages.length-1));
   $('result').textContent=outputPages[currentPage];
+  $('result').dataset.currentPage=String(currentPage+1);
   renderPageControls();
 }
 function renderFullOutput(text){
@@ -142,7 +143,13 @@ const READING_REPORT_API='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/
 async function callReportAPI(body){
   const r=await fetch(READING_REPORT_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const d=await r.json().catch(()=>({}));
-  if(!r.ok||!d.success)throw new Error(d.error||d.message||('HTTP '+r.status));
+  if(!r.ok||!d.success){
+    const extra=[d.error||d.message||('HTTP '+r.status)];
+    if(d.content_length!=null)extra.push('content_length='+d.content_length);
+    if(d.batch!=null)extra.push('batch='+d.batch);
+    if(d.content_prefix)extra.push(String(d.content_prefix).slice(0,80));
+    throw new Error(extra.join('｜'));
+  }
   return d.result;
 }
 async function generateAI(){
@@ -184,20 +191,32 @@ async function generateAI(){
     $('state').textContent='暗星生成診斷｜導讀 '+guideLen+' 字｜'+guideSections+' 段｜導讀 '+guidePages+' 頁｜完整稿 '+fullPages+' 頁'+(batchDiag?'｜'+batchDiag:'');
     $('state').className=(guideSections>=9&&guideLen>=6500&&fullPages>=2)?'status confirmed':'status warn';
 
+    const reportLen=String(x.report||'').length;
+    const conclusionLen=String(x.conclusion||'').length;
     renderFullOutput(fullText);
+    $('result').dataset.fullTextLength=String(fullText.length);
+    $('result').dataset.guideLength=String(guideLen);
+    $('result').dataset.reportLength=String(reportLen);
+    $('result').dataset.conclusionLength=String(conclusionLen);
+    $('result').dataset.pageCount=String(outputPages.length);
+    const pageProbe=outputPages.length>1?outputPages[1].slice(0,24):'';
+    $('result').dataset.page2Probe=pageProbe;
+    let diag='暗星生成診斷｜導讀 '+guideLen+' 字｜'+guideSections+' 段｜報告 '+reportLen+' 字｜結論 '+conclusionLen+' 字｜完整稿 '+fullText.length+' 字｜'+outputPages.length+' 頁'+(batchDiag?'｜'+batchDiag:'');
     if(outputPages.length<2){
-      $('state').textContent+='｜REQUIRES TEST：完整稿仍只有1頁，未進行假性翻頁。';
+      diag+='｜REQUIRES TEST：完整稿仍只有1頁。這不是翻頁故障，是生成結果未超過1800字，未用假文字補頁。';
       $('state').className='status warn';
+    }else{
+      diag+='｜第2頁開頭：'+pageProbe;
+      $('state').className=(guideSections>=9&&guideLen>=6500)?'status confirmed':'status warn';
     }
+    $('state').textContent=diag;
     speechText='【導讀】\n'+x.guide_title+'\n'+x.guide+'\n\n【正式報告】\n'+x.report+'\n\n【結論】\n'+x.conclusion;
     speechSegments=buildSpeechSegments(x.guide_title,x.guide,x.report,x.conclusion);
     const qmsg='品質審查：'+String(x.quality.overall||'NEEDS_REVISION')+'｜分數 '+String(x.quality.score??'未提供')+'／100';
     $('aiState').textContent=(x.quality.overall==='PASS'
-      ? 'CONFIRMED：暗星已完成「文章解析 → 9段導讀 → 3段正式報告 → 結論」，且品質閘門通過。Gemini Live 僅負責後續自然口語表達。'
-      : 'REQUIRES REVIEW：暗星已完成稿件，但品質閘門判定仍需修訂。'+qmsg);
+      ? 'CONFIRMED：暗星已完成「文章解析 → 9段導讀 → 3段正式報告 → 結論」，且品質閘門通過。完整稿 '+outputPages.length+' 頁。Gemini Live 僅負責後續自然口語表達。'
+      : 'REQUIRES REVIEW：暗星已完成稿件，但品質閘門判定仍需修訂。'+qmsg+'｜完整稿 '+outputPages.length+' 頁');
     $('aiState').className=x.quality.overall==='PASS'?'status confirmed':'status warn';
-    $('state').textContent='CONFIRMED：已使用分段 AI 生成，避免單次長請求 EarlyDrop。';
-    $('state').className='status confirmed';
   }catch(e){
     $('aiState').textContent='🔴 AI 生成失敗：'+(e.message||e);
     $('aiState').className='status warn';
