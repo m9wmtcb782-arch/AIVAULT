@@ -587,7 +587,13 @@ async function darkStarRunAction(action,params={}){
           analysis='【視覺分析尚未驗證】'+String(analysisError?.message||analysisError);
         }
       }
-      const item={page:currentPage,url,prompt,analysis,analysis_status:analysisStatus};
+      if(!outputPages.length){
+        outputPages=['【暗星圖片工作頁】\\n'+(($('title')?.value||'未命名主題').trim())+'\\n\\n暗星已生成研究圖片。本頁文字導讀尚待建立。'];
+        currentPage=0;
+        $('result').dataset.pageCount='1';
+        showOutputPage(0);
+      }
+      const item={page:currentPage,url,prompt,analysis,analysis_status:analysisStatus,inline_data_url:String(data?.artifact?.inline_data_url||'').trim()};
       guideVisuals.push(item);
       readingMaterials.push({name:'暗星生成導讀圖片｜第'+(currentPage+1)+'頁',type:'image/jpeg',status:analysisStatus==='CONFIRMED'?'已生成並回輸暗星分析':'已生成，回輸分析未驗證',url,text:analysis||'【生成圖片】'+prompt});
       renderGuideVisuals();
