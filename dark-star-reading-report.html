@@ -147,8 +147,10 @@ async function analyzeMultimodalMaterial(m){
   return false;
 }
 async function addFiles(files){
-  for(const file of files){
-    const m={name:file.name,type:file.type||'file',status:'待分析',file};
+  const list=Array.from(files||[]);
+  if(!list.length)return;
+  for(const file of list){
+    const m={name:file.name,type:file.type||'file',status:'已選取，等待暗星分析',file};
     readingMaterials.push(m); renderMaterials();
     try{
       m.text=await extractFileText(file);
@@ -157,6 +159,9 @@ async function addFiles(files){
     }catch(e){m.status='REQUIRES TEST：解析失敗｜'+String(e.message||e);m.error=String(e.message||e);}
     renderMaterials();
   }
+  $('state').textContent='🟢 素材已加入：按「建立導讀＋報告架構」開始真正分析';
+  $('state').className='status confirmed';
+  $('materialFiles').value='';
 }
 function hasVerifiedImageAnalysis(text){
   const s=String(text||'');
@@ -168,11 +173,20 @@ async function buildMaterialSource(){
   if(typed)chunks.push('【使用者直接提供】\n'+typed);
   for(const m of readingMaterials){
     const isMedia=Boolean(m.file&&(/^(image\/|audio\/|video\/)/.test(String(m.type||''))||/\.(jpg|jpeg|png|mp4|mp3|wav)$/i.test(String(m.name||m.file.name||''))));
+    const isUrl=m.type==='url'&&m.url;
     if(m.text){
       chunks.push('【素材：'+m.name+'】\n'+m.text);
+    }else if(isUrl){
+      m.status='網頁內容擷取中…'; renderMaterials();
+      const r=await callReportAPI({mode:'url',url:m.url});
+      if(!r||typeof r.text!=='string'||r.text.trim().length<20)throw new Error('URL_CONTENT_EMPTY｜'+m.url);
+      m.text=r.text.trim();
+      m.status='已取得網頁內容'; renderMaterials();
+      chunks.push('【網路素材：'+m.url+'】\n'+m.text);
     }else if(isMedia){
       const ok=await analyzeMultimodalMaterial(m);
       if(!ok||!m.text)throw new Error('MULTIMODAL_ANALYSIS_EMPTY｜'+m.name);
+      if(/\.(jpg|jpeg|png)$/i.test(String(m.name||''))&&!hasVerifiedImageAnalysis(m.text))throw new Error('IMAGE_OCR_CONTRACT_FAILED｜'+m.name);
       chunks.push('【素材：'+m.name+'】\n'+m.text);
     }else{
       throw new Error('MATERIAL_TEXT_EMPTY｜'+m.name);
@@ -567,21 +581,13 @@ async function speakDirectText(){
     $('directSpeechState').textContent='🔴 語音中斷（本段不重送）：'+(e.message||e);
   }
 }
-document.addEventListener('click',e=>{
-  const target=e.target&&e.target.closest?e.target.closest('#build, #generateAI, #addUrl'):null;
-  if(!target)return;
-  e.preventDefault();
-  e.stopPropagation();
-  if(target.id==='build') makeStructure();
-  else if(target.id==='generateAI') generateAI();
-  else if(target.id==='addUrl'){
-    const row=$('urlInputRow'), input=$('networkUrl');
-    if(row){
-      row.style.display='flex';
-      if(input){ input.focus(); input.select(); }
-    }
-  }
-},true);
+$('build').onclick=()=>makeStructure();
+$('generateAI').onclick=()=>generateAI();
+$('addUrl').onclick=()=>{
+  const row=$('urlInputRow'), input=$('networkUrl');
+  if(row){row.style.display='flex';}
+  if(input){input.focus();input.select();}
+};
 $('pagePrev').onclick=()=>showOutputPage(currentPage-1);
 $('pageNext').onclick=()=>showOutputPage(currentPage+1);
 $('pageJump').onchange=()=>showOutputPage(Number($('pageJump').value));
@@ -593,10 +599,12 @@ $('confirmUrl').onclick=()=>{
   if(!clean){ input.focus(); return; }
   try{ new URL(clean); }catch(e){ input.focus(); input.setCustomValidity('請輸入有效的網址，例如 https://example.com'); input.reportValidity(); return; }
   input.setCustomValidity('');
-  readingMaterials.push({name:clean,type:'url',status:'待後端擷取',url:clean});
+  readingMaterials.push({name:clean,type:'url',status:'已加入，執行時會由暗星後端擷取內容',url:clean});
   input.value='';
   if(row)row.style.display='none';
   renderMaterials();
+  $('state').textContent='🟢 網路素材已加入：執行時會真正擷取並分析內容';
+  $('state').className='status confirmed';
 };
 $('cancelUrl').onclick=()=>{
   const input=$('networkUrl'), row=$('urlInputRow');
