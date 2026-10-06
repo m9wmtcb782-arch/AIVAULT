@@ -52,7 +52,7 @@ AI 生成：教材 → 暗星獨立導讀／報告生成服務 → AIVAULT AI Ga
 const $=id=>document.getElementById(id);
 const LIVE_FN='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-voice-v2';
 const VOICES=[['Zephyr','Zephyr｜明亮'],['Puck','Puck｜歡快'],['Charon','Charon｜資訊豐富'],['Kore','Kore｜堅定'],['Fenrir','Fenrir｜興奮'],['Leda','Leda｜年輕'],['Orus','Orus｜堅定'],['Aoede','Aoede｜輕快'],['Callirrhoe','Callirrhoe｜隨和'],['Autonoe','Autonoe｜明亮'],['Enceladus','Enceladus｜氣聲'],['Iapetus','Iapetus｜清晰'],['Umbriel','Umbriel｜隨和'],['Algieba','Algieba｜柔順'],['Despina','Despina｜柔順'],['Erinome','Erinome｜清晰'],['Algenib','Algenib｜粗獷'],['Rasalgethi','Rasalgethi｜資訊豐富'],['Laomedeia','Laomedeia｜歡快'],['Achernar','Achernar｜柔和'],['Alnilam','Alnilam｜堅定'],['Schedar','Schedar｜均衡'],['Gacrux','Gacrux｜成熟'],['Pulcherrima','Pulcherrima｜前進感'],['Achird','Achird｜友善'],['Zubenelgenubi','Zubenelgenubi｜隨性'],['Vindemiatrix','Vindemiatrix｜溫和'],['Sadachbia','Sadachbia｜活潑'],['Sadaltager','Sadaltager｜知識豐富'],['Sulafat','Sulafat｜溫暖']];
-let ws=null,playCtx=null,nextPlayTime=0,playSources=[],speaking=false;
+let ws=null,playCtx=null,nextPlayTime=0,playSources=[],speaking=false,speechText='',speechSegments=[];
 function makeStructure(){const title=$('title').value.trim()||'未命名主題',source=$('source').value.trim();if(!source){$('state').textContent='REQUIRES TEST：請先提供教材或資料。';$('state').className='status warn';return;}const m=$('minutes').value,kind=$('kind').value,aud=$('audience').value,dep=$('depth').value;const out=`【暗星導讀】
 主題：${title}
 內容類型：${kind}
@@ -115,12 +115,117 @@ function playBase64PCM(b64){try{const bin=atob(b64),u=new Uint8Array(bin.length)
 let turnWaitResolve=null,turnWaitReject=null,runSerial=0;
 function handleLiveMessage(raw){if(raw instanceof ArrayBuffer){playPCM(raw);return}let d;try{d=JSON.parse(raw)}catch(e){return}const sc=d.serverContent||d;if(d.type==='live_open'||d.setupComplete)setLiveState('🟢 即時語音 已啟動');const parts=(sc.modelTurn&&sc.modelTurn.parts)||(d.modelTurn&&d.modelTurn.parts)||[];parts.forEach(p=>{const x=p&&p.inlineData;if(x&&x.data&&String(x.mimeType||'').startsWith('audio/'))playBase64PCM(x.data)});if(d.audio&&d.audio.data)playBase64PCM(d.audio.data);if(d.data&&String(d.mimeType||'').startsWith('audio/'))playBase64PCM(d.data);if(sc.turnComplete||d.turnComplete||d.type==='turnComplete'){if(turnWaitResolve){const r=turnWaitResolve;turnWaitResolve=null;turnWaitReject=null;r()}setLiveState('🟢 本段語音完成')}if(d.type==='error'||d.error){const m=d.message||(d.error&&d.error.message)||JSON.stringify(d.error);if(turnWaitReject){const r=turnWaitReject;turnWaitResolve=null;turnWaitReject=null;r(new Error(m))}setLiveState('🔴 '+m);}}
 async function connectLive(){const q=new URLSearchParams();q.set('voice',$('voiceSelect').value||'Kore');q.set('agent_id','technical-dark-star');const topicId=localStorage.getItem('technical-dark-star-topic-id')||'',conversationId=localStorage.getItem('technical_dark_star_conversation_id')||'',tok=await accessToken();if(topicId)q.set('topic_id',topicId);if(conversationId)q.set('conversation_id',conversationId);if(tok)q.set('access_token',tok);ws=new WebSocket(LIVE_FN+'?'+q.toString());ws.binaryType='arraybuffer';await new Promise((resolve,reject)=>{const socket=ws,t=setTimeout(()=>{try{socket.close()}catch(e){}reject(new Error('連線逾時'))},8000);socket.onopen=()=>{clearTimeout(t);setLiveState('🟢 即時語音 已連線');resolve()};socket.onerror=()=>{clearTimeout(t);reject(new Error('WebSocket error'))};socket.onmessage=e=>handleLiveMessage(e.data);socket.onclose=()=>{if(turnWaitReject){const r=turnWaitReject;turnWaitResolve=null;turnWaitReject=null;r(new Error('即時語音連線中斷'))}ws=null;};});}
-function splitSpeechText(text,maxLen=620){const clean=text.replace(/\\r/g,'').trim();const out=[];let rest=clean;while(rest.length>maxLen){let cut=-1;for(const mark of ['。','！','？','；','：','\n']){const i=rest.lastIndexOf(mark,maxLen);if(i>Math.floor(maxLen*0.55)){cut=i+1;break}}if(cut<0)cut=maxLen;out.push(rest.slice(0,cut).trim());rest=rest.slice(cut).trim()}if(rest)out.push(rest);return out.filter(Boolean);}
-function waitTurn(timeout=75000){return new Promise((resolve,reject)=>{turnWaitResolve=resolve;turnWaitReject=reject;setTimeout(()=>{if(turnWaitResolve===resolve){turnWaitResolve=null;turnWaitReject=null;reject(new Error('本段語音逾時'))}},timeout)});}
-async function speakOneChunk(chunk,index,total,serial){for(let attempt=1;attempt<=3;attempt++){if(!speaking||serial!==runSerial)throw new Error('已停止');try{if(ws){try{ws.close()}catch(e){}ws=null}await connectLive();const prompt='你是暗星。請只把下面「本段講稿」自然、完整地說出來。不要摘要、不要刪除、不要補充原稿以外的事實，不要自己結束整場報告。這只是長篇報告中的第 '+index+' 段，共 '+total+' 段；說完本段內容後正常結束本回合，下一段會再連線。請使用自然流暢的繁體中文口語。\\n\\n本段講稿：\\n'+chunk;ws.send(JSON.stringify({type:'text',text:prompt}));setLiveState('🟢 暗星正在講述第 '+index+'／'+total+' 段…');await waitTurn(75000);if(ws){try{ws.close()}catch(e){}ws=null}return}catch(e){if(ws){try{ws.close()}catch(_){}ws=null}if(attempt===3)throw e;setLiveState('🟡 第 '+index+' 段中斷，正在重新連線（'+attempt+'／2）…');await new Promise(r=>setTimeout(r,700));}}}
-async function speakGuide(){const result=$('result').textContent.trim();if(!result||result==='等待資料。'){setLiveState('⚠️ 請先建立導讀內容');return}await ensureAudio();stopAudio();runSerial++;const serial=runSerial;speaking=true;const chunks=splitSpeechText(result,620);setLiveState('🟡 暗星長篇導讀準備中，共 '+chunks.length+' 段…');try{for(let i=0;i<chunks.length;i++){if(!speaking||serial!==runSerial)throw new Error('已停止');await speakOneChunk(chunks[i],i+1,chunks.length,serial)}speaking=false;setLiveState('🟢 暗星已完整講完全部 '+chunks.length+' 段')}catch(e){if(serial===runSerial){speaking=false;setLiveState('🔴 語音中斷：'+(e.message||e))}if(ws){try{ws.close()}catch(_){}ws=null}}}
+function splitSpeechText(text,maxLen=500){
+  const clean=String(text||'').replace(/\\r/g,'').trim();
+  const out=[];let rest=clean;
+  while(rest.length>maxLen){
+    let cut=-1;
+    for(const mark of ['。','！','？','；','：','\\n']){
+      const i=rest.lastIndexOf(mark,maxLen);
+      if(i>Math.floor(maxLen*0.55)){cut=i+1;break}
+    }
+    if(cut<0)cut=maxLen;
+    out.push(rest.slice(0,cut).trim());
+    rest=rest.slice(cut).trim();
+  }
+  if(rest)out.push(rest);
+  return out.filter(Boolean);
+}
+
+function buildSpeechSegments(title,guide,report,conclusion){
+  const guideParts=String(guide||'')
+    .split(/(?=第\\s*[1-9]\\s*段\\s*[｜|:：])/)
+    .map(x=>x.trim())
+    .filter(Boolean);
+
+  const segments=[];
+  if(guideParts.length>=9){
+    guideParts.slice(0,9).forEach((p,i)=>segments.push({kind:'guide',index:i+1,total:9,text:(i===0?'【導讀開始】\\n'+title+'\\n':'')+p}));
+  }else{
+    splitSpeechText(title+'\\n'+guide,500).forEach((p,i)=>segments.push({kind:'guide',index:i+1,total:0,text:p}));
+  }
+
+  splitSpeechText(report,500).forEach((p,i)=>segments.push({kind:'report',index:i+1,total:0,text:p}));
+  splitSpeechText(conclusion,500).forEach((p,i)=>segments.push({kind:'conclusion',index:i+1,total:0,text:p}));
+  return segments;
+}
+
+function waitTurn(timeout=90000){
+  return new Promise((resolve,reject)=>{
+    turnWaitResolve=resolve;turnWaitReject=reject;
+    setTimeout(()=>{
+      if(turnWaitResolve===resolve){
+        turnWaitResolve=null;turnWaitReject=null;
+        reject(new Error('本段語音逾時'));
+      }
+    },timeout);
+  });
+}
+
+async function speakOneChunk(segment,index,total,serial){
+  for(let attempt=1;attempt<=3;attempt++){
+    if(!speaking||serial!==runSerial)throw new Error('已停止');
+    try{
+      if(!ws)await connectLive();
+
+      const intro=index===1
+        ? '你是暗星。這是本次完整導讀與報告的第一次開場。請自然自我介紹一次，然後直接進入本段內容。'
+        : '你是暗星。這是同一場長篇導讀與報告的接續段落。不要重新自我介紹，不要重新開場，不要說「接下來我來介紹」，直接承接上一段內容，自然、完整地說出本段講稿。';
+
+      const prompt=intro+
+        '\\n不要摘要、不要刪除、不要補充原稿以外的事實。不要自行結束整場報告。這只是長篇內容中的第 '+index+' 段，共 '+total+' 段；說完本段後自然等待下一段。請使用自然流暢的繁體中文口語。\\n\\n本段講稿：\\n'+segment.text;
+
+      ws.send(JSON.stringify({type:'text',text:prompt}));
+      setLiveState('🟢 暗星正在連續講述第 '+index+'／'+total+' 段…');
+      await waitTurn(90000);
+      return;
+    }catch(e){
+      if(ws){try{ws.close()}catch(_){}ws=null}
+      if(attempt===3)throw e;
+      setLiveState('🟡 第 '+index+' 段中斷，正在重新連線（'+attempt+'／2）…');
+      await new Promise(r=>setTimeout(r,700));
+    }
+  }
+}
+
+async function speakGuide(){
+  if(!speechText){
+    const result=$('result').textContent.trim();
+    if(!result||result==='等待資料。'){setLiveState('⚠️ 請先讓暗星生成導讀與報告');return}
+    speechText=result;
+    speechSegments=splitSpeechText(result,500).map((text,i)=>({kind:'fallback',index:i+1,total:0,text}));
+  }
+
+  await ensureAudio();
+  stopAudio();
+  runSerial++;
+  const serial=runSerial;
+  speaking=true;
+
+  const total=speechSegments.length;
+  setLiveState('🟡 暗星長篇導讀準備中，共 '+total+' 個連續段落…');
+
+  try{
+    await connectLive();
+
+    for(let i=0;i<total;i++){
+      if(!speaking||serial!==runSerial)throw new Error('已停止');
+      await speakOneChunk(speechSegments[i],i+1,total,serial);
+    }
+
+    speaking=false;
+    if(ws){try{ws.close()}catch(e){}ws=null}
+    setLiveState('🟢 暗星已完整講完全部 '+total+' 個連續段落');
+  }catch(e){
+    if(serial===runSerial){
+      speaking=false;
+      setLiveState('🔴 語音中斷：'+(e.message||e));
+    }
+    if(ws){try{ws.close()}catch(_){}ws=null}
+  }
+}
 function stopGuide(){speaking=false;stopAudio();if(ws){try{ws.close()}catch(e){}ws=null}setLiveState('⚪ 已停止');}
-$('build').onclick=makeStructure;$('generateAI').onclick=generateAI;$('clear').onclick=()=>{$('source').value='';$('title').value='';$('result').textContent='等待資料。';$('state').textContent='尚未執行';$('state').className='status';stopGuide()};$('speakGuide').onclick=speakGuide;$('stopGuide').onclick=stopGuide;initVoices();
+$('build').onclick=makeStructure;$('generateAI').onclick=generateAI;$('clear').onclick=()=>{$('source').value='';$('title').value='';$('result').textContent='等待資料。';$('state').textContent='尚未執行';$('state').className='status';speechText='';speechSegments=[];stopGuide()};$('speakGuide').onclick=speakGuide;$('stopGuide').onclick=stopGuide;initVoices();
 </script>
 </body>
 </html>
