@@ -24,3 +24,28 @@ AI 生成已接入 `dark-star-reading-report` Edge Function。研究生模式必
 4. 可依內容類型、研究生／專業讀者與兩級深度調整。
 5. AI 生成必須產出實質分析，不得以結構、目錄或摘要冒充。
 6. 即時語音鏈路不得因本功能修改而變更。
+
+
+## 第二階段｜多模態素材與導讀 PPT（2026-10-06）
+前台 `dark-star-reading-report.html` 已增量加入素材入口，不修改 `technical-dark-star.html`。
+
+支援素材入口：
+- Word：`.doc/.docx`
+- PowerPoint：`.ppt/.pptx`
+- PDF
+- Excel：`.xls/.xlsx`
+- MP4
+- MP3
+- WAV
+- JPG/JPEG/PNG
+- 網路連結
+
+目前前端對 DOCX、XLS/XLSX、PPTX、純文字類素材可先取得可分析文字；PDF、圖片、影音及網路連結會保留為「多模態素材」標記，不偽造其內容。真正的影片畫面、音訊／音樂與圖片語義理解仍需專用多模態後端完成，因此不能在尚未接通時標示 CONFIRMED。
+
+導讀輸出增加 PPT 生成：
+- 每一個導讀輸出頁對應一張 PPT。
+- 每張 PPT 保留該頁講解稿。
+- PPT 生成後，Gemini Live 的講解控制應以「第 N 頁」為單位逐頁送出，不得自行跳頁、重組或預讀。
+- Gemini Live 仍只負責自然口語表達；暗星負責素材理解、頁面內容與講解稿。
+
+本階段沒有修改 Technical Dark Star Live voice 核心。
