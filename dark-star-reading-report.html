@@ -31,13 +31,13 @@ button{border:1px solid #ccc;background:#fff;border-radius:10px;padding:10px 14p
 <body>
 <header><h1>暗星｜導讀與報告工作站</h1><p>獨立測試模組｜不修改 Technical Dark Star 核心頁面</p></header>
 <main>
-<section class="card" id="darkStarChatCard">
-<div style="display:flex;align-items:center;gap:8px"><strong>🌑 暗星對話</strong><span class="badge">導讀工作站內嵌</span></div>
-<div id="darkStarChatLog" style="margin-top:10px;max-height:280px;overflow:auto;display:grid;gap:8px">
-<div class="status">🟢 暗星已在這裡待命。你可以直接問我目前素材、分析進度、發生的錯誤，或問內容本身。</div>
+<section class="card" id="darkStarControlCard" style="background:#111;color:#eee;border-color:#292929">
+<div style="display:flex;align-items:center;gap:8px"><strong>🌑 暗星</strong><span class="badge" style="background:#292929;color:#ddd">工作站控制中樞</span></div>
+<div id="darkStarChatLog" style="margin-top:10px;max-height:300px;overflow:auto;display:grid;gap:8px">
+<div class="status" style="background:#1d1d1d;color:#eee">🟢 暗星已接管導讀工作站。你直接告訴我目標，我會操作目前頁面的功能並回報實際結果。</div>
 </div>
-<div style="display:flex;gap:8px;align-items:flex-end;margin-top:10px"><textarea id="darkStarChatInput" rows="2" style="min-height:70px" placeholder="直接問暗星，例如：剛才 JPG 為什麼沒有成功？這份資料的核心問題是什麼？"></textarea><button type="button" id="darkStarChatSend" class="primary" style="white-space:nowrap">送出</button></div>
-<div id="darkStarChatState" style="margin-top:7px;font-size:12px;color:#666">暗星會依目前這次工作站的實際狀態回答，不以猜測代替結果。</div>
+<div style="display:flex;gap:8px;align-items:flex-end;margin-top:10px"><textarea id="darkStarChatInput" rows="2" style="min-height:70px;background:#181818;color:#fff;border-color:#444" placeholder="例如：暗星，建立研究生分析型導讀。／生成專題報告／做成PPT／開始朗讀／停止"></textarea><button type="button" id="darkStarChatSend" class="primary" style="white-space:nowrap">交給暗星</button></div>
+<div id="darkStarChatState" style="margin-top:7px;font-size:12px;color:#aaa">暗星可以控制導讀、報告、PPT、朗讀、翻頁與停止；不能假裝已完成。</div>
 </section>
 <section class="card">
 <div class="grid">
@@ -304,16 +304,39 @@ const READING_REPORT_API='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/
 function appendDarkStarChat(role,text){
   const box=$('darkStarChatLog');const el=document.createElement('div');el.className='status '+(role==='darkstar'?'confirmed':'');el.innerHTML='<strong>'+ (role==='user'?'你':'暗星') +'：</strong>'+escapeHtml(text).replace(/\\n/g,'<br>');box.appendChild(el);box.scrollTop=box.scrollHeight;
 }
+function darkStarExecuteLocalCommand(question){
+  const q=String(question||'').toLowerCase().replace(/\s+/g,'');
+  const hit=(arr)=>arr.some(x=>q.includes(x));
+  if(hit(['停止朗讀','停止導讀','停止語音','停止'])){ $('stopGuide').click(); return 'ACTION:STOP'; }
+  if(hit(['生成ppt','做成ppt','導讀ppt','建立ppt'])){ $('generatePPT').click(); return 'ACTION:PPT'; }
+  if(hit(['直接朗讀','直接口語閱讀'])){ $('directSpeak').click(); return 'ACTION:DIRECT_SPEAK'; }
+  if(hit(['開始朗讀','開始導讀','朗讀導讀','用暗星導讀'])){ $('speakGuide').click(); return 'ACTION:SPEAK'; }
+  if(hit(['生成專題報告','直接生成專題報告','建立專題報告','生成報告'])){ $('generateAI').click(); return 'ACTION:REPORT'; }
+  if(hit(['建立導讀','生成導讀','做導讀'])){ $('build').click(); return 'ACTION:GUIDE'; }
+  if(hit(['下一頁','往下一頁'])){ $('pageNext').click(); return 'ACTION:NEXT_PAGE'; }
+  if(hit(['上一頁','往上一頁'])){ $('pagePrev').click(); return 'ACTION:PREV_PAGE'; }
+  if(hit(['清除全部','清除素材'])){ $('clearMaterials').click(); return 'ACTION:CLEAR_MATERIALS'; }
+  if(hit(['清除'])){ $('clear').click(); return 'ACTION:CLEAR'; }
+  return '';
+}
 async function askDarkStar(){
   const input=$('darkStarChatInput');const question=input.value.trim();if(!question)return;
-  const btn=$('darkStarChatSend');btn.disabled=true;input.value='';appendDarkStarChat('user',question);$('darkStarChatState').textContent='🟡 暗星正在根據目前工作站實際狀態回答……';
+  const btn=$('darkStarChatSend');btn.disabled=true;input.value='';appendDarkStarChat('user',question);
+  $('darkStarChatState').textContent='🟡 暗星正在判斷目標與目前工作站狀態……';
   try{
+    const action=darkStarExecuteLocalCommand(question);
+    if(action){
+      const labels={'ACTION:STOP':'已執行「停止朗讀／導讀」','ACTION:PPT':'已執行「生成導讀 PPT」','ACTION:DIRECT_SPEAK':'已執行「直接口語閱讀」','ACTION:SPEAK':'已執行「用暗星開始導讀」','ACTION:REPORT':'已執行「讓暗星直接生成專題報告」','ACTION:GUIDE':'已執行「建立導讀＋報告架構」','ACTION:NEXT_PAGE':'已執行「下一頁」','ACTION:PREV_PAGE':'已執行「上一頁」','ACTION:CLEAR_MATERIALS':'已執行「清除素材」','ACTION:CLEAR':'已執行「清除」'};
+      appendDarkStarChat('darkstar','🟢 CONFIRMED：暗星已控制頁面按鍵。'+labels[action]+'。現在等待頁面回報實際結果。');
+      $('darkStarChatState').textContent='🟡 暗星已下達頁面操作，等待實際結果。';
+      return;
+    }
     const materialSummary=readingMaterials.map(m=>({name:m.name,type:m.type,status:m.status,text:m.text?String(m.text).slice(0,5000):'',url:m.url||''}));
     const context={title:$('title').value.trim(),kind:$('kind').value,audience:$('audience').value,depth:$('depth').value,state:$('state').textContent,aiState:$('aiState').textContent,urlStatus:$('urlStatus').textContent,materials:materialSummary,output:outputPages.join('\\n\\n').slice(0,12000)};
     const r=await callReportAPI({mode:'chat',question,context});
     if(!r||typeof r.reply!=='string'||!r.reply.trim())throw new Error('CHAT_REPLY_EMPTY');
-    appendDarkStarChat('darkstar',r.reply.trim());$('darkStarChatState').textContent='🟢 CONFIRMED：暗星已依目前工作站狀態完成回覆。';
-  }catch(e){appendDarkStarChat('darkstar','🔴 ERROR：我目前沒有取得足夠的實際資料回答這個問題。原因：'+String(e.message||e));$('darkStarChatState').textContent='🔴 ERROR：'+String(e.message||e)}
+    appendDarkStarChat('darkstar',r.reply.trim());$('darkStarChatState').textContent='🟢 CONFIRMED：暗星已依目前工作站實際狀態回答。';
+  }catch(e){appendDarkStarChat('darkstar','🔴 ERROR：暗星未能完成這次操作。原因：'+String(e.message||e));$('darkStarChatState').textContent='🔴 ERROR：'+String(e.message||e)}
   finally{btn.disabled=false;input.focus()}
 }
 async function callReportAPI(body){
@@ -663,15 +686,13 @@ async function darkStarAutoAssist(){
     const hasTyped=$('source').value.trim();
     const hasFiles=readingMaterials.length>0;
     if(!hasTyped&&!hasFiles){
-      $('state').textContent='🟢 暗星已在導讀工作站待命。你加入素材後，暗星會自動讀取、理解並協助建立導讀。';
+      $('state').textContent='🟢 暗星已在導讀工作站待命。你給我素材或目標，我會操作頁面完成工作。';
       $('state').className='status';
       return;
     }
-    $('state').textContent='🟡 暗星正在協助處理素材……';
-    $('state').className='status warn';
-    const source=await buildMaterialSource();
     if(serial!==darkStarManagerSerial||!darkStarManaging)return;
-    if(!source)throw new Error('SOURCE_REQUIRED｜沒有取得可分析內容。');
+    $('state').textContent='🟡 暗星正在接管素材處理……';
+    $('state').className='status warn';
     await makeStructure();
   }catch(e){
     $('state').textContent='REQUIRES TEST：暗星輔助失敗｜'+String(e.message||e);
