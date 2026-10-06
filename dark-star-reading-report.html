@@ -158,10 +158,20 @@ async function addFiles(files){
   }
 }
 async function buildMaterialSource(){
-  const chunks=[]; const typed=$('source').value.trim(); if(typed)chunks.push('【使用者直接提供】\\n'+typed);
+  const chunks=[];
+  const typed=$('source').value.trim();
+  if(typed)chunks.push('【使用者直接提供】\\n'+typed);
   for(const m of readingMaterials){
-    if(m.text)chunks.push('【素材：'+m.name+'】\\n'+m.text);
-    else chunks.push('【多模態素材：'+m.name+'｜'+m.type+'】\\n目前前端不偽造文字內容；此素材標記為需多模態理解。');
+    if(m.text){
+      chunks.push('【素材：'+m.name+'】\\n'+m.text);
+    }else if(m.file && /^(image\\/|audio\\/|video\\/)/.test(String(m.type||''))){
+      // 不允許用佔位文字冒充多模態理解；導讀時會先真正分析素材。
+      await analyzeMultimodalMaterial(m);
+      if(m.text) chunks.push('【素材：'+m.name+'】\\n'+m.text);
+      else throw new Error('MULTIMODAL_ANALYSIS_EMPTY｜'+m.name);
+    }else{
+      throw new Error('MATERIAL_TEXT_EMPTY｜'+m.name);
+    }
   }
   return chunks.join('\\n\\n').trim();
 }
