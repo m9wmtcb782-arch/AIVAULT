@@ -459,7 +459,17 @@ window.askDarkStar=async function askDarkStar(){
       output:outputPages.join('\\n\\n').slice(0,12000)
     };
     darkStarConversation.push({role:'user',content:question});
-    const r=await callReportAPI({mode:'chat',question,context,history:darkStarConversation.slice(-12),control:true});
+    const r=await callReportAPI({
+      mode:'chat',
+      question,
+      context,
+      history:darkStarConversation.slice(-12),
+      control:true,
+      agent_id:'technical-dark-star',
+      topic_id:getSharedDarkStarTopicId(),
+      conversation_id:getSharedDarkStarConversationId(),
+      source:'dark-star-reading-report'
+    });
     if(r&&r.action&&r.action!=='NONE'){
       const actionResult=await darkStarRunAction(r.action,r.params||{});
       appendDarkStarChat('darkstar',String(r.reply||'')+'\n\n'+actionResult);
@@ -502,6 +512,25 @@ async function darkStarRunAction(action,params={}){
   await new Promise(r=>setTimeout(r,800));
   return '🟡 ACTION EXECUTED：暗星已控制「'+id+'」。目前頁面狀態：'+($('state')?.textContent||'')+'；AI狀態：'+($('aiState')?.textContent||'')+'。';
 }
+function getSharedDarkStarTopicId(){
+  try{
+    let topic=localStorage.getItem('technical-dark-star-topic-id');
+    if(typeof topic==='string'&&topic.trim()) return topic.trim();
+    topic='technical-dark-star-'+(crypto?.randomUUID?crypto.randomUUID():(Date.now()+'-'+Math.random().toString(36).slice(2)));
+    localStorage.setItem('technical-dark-star-topic-id',topic);
+    return topic;
+  }catch(e){
+    return 'technical-dark-star-reading-'+Date.now();
+  }
+}
+
+function getSharedDarkStarConversationId(){
+  try{
+    const id=localStorage.getItem('technical_dark_star_conversation_id');
+    return typeof id==='string'&&id.trim()?id.trim():null;
+  }catch(e){return null;}
+}
+
 async function callReportAPI(body){
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),90000);
