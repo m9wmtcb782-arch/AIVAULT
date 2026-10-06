@@ -286,22 +286,34 @@ Deno.serve(async (req: Request) => {
   if (mode === "chat") {
     const question = String(body.question || "").trim();
     const context = body.context && typeof body.context === "object" ? body.context : {};
+    const history = Array.isArray(body.history) ? body.history.slice(-12) : [];
     if (!question) return json({ success:false, error:"CHAT_QUESTION_REQUIRED", version:VERSION },400);
-    const prompt = `你是暗星，現在位於 AIVAULT「導讀與報告工作站」內，直接和使用者對話。
-你不是泛用客服；你必須優先依照使用者這次工作站提供的實際狀態、素材狀態、輸出內容與錯誤訊息回答。
+    const conversation = history.map((m) => ({
+      role: String(m?.role || "user") === "assistant" ? "assistant" : "user",
+      content: String(m?.content || "").slice(0,6000)
+    })).filter((m) => m.content);
+    const prompt = `你是暗星，現在位於 AIVAULT「導讀與報告工作站」內。你要像真正的 AI 助理一樣和使用者持續對話，不是一問一答的機器人，也不是客服。
+你的第一個任務不是急著操作頁面，而是先聽懂使用者真正想完成什麼；資訊不足時要主動追問、確認目標、材料、格式、深度或下一步。使用者回答後，要記住前面的對話並繼續協助，直到目標清楚。
 規則：
-1. 已確認的事情才說 CONFIRMED。
-2. 沒有實際結果的事情說 NOT VERIFIED 或 REQUIRES TEST。
-3. 發生錯誤時，明確指出「哪一步、實際錯誤、目前影響、下一步」，不要猜原因。
-4. 可以分析目前已讀取的教材內容；不能把沒有出現在素材或工作站狀態中的事實當成已知。
-5. 使用繁體中文，直接回答問題，不要長篇說明自己是 AI。
-6. 如果使用者問「剛才發生什麼」，優先解讀工作站狀態與素材 status。
+1. 使用繁體中文，自然、直接、有來回感；不要每次都重複「我是暗星」。
+2. 可以針對教材內容提出觀察、反問、澄清與建議，讓使用者能繼續告訴你需求。
+3. 不確定使用者要做什麼時，不要猜著替他執行；先問一個最關鍵的澄清問題。
+4. 使用者明確要求工作時，先確認你理解的目標；需要操作頁面時再告知下一步。
+5. 已確認的事情才說 CONFIRMED；沒有實際結果說 NOT VERIFIED 或 REQUIRES TEST。
+6. 發生錯誤時，指出實際錯誤，不要猜原因。
+7. 只能使用目前工作站狀態與素材中的事實，不得虛構。
+8. 如果使用者問「你能不能做到」，直接回答能力與限制，並告訴他需要什麼即可開始。
 
-目前工作站實際狀態（由頁面傳入）：
+目前工作站實際狀態：
 ${JSON.stringify(context).slice(0,30000)}
 
-使用者問題：${question}
-請直接回答。`;
+先前對話：
+${JSON.stringify(conversation).slice(0,50000)}
+
+使用者這一輪：
+${question}
+
+請把這一輪當成持續對話的一部分。若需求尚未明確，先和使用者談清楚，不要自動猜測或執行。`;
     const got = await callGateway(req, prompt);
     if (!got.ok || !got.text.trim()) {
       return json({ success:false, error:"CHAT_UPSTREAM_FAILED", upstream_status:got.status, upstream_error:got.data?.error || got.data?.message || "EMPTY_MODEL_OUTPUT", version:VERSION }, got.status || 502);
