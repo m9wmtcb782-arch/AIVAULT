@@ -162,7 +162,7 @@ async function buildMaterialSource(){
   const typed=$('source').value.trim();
   if(typed)chunks.push('【使用者直接提供】\n'+typed);
   for(const m of readingMaterials){
-    const isMedia=Boolean(m.file&&/^(image\/|audio\/|video\/)/.test(String(m.type||'')));
+    const isMedia=Boolean(m.file&&(/^(image\/|audio\/|video\/)/.test(String(m.type||''))||/\.(jpg|jpeg|png|mp4|mp3|wav)$/i.test(String(m.name||m.file.name||''))));
     if(m.text){
       chunks.push('【素材：'+m.name+'】\n'+m.text);
     }else if(isMedia){
@@ -251,17 +251,15 @@ async function makeStructure(){
     const analysis=await callReportAPI({...base,mode:'parse'});
     if(!analysis||typeof analysis.analysis_context!=='string'||analysis.analysis_context.length<40) throw new Error('圖片／素材分析底稿不足');
     $('state').textContent='🟡 暗星已理解素材，正在建立導讀第 1／3 部分……';
-    const parts=[];
-    for(let i=1;i<=3;i++){
-      const guide=await callReportAPI({...base,mode:'guide',analysis_context:analysis.analysis_context});
-      if(!guide||typeof guide.guide!=='string'||guide.guide.length<100) throw new Error('導讀生成格式錯誤');
-      parts.push(guide.guide);
-      if(i<3) $('state').textContent='🟡 導讀生成中：已完成批次 '+i+'，繼續分析……';
-      break;
-    }
-    const guideText=parts.join('\n\n');
+    $('state').textContent='🟡 暗星已理解素材，正在建立研究導讀……';
+    const guide=await callReportAPI({...base,mode:'guide',analysis_context:analysis.analysis_context});
+    if(!guide||typeof guide.guide!=='string'||guide.guide.length<100) throw new Error('導讀生成格式錯誤');
+    const guideText=guide.guide;
     renderFullOutput('【暗星研究導讀】\n'+title+'\n\n'+guideText);
-    $('state').textContent='CONFIRMED：已由素材建立研究導讀；圖片文字與圖像分析均已納入導讀依據。';
+    const hasImage=readingMaterials.some(m=>/\.(jpg|jpeg|png)$/i.test(String(m.name||'')));
+    $('state').textContent=hasImage
+      ? 'CONFIRMED：暗星已完成圖片OCR與圖像分析，並據此建立研究導讀。'
+      : 'CONFIRMED：已由素材建立研究導讀。';
     $('state').className='status confirmed';
   }catch(e){
     $('state').textContent='REQUIRES TEST：導讀建立失敗｜'+String(e.message||e);
