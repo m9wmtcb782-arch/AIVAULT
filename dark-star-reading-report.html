@@ -86,6 +86,7 @@ let ws=null,playCtx=null,nextPlayTime=0,playSources=[],speaking=false,speechText
 let introRequestedThisRun=false;
 let outputPages=[],currentPage=0;
 let readingMaterials=[];
+let materialAnalysisBusy=0;
 let generatedSlides=[];
 function renderMaterials(){
   const box=$('materialList'); box.innerHTML='';
@@ -144,6 +145,8 @@ async function analyzeMultimodalMaterial(m){
   renderMaterials();
 }
 async function addFiles(files){
+  materialAnalysisBusy++;
+  try{
   for(const file of files){
     const m={name:file.name,type:file.type||'file',status:'解析中',file};
     readingMaterials.push(m); renderMaterials();
@@ -156,10 +159,20 @@ async function addFiles(files){
     }catch(e){m.status='REQUIRES TEST：解析失敗｜'+String(e.message||e);m.error=String(e.message||e);}
     renderMaterials();
   }
+  }finally{
+    materialAnalysisBusy=Math.max(0,materialAnalysisBusy-1);
+  }
 }
 async function buildMaterialSource(){
   const chunks=[];
   const typed=$('source').value.trim();
+  // iPhone 選取 JPG 後，多模態分析是非同步的；建立導讀若先被按下，必須等圖片分析完成，不能搶跑。
+  const waitUntil=Date.now()+95000;
+  while(materialAnalysisBusy>0){
+    if(Date.now()>waitUntil) throw new Error('MULTIMODAL_ANALYSIS_TIMEOUT｜圖片仍在分析中');
+    $('state').textContent='🟡 暗星正在完成圖片分析，請稍候……';
+    await new Promise(r=>setTimeout(r,250));
+  }
   if(typed)chunks.push('【使用者直接提供】\n'+typed);
   for(const m of readingMaterials){
     const isMedia=Boolean(m.file&&(/^(image\/|audio\/|video\/)/.test(String(m.type||''))||/\.(jpg|jpeg|png|mp4|mp3|wav)$/i.test(String(m.name||m.file.name||''))));
@@ -250,8 +263,7 @@ async function makeStructure(){
     const base={title,kind:$('kind').value,audience:$('audience').value,depth:$('depth').value,minutes:$('minutes').value,source};
     const analysis=await callReportAPI({...base,mode:'parse'});
     if(!analysis||typeof analysis.analysis_context!=='string'||analysis.analysis_context.length<40) throw new Error('圖片／素材分析底稿不足');
-    $('state').textContent='🟡 暗星已理解素材，正在建立導讀第 1／3 部分……';
-    $('state').textContent='🟡 暗星已理解素材，正在建立研究導讀……';
+    $('state').textContent='🟡 暗星已完成素材理解，正在建立研究導讀……';
     const guide=await callReportAPI({...base,mode:'guide',analysis_context:analysis.analysis_context});
     if(!guide||typeof guide.guide!=='string'||guide.guide.length<100) throw new Error('導讀生成格式錯誤');
     const guideText=guide.guide;
