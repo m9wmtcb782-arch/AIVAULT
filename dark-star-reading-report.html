@@ -359,7 +359,7 @@ if(DarkStarChatSpeechRecognition){
     $('darkStarChatSend').disabled=false;
     if(finalText.trim()){
       try{darkStarChatRecognition.stop();}catch{}
-      setTimeout(()=>{ if(finalText.trim() && $('darkStarChatInput').value.trim()) askDarkStar(); },0);
+      setTimeout(()=>{ if(finalText.trim() && $('darkStarChatInput').value.trim()) window.askDarkStar(); },0);
     }
   };
   darkStarChatRecognition.onerror=()=>{
@@ -374,7 +374,9 @@ if(DarkStarChatSpeechRecognition){
   };
 }
 
-$('darkStarChatMic').addEventListener('click',()=>{
+$('darkStarChatMic').addEventListener('click',event=>{
+  event.preventDefault();
+  event.stopPropagation();
   if(!darkStarChatRecognition){
     $('darkStarChatState').textContent='🔴 ERROR：此瀏覽器不支援語音辨識。';
     return;
@@ -386,7 +388,11 @@ $('darkStarChatMic').addEventListener('click',()=>{
   try{darkStarChatRecognition.start();}catch{}
 });
 
-$('darkStarChatSend').addEventListener('click',()=>window.askDarkStar());
+$('darkStarChatSend').addEventListener('click',event=>{
+  event.preventDefault();
+  event.stopPropagation();
+  window.askDarkStar();
+});
 $('darkStarChatInput').addEventListener('input',()=>{
   resizeDarkStarChatInput();
   $('darkStarChatSend').disabled=false;
@@ -394,7 +400,7 @@ $('darkStarChatInput').addEventListener('input',()=>{
 $('darkStarChatInput').addEventListener('keydown',event=>{
   if(event.key==='Enter'&&!event.shiftKey){
     event.preventDefault();
-    askDarkStar();
+    window.askDarkStar();
   }
 });
 
