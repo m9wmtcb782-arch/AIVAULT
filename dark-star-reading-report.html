@@ -133,7 +133,7 @@ async function analyzeMultimodalMaterial(m){
   try{
     const dataUrl=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(m.file);});
     const mediaType=isImage?'image':isAudio?'audio':'video';
-    const r=await callReportAPI({mode:'multimodal',media_type:mediaType,media:String(dataUrl),prompt:'你是暗星。這是研究導讀素材。請完整理解內容，尤其是圖片中的文字、圖表、人物、場景與結構；若有可辨識文字，逐項擷取並分析。不得虛構。影音請保留重要時間／事件關係，音樂請分析人聲、樂器、節奏、段落、情緒與歌詞可辨識內容。'});
+    const r=await callReportAPI({mode:'multimodal',media_type:mediaType,media:String(dataUrl),prompt:'你是暗星的圖片OCR與視覺理解層。若這是圖片，必須先逐項辨識實際可見文字，再分析圖像，最後綜合判讀。固定輸出：【圖片文字（OCR）】、【圖像分析】、【綜合判讀】三段；標題、段落、表格、圖例、座標軸、數字、註記與頁首頁尾都要盡可能辨識；看不清楚寫〔無法辨識〕，絕對不能猜字或補字；無法直接由圖片確認的推論標示〔INFERENCE〕；不得虛構。若為影音，分析畫面、語音、字幕、事件與時間關係；音樂分析人聲、樂器、節奏、段落、情緒與可辨識歌詞。'});
     if(r&&r.analysis){
       m.text='【多模態分析結果】\\n'+r.analysis;
       m.status='NOT VERIFIED：已收到多模態分析回應，內容對應性待實測';
