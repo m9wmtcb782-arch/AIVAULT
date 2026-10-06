@@ -181,7 +181,12 @@ async function buildMaterialSource(){
   for(const m of readingMaterials){
     const isMedia=Boolean(m.file&&(/^(image\/|audio\/|video\/)/.test(String(m.type||''))||/\.(jpg|jpeg|png|mp4|mp3|wav)$/i.test(String(m.name||m.file.name||''))));
     if(m.text){
-      chunks.push('【素材：'+m.name+'】\n'+m.text);
+      const isImage=/\.(jpg|jpeg|png)$/i.test(String(m.name||m.file?.name||'')) || String(m.type||'').startsWith('image/');
+      if(isImage&&!hasVerifiedImageAnalysis(m.text)){
+        await analyzeMultimodalMaterial(m);
+        if(!hasVerifiedImageAnalysis(m.text)) throw new Error('IMAGE_OCR_CONTRACT_FAILED｜'+m.name);
+      }
+      chunks.push('【素材：'+m.name+'】\\n'+m.text);
     }else if(isMedia){
       // 只有尚未取得真正分析結果時才再次分析；避免按建立導讀時重送同一張圖片。
       await analyzeMultimodalMaterial(m);
