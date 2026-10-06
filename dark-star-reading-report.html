@@ -118,12 +118,19 @@ async function generateAI(){
     $('aiState').textContent='🟡 正在生成最後結論…';
     const conclusion=await callReportAPI({...base,mode:'conclusion',guide:guide.guide,analysis_context:analysis.analysis_context,report});
     if(!conclusion||typeof conclusion.conclusion!=='string')throw new Error('結論生成格式錯誤');
-    const x={guide_title:guide.guide_title||base.title,guide:guide.guide,report,conclusion:conclusion.conclusion,evidence_notes:guide.evidence_notes||[],verification_notes:guide.verification_notes||[]};
+    $('aiState').textContent='🟡 導讀、報告與結論完成，暗星正在執行研究生級品質審查…';
+    const quality=await callReportAPI({...base,mode:'quality',guide:guide.guide,analysis_context:analysis.analysis_context,report,conclusion:conclusion.conclusion});
+    if(!quality||typeof quality.overall!=='string')throw new Error('品質審查格式錯誤');
+    const x={guide_title:guide.guide_title||base.title,guide:guide.guide,report,conclusion:conclusion.conclusion,evidence_notes:guide.evidence_notes||[],verification_notes:guide.verification_notes||[],quality};
+
     $('result').textContent='【暗星導讀】\n'+x.guide_title+'\n\n'+x.guide+'\n\n【正式報告】\n'+x.report+'\n\n【結論】\n'+x.conclusion;
     speechText='【導讀】\n'+x.guide_title+'\n'+x.guide+'\n\n【正式報告】\n'+x.report+'\n\n【結論】\n'+x.conclusion;
     speechSegments=buildSpeechSegments(x.guide_title,x.guide,x.report,x.conclusion);
-    $('aiState').textContent='CONFIRMED：暗星已完成「文章解析 → 9段導讀 → 3段正式報告 → 結論」。Gemini Live 僅負責後續自然口語表達。';
-    $('aiState').className='status confirmed';
+    const qmsg='品質審查：'+String(x.quality.overall||'NEEDS_REVISION')+'｜分數 '+String(x.quality.score??'未提供')+'／100';
+    $('aiState').textContent=(x.quality.overall==='PASS'
+      ? 'CONFIRMED：暗星已完成「文章解析 → 9段導讀 → 3段正式報告 → 結論」，且品質閘門通過。Gemini Live 僅負責後續自然口語表達。'
+      : 'REQUIRES REVIEW：暗星已完成稿件，但品質閘門判定仍需修訂。'+qmsg);
+    $('aiState').className=x.quality.overall==='PASS'?'status confirmed':'status warn';
     $('state').textContent='CONFIRMED：已使用分段 AI 生成，避免單次長請求 EarlyDrop。';
     $('state').className='status confirmed';
   }catch(e){
