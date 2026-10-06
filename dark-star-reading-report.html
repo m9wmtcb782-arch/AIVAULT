@@ -147,22 +147,15 @@ async function analyzeMultimodalMaterial(m){
   return false;
 }
 async function addFiles(files){
-  materialAnalysisBusy++;
-  try{
   for(const file of files){
-    const m={name:file.name,type:file.type||'file',status:'解析中',file};
+    const m={name:file.name,type:file.type||'file',status:'待分析',file};
     readingMaterials.push(m); renderMaterials();
     try{
       m.text=await extractFileText(file);
-      m.status=m.text?'已取得可分析文字':'準備進行多模態分析';
       const mediaFile=/^(image\/|audio\/|video\/)/.test(m.type||'')||/\.(jpg|jpeg|png|mp4|mp3|wav)$/i.test(file.name);
-        if(mediaFile) await analyzeMultimodalMaterial(m);
-      else m.status='REQUIRES TEST：此檔案格式目前沒有可用解析器';
+      m.status=mediaFile?'待建立導讀時進行多模態理解':(m.text?'已取得可分析文字':'REQUIRES TEST：此檔案格式目前沒有可用解析器');
     }catch(e){m.status='REQUIRES TEST：解析失敗｜'+String(e.message||e);m.error=String(e.message||e);}
     renderMaterials();
-  }
-  }finally{
-    materialAnalysisBusy=Math.max(0,materialAnalysisBusy-1);
   }
 }
 function hasVerifiedImageAnalysis(text){
@@ -178,7 +171,9 @@ async function buildMaterialSource(){
     if(m.text){
       chunks.push('【素材：'+m.name+'】\n'+m.text);
     }else if(isMedia){
-      throw new Error('MULTIMODAL_ANALYSIS_EMPTY｜'+m.name);
+      const ok=await analyzeMultimodalMaterial(m);
+      if(!ok||!m.text)throw new Error('MULTIMODAL_ANALYSIS_EMPTY｜'+m.name);
+      chunks.push('【素材：'+m.name+'】\n'+m.text);
     }else{
       throw new Error('MATERIAL_TEXT_EMPTY｜'+m.name);
     }
