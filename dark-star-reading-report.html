@@ -14,7 +14,11 @@ input,select,textarea,button{font:inherit}input,select,textarea{width:100%;borde
 textarea{min-height:220px;resize:vertical}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
 button{border:1px solid #ccc;background:#fff;border-radius:10px;padding:10px 14px;cursor:pointer}button.primary{background:#202123;color:#fff;border-color:#202123}
 .status{font-size:13px;padding:9px 11px;border-radius:9px;background:#f1f1f1}.status.confirmed{background:#edf8f0}.status.warn{background:#fff6df}
-.result{white-space:pre-wrap;line-height:1.75;border-top:1px solid #eee;padding-top:14px}.result#result{max-height:62vh;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-right:8px}{display:inline-block;padding:3px 7px;border-radius:7px;background:#eee;font-size:11px;margin-left:6px}
+.result{white-space:pre-wrap;line-height:1.75;border-top:1px solid #eee;padding-top:14px}.result#result{overflow:visible;padding-right:8px}
+.pagination{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid #eee}
+.pagination button{min-width:72px}.pagination button:disabled{opacity:.45;cursor:not-allowed}
+.page-indicator{font-size:13px;color:#555;min-width:110px;text-align:center}
+.page-jump{width:auto;min-width:80px;padding:8px}{display:inline-block;padding:3px 7px;border-radius:7px;background:#eee;font-size:11px;margin-left:6px}
 .voicebox{margin-top:14px;padding:14px;border:1px solid #e5e5e5;border-radius:12px;background:#fafafa}.voice-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.voice-row select{width:auto;min-width:190px}.live-state{font-size:13px;color:#555}
 @media(max-width:760px){.grid{grid-template-columns:1fr 1fr}main{padding:12px}.voice-row select{width:100%}}
 </style>
@@ -36,9 +40,15 @@ button{border:1px solid #ccc;background:#fff;border-radius:10px;padding:10px 14p
 </section>
 <section class="card">
 <strong>輸出</strong><span class="badge">多段式</span><div id="result" class="result">等待資料。</div>
+<div class="pagination" aria-label="輸出翻頁">
+<button id="pagePrev">‹ 上一頁</button>
+<span id="pageIndicator" class="page-indicator">第 0／0 頁</span>
+<button id="pageNext">下一頁 ›</button>
+<select id="pageJump" class="page-jump" aria-label="跳至頁面"><option value="0">頁面</option></select>
+</div>
 <div class="voicebox"><strong>🎙 暗星自然口語導讀</strong>
 <p style="margin:7px 0;color:#666;font-size:13px">文稿是內容依據；即時語音 負責把內容自然地說出來，不是把文字機械逐字朗讀。</p>
-<div class="voice-row"><select id="voiceSelect" aria-label="暗星聲音"></select><button class="primary" id="speakGuide">▶ 用暗星開始導讀</button><button id="stopGuide">■ 停止</button><span id="liveState" class="live-state">⚪ 尚未連線</span></div>
+<div class="voice-row"><select id="voiceSelect" aria-label="暗星聲音"></select><button class="primary" id="speakGuide">▶ 用暗星開始導讀</button><button id="stopGuide">■ 停止</button><button id="testSecondConnection">測試 Gemini 第二次連線</button><span id="liveState" class="live-state">⚪ 尚未連線</span></div>
 </div></section>
 <section class="card"><strong>暗星生成規則</strong>
 <div class="result">導讀：問題意識 → 核心概念 → 論證主線 → 爭點與閱讀地圖
@@ -54,7 +64,49 @@ const $=id=>document.getElementById(id);
 const LIVE_FN='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-voice-v2';
 const VOICES=[['Zephyr','Zephyr｜明亮'],['Puck','Puck｜歡快'],['Charon','Charon｜資訊豐富'],['Kore','Kore｜堅定'],['Fenrir','Fenrir｜興奮'],['Leda','Leda｜年輕'],['Orus','Orus｜堅定'],['Aoede','Aoede｜輕快'],['Callirrhoe','Callirrhoe｜隨和'],['Autonoe','Autonoe｜明亮'],['Enceladus','Enceladus｜氣聲'],['Iapetus','Iapetus｜清晰'],['Umbriel','Umbriel｜隨和'],['Algieba','Algieba｜柔順'],['Despina','Despina｜柔順'],['Erinome','Erinome｜清晰'],['Algenib','Algenib｜粗獷'],['Rasalgethi','Rasalgethi｜資訊豐富'],['Laomedeia','Laomedeia｜歡快'],['Achernar','Achernar｜柔和'],['Alnilam','Alnilam｜堅定'],['Schedar','Schedar｜均衡'],['Gacrux','Gacrux｜成熟'],['Pulcherrima','Pulcherrima｜前進感'],['Achird','Achird｜友善'],['Zubenelgenubi','Zubenelgenubi｜隨性'],['Vindemiatrix','Vindemiatrix｜溫和'],['Sadachbia','Sadachbia｜活潑'],['Sadaltager','Sadaltager｜知識豐富'],['Sulafat','Sulafat｜溫暖']];
 let ws=null,playCtx=null,nextPlayTime=0,playSources=[],speaking=false,speechText='',speechSegments=[];
+let liveConnectionCount=0;
 let introRequestedThisRun=false;
+let outputPages=[],currentPage=0;
+function splitOutputPages(text,maxLen=1800){
+  const clean=String(text||'').trim();
+  if(!clean)return [];
+  const pages=[];let rest=clean;
+  while(rest.length>maxLen){
+    let cut=-1;
+    const marks=['\n\n','\n','。','！','？','；'];
+    for(const mark of marks){
+      const i=rest.lastIndexOf(mark,maxLen);
+      if(i>Math.floor(maxLen*0.60)){cut=i+mark.length;break;}
+    }
+    if(cut<0)cut=maxLen;
+    pages.push(rest.slice(0,cut).trim());
+    rest=rest.slice(cut).trim();
+  }
+  if(rest)pages.push(rest);
+  return pages;
+}
+function renderPageControls(){
+  const n=outputPages.length;
+  $('pageIndicator').textContent=n?('第 '+(currentPage+1)+'／'+n+' 頁'):'第 0／0 頁';
+  $('pagePrev').disabled=n===0||currentPage<=0;
+  $('pageNext').disabled=n===0||currentPage>=n-1;
+  const sel=$('pageJump');
+  sel.innerHTML='';
+  if(!n){const o=document.createElement('option');o.value='0';o.textContent='頁面';sel.appendChild(o);return;}
+  for(let i=0;i<n;i++){const o=document.createElement('option');o.value=String(i);o.textContent='第 '+(i+1)+' 頁';sel.appendChild(o);}
+  sel.value=String(currentPage);
+}
+function showOutputPage(index){
+  if(!outputPages.length){currentPage=0;$('result').textContent='等待資料。';renderPageControls();return;}
+  currentPage=Math.max(0,Math.min(index,outputPages.length-1));
+  $('result').textContent=outputPages[currentPage];
+  renderPageControls();
+}
+function renderFullOutput(text){
+  outputPages=splitOutputPages(text,1800);
+  currentPage=0;
+  showOutputPage(0);
+}
 function makeStructure(){const title=$('title').value.trim()||'未命名主題',source=$('source').value.trim();if(!source){$('state').textContent='REQUIRES TEST：請先提供教材或資料。';$('state').className='status warn';return;}const m=$('minutes').value,kind=$('kind').value,aud=$('audience').value,dep=$('depth').value;const out=`【暗星導讀】
 主題：${title}
 內容類型：${kind}
@@ -82,7 +134,7 @@ function makeStructure(){const title=$('title').value.trim()||'未命名主題',
 三、仍存在的問題／限制
 四、讀者應帶走的一個核心觀念
 
-`;$('result').textContent=out;$('state').textContent='CONFIRMED：獨立結構生成器已執行。AI 模型生成尚未接線。';$('state').className='status confirmed';}
+`;renderFullOutput(out);$('state').textContent='CONFIRMED：獨立結構生成器已執行。';$('state').className='status confirmed';}
 const READING_REPORT_API='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/dark-star-reading-report';
 async function callReportAPI(body){
   const r=await fetch(READING_REPORT_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -121,7 +173,7 @@ async function generateAI(){
     if(!quality||typeof quality.overall!=='string')throw new Error('品質審查格式錯誤');
     const x={guide_title:guide.guide_title||base.title,guide:guide.guide,report,conclusion:conclusion.conclusion,evidence_notes:guide.evidence_notes||[],verification_notes:guide.verification_notes||[],quality};
 
-    $('result').textContent='【暗星導讀】\n'+x.guide_title+'\n\n'+x.guide+'\n\n【正式報告】\n'+x.report+'\n\n【結論】\n'+x.conclusion;
+    renderFullOutput('【暗星導讀】\n'+x.guide_title+'\n\n'+x.guide+'\n\n【正式報告】\n'+x.report+'\n\n【結論】\n'+x.conclusion);
     speechText='【導讀】\n'+x.guide_title+'\n'+x.guide+'\n\n【正式報告】\n'+x.report+'\n\n【結論】\n'+x.conclusion;
     speechSegments=buildSpeechSegments(x.guide_title,x.guide,x.report,x.conclusion);
     const qmsg='品質審查：'+String(x.quality.overall||'NEEDS_REVISION')+'｜分數 '+String(x.quality.score??'未提供')+'／100';
@@ -162,7 +214,7 @@ function playPCM(buf){if(!playCtx)return;const bytes=new Uint8Array(buf),pcm=new
 function playBase64PCM(b64){try{const bin=atob(b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);playPCM(u.buffer)}catch(e){}}
 let turnWaitResolve=null,turnWaitReject=null,runSerial=0;
 function handleLiveMessage(raw){if(raw instanceof ArrayBuffer){playPCM(raw);return}let d;try{d=JSON.parse(raw)}catch(e){return}const sc=d.serverContent||d;if(d.type==='live_open'||d.setupComplete)setLiveState('🟢 即時語音 已啟動');const parts=(sc.modelTurn&&sc.modelTurn.parts)||(d.modelTurn&&d.modelTurn.parts)||[];parts.forEach(p=>{const x=p&&p.inlineData;if(x&&x.data&&String(x.mimeType||'').startsWith('audio/'))playBase64PCM(x.data)});if(d.audio&&d.audio.data)playBase64PCM(d.audio.data);if(d.data&&String(d.mimeType||'').startsWith('audio/'))playBase64PCM(d.data);if(sc.turnComplete||d.turnComplete||d.type==='turnComplete'){if(turnWaitResolve){const r=turnWaitResolve;turnWaitResolve=null;turnWaitReject=null;r()}setLiveState('🟢 本段語音完成')}if(d.type==='error'||d.error){const m=d.message||(d.error&&d.error.message)||JSON.stringify(d.error);if(turnWaitReject){const r=turnWaitReject;turnWaitResolve=null;turnWaitReject=null;r(new Error(m))}setLiveState('🔴 '+m);}}
-async function connectLive(forceAuth=false){const q=new URLSearchParams();q.set('voice',$('voiceSelect').value||'Kore');q.set('agent_id','technical-dark-star');const topicId=localStorage.getItem('technical-dark-star-topic-id')||'',conversationId=localStorage.getItem('technical_dark_star_conversation_id')||'',tok=await accessToken(forceAuth);if(topicId)q.set('topic_id',topicId);if(conversationId)q.set('conversation_id',conversationId);if(tok)q.set('access_token',tok);ws=new WebSocket(LIVE_FN+'?'+q.toString());ws.binaryType='arraybuffer';await new Promise((resolve,reject)=>{const socket=ws,t=setTimeout(()=>{try{socket.close()}catch(e){}reject(new Error('連線逾時'))},8000);socket.onopen=()=>{clearTimeout(t);setLiveState('🟢 即時語音 已連線');resolve()};socket.onerror=()=>{clearTimeout(t);reject(new Error('WebSocket error'))};socket.onmessage=e=>handleLiveMessage(e.data);socket.onclose=()=>{if(turnWaitReject){const r=turnWaitReject;turnWaitResolve=null;turnWaitReject=null;r(new Error('即時語音連線中斷'))}ws=null;};});}
+async function connectLive(forceAuth=false){const q=new URLSearchParams();q.set('voice',$('voiceSelect').value||'Kore');q.set('agent_id','technical-dark-star');const topicId=localStorage.getItem('technical-dark-star-topic-id')||'',conversationId=localStorage.getItem('technical_dark_star_conversation_id')||'',tok=await accessToken(forceAuth);if(topicId)q.set('topic_id',topicId);if(conversationId)q.set('conversation_id',conversationId);if(tok)q.set('access_token',tok);ws=new WebSocket(LIVE_FN+'?'+q.toString());ws.binaryType='arraybuffer';liveConnectionCount++;await new Promise((resolve,reject)=>{const socket=ws,t=setTimeout(()=>{try{socket.close()}catch(e){}reject(new Error('連線逾時'))},8000);socket.onopen=()=>{clearTimeout(t);setLiveState('🟢 即時語音 已連線');resolve()};socket.onerror=()=>{clearTimeout(t);reject(new Error('WebSocket error'))};socket.onmessage=e=>handleLiveMessage(e.data);socket.onclose=()=>{if(turnWaitReject){const r=turnWaitReject;turnWaitResolve=null;turnWaitReject=null;r(new Error('即時語音連線中斷'))}ws=null;};});}
 function splitSpeechText(text,maxLen=500){
   const clean=String(text||'').replace(/\\r/g,'').trim();
   const out=[];let rest=clean;
@@ -243,7 +295,7 @@ async function speakOneChunk(segment,index,total,serial){
 
 async function speakGuide(){
   if(!speechText){
-    const result=$('result').textContent.trim();
+    const result=outputPages.join('\n\n').trim();
     if(!result||result==='等待資料。'){setLiveState('⚠️ 請先讓暗星生成導讀與報告');return}
     speechText=result;
     speechSegments=splitSpeechText(result,500).map((text,i)=>({kind:'fallback',index:i+1,total:0,text}));
@@ -278,8 +330,39 @@ async function speakGuide(){
     if(ws){try{ws.close()}catch(_){}ws=null}
   }
 }
+async function testSecondConnection(){
+  if(speaking){setLiveState('⚠️ 請先停止目前導讀，再測試第二次連線');return;}
+  $('testSecondConnection').disabled=true;
+  try{
+    setLiveState('🟡 正在建立 Gemini Live 第 1 次連線…');
+    await connectLive();
+    const first=liveConnectionCount;
+    if(ws){try{ws.close()}catch(e){}ws=null;}
+    await new Promise(r=>setTimeout(r,500));
+    setLiveState('🟡 第 1 次已關閉，正在建立 Gemini Live 第 2 次連線…');
+    await connectLive();
+    const second=liveConnectionCount;
+    if(second>first){
+      setLiveState('🟢 CONFIRMED：Gemini Live 第 2 次連線成功（連線計數 '+second+'）。');
+    }else{
+      setLiveState('🔴 REQUIRES TEST：第二次連線未取得新的連線計數。');
+    }
+    if(ws){try{ws.close()}catch(e){}ws=null;}
+  }catch(e){
+    if(ws){try{ws.close()}catch(_){}ws=null}
+    setLiveState('🔴 REQUIRES TEST：第二次 Gemini Live 連線失敗：'+(e.message||e));
+  }finally{
+    $('testSecondConnection').disabled=false;
+  }
+}
 function stopGuide(){speaking=false;stopAudio();if(ws){try{ws.close()}catch(e){}ws=null}setLiveState('⚪ 已停止');}
-$('build').onclick=makeStructure;$('generateAI').onclick=generateAI;$('clear').onclick=()=>{$('source').value='';$('title').value='';$('result').textContent='等待資料。';$('state').textContent='尚未執行';$('state').className='status';speechText='';speechSegments=[];stopGuide()};$('speakGuide').onclick=speakGuide;$('stopGuide').onclick=stopGuide;initVoices();
+$('build').onclick=makeStructure;$('generateAI').onclick=generateAI;
+$('pagePrev').onclick=()=>showOutputPage(currentPage-1);
+$('pageNext').onclick=()=>showOutputPage(currentPage+1);
+$('pageJump').onchange=()=>showOutputPage(Number($('pageJump').value));
+$('testSecondConnection').onclick=testSecondConnection;
+$('clear').onclick=()=>{$('source').value='';$('title').value='';outputPages=[];currentPage=0;renderPageControls();$('result').textContent='等待資料。';$('state').textContent='尚未執行';$('state').className='status';speechText='';speechSegments=[];stopGuide()};
+$('speakGuide').onclick=speakGuide;$('stopGuide').onclick=stopGuide;initVoices();renderPageControls();
 </script>
 </body>
 </html>
