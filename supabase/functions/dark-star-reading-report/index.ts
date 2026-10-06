@@ -292,33 +292,33 @@ Deno.serve(async (req: Request) => {
       role: String(m?.role || "user") === "assistant" ? "assistant" : "user",
       content: String(m?.content || "").slice(0,6000)
     })).filter((m) => m.content);
-    const prompt = `你是暗星，現在位於 AIVAULT「導讀與報告工作站」內。你要像真正的 AI 助理一樣和使用者持續對話，不是一問一答的機器人，也不是客服。
-你的第一個任務不是急著操作頁面，而是先聽懂使用者真正想完成什麼；資訊不足時要主動追問、確認目標、材料、格式、深度或下一步。使用者回答後，要記住前面的對話並繼續協助，直到目標清楚。
+    const prompt = `你是暗星，現在位於 AIVAULT「導讀與報告工作站」內。你是使用者的 AI 工作助理，要先和使用者自然溝通、理解目標，再在需要時控制導讀工作站。
 規則：
-1. 使用繁體中文，自然、直接、有來回感；不要每次都重複「我是暗星」。
-2. 可以針對教材內容提出觀察、反問、澄清與建議，讓使用者能繼續告訴你需求。
-3. 不確定使用者要做什麼時，不要猜著替他執行；先問一個最關鍵的澄清問題。
-4. 使用者明確要求工作時，先確認你理解的目標；需要操作頁面時再告知下一步。
-5. 已確認的事情才說 CONFIRMED；沒有實際結果說 NOT VERIFIED 或 REQUIRES TEST。
-6. 發生錯誤時，指出實際錯誤，不要猜原因。
-7. 只能使用目前工作站狀態與素材中的事實，不得虛構。
-8. 如果使用者問「你能不能做到」，直接回答能力與限制，並告訴他需要什麼即可開始。
+1. 自然使用繁體中文和使用者對話；需求不清楚時先追問，不要猜。
+2. 使用者只是問問題時，不要操作頁面。
+3. 使用者明確要求工作時，可以選擇一個頁面操作。
+4. 只能選以下 action：NONE、GUIDE、REPORT、PPT、SPEAK、STOP、NEXT_PAGE、PREV_PAGE、CLEAR_MATERIALS、CLEAR、DIRECT_SPEAK。
+5. GUIDE=建立導讀；REPORT=生成專題報告；PPT=生成PPT；SPEAK=開始導讀語音；STOP=停止語音；NEXT_PAGE/PREV_PAGE=翻頁；CLEAR_MATERIALS=清除素材；CLEAR=清除工作站；DIRECT_SPEAK=朗讀目前指定文稿。
+6. 如果需要先問使用者才能決定，不要 action，使用 NONE。
+7. 不得宣稱尚未執行的結果已完成。
+8. 請只回傳 JSON：{"reply":"給使用者看的自然回答","action":"NONE或上述其中一個"}。
 
-目前工作站實際狀態：
+目前工作站狀態：
 ${JSON.stringify(context).slice(0,30000)}
 
 先前對話：
 ${JSON.stringify(conversation).slice(0,50000)}
 
 使用者這一輪：
-${question}
-
-請把這一輪當成持續對話的一部分。若需求尚未明確，先和使用者談清楚，不要自動猜測或執行。`;
-    const got = await callGateway(req, prompt);
+${question}`;    const got = await callGateway(req, prompt);
     if (!got.ok || !got.text.trim()) {
       return json({ success:false, error:"CHAT_UPSTREAM_FAILED", upstream_status:got.status, upstream_error:got.data?.error || got.data?.message || "EMPTY_MODEL_OUTPUT", version:VERSION }, got.status || 502);
     }
-    return json({ success:true, result:{ reply:got.text.trim(), version:VERSION, model:MODEL, status:"CONFIRMED" } });
+    const parsed = extractJson(got.text) || {};
+    const reply = String(parsed.reply || got.text).trim();
+    const allowed = ["NONE","GUIDE","REPORT","PPT","SPEAK","STOP","NEXT_PAGE","PREV_PAGE","CLEAR_MATERIALS","CLEAR","DIRECT_SPEAK"];
+    const action = allowed.includes(String(parsed.action || "NONE").toUpperCase()) ? String(parsed.action || "NONE").toUpperCase() : "NONE";
+    return json({ success:true, result:{ reply, action, version:VERSION, model:MODEL, status:"CONFIRMED" } });
   }
 
   const source = requireSource(body);
