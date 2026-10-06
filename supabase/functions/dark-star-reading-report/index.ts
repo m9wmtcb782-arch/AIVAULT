@@ -287,11 +287,56 @@ Deno.serve(async (req: Request) => {
         media
       })
     });
-    const data = await upstream.json().catch(()=>({}));
-    const text = String(data.content || data.text || data.output || data.message || data.reply || data?.result?.content || data?.choices?.[0]?.message?.content || "");
+    let data = await upstream.json().catch(()=>({}));
+    let text = String(data.content || data.text || data.output || data.message || data.reply || data?.result?.content || data?.choices?.[0]?.message?.content || "");
+
+    // 圖片不是「有回應」就算 OCR 成功；必須真的交付 OCR、圖像分析、綜合判讀三個區塊。
+    if (upstream.ok && mediaType === "image" &&
+        (!text.includes("【圖片文字（OCR）】") ||
+         !text.includes("【圖像分析】") ||
+         !text.includes("【綜合判讀】"))) {
+      const retryPrompt = prompt +
+        "\n\n這是 OCR 合約重試。你上一個回應沒有完整符合格式，現在必須重新分析同一張圖片。只准輸出以下三個標題，順序不可改："+
+        "\n【圖片文字（OCR）】"+
+        "\n【圖像分析】"+
+        "\n【綜合判讀】"+
+        "\nOCR 必須逐項轉錄實際可見文字；看不清楚一律寫〔無法辨識〕，不可猜字。任何無法由圖片直接確認的內容標示〔INFERENCE〕。不得以「無法存取圖片」或泛泛而談取代實際辨識。";
+      const retry = await fetch(baseUrl + "/functions/v1/ai-gateway", {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          authorization:req.headers.get("authorization") || "",
+          apikey:req.headers.get("apikey") || "",
+        },
+        body:JSON.stringify({
+          agent_id:"technical-dark-star",
+          capability,
+          model:MODEL,
+          requestedModel:MODEL,
+          messages:[{role:"user",content:retryPrompt,media_type:mediaType,media}],
+          media
+        })
+      });
+      const retryData = await retry.json().catch(()=>({}));
+      const retryText = String(retryData.content || retryData.text || retryData.output || retryData.message || retryData.reply || retryData?.result?.content || retryData?.choices?.[0]?.message?.content || "");
+      if (retry.ok && retryText) {
+        data = retryData;
+        text = retryText;
+      }
+    }
+
+    if (!upstream.ok && !text) {
+      return json({ success:false, error:"MULTIMODAL_UPSTREAM_FAILED", media_type:mediaType, capability, version:VERSION, upstream_status:upstream.status, upstream_error:data?.error || data?.message || "unknown" }, upstream.status || 502);
+    }
+    if (mediaType === "image" &&
+        (!text.includes("【圖片文字（OCR）】") ||
+         !text.includes("【圖像分析】") ||
+         !text.includes("【綜合判讀】"))) {
+      return json({ success:false, error:"IMAGE_OCR_CONTRACT_FAILED", media_type:mediaType, capability, version:VERSION, upstream_status:upstream.status, content_length:text.length, content_prefix:text.slice(0,300) }, 502);
+    }
     return json({
       success:upstream.ok && data.success !== false,
-      result:{analysis:text,media_type:mediaType,capability,version:VERSION,upstream_status:upstream.status},
+      result:{analysis:text,media_type:mediaType,capability,version:VERSION,upstream_status:upstream.status,ocr_verified_structure:mediaType==="image"},
       status:upstream.ok ? "NOT_VERIFIED" : "FAILED"
     }, upstream.ok ? 200 : upstream.status);
   }
