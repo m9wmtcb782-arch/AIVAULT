@@ -301,9 +301,12 @@ async function callReportAPI(body){
   return d.result;
 }
 async function generateAI(){
-  const source=await buildMaterialSource();
-  if(!source){$('aiState').textContent='REQUIRES TEST：請先提供教材或資料。';$('aiState').className='status warn';return;}
   $('generateAI').disabled=true;
+  $('aiState').textContent='🟡 暗星正在接收素材……';
+  $('aiState').className='status warn';
+  try{
+  const source=await buildMaterialSource();
+  if(!source)throw new Error('SOURCE_REQUIRED｜請先提供教材或資料。');
   outputPages=[];currentPage=0;$('result').textContent='暗星正在直接生成專題報告……';renderPageControls();
   $('aiState').textContent='🟡 暗星正在解析材料，準備直接進入專題報告……';
   $('aiState').className='status warn';
@@ -355,7 +358,7 @@ async function generateAI(){
       : 'REQUIRES REVIEW：暗星已完成專題報告，但品質閘門判定仍需修訂。'+qmsg+'｜完整稿 '+outputPages.length+' 頁');
     $('aiState').className=quality.overall==='PASS'?'status confirmed':'status warn';
   }catch(e){
-    $('aiState').textContent='🔴 AI 生成失敗：'+(e.message||e);
+    $('aiState').textContent='REQUIRES TEST：AI 生成失敗｜'+(e.message||e);
     $('aiState').className='status warn';
   }finally{$('generateAI').disabled=false;}
 }
