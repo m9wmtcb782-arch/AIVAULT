@@ -52,7 +52,7 @@ button{border:1px solid #ccc;background:#fff;border-radius:10px;padding:10px 14p
 <button type="button" id="darkStarChatMic" class="darkstar-composer-mic" aria-label="語音輸入" title="語音輸入">
 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/><path d="M9 21h6"/></svg>
 </button>
-<button type="button" id="darkStarChatSend" class="darkstar-composer-send" aria-label="送出" title="送出" disabled>
+<button type="button" id="darkStarChatSend" class="darkstar-composer-send" aria-label="送出" title="送出">
 <svg class="icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg>
 </button>
 </div>
@@ -356,7 +356,7 @@ if(DarkStarChatSpeechRecognition){
     }
     $('darkStarChatInput').value=text;
     resizeDarkStarChatInput();
-    $('darkStarChatSend').disabled=!text.trim();
+    $('darkStarChatSend').disabled=false;
     if(finalText.trim()){
       try{darkStarChatRecognition.stop();}catch{}
       setTimeout(()=>{ if(finalText.trim() && $('darkStarChatInput').value.trim()) askDarkStar(); },0);
@@ -388,12 +388,12 @@ $('darkStarChatMic').addEventListener('click',()=>{
 
 $('darkStarChatInput').addEventListener('input',()=>{
   resizeDarkStarChatInput();
-  $('darkStarChatSend').disabled=!$('darkStarChatInput').value.trim();
+  $('darkStarChatSend').disabled=false;
 });
 $('darkStarChatInput').addEventListener('keydown',event=>{
   if(event.key==='Enter'&&!event.shiftKey){
     event.preventDefault();
-    if(!$('darkStarChatSend').disabled)askDarkStar();
+    askDarkStar();
   }
 });
 
