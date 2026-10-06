@@ -331,7 +331,14 @@ async function askDarkStar(){
       output:outputPages.join('\\n\\n').slice(0,12000)
     };
     darkStarConversation.push({role:'user',content:question});
-    const r=await callReportAPI({mode:'chat',question,context,history:darkStarConversation.slice(-12)});
+    const r=await callReportAPI({mode:'chat',question,context,history:darkStarConversation.slice(-12),control:true});
+    if(r&&r.action&&r.action!=='NONE'){
+      const actionResult=await darkStarRunAction(r.action);
+      appendDarkStarChat('darkstar',String(r.reply||'')+'\n\n'+actionResult);
+      darkStarConversation.push({role:'assistant',content:String(r.reply||'')+' '+actionResult});
+      $('darkStarChatState').textContent='🟢 暗星已完成本次控制並回報結果';
+      return;
+    }
     if(!r||typeof r.reply!=='string'||!r.reply.trim())throw new Error('CHAT_REPLY_EMPTY');
     appendDarkStarChat('darkstar',r.reply.trim());
     $('darkStarChatState').textContent='🟢 暗星已回答';
@@ -343,6 +350,23 @@ async function askDarkStar(){
     input.focus();
   }
 }
+async function darkStarRunAction(action){
+  const a=String(action||'').toUpperCase();
+  const map={
+    GUIDE:'build',REPORT:'generateAI',PPT:'generatePPT',
+    SPEAK:'speakGuide',STOP:'stopGuide',NEXT_PAGE:'pageNext',
+    PREV_PAGE:'pagePrev',CLEAR_MATERIALS:'clearMaterials',CLEAR:'clear',
+    DIRECT_SPEAK:'directSpeak'
+  };
+  const id=map[a];
+  if(!id||!$(id)) return '🔴 ERROR：暗星要求的操作不存在。';
+  $(id).click();
+  await new Promise(r=>setTimeout(r,800));
+  const state=$('state')?.textContent||'';
+  const ai=$('aiState')?.textContent||'';
+  return '🟡 ACTION EXECUTED：暗星已控制「'+id+'」。目前頁面狀態：'+state+'；AI狀態：'+ai+'。';
+}
+
 async function callReportAPI(body){
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),90000);
