@@ -256,5 +256,45 @@ Deno.serve(async (req: Request) => {
     return json({ success: true, result: { overall, score, checks, version: VERSION } });
   }
 
+  if (mode === "multimodal") {
+    const mediaType = String(body.media_type || "").toLowerCase();
+    const media = String(body.media || "").trim();
+    if (!media || !["image","audio","video"].includes(mediaType)) {
+      return json({ success:false, error:"MEDIA_REQUIRED", allowed:["image","audio","video"], version:VERSION },400);
+    }
+    const capability = mediaType === "image" ? "vision" : mediaType;
+    const prompt = String(body.prompt || (
+      mediaType === "image"
+        ? "你是暗星。完整理解這張圖片：文字、圖表、人物、場景、結構與重要視覺資訊。輸出可直接進入研究導讀的繁體中文分析，不得虛構。"
+        : mediaType === "audio"
+        ? "你是暗星。完整理解這段音訊。若為語音，分析語意、重點與說話內容；若為音樂，分析人聲、樂器、節奏、段落、情緒、歌詞可辨識內容與聲音事件。不得虛構。"
+        : "你是暗星。完整理解這段影片的畫面、語音、字幕、事件與時間關係，建立可供研究導讀使用的時間軸分析。不得虛構。"
+    ));
+    const baseUrl = Deno.env.get("SUPABASE_URL") || "https://clcddygkaaqqtsbswgdf.supabase.co";
+    const upstream = await fetch(baseUrl + "/functions/v1/ai-gateway", {
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        authorization:req.headers.get("authorization") || "",
+        apikey:req.headers.get("apikey") || "",
+      },
+      body:JSON.stringify({
+        agent_id:"technical-dark-star",
+        capability,
+        model:MODEL,
+        requestedModel:MODEL,
+        messages:[{role:"user",content:prompt,media_type:mediaType,media}],
+        media
+      })
+    });
+    const data = await upstream.json().catch(()=>({}));
+    const text = String(data.content || data.text || data.output || data.message || data.reply || data?.result?.content || data?.choices?.[0]?.message?.content || "");
+    return json({
+      success:upstream.ok && data.success !== false,
+      result:{analysis:text,media_type:mediaType,capability,version:VERSION,upstream_status:upstream.status},
+      status:upstream.ok ? "NOT_VERIFIED" : "FAILED"
+    }, upstream.ok ? 200 : upstream.status);
+  }
+
   return json({ success: false, error: "UNKNOWN_MODE", version: VERSION }, 400);
 });
