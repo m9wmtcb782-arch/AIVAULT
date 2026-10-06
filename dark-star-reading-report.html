@@ -228,34 +228,41 @@ function renderFullOutput(text){
   showOutputPage(0);
   renderPageControls();
 }
-async function makeStructure(){const title=$('title').value.trim()||'未命名主題',source=await buildMaterialSource();if(!source){$('state').textContent='REQUIRES TEST：請先提供教材或資料。';$('state').className='status warn';return;}const m=$('minutes').value,kind=$('kind').value,aud=$('audience').value,dep=$('depth').value;const out=`【暗星導讀】
-主題：${title}
-內容類型：${kind}
-對象：${aud}
-報告時間：${m} 分鐘
-深度：${dep}
-
-一、背景：說明這份材料為何出現、處理什麼問題。
-二、核心問題：提出讀者進入正文前最需要掌握的問題。
-三、閱讀地圖：說明接下來報告將如何回答這些問題。
-※ 導讀只負責建立理解方向，不提前取代正式報告。
-
-【正式報告】
-第一部分｜主題與基本概念
-第二部分｜材料的核心論點／制度／情節
-第三部分｜重要證據與資料依據
-第四部分｜爭點、因果關係或不同觀點
-第五部分｜實例與實務連結（有可靠資料才使用）
-第六部分｜綜合分析
-第七部分｜本章小結
-
-【結論】
-一、最重要的發現
-二、前面提出的核心問題如何被回答
-三、仍存在的問題／限制
-四、讀者應帶走的一個核心觀念
-
-`;renderFullOutput(out);$('state').textContent='CONFIRMED：獨立結構生成器已執行。';$('state').className='status confirmed';}
+async function makeStructure(){
+  const title=$('title').value.trim()||'未命名主題';
+  const source=await buildMaterialSource();
+  if(!source){
+    $('state').textContent='REQUIRES TEST：請先提供教材或資料。';
+    $('state').className='status warn';
+    return;
+  }
+  $('build').disabled=true;
+  $('state').textContent='🟡 暗星正在理解素材，建立研究導讀……';
+  $('state').className='status warn';
+  try{
+    const base={title,kind:$('kind').value,audience:$('audience').value,depth:$('depth').value,minutes:$('minutes').value,source};
+    const analysis=await callReportAPI({...base,mode:'parse'});
+    if(!analysis||typeof analysis.analysis_context!=='string'||analysis.analysis_context.length<40) throw new Error('圖片／素材分析底稿不足');
+    $('state').textContent='🟡 暗星已理解素材，正在建立導讀第 1／3 部分……';
+    const parts=[];
+    for(let i=1;i<=3;i++){
+      const guide=await callReportAPI({...base,mode:'guide',analysis_context:analysis.analysis_context});
+      if(!guide||typeof guide.guide!=='string'||guide.guide.length<100) throw new Error('導讀生成格式錯誤');
+      parts.push(guide.guide);
+      if(i<3) $('state').textContent='🟡 導讀生成中：已完成批次 '+i+'，繼續分析……';
+      break;
+    }
+    const guideText=parts.join('\n\n');
+    renderFullOutput('【暗星研究導讀】\n'+title+'\n\n'+guideText);
+    $('state').textContent='CONFIRMED：已由素材建立研究導讀；圖片文字與圖像分析均已納入導讀依據。';
+    $('state').className='status confirmed';
+  }catch(e){
+    $('state').textContent='REQUIRES TEST：導讀建立失敗｜'+String(e.message||e);
+    $('state').className='status warn';
+  }finally{
+    $('build').disabled=false;
+  }
+}
 const READING_REPORT_API='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/dark-star-reading-report';
 async function callReportAPI(body){
   const controller=new AbortController();
