@@ -524,19 +524,61 @@ window.askDarkStar=async function askDarkStar(){
 
 async function darkStarRunAction(action,params={}){
   const a=String(action||'').toUpperCase();
-  const fields={SET_TITLE:'title',SET_KIND:'kind',SET_AUDIENCE:'audience',SET_DEPTH:'depth',SET_MINUTES:'minutes'};
-  if(fields[a]){
-    const id=fields[a], el=$(id), value=String(params.value??params[id]??'').trim();
-    if(!el||!value)return '🔴 ERROR：暗星沒有取得可套用的修改內容。';
+  const value=String(params.value??params.text??params[a]??'').trim();
+
+  const selectSet=(id,v)=>{
+    const el=$(id);
+    if(!el)return '🔴 ERROR：找不到欄位「'+id+'」。';
     if(el.tagName==='SELECT'){
-      const ok=[...el.options].some(o=>o.value===value||o.textContent.trim()===value);
-      if(!ok)return '🔴 ERROR：暗星要求的「'+value+'」不是目前可用選項。';
-      el.value=[...el.options].find(o=>o.value===value||o.textContent.trim()===value).value;
-    }else el.value=value;
+      const opt=[...el.options].find(o=>o.value===v||o.textContent.trim()===v);
+      if(!opt)return '🔴 ERROR：暗星要求的「'+v+'」不是目前可用選項。';
+      el.value=opt.value;
+    }else{
+      el.value=v;
+    }
+    el.dispatchEvent(new Event('input',{bubbles:true}));
     el.dispatchEvent(new Event('change',{bubbles:true}));
-    if(a==='SET_TITLE'||a==='SET_KIND'||a==='SET_AUDIENCE'||a==='SET_DEPTH'||a==='SET_MINUTES') await new Promise(r=>setTimeout(r,300));
-    return '🟢 ACTION EXECUTED：暗星已修改「'+id+'」為「'+el.value+'」。';
+    return null;
+  };
+
+  const fields={SET_TITLE:'title',SET_KIND:'kind',SET_AUDIENCE:'audience',SET_DEPTH:'depth',SET_MINUTES:'minutes',SET_SOURCE:'source',SET_DIRECT_SPEECH:'directSpeechText',SET_VOICE:'voiceSelect',JUMP_PAGE:'pageJump'};
+  if(fields[a]){
+    if(!value && a!=='JUMP_PAGE')return '🔴 ERROR：暗星沒有取得可套用的修改內容。';
+    const id=fields[a];
+    if(a==='JUMP_PAGE'){
+      const n=Number(value);
+      if(!Number.isInteger(n)||n<1)return '🔴 ERROR：頁碼必須是正整數。';
+      $(id).value=String(n);
+      $(id).dispatchEvent(new Event('change',{bubbles:true}));
+      if(typeof window.jumpToPage==='function')window.jumpToPage(n);
+      else $(id).dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
+      return '🟢 ACTION EXECUTED：暗星已跳到第 '+n+' 頁。';
+    }
+    const err=selectSet(id,value);
+    if(err)return err;
+    if(a==='SET_URL')return err;
+    return '🟢 ACTION EXECUTED：暗星已修改「'+id+'」為「'+$(id).value+'」。';
   }
+
+  if(a==='CLEAR_SOURCE'){
+    const el=$('source');
+    if(!el)return '🔴 ERROR：找不到教材或資料欄位。';
+    el.value='';
+    el.dispatchEvent(new Event('input',{bubbles:true}));
+    el.dispatchEvent(new Event('change',{bubbles:true}));
+    return '🟢 ACTION EXECUTED：暗星已清空教材或資料文字。';
+  }
+
+  if(a==='SET_URL'){
+    const el=$('networkUrl');
+    if(!el||!value)return '🔴 ERROR：沒有取得網路連結。';
+    el.value=value;
+    el.dispatchEvent(new Event('input',{bubbles:true}));
+    $('confirmUrl')?.click();
+    await new Promise(r=>setTimeout(r,1200));
+    return '🟡 ACTION EXECUTED：暗星已輸入網址並啟動「加入並讀取」。目前網址狀態：'+($('urlStatus')?.textContent||'');
+  }
+
   const map={GUIDE:'build',REPORT:'generateAI',PPT:'generatePPT',SPEAK:'speakGuide',STOP:'stopGuide',NEXT_PAGE:'pageNext',PREV_PAGE:'pagePrev',CLEAR_MATERIALS:'clearMaterials',CLEAR:'clear',DIRECT_SPEAK:'directSpeak'};
   const id=map[a];
   if(!id||!$(id))return '🔴 ERROR：暗星要求的操作不存在。';
@@ -544,6 +586,7 @@ async function darkStarRunAction(action,params={}){
   await new Promise(r=>setTimeout(r,800));
   return '🟡 ACTION EXECUTED：暗星已控制「'+id+'」。目前頁面狀態：'+($('state')?.textContent||'')+'；AI狀態：'+($('aiState')?.textContent||'')+'。';
 }
+
 function getSharedDarkStarTopicId(){
   try{
     let topic=localStorage.getItem('technical-dark-star-topic-id');
