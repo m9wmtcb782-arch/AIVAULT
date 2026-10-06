@@ -172,6 +172,11 @@ async function generateAI(){
     const quality=await callReportAPI({...base,mode:'quality',guide:guide.guide,analysis_context:analysis.analysis_context,report,conclusion:conclusion.conclusion});
     if(!quality||typeof quality.overall!=='string')throw new Error('品質審查格式錯誤');
     const x={guide_title:guide.guide_title||base.title,guide:guide.guide,report,conclusion:conclusion.conclusion,evidence_notes:guide.evidence_notes||[],verification_notes:guide.verification_notes||[],quality};
+    const guideLen=String(x.guide||'').length;
+    const guideSections=(String(x.guide||'').match(/第[1-9０-９]+段[｜|]/g)||[]).length;
+    const backendDiag='暗星生成診斷｜導讀 '+guideLen+' 字｜'+guideSections+' 段｜前端分頁 '+splitOutputPages(x.guide,1800).length+' 頁';
+    $('state').textContent=backendDiag;
+    $('state').className=(guideSections>=9&&guideLen>=6500)?'status confirmed':'status warn';
 
     renderFullOutput('【暗星導讀】\n'+x.guide_title+'\n\n'+x.guide+'\n\n【正式報告】\n'+x.report+'\n\n【結論】\n'+x.conclusion);
     speechText='【導讀】\n'+x.guide_title+'\n'+x.guide+'\n\n【正式報告】\n'+x.report+'\n\n【結論】\n'+x.conclusion;
