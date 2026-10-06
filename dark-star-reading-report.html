@@ -177,11 +177,18 @@ async function generateAI(){
     const x={guide_title:guide.guide_title||base.title,guide:guide.guide,report,conclusion:conclusion.conclusion,evidence_notes:guide.evidence_notes||[],verification_notes:guide.verification_notes||[],quality};
     const guideLen=String(x.guide||'').length;
     const guideSections=(String(x.guide||'').match(/第[1-9０-９]+段[｜|]/g)||[]).length;
-    const backendDiag='暗星生成診斷｜導讀 '+guideLen+' 字｜'+guideSections+' 段｜前端分頁 '+splitOutputPages(x.guide,1800).length+' 頁';
-    $('state').textContent=backendDiag;
-    $('state').className=(guideSections>=9&&guideLen>=6500)?'status confirmed':'status warn';
+    const guidePages=splitOutputPages(x.guide,1800).length;
+    const fullText='【暗星導讀】\n'+x.guide_title+'\n\n'+x.guide+'\n\n【正式報告】\n'+x.report+'\n\n【結論】\n'+x.conclusion;
+    const fullPages=splitOutputPages(fullText,1800).length;
+    const batchDiag=(guide.batch_diagnostics||[]).map(b=>'第'+b.batch+'批 '+b.length+'字').join('｜');
+    $('state').textContent='暗星生成診斷｜導讀 '+guideLen+' 字｜'+guideSections+' 段｜導讀 '+guidePages+' 頁｜完整稿 '+fullPages+' 頁'+(batchDiag?'｜'+batchDiag:'');
+    $('state').className=(guideSections>=9&&guideLen>=6500&&fullPages>=2)?'status confirmed':'status warn';
 
-    renderFullOutput('【暗星導讀】\n'+x.guide_title+'\n\n'+x.guide+'\n\n【正式報告】\n'+x.report+'\n\n【結論】\n'+x.conclusion);
+    renderFullOutput(fullText);
+    if(outputPages.length<2){
+      $('state').textContent+='｜REQUIRES TEST：完整稿仍只有1頁，未進行假性翻頁。';
+      $('state').className='status warn';
+    }
     speechText='【導讀】\n'+x.guide_title+'\n'+x.guide+'\n\n【正式報告】\n'+x.report+'\n\n【結論】\n'+x.conclusion;
     speechSegments=buildSpeechSegments(x.guide_title,x.guide,x.report,x.conclusion);
     const qmsg='品質審查：'+String(x.quality.overall||'NEEDS_REVISION')+'｜分數 '+String(x.quality.score??'未提供')+'／100';
