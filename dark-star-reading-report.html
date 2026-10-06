@@ -568,18 +568,26 @@ async function speakDirectText(){
   }
 }
 document.addEventListener('click',e=>{
-  const target=e.target&&e.target.closest?e.target.closest('#build, #generateAI'):null;
+  const target=e.target&&e.target.closest?e.target.closest('#build, #generateAI, #addUrl'):null;
   if(!target)return;
   e.preventDefault();
+  e.stopPropagation();
   if(target.id==='build') makeStructure();
   else if(target.id==='generateAI') generateAI();
+  else if(target.id==='addUrl'){
+    const url=window.prompt('輸入網路連結');
+    if(url&&url.trim()){
+      const clean=url.trim();
+      readingMaterials.push({name:clean,type:'url',status:'待後端擷取',url:clean});
+      renderMaterials();
+    }
+  }
 },true);
 $('pagePrev').onclick=()=>showOutputPage(currentPage-1);
 $('pageNext').onclick=()=>showOutputPage(currentPage+1);
 $('pageJump').onchange=()=>showOutputPage(Number($('pageJump').value));
 $('generatePPT').onclick=generateReadingPPT;
 $('materialFiles').onchange=e=>addFiles(e.target.files);
-$('addUrl').onclick=()=>{const url=prompt('輸入網路連結');if(url){readingMaterials.push({name:url,type:'url',status:'待後端擷取',url});renderMaterials();}};
 $('clearMaterials').onclick=()=>{readingMaterials=[];renderMaterials();};
 $('clear').onclick=()=>{$('source').value='';$('title').value='';outputPages=[];currentPage=0;renderPageControls();$('result').textContent='等待資料。';$('state').textContent='尚未執行';$('state').className='status';speechText='';speechSegments=[];stopGuide()};
 $('speakGuide').onclick=speakGuide;$('stopGuide').onclick=stopGuide;
