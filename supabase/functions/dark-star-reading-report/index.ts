@@ -301,7 +301,8 @@ Deno.serve(async (req: Request) => {
 5. GUIDE=建立導讀；REPORT=生成專題報告；PPT=生成PPT；SPEAK=開始導讀語音；STOP=停止語音；NEXT_PAGE/PREV_PAGE=翻頁；CLEAR_MATERIALS=清除素材；CLEAR=清除工作站；DIRECT_SPEAK=朗讀目前指定文稿。
 6. 如果需要先問使用者才能決定，不要 action，使用 NONE。
 7. 不得宣稱尚未執行的結果已完成。
-8. 請只回傳 JSON：{"reply":"給使用者看的自然回答","action":"NONE或上述其中一個"}。
+8. 如果使用者要求修改導讀設定，直接選對應 SET_* action 並把新值放入 params。
+9. 請只回傳 JSON：{"reply":"給使用者看的自然回答","action":"NONE或上述其中一個","params":{}}。
 
 目前工作站狀態：
 ${JSON.stringify(context).slice(0,30000)}
@@ -316,9 +317,10 @@ ${question}`;    const got = await callGateway(req, prompt);
     }
     const parsed = extractJson(got.text) || {};
     const reply = String(parsed.reply || got.text).trim();
-    const allowed = ["NONE","GUIDE","REPORT","PPT","SPEAK","STOP","NEXT_PAGE","PREV_PAGE","CLEAR_MATERIALS","CLEAR","DIRECT_SPEAK"];
+    const allowed = ["NONE","GUIDE","REPORT","PPT","SPEAK","STOP","NEXT_PAGE","PREV_PAGE","CLEAR_MATERIALS","CLEAR","DIRECT_SPEAK","SET_TITLE","SET_KIND","SET_AUDIENCE","SET_DEPTH","SET_MINUTES"];
     const action = allowed.includes(String(parsed.action || "NONE").toUpperCase()) ? String(parsed.action || "NONE").toUpperCase() : "NONE";
-    return json({ success:true, result:{ reply, action, version:VERSION, model:MODEL, status:"CONFIRMED" } });
+    const params = parsed.params && typeof parsed.params === "object" ? parsed.params : {};
+    return json({ success:true, result:{ reply, action, params, version:VERSION, model:MODEL, status:"CONFIRMED" } });
   }
 
   const source = requireSource(body);
