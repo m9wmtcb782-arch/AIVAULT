@@ -114,12 +114,29 @@ async function extractFileText(file){
   if(/\\.(mp4|mp3|wav)$/.test(name)) return '【影音／音訊多模態素材】 '+file.name+'\\n影音內容保留，需由多模態理解層分析畫面、語音、音樂與時間軸。';
   return '';
 }
+async function analyzeMultimodalMaterial(m){
+  if(!m.file || !/^(image\\/|audio\\/|video\\/)/.test(m.type||'')) return;
+  const limit=12*1024*1024;
+  if(m.file.size>limit){m.status='REQUIRES TEST：檔案超過12MB，待大型媒體 Storage／File API 管線';return;}
+  m.status='多模態理解中…'; renderMaterials();
+  try{
+    const dataUrl=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(m.file);});
+    const mediaType=m.type.startsWith('image/')?'image':m.type.startsWith('audio/')?'audio':'video';
+    const r=await callReportAPI({mode:'multimodal',media_type:mediaType,media:String(dataUrl),prompt:'你是暗星。這是研究導讀素材。請完整理解內容，輸出繁體中文分析。不得摘要帶過，不得虛構；影音請保留重要時間／事件關係，音樂請分析人聲、樂器、節奏、段落、情緒與歌詞可辨識內容。'});
+    if(r&&r.analysis){m.text='【多模態分析結果】\\n'+r.analysis;m.status='已完成多模態分析（需實測確認模型是否實際讀取媒體）';}
+    else m.status='REQUIRES TEST：多模態模型未回傳分析';
+  }catch(e){m.status='REQUIRES TEST：多模態分析失敗｜'+String(e.message||e);}
+  renderMaterials();
+}
 async function addFiles(files){
   for(const file of files){
     const m={name:file.name,type:file.type||'file',status:'解析中',file};
     readingMaterials.push(m); renderMaterials();
-    try{m.text=await extractFileText(file); m.status=m.text?'已取得可分析文字':'已保留多模態素材';}
-    catch(e){m.status='REQUIRES TEST：解析失敗';m.error=String(e.message||e);}
+    try{
+      m.text=await extractFileText(file);
+      m.status=m.text?'已取得可分析文字':'已保留多模態素材';
+      if(!m.text && /^(image\\/|audio\\/|video\\/)/.test(m.type||'')) await analyzeMultimodalMaterial(m);
+    }catch(e){m.status='REQUIRES TEST：解析失敗';m.error=String(e.message||e);}
     renderMaterials();
   }
 }
