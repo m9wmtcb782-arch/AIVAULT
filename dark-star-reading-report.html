@@ -577,18 +577,28 @@ async function darkStarRunAction(action,params={}){
       let analysis='';
       let analysisStatus='NOT_VERIFIED';
       if(String(data?.artifact?.inline_data_url||'').startsWith('data:image/')){
-        const vr=await callReportAPI({mode:'multimodal',media_type:'image',media:String(data.artifact.inline_data_url),prompt:'這是暗星剛剛生成的導讀圖片。請重新實際看圖，先辨識圖片中的文字與結構，再分析圖像。固定輸出：【圖片文字（OCR）】、【圖像分析】、【綜合判讀】；不得因為這是自己生成的圖片就假設內容正確。'});
-        analysis=String(vr?.analysis||'').trim();
-        if(!analysis||!hasVerifiedImageAnalysis(analysis))throw new Error('GENERATED_IMAGE_REINPUT_CONTRACT_FAILED');
-        analysisStatus='CONFIRMED';
+        try{
+          const vr=await callReportAPI({mode:'multimodal',media_type:'image',media:String(data.artifact.inline_data_url),prompt:'這是暗星剛剛生成的導讀圖片。請重新實際看圖，先辨識圖片中的文字與結構，再分析圖像。固定輸出：【圖片文字（OCR）】、【圖像分析】、【綜合判讀】；不得因為這是自己生成的圖片就假設內容正確。'});
+          analysis=String(vr?.analysis||'').trim();
+          if(!analysis||!hasVerifiedImageAnalysis(analysis)) throw new Error('GENERATED_IMAGE_REINPUT_CONTRACT_FAILED');
+          analysisStatus='CONFIRMED';
+        }catch(analysisError){
+          analysisStatus='NOT_VERIFIED';
+          analysis='【視覺分析尚未驗證】'+String(analysisError?.message||analysisError);
+        }
       }
       const item={page:currentPage,url,prompt,analysis,analysis_status:analysisStatus};
       guideVisuals.push(item);
       readingMaterials.push({name:'暗星生成導讀圖片｜第'+(currentPage+1)+'頁',type:'image/jpeg',status:analysisStatus==='CONFIRMED'?'已生成並回輸暗星分析':'已生成，回輸分析未驗證',url,text:analysis||'【生成圖片】'+prompt});
       renderGuideVisuals();
-      $('state').textContent='CONFIRMED：圖片已生成、回輸暗星視覺分析，並放入目前導讀頁。';
-      $('state').className='status confirmed';
-      return '🟢 IMAGE EXECUTED：已生成 JPEG、回輸暗星分析並插入第'+(currentPage+1)+'頁。';
+      if(analysisStatus==='CONFIRMED'){
+        $('state').textContent='CONFIRMED：圖片已生成、回輸暗星視覺分析，並放入目前導讀頁。';
+        $('state').className='status confirmed';
+        return '🟢 IMAGE EXECUTED：已生成 JPEG、完成暗星視覺分析並插入第'+(currentPage+1)+'頁。';
+      }
+      $('state').textContent='REQUIRES TEST：圖片已生成並放入導讀，但暗星視覺分析因目前 AI 配額限制尚未驗證。';
+      $('state').className='status warn';
+      return '🟡 IMAGE GENERATED：JPEG 已插入第'+(currentPage+1)+'頁；視覺分析 NOT_VERIFIED，未偽造分析結果。';
     }catch(e){
       $('state').textContent='REQUIRES TEST：圖片生成／回輸失敗｜'+String(e.message||e);
       $('state').className='status warn';
