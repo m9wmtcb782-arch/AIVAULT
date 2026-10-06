@@ -301,6 +301,7 @@ async function makeStructure(){
   }
 }
 const READING_REPORT_API='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/dark-star-reading-report';
+const darkStarConversation=[];
 function appendDarkStarChat(role,text){
   const box=$('darkStarChatLog');const el=document.createElement('div');el.className='status '+(role==='darkstar'?'confirmed':'');el.innerHTML='<strong>'+ (role==='user'?'你':'暗星') +'：</strong>'+escapeHtml(text).replace(/\\n/g,'<br>');box.appendChild(el);box.scrollTop=box.scrollHeight;
 }
@@ -329,7 +330,8 @@ async function askDarkStar(){
       materials:materialSummary,
       output:outputPages.join('\\n\\n').slice(0,12000)
     };
-    const r=await callReportAPI({mode:'chat',question,context});
+    darkStarConversation.push({role:'user',content:question});
+    const r=await callReportAPI({mode:'chat',question,context,history:darkStarConversation.slice(-12)});
     if(!r||typeof r.reply!=='string'||!r.reply.trim())throw new Error('CHAT_REPLY_EMPTY');
     appendDarkStarChat('darkstar',r.reply.trim());
     $('darkStarChatState').textContent='🟢 暗星已回答';
