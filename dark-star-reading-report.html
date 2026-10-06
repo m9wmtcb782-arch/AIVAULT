@@ -43,7 +43,7 @@ button{border:1px solid #ccc;background:#fff;border-radius:10px;padding:10px 14p
 <header><h1>暗星｜導讀與報告工作站</h1><p>獨立測試模組｜不修改 Technical Dark Star 核心頁面</p></header>
 <main>
 <section class="card" id="darkStarControlCard" style="background:#111;color:#eee;border-color:#292929">
-<div style="display:flex;align-items:center;gap:8px"><strong>🌑 暗星</strong><span class="badge" style="background:#292929;color:#ddd">工作站控制中樞</span></div>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><div style="display:flex;align-items:center;gap:8px"><strong>🌑 暗星</strong><span class="badge" style="background:#292929;color:#ddd">工作站控制中樞</span></div><button type="button" id="deleteDarkStarChat" style="border:1px solid #555;background:#1d1d1d;color:#ddd;border-radius:8px;padding:6px 10px;font-size:12px">刪除對話</button></div>
 <div id="darkStarChatLog" style="margin-top:10px;height:230px;max-height:230px;overflow:auto;display:grid;gap:5px">
 <div class="status" style="background:#1d1d1d;color:#eee">🟢 暗星已接管導讀工作站。你直接告訴我目標，我會操作目前頁面的功能並回報實際結果。</div>
 </div>
@@ -321,6 +321,14 @@ async function makeStructure(){
 }
 const READING_REPORT_API='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/dark-star-reading-report';
 const darkStarConversation=[];
+function deleteDarkStarChat(){
+  darkStarConversation.length=0;
+  const box=$('darkStarChatLog');
+  if(box){
+    box.innerHTML='<div class="status" style="background:#1d1d1d;color:#eee">⚪ 對話已刪除。暗星已清空本頁對話紀錄，等待新的訊息。</div>';
+  }
+  $('darkStarChatState').textContent='⚪ 本頁對話已刪除';
+}
 function appendDarkStarChat(role,text){
   const box=$('darkStarChatLog');
   const el=document.createElement('div');
@@ -820,6 +828,7 @@ async function speakDirectText(){
   }
 }
 
+$('deleteDarkStarChat').onclick=deleteDarkStarChat;
 $('darkStarChatInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();askDarkStar();}});
 $('build').onclick=()=>makeStructure();
 $('generateAI').onclick=()=>generateAI();
