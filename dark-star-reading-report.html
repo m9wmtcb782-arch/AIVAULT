@@ -151,8 +151,9 @@ async function addFiles(files){
       m.text=await extractFileText(file);
       m.status=m.text?'已取得可分析文字':'準備進行多模態分析';
       const mediaFile=/^(image\/|audio\/|video\/)/.test(m.type||'')||/\.(jpg|jpeg|png|mp4|mp3|wav)$/i.test(file.name);
-      if(mediaFile) await analyzeMultimodalMaterial(m);
-    }catch(e){m.status='REQUIRES TEST：解析失敗';m.error=String(e.message||e);}
+        if(mediaFile) await analyzeMultimodalMaterial(m);
+      else m.status='REQUIRES TEST：此檔案格式目前沒有可用解析器';
+    }catch(e){m.status='REQUIRES TEST：解析失敗｜'+String(e.message||e);m.error=String(e.message||e);}
     renderMaterials();
   }
 }
@@ -257,7 +258,16 @@ async function makeStructure(){const title=$('title').value.trim()||'未命名�
 `;renderFullOutput(out);$('state').textContent='CONFIRMED：獨立結構生成器已執行。';$('state').className='status confirmed';}
 const READING_REPORT_API='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/dark-star-reading-report';
 async function callReportAPI(body){
-  const r=await fetch(READING_REPORT_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),90000);
+  let r;
+  try{
+    r=await fetch(READING_REPORT_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:controller.signal});
+  }catch(e){
+    clearTimeout(timer);
+    throw new Error(e.name==='AbortError'?'API_TIMEOUT_90S':('NETWORK_ERROR｜'+String(e.message||e)));
+  }
+  clearTimeout(timer);
   const d=await r.json().catch(()=>({}));
   if(!r.ok||!d.success){
     const extra=[d.error||d.message||('HTTP '+r.status)];
