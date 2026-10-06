@@ -334,57 +334,75 @@ function resizeDarkStarChatInput(){
   input.style.height=Math.min(input.scrollHeight,180)+'px';
 }
 
-const DarkStarChatSpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+const DarkStarChatSpeechRecognition =
+  window.SpeechRecognition || window.webkitSpeechRecognition;
+
 if(DarkStarChatSpeechRecognition){
   darkStarChatRecognition=new DarkStarChatSpeechRecognition();
   darkStarChatRecognition.lang='zh-TW';
   darkStarChatRecognition.continuous=false;
   darkStarChatRecognition.interimResults=true;
+
   darkStarChatRecognition.onstart=()=>{
     darkStarChatRecording=true;
     $('darkStarChatMic').classList.add('recording');
     $('darkStarChatMic').setAttribute('aria-pressed','true');
     $('darkStarChatState').textContent='🟡 正在聆聽……';
   };
+
   darkStarChatRecognition.onresult=event=>{
-    let text='';
+    let transcript='';
     let finalText='';
     for(let i=event.resultIndex;i<event.results.length;i++){
-      const t=event.results[i][0]?.transcript||'';
-      text+=t;
-      if(event.results[i].isFinal)finalText+=t;
+      const item=event.results[i];
+      const t=item[0]?.transcript||'';
+      transcript+=t;
+      if(item.isFinal)finalText+=t;
     }
-    $('darkStarChatInput').value=text;
+    $('darkStarChatInput').value=transcript;
     resizeDarkStarChatInput();
     $('darkStarChatSend').disabled=false;
+
     if(finalText.trim()){
-      try{darkStarChatRecognition.stop();}catch{}
-      setTimeout(()=>{ if(finalText.trim() && $('darkStarChatInput').value.trim()) window.askDarkStar(); },0);
+      $('darkStarChatState').textContent='🟢 已辨識：'+finalText.trim();
+      try{darkStarChatRecognition.stop();}catch(e){}
+      setTimeout(()=>{
+        if($('darkStarChatInput').value.trim()) window.askDarkStar();
+      },50);
     }
   };
-  darkStarChatRecognition.onerror=()=>{
+
+  darkStarChatRecognition.onerror=event=>{
     darkStarChatRecording=false;
     $('darkStarChatMic').classList.remove('recording');
     $('darkStarChatMic').setAttribute('aria-pressed','false');
+    $('darkStarChatState').textContent='🔴 語音辨識錯誤：'+String(event?.error||'unknown');
   };
+
   darkStarChatRecognition.onend=()=>{
     darkStarChatRecording=false;
     $('darkStarChatMic').classList.remove('recording');
     $('darkStarChatMic').setAttribute('aria-pressed','false');
   };
+}else{
+  $('darkStarChatState').textContent='🔴 ERROR：此瀏覽器未提供 SpeechRecognition / webkitSpeechRecognition。';
 }
 
 window.toggleDarkStarChatMic=function(event){
   if(event){event.preventDefault();event.stopPropagation();}
   if(!darkStarChatRecognition){
-    $('darkStarChatState').textContent='🔴 ERROR：此瀏覽器不支援語音辨識。';
+    $('darkStarChatState').textContent='🔴 ERROR：此瀏覽器未提供語音辨識 API。';
     return;
   }
   if(darkStarChatRecording){
-    try{darkStarChatRecognition.stop();}catch{}
+    try{darkStarChatRecognition.stop();}catch(e){}
     return;
   }
-  try{darkStarChatRecognition.start();}catch{}
+  try{
+    darkStarChatRecognition.start();
+  }catch(e){
+    $('darkStarChatState').textContent='🔴 語音啟動失敗：'+String(e.message||e);
+  }
 };
 
 $('darkStarChatSend').addEventListener('click',event=>{
