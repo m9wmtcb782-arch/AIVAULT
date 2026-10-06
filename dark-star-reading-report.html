@@ -153,6 +153,8 @@ async function generateReadingPPT(){
   if(!window.PptxGenJS){$('pptMeta').textContent='REQUIRES TEST：PPT 生成函式庫尚未載入。';return;}
   const ppt=new PptxGenJS(); ppt.layout='LAYOUT_WIDE'; ppt.author='AIVAULT｜暗星'; ppt.subject='暗星研究導讀';
   generatedSlides=outputPages.map((text,i)=>({page:i+1,title:'暗星導讀｜第 '+(i+1)+' 頁',body:text}));
+  speechText=generatedSlides.map(sl=>sl.title+'\\n'+sl.body).join('\\n\\n');
+  speechSegments=generatedSlides.map((sl,i)=>({kind:'ppt-slide',index:i+1,total:generatedSlides.length,text:sl.title+'\\n'+sl.body}));
   generatedSlides.forEach(sl=>{
     const slide=ppt.addSlide(); slide.background={color:'FFFFFF'};
     slide.addText(sl.title,{x:0.55,y:0.35,w:12.2,h:0.45,fontSize:22,bold:true,color:'202123'});
