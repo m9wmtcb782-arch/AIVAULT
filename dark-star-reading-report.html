@@ -19,9 +19,14 @@ button{border:1px solid #ccc;background:#fff;border-radius:10px;padding:10px 14p
 .pagination button{min-width:72px}.pagination button:disabled{opacity:.45;cursor:not-allowed}
 .page-indicator{font-size:13px;color:#555;min-width:110px;text-align:center}
 .page-jump{width:auto;min-width:80px;padding:8px}.badge{display:inline-block;padding:3px 7px;border-radius:7px;background:#eee;font-size:11px;margin-left:6px}
-.voicebox{margin-top:14px;padding:14px;border:1px solid #e5e5e5;border-radius:12px;background:#fafafa}.voice-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.voice-row select{width:auto;min-width:190px}.live-state{font-size:13px;color:#555}
+.material-list{display:grid;gap:8px;margin-top:10px}.material-item{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 11px;border:1px solid #e5e5e5;border-radius:9px;background:#fafafa;font-size:13px}.material-item small{color:#777}.material-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.material-hint{font-size:12px;color:#666;margin-top:8px}.pptbox{margin-top:14px;padding:14px;border:1px solid #e5e5e5;border-radius:12px;background:#fafafa}.ppt-meta{font-size:13px;color:#555;margin:6px 0}.voicebox{margin-top:14px;padding:14px;border:1px solid #e5e5e5;border-radius:12px;background:#fafafa}.voice-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.voice-row select{width:auto;min-width:190px}.live-state{font-size:13px;color:#555}
 @media(max-width:760px){.grid{grid-template-columns:1fr 1fr}main{padding:12px}.voice-row select{width:100%}}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs" type="module"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 </head>
 <body>
 <header><h1>暗星｜導讀與報告工作站</h1><p>獨立測試模組｜不修改 Technical Dark Star 核心頁面</p></header>
@@ -34,7 +39,10 @@ button{border:1px solid #ccc;background:#fff;border-radius:10px;padding:10px 14p
 <div><label>深度</label><select id="depth"><option selected>研究生｜分析型</option><option>研究型｜論文型</option></select></div>
 </div>
 <div style="margin-top:12px"><label>主題／標題</label><input id="title" placeholder="例如：第九章 決算制度"></div>
-<div style="margin-top:12px"><label>教材或資料</label><textarea id="source" placeholder="貼上教材、章節、講義或資料。研究生模式會先深度理解材料，再建立導讀與正式報告；導讀不以目錄或摘要冒充分析。"></textarea></div>
+<div style="margin-top:12px"><label>教材或資料</label><textarea id="source" placeholder="可直接貼上文字；也可以使用下面的多模態素材。"></textarea>
+<div class="material-actions"><input id="materialFiles" type="file" multiple accept=".doc,.docx,.ppt,.pptx,.pdf,.xls,.xlsx,.mp4,.mp3,.wav,.jpg,.jpeg,.png"><button type="button" id="addUrl">＋加入網路連結</button><button type="button" id="clearMaterials">清除素材</button></div>
+<div id="materialList" class="material-list"></div>
+<div class="material-hint">支援 Word、PPT、PDF、Excel、MP4、MP3、WAV、JPG／PNG、網路連結。文件型素材可先在前端解析文字；影音／圖片會保留為多模態素材並交由專用理解層處理。</div></div>
 <div class="actions"><button class="primary" id="build">建立導讀＋報告架構</button><button class="primary" id="generateAI">讓暗星直接生成專題報告</button><button id="clear">清除</button></div>
 <div id="state" class="status" style="margin-top:12px">尚未執行</div><div id="aiState" class="status warn" style="margin-top:8px">AI 生成：尚未執行</div>
 </section>
@@ -48,7 +56,7 @@ button{border:1px solid #ccc;background:#fff;border-radius:10px;padding:10px 14p
 </div>
 <div class="voicebox"><strong>🎙 暗星自然口語導讀</strong>
 <p style="margin:7px 0;color:#666;font-size:13px">文稿是內容依據；即時語音 負責把內容自然地說出來，不是把文字機械逐字朗讀。</p>
-<div class="voice-row"><select id="voiceSelect" aria-label="暗星聲音"></select><button class="primary" id="speakGuide">▶ 用暗星開始導讀</button><button id="stopGuide">■ 停止</button><button id="testSecondConnection">測試 Gemini 第二次連線</button><span id="liveState" class="live-state">⚪ 尚未連線</span></div>
+<div class="voice-row"><select id="voiceSelect" aria-label="暗星聲音"></select><button class="primary" id="speakGuide">▶ 用暗星開始導讀</button><button id="stopGuide">■ 停止</button><span id="liveState" class="live-state">⚪ 尚未連線</span></div>
 </div></section>
 <section class="card">
 <strong>直接口語閱讀</strong><span class="badge">不分析</span>
@@ -73,6 +81,73 @@ let ws=null,playCtx=null,nextPlayTime=0,playSources=[],speaking=false,speechText
 let liveConnectionCount=0;
 let introRequestedThisRun=false;
 let outputPages=[],currentPage=0;
+let readingMaterials=[];
+let generatedSlides=[];
+function renderMaterials(){
+  const box=$('materialList'); box.innerHTML='';
+  readingMaterials.forEach((m,i)=>{
+    const el=document.createElement('div'); el.className='material-item';
+    const left=document.createElement('div'); left.innerHTML='<strong>'+escapeHtml(m.name)+'</strong><br><small>'+escapeHtml(m.type||'')+'｜'+escapeHtml(m.status||'待解析')+'</small>';
+    const b=document.createElement('button'); b.textContent='移除'; b.onclick=()=>{readingMaterials.splice(i,1);renderMaterials();};
+    el.append(left,b); box.appendChild(el);
+  });
+}
+function escapeHtml(v){return String(v||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+async function extractFileText(file){
+  const name=file.name.toLowerCase();
+  if(/\\.(txt|md|csv)$/.test(name)) return await file.text();
+  if(/\\.docx$/.test(name) && window.mammoth){
+    const r=await mammoth.extractRawText({arrayBuffer:await file.arrayBuffer()}); return r.value||'';
+  }
+  if(/\\.xlsx?$/.test(name) && window.XLSX){
+    const wb=XLSX.read(await file.arrayBuffer(),{type:'array'});
+    return wb.SheetNames.map(n=>'【工作表：'+n+'】\\n'+XLSX.utils.sheet_to_csv(wb.Sheets[n])).join('\\n\\n');
+  }
+  if(/\\.pptx$/.test(name) && window.JSZip){
+    const z=await JSZip.loadAsync(await file.arrayBuffer()); const out=[];
+    const keys=Object.keys(z.files).filter(k=>/^ppt\\/slides/slide\\d+\\.xml$/.test(k)).sort((a,b)=>Number(a.match(/slide(\\d+)/)[1])-Number(b.match(/slide(\\d+)/)[1]));
+    for(const k of keys){const xml=await z.files[k].async('text'); const doc=new DOMParser().parseFromString(xml,'application/xml'); out.push('【投影片 '+k.match(/slide(\\d+)/)[1]+'】\\n'+Array.from(doc.getElementsByTagName('a:t')).map(x=>x.textContent).join(' '));}
+    return out.join('\\n\\n');
+  }
+  if(/\\.pdf$/.test(name)) return '【PDF 多模態素材】 '+file.name+'\\n此檔案已加入導讀素材；PDF 頁面視覺／掃描內容需由多模態理解層進一步解析。';
+  if(/\\.(jpg|jpeg|png)$/.test(name)) return '【圖片多模態素材】 '+file.name+'\\n圖片本身保留，需由多模態理解層讀取。';
+  if(/\\.(mp4|mp3|wav)$/.test(name)) return '【影音／音訊多模態素材】 '+file.name+'\\n影音內容保留，需由多模態理解層分析畫面、語音、音樂與時間軸。';
+  return '';
+}
+async function addFiles(files){
+  for(const file of files){
+    const m={name:file.name,type:file.type||'file',status:'解析中',file};
+    readingMaterials.push(m); renderMaterials();
+    try{m.text=await extractFileText(file); m.status=m.text?'已取得可分析文字':'已保留多模態素材';}
+    catch(e){m.status='REQUIRES TEST：解析失敗';m.error=String(e.message||e);}
+    renderMaterials();
+  }
+}
+async function buildMaterialSource(){
+  const chunks=[]; const typed=$('source').value.trim(); if(typed)chunks.push('【使用者直接提供】\\n'+typed);
+  for(const m of readingMaterials){
+    if(m.text)chunks.push('【素材：'+m.name+'】\\n'+m.text);
+    else chunks.push('【多模態素材：'+m.name+'｜'+m.type+'】\\n目前前端不偽造文字內容；此素材標記為需多模態理解。');
+  }
+  return chunks.join('\\n\\n').trim();
+}
+async function generateReadingPPT(){
+  if(!outputPages.length){$('pptMeta').textContent='REQUIRES TEST：請先生成導讀／報告。';return;}
+  if(!window.PptxGenJS){$('pptMeta').textContent='REQUIRES TEST：PPT 生成函式庫尚未載入。';return;}
+  const ppt=new PptxGenJS(); ppt.layout='LAYOUT_WIDE'; ppt.author='AIVAULT｜暗星'; ppt.subject='暗星研究導讀';
+  generatedSlides=outputPages.map((text,i)=>({page:i+1,title:'暗星導讀｜第 '+(i+1)+' 頁',body:text}));
+  generatedSlides.forEach(sl=>{
+    const slide=ppt.addSlide(); slide.background={color:'FFFFFF'};
+    slide.addText(sl.title,{x:0.55,y:0.35,w:12.2,h:0.45,fontSize:22,bold:true,color:'202123'});
+    slide.addText(sl.body,{x:0.65,y:1.0,w:12.0,h:5.85,fontSize:16,color:'202123',breakLine:false,fit:'shrink',margin:0.08,valign:'top'});
+    if(typeof slide.addNotes==='function') slide.addNotes('暗星講解稿：\\n'+sl.body);
+    slide.addText('第 '+sl.page+' 頁',{x:11.2,y:7.05,w:1.2,h:0.25,fontSize:9,color:'666666',align:'right'});
+  });
+  const filename=(($('title').value.trim()||'暗星導讀').replace(/[\\/:*?"<>|]/g,'_'))+'｜暗星導讀.pptx';
+  await ppt.writeFile({fileName:filename});
+  $('pptMeta').textContent='CONFIRMED：已生成 '+generatedSlides.length+' 頁 PPT；每頁均保留對應講解稿，Gemini Live 可依頁序講解。';
+}
+
 function splitOutputPages(text,maxLen=1800){
   const clean=String(text||'').trim();
   if(!clean)return [];
@@ -159,7 +234,7 @@ async function callReportAPI(body){
   return d.result;
 }
 async function generateAI(){
-  const source=$('source').value.trim();
+  const source=await buildMaterialSource();
   if(!source){$('aiState').textContent='REQUIRES TEST：請先提供教材或資料。';$('aiState').className='status warn';return;}
   $('generateAI').disabled=true;
   outputPages=[];currentPage=0;$('result').textContent='暗星正在直接生成專題報告……';renderPageControls();
@@ -452,7 +527,10 @@ $('build').onclick=makeStructure;$('generateAI').onclick=generateAI;
 $('pagePrev').onclick=()=>showOutputPage(currentPage-1);
 $('pageNext').onclick=()=>showOutputPage(currentPage+1);
 $('pageJump').onchange=()=>showOutputPage(Number($('pageJump').value));
-$('testSecondConnection').onclick=testSecondConnection;
+$('generatePPT').onclick=generateReadingPPT;
+$('materialFiles').onchange=e=>addFiles(e.target.files);
+$('addUrl').onclick=()=>{const url=prompt('輸入網路連結');if(url){readingMaterials.push({name:url,type:'url',status:'待後端擷取',url});renderMaterials();}};
+$('clearMaterials').onclick=()=>{readingMaterials=[];renderMaterials();};
 $('clear').onclick=()=>{$('source').value='';$('title').value='';outputPages=[];currentPage=0;renderPageControls();$('result').textContent='等待資料。';$('state').textContent='尚未執行';$('state').className='status';speechText='';speechSegments=[];stopGuide()};
 $('speakGuide').onclick=speakGuide;$('stopGuide').onclick=stopGuide;
 $('directSpeak').onclick=speakDirectText;
