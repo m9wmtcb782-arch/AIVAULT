@@ -385,14 +385,42 @@ async function testSecondConnection(){
   }
 }
 function stopGuide(){speaking=false;stopAudio();if(ws){try{ws.close()}catch(e){}ws=null}setLiveState('⚪ 已停止');}
+function waitDirectAudioDrain(serial){
+  return new Promise((resolve,reject)=>{
+    const check=()=>{
+      if(!speaking||serial!==runSerial){resolve();return}
+      if(!playCtx||nextPlayTime<=playCtx.currentTime+0.05){resolve();return}
+      setTimeout(check,80);
+    };
+    check();
+  });
+}
+
+async function speakDirectChunk(segment,index,total,serial){
+  if(!speaking||serial!==runSerial)throw new Error('已停止');
+  if(!ws||ws.readyState!==WebSocket.OPEN)throw new Error('Gemini Live 連線中斷');
+  const prompt='你是暗星。以下是固定講稿，現在只做自然口語發聲。請逐句忠實照讀本段文字。嚴禁摘要、改寫、重組、刪除、補充、解釋、翻譯或自我介紹；除了正常語音停頓與口語語調外，不得改變文字內容。這是長篇固定稿的第 '+index+'／'+total+' 段；不要重複前段，也不要預讀後段。讀完本段後停止輸出並等待下一段。請使用自然流暢的繁體中文。\\n\\n固定講稿：\\n'+segment.text;
+  setLiveState('🟢 直接口語閱讀第 '+index+'／'+total+' 段…');
+  ws.send(JSON.stringify({type:'text',text:prompt}));
+  await waitTurn(90000);
+  // 等目前段落已排入 AudioContext 的聲音真正播放完，再送下一段，避免兩段重疊。
+  await waitDirectAudioDrain(serial);
+}
+
 async function speakDirectText(){
   const text=$('directSpeechText').value.trim();
   if(!text){
     $('directSpeechState').textContent='⚠️ 請先貼上要直接口語閱讀的內容。';
     return;
   }
+
+  // 直接閱讀不得與既有 Live session 並存，避免兩個聲音同時輸出。
   if(speaking)stopGuide();
+  if(ws){try{ws.close()}catch(e){}ws=null}
+  await new Promise(r=>setTimeout(r,120));
+
   await ensureAudio();
+  stopAudio();
   speechText=text;
   speechSegments=splitSpeechText(text,900).map((t,i)=>({kind:'direct',index:i+1,total:0,text:t}));
   runSerial++;
@@ -400,21 +428,25 @@ async function speakDirectText(){
   speaking=true;
   introRequestedThisRun=false;
   const total=speechSegments.length;
-  $('directSpeechState').textContent='🟡 Gemini 正在直接口語閱讀，共 '+total+' 段；不分析、不改寫。';
+  $('directSpeechState').textContent='🟡 Gemini 正在直接口語閱讀，共 '+total+' 段；不分析、不改寫、不重送已開始的段落。';
   setLiveState('🟡 直接口語閱讀準備中…');
+
   try{
     await connectLive();
+    // 直接閱讀固定使用單一 Live session；本段一旦送出，絕不自動 reconnect／retry。
+    // 這避免 Gemini 已經開始輸出後，前端誤判逾時又把同一段從頭送一次。
     for(let i=0;i<total;i++){
       if(!speaking||serial!==runSerial)throw new Error('已停止');
-      await speakOneChunk(speechSegments[i],i+1,total,serial);
+      await speakDirectChunk(speechSegments[i],i+1,total,serial);
     }
+    await waitDirectAudioDrain(serial);
     speaking=false;
     if(ws){try{ws.close()}catch(e){}ws=null}
-    $('directSpeechState').textContent='🟢 CONFIRMED：已直接完成全部 '+total+' 段口語閱讀。';
+    $('directSpeechState').textContent='🟢 CONFIRMED：已直接完成全部 '+total+' 段口語閱讀，未自動重送任何已開始段落。';
   }catch(e){
-    speaking=false;
-    if(ws){try{ws.close()}catch(_){}ws=null}
-    $('directSpeechState').textContent='🔴 語音中斷：'+(e.message||e);
+    if(serial===runSerial)speaking=false;
+    if(ws){try{ws.close()}catch(e){}ws=null}
+    $('directSpeechState').textContent='🔴 語音中斷（本段不重送）：'+(e.message||e);
   }
 }
 $('build').onclick=makeStructure;$('generateAI').onclick=generateAI;
