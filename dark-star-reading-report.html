@@ -128,15 +128,31 @@ async function generateAI(){
 }
 function initVoices(){const sel=$('voiceSelect');VOICES.forEach(([id,label])=>{const o=document.createElement('option');o.value=id;o.textContent=id+' — '+label;sel.appendChild(o)});sel.value=localStorage.getItem('darkStarVoice')||'Kore';sel.onchange=()=>localStorage.setItem('darkStarVoice',sel.value);}
 function setLiveState(s){$('liveState').textContent=s;}
+const SUPABASE_PUBLIC_KEY='sb_publishable_1D05YGthBrNGg-5L92TLCw_GiLnInBu';
 function readAuthSession(){try{const raw=localStorage.getItem('sb-clcddygkaaqqtsbswgdf-auth-token');return raw?JSON.parse(raw):null}catch(e){return null}}
-async function accessToken(){const j=readAuthSession();return String(j?.access_token||(j?.currentSession&&j.currentSession.access_token)||'').trim();}
+async function accessToken(force=false){
+  const j=readAuthSession();if(!j)return '';
+  let token=String(j.access_token||(j.currentSession&&j.currentSession.access_token)||'').trim();
+  const refreshToken=String(j.refresh_token||(j.currentSession&&j.currentSession.refresh_token)||'').trim();
+  const expiresAt=Number(j.expires_at||(j.currentSession&&j.currentSession.expires_at)||0);
+  const needsRefresh=Boolean(refreshToken)&&(force||!token||(expiresAt>0&&expiresAt*1000-Date.now()<60000));
+  if(!needsRefresh)return token;
+  try{
+    const res=await fetch('https://clcddygkaaqqtsbswgdf.supabase.co/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_PUBLIC_KEY},body:JSON.stringify({refresh_token:refreshToken})});
+    if(!res.ok)return token;
+    const fresh=await res.json();if(!fresh?.access_token)return token;
+    const merged={...j,...fresh,access_token:fresh.access_token,refresh_token:fresh.refresh_token||refreshToken};
+    try{localStorage.setItem('sb-clcddygkaaqqtsbswgdf-auth-token',JSON.stringify(merged))}catch(e){}
+    return String(fresh.access_token).trim();
+  }catch(e){return token}
+}
 async function ensureAudio(){if(!playCtx)playCtx=new AudioContext();if(playCtx.state!=='running')await playCtx.resume();}
 function stopAudio(){playSources.forEach(s=>{try{s.stop()}catch(e){}});playSources=[];nextPlayTime=0;}
 function playPCM(buf){if(!playCtx)return;const bytes=new Uint8Array(buf),pcm=new Int16Array(bytes.buffer,bytes.byteOffset,Math.floor(bytes.byteLength/2));if(!pcm.length)return;const audio=playCtx.createBuffer(1,pcm.length,24000),data=audio.getChannelData(0);for(let i=0;i<pcm.length;i++)data[i]=pcm[i]/32768;const src=playCtx.createBufferSource();src.buffer=audio;src.connect(playCtx.destination);const now=playCtx.currentTime;if(nextPlayTime<now+.03)nextPlayTime=now+.03;src.start(nextPlayTime);nextPlayTime+=audio.duration;playSources.push(src);src.onended=()=>{const i=playSources.indexOf(src);if(i>=0)playSources.splice(i,1)};}
 function playBase64PCM(b64){try{const bin=atob(b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);playPCM(u.buffer)}catch(e){}}
 let turnWaitResolve=null,turnWaitReject=null,runSerial=0;
 function handleLiveMessage(raw){if(raw instanceof ArrayBuffer){playPCM(raw);return}let d;try{d=JSON.parse(raw)}catch(e){return}const sc=d.serverContent||d;if(d.type==='live_open'||d.setupComplete)setLiveState('🟢 即時語音 已啟動');const parts=(sc.modelTurn&&sc.modelTurn.parts)||(d.modelTurn&&d.modelTurn.parts)||[];parts.forEach(p=>{const x=p&&p.inlineData;if(x&&x.data&&String(x.mimeType||'').startsWith('audio/'))playBase64PCM(x.data)});if(d.audio&&d.audio.data)playBase64PCM(d.audio.data);if(d.data&&String(d.mimeType||'').startsWith('audio/'))playBase64PCM(d.data);if(sc.turnComplete||d.turnComplete||d.type==='turnComplete'){if(turnWaitResolve){const r=turnWaitResolve;turnWaitResolve=null;turnWaitReject=null;r()}setLiveState('🟢 本段語音完成')}if(d.type==='error'||d.error){const m=d.message||(d.error&&d.error.message)||JSON.stringify(d.error);if(turnWaitReject){const r=turnWaitReject;turnWaitResolve=null;turnWaitReject=null;r(new Error(m))}setLiveState('🔴 '+m);}}
-async function connectLive(){const q=new URLSearchParams();q.set('voice',$('voiceSelect').value||'Kore');q.set('agent_id','technical-dark-star');const topicId=localStorage.getItem('technical-dark-star-topic-id')||'',conversationId=localStorage.getItem('technical_dark_star_conversation_id')||'',tok=await accessToken();if(topicId)q.set('topic_id',topicId);if(conversationId)q.set('conversation_id',conversationId);if(tok){q.set('access_token',tok);q.set('token',tok);q.set('jwt',tok)}ws=new WebSocket(LIVE_FN+'?'+q.toString());ws.binaryType='arraybuffer';await new Promise((resolve,reject)=>{const socket=ws,t=setTimeout(()=>{try{socket.close()}catch(e){}reject(new Error('連線逾時'))},8000);socket.onopen=()=>{clearTimeout(t);setLiveState('🟢 即時語音 已連線');resolve()};socket.onerror=()=>{clearTimeout(t);reject(new Error('WebSocket error'))};socket.onmessage=e=>handleLiveMessage(e.data);socket.onclose=()=>{if(turnWaitReject){const r=turnWaitReject;turnWaitResolve=null;turnWaitReject=null;r(new Error('即時語音連線中斷'))}ws=null;};});}
+async function connectLive(forceAuth=false){const q=new URLSearchParams();q.set('voice',$('voiceSelect').value||'Kore');q.set('agent_id','technical-dark-star');const topicId=localStorage.getItem('technical-dark-star-topic-id')||'',conversationId=localStorage.getItem('technical_dark_star_conversation_id')||'',tok=await accessToken(forceAuth);if(topicId)q.set('topic_id',topicId);if(conversationId)q.set('conversation_id',conversationId);if(tok){q.set('access_token',tok);q.set('token',tok);q.set('jwt',tok)}ws=new WebSocket(LIVE_FN+'?'+q.toString());ws.binaryType='arraybuffer';await new Promise((resolve,reject)=>{const socket=ws,t=setTimeout(()=>{try{socket.close()}catch(e){}reject(new Error('連線逾時'))},8000);socket.onopen=()=>{clearTimeout(t);setLiveState('🟢 即時語音 已連線');resolve()};socket.onerror=()=>{clearTimeout(t);reject(new Error('WebSocket error'))};socket.onmessage=e=>handleLiveMessage(e.data);socket.onclose=()=>{if(turnWaitReject){const r=turnWaitReject;turnWaitResolve=null;turnWaitReject=null;r(new Error('即時語音連線中斷'))}ws=null;};});}
 function splitSpeechText(text,maxLen=500){
   const clean=String(text||'').replace(/\\r/g,'').trim();
   const out=[];let rest=clean;
@@ -205,6 +221,9 @@ async function speakOneChunk(segment,index,total,serial){
       return;
     }catch(e){
       if(ws){try{ws.close()}catch(_){}ws=null}
+      if(String(e?.message||e).includes('INVALID_AUTH') && attempt===1){
+        try{await connectLive(true);continue}catch(_){}
+      }
       if(attempt===3)throw e;
       setLiveState('🟡 第 '+index+' 段中斷，正在重新連線（'+attempt+'／2）…');
       await new Promise(r=>setTimeout(r,700));
