@@ -50,6 +50,12 @@ button{border:1px solid #ccc;background:#fff;border-radius:10px;padding:10px 14p
 <p style="margin:7px 0;color:#666;font-size:13px">文稿是內容依據；即時語音 負責把內容自然地說出來，不是把文字機械逐字朗讀。</p>
 <div class="voice-row"><select id="voiceSelect" aria-label="暗星聲音"></select><button class="primary" id="speakGuide">▶ 用暗星開始導讀</button><button id="stopGuide">■ 停止</button><button id="testSecondConnection">測試 Gemini 第二次連線</button><span id="liveState" class="live-state">⚪ 尚未連線</span></div>
 </div></section>
+<section class="card">
+<strong>直接口語閱讀</strong><span class="badge">不分析</span>
+<p style="margin:7px 0;color:#666;font-size:13px">把已經完成的導讀、報告或任何講稿直接貼在這裡。這個視窗不經過 AI 分析、不改寫內容，只把原文交給 Gemini Live 自然口語說出來。</p>
+<textarea id="directSpeechText" placeholder="把已完成的導讀／報告直接貼在這裡……"></textarea>
+<div class="actions"><button class="primary" id="directSpeak">▶ 直接口語閱讀</button><button id="directStop">■ 停止</button><span id="directSpeechState" class="live-state">⚪ 尚未執行</span></div>
+</section>
 <section class="card"><strong>暗星生成規則</strong>
 <div class="result">導讀：問題意識 → 核心概念 → 論證主線 → 爭點與閱讀地圖
 研究生分析型：必須深入分析論證、證據、因果／制度關係、不同觀點、限制與實務意義
@@ -379,13 +385,48 @@ async function testSecondConnection(){
   }
 }
 function stopGuide(){speaking=false;stopAudio();if(ws){try{ws.close()}catch(e){}ws=null}setLiveState('⚪ 已停止');}
+async function speakDirectText(){
+  const text=$('directSpeechText').value.trim();
+  if(!text){
+    $('directSpeechState').textContent='⚠️ 請先貼上要直接口語閱讀的內容。';
+    return;
+  }
+  if(speaking)stopGuide();
+  await ensureAudio();
+  speechText=text;
+  speechSegments=splitSpeechText(text,900).map((t,i)=>({kind:'direct',index:i+1,total:0,text:t}));
+  runSerial++;
+  const serial=runSerial;
+  speaking=true;
+  introRequestedThisRun=false;
+  const total=speechSegments.length;
+  $('directSpeechState').textContent='🟡 Gemini 正在直接口語閱讀，共 '+total+' 段；不分析、不改寫。';
+  setLiveState('🟡 直接口語閱讀準備中…');
+  try{
+    await connectLive();
+    for(let i=0;i<total;i++){
+      if(!speaking||serial!==runSerial)throw new Error('已停止');
+      await speakOneChunk(speechSegments[i],i+1,total,serial);
+    }
+    speaking=false;
+    if(ws){try{ws.close()}catch(e){}ws=null}
+    $('directSpeechState').textContent='🟢 CONFIRMED：已直接完成全部 '+total+' 段口語閱讀。';
+  }catch(e){
+    speaking=false;
+    if(ws){try{ws.close()}catch(_){}ws=null}
+    $('directSpeechState').textContent='🔴 語音中斷：'+(e.message||e);
+  }
+}
 $('build').onclick=makeStructure;$('generateAI').onclick=generateAI;
 $('pagePrev').onclick=()=>showOutputPage(currentPage-1);
 $('pageNext').onclick=()=>showOutputPage(currentPage+1);
 $('pageJump').onchange=()=>showOutputPage(Number($('pageJump').value));
 $('testSecondConnection').onclick=testSecondConnection;
 $('clear').onclick=()=>{$('source').value='';$('title').value='';outputPages=[];currentPage=0;renderPageControls();$('result').textContent='等待資料。';$('state').textContent='尚未執行';$('state').className='status';speechText='';speechSegments=[];stopGuide()};
-$('speakGuide').onclick=speakGuide;$('stopGuide').onclick=stopGuide;initVoices();renderPageControls();
+$('speakGuide').onclick=speakGuide;$('stopGuide').onclick=stopGuide;
+$('directSpeak').onclick=speakDirectText;
+$('directStop').onclick=()=>{$('directSpeechState').textContent='⚪ 已停止';stopGuide()};
+initVoices();renderPageControls();
 </script>
 </body>
 </html>
