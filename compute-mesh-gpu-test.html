@@ -467,6 +467,10 @@ pre.result{
         📋 一鍵複製測試指令
       </button>
 
+      <button id="redispatchBtn" class="primary">
+        🔄 重派 GPU 測試任務
+      </button>
+
       <button id="stopBtn" class="danger">
         ⏹ 停止 Worker
       </button>
@@ -2822,6 +2826,54 @@ async function startWorker(){
 
 
 /* ---------------------------------------------------------
+   重派真實 Compute Mesh GPU 測試任務
+   --------------------------------------------------------- */
+
+async function redispatchTestTask(){
+  const button = $("redispatchBtn");
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = "⏳ 建立任務中…";
+  const taskId = `iphone17-webgpu-proof-${Date.now()}`;
+  const task = {
+    id: taskId,
+    title: "AIVAULT Compute Mesh iPhone 17 WebGPU 真實運算測試",
+    task_type: "webgpu-compute",
+    type: "webgpu-compute",
+    elements: 1000000,
+    iterations: 20,
+    nodes_needed: 1,
+    priority: "HIGH",
+    gpu_required: true,
+    requirements: { webgpu_required: true },
+    compute: { backend: "webgpu", execution: "remote", require_consent: true },
+    objective: "由 Compute Mesh 將此任務派發給具備 WebGPU 的遠端 Worker"
+  };
+
+  try {
+    const response = await fetch(COORDINATOR_URL, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({type:"task.create", task})
+    });
+    const data = await response.json();
+    if (!response.ok || !data.success) throw new Error(data.error || `HTTP ${response.status}`);
+    log("已建立新的 WAITING GPU 任務", {task_id: taskId, response:data}, "ok");
+    await requestTask();
+    button.textContent = "✅ 已重派";
+  } catch (error) {
+    log("重派 GPU 任務失敗", {error:error.message}, "error");
+    button.textContent = "❌ 重派失敗";
+  } finally {
+    setTimeout(() => {
+      button.disabled = false;
+      button.textContent = original;
+    }, 1800);
+  }
+}
+
+
+/* ---------------------------------------------------------
    一鍵複製測試指令
    --------------------------------------------------------- */
 
@@ -2921,6 +2973,13 @@ $("copyTestBtn")
   .addEventListener(
     "click",
     copyTestInstruction
+  );
+
+
+$("redispatchBtn")
+  .addEventListener(
+    "click",
+    redispatchTestTask
   );
 
 
