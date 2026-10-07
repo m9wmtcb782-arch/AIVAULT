@@ -1027,23 +1027,17 @@ async function initializeWebGPU(){
 
   try{
 
-    if(
-      typeof adapter.requestAdapterInfo ===
-      "function"
-    ){
-
-      adapterInfo =
-        await adapter.requestAdapterInfo();
-
+    if(adapter.info){
+      adapterInfo = adapter.info;
+    }else if(typeof adapter.requestAdapterInfo === "function"){
+      adapterInfo = await adapter.requestAdapterInfo();
     }else{
-
       adapterInfo = {
         vendor:"unknown",
         architecture:"unknown",
         device:"unknown",
         description:"WebGPU"
       };
-
     }
 
   }catch{
@@ -1134,12 +1128,211 @@ async function initializeWebGPU(){
    --------------------------------------------------------- */
 
 function safeNumber(v){return Number.isFinite(Number(v))?Number(v):null}
-function getDeviceBrand(ua){if(/iPhone|iPad|iPod/i.test(ua))return "Apple";if(/Samsung|SM-/i.test(ua))return "Samsung";if(/Pixel/i.test(ua))return "Google";if(/Huawei|HUAWEI/i.test(ua))return "Huawei";if(/Xiaomi|Mi |Redmi|POCO/i.test(ua))return "Xiaomi";if(/OPPO/i.test(ua))return "OPPO";if(/vivo/i.test(ua))return "vivo";if(/OnePlus/i.test(ua))return "OnePlus";return "瀏覽器未能可靠判定"}
-function getDeviceClass(ua){if(/iPhone/i.test(ua))return "手機";if(/iPad/i.test(ua))return "平板";if(/Android/i.test(ua))return "Android 裝置";return "其他"}
-function collectGpuLimits(a){if(!a?.limits)return {};const keys=["maxBufferSize","maxStorageBufferBindingSize","maxComputeWorkgroupSizeX","maxComputeWorkgroupSizeY","maxComputeWorkgroupSizeZ","maxComputeInvocationsPerWorkgroup","maxComputeWorkgroupsPerDimension","maxComputeWorkgroupStorageSize","maxTextureDimension2D","maxTextureDimension3D","maxBindGroups","maxBindingsPerBindGroup"];const out={};for(const k of keys){if(a.limits[k]!==undefined)out[k]=a.limits[k]}return out}
-async function collectHardwareProfile(){const ua=navigator.userAgent||"",nav=navigator;let uaData=null;try{if(nav.userAgentData)uaData={mobile:!!nav.userAgentData.mobile,platform:nav.userAgentData.platform||null,brands:Array.from(nav.userAgentData.brands||[]).map(x=>({brand:x.brand,version:x.version}))}}catch{}const mem=safeNumber(nav.deviceMemory);return {measured_at:new Date().toISOString(),device:{brand:getDeviceBrand(ua),class:getDeviceClass(ua),model:"瀏覽器未提供精確型號",user_agent:ua,user_agent_data:uaData,platform:nav.platform||null,language:nav.language||null,languages:Array.from(nav.languages||[]),hardware_concurrency:safeNumber(nav.hardwareConcurrency),device_memory_gb:mem,max_touch_points:safeNumber(nav.maxTouchPoints),online:typeof nav.onLine==="boolean"?nav.onLine:null},display:{width_css_px:safeNumber(window.screen?.width),height_css_px:safeNumber(window.screen?.height),device_pixel_ratio:safeNumber(window.devicePixelRatio),color_depth:safeNumber(window.screen?.colorDepth),orientation:window.screen?.orientation?.type||null},cpu:{logical_cores:safeNumber(nav.hardwareConcurrency),model:"瀏覽器未提供 CPU 精確型號",physical_cores:"瀏覽器不可可靠取得",architecture:"瀏覽器不可可靠取得"},memory:{browser_device_memory_gb:mem,exact_ram_gb:"瀏覽器未提供精確 RAM"},gpu:{vendor:adapterInfo?.vendor||"unknown",architecture:adapterInfo?.architecture||"unknown",device:adapterInfo?.device||"unknown",description:adapterInfo?.description||"WebGPU",dedicated_vram_gb:"手機瀏覽器不可可靠取得",unified_memory_gb:mem,fallback:!!adapter?.isFallbackAdapter},npu:{available_to_webgpu:false,detected:false,name:"瀏覽器沒有標準 API 可直接讀取 NPU 型號/神經引擎",note:"若要取得 NPU 精確型號與算力，需原生 App / 平台硬體 API；本頁不冒充推測值"},webgpu:{supported:!!nav.gpu,features:adapter?Array.from(adapter.features||[]):[],limits:adapter?collectGpuLimits(adapter):{}}}}
-function hardwareRow(label,value){const v=value===null||value===undefined||value===""?"未提供":String(value);return '<div class="hardwareRow"><span class="hardwareLabel">'+escapeHtml(label)+'</span><span class="hardwareValue">'+escapeHtml(v)+'</span></div>'}
-function renderHardwareProfile(p){if(!p)return;const d=p.device||{},c=p.cpu||{},m=p.memory||{},g=p.gpu||{},n=p.npu||{},w=p.webgpu||{},s=p.display||{};$("deviceHardwareInfo").innerHTML=[hardwareRow("品牌",d.brand),hardwareRow("裝置類型",d.class),hardwareRow("型號",d.model),hardwareRow("平台",d.platform),hardwareRow("CPU 邏輯核心",c.logical_cores),hardwareRow("瀏覽器可見記憶體",m.browser_device_memory_gb?m.browser_device_memory_gb+" GB":"未提供"),hardwareRow("觸控點",d.max_touch_points),hardwareRow("螢幕",(s.width_css_px||"?")+" × "+(s.height_css_px||"?")+" CSS px"),hardwareRow("Pixel Ratio",s.device_pixel_ratio),hardwareRow("語系",d.language)].join("");$("gpuHardwareInfo").innerHTML=[hardwareRow("GPU Vendor",g.vendor),hardwareRow("GPU Architecture",g.architecture),hardwareRow("GPU Device",g.device),hardwareRow("GPU Description",g.description),hardwareRow("WebGPU",w.supported?"支援":"不支援"),hardwareRow("Fallback Adapter",g.fallback?"是":"否"),hardwareRow("專用 VRAM",g.dedicated_vram_gb),hardwareRow("可見裝置記憶體",g.unified_memory_gb?g.unified_memory_gb+" GB（不是 VRAM）":"未提供")].join("");$("npuHardwareInfo").innerHTML=[hardwareRow("NPU 狀態",n.detected?"已偵測":"瀏覽器無法直接偵測"),hardwareRow("NPU 型號",n.name),hardwareRow("NPU 算力","瀏覽器未提供"),hardwareRow("AIVAULT 判定",n.note)].join("");const entries=Object.entries(w.limits||{});$("gpuLimitsInfo").innerHTML=[hardwareRow("WebGPU Features",Array.isArray(w.features)&&w.features.length?w.features.join(", "):"未提供"),...entries.map(x=>hardwareRow(x[0],x[1]))].join("")}
+
+function getDeviceBrand(ua){
+  if(/iPhone|iPad|iPod/i.test(ua))return "Apple";
+  if(/Samsung|SM-/i.test(ua))return "Samsung";
+  if(/Pixel/i.test(ua))return "Google";
+  if(/Huawei|HUAWEI/i.test(ua))return "Huawei";
+  if(/Xiaomi|Mi |Redmi|POCO/i.test(ua))return "Xiaomi";
+  if(/OPPO/i.test(ua))return "OPPO";
+  if(/vivo/i.test(ua))return "vivo";
+  if(/OnePlus/i.test(ua))return "OnePlus";
+  return "瀏覽器未能可靠判定";
+}
+
+function getDeviceClass(ua){
+  if(/iPhone/i.test(ua))return "手機";
+  if(/iPad/i.test(ua))return "平板";
+  if(/Android/i.test(ua))return "Android 裝置";
+  if(/Windows|Macintosh|Linux|X11/i.test(ua))return "電腦";
+  return "其他";
+}
+
+function collectGpuLimits(a){
+  if(!a?.limits)return {};
+  const keys=[
+    "maxBufferSize","maxStorageBufferBindingSize",
+    "maxComputeWorkgroupSizeX","maxComputeWorkgroupSizeY",
+    "maxComputeWorkgroupSizeZ","maxComputeInvocationsPerWorkgroup",
+    "maxComputeWorkgroupsPerDimension","maxComputeWorkgroupStorageSize",
+    "maxTextureDimension2D","maxTextureDimension3D",
+    "maxBindGroups","maxBindingsPerBindGroup"
+  ];
+  const out={};
+  for(const k of keys)if(a.limits[k]!==undefined)out[k]=a.limits[k];
+  return out;
+}
+
+function detectWebGLRenderer(){
+  try{
+    const canvas=document.createElement("canvas");
+    const gl=canvas.getContext("webgl2")||canvas.getContext("webgl");
+    if(!gl)return {vendor:"未提供",renderer:"未提供"};
+    const ext=gl.getExtension("WEBGL_debug_renderer_info");
+    return {
+      vendor:ext?gl.getParameter(ext.UNMASKED_VENDOR_WEBGL):gl.getParameter(gl.VENDOR),
+      renderer:ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER)
+    };
+  }catch{
+    return {vendor:"未提供",renderer:"未提供"};
+  }
+}
+
+async function collectHardwareProfile(){
+  const ua=navigator.userAgent||"",nav=navigator;
+  let uaData=null;
+  try{
+    if(nav.userAgentData){
+      let high=null;
+      try{
+        high=await nav.userAgentData.getHighEntropyValues([
+          "architecture","bitness","model","platformVersion","fullVersionList"
+        ]);
+      }catch{}
+      uaData={
+        mobile:!!nav.userAgentData.mobile,
+        platform:nav.userAgentData.platform||null,
+        brands:Array.from(nav.userAgentData.brands||[]).map(x=>({brand:x.brand,version:x.version})),
+        high_entropy:high
+      };
+    }
+  }catch{}
+
+  const mem=safeNumber(nav.deviceMemory);
+  const webgl=detectWebGLRenderer();
+  const info=adapterInfo||{};
+
+  return {
+    measured_at:new Date().toISOString(),
+
+    device:{
+      brand:getDeviceBrand(ua),
+      class:getDeviceClass(ua),
+      model:uaData?.high_entropy?.model||"瀏覽器未提供精確型號",
+      platform:nav.platform||null,
+      platform_version:uaData?.high_entropy?.platformVersion||null,
+      user_agent:ua,
+      user_agent_data:uaData,
+      language:nav.language||null,
+      languages:Array.from(nav.languages||[]),
+      max_touch_points:safeNumber(nav.maxTouchPoints),
+      online:typeof nav.onLine==="boolean"?nav.onLine:null
+    },
+
+    cpu:{
+      model:"瀏覽器未提供 CPU 精確型號",
+      logical_cores:safeNumber(nav.hardwareConcurrency),
+      physical_cores:"瀏覽器標準 API 不提供",
+      performance_cores:"瀏覽器標準 API 不提供",
+      efficiency_cores:"瀏覽器標準 API 不提供",
+      architecture:uaData?.high_entropy?.architecture||"未提供",
+      bitness:uaData?.high_entropy?.bitness||"未提供"
+    },
+
+    memory:{
+      browser_device_memory_gb:mem,
+      exact_ram_gb:"瀏覽器標準 API 未提供"
+    },
+
+    display:{
+      width_css_px:safeNumber(window.screen?.width),
+      height_css_px:safeNumber(window.screen?.height),
+      device_pixel_ratio:safeNumber(window.devicePixelRatio),
+      color_depth:safeNumber(window.screen?.colorDepth),
+      orientation:window.screen?.orientation?.type||null
+    },
+
+    gpu:{
+      vendor:info.vendor||"unknown",
+      architecture:info.architecture||"unknown",
+      device:info.device||"unknown",
+      description:info.description||"WebGPU",
+      subgroup_min:safeNumber(info.subgroupMinSize),
+      subgroup_max:safeNumber(info.subgroupMaxSize),
+      fallback:!!info.isFallbackAdapter,
+      webgl_vendor:webgl.vendor,
+      webgl_renderer:webgl.renderer,
+      dedicated_vram_gb:"瀏覽器標準 Web API 未提供",
+      unified_memory_gb:mem,
+      shader_core_count:"瀏覽器 Web API 未提供實際 GPU Core / Shader Core 數"
+    },
+
+    npu:{
+      detected:false,
+      name:"瀏覽器 Web API 未提供 NPU 精確型號",
+      tops:"瀏覽器 Web API 未提供",
+      core_count:"瀏覽器 Web API 未提供",
+      note:"NPU/神經引擎可能存在，但不能從瀏覽器可靠讀出型號、核心數或 TOPS"
+    },
+
+    webgpu:{
+      supported:!!nav.gpu,
+      features:adapter?Array.from(adapter.features||[]):[],
+      limits:adapter?collectGpuLimits(adapter):{}
+    }
+  };
+}
+
+function hardwareRow(label,value){
+  const v=value===null||value===undefined||value===""?"未提供":String(value);
+  return '<div class="hardwareRow"><span class="hardwareLabel">'+escapeHtml(label)+'</span><span class="hardwareValue">'+escapeHtml(v)+'</span></div>';
+}
+
+function renderHardwareProfile(p){
+  if(!p)return;
+  const d=p.device||{},c=p.cpu||{},m=p.memory||{},g=p.gpu||{},n=p.npu||{},w=p.webgpu||{},s=p.display||{};
+
+  $("deviceHardwareInfo").innerHTML=[
+    hardwareRow("品牌",d.brand),
+    hardwareRow("裝置類型",d.class),
+    hardwareRow("型號",d.model),
+    hardwareRow("平台",d.platform),
+    hardwareRow("平台版本",d.platform_version),
+    hardwareRow("CPU 型號",c.model),
+    hardwareRow("CPU 邏輯核心",c.logical_cores),
+    hardwareRow("CPU 實體核心",c.physical_cores),
+    hardwareRow("P-Core / 效能核心",c.performance_cores),
+    hardwareRow("E-Core / 效率核心",c.efficiency_cores),
+    hardwareRow("CPU 架構",c.architecture),
+    hardwareRow("CPU 位元",c.bitness),
+    hardwareRow("瀏覽器可見記憶體",m.browser_device_memory_gb?m.browser_device_memory_gb+" GB":"未提供"),
+    hardwareRow("觸控點",d.max_touch_points),
+    hardwareRow("螢幕",((s.width_css_px||"?")+" × "+(s.height_css_px||"?")+" CSS px")),
+    hardwareRow("Pixel Ratio",s.device_pixel_ratio),
+    hardwareRow("語系",d.language)
+  ].join("");
+
+  $("gpuHardwareInfo").innerHTML=[
+    hardwareRow("GPU Vendor",g.vendor),
+    hardwareRow("GPU Architecture",g.architecture),
+    hardwareRow("GPU Device / Adapter ID",g.device),
+    hardwareRow("GPU Description",g.description),
+    hardwareRow("WebGL Vendor",g.webgl_vendor),
+    hardwareRow("WebGL Renderer / 顯示卡",g.webgl_renderer),
+    hardwareRow("GPU Core / Shader Core",g.shader_core_count),
+    hardwareRow("GPU Subgroup Min",g.subgroup_min),
+    hardwareRow("GPU Subgroup Max",g.subgroup_max),
+    hardwareRow("Fallback Adapter",g.fallback?"是":"否"),
+    hardwareRow("專用 VRAM",g.dedicated_vram_gb),
+    hardwareRow("可見裝置記憶體",g.unified_memory_gb?g.unified_memory_gb+" GB（非 VRAM）":"未提供"),
+    hardwareRow("WebGPU",w.supported?"支援":"不支援")
+  ].join("");
+
+  $("npuHardwareInfo").innerHTML=[
+    hardwareRow("NPU 狀態",n.detected?"已偵測":"瀏覽器無法直接偵測"),
+    hardwareRow("NPU 型號",n.name),
+    hardwareRow("NPU 核心數",n.core_count),
+    hardwareRow("NPU TOPS",n.tops),
+    hardwareRow("AIVAULT 判定",n.note)
+  ].join("");
+
+  const entries=Object.entries(w.limits||{});
+  $("gpuLimitsInfo").innerHTML=[
+    hardwareRow("WebGPU Features",Array.isArray(w.features)&&w.features.length?w.features.join(", "):"未提供"),
+    ...entries.map(x=>hardwareRow(x[0],x[1]))
+  ].join("");
+}
 
 /* ---------------------------------------------------------
    Node Register
