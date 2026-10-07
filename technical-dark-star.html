@@ -6981,7 +6981,7 @@ function createWorkLocationFromGateway(data){
 }
 
 
-async function sendMessage(){
+async function sendMessage(){\n\n  const liveText = input.value.trim();\n  if(liveText && typeof window.__AIVAULT_DARK_STAR_SEND_LIVE_TEXT__ === 'function' && window.__AIVAULT_DARK_STAR_SEND_LIVE_TEXT__(liveText)){\n    input.value = '';\n    attachments = [];\n    renderAttachments();\n    resizeInput();\n    return;\n  }
 
   /*
     ========================================================
@@ -8515,7 +8515,7 @@ async function startVoice(){if(state.active||state.starting)return;state.liveWan
 // Live voice owns only its dedicated Live microphone channel.
 // The bottom composer and Send button always remain on the normal AI channel.
 setMic(false);
-window.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__=async()=>{if(state.active||state.starting){state.liveWanted=false;clearLiveVoiceRetry();return stopVoice(true,false)}state.liveWanted=true;syncLiveVoiceChecked();setStatus('正在啟動即時語音……',true);return startVoice()};
+window.__AIVAULT_DARK_STAR_SEND_LIVE_TEXT__=text=>{const value=String(text||'').trim();if(!value||!state.ws||state.ws.readyState!==WebSocket.OPEN||!state.active)return false;try{state.ws.send(JSON.stringify({type:'text',text:value}));state.inputText=value;state.outputText='';state.userTextEl=makeBubble('user');state.userTextEl.textContent=value;scrollBottom();return true}catch(error){console.warn('[DarkStar live] text send failed',error);return false}};\nwindow.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__=async()=>{if(state.active||state.starting){state.liveWanted=false;clearLiveVoiceRetry();return stopVoice(true,false)}state.liveWanted=true;syncLiveVoiceChecked();setStatus('正在啟動即時語音……',true);return startVoice()};
 })();
 </script>
 <!-- /AIVAULT_DARK_STAR_REALTIME_VOICE_V1 -->
