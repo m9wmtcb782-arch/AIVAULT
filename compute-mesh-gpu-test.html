@@ -362,18 +362,55 @@ pre.result{
 }
 
 /* AIVAULT_DARK_STAR_MESH_OBSERVER_V1 */
+let darkStarLogAnalysisTimer=null;
+let darkStarLastAnalyzedLog="";
 function darkStarObserveWorkerLog(message,data,type="info"){
   if(!window.darkStarAddMessage)return;
   const s=String(message||"");
-  const important=/收到遠端任務|WebGPU|GPU 任務結果已回傳|進度|完成|失敗|Coordinator|Device Lost|assignment/i.test(s);
+  const important=/收到遠端任務|開始 WebGPU|GPU execution|GPU 任務結果已回傳|回報 task.result|Progress|完成|失敗|Coordinator|Device Lost|assignment/i.test(s);
   if(!important)return;
   let line=s;
   if(data&&typeof data==="object"){
     const tid=data.task_id||data.taskId;
     const p=data.progress;
-    if(tid||p!=null) line += "\n"+[tid?("Task: "+tid):"",p!=null?("Progress: "+p+"%"):""].filter(Boolean).join(" · ");
+    const aid=data.assignment_id||data.assignmentId;
+    if(tid||p!=null||aid) line += "\n"+[tid?("Task: "+tid):"",aid?("Assignment: "+aid):"",p!=null?("Progress: "+p+"%"):""].filter(Boolean).join(" · ");
   }
-  window.darkStarAddMessage(type==="error"?"system":"ai","【算力狀態】 "+line);
+  window.darkStarAddMessage(type==="error"?"system":"ai","【Worker Log】 "+line);
+  clearTimeout(darkStarLogAnalysisTimer);
+  darkStarLogAnalysisTimer=setTimeout(()=>darkStarAnalyzeWorkerLog(),700);
+}
+async function darkStarAnalyzeWorkerLog(){
+  const box=$("logs");
+  if(!box)return;
+  const full=box.innerText||"";
+  const lines=full.split("\n").filter(Boolean);
+  const snapshot=lines.slice(-45).join("\n");
+  if(!snapshot||snapshot===darkStarLastAnalyzedLog)return;
+  darkStarLastAnalyzedLog=snapshot;
+  try{
+    const memory=await darkStarSharedMemory("分析 Compute Mesh Worker Log 的最新狀態與問題");
+    const prompt=[
+      "你是 Technical Dark Star。你現在可以看到 AIVAULT Compute Mesh GPU Worker 的最新 Worker Log。",
+      "請只根據這份 Log 判斷，不要猜測沒有證據的事情。",
+      "請用繁體中文輸出：",
+      "1.目前進度：CONFIRMED / NOT VERIFIED / BLOCKED / REQUIRES TEST。",
+      "2.已確認的事件。",
+      "3.發現的問題；如果沒有問題，明確寫「目前未發現問題」。",
+      "4.下一個需要觀察的事件。",
+      "如果看到 Coordinator、assignment、WebGPU、result、FAILED、Device Lost 等錯誤，指出具體問題。",
+      memory,
+      "【最新 Worker Log】\n"+snapshot
+    ].filter(Boolean).join("\n\n");
+    const r=await fetch(DARK_STAR_GATEWAY_URL,{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({engine:DARK_STAR_ENGINE,agent_id:DARK_STAR_AGENT_ID,source:"compute-mesh-worker-log",message:prompt,topic_id:darkStarTopic(),conversation_id:null,provider:"gemini",model:"gemini-3.6-flash",stream:false})});
+    const raw=await r.text();
+    let d={};try{d=raw?JSON.parse(raw):{};}catch{}
+    if(!r.ok)throw new Error(String(d?.message||d?.error||"暗星 Log 分析失敗"));
+    const answer=String(d?.content||d?.text||d?.reply||d?.response||d?.answer||d?.output||"").trim();
+    if(answer)window.darkStarAddMessage("ai","【暗星｜Worker Log 診斷】\n"+answer);
+  }catch(error){
+    window.darkStarAddMessage("system","【暗星｜Worker Log 診斷】BLOCKED：無法取得分析結果："+error.message);
+  }
 }
 /* AIVAULT_DARK_STAR_COMPUTE_WORKSPACE_V1 */
 .dark-star-workspace{border:1px solid rgba(120,140,170,.22);background:rgba(7,12,19,.96)}.dark-star-chat{display:flex;flex-direction:column;gap:10px}.dark-star-messages{height:220px;overflow:auto;background:#030609;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:12px;font-size:13px;line-height:1.7}.dark-star-msg{margin-bottom:10px;white-space:pre-wrap;word-break:break-word}.dark-star-msg.user{color:#9bc9ff}.dark-star-msg.ai{color:#79e8a6}.dark-star-msg.system{color:#f0c969}.dark-star-compose{display:flex;gap:8px}.dark-star-input{flex:1;min-height:44px;resize:vertical;background:#070c13;color:#edf4ff;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:10px 12px;font:inherit}.dark-star-send{white-space:nowrap}.dark-star-dispatch{margin-top:10px;padding:11px 12px;border:1px solid rgba(125,211,252,.16);border-radius:12px;background:rgba(56,189,248,.035);font-size:12px;line-height:1.6;color:#9aa8bb}
@@ -3056,36 +3093,18 @@ async function startWorker(){
    一鍵複製測試指令
    --------------------------------------------------------- */
 
-const COPY_TEST_INSTRUCTION = `保持 AIVAULT Compute Mesh GPU Worker 頁面運作：
-
-https://m9wmtcb782-arch.github.io/AIVAULT/compute-mesh-gpu-test.html
-
-目前測試任務：
-iphone17-webgpu-proof-20261007
-
-不要按「本機 GPU 測試」。
-
-只觀察 Worker Log，確認：
-收到遠端任務
-→ iPhone 17 WebGPU 實際運算
-→ 回報進度
-→ 回傳結果
-→ COMPLETED
-
-不要修改 Technical Dark Star、Gemini、Compute Coordinator 或任何既有 UI。`;
-
-async function copyTestInstruction(){
+async function copyWorkerLogText(){
   try{
-    await navigator.clipboard.writeText(COPY_TEST_INSTRUCTION);
-    const button = $("copyTestBtn");
-    const original = button.textContent;
-    button.textContent = "✅ 已複製";
-    log("測試指令已複製到剪貼簿", null, "ok");
-    setTimeout(() => {
-      button.textContent = original;
-    }, 1800);
+    const logText=$("logs")?.innerText?.trim()||"";
+    if(!logText)throw new Error("Worker Log 目前沒有內文");
+    await navigator.clipboard.writeText(logText);
+    const button=$("copyTestBtn");
+    const original=button.textContent;
+    button.textContent="✅ Worker Log 已複製";
+    log("Worker Log 內文 TXT 已複製到剪貼簿",null,"ok");
+    setTimeout(()=>{button.textContent=original;},1800);
   }catch(error){
-    log("一鍵複製失敗", {error:error.message}, "error");
+    log("複製 Worker Log 失敗",{error:error.message},"error");
   }
 }
 
@@ -3163,8 +3182,7 @@ $("pollBtn")
 $("copyTestBtn")
   .addEventListener(
     "click",
-    copyTestInstruction
-  );
+      );
 
 
 $("stopBtn")
