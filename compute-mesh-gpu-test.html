@@ -463,6 +463,10 @@ pre.result{
         📥 立即取得任務
       </button>
 
+      <button id="proofTaskBtn" class="primary">
+        🧪 建立最終 WebGPU 驗證任務
+      </button>
+
       <button id="copyTestBtn" class="primary">
         📋 一鍵複製測試指令
       </button>
@@ -1719,6 +1723,60 @@ async function reportResult(
    - GPU 完成後讀回結果
 
    --------------------------------------------------------- */
+
+/* ---------------------------------------------------------
+   Final WebGPU proof task
+   --------------------------------------------------------- */
+
+async function createFinalProofTask(){
+
+  if(stopped || !registered || !webgpuReady){
+    log("目前 Worker 尚未就緒，不能建立驗證任務", null, "warn");
+    return;
+  }
+
+  const taskId = "iphone17-webgpu-proof-final-20261007";
+  $("proofTaskBtn").disabled = true;
+
+  try{
+    const data = await coordinatorRequest({
+      type: "task.create",
+      task: {
+        id: taskId,
+        name: "iPhone 17 WebGPU 最終驗證",
+        title: "iPhone 17 · WebGPU Remote Proof",
+        type: "webgpu-compute",
+        elements: 1000000,
+        iterations: 20,
+        nodes_needed: 1,
+        priority: "HIGH",
+        gpu_required: true,
+        backend: "webgpu",
+        execution: "remote",
+        requirements: { webgpu_required: true }
+      }
+    });
+
+    if(!data?.success){
+      throw new Error(data?.error || data?.message || "Coordinator 未建立任務");
+    }
+
+    log("Coordinator 已建立最終驗證任務", {
+      task_id: data.task?.task_id || taskId,
+      status: data.task?.status || "WAITING"
+    }, "ok");
+
+    setTaskStatus("等待 iPhone Worker 領取", "ok");
+
+    await requestTask();
+
+  }catch(error){
+    log("建立最終驗證任務失敗", {error:error.message}, "error");
+  }finally{
+    $("proofTaskBtn").disabled = false;
+  }
+}
+
 
 const COMPUTE_SHADER = `
 
@@ -3143,6 +3201,8 @@ document.addEventListener(
 /* ---------------------------------------------------------
    Start
    --------------------------------------------------------- */
+
+$("proofTaskBtn").addEventListener("click", createFinalProofTask);
 
 startWorker();
 
