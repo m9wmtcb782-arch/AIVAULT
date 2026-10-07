@@ -1018,9 +1018,6 @@ async function initializeWebGPU(){
      Hardware / device information
      --------------------------------------------- */
 
-  hardwareProfile = await collectHardwareProfile();
-  renderHardwareProfile(hardwareProfile);
-
   /* ---------------------------------------------
      Adapter info
      --------------------------------------------- */
@@ -1051,6 +1048,9 @@ async function initializeWebGPU(){
 
   }
 
+
+  hardwareProfile = await collectHardwareProfile();
+  renderHardwareProfile(hardwareProfile);
 
   webgpuReady = true;
 
@@ -1181,6 +1181,18 @@ function detectWebGLRenderer(){
 
 async function collectHardwareProfile(){
   const ua=navigator.userAgent||"",nav=navigator;
+
+  /*
+   * Native AIVAULT Worker bridge:
+   * 若未來由原生 App 提供精確硬體資料，直接採用，
+   * 不用從瀏覽器猜測。瀏覽器本身仍保持原始資料。
+   */
+  const nativeHardware =
+    (window.aivaultNativeHardware &&
+     typeof window.aivaultNativeHardware === "object")
+      ? window.aivaultNativeHardware
+      : null;
+
   let uaData=null;
   try{
     if(nav.userAgentData){
@@ -1203,13 +1215,39 @@ async function collectHardwareProfile(){
   const webgl=detectWebGLRenderer();
   const info=adapterInfo||{};
 
+  const isIPhone=/iPhone/i.test(ua);
+  const browserModel =
+    uaData?.high_entropy?.model ||
+    null;
+
+  const exactModel =
+    nativeHardware?.device?.model ||
+    nativeHardware?.model ||
+    browserModel ||
+    null;
+
+  const modelSource =
+    nativeHardware
+      ? "AIVAULT Native Worker"
+      : browserModel
+        ? "Browser UA-CH"
+        : isIPhone
+          ? "Safari 隱藏精確型號"
+          : "瀏覽器未提供";
+
   return {
     measured_at:new Date().toISOString(),
 
     device:{
       brand:getDeviceBrand(ua),
       class:getDeviceClass(ua),
-      model:uaData?.high_entropy?.model||"瀏覽器未提供精確型號",
+      model:exactModel||"精確型號未提供",
+      model_source:modelSource,
+      identity_status:exactModel
+        ? "CONFIRMED"
+        : isIPhone
+          ? "NOT_VERIFIED"
+          : "NOT_VERIFIED",
       platform:nav.platform||null,
       platform_version:uaData?.high_entropy?.platformVersion||null,
       user_agent:ua,
@@ -1286,7 +1324,9 @@ function renderHardwareProfile(p){
   $("deviceHardwareInfo").innerHTML=[
     hardwareRow("品牌",d.brand),
     hardwareRow("裝置類型",d.class),
-    hardwareRow("型號",d.model),
+    hardwareRow("精確型號",d.model),
+    hardwareRow("型號來源",d.model_source),
+    hardwareRow("硬體辨識狀態",d.identity_status),
     hardwareRow("平台",d.platform),
     hardwareRow("平台版本",d.platform_version),
     hardwareRow("CPU 型號",c.model),
