@@ -360,6 +360,9 @@ pre.result{
     padding:14px;
   }
 }
+
+/* AIVAULT_DARK_STAR_COMPUTE_WORKSPACE_V1 */
+.dark-star-workspace{border:1px solid rgba(120,140,170,.22);background:rgba(7,12,19,.96)}.dark-star-chat{display:flex;flex-direction:column;gap:10px}.dark-star-messages{height:220px;overflow:auto;background:#030609;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:12px;font-size:13px;line-height:1.7}.dark-star-msg{margin-bottom:10px;white-space:pre-wrap;word-break:break-word}.dark-star-msg.user{color:#9bc9ff}.dark-star-msg.ai{color:#79e8a6}.dark-star-msg.system{color:#f0c969}.dark-star-compose{display:flex;gap:8px}.dark-star-input{flex:1;min-height:44px;resize:vertical;background:#070c13;color:#edf4ff;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:10px 12px;font:inherit}.dark-star-send{white-space:nowrap}.dark-star-dispatch{margin-top:10px;padding:11px 12px;border:1px solid rgba(125,211,252,.16);border-radius:12px;background:rgba(56,189,248,.035);font-size:12px;line-height:1.6;color:#9aa8bb}
 </style>
 </head>
 
@@ -562,6 +565,8 @@ pre.result{
 
   </div>
 
+
+  <div class="card dark-star-workspace"><div class="cardTitle"><h2>✦ 暗星｜Compute Mesh 沙盒</h2><div class="badge">共用暗星記憶</div></div><div class="dark-star-chat"><div id="darkStarMessages" class="dark-star-messages"><div class="dark-star-msg system">暗星已進入 Compute Mesh 工作區。這裡使用 Technical Dark Star 共用身份與記憶；需要實際算力時，會把任務交給 Compute Mesh。</div></div><div class="dark-star-compose"><textarea id="darkStarInput" class="dark-star-input" rows="2" placeholder="直接問暗星目前算力、任務狀態或要求實際使用算力…"></textarea><button id="darkStarSend" class="primary dark-star-send">送給暗星</button></div><button id="darkStarDispatchBtn" class="primary">⚙️ 讓暗星調度目前 WebGPU 驗證任務</button><div id="darkStarDispatchStatus" class="dark-star-dispatch">尚未調度。此按鈕只使用現有 Coordinator 的 task.request，不建立新任務。</div></div></div>
 
   <div class="card">
 
@@ -3070,9 +3075,20 @@ async function copyTestInstruction(){
 }
 
 
+/* AIVAULT_DARK_STAR_COMPUTE_WORKSPACE_V1 */
+const DARK_STAR_GATEWAY_URL="https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/ai-gateway",DARK_STAR_ENGINE="technical-dark-star",DARK_STAR_AGENT_ID="technical-dark-star",DARK_STAR_TASK_ID="iphone17-webgpu-proof-20261007";
+function darkStarAddMessage(role,text){const box=$("darkStarMessages"),row=document.createElement("div");row.className="dark-star-msg "+role;row.textContent=String(text||"");box.appendChild(row);box.scrollTop=box.scrollHeight;}
+function darkStarTopic(){const key="technical-dark-star-topic-id";let v="";try{v=localStorage.getItem(key)||"";}catch{}if(!v){v="technical-dark-star-"+crypto.randomUUID();try{localStorage.setItem(key,v);}catch{}}return v;}
+async function askDarkStarFromComputePage(text){const payload={engine:DARK_STAR_ENGINE,agent_id:DARK_STAR_AGENT_ID,source:"compute-mesh-gpu-test",message:text,topic_id:darkStarTopic(),conversation_id:null,provider:"gemini",model:"gemini-3.6-flash",stream:false};const r=await fetch(DARK_STAR_GATEWAY_URL,{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(payload)});const raw=await r.text();let d={};try{d=raw?JSON.parse(raw):{};}catch{throw new Error("暗星 Gateway 回傳不是 JSON");}if(!r.ok)throw new Error(String(d?.message||d?.error||"暗星 Gateway 請求失敗"));return String(d?.content||d?.text||d?.reply||d?.response||d?.answer||d?.output||"").trim()||"暗星沒有收到可顯示的文字結果。";}
+async function darkStarDispatchCurrentTask(){const node=localStorage.getItem("aivault_compute_mesh_gpu_node_id"),box=$("darkStarDispatchStatus");if(!node){box.textContent="BLOCKED：找不到目前 Worker 的 Node ID，先讓 Worker 保持運作。";darkStarAddMessage("system",box.textContent);return;}box.textContent="暗星正在把目前 WebGPU 驗證任務交給 iPhone Worker…";try{const r=await coordinatorRequest({type:"task.request",taskId:DARK_STAR_TASK_ID,task_id:DARK_STAR_TASK_ID,nodeId:node,node_id:node,status:"READY",available:true,gpu_available:true,webgpu:true,capabilities:{cpu:true,webgpu:true,browser:true},metadata:{worker:"aivault-compute-mesh-gpu-worker",execution:"remote",gpu:true,dispatched_by:"technical-dark-star"}});if(!r?.success)throw new Error(r?.error||r?.message||"Coordinator 沒有接受調度");box.textContent="CONFIRMED：暗星已向 Coordinator 發出 task.request。等待 iPhone 17 Worker 實際執行。";darkStarAddMessage("ai",box.textContent+"\nTask: "+DARK_STAR_TASK_ID+"\nNode: "+node);log("暗星已調度目前 WebGPU 驗證任務",{task_id:DARK_STAR_TASK_ID,node_id:node,coordinator:r},"ok");}catch(error){box.textContent="BLOCKED：暗星調度失敗："+error.message;darkStarAddMessage("system",box.textContent);log("暗星調度失敗",{error:error.message},"error");}}
+async function sendDarkStarMessage(){const input=$("darkStarInput"),text=input.value.trim();if(!text)return;$("darkStarSend").disabled=true;input.value="";darkStarAddMessage("user",text);try{darkStarAddMessage("ai",await askDarkStarFromComputePage(text));}catch(error){darkStarAddMessage("system","暗星回覆失敗："+error.message);}finally{$("darkStarSend").disabled=false;}}
 /* ---------------------------------------------------------
    Buttons
    --------------------------------------------------------- */
+
+$("darkStarSend").addEventListener("click",sendDarkStarMessage);
+$("darkStarInput").addEventListener("keydown",event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();sendDarkStarMessage();}});
+$("darkStarDispatchBtn").addEventListener("click",darkStarDispatchCurrentTask);
 
 $("registerBtn")
   .addEventListener(
