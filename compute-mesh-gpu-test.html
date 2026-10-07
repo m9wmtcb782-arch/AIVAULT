@@ -463,6 +463,10 @@ pre.result{
         📥 立即取得任務
       </button>
 
+      <button id="copyTestBtn" class="primary">
+        📋 一鍵複製測試指令
+      </button>
+
       <button id="stopBtn" class="danger">
         ⏹ 停止 Worker
       </button>
@@ -2818,6 +2822,44 @@ async function startWorker(){
 
 
 /* ---------------------------------------------------------
+   一鍵複製測試指令
+   --------------------------------------------------------- */
+
+const COPY_TEST_INSTRUCTION = `保持 AIVAULT Compute Mesh GPU Worker 頁面運作：
+
+https://m9wmtcb782-arch.github.io/AIVAULT/compute-mesh-gpu-test.html
+
+目前測試任務：
+iphone17-webgpu-proof-20261007
+
+不要按「本機 GPU 測試」。
+
+只觀察 Worker Log，確認：
+收到遠端任務
+→ iPhone 17 WebGPU 實際運算
+→ 回報進度
+→ 回傳結果
+→ COMPLETED
+
+不要修改 Technical Dark Star、Gemini、Compute Coordinator 或任何既有 UI。`;
+
+async function copyTestInstruction(){
+  try{
+    await navigator.clipboard.writeText(COPY_TEST_INSTRUCTION);
+    const button = $("copyTestBtn");
+    const original = button.textContent;
+    button.textContent = "✅ 已複製";
+    log("測試指令已複製到剪貼簿", null, "ok");
+    setTimeout(() => {
+      button.textContent = original;
+    }, 1800);
+  }catch(error){
+    log("一鍵複製失敗", {error:error.message}, "error");
+  }
+}
+
+
+/* ---------------------------------------------------------
    Buttons
    --------------------------------------------------------- */
 
@@ -2872,6 +2914,13 @@ $("pollBtn")
   .addEventListener(
     "click",
     requestTask
+  );
+
+
+$("copyTestBtn")
+  .addEventListener(
+    "click",
+    copyTestInstruction
   );
 
 
