@@ -129,7 +129,7 @@ async function createTask(body: Record<string, unknown>) {
   const task = (body.task && typeof body.task === "object" ? body.task : body) as Record<string, unknown>;
   const taskId = String(pick(task, ["id", "task_id"]) || "");
   if (!taskId) return json({ success: false, error: "task.id required" }, 400);
-  const elements = Number(task.elements ?? task.payload && (task.payload as Record<string, unknown>).elements ?? 0);
+  const elements = Number(task.elements ?? ((task.payload as Record<string, unknown> | undefined)?.elements ?? 0));
   const iterations = Number(task.iterations ?? task.iters ?? 1);
   const row = {
     task_id: taskId,
