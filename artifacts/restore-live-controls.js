@@ -27,7 +27,7 @@ function restore(){
    live.id='darkStarLiveButton';
    live.type='button';
    live.classList.add('drawer-item');
-   if(!live.dataset.liveVoiceBound&&!live.classList.contains('active')&&live.textContent.indexOf('✓')<0)live.textContent='暗星即時';
+   if(!live.dataset.liveVoiceBound&&!live.classList.contains('active')&&live.textContent.indexOf('✓')<0)live.textContent='即時語音';
  }
  let settings=document.getElementById('darkStarSettingsButton');
  if(!settings){
@@ -58,7 +58,7 @@ function restore(){
  select.value=localStorage.getItem('darkStarVoice')||'Kore';
  if(bottom){
    live.classList.add('drawer-item');
-   if(!live.dataset.liveVoiceBound&&!live.classList.contains('active')&&live.textContent.indexOf('✓')<0)live.textContent='暗星即時';
+   if(!live.dataset.liveVoiceBound&&!live.classList.contains('active')&&live.textContent.indexOf('✓')<0)live.textContent='即時語音';
    live.style.removeProperty('display');
    live.removeAttribute('aria-hidden');
    if(live.parentElement!==bottom)bottom.insertBefore(live,bottom.firstChild);
@@ -77,7 +77,7 @@ function restore(){
        const state=typeof dual.armed==='function'?dual.armed():null;
        const id=which==='dark'?'darkStarLiveButton':'dawnLightLiveButton';
        const b=document.getElementById(id);
-       if(b&&state){const on=which==='dark'?!!state.dark:!!state.dawn;b.textContent=which==='dark'?(on?'暗星即時 ✓':'暗星即時'):(on?'曙光即時 ✓':'曙光即時');b.classList.toggle('active',on)}
+       if(b&&state){const on=which==='dark'?!!state.dark:!!state.dawn;b.textContent=which==='dark'?(on?'即時語音 ✓':'即時語音'):(on?'曙光即時 ✓':'曙光即時');b.classList.toggle('active',on)}
        return;
      }
      await new Promise(r=>setTimeout(r,50));
@@ -94,7 +94,7 @@ function restore(){
      event.stopImmediatePropagation();
      const dual=window.AivaultDualAgentLive;
      const next=dual&&typeof dual.armed==='function'?!dual.armed().dark:true;
-     live.textContent=next?'暗星即時 ✓':'暗星即時';
+     live.textContent=next?'即時語音 ✓':'即時語音';
      live.classList.toggle('active',next);
      live.setAttribute('aria-pressed',String(next));
      await toggleDualAgent('dark');
@@ -118,9 +118,9 @@ function restore(){
  }
  var videoWindow=null,videoOpen=false,videoChannel=null;
  try{videoChannel=new BroadcastChannel(VIDEO_CHANNEL_NAME);videoChannel.onmessage=e=>{if(e&&e.data&&e.data.type==='started'){videoOpen=true;paintVideo()}if(e&&e.data&&e.data.type==='stopped'){videoOpen=false;paintVideo()}}}catch(e){}
- var paintVideo=function(){const b=document.getElementById('darkStarLiveVideoButton');if(!b)return;b.textContent=videoOpen?'關閉視訊':'即時視訊';b.setAttribute('aria-pressed',String(videoOpen));b.classList.toggle('active',videoOpen)};
+ var paintVideo=function(){const b=document.getElementById('darkStarLiveVideoButton');if(!b)return;b.textContent='即時視訊';b.setAttribute('aria-pressed','false')};
  var closeVideo=function(){try{videoChannel&&videoChannel.postMessage({type:'stop'})}catch(e){}try{if(videoWindow&&!videoWindow.closed)videoWindow.close()}catch(e){}videoOpen=false;paintVideo()};
- var bindVideoToggle=function(){const b=document.getElementById('darkStarLiveVideoButton');if(!b||b.dataset.videoToggleBound)return;b.dataset.videoToggleBound='1';b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(videoOpen){closeVideo();return}videoOpen=true;paintVideo();videoWindow=window.open(LIVE_VIDEO,'aivault-dark-star-video');if(!videoWindow)location.href=LIVE_VIDEO});paintVideo()};
+ var bindVideoToggle=function(){const b=document.getElementById('darkStarLiveVideoButton');if(!b||b.dataset.videoToggleBound)return;b.dataset.videoToggleBound='1';b.type='button';b.textContent='即時視訊';b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();location.href=LIVE_VIDEO});paintVideo()};
  bindVideoToggle();
  ['darkStarLiveButton','darkStarSettingsButton'].forEach(id=>{const e=document.getElementById(id);if(e){e.style.removeProperty('display');e.removeAttribute('aria-hidden')}});
  return true
@@ -135,7 +135,7 @@ function ensureSettingsPanel(){
 
  if(live){
    live.classList.add('drawer-item');
-   if(!live.classList.contains('active')&&live.textContent.indexOf('✓')<0)live.textContent='暗星即時';
+   if(!live.classList.contains('active')&&live.textContent.indexOf('✓')<0)live.textContent='即時語音';
    live.style.removeProperty('display');
    if(live.parentElement!==bottom)bottom.insertBefore(live,bottom.firstChild);
  }
@@ -156,7 +156,15 @@ function ensureSettingsPanel(){
    bottom.insertBefore(panel,settings.nextSibling);
  }
 
- const sound=document.getElementById('darkStarSoundButton');
+ let sound=document.getElementById('darkStarSoundButton');
+ if(!sound){
+   sound=document.createElement('button');
+   sound.id='darkStarSoundButton';
+   sound.type='button';
+   sound.className='drawer-item';
+   sound.textContent='🔊 聲音';
+ }
+
  const select=document.getElementById('darkStarVoiceSelect') || document.createElement('select');
  if(!select.id){
    select.id='darkStarVoiceSelect';
@@ -191,7 +199,7 @@ function ensureSettingsPanel(){
 
  if(live){
    live.classList.add('drawer-item');
-   if(!live.classList.contains('active')&&live.textContent.indexOf('✓')<0)live.textContent='暗星即時';
+   if(!live.classList.contains('active')&&live.textContent.indexOf('✓')<0)live.textContent='即時語音';
    live.style.removeProperty('display');
    live.removeAttribute('aria-hidden');
    if(live.parentElement!==bottom)bottom.insertBefore(live,bottom.firstChild);
