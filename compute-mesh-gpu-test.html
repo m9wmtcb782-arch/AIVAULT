@@ -1161,7 +1161,7 @@ async function registerNode(){
           "aivault-compute-mesh-gpu-worker",
 
         worker_version:
-          "2.0.0",
+          "2.1.0-lifecycle",
 
         execution:
           "WebGPU",
@@ -1459,6 +1459,51 @@ async function requestTask(){
     $("taskBadge").textContent =
       "RUNNING";
 
+
+    log(
+      "收到遠端任務",
+      null,
+      "ok"
+    );
+
+    log(
+      "Task ID: " +
+      (
+        task.task_id ||
+        task.id ||
+        "—"
+      )
+    );
+
+    log(
+      "Assignment ID: " +
+      (
+        currentAssignmentId ||
+        "缺失"
+      ),
+      null,
+      currentAssignmentId ? "ok" : "error"
+    );
+
+    log(
+      "Node ID: " +
+      (nodeId || "—")
+    );
+
+    if(!currentAssignmentId){
+
+      log(
+        "Coordinator 未建立 assignment，拒絕執行",
+        data,
+        "error"
+      );
+
+      runningTask = false;
+      currentTask = null;
+
+      return;
+
+    }
 
     log(
       "收到 Compute Mesh 遠端 GPU 任務",
@@ -2128,7 +2173,11 @@ async function runWebGPUCompute(
       true,
 
     verified:
-      true
+      values.length === elements &&
+      sampleCount > 0,
+
+    timing_method:
+      "performance.now bracketing queue.submit and onSubmittedWorkDone; WebGPU timestamp-query not used"
 
   };
 
@@ -2219,6 +2268,40 @@ async function executeRemoteTask(
     "RUNNING"
   );
 
+  log(
+    "Progress 5%",
+    {
+      task_id: taskId,
+      assignment_id: currentAssignmentId
+    },
+    "ok"
+  );
+
+
+  log(
+    "開始 WebGPU 執行",
+    null,
+    "ok"
+  );
+
+  log(
+    "Elements: " + elements
+  );
+
+  log(
+    "Iterations: " + iterations
+  );
+
+  log(
+    "GPU execution started",
+    {
+      task_id: taskId,
+      assignment_id: currentAssignmentId,
+      node_id: nodeId,
+      workgroups: Math.ceil(elements / 256)
+    },
+    "ok"
+  );
 
   log(
     "開始使用 WebGPU 執行遠端任務",
@@ -2252,6 +2335,15 @@ async function executeRemoteTask(
       task,
       25,
       "RUNNING"
+    );
+
+    log(
+      "Progress 25%",
+      {
+        task_id: taskId,
+        assignment_id: currentAssignmentId
+      },
+      "ok"
     );
 
 
@@ -2294,6 +2386,15 @@ async function executeRemoteTask(
       "RUNNING"
     );
 
+    log(
+      "Progress 90%",
+      {
+        task_id: taskId,
+        assignment_id: currentAssignmentId
+      },
+      "ok"
+    );
+
 
     $("executionBadge").textContent =
       "GPU 完成";
@@ -2312,6 +2413,24 @@ async function executeRemoteTask(
 
 
     log(
+      "GPU execution completed",
+      null,
+      "ok"
+    );
+
+    log(
+      "GPU time: " + result.gpu_time_ms
+    );
+
+    log(
+      "checksum: " + result.checksum
+    );
+
+    log(
+      "workgroups: " + result.workgroups
+    );
+
+    log(
       "GPU 實際遠端任務運算完成",
       result,
       "ok"
@@ -2322,11 +2441,31 @@ async function executeRemoteTask(
      * 回 Coordinator
      */
 
+    log(
+      "回報 task.result",
+      {
+        task_id: taskId,
+        assignment_id: currentAssignmentId,
+        node_id: nodeId
+      }
+    );
+
     const coordinatorResult =
       await reportResult(
         task,
-        result
+        {
+          ...result,
+          task_id: taskId,
+          assignment_id: currentAssignmentId,
+          node_id: nodeId
+        }
       );
+
+    const accepted =
+      coordinatorResult?.taskStatus === "COMPLETED" &&
+      coordinatorResult?.verified === true &&
+      result.verified === true &&
+      result.executed_on === "WebGPU";
 
 
     setProgress(
@@ -2335,13 +2474,27 @@ async function executeRemoteTask(
 
 
     $("taskBadge").textContent =
-      "COMPLETED";
+      accepted ? "COMPLETED" : "NOT VERIFIED";
 
 
     setTaskStatus(
-      "完成",
-      "ok"
+      accepted ? "完成" : "未驗證",
+      accepted ? "ok" : "bad"
     );
+
+    if(accepted){
+      log(
+        "Task COMPLETED",
+        coordinatorResult,
+        "ok"
+      );
+    }else{
+      log(
+        "Coordinator 未通過驗證，任務不標成 COMPLETED",
+        coordinatorResult,
+        "error"
+      );
+    }
 
 
     log(
