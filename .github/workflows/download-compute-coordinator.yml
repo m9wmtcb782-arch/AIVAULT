@@ -1,0 +1,31 @@
+name: Download compute coordinator source
+on:
+  workflow_dispatch:
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Download deployed function
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/coord
+          supabase functions download aivault-compute-coordinator --project-ref clcddygkaaqqtsbswgdf --use-api || true
+          find . -name '*compute-coordinator*' -o -name 'index.ts' | head -100
+          ls -la supabase/functions || true
+          mkdir -p downloaded
+          if [ -d supabase/functions/aivault-compute-coordinator ]; then
+            cp -a supabase/functions/aivault-compute-coordinator downloaded/
+          fi
+          find . -path '*aivault-compute-coordinator*' -print > downloaded/paths.txt
+          # also dump function list
+          supabase functions list --project-ref clcddygkaaqqtsbswgdf > downloaded/functions.txt || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coordinator-source
+          path: downloaded
