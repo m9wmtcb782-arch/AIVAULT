@@ -1,15 +1,2 @@
-/* AIVAULT_METER_PULL loaded by restore script append */
-(()=>{
- if(window.__AIVAULT_METER_PULL__)return;
- window.__AIVAULT_METER_PULL__=true;
- if(!window.AudioNode||!AudioNode.prototype.connect)return;
- const orig=AudioNode.prototype.connect;
- AudioNode.prototype.connect=function(dest){
-   const out=orig.apply(this,arguments);
-   if(dest&&dest.fftSize&&dest.context&&!dest.__aivaultPulled){
-     dest.__aivaultPulled=true;
-     try{const g=dest.context.createGain();g.gain.value=0;orig.call(dest,g);orig.call(g,dest.context.destination);}catch(e){}
-   }
-   return out;
- };
-})();
+/* appended by page-loaded restore script */
+(()=>{if(window.__AIVAULT_METER_PULL__)return;window.__AIVAULT_METER_PULL__=true;if(!window.AudioNode||!AudioNode.prototype.connect)return;const orig=AudioNode.prototype.connect;AudioNode.prototype.connect=function(dest){const out=orig.apply(this,arguments);if(dest&&dest.fftSize&&dest.context&&!dest.__aivaultPulled){dest.__aivaultPulled=true;try{const g=dest.context.createGain();g.gain.value=0;orig.call(dest,g);orig.call(g,dest.context.destination);}catch(e){}}return out;};})();
