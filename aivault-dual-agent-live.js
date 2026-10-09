@@ -407,7 +407,7 @@
     var darkBtn = document.getElementById("darkStarLiveButton");
     var dawnBtn = document.getElementById("dawnLightLiveButton");
     if (darkBtn) {
-      darkBtn.textContent = armed.dark ? "即時語音 ✓" : "即時語音";
+      darkBtn.textContent = armed.dark ? "暗星即時 ✓" : "暗星即時";
       darkBtn.classList.toggle("active", armed.dark);
     }
     if (dawnBtn) {
