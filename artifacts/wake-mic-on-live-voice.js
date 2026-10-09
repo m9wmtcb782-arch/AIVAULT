@@ -51,7 +51,7 @@
     if (el.id === "darkStarLiveButton") return true;
     var text = String(el.textContent || "").replace(/\s+/g, "");
     if (text.indexOf("曙光即時") >= 0) return false;
-    return text.indexOf("即時語音") >= 0;
+    return text.indexOf("即時語音") >= 0 || text.indexOf("暗星即時") >= 0;
   }
 
   function bind(el) {
@@ -71,7 +71,7 @@
   if (SR && SR.prototype && !SR.prototype.__aivaultDawnMicGuard) {
     var origStart = SR.prototype.start;
     SR.prototype.start = function () {
-      if (window.__AIVAULT_DAWN_LIVE_OWNS_MIC__) {
+      if (window.__AIVAULT_DAWN_LIVE_OWNS_MIC__ || window.__AIVAULT_LIVE_VOICE_WANTED__) {
         try { this.stop(); } catch (e) {}
         return;
       }
