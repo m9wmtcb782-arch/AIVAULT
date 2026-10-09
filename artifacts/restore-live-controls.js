@@ -301,4 +301,4 @@ function ensureSettingsPanel(){
 
 if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',()=>{restore();ensureSettingsPanel()});}else{restore();ensureSettingsPanel();}
 })();
-setInterval(function(){var panel=document.getElementById('darkStarSettingsPanel');if(!panel)return;['darkStarMyVoiceDrawerButton','dsMyVoiceSettings','darkStarMyVoiceButton'].forEach(function(id){var el=document.getElementById(id);if(el&&el.parentElement!==panel)panel.appendChild(el);});if(!document.getElementById('darkStarMyVoiceSettingsLabel')){var label=document.createElement('div');label.id='darkStarMyVoiceSettingsLabel';label.textContent='我的聲音';label.style.cssText='font-size:12px;color:#555;margin:8px 0 2px';panel.appendChild(label);}},300);
+setInterval(function(){var panel=document.getElementById('darkStarSettingsPanel');var box=document.getElementById('dsMyVoiceSettings');if(panel&&box&&box.parentElement!==panel)panel.appendChild(box);},300);
