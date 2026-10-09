@@ -32,18 +32,7 @@
 
   window.__AIVAULT_WAKE_MIC__ = wake;
 
-  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-    var origGet = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-    navigator.mediaDevices.getUserMedia = function (constraints) {
-      var audioOnly = constraints && constraints.audio && !constraints.video;
-      if (audioOnly && warmed) {
-        var pending = warmed;
-        warmed = null;
-        return pending;
-      }
-      return origGet(constraints);
-    };
-  }
+  
 
   function isLiveButton(el) {
     if (!el) return false;
@@ -71,7 +60,7 @@
   if (SR && SR.prototype && !SR.prototype.__aivaultDawnMicGuard) {
     var origStart = SR.prototype.start;
     SR.prototype.start = function () {
-      if (window.__AIVAULT_DAWN_LIVE_OWNS_MIC__ || window.__AIVAULT_LIVE_VOICE_WANTED__) {
+      if (window.__AIVAULT_LIVE_VOICE_WANTED__) {
         try { this.stop(); } catch (e) {}
         return;
       }
