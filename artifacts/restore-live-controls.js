@@ -1,2 +1,41 @@
-(()=>{if(window.__AIVAULT_DARK_STAR_RESTORE_LIVE_CONTROLS__)return;window.__AIVAULT_DARK_STAR_RESTORE_LIVE_CONTROLS__=true;const LIVE_VIDEO='technical-dark-star-live-video-test.html?mode=video&autostart=1&v=5';const VIDEO_CHANNEL_NAME='aivault-dark-star-video';const VOICES=[['Zephyr','Zephyr｜明亮'],['Puck','Puck｜歡快'],['Charon','Charon｜資訊豐富'],['Kore','Kore｜堅定'],['Fenrir','Fenrir｜興奮'],['Leda','Leda｜年輕'],['Orus','Orus｜堅定'],['Aoede','Aoede｜輕快'],['Callirrhoe','Callirrhoe｜隨和'],['Autonoe','Autonoe｜明亮'],['Enceladus','Enceladus｜氣聲'],['Iapetus','Iapetus｜清晰'],['Umbriel','Umbriel｜隨和'],['Algieba','Algieba｜柔順'],['Despina','Despina｜柔順'],['Erinome','Erinome｜清晰'],['Algenib','Algenib｜粗獲'],['Rasalgethi','Rasalgethi｜資訊豐富'],['Laomedeia','Laomedeia｜歡快'],['Achernar','Achernar｜柔和'],['Alnilam','Alnilam｜堅定'],['Schedar','Schedar｜均衡'],['Gacrux','Gacrux｜成熟'],['Pulcherrima','Pulcherrima｜前進感'],['Achird','Achird｜友善'],['Zubenelgenubi','Zubenelgenubi｜隨性'],['Vindemiatrix','Vindemiatrix｜溫和'],['Sadachbia','Sadachbia｜活潑'],['Sadaltager','Sadaltager｜知識豐富'],['Sulafat','Sulafat｜溫暖']];function restore(){const drawer=document.getElementById('drawer');const bottom=drawer&&drawer.querySelector('.drawer-bottom');let video=document.getElementById('darkStarLiveVideoButton');if(!video){video=document.createElement('button');video.id='darkStarLiveVideoButton';video.type='button';video.className='drawer-item';video.textContent='即時視訊';}let live=document.getElementById('darkStarLiveButton');if(!live){live=document.createElement('button');live.id='darkStarLiveButton';live.type='button';live.classList.add('drawer-item');live.textContent='暗星即時';}let settings=document.getElementById('darkStarSettingsButton');if(!settings){settings=document.createElement('button');settings.id='darkStarSettingsButton';settings.type='button';settings.className='drawer-item';settings.textContent='⚙️ 設定';}if(bottom){if(live.parentElement!==bottom)bottom.insertBefore(live,bottom.firstChild);if(settings.parentElement!==bottom)bottom.insertBefore(settings,live.nextSibling);if(video.parentElement!==bottom)bottom.insertBefore(video,bottom.firstChild);}let dawnLive=document.getElementById('dawnLightLiveButton');if(!dawnLive){dawnLive=document.createElement('button');dawnLive.id='dawnLightLiveButton';dawnLive.type='button';dawnLive.className='drawer-item';dawnLive.textContent='曙光即時';}if(bottom&&dawnLive.parentElement!==bottom)bottom.insertBefore(dawnLive,live.nextSibling);return true}function ensureSettingsPanel(){const drawer=document.getElementById('drawer');const bottom=drawer&&drawer.querySelector('.drawer-bottom');const settings=document.getElementById('darkStarSettingsButton');if(!bottom||!settings)return false;let panel=document.getElementById('darkStarSettingsPanel');if(!panel){panel=document.createElement('div');panel.id='darkStarSettingsPanel';panel.style.display='none';bottom.insertBefore(panel,settings.nextSibling);}let darkLabel=document.getElementById('darkStarVoiceLabel');if(!darkLabel){darkLabel=document.createElement('div');darkLabel.id='darkStarVoiceLabel';darkLabel.textContent='暗星聲音';panel.appendChild(darkLabel);}let select=document.getElementById('darkStarVoiceSelect');if(!select){select=document.createElement('select');select.id='darkStarVoiceSelect';VOICES.forEach(([v,l])=>{const o=document.createElement('option');o.value=v;o.textContent=l;select.appendChild(o)});select.value=localStorage.getItem('darkStarVoice')||'Kore';select.onchange=()=>localStorage.setItem('darkStarVoice',select.value);panel.appendChild(select);}let dawnLabel=document.getElementById('dawnLightVoiceLabel');if(!dawnLabel){dawnLabel=document.createElement('div');dawnLabel.id='dawnLightVoiceLabel';dawnLabel.textContent='曙光聲音';panel.appendChild(dawnLabel);}let dawnSelect=document.getElementById('dawnLightVoiceSelect');if(!dawnSelect){dawnSelect=document.createElement('select');dawnSelect.id='dawnLightVoiceSelect';VOICES.forEach(([v,l])=>{const o=document.createElement('option');o.value=v;o.textContent=l;dawnSelect.appendChild(o)});dawnSelect.value=localStorage.getItem('dawnLightVoice')||'Aoede';dawnSelect.onchange=()=>localStorage.setItem('dawnLightVoice',dawnSelect.value);panel.appendChild(dawnSelect);}let speed=document.getElementById('darkStarSpeechSpeed');if(!speed){speed=document.createElement('input');speed.id='darkStarSpeechSpeed';speed.type='range';speed.min='0.7';speed.max='1.3';speed.step='0.05';speed.value=localStorage.getItem('darkStarMyVoiceRate')||'1';panel.appendChild(speed);}let speedLabel=document.getElementById('darkStarSpeechSpeedLabel');if(!speedLabel){speedLabel=document.createElement('div');speedLabel.id='darkStarSpeechSpeedLabel';speedLabel.textContent='語速快慢';panel.insertBefore(speedLabel,speed);}settings.onclick=function(e){e.preventDefault();e.stopPropagation();panel.style.display=panel.style.display==='none'?'block':'none';};return true}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{restore();ensureSettingsPanel()});else{restore();ensureSettingsPanel()}setInterval(function(){var nodes=document.querySelectorAll('div,span,p');for(var i=0;i<nodes.length;i++){var n=nodes[i];if(String(n.textContent).indexOf('無音量')>=0&&n.children.length===0)n.textContent=String(n.textContent).replace('無音量','').replace(/…+/g,'…');}},200);
+(()=>{
+'use strict';
+if(window.__AIVAULT_DARK_STAR_RESTORE_LIVE_CONTROLS__)return;
+window.__AIVAULT_DARK_STAR_RESTORE_LIVE_CONTROLS__=true;
+function paint(on){
+  const b=document.getElementById('darkStarLiveButton');
+  if(!b)return;
+  b.textContent=on?'暗星即時 ✓':'暗星即時';
+  b.classList.toggle('active',!!on);
+  b.setAttribute('aria-pressed',String(!!on));
+}
+function stopSpeech(){
+  window.__AIVAULT_SPEECH_AUTO_RESTART__=false;
+  if(typeof window.__AIVAULT_STOP_DARK_STAR_SPEECH__==='function')window.__AIVAULT_STOP_DARK_STAR_SPEECH__();
+  const mic=document.getElementById('micButton');
+  if(mic&&mic.classList.contains('recording')){try{mic.click()}catch(e){}}
+}
+function bind(){
+  const live=document.getElementById('darkStarLiveButton');
+  if(!live||live.dataset.checkBound)return false;
+  live.dataset.checkBound='1';
+  if(live.textContent.indexOf('即時語音')>=0)live.textContent='暗星即時';
+  live.addEventListener('click',function(e){
+    e.preventDefault();e.stopPropagation();
+    const on=live.textContent.indexOf('✓')<0;
+    paint(on);
+    window.__AIVAULT_LIVE_VOICE_WANTED__=on;
+    if(on)stopSpeech();
+    const dual=window.AivaultDualAgentLive;
+    if(dual&&typeof dual.arm==='function')dual.arm('dark',on);
+    else if(typeof window.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__==='function')window.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__();
+  },true);
+  return true;
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();
+setInterval(bind,300);
+setInterval(function(){
+  const b=document.getElementById('darkStarLiveButton');
+  if(b&&String(b.textContent).indexOf('即時語音')>=0)b.textContent=b.textContent.replace('即時語音','暗星即時');
+},200);
 })();
