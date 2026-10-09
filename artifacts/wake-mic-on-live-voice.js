@@ -59,22 +59,10 @@
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (SR && SR.prototype && !SR.prototype.__aivaultDawnMicGuard) {
     var origStart = SR.prototype.start;
-    SR.prototype.start = function () {
-      if (window.__AIVAULT_LIVE_VOICE_WANTED__) {
-        try { this.stop(); } catch (e) {}
-        return;
-      }
-      return origStart.apply(this, arguments);
-    };
+    SR.prototype.start = function () { return origStart.apply(this, arguments); };
     SR.prototype.__aivaultDawnMicGuard = true;
   }
-  window.__AIVAULT_STOP_DARK_STAR_SPEECH__ = window.__AIVAULT_STOP_DARK_STAR_SPEECH__ || function () {
-    window.__AIVAULT_SPEECH_AUTO_RESTART__ = false;
-    var mic = document.getElementById("micButton");
-    if (mic && mic.classList.contains("recording")) {
-      try { mic.click(); } catch (e) {}
-    }
-  };
+  window.__AIVAULT_STOP_DARK_STAR_SPEECH__ = function () {};
 
   scan();
   setInterval(scan, 500);
