@@ -47,8 +47,10 @@
 
   function isLiveButton(el) {
     if (!el) return false;
-    if (el.id === "darkStarLiveButton" || el.id === "dawnLightLiveButton") return true;
+    if (el.id === "dawnLightLiveButton") return false;
+    if (el.id === "darkStarLiveButton") return true;
     var text = String(el.textContent || "").replace(/\s+/g, "");
+    if (text.indexOf("曙光即時") >= 0) return false;
     return text.indexOf("即時語音") >= 0;
   }
 
@@ -64,6 +66,26 @@
       if (isLiveButton(el)) bind(el);
     });
   }
+
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SR && SR.prototype && !SR.prototype.__aivaultDawnMicGuard) {
+    var origStart = SR.prototype.start;
+    SR.prototype.start = function () {
+      if (window.__AIVAULT_DAWN_LIVE_OWNS_MIC__) {
+        try { this.stop(); } catch (e) {}
+        return;
+      }
+      return origStart.apply(this, arguments);
+    };
+    SR.prototype.__aivaultDawnMicGuard = true;
+  }
+  window.__AIVAULT_STOP_DARK_STAR_SPEECH__ = window.__AIVAULT_STOP_DARK_STAR_SPEECH__ || function () {
+    window.__AIVAULT_SPEECH_AUTO_RESTART__ = false;
+    var mic = document.getElementById("micButton");
+    if (mic && mic.classList.contains("recording")) {
+      try { mic.click(); } catch (e) {}
+    }
+  };
 
   scan();
   setInterval(scan, 500);
