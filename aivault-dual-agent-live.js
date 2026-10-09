@@ -431,10 +431,7 @@
       paintArms();
       if (which === "dawn") {
         root.__AIVAULT_DAWN_LIVE_OWNS_MIC__ = !!armed.dawn;
-        if (armed.dawn && typeof root.__AIVAULT_STOP_DARK_STAR_SPEECH__ === "function") {
-          root.__AIVAULT_STOP_DARK_STAR_SPEECH__();
-        }
-        if (armed.dawn && root.DawnLightLiveVoice) root.DawnLightLiveVoice.start();
+                if (armed.dawn && root.DawnLightLiveVoice) root.DawnLightLiveVoice.start();
         if (!armed.dawn && root.DawnLightLiveVoice) root.DawnLightLiveVoice.stop();
       }
       if (which !== "dark") return;
