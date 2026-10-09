@@ -3,14 +3,19 @@
 if(window.__DAWN_LIGHT_STT__)return;
 window.__DAWN_LIGHT_STT__=true;
 const SVG='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><path d="M12 18v3"></path></svg>';
-let rec=null, on=false, last='';
+let rec=null, on=false, last='', timer=0, sent='';
 function sendText(text){
+  text=String(text||'').trim();
+  if(!text||text===sent)return;
   const input=document.getElementById('composerInput');
   const send=document.getElementById('sendButton');
-  if(!input||!send||!text)return;
+  if(!input||!send)return;
   input.value=text;
   input.dispatchEvent(new Event('input',{bubbles:true}));
-  send.click();
+  send.disabled=false;
+  sent=text;
+  if(typeof window.sendMessage==='function')window.sendMessage();
+  else send.click();
 }
 function icon(){
   const hostBtn=document.getElementById('dawnLightLiveButton'); if(!hostBtn) return null;
@@ -18,12 +23,12 @@ function icon(){
   if(!btn){btn=document.createElement('button');btn.id='dawnLightMicIcon';btn.type='button';btn.className='composer-mic';btn.innerHTML=SVG;btn.style.cssText='width:38px;height:38px;border:1px solid #dedede;border-radius:50%;background:#fff;color:#222;display:inline-flex;align-items:center;justify-content:center;margin-left:8px';hostBtn.insertAdjacentElement('afterend',btn);}
   return btn;
 }
-function stop(){on=false;if(rec){try{rec.stop()}catch(e){}}const btn=document.getElementById('dawnLightMicIcon');if(btn)btn.classList.remove('recording');if(last)sendText(last);}
+function stop(){on=false;clearTimeout(timer);if(rec){try{rec.stop()}catch(e){}}const btn=document.getElementById('dawnLightMicIcon');if(btn)btn.classList.remove('recording');sendText(last);}
 function start(btn){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR)return;
   rec=new SR();rec.lang='zh-TW';rec.continuous=true;rec.interimResults=true;
-  rec.onresult=e=>{let t='';for(let i=0;i<e.results.length;i++)t+=e.results[i][0].transcript;last=t.trim();const input=document.getElementById('composerInput');if(input)input.value=last;};
+  rec.onresult=e=>{let t='';let final=false;for(let i=0;i<e.results.length;i++){t+=e.results[i][0].transcript;if(e.results[i].isFinal)final=true;}last=t.trim();const input=document.getElementById('composerInput');if(input)input.value=last;clearTimeout(timer);if(final)timer=setTimeout(()=>sendText(last),700);};
   rec.onend=()=>{if(on)try{rec.start()}catch(e){}};
   on=true;btn.classList.add('recording');rec.start();
 }
