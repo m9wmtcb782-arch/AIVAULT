@@ -1,77 +1,56 @@
 (()=>{
 'use strict';
-if(window.__AIVAULT_THREE_MIC_LINES__)return;
-window.__AIVAULT_THREE_MIC_LINES__=true;
+if(window.__AIVAULT_THREE_MIC_ICONS__)return;
+window.__AIVAULT_THREE_MIC_ICONS__=true;
+const SVG='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><path d="M12 18v3"></path></svg>';
 const owners={};
-function lineFor(id){
-  let canvas=document.getElementById(id+'Line');
-  if(!canvas){
-    canvas=document.createElement('canvas');
-    canvas.id=id+'Line';
-    canvas.width=180;canvas.height=18;
-    canvas.style.cssText='display:block;width:140px;height:14px;margin:4px 0 8px;background:#f4f4f4;border-radius:7px';
-    const btn=document.getElementById(id);
-    if(btn&&btn.parentElement)btn.insertAdjacentElement('afterend',canvas);
+function iconFor(id,label){
+  let btn=document.getElementById(id+'MicIcon');
+  const host=document.getElementById(id);
+  if(!btn){
+    btn=document.createElement('button');
+    btn.id=id+'MicIcon';
+    btn.type='button';
+    btn.className='composer-mic';
+    btn.setAttribute('aria-label',label+'麥克風');
+    btn.innerHTML=SVG;
+    btn.style.cssText='width:38px;height:38px;border:1px solid #dedede;border-radius:50%;background:#fff;color:#222;display:inline-flex;align-items:center;justify-content:center;margin-left:8px';
+    if(host)host.insertAdjacentElement('afterend',btn);
   }
-  return canvas;
+  const line=document.getElementById(id+'Line');
+  if(line)line.remove();
+  return btn;
 }
-function draw(id,level){
-  const canvas=lineFor(id);if(!canvas)return;
-  const ctx=canvas.getContext('2d');
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle='#e8e8e8';ctx.fillRect(0,7,canvas.width,4);
-  ctx.fillStyle=level>0.02?'#111':'#bbb';
-  ctx.fillRect(0,7,Math.max(4,Math.min(canvas.width,level*canvas.width*8)),4);
-}
-async function toggle(id){
-  const own=owners[id]||(owners[id]={on:false,stream:null,ctx:null,raf:0});
-  const btn=document.getElementById(id);
+async function toggle(id,btn){
+  const own=owners[id]||(owners[id]={on:false,stream:null});
   if(own.on){
     own.on=false;
-    if(own.raf)cancelAnimationFrame(own.raf);
     if(own.stream)own.stream.getTracks().forEach(t=>t.stop());
     own.stream=null;
-    if(own.ctx)own.ctx.close();
-    own.ctx=null;
-    draw(id,0);
-    if(btn)btn.classList.remove('active');
+    btn.classList.remove('recording');
+    btn.setAttribute('aria-pressed','false');
     return;
   }
-  const stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true}});
-  const AC=window.AudioContext||window.webkitAudioContext;
-  const ctx=new AC();
-  if(ctx.state==='suspended')await ctx.resume();
-  const src=ctx.createMediaStreamSource(stream);
-  const analyser=ctx.createAnalyser();
-  analyser.fftSize=512;
-  const sink=ctx.createGain();sink.gain.value=0;
-  src.connect(analyser);analyser.connect(sink);sink.connect(ctx.destination);
-  own.on=true;own.stream=stream;own.ctx=ctx;
-  if(btn)btn.classList.add('active');
-  const data=new Uint8Array(analyser.fftSize);
-  const tick=()=>{
-    if(!own.on)return;
-    analyser.getByteTimeDomainData(data);
-    let sum=0;for(let i=0;i<data.length;i++){const v=(data[i]-128)/128;sum+=v*v;}
-    draw(id,Math.sqrt(sum/data.length));
-    own.raf=requestAnimationFrame(tick);
-  };
-  tick();
+  own.stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true}});
+  own.on=true;
+  btn.classList.add('recording');
+  btn.setAttribute('aria-pressed','true');
 }
-function bind(id){
-  const btn=document.getElementById(id);
-  if(!btn||btn.dataset.micLineBound)return;
-  btn.dataset.micLineBound='1';
-  lineFor(id);
+function bind(id,label){
+  const host=document.getElementById(id);
+  if(!host)return;
+  const btn=iconFor(id,label);
+  if(btn.dataset.bound)return;
+  btn.dataset.bound='1';
   btn.addEventListener('click',function(e){
     e.preventDefault();e.stopPropagation();
-    toggle(id).catch(err=>console.warn('[mic-line]',id,err));
-  },true);
+    toggle(id,btn).catch(err=>console.warn('[mic-icon]',id,err));
+  });
 }
 function scan(){
-  bind('darkStarMyVoiceButton');
-  bind('darkStarLiveButton');
-  bind('dawnLightLiveButton');
+  bind('darkStarMyVoiceButton','我的聲音');
+  bind('darkStarLiveButton','暗星即時');
+  bind('dawnLightLiveButton','曙光即時');
 }
 scan();
 setInterval(scan,400);
