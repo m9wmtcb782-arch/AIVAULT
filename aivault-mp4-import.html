@@ -13,6 +13,7 @@ h1 { font-size: 20px; margin: 0 0 6px; }
 p.lead { color: #64748b; font-size: 14px; margin: 0 0 12px; }
 .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; margin-top: 12px; }
 button { background: #1d4ed8; color: #fff; border: 0; border-radius: 10px; padding: 12px 16px; font-size: 15px; width: 100%; margin-top: 8px; }
+button:disabled { background: #94a3b8; }
 button.secondary { background: #0f766e; }
 input[type=file] { margin: 10px 0; width: 100%; }
 #status { margin-top: 12px; font-size: 14px; white-space: pre-wrap; color: #334155; }
@@ -40,17 +41,22 @@ input[type=file] { margin: 10px 0; width: 100%; }
     <a class="back" href="aivault-home.html">← 回 Home</a>
   </div>
   <h1>MP4 轉文字匯入</h1>
-  <p class="lead">將影片教材轉成文字，預覽後可下載，完成後寫入知識庫供暗星檢索。</p>
+  <p class="lead">將影片教材轉成文字，預覽後可下載。單檔上限 18 MB。</p>
   <div class="card">
     <input id="file" type="file" accept="video/mp4,video/*">
     <button id="start" disabled>開始轉文字</button>
-    <div id="status">請選擇 MP4 檔案。</div>
+    <div id="status">請選擇 MP4 檔案（上限 18 MB）。</div>
     <div class="preview-label">文字預覽</div>
     <div id="preview" class="empty">轉換完成後，文字會顯示在這裡。</div>
     <button id="download" class="secondary" style="display:none;">下載文字檔 (.txt)</button>
   </div>
 </div>
 <script>
+const SUPABASE_URL = "https://clcddygkaaqqtsbswgdf.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE";
+const ENDPOINT = SUPABASE_URL + "/functions/v1/mp4-to-knowledge";
+const MAX_MB = 18;
+
 const fileEl = document.getElementById("file");
 const start = document.getElementById("start");
 const status = document.getElementById("status");
@@ -58,126 +64,86 @@ const preview = document.getElementById("preview");
 const downloadBtn = document.getElementById("download");
 let currentText = "";
 let currentName = "transcript";
-const MAX_FILE_BYTES = 18 * 1024 * 1024;
-const GATEWAY_URL = "https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/ai-gateway";
 
 function setPreview(text, isEmpty) {
   preview.textContent = text;
   preview.classList.toggle("empty", !!isEmpty);
 }
-function fileToDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error("讀取影片檔案失敗"));
-    reader.readAsDataURL(file);
-  });
-}
-function extractTranscript(payload) {
-  if (typeof payload === "string") return payload.trim();
-  if (!payload || typeof payload !== "object") return "";
-  for (const key of ["content", "text", "answer", "message", "analysis", "transcript", "transcription"]) {
-    if (typeof payload[key] === "string" && payload[key].trim()) return payload[key].trim();
-  }
-  for (const key of ["data", "result", "response", "output"]) {
-    if (payload[key] && typeof payload[key] === "object") {
-      const nested = extractTranscript(payload[key]);
-      if (nested) return nested;
-    }
-  }
-  const candidates = payload.candidates;
-  if (Array.isArray(candidates)) {
-    const text = candidates.flatMap(c => c?.content?.parts || []).map(p => p?.text || "").filter(Boolean).join("\n").trim();
-    if (text) return text;
-  }
-  return "";
-}
+
 fileEl.onchange = () => {
   const f = fileEl.files[0];
-  currentText = "";
-  downloadBtn.style.display = "none";
-  if (!f) { start.disabled = true; status.textContent = "請選擇 MP4 檔案。"; return; }
-  currentName = f.name.replace(/\.[^.]+$/, "") || "transcript";
-  const isVideo = f.type.startsWith("video/") || /\.mp4$/i.test(f.name);
-  if (!isVideo) {
+  if (!f) { start.disabled = true; return; }
+  const mb = Math.round(f.size / 1048576);
+  if (mb > MAX_MB) {
     start.disabled = true;
-    status.textContent = "請選擇影片檔案（建議使用 MP4）。";
-    setPreview("請選擇有效的影片檔案。", true);
-    return;
-  }
-  if (f.size > MAX_FILE_BYTES) {
-    start.disabled = true;
-    status.textContent = "檔案超過目前 18 MB 上限，請先壓縮影片後再上傳。";
-    setPreview("檔案過大，尚未開始轉錄。", true);
+    status.textContent = "檔案 " + mb + " MB，超過 " + MAX_MB + " MB 上限。請壓縮後再試。";
+    setPreview("檔案太大，無法上傳。", true);
     return;
   }
   start.disabled = false;
-  status.textContent = "已選：" + f.name + "（" + Math.round(f.size / 1048576 * 10) / 10 + " MB）\n按開始轉文字，將透過 AIVAULT ai-gateway 進行真實轉錄。";
-  setPreview("轉換完成後，真實轉錄文字會顯示在這裡。", true);
+  currentName = f.name.replace(/\.[^.]+$/, "") || "transcript";
+  status.textContent = "已選：" + f.name + "（" + mb + " MB）\n按開始轉文字。";
+  setPreview("轉換完成後，文字會顯示在這裡。", true);
+  downloadBtn.style.display = "none";
 };
+
 start.onclick = async () => {
   const f = fileEl.files[0];
   if (!f) return;
   start.disabled = true;
+  status.textContent = "正在上傳並轉錄…";
+  setPreview("正在處理，請稍候…", true);
   downloadBtn.style.display = "none";
-  currentText = "";
-  status.textContent = "正在讀取影片並送往 AIVAULT AI Gateway…";
-  setPreview("正在轉錄影片語音，請稍候。此過程不會用示範文字代替真實結果。", true);
+
   try {
-    const media = await fileToDataUrl(f);
-    status.textContent = "影片已讀取，正在辨識語音並轉成文字…";
-    const response = await fetch(GATEWAY_URL, {
+    const form = new FormData();
+    form.append("file", f);
+
+    const res = await fetch(ENDPOINT, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message: [
-          "請將附加影片中的可辨識語音完整轉錄為繁體中文文字。",
-          "不要摘要、不要改寫、不要補造聽不清楚的內容。",
-          "保留原本語言、專有名詞、數字與標點；若有多位講者，盡可能分段換行。",
-          "若影片沒有可辨識語音，請明確回覆「未辨識到可轉錄語音」，不要生成示範文字。",
-          "只輸出轉錄本文，不要加前言。"
-        ].join("\n"),
-        capability: "vision",
-        media,
-        media_type: "video",
-        temperature: 0.1,
-        max_tokens: 8192,
-        metadata: { source: "mp4-to-knowledge", filename: f.name, mime_type: f.type || "video/mp4" }
-      }),
-      signal: AbortSignal.timeout(120000)
+      headers: {
+        "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+        "apikey": SUPABASE_ANON_KEY
+      },
+      body: form
     });
-    const raw = await response.text();
-    let payload;
-    try { payload = JSON.parse(raw); } catch { payload = { raw }; }
-    if (!response.ok) {
-      const detail = payload?.error || payload?.message || payload?.detail || payload?.raw || ("HTTP " + response.status);
-      throw new Error("AI Gateway 回應失敗：" + String(detail).slice(0, 500));
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || !data.ok) {
+      const err = data.message || data.error || data.detail || ("後端回應 " + res.status);
+      status.textContent = "轉錄失敗：" + err;
+      setPreview("轉錄失敗。\n" + err, true);
+      start.disabled = false;
+      return;
     }
-    const transcript = extractTranscript(payload);
-    if (!transcript || /後端轉錄完成後|這裡會顯示從 MP4 轉出的完整文字內容/.test(transcript)) {
-      throw new Error("AI Gateway 沒有回傳可用的真實轉錄文字。回應欄位：" + Object.keys(payload || {}).join(", "));
+
+    currentText = data.transcript || "";
+    if (!currentText) {
+      status.textContent = "後端沒有回傳文字。";
+      setPreview("沒有取得轉錄文字。", true);
+      start.disabled = false;
+      return;
     }
-    currentText = transcript;
+
     setPreview(currentText, false);
     downloadBtn.style.display = "block";
-    status.textContent = "真實轉錄完成，共 " + currentText.length.toLocaleString() + " 字元。可預覽或下載文字檔。";
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    status.textContent = "轉錄未完成：" + message + "\n請確認網路、影片大小與 AI Gateway 狀態後重試。";
-    setPreview("目前沒有取得真實轉錄文字，因此不提供假資料下載。", true);
-  } finally {
-    start.disabled = !fileEl.files[0];
+    status.textContent = "轉錄完成（" + (data.characters || currentText.length) + " 字）。可預覽與下載。";
+  } catch (err) {
+    status.textContent = "連線失敗：" + (err.message || err);
+    setPreview("無法連到後端。\n" + (err.message || err), true);
   }
+  start.disabled = false;
 };
+
 downloadBtn.onclick = () => {
   if (!currentText) return;
   const blob = new Blob([currentText], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url;
+  a.href = URL.createObjectURL(blob);
   a.download = currentName + "-文字.txt";
   a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  URL.revokeObjectURL(a.href);
   status.textContent = "已下載 " + currentName + "-文字.txt";
 };
 </script>
