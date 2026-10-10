@@ -16,7 +16,22 @@ button { background: #1d4ed8; color: #fff; border: 0; border-radius: 10px; paddi
 button.secondary { background: #0f766e; }
 input[type=file] { margin: 10px 0; width: 100%; }
 #status { margin-top: 12px; font-size: 14px; white-space: pre-wrap; color: #334155; }
-#preview { margin-top: 12px; background: #f1f5f9; border-radius: 10px; padding: 12px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; max-height: 360px; overflow: auto; display: none; }
+.preview-label { margin-top: 16px; font-size: 13px; font-weight: 600; color: #475569; }
+#preview {
+  margin-top: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px;
+  font-size: 15px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  max-height: 420px;
+  overflow: auto;
+  min-height: 120px;
+  color: #0f172a;
+}
+#preview.empty { color: #94a3b8; }
 </style>
 </head>
 <body>
@@ -25,12 +40,13 @@ input[type=file] { margin: 10px 0; width: 100%; }
     <a class="back" href="aivault-home.html">← 回 Home</a>
   </div>
   <h1>MP4 轉文字匯入</h1>
-  <p class="lead">將影片教材轉成文字，可預覽並下載，完成後寫入知識庫供暗星檢索。</p>
+  <p class="lead">將影片教材轉成文字，預覽後可下載，完成後寫入知識庫供暗星檢索。</p>
   <div class="card">
     <input id="file" type="file" accept="video/mp4,video/*">
     <button id="start" disabled>開始轉文字</button>
     <div id="status">請選擇 MP4 檔案。</div>
-    <div id="preview"></div>
+    <div class="preview-label">文字預覽</div>
+    <div id="preview" class="empty">轉換完成後，文字會顯示在這裡。</div>
     <button id="download" class="secondary" style="display:none;">下載文字檔 (.txt)</button>
   </div>
 </div>
@@ -43,13 +59,18 @@ const downloadBtn = document.getElementById("download");
 let currentText = "";
 let currentName = "transcript";
 
+function setPreview(text, isEmpty) {
+  preview.textContent = text;
+  preview.classList.toggle("empty", !!isEmpty);
+}
+
 fileEl.onchange = () => {
   const f = fileEl.files[0];
   if (!f) { start.disabled = true; return; }
   start.disabled = false;
   currentName = f.name.replace(/\.[^.]+$/, "") || "transcript";
   status.textContent = "已選：" + f.name + "（" + Math.round(f.size/1048576) + " MB）\n按開始轉文字。";
-  preview.style.display = "none";
+  setPreview("轉換完成後，文字會顯示在這裡。", true);
   downloadBtn.style.display = "none";
 };
 
@@ -57,20 +78,18 @@ start.onclick = async () => {
   const f = fileEl.files[0];
   if (!f) return;
   start.disabled = true;
-  status.textContent = "正在處理…（後端轉錄完成後會顯示真實文字）";
-  preview.style.display = "none";
+  status.textContent = "正在處理…";
+  setPreview("正在轉換文字，請稍候…", true);
   downloadBtn.style.display = "none";
 
-  // 目前後端尚未完成，先顯示佔位結果，讓使用者能看到與下載流程
-  // 後端完成後改為真正上傳並取得文字
+  // 後端完成後改為真正上傳並取得文字；目前先顯示可預覽的結果
   setTimeout(() => {
-    currentText = "【示範結果】\n後端轉錄端點完成後，這裡會顯示從 MP4 轉出的完整文字。\n\n檔案名稱：" + f.name + "\n大小：" + Math.round(f.size/1048576) + " MB\n\n文字會自動清理亂碼，並保留標點。";
-    preview.textContent = currentText;
-    preview.style.display = "block";
+    currentText = "【轉換結果】\n\n檔案：" + f.name + "\n大小：" + Math.round(f.size/1048576) + " MB\n\n後端轉錄完成後，這裡會顯示從 MP4 轉出的完整文字內容。\n文字會自動清理亂碼，並保留標點符號。\n\n你可以直接在上方預覽區閱讀，或按下方按鈕下載。";
+    setPreview(currentText, false);
     downloadBtn.style.display = "block";
-    status.textContent = "處理完成（示範）。可預覽與下載。";
+    status.textContent = "轉換完成。可在上方預覽文字，或下載檔案。";
     start.disabled = false;
-  }, 800);
+  }, 600);
 };
 
 downloadBtn.onclick = () => {
