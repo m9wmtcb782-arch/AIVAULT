@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>文字匯入 · AIVAULT</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif; margin: 0; background: #f8fafc; color: #0f172a; }
+.wrap { max-width: 640px; margin: 0 auto; padding: 16px 16px 40px; }
+.topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.back { background: #e2e8f0; color: #0f172a; border: 0; border-radius: 10px; padding: 8px 12px; font-size: 14px; text-decoration: none; }
+h1 { font-size: 20px; margin: 0 0 6px; }
+p.lead { color: #64748b; font-size: 14px; margin: 0 0 12px; }
+.card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; margin-top: 12px; }
+textarea {
+  width: 100%; min-height: 280px; border: 1px solid #e2e8f0; border-radius: 12px;
+  padding: 14px; font-size: 16px; line-height: 1.6; resize: vertical; box-sizing: border-box;
+  font-family: inherit; background: #fff;
+}
+.hint { font-size: 13px; color: #475569; margin: 8px 0 12px; line-height: 1.5; }
+.meta { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: #64748b; margin: 8px 0; }
+button { background: #1d4ed8; color: #fff; border: 0; border-radius: 10px; padding: 12px 16px; font-size: 15px; width: 100%; margin-top: 8px; }
+button:disabled { background: #94a3b8; }
+button.secondary { background: #64748b; }
+#status { margin-top: 12px; font-size: 14px; white-space: pre-wrap; color: #334155; min-height: 24px; }
+#result {
+  margin-top: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+  padding: 14px; font-size: 15px; line-height: 1.65; white-space: pre-wrap; max-height: 420px;
+  overflow: auto; min-height: 80px; color: #0f172a;
+}
+#result.empty { color: #94a3b8; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a class="back" href="aivault-home.html">← 回 Home</a>
+  </div>
+  <h1>文字匯入</h1>
+  <p class="lead">將教材、逐字稿或分析文字貼入，送交既有後端處理。</p>
+  <div class="card">
+    <div class="hint">先在 iPhone 開啟文字檔、全選、複製，再回到此處長按輸入框並貼上。</div>
+    <textarea id="textInput" placeholder="在此長按貼上文字內容…"></textarea>
+    <div class="meta">
+      <span id="charCount">0 字</span>
+      <span id="limitHint"></span>
+    </div>
+    <button id="submitBtn">送出分析</button>
+    <button id="clearBtn" class="secondary">清空文字</button>
+    <div id="status">請貼上文字後按「送出分析」。</div>
+    <div id="result" class="empty">處理結果會顯示在這裡。</div>
+  </div>
+</div>
+<script>
+const SUPABASE_URL = "https://clcddygkaaqqtsbswgdf.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE";
+const GATEWAY = SUPABASE_URL + "/functions/v1/ai-gateway";
+const MAX_CHARS = 100000;
+
+const textInput = document.getElementById("textInput");
+const charCount = document.getElementById("charCount");
+const limitHint = document.getElementById("limitHint");
+const submitBtn = document.getElementById("submitBtn");
+const clearBtn = document.getElementById("clearBtn");
+const status = document.getElementById("status");
+const result = document.getElementById("result");
+
+function updateCount() {
+  const n = textInput.value.length;
+  charCount.textContent = n + " 字";
+  if (n > MAX_CHARS) {
+    limitHint.textContent = "超過建議長度，送出時可能被後端拒絕或分段處理";
+    limitHint.style.color = "#b45309";
+  } else {
+    limitHint.textContent = "";
+  }
+}
+
+textInput.addEventListener("input", updateCount);
+updateCount();
+
+clearBtn.onclick = () => {
+  if (!textInput.value.trim()) return;
+  if (!confirm("確定清空已貼上的文字？此操作無法復原。")) return;
+  textInput.value = "";
+  updateCount();
+  result.textContent = "處理結果會顯示在這裡。";
+  result.classList.add("empty");
+  status.textContent = "已清空。";
+};
+
+function setResult(text, isEmpty) {
+  result.textContent = text;
+  result.classList.toggle("empty", !!isEmpty);
+}
+
+submitBtn.onclick = async () => {
+  const text = textInput.value.trim();
+  if (!text) {
+    status.textContent = "請先貼上文字內容。";
+    return;
+  }
+  if (text.length > MAX_CHARS) {
+    status.textContent = "文字過長（" + text.length + " 字），超過 " + MAX_CHARS + " 字建議上限。請分段後再試，或確認後端是否支援長文。";
+    return;
+  }
+
+  submitBtn.disabled = true;
+  status.textContent = "正在送出分析…";
+  setResult("處理中，請稍候…", true);
+
+  try {
+    const prompt = [
+      "任務：分析並整理以下使用者提供的文字內容，作為知識匯入。",
+      "以繁體中文輸出重點摘要、關鍵概念與可用於後續檢索的結構化資訊。",
+      "不要臆造原文沒有的內容。保留專有名詞與重要數字。",
+      "若內容過長，可分段但必須保持順序，避免重複或遺漏。",
+      "",
+      "使用者文字：",
+      text
+    ].join("\n");
+
+    const res = await fetch(GATEWAY, {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+        "apikey": SUPABASE_ANON_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        message: prompt,
+        capability: "chat",
+        temperature: 0.2,
+        max_tokens: 4096,
+        metadata: { source: "text-import" }
+      })
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || data.success === false || data.ok === false) {
+      const err = data.message || data.error || data.detail || ("後端回應 " + res.status);
+      status.textContent = "分析失敗：" + err;
+      setResult("分析失敗。\n" + err, true);
+      submitBtn.disabled = false;
+      return;
+    }
+
+    let output = "";
+    if (typeof data === "string") output = data;
+    else if (data.content || data.text || data.answer || data.message || data.transcript) {
+      output = data.content || data.text || data.answer || data.message || data.transcript;
+    } else if (data.data) {
+      output = typeof data.data === "string" ? data.data : JSON.stringify(data.data, null, 2);
+    } else {
+      output = JSON.stringify(data, null, 2);
+    }
+
+    if (!output || /示範|假|placeholder|example/i.test(output)) {
+      status.textContent = "後端未回傳有效結果。";
+      setResult("未取得有效分析結果。", true);
+    } else {
+      setResult(output, false);
+      status.textContent = "分析完成（回應約 " + output.length + " 字）。";
+    }
+  } catch (err) {
+    status.textContent = "連線失敗：" + (err.message || err);
+    setResult("無法連到後端。\n" + (err.message || err), true);
+  }
+  submitBtn.disabled = false;
+};
+</script>
+</body>
+</html>
