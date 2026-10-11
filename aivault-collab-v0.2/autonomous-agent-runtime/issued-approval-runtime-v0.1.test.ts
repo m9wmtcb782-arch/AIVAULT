@@ -51,13 +51,14 @@ Deno.test("concurrent issuance conflict reuses matching original challenge",asyn
  const x=fixture();
  await x.runtime.step();
  const original=await x.adapter.issue();
+ let reads=0;
  const concurrentStore: IssuedApprovalStore = {
-   async get(id){return x.records.get(id)??null;},
+   async get(id){reads++;return reads===1?null:(x.records.get(id)??null);},
    async issue(){throw new Error("APPROVAL_ALREADY_ISSUED");}
  };
  const retry=new IssuedApprovalRuntime(x.runtime,"agent-1","owner-1",concurrentStore);
  const result=await retry.issue();
- if(result.expiresAt!==original.expiresAt) throw new Error("CONCURRENT_EXPIRY_CHANGED");
+ if(result.expiresAt!==original.expiresAt||reads!==2) throw new Error("CONCURRENT_RECOVERY_NOT_EXERCISED");
 });
 Deno.test("concurrent issuance does not hide database failures",async()=>{
  const x=fixture();
