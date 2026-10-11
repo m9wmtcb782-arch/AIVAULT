@@ -49,8 +49,9 @@ final class AIVAULTForegroundSessionV01 {
     func join(consentGranted: Bool, now: Date = Date()) {
         guard consentGranted, canJoin, let transport, let expiresAt else { return }
         guard expiresAt > now else { stop(reason: .expired); return }
-        status = .starting; notify()
         let epoch = generation
+        status = .starting; notify()
+        guard generation == epoch, foreground, status == .starting else { return }
         do {
             try transport.start(onReady: { [weak self] port in
                 guard let self, self.generation == epoch, self.foreground, self.status == .starting else { return }

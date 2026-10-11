@@ -32,7 +32,7 @@ struct NativeReceiverTest {
     static func check(_ value: Bool, _ label: String) throws {
         guard value else { throw Failure.test(label) }
     }
-    static func main() async throws {
+    @MainActor static func main() async throws {
         let config = try JSONDecoder().decode(Config.self, from: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[1])))
         let directory = URL(fileURLWithPath: config.directory, isDirectory: true)
         let expiry = Date().addingTimeInterval(120)
@@ -142,6 +142,40 @@ struct NativeReceiverTest {
               let item = first[kSecImportItemIdentity as String] else { throw Failure.test("identity import status \(imported)") }
         let identity = item as! SecIdentity
         guard let device = MTLCreateSystemDefaultDevice() else { throw Failure.test("BLOCKED: no Metal device") }
+        // Actual loopback TLS listener owned by the foreground controller.
+        // Stop BEFORE reservation; a valid new tensor must not execute.
+        let probeState = Received()
+        let probeReceiver = try AIVAULTTensorReceiverV01(localNodeID:"node-b",grant:grant(operation:"foreground-probe"),
+            ledger:AIVAULTTensorReplayLedgerV01(directory:directory.appendingPathComponent("foreground-ledger")),
+            onTensor:{ _,_ in await probeState.record([]) })
+        let probeListener = try AIVAULTTensorTLSListenerV01(identity:identity,receiver:probeReceiver)
+        let foregroundSession = AIVAULTForegroundSessionV01()
+        foregroundSession.setForeground(true)
+        foregroundSession.prepare(AIVAULTForegroundTLSV01(listener:probeListener),expiresAt:expiry)
+        let probePort: UInt16 = try await withCheckedThrowingContinuation { continuation in
+            foregroundSession.onChange = {
+                if foregroundSession.status == .listening, let port=foregroundSession.port {
+                    foregroundSession.onChange=nil; continuation.resume(returning:port)
+                } else if foregroundSession.status == .failed || foregroundSession.status == .expired {
+                    foregroundSession.onChange=nil; continuation.resume(throwing:Failure.test("foreground TLS start failed"))
+                }
+            }
+            foregroundSession.join(consentGranted:true)
+        }
+        foregroundSession.setForeground(false)
+        foregroundSession.setForeground(true)
+        try check(foregroundSession.status == .stopped && !foregroundSession.canJoin,"foreground auto-resumed")
+        let probeEndpoint=URL(string:"https://localhost:\(probePort)/tensor")!
+        let probeDelegate=try ReceiveTestAnchor(Data(contentsOf:URL(fileURLWithPath:config.certDERPath)))
+        let probeClient=try AIVAULTTensorHTTPSClientV01(endpoint:probeEndpoint,localNodeID:"node-a",peerNodeID:"node-b",accessToken:token,
+            sessionExpiresAt:expiry,configuration:.ephemeral,testDelegate:probeDelegate)
+        let probeWire=try wire(operation:"foreground-probe")
+        var probeRejected=false
+        do { _ = try await probeClient.send(probeWire) } catch { probeRejected=true }
+        let probeCalls = await probeState.snapshot().0
+        try check(probeRejected && probeCalls == 0,"foreground stop admitted GPU callback")
+        print("CONFIRMED: foreground session starts actual native TLS and revokes on inactivity; fresh valid tensor cannot execute; no automatic resume")
+
         let nativeState = Received()
         let nativeReceiver = try AIVAULTTensorReceiverV01(localNodeID:"node-b",grant:grant(),
             ledger:AIVAULTTensorReplayLedgerV01(directory:directory.appendingPathComponent("tls-ledger")),onTensor:{ tensor,_ in

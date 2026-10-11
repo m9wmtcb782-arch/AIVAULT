@@ -54,6 +54,12 @@ struct ForegroundSessionTests {
         precondition(replaced.stops == 1 && replacement.starts == 0)
         s.join(consentGranted:true); replacement.ready?(5000); s.expire(now:expiry)
         precondition(s.status == .expired && replacement.stops == 1)
+        let reentrant = ControlledTransport()
+        s.prepare(reentrant,expiresAt:Date().addingTimeInterval(60))
+        s.onChange = { if s.status == .starting { s.stop() } }
+        s.join(consentGranted:true)
+        precondition(reentrant.starts == 0 && reentrant.stops == 1)
+        s.onChange = nil
         let timed = ControlledTransport()
         s.prepare(timed,expiresAt:Date().addingTimeInterval(0.02))
         try await Task.sleep(nanoseconds:100_000_000)
