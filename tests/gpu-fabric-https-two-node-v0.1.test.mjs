@@ -206,3 +206,13 @@ test("replay capacity fails closed without discarding earlier consumed stages", 
   await assert.rejects(send(sender(endpoint, g)), /HTTP 409/);
   assert.equal(calls, 1);
 });
+
+test("durable storage failure prevents backend invocation", async t => {
+  const g = grant();
+  let calls = 0;
+  const endpoint = await server(t, createHttpsTensorReceiver({ localNodeId: "node-b", grants: [g],
+    replayStore: { reserve() { throw new Error("disk unavailable"); } },
+    onTensor: async () => { calls++; } }));
+  await assert.rejects(send(sender(endpoint, g)), /HTTP 503/);
+  assert.equal(calls, 0);
+});

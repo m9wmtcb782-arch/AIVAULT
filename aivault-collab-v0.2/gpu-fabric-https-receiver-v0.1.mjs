@@ -1,7 +1,8 @@
 /**
  * Research HTTPS receiver. Mount only on a TLS server with externally
  * provisioned, short-lived per-edge grants. No credential issuance/deployment.
- * Replay/stage state is process-local: after restart issue NEW grants/tokens.
+ * Supply a durable replayStore for restart protection. Without it, stage state
+ * is process-local and restart requires NEW grants/tokens.
  * A receipt proves validated tensor delivery, never hardware execution.
  */
 import { timingSafeEqual } from "node:crypto";
@@ -17,11 +18,15 @@ function validId(x) { return typeof x === "string" && ID.test(x); }
 export function createHttpsTensorReceiver({
   localNodeId, grants, onTensor, maxBytes = 1024 * 1024,
   maxMessages = 4096, maxEnvelopeLifetimeMs = 30000,
+  replayStore,
 }) {
   if (!validId(localNodeId) || !Array.isArray(grants) || !grants.length ||
       typeof onTensor !== "function") throw new Error("receiver configuration is invalid");
   for (const n of [maxBytes, maxMessages, maxEnvelopeLifetimeMs]) {
     if (!Number.isSafeInteger(n) || n < 1) throw new Error("invalid receiver limits");
+  }
+  if (replayStore !== undefined && typeof replayStore?.reserve !== "function") {
+    throw new Error("replayStore.reserve must be a synchronous durable reservation function");
   }
   const sessions = grants.map(g => {
     if (!g || typeof g.token !== "string" || g.token.length < 16 || /[\r\n]/.test(g.token) ||
@@ -97,6 +102,18 @@ export function createHttpsTensorReceiver({
       session.seen.add(wire.message_id);
       accepted++;
       consumed = true;
+      if (replayStore) {
+        let reserved;
+        try {
+          reserved = replayStore.reserve({ localNodeId, senderNodeId: session.senderNodeId,
+            jobId: session.jobId, operationId: session.operationId, tensorId: session.tensorId,
+            messageId: wire.message_id, payloadSha256: verified.payload_sha256 });
+          if (reserved !== true && reserved !== false) throw new Error("invalid reservation result");
+        } catch {
+          return reply(503, { error: "REPLAY_STORAGE_FAILED" });
+        }
+        if (!reserved) return reply(409, { error: "DURABLE_STAGE_ALREADY_RESERVED" });
+      }
       await onTensor(verified, Object.freeze({ job_id: session.jobId, operation_id: session.operationId }));
       reply(200, { status: "TENSOR_RECEIVED_VERIFIED", message_id: wire.message_id,
         tensor_id: verified.tensor_id, payload_sha256: verified.payload_sha256,

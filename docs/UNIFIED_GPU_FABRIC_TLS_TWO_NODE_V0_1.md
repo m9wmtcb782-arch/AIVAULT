@@ -14,18 +14,29 @@ Research branch only. No Supabase or production deployment.
   Concurrent delivery, a repeated message, or a fresh message for the same
   stage cannot execute the stage again. Backend failures require a new grant
   and explicit scheduler reconciliation, never an automatic retry.
+- With createFileReplayLedger supplied as replayStore, a stage reservation is
+  written and fsynced before backend invocation. Atomic directory creation
+  prevents two receiver processes from claiming the same logical stage.
+  Logical identity excludes the token and message ID, so rotation cannot bypass
+  an existing reservation. Incomplete claims remain blocked.
 - The tests route x to endpoint A, execute mul_scalar there, transfer h through
   actual HTTPS sockets to endpoint B, execute add_scalar there, and compare y
   against a single-node reference using the existing planner/backend contracts.
 
 ## Evidence boundary
 
-CONFIRMED locally: 60 Node tests passed, including two TLS endpoints with
+CONFIRMED locally: 65 Node tests passed, including two TLS endpoints with
 certificate and hostname verification, invalid token, wrong job/header,
 corruption, expiry, duplicate delivery, concurrent requests and backend failure.
 The measured diagnostic is whole-run loopback elapsed time, not WAN performance.
 
-The two endpoints run CPU adapters in one test process on one host.
+The original endpoint test runs CPU adapters in one process. The new
+gpu-fabric-durable-two-process test forks two independent CPU worker processes
+on one host and transfers the intermediate Float32 tensor over TLS. It verifies
+the same planned graph against a Float32 reference with distinct worker PIDs.
+It also kills/restarts a receiver and checks that a new token/message cannot
+repeat a reserved stage. A crash immediately after reservation, two competing
+receiver processes, incomplete claims, and storage failure are covered.
 No physical-device GPU execution is claimed by these tests.
 
 CI status must be checked against this exact commit in Actions; local test
@@ -46,10 +57,23 @@ The receiver is a research component, not a public listening service. Provision
 real certificates and credentials externally; test certificates/tokens are
 ephemeral and test-only. Never bypass certificate or hostname checks.
 
-Replay state is process-local. Restart MUST revoke old credentials and issue new
-grants; do not reuse tokens after restart. No persistent replay ledger or grant
-issuance is implemented. Capacity exhaustion rejects new stages; no replay entry
-is evicted to make room. The HTTP server owner must configure body/request
-timeouts. Initial scope is one-dimensional contiguous Float32 tensors.
+Without replayStore, replay state is process-local: restart MUST revoke old
+credentials and issue new grants/tokens. For restart protection, supply
+createFileReplayLedger({ directory: absolutePrivateDurablePath }) to replayStore.
+This requires a trusted local filesystem supporting atomic mkdir and file/
+directory fsync. A missing/unwritable ledger fails closed; never delete stage
+directories to make retries succeed. Disk usage grows with reserved stages.
+No grant issuance, ledger retention/garbage collection, storage rollback
+protection or power-loss testing is implemented. Copying/rolling back or deleting
+the ledger invalidates its replay guarantee. This is not a distributed database.
+
+Reservations provide at-most-one backend invocation per logical stage while
+the ledger remains intact. A crash leaves RESERVED_OUTCOME_UNKNOWN, not proof of
+completion. Scheduler reconciliation is still required before a recovery attempt
+with a new operation identity. The tests cover process crashes, not power cuts.
+
+Capacity exhaustion rejects new stages; no replay entry is evicted to make room.
+The HTTP server owner must configure body/request timeouts. Initial scope is
+one-dimensional contiguous Float32 tensors and single-input scalar operators.
 
 Run: node --test tests/gpu-fabric-*.test.mjs (OpenSSL is required by TLS tests).
