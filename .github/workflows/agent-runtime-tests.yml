@@ -1,0 +1,27 @@
+name: Autonomous Agent Runtime Offline Tests
+on:
+  push:
+    paths:
+      - 'aivault-collab-v0.2/autonomous-agent-runtime/**'
+      - '.github/workflows/agent-runtime-tests.yml'
+  pull_request:
+    paths:
+      - 'aivault-collab-v0.2/autonomous-agent-runtime/**'
+      - '.github/workflows/agent-runtime-tests.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: aivault-collab-v0.2/autonomous-agent-runtime
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run all offline regression tests
+        run: node --experimental-transform-types run-offline-tests-node.mjs
