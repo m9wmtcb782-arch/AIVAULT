@@ -71,7 +71,7 @@ test("rejects invalid capability declarations before dispatch", async () => {
   await assert.rejects(
     readBackendCapabilities(testAdapter({
       async getCapabilities() {
-        return { device_kind: "magic", operators: ["add_scalar"], memory_bytes: -1 };
+        return { device_kind: "magic", operators: ["add_scalar"], memory_bytes: 1024 };
       },
     })),
     /device_kind is invalid/,
