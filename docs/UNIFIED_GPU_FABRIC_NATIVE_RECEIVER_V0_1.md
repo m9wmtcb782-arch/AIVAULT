@@ -8,7 +8,13 @@
 - 一個 POST /tensor、Content-Length，拒絕 chunked／壓縮／重複 header／pipeline；header 上限 8 KiB、最多 8 條同時連線、連線期限 15 秒。
 - stop() 同步撤銷新 reservation，再關閉 admission 與 sockets；已保留的 callback 可以完成，不能將關 socket 視為 rollback。
 
-REQUIRES TEST：iOS SDK type-check／Simulator build、macOS 真實 native URLSession → NWListener TLS → Metal、重播與拒絕案例。GitHub CI 執行結果確認後再更新。
+CONFIRMED：提交 `533431d07a90ae26e79efccad84ee6bb9450ed48` 的 GitHub run 38128315514／job 114437210099 通過 iOS SDK type-check、Simulator build 與 macOS 原生 TLS 接收測試。兩段本地 Metal 經 native URLSession → NWListener TLS 接续，得到 `[5, 8, -1]`；裝置為單台 runner 的 Apple Paravirtual device。
+
+CONFIRMED：HTTP 分片／上限、重複 header／chunked／壓縮／pipeline 拒絕；錯誤 token／peer／job／checksum／expiry／換行 ID 拒絕；並行重送只執行一次；backend 失敗保持 consumed；撤銷後不能保留新工作；儲存失敗不呼叫 backend；重開 ledger、換 token 與 message ID 仍拒絕同一階段。HTTP parser 及 actor 拒絕案例為直接核心測試，另有真實 native loopback TLS／系統不信任憑證／hostname mismatch／token／job／replay 驗證，不能混作實體裝置證據。
+
+接收時間在 actor 真正處理完整 body 時取得，防止呼叫端預先計算參數／排隊影響期限檢核。mutable listener 狀態限制在專屬 serial queue，receiver 為 actor，停止准入以 lock 保護；相關 Sendable 編譯警告已消除。
+
+REQUIRES TEST：前景 App 接入與完整小模型。
 
 NOT VERIFIED：實體 iPhone、兩台實體 GPU、完整模型。App 的憑證／grant provision、前景加入／停止 UI、背景撤銷／重入流程仍未接入。現有 App 不會自動啟動 listener。
 
