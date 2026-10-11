@@ -97,6 +97,21 @@ The macOS CI adds two distinct checks:
   rejected by the durable receiver ledger. Both invocations use one host/GPU.
 
 Native results require inspection of the exact commit's iOS build workflow.
-REQUIRES TEST: native URLSession over real TLS, native inbound authenticated
-transport, and two physical GPU devices. There is no native HTTPS listener or
-automatic model scheduler integration yet.
+REQUIRES TEST: native inbound authenticated transport and two physical GPU
+devices. There is no native HTTPS listener or automatic model scheduler
+integration yet.
+
+The native-real-tls CI check additionally uses actual URLSession HTTPS sockets:
+local Metal generates h, the native client sends the Swift envelope to the Node
+receiver, and a separate Metal CLI invocation computes y=[5,8,-1]. The receiver
+must execute only once. The test verifies untrusted-certificate rejection with
+the public system-trust client, then explicitly supplies an ephemeral test CA
+through an internal-only test delegate. SecTrust still evaluates the certificate
+chain and actual endpoint hostname; there is no accept-all trust handler or
+system/keychain change. The same redirect-rejection implementation is used.
+
+Negative cases cover hostname mismatch, replay, bad credentials/job, redirect,
+wrong receipt hash, and oversized receipt. The client cancels the response task
+on both success and rejection. This coverage must be confirmed in the exact
+commit's macOS CI logs; neither physical iPhone networking nor separate physical
+GPUs is implied. Public production initialization continues to use system trust.

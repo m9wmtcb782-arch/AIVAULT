@@ -48,7 +48,7 @@ public struct AIVAULTTensorTransportV01: Codable {
     }
 }
 
-private final class AIVAULTRejectTensorRedirects: NSObject, URLSessionTaskDelegate {
+class AIVAULTRejectTensorRedirects: NSObject, URLSessionTaskDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask,
                     willPerformHTTPRedirection response: HTTPURLResponse,
                     newRequest request: URLRequest,
@@ -82,10 +82,11 @@ public final class AIVAULTTensorHTTPSClientV01 {
                       accessToken: accessToken, sessionExpiresAt: sessionExpiresAt,
                       configuration: .ephemeral)
     }
-    // Internal configuration seam for URLProtocol contract tests only.
+    // Internal seam for isolated contract/TLS tests; public API uses system trust.
     init(endpoint: URL, localNodeID: String, peerNodeID: String,
          accessToken: String, sessionExpiresAt: Date,
-         configuration: URLSessionConfiguration) throws {
+         configuration: URLSessionConfiguration,
+         testDelegate: URLSessionTaskDelegate? = nil) throws {
         guard endpoint.scheme?.lowercased() == "https",
               let host = endpoint.host, !host.isEmpty,
               endpoint.user == nil, endpoint.password == nil,
@@ -108,7 +109,7 @@ public final class AIVAULTTensorHTTPSClientV01 {
         token = accessToken
         self.sessionExpiresAt = sessionExpiresAt
         session = URLSession(configuration: configuration,
-                             delegate: AIVAULTRejectTensorRedirects(), delegateQueue: nil)
+                             delegate: testDelegate ?? AIVAULTRejectTensorRedirects(), delegateQueue: nil)
     }
     deinit { session.invalidateAndCancel() }
 
@@ -134,6 +135,7 @@ public final class AIVAULTTensorHTTPSClientV01 {
         request.setValue(peerNodeID, forHTTPHeaderField: "x-aivault-receiver-node")
         request.httpBody = try JSONEncoder().encode(wire)
         let (bytes, response) = try await session.bytes(for: request)
+        defer { bytes.task.cancel() }
         guard let http = response as? HTTPURLResponse else { throw Failure.invalidReceipt }
         guard http.statusCode == 200 else { throw Failure.httpFailure(http.statusCode) }
         guard response.expectedContentLength <= 8192 else { throw Failure.receiptTooLarge }

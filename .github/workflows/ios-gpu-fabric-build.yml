@@ -13,6 +13,8 @@ on:
       - "tests/gpu-fabric-native-https-contract.swift"
       - "tests/gpu-fabric-metal-wire-cli.swift"
       - "tests/gpu-fabric-metal-tls-handoff-v0.1.mjs"
+      - "tests/gpu-fabric-native-real-tls.swift"
+      - "tests/gpu-fabric-native-real-tls-v0.1.mjs"
       - ".github/workflows/ios-gpu-fabric-build.yml"
   workflow_dispatch:
 
@@ -132,4 +134,14 @@ jobs:
             tests/gpu-fabric-metal-wire-cli.swift \
             -o /tmp/aivault-metal-wire-cli
           node tests/gpu-fabric-metal-tls-handoff-v0.1.mjs /tmp/aivault-metal-wire-cli
+
+      - name: Test native URLSession real TLS and Metal handoff (one GPU)
+        run: |
+          xcrun swiftc -parse-as-library \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTMetalCompute.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTFloat32TensorV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTTensorHTTPSV01.swift \
+            tests/gpu-fabric-native-real-tls.swift \
+            -o /tmp/aivault-native-real-tls
+          node tests/gpu-fabric-native-real-tls-v0.1.mjs /tmp/aivault-native-real-tls /tmp/aivault-metal-wire-cli
 
