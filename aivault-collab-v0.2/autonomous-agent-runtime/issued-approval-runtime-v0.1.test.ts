@@ -36,3 +36,13 @@ Deno.test("approval retry rejects challenge collision",async()=>{
  try {await x.adapter.issue();}catch(e){rejected=String(e).includes("APPROVAL_CHALLENGE_COLLISION");}
  if(!rejected) throw new Error("COLLISION_NOT_REJECTED");
 });
+
+Deno.test("expired approval cannot be reused on retry",async()=>{
+ const x=fixture();
+ await x.runtime.step();
+ const first=await x.adapter.issue();
+ x.records.set(first.requestId,{...first,expiresAt:new Date(Date.now()-1000).toISOString()});
+ let rejected=false;
+ try {await x.adapter.issue();}catch(e){rejected=String(e).includes("APPROVAL_EXPIRED");}
+ if(!rejected||x.issued()!==1) throw new Error("EXPIRED_APPROVAL_REUSED");
+});
