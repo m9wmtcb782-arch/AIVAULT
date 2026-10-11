@@ -1,0 +1,807 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aivault.example/schemas/gpu-fabric-message-v0.1.schema.json",
+  "title": "AIVAULT Unified GPU Fabric Message v0.1",
+  "description": "Validation contract only. This schema does not authenticate senders, verify signatures, enforce authorization, or execute GPU work.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/capabilityAdvertise"
+    },
+    {
+      "$ref": "#/$defs/jobPrepare"
+    },
+    {
+      "$ref": "#/$defs/jobDecision"
+    },
+    {
+      "$ref": "#/$defs/tensorTransfer"
+    },
+    {
+      "$ref": "#/$defs/operationStart"
+    },
+    {
+      "$ref": "#/$defs/operationResult"
+    },
+    {
+      "$ref": "#/$defs/jobCancel"
+    },
+    {
+      "$ref": "#/$defs/jobReport"
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "envelope": {
+      "type": "object",
+      "required": [
+        "protocol_version",
+        "message_type",
+        "job_id",
+        "session_id",
+        "model_manifest_sha256",
+        "message_id",
+        "issued_at",
+        "expires_at",
+        "sender_node_id"
+      ],
+      "properties": {
+        "protocol_version": {
+          "const": "aivault.gpu-fabric/0.1"
+        },
+        "message_type": {
+          "type": "string"
+        },
+        "job_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "session_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "model_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "message_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "issued_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "expires_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "sender_node_id": {
+          "$ref": "#/$defs/identifier"
+        }
+      }
+    },
+    "tensor": {
+      "type": "object",
+      "required": [
+        "tensor_id",
+        "dtype",
+        "shape",
+        "layout",
+        "byte_length",
+        "producer_operation_id",
+        "consumers",
+        "lifetime"
+      ],
+      "properties": {
+        "tensor_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "dtype": {
+          "enum": [
+            "bool",
+            "int8",
+            "uint8",
+            "int16",
+            "uint16",
+            "int32",
+            "uint32",
+            "int64",
+            "uint64",
+            "float16",
+            "bfloat16",
+            "float32",
+            "float64"
+          ]
+        },
+        "shape": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "minItems": 1,
+          "maxItems": 16
+        },
+        "layout": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "byte_length": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1099511627776
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "producer_operation_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "owner_node_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "consumers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          },
+          "uniqueItems": true
+        },
+        "lifetime": {
+          "type": "object",
+          "required": [
+            "release_condition"
+          ],
+          "properties": {
+            "release_condition": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "operation": {
+      "type": "object",
+      "required": [
+        "operation_id",
+        "operator",
+        "operator_version",
+        "dependency_ids",
+        "input_tensors",
+        "output_tensors",
+        "placement_constraint",
+        "deadline",
+        "resource_budget"
+      ],
+      "properties": {
+        "operation_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "operator": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "operator_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "dependency_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          },
+          "uniqueItems": true
+        },
+        "input_tensors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/tensor"
+          }
+        },
+        "output_tensors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/tensor"
+          }
+        },
+        "placement_constraint": {
+          "type": "object",
+          "required": [
+            "allowed_backends"
+          ],
+          "properties": {
+            "allowed_backends": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "required_capabilities": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true
+            }
+          },
+          "additionalProperties": false
+        },
+        "deadline": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "resource_budget": {
+          "type": "object",
+          "required": [
+            "max_runtime_ms",
+            "max_memory_bytes"
+          ],
+          "properties": {
+            "max_runtime_ms": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400000
+            },
+            "max_memory_bytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1099511627776
+            },
+            "max_concurrency": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1024
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "capabilityAdvertise": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "message_type": {
+              "const": "capability.advertise"
+            },
+            "payload": {
+              "type": "object",
+              "required": [
+                "supported_protocol_versions",
+                "backends",
+                "supported_operators",
+                "memory_bytes"
+              ],
+              "properties": {
+                "supported_protocol_versions": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                },
+                "backends": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "name",
+                      "version"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "version": {
+                        "type": "string"
+                      },
+                      "device_name": {
+                        "type": "string"
+                      },
+                      "memory_bytes": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "capabilities": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "measured_link_mbps": {
+                        "type": [
+                          "number",
+                          "null"
+                        ],
+                        "minimum": 0
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "supported_operators": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "memory_bytes": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "payload"
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "jobPrepare": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "message_type": {
+              "const": "job.prepare"
+            },
+            "payload": {
+              "type": "object",
+              "required": [
+                "graph_subset",
+                "input_tensors",
+                "data_policy",
+                "deadline",
+                "resource_limits"
+              ],
+              "properties": {
+                "graph_subset": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/operation"
+                  },
+                  "minItems": 1
+                },
+                "input_tensors": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/tensor"
+                  }
+                },
+                "data_policy": {
+                  "type": "object",
+                  "required": [
+                    "classification",
+                    "third_party_allowed"
+                  ],
+                  "properties": {
+                    "classification": {
+                      "enum": [
+                        "public",
+                        "internal",
+                        "confidential",
+                        "restricted"
+                      ]
+                    },
+                    "third_party_allowed": {
+                      "type": "boolean"
+                    },
+                    "policy_id": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "deadline": {
+                  "$ref": "#/$defs/timestamp"
+                },
+                "resource_limits": {
+                  "type": "object",
+                  "required": [
+                    "max_runtime_ms",
+                    "max_memory_bytes",
+                    "max_tensor_bytes"
+                  ],
+                  "properties": {
+                    "max_runtime_ms": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "max_memory_bytes": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "max_tensor_bytes": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "payload"
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "jobDecision": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "message_type": {
+              "enum": [
+                "job.accept",
+                "job.reject"
+              ]
+            },
+            "payload": {
+              "type": "object",
+              "required": [
+                "decision"
+              ],
+              "properties": {
+                "decision": {
+                  "enum": [
+                    "accept",
+                    "reject"
+                  ]
+                },
+                "reason_code": {
+                  "type": "string",
+                  "pattern": "^[A-Z0-9_]{2,80}$"
+                },
+                "reason": {
+                  "type": "string",
+                  "maxLength": 500
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "payload"
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "tensorTransfer": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "message_type": {
+              "const": "tensor.transfer"
+            },
+            "payload": {
+              "type": "object",
+              "required": [
+                "source_node_id",
+                "destination_node_id",
+                "tensor",
+                "transfer_id",
+                "expires_at"
+              ],
+              "properties": {
+                "source_node_id": {
+                  "$ref": "#/$defs/identifier"
+                },
+                "destination_node_id": {
+                  "$ref": "#/$defs/identifier"
+                },
+                "tensor": {
+                  "$ref": "#/$defs/tensor"
+                },
+                "transfer_id": {
+                  "$ref": "#/$defs/identifier"
+                },
+                "expires_at": {
+                  "$ref": "#/$defs/timestamp"
+                },
+                "encryption_context_id": {
+                  "$ref": "#/$defs/identifier"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "payload"
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "operationStart": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "message_type": {
+              "const": "operation.start"
+            },
+            "payload": {
+              "type": "object",
+              "required": [
+                "operation_id",
+                "attempt_id",
+                "input_tensor_ids"
+              ],
+              "properties": {
+                "operation_id": {
+                  "$ref": "#/$defs/identifier"
+                },
+                "attempt_id": {
+                  "$ref": "#/$defs/identifier"
+                },
+                "input_tensor_ids": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/identifier"
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "payload"
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "operationResult": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "message_type": {
+              "const": "operation.result"
+            },
+            "payload": {
+              "type": "object",
+              "required": [
+                "operation_id",
+                "attempt_id",
+                "status",
+                "output_tensors",
+                "started_at",
+                "ended_at"
+              ],
+              "properties": {
+                "operation_id": {
+                  "$ref": "#/$defs/identifier"
+                },
+                "attempt_id": {
+                  "$ref": "#/$defs/identifier"
+                },
+                "status": {
+                  "enum": [
+                    "succeeded",
+                    "failed",
+                    "cancelled"
+                  ]
+                },
+                "output_tensors": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/tensor"
+                  }
+                },
+                "started_at": {
+                  "$ref": "#/$defs/timestamp"
+                },
+                "ended_at": {
+                  "$ref": "#/$defs/timestamp"
+                },
+                "backend": {
+                  "type": "string"
+                },
+                "runtime_version": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "type": "string"
+                },
+                "error_message": {
+                  "type": "string",
+                  "maxLength": 1000
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "payload"
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "jobCancel": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "message_type": {
+              "const": "job.cancel"
+            },
+            "payload": {
+              "type": "object",
+              "required": [
+                "reason"
+              ],
+              "properties": {
+                "reason": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "payload"
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "jobReport": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "message_type": {
+              "const": "job.report"
+            },
+            "payload": {
+              "type": "object",
+              "required": [
+                "status",
+                "participating_node_ids",
+                "operation_trace",
+                "bytes_transferred",
+                "validation"
+              ],
+              "properties": {
+                "status": {
+                  "enum": [
+                    "completed",
+                    "failed",
+                    "cancelled"
+                  ]
+                },
+                "participating_node_ids": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/identifier"
+                  },
+                  "uniqueItems": true
+                },
+                "operation_trace": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "operation_id",
+                      "node_id",
+                      "status"
+                    ],
+                    "properties": {
+                      "operation_id": {
+                        "$ref": "#/$defs/identifier"
+                      },
+                      "node_id": {
+                        "$ref": "#/$defs/identifier"
+                      },
+                      "status": {
+                        "enum": [
+                          "succeeded",
+                          "failed",
+                          "cancelled",
+                          "skipped"
+                        ]
+                      },
+                      "attempt_id": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "bytes_transferred": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "validation": {
+                  "type": "object",
+                  "required": [
+                    "method",
+                    "passed"
+                  ],
+                  "properties": {
+                    "method": {
+                      "type": "string"
+                    },
+                    "passed": {
+                      "type": "boolean"
+                    },
+                    "reference_output_sha256": {
+                      "$ref": "#/$defs/sha256"
+                    },
+                    "max_abs_error": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "tolerance": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "payload"
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    }
+  }
+}
