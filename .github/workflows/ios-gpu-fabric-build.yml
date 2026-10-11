@@ -52,12 +52,27 @@ jobs:
           const required = [
             'function runNativeMetalSmokeTest()',
             'gpuFabric.execute',
-            'nativeMetalBtn'
+            'nativeMetalBtn',
+            '$("nativeMetalBtn")',
+            'runNativeMetalSmokeTest'
           ];
           for (const token of required) {
             if (!html.includes(token)) throw new Error(`Missing native Metal UI integration token: ${token}`);
           }
-          console.log(`PASS: parsed ${scripts.length} inline JavaScript block(s); native Metal UI hook present`);
+
+          const appSwift = fs.readFileSync('native-worker/ios/AIVAULTNativeWorkerApp/AIVAULTNativeWorkerApp.swift', 'utf8');
+          const bridgeSwift = fs.readFileSync('native-worker/ios/AIVAULTNativeWorker/AIVAULTWebBridge.swift', 'utf8');
+          const nativeChecks = [
+            [appSwift.includes('bridge.install(on: configuration)'), 'App installs the WebKit bridge'],
+            [appSwift.includes('https://m9wmtcb782-arch.github.io/AIVAULT/compute-mesh-gpu-test.html'), 'App loads the allowlisted worker page'],
+            [bridgeSwift.includes('securityOrigin.host == Self.trustedHost'), 'Bridge validates trusted host'],
+            [bridgeSwift.includes('message.frameInfo.request.url?.path == "/AIVAULT/compute-mesh-gpu-test.html"'), 'Bridge validates exact page path'],
+            [bridgeSwift.includes('operation == "mul_scalar" || operation == "add_scalar"'), 'Bridge limits supported Metal operations']
+          ];
+          for (const [passed, label] of nativeChecks) {
+            if (!passed) throw new Error(`Native bridge integration check failed: ${label}`);
+          }
+          console.log(`PASS: parsed ${scripts.length} JavaScript block(s); UI and native bridge integration checks passed`);
           NODE
       - name: Type-check Swift sources against iOS Simulator SDK
         run: |
