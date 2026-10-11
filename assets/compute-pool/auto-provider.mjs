@@ -48,7 +48,7 @@ if(root){
    await register();
    clearInterval(heartbeatTimer);heartbeatTimer=setInterval(()=>{if(!document.hidden&&!stopped)heartbeat();},30000);
    try{runner=await nativeRunner();await runner.run(16,1);backend='webgpu';}
-   catch(webgpuError){try{runner=AivaultWebGL2.createRunner();await runner.run(16,1);backend='webgl2';}catch(glError){reason='WebGPU：'+webgpuError.message+'；WebGL2：'+glError.message;backend='unavailable';await register();state('已登記，無法提供 GPU',reason+'。裝置仍在清單中，未計入在線 GPU 水位。');$('autoGpuToggle').textContent='重新偵測';return;}}
+   catch(webgpuError){try{runner=AivaultWebGL2.createRunner();await runner.run(16,1);backend='webgl2';}catch(glError){reason='WebGPU：'+webgpuError.message+'；WebGL2：'+glError.message;backend='unavailable';await register();state('已登記，無法提供 GPU',reason+'。裝置仍會以魚呈現並計入參與水位，GPU 節點數不增加。');$('autoGpuToggle').textContent='重新偵測';return;}}
    if(stopped)return;ready=true;await register();state('正在提供 GPU',backend==='webgl2'?'已啟用 WebGL2 備援，只接相容的小型任務。':'已啟用 WebGPU，正在等待相容任務。');
    clearInterval(heartbeatTimer);clearInterval(pollTimer);heartbeatTimer=setInterval(()=>{if(!document.hidden&&!stopped)heartbeat();},30000);pollTimer=setInterval(poll,30000);
    const id='auto-gpu-proof-'+nodeId+'-'+Date.now();await api({type:'task.create',task:{id,name:'裝置自動 GPU 驗證',type:'gpu-u32-mix',target_node_id:nodeId,elements:256,iterations:1,gpu_required:true,backend:'portable-gpu'}});await poll();
