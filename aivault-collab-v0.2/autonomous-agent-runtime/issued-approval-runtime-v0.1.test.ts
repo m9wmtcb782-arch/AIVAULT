@@ -46,3 +46,28 @@ Deno.test("expired approval cannot be reused on retry",async()=>{
  try {await x.adapter.issue();}catch(e){rejected=String(e).includes("APPROVAL_EXPIRED");}
  if(!rejected||x.issued()!==1) throw new Error("EXPIRED_APPROVAL_REUSED");
 });
+
+Deno.test("concurrent issuance conflict reuses matching original challenge",async()=>{
+ const x=fixture();
+ await x.runtime.step();
+ const original=await x.adapter.issue();
+ const concurrentStore: IssuedApprovalStore = {
+   async get(id){return x.records.get(id)??null;},
+   async issue(){throw new Error("APPROVAL_ALREADY_ISSUED");}
+ };
+ const retry=new IssuedApprovalRuntime(x.runtime,"agent-1","owner-1",concurrentStore);
+ const result=await retry.issue();
+ if(result.expiresAt!==original.expiresAt) throw new Error("CONCURRENT_EXPIRY_CHANGED");
+});
+Deno.test("concurrent issuance does not hide database failures",async()=>{
+ const x=fixture();
+ await x.runtime.step();
+ const brokenStore: IssuedApprovalStore={
+   async get(){return null;},
+   async issue(){throw new Error("DATABASE_UNAVAILABLE");}
+ };
+ const retry=new IssuedApprovalRuntime(x.runtime,"agent-1","owner-1",brokenStore);
+ let rejected=false;
+ try{await retry.issue();}catch(e){rejected=String(e).includes("DATABASE_UNAVAILABLE");}
+ if(!rejected) throw new Error("DATABASE_FAILURE_SWALLOWED");
+});
