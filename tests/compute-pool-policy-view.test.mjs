@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {checkPoolTaskAccess} from '../supabase/functions/aivault-compute-coordinator/task-access.ts';
-import {classify,waterState,transitions} from '../assets/compute-pool/pool-view.mjs';
+import {classify,deviceLabel,waterState,transitions} from '../assets/compute-pool/pool-view.mjs';
 const denied=async()=>false,approved=async id=>id==='owned-and-tested';
 test('external model cannot self-approve',async()=>assert.equal((await checkPoolTaskAccess({type:'inference',model_id:'external',approved:true,ownership:'first_party',test_passed:true},denied)).allowed,false));
 test('planned own model remains denied',async()=>assert.equal((await checkPoolTaskAccess({model_id:'planned-vision'},denied)).allowed,false));
@@ -26,3 +26,9 @@ test('confirmed departure catches exactly one previously online GPU',()=>{const 
 test('truncated response does not create false departure',()=>assert.deepEqual(transitions([{id:'a',online:true,gpu_reported:true}],[],{truncated:true}),[]));
 
 test('unsupported phone remains a pool member and is caught when offline',()=>{const n={id:'iphone',platform:'iPhone',online:true,gpu_reported:false};assert.equal(waterState([n],20).ratio,.05);assert.equal(waterState([n],20).count,0);assert.equal(classify(n),'phone');assert.equal(transitions([n],[{...n,online:false}]).length,1);});
+
+for(const p of ['Macintosh','MacBook Air','MacBook Pro','Mac mini','iMac','Mac Studio','Mac Pro','iPhone','iPad'])test('Apple display group '+p,()=>assert.equal(deviceLabel({platform:p}),'iOS'));
+for(const [chip,tier] of [['Apple M1','computer'],['Apple M4 Pro','shark'],['Apple M3 Max','whale'],['Apple M2 Ultra','leviathan']])test('explicit Apple chip tier '+chip,()=>assert.equal(classify({platform:'Macintosh',hardware:{gpu:{description:chip}}}),tier));
+test('Mac model name alone does not imply chip tier',()=>assert.equal(classify({platform:'MacBook Pro'}),'computer'));
+test('phone form factor wins over desktop GPU metadata',()=>assert.equal(classify({platform:'iPhone',hardware:{gpu:{description:'Apple M4 Max'}}}),'phone'));
+test('desktop GPU model is hidden from public device label',()=>assert.equal(deviceLabel({platform:'Windows',hardware:{gpu:{description:'NVIDIA RTX 5090'}}}),'電腦'));
