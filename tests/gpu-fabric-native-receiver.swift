@@ -118,7 +118,8 @@ struct NativeReceiverTest {
         let failed = try AIVAULTTensorReceiverV01(localNodeID:"node-b",grant:grant(operation:"failed"),
             ledger:AIVAULTTensorReplayLedgerV01(directory:directory.appendingPathComponent("failed-ledger")),onTensor:{ _,_ in throw Failure.test("backend error") })
         let failureBody = try JSONEncoder().encode(wire(operation:"failed"))
-        try check(await failed.receive(body:failureBody,headers:headers).statusCode == 500,"backend failure")
+        let backendFailure = await failed.receive(body:failureBody,headers:headers)
+        try check(backendFailure.statusCode == 500,"backend failure status=\(backendFailure.statusCode) body=\(String(data:backendFailure.body,encoding:.utf8) ?? "")")
         try check(await failed.receive(body:failureBody,headers:headers).statusCode == 409,"failed replay")
         let storagePath = directory.appendingPathComponent("storage-ledger")
         let storageState = Received()

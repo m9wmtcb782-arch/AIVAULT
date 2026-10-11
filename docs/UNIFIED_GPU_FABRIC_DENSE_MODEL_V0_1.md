@@ -41,3 +41,9 @@
 - Metal 編譯選項依 [Apple mathMode 文件](https://developer.apple.com/documentation/metal/mtlcompileoptions/mathmode) 選用保留非有限值的安全算術設定。
 
 上述結果僅適用於 GPU Fabric 的兩個 workflow；暗星既有 workflow 的失敗未於本階段修改。
+
+## 收尾回歸修正
+
+提交 `27cd07a62fa3fa9ff22f53cbda70ed2f0575b5f6` 的重跑在既有 receiver 的 backend failure 測試失敗，後面的 Dense 步驟未執行。新的安全算術設定已成功建置，不能將此 run 說成全部通過。
+
+檢查發現原生 envelope 的 ISO8601 毫秒序列化可能把截止時間向上捨入，超過嚴格的 grant／30 秒上界，導致極快的本地接收偶發拒絕。sender 現在檢查序列化後時間，必要時提前 1 毫秒，並重新驗證不超界且未到期；receiver 的期限限制保持不變。新增凍結時間的次毫秒邊界測試涵蓋 TTL 上界與較短 grant 上界，不以等待或寬鬆容差迴避問題。修正後 CI 為 **REQUIRES TEST**，待記錄結果。

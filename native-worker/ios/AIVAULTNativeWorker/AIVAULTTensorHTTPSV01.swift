@@ -24,7 +24,16 @@ public struct AIVAULTTensorTransportV01: Codable {
         _ = try tensor.verifiedValues(expectedReceiverNodeID: tensor.receiver_node_id)
         protocol_version = "aivault.gpu-fabric-transport/0.1"
         message_id = UUID().uuidString
-        expires_at = Self.timestamp(min(sessionExpiresAt, now.addingTimeInterval(30)))
+        // ISO8601 fractional seconds may round up to millisecond precision.
+        // Never let serialization extend either the grant or 30-second bound.
+        let upperBound = min(sessionExpiresAt, now.addingTimeInterval(30))
+        var encodedExpiry = Self.timestamp(upperBound)
+        if let decoded = Self.date(encodedExpiry), decoded > upperBound {
+            encodedExpiry = Self.timestamp(upperBound.addingTimeInterval(-0.001))
+        }
+        guard let decodedExpiry = Self.date(encodedExpiry), decodedExpiry > now,
+              decodedExpiry <= upperBound else { throw TransportError.invalidSession }
+        expires_at = encodedExpiry
         context = Context(jobID: jobID, operationID: operationID)
         self.tensor = tensor
     }

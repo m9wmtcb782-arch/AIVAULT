@@ -59,6 +59,22 @@ struct NativeHTTPSContract {
             sessionExpiresAt: expiry, configuration: config)
         let tensor = try AIVAULTFloat32TensorV01(tensorID: "h", senderNodeID: "node-a",
             receiverNodeID: "node-b", values: [3, 6, -3])
+        // Frozen sub-millisecond boundaries reproduce serialization round-up.
+        // Exercise both the TTL cap and a shorter grant cap without clock sleeps.
+        var roundedUpSamples = 0
+        for i in 0..<100 {
+            let clock = Date(timeIntervalSince1970: 1_800_000_000 + Double(i) / 100_000)
+            for duration in [10.0, 60.0] {
+                let grantExpiry = clock.addingTimeInterval(duration)
+                let bound = min(grantExpiry, clock.addingTimeInterval(30))
+                if let raw = AIVAULTTensorTransportV01.date(AIVAULTTensorTransportV01.timestamp(bound)), raw > bound { roundedUpSamples += 1 }
+                let bounded = try AIVAULTTensorTransportV01(tensor:tensor,jobID:"j",operationID:"op-b",sessionExpiresAt:grantExpiry,now:clock)
+                guard let serialized = AIVAULTTensorTransportV01.date(bounded.expires_at) else { fatalError("invalid serialized expiry") }
+                precondition(serialized <= bound && serialized > clock, "serialization extended expiry")
+            }
+        }
+        precondition(roundedUpSamples > 0, "round-up boundary fixture did not exercise the regression")
+        print("CONFIRMED: expiry serialization remains inside TTL/grant bounds; rounded-up raw samples=\(roundedUpSamples)")
         let wire = try AIVAULTTensorTransportV01(tensor: tensor, jobID: "j", operationID: "op-b", sessionExpiresAt: expiry)
         let other = try AIVAULTTensorTransportV01(tensor: tensor, jobID: "j", operationID: "op-b", sessionExpiresAt: expiry)
         precondition(wire.message_id != other.message_id)
