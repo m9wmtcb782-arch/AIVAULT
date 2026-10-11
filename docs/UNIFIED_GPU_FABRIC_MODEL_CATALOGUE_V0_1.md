@@ -15,7 +15,7 @@ Dawn Light is registered as a visual-agent in artifacts/aivault-011-agent-module
 | Music generation | planned-music-generation | No runtime bound in this catalogue | BLOCKED |
 | 3D generation | planned-3d-generation | Existing dawn-light-3d function explicitly returns BLOCKED | BLOCKED |
 | Extraction, reasoning, coding, verification | Existing planned slots | 009_model_pool.sql | PLANNED; BLOCKED Fabric |
-| Speech recognition and synthesis | Explicit catalogue slots | No runtime bound in this catalogue; not a complete voice backend audit | PLANNED; BLOCKED Fabric |
+| Speech recognition and synthesis | Explicit catalogue slots | dawn-light-speech-to-text uses browser SpeechRecognition; live voice config names a WebSocket relay; no Fabric runtime bound | NOT VERIFIED live voice; BLOCKED Fabric |
 
 Image-to-video is independent of text-to-video and requires an image request field. Music is not speech synthesis. 3D generation is not an ordinary image. These entries cover requested capability families, not every AI model in existence.
 
