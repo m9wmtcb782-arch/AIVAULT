@@ -43,7 +43,7 @@ test("rejects expired sessions and replayed messages", async () => {
 test("rejects oversized wire payloads before decoding", async () => {
   const { b } = pair();
   b.receive = async () => ({ protocol_version: "aivault.gpu-fabric-transport/0.1", message_id: "msg-big", expires_at: new Date(Date.now() + 10000).toISOString(), tensor: { payload_base64: Buffer.alloc(64).toString("base64") } });
-  await assert.rejects(receiveTensorOverAuthenticatedChannel({ channel: b, local_node_id: "node-b", expected_sender_node_id: "node-a", max_bytes: 8 }), /encoded tensor exceeds/);
+  await assert.rejects(receiveTensorOverAuthenticatedChannel({ channel: b, local_node_id: "node-b", expected_sender_node_id: "node-a", max_bytes: 8, seenMessageIds: new Set() }), /encoded tensor exceeds/);
 });
 
 test("rejects an expired envelope and a tensor addressed to another node", async () => {
@@ -55,7 +55,7 @@ test("rejects an expired envelope and a tensor addressed to another node", async
     tensor: {},
   });
   await assert.rejects(receiveTensorOverAuthenticatedChannel({
-    channel: b, local_node_id: "node-b", expected_sender_node_id: "node-a",
+    channel: b, local_node_id: "node-b", expected_sender_node_id: "node-a", seenMessageIds: new Set(),
   }), /envelope is expired/);
 
   b.receive = async () => ({
@@ -71,7 +71,7 @@ test("rejects an expired envelope and a tensor addressed to another node", async
     },
   });
   await assert.rejects(receiveTensorOverAuthenticatedChannel({
-    channel: b, local_node_id: "node-b", expected_sender_node_id: "node-a",
+    channel: b, local_node_id: "node-b", expected_sender_node_id: "node-a", seenMessageIds: new Set(),
   }), /sender or receiver/);
 });
 
@@ -88,6 +88,6 @@ test("rejects corrupted tensor payload at the receiver", async () => {
     return wire;
   };
   await assert.rejects(receiveTensorOverAuthenticatedChannel({
-    channel: b, local_node_id: "node-b", expected_sender_node_id: "node-a",
+    channel: b, local_node_id: "node-b", expected_sender_node_id: "node-a", seenMessageIds: new Set(),
   }), /SHA-256 mismatch/);
 });
