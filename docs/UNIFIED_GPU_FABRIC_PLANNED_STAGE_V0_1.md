@@ -20,6 +20,8 @@ CONFIRMED：本地 70 項 Node 測試通過；一份 plan 送入兩個獨立 CPU
 
 CONFIRMED：單元測試涵蓋 plan／grant／來源替換、重複拓樸、呼叫者後改設定、錯誤 job、Float32 溢出及下游失敗後不能自動重跑。單元 HTTP 請求使用記憶體 harness；不當作 TLS 或 GPU 證據。
 
-REQUIRES TEST：GitHub macOS CI 已改為以新 planned stage 驅動既有本地 Metal CLI 的第二階段；須讀取該次 CI 結果後確認。
+CONFIRMED：研究提交 `c13a1696bde35831819bbdf25239c48442bdcfc0` 的協定 CI（run 38127308971）與 iOS／macOS CI（run 38127308928）通過。新 planned stage 驅動 Metal CLI 第二階段，得到 `[5, 8, -1]`；iOS Simulator 建置、原生 URLSession TLS 與拒絕測試亦通過。runner 裝置是 Apple Paravirtual device，同一台 runner，不能視為兩台實體 GPU。
+
+REQUIRES TEST：原生 iPhone 接收／前景執行、矩陣與權重運算、完整小模型及實體雙節點驗證。
 
 NOT VERIFIED：兩台實體 GPU／iPhone，同一完整 AI 模型跨設備推論。
