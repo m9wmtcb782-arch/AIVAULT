@@ -1,5 +1,6 @@
 import Foundation
 import Metal
+import CryptoKit
 
 @main
 struct GPUFabricMetalSmoke {
@@ -25,5 +26,26 @@ struct GPUFabricMetalSmoke {
         print("PASS: Metal device=\(device.name)")
         print("PASS: mul_scalar [1, 2, -1] * 3 = \(multiplied.output)")
         print("PASS: add_scalar [3, 6, -3] + 2 = \(added.output)")
+
+        let tensor = try AIVAULTFloat32TensorV01(
+            tensorID: "metal-smoke-output",
+            senderNodeID: "mac-metal-runner",
+            receiverNodeID: "test-receiver",
+            values: added.output
+        )
+        let decoded = try tensor.verifiedValues(expectedReceiverNodeID: "test-receiver")
+        guard decoded == [5, 8, -1] else {
+            fputs("FAIL: tensor round-trip mismatch: \(decoded)\\n", stderr)
+            exit(1)
+        }
+        print("PASS: Float32 tensor encode/hash/verify/decode round-trip")
+
+        do {
+            _ = try tensor.verifiedValues(expectedReceiverNodeID: "wrong-receiver")
+            fputs("FAIL: tensor accepted wrong receiver\\n", stderr)
+            exit(1)
+        } catch AIVAULTFloat32TensorV01.TensorError.invalidReceiver {
+            print("PASS: tensor rejects wrong receiver")
+        }
     }
 }
