@@ -104,7 +104,9 @@ public struct AIVAULTFloat32TensorV01: Codable {
               shape[0] <= maxBytes / MemoryLayout<UInt32>.size,
               byte_length == shape[0] * MemoryLayout<UInt32>.size,
               layout.range(of: "^[A-Za-z0-9._:-]{1,64}$", options: .regularExpression) != nil,
+              payload_base64.utf8.count / 4 <= maxBytes / 3 + 1,
               let payload = Data(base64Encoded: payload_base64),
+              payload.base64EncodedString() == payload_base64,
               payload.count == byte_length else {
             throw TensorError.invalidShape
         }
@@ -127,3 +129,4 @@ public struct AIVAULTFloat32TensorV01: Codable {
         return values
     }
 }
+

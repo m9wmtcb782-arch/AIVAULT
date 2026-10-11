@@ -77,3 +77,26 @@ The HTTP server owner must configure body/request timeouts. Initial scope is
 one-dimensional contiguous Float32 tensors and single-input scalar operators.
 
 Run: node --test tests/gpu-fabric-*.test.mjs (OpenSSL is required by TLS tests).
+
+## Native Metal and HTTPS integration
+
+AIVAULTTensorHTTPSV01.swift adds the native transport envelope and an explicit
+URLSession HTTPS client. It uses normal system TLS trust, rejects redirects,
+checks outgoing peer IDs and expiries, and reads at most 8192 receipt bytes.
+Receipt message/tensor IDs, hash, status and receiver must match the sent wire.
+It is compiled into the research iOS target without changing the app/WebBridge
+behavior. No worker is automatically started and no credentials are embedded.
+
+The macOS CI adds two distinct checks:
+
+- Native client request/receipt conformance through a URLProtocol mock:
+  this is not evidence of real native HTTPS I/O.
+- Two actual Metal CLI invocations with a native Swift transport envelope
+  transferred over Node HTTPS loopback sockets, then decoded and executed by
+  the second Metal invocation. The expected result is [5, 8, -1], with replay
+  rejected by the durable receiver ledger. Both invocations use one host/GPU.
+
+Native results require inspection of the exact commit's iOS build workflow.
+REQUIRES TEST: native URLSession over real TLS, native inbound authenticated
+transport, and two physical GPU devices. There is no native HTTPS listener or
+automatic model scheduler integration yet.

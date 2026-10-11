@@ -10,6 +10,9 @@ on:
       - "native-worker/ios/AIVAULTNativeWorkerApp/*.swift"
       - "native-worker/ios/AIVAULTNativeWorkerApp/LaunchScreen.storyboard"
       - "compute-mesh-gpu-test.html"
+      - "tests/gpu-fabric-native-https-contract.swift"
+      - "tests/gpu-fabric-metal-wire-cli.swift"
+      - "tests/gpu-fabric-metal-tls-handoff-v0.1.mjs"
       - ".github/workflows/ios-gpu-fabric-build.yml"
   workflow_dispatch:
 
@@ -23,7 +26,7 @@ jobs:
       - name: Checkout research branch
         uses: actions/checkout@v4
         with:
-          ref: research/unified-gpu-fabric-v0.1
+          ref: ${{ github.sha }}
       - name: Show Xcode version
         run: xcodebuild -version
 
@@ -86,6 +89,7 @@ jobs:
             native-worker/ios/AIVAULTNativeWorker/AIVAULTWebBridge.swift \
             native-worker/ios/AIVAULTNativeWorker/AIVAULTMetalCompute.swift \
             native-worker/ios/AIVAULTNativeWorker/AIVAULTFloat32TensorV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTTensorHTTPSV01.swift \
             native-worker/ios/AIVAULTNativeWorkerApp/AIVAULTNativeWorkerApp.swift
 
       - name: Build iOS Simulator app without code signing
@@ -109,3 +113,23 @@ jobs:
             tests/gpu-fabric-metal-smoke.swift \
             -o /tmp/aivault-gpu-fabric-metal-smoke
           /tmp/aivault-gpu-fabric-metal-smoke
+
+      - name: Test native HTTPS envelope and receipt contract (mock transport)
+        run: |
+          xcrun swiftc -parse-as-library \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTFloat32TensorV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTTensorHTTPSV01.swift \
+            tests/gpu-fabric-native-https-contract.swift \
+            -o /tmp/aivault-native-https-contract
+          /tmp/aivault-native-https-contract
+
+      - name: Test native Metal tensor handoff over loopback TLS (one GPU)
+        run: |
+          xcrun swiftc -parse-as-library \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTMetalCompute.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTFloat32TensorV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTTensorHTTPSV01.swift \
+            tests/gpu-fabric-metal-wire-cli.swift \
+            -o /tmp/aivault-metal-wire-cli
+          node tests/gpu-fabric-metal-tls-handoff-v0.1.mjs /tmp/aivault-metal-wire-cli
+
