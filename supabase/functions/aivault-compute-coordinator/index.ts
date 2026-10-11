@@ -1,5 +1,6 @@
 // AIVAULT Compute Coordinator
 // Minimal lifecycle fix: real assignment row, no COMPLETED without verified WebGPU result.
+import { checkPoolTaskAccess } from "./task-access.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const CORS = {
@@ -75,10 +76,11 @@ async function registerNode(body: Record<string, unknown>) {
     node_id: nodeId,
     status: String(node.status || "READY"),
     available: node.available !== false,
-    gpu: node.gpu === true || node.gpu === "true",
+    gpu: node.gpu === true || node.gpu === "true" || (node.webgpu === true && node.gpu !== false),
     capability: {
       ...(typeof node.capability === "object" && node.capability ? node.capability as object : {}),
       aivault_compute_capability: recognized,
+      ...(node.gpu && typeof node.gpu === "object" ? {gpu_info:node.gpu} : {}),
     },
     platform: node.platform ?? null,
     runtime: node.runtime ?? "webgpu",
@@ -112,7 +114,7 @@ async function heartbeat(body: Record<string, unknown>) {
     updated_at: new Date().toISOString(),
     status: String(body.status || "READY"),
     available: body.available !== false,
-    gpu: body.gpu !== false,
+    gpu: body.gpu === true || body.gpu === "true" || (body.webgpu === true && body.gpu !== false),
   };
   const { error } = await db.from("compute_mesh_nodes").update(patch).eq("node_id", nodeId);
   if (error) return json({ success: false, error: error.message }, 500);
@@ -125,10 +127,40 @@ async function heartbeat(body: Record<string, unknown>) {
   });
 }
 
+async function modelAllowedInPool(modelId: string): Promise<boolean> {
+  const { data, error } = await db.rpc("aivault_check_pool_model_access", { p_model_id: modelId });
+  if (error) throw new Error("Model policy unavailable");
+  return data === true;
+}
+
+async function poolStatus() {
+  const [workerResult, registeredResult] = await Promise.all([
+    db.from("compute_mesh_nodes").select("node_id,status,available,gpu,capability,platform,runtime,accelerator,last_seen", {count:"exact"}).order("last_seen", {ascending:false}).limit(1000),
+    db.from("aivault_compute_nodes").select("id,node_name,platform,browser,webgpu_supported,status,paused_by_user,last_heartbeat_at", {count:"exact"}).order("last_heartbeat_at", {ascending:false}).limit(1000),
+  ]);
+  if (workerResult.error || registeredResult.error) return json({success:false,error:"POOL_STATUS_UNAVAILABLE"},503);
+  const nodes = new Map<string, unknown>();
+  const now = Date.now();
+  const onlineAt = (timestamp: unknown, ttl: number) => {
+    const time = typeof timestamp === "string" ? Date.parse(timestamp) : NaN;
+    return Number.isFinite(time) && time <= now + 5000 && now - time <= ttl;
+  };
+  for (const row of registeredResult.data || []) {
+    nodes.set(row.id, { id:row.id, name:row.node_name || row.id, source:"registered", platform:row.platform, browser:row.browser, gpu_reported:row.webgpu_supported === true, online:onlineAt(row.last_heartbeat_at,60000) && !["offline","error"].includes(row.status), available:!row.paused_by_user && row.status === "online", status:row.status, last_seen:row.last_heartbeat_at, hardware:null });
+  }
+  for (const row of workerResult.data || []) {
+    const capability = row.capability || {};
+    nodes.set(row.node_id, { id:row.node_id, name:row.node_id, source:"coordinator", platform:row.platform, gpu_reported:row.gpu === true || Boolean(row.gpu && typeof row.gpu === "object"), online:onlineAt(row.last_seen,120000) && !["OFFLINE","FAILED","ERROR"].includes(String(row.status).toUpperCase()), available:row.available === true, status:row.status, last_seen:row.last_seen, hardware:{ gpu:typeof row.gpu === "object" ? row.gpu : null, accelerator:row.accelerator, gpu_info:capability.gpu_info || capability.gpu || capability.aivault_compute_capability || null } });
+  }
+  return json({success:true,nodes:[...nodes.values()], fetched_at:new Date(now).toISOString(), truncated:(workerResult.count || 0)>1000 || (registeredResult.count || 0)>1000, policy:{mode:"FIRST_PARTY_ONLY",external_models:"CLOSED",pricing:"UNSET",gpu_inference_validated:false}, counting:"browser_nodes_not_unique_physical_devices"});
+}
+
 async function createTask(body: Record<string, unknown>) {
   const task = (body.task && typeof body.task === "object" ? body.task : body) as Record<string, unknown>;
   const taskId = String(pick(task, ["id", "task_id"]) || "");
   if (!taskId) return json({ success: false, error: "task.id required" }, 400);
+  const access = await checkPoolTaskAccess(task, modelAllowedInPool);
+  if (!access.allowed) return json({success:false,error:access.reason},403);
   const elements = Number(task.elements ?? ((task.payload as Record<string, unknown> | undefined)?.elements ?? 0));
   const iterations = Number(task.iterations ?? task.iters ?? 1);
   const row = {
@@ -185,10 +217,13 @@ async function requestTask(body: Record<string, unknown>) {
     .order("created_at", { ascending: true })
     .limit(5);
   if (waitErr) return json({ success: false, error: waitErr.message }, 500);
-  const task = (waiting || []).find((row) => {
+  let task: any = null;
+  for (const row of waiting || []) {
     const payload = row.payload || {};
-    return payload.gpu_required !== false;
-  });
+    if (payload.gpu_required === false) continue;
+    const access = await checkPoolTaskAccess({ ...row, payload }, modelAllowedInPool);
+    if (access.allowed) { task = row; break; }
+  }
   if (!task) return json({ success: false, error: "no available task" });
 
   const { data: existing, error: existErr } = await db
@@ -389,6 +424,7 @@ Deno.serve(async (req: Request) => {
     if (type === "task.progress") return await taskProgress(body);
     if (type === "task.result" || type === "task.completion") return await taskResult(body);
     if (type === "task.failure") return await taskResult({ ...body, status: "FAILED" });
+    if (type === "mesh.pool") return await poolStatus();
     if (type === "mesh.status") return json(await meshStatus());
     if (type === "mesh.evidence") return await evidence(body);
     return json({ success: false, error: "Unknown message type", received: type }, 400);
