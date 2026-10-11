@@ -24,6 +24,7 @@ on:
       - "tests/fixtures/gpu-fabric-tiny-model-v0.1.mjs"
       - "aivault-collab-v0.2/gpu-fabric-dense-v0.1.mjs"
       - "aivault-collab-v0.2/gpu-fabric-backend-v0.1.mjs"
+      - "tests/gpu-fabric-foreground-session.swift"
   workflow_dispatch:
 
 permissions:
@@ -102,6 +103,8 @@ jobs:
             native-worker/ios/AIVAULTNativeWorker/AIVAULTTensorHTTPSV01.swift \
             native-worker/ios/AIVAULTNativeWorker/AIVAULTTensorReceiveV01.swift \
             native-worker/ios/AIVAULTNativeWorker/AIVAULTTensorTLSListenerV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTForegroundSessionV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTForegroundTLSV01.swift \
             native-worker/ios/AIVAULTNativeWorkerApp/AIVAULTNativeWorkerApp.swift
 
       - name: Build iOS Simulator app without code signing
@@ -179,3 +182,11 @@ jobs:
             tests/gpu-fabric-metal-dense-cli.swift \
             -o /tmp/aivault-metal-dense-cli
           node tests/gpu-fabric-metal-dense-tls-v0.1.mjs /tmp/aivault-metal-dense-cli
+
+      - name: Test opt-in foreground session lifecycle (controlled transport)
+        run: |
+          xcrun swiftc -parse-as-library \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTForegroundSessionV01.swift \
+            tests/gpu-fabric-foreground-session.swift \
+            -o /tmp/aivault-foreground-session
+          /tmp/aivault-foreground-session
