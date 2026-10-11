@@ -50,12 +50,16 @@ export function planGraph({ operations, nodes, tensorBytes = {} }) {
 
   const indegree = new Map();
   const dependents = new Map();
+  // Initialize every operation first: input order must not affect DAG planning.
   for (const op of operations) {
     const uniqueDeps = new Set(op.dependency_ids);
     if (uniqueDeps.size !== op.dependency_ids.length) throw new Error("duplicate dependencies for " + op.operation_id);
     indegree.set(op.operation_id, uniqueDeps.size);
     dependents.set(op.operation_id, []);
-    for (const depId of uniqueDeps) {
+  }
+  // Populate edges only after every operation has an adjacency list.
+  for (const op of operations) {
+    for (const depId of new Set(op.dependency_ids)) {
       if (!operationById.has(depId)) throw new Error("unknown dependency " + depId + " for " + op.operation_id);
       dependents.get(depId).push(op.operation_id);
     }
