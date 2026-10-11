@@ -66,6 +66,12 @@ Compare the same workload on one device and on two devices. Report correctness, 
 
 Do not scale the node count until two-device correctness is repeatable. Distributed execution may be slower for small models or high-latency links; the scheduler must be allowed to choose one device when that is faster or safer.
 
+## Current source-review findings (read the implementation conservatively)
+
+- The coordinator's `resultVerified()` checks worker-supplied fields such as `verified`, `executed_on`, `gpu_time_ms`, `checksum`, `workgroups`, and `elements`. This is a useful basic gate, but source review alone does not establish independent attestation that the claimed GPU execution occurred.
+- The reviewed `taskResult()` path updates one assignment and can mark the task COMPLETED from that one result. That lifecycle is not yet a multi-node, same-model completion protocol.
+- Before distributed execution is enabled, require the job's model-manifest hash, operation/tensor dependency trace, node/session authorization, output verification, and evidence from every required participating node. Do not treat a worker's self-reported boolean as sufficient proof.
+
 ## Current source-review baseline
 
 - CONFIRMED FROM SOURCE: coordinator contains node registration and heartbeat/task lifecycle code.
