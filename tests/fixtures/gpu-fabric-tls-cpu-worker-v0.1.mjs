@@ -1,3 +1,4 @@
+import { executeDenseReference } from '../../aivault-collab-v0.2/gpu-fabric-dense-v0.1.mjs';
 // Test-only process-isolated CPU worker. Never reports physical GPU evidence.
 import https from "node:https";
 import { readFileSync } from "node:fs";
@@ -25,7 +26,7 @@ process.once("message", async config => {
     const adapter = {
       backend_id: "cpu-" + config.nodeId, runtime: "process-isolated-CPU-test",
       getCapabilities: async () => ({ device_kind: "cpu", operators: [config.operator], memory_bytes: 4096 }),
-      execute: async ({ inputs, operation }) => ({ output: inputs[0].map(v =>
+      execute: async ({ inputs, operation }) => ({ output: operation.operator === 'dense' ? executeDenseReference(operation, inputs[0]) : inputs[0].map(v =>
         Math.fround(operation.operator === "mul_scalar" ? v * operation.scalar : v + operation.scalar)) }),
       release: async () => ({ released: true }),
     };

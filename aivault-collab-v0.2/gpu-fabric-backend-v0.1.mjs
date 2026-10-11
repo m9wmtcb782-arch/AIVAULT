@@ -1,3 +1,4 @@
+import { validateDenseOperation } from './gpu-fabric-dense-v0.1.mjs';
 /**
  * AIVAULT Unified GPU Fabric backend adapter contract v0.1.
  *
@@ -54,6 +55,7 @@ export async function readBackendCapabilities(adapter) {
  * Inputs/outputs are numeric arrays in this v0.1 conformance API, not model tensors.
  */
 export async function executeBackendOperation(adapter, operation, inputs, context = {}) {
+  operation = structuredClone(operation); // Pin parameters before adapter awaits.
   const caps = await readBackendCapabilities(adapter);
   if (!isRecord(operation) || typeof operation.operator !== "string") throw new Error("invalid operation");
   if (!caps.operators.includes(operation.operator)) throw new Error("backend does not support operator: " + operation.operator);
@@ -62,6 +64,8 @@ export async function executeBackendOperation(adapter, operation, inputs, contex
     throw new Error("v0.1 backend operations require exactly one input array of finite numbers");
   }
   if (inputs.some((values) => values.length !== inputs[0].length)) throw new Error("input shapes do not match");
+  const dense = operation.operator === "dense" ? validateDenseOperation(operation) : null;
+  if (dense && (inputs[0].length !== dense.inputSize || dense.memoryBytes > caps.memory_bytes)) throw new Error("dense input shape or memory budget mismatch");
   const safeContext = {
     job_id: typeof context.job_id === "string" ? context.job_id : null,
     operation_id: typeof context.operation_id === "string" ? context.operation_id : null,
@@ -76,7 +80,7 @@ export async function executeBackendOperation(adapter, operation, inputs, contex
       result.output.some((n) => typeof n !== "number" || !Number.isFinite(n))) {
     throw new Error("backend returned invalid output");
   }
-  if (result.output.length !== inputs[0].length) throw new Error("backend returned unexpected output shape");
+  if (result.output.length !== (dense ? dense.outputSize : inputs[0].length)) throw new Error("backend returned unexpected output shape");
   return {
     status: "EXECUTED_LOCAL_ADAPTER",
     backend_id: caps.backend_id,
@@ -86,3 +90,4 @@ export async function executeBackendOperation(adapter, operation, inputs, contex
     note: "A local adapter returned this result. Hardware authenticity and GPU execution are not independently attested by this module.",
   };
 }
+

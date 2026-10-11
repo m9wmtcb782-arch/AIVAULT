@@ -175,3 +175,28 @@ test("two receiver processes sharing a ledger atomically reserve the same stage 
   await winner.waitFor("executed");
   assert.equal([...a.events, ...b.events].filter(x => x.type === "executed").length, 1);
 });
+
+test('two CPU processes execute different dense layers of one 3 -> 4 -> 2 model over TLS', {timeout:15000}, async t => {
+  const { tinyModelOperations, tinyModelBaseline } = await import('./fixtures/gpu-fabric-tiny-model-v0.1.mjs');
+  const env=setup(t), operations=tinyModelOperations();
+  const plan=planGraph({operations,nodes:[
+    {node_id:'node-a',backends:['layer-a'],supported_operators:['dense'],available_memory_bytes:4096},
+    {node_id:'node-b',backends:['layer-b'],supported_operators:['dense'],available_memory_bytes:4096},
+  ],tensorBytes:{h:16}});
+  assert.deepEqual(plan.operations.map(p=>p.node_id),['node-a','node-b']);
+  const gB=grant({shape:[4]}),gA=grant({senderNodeId:'submitter',operationId:'op-a',tensorId:'x',
+    token:'dense-layer-a-test-token-0002',shape:[3]});
+  const b=await worker(t,env,{nodeId:'node-b',grant:gB,operator:'dense',plan,operations,ledgerPath:join(env.dir,'dense-b')});
+  const a=await worker(t,env,{nodeId:'node-a',grant:gA,operator:'dense',plan,operations,ledgerPath:join(env.dir,'dense-a'),
+    next:{endpoint:b.endpoint,nodeId:'node-b',grant:gB}});
+  assert.notEqual(a.pid,b.pid);
+  await send(env,{...a,nodeId:'node-a'},gA,[1,2,-1]);
+  const first=await a.waitFor('executed'),last=await b.waitFor('executed');
+  assert.deepEqual(first.output,[2,2,0,0.5]);
+  assert.deepEqual(last.output,[6.5,-1.5]);
+  assert.deepEqual(last.output,tinyModelBaseline([1,2,-1]));
+  assert.equal(first.downstream_receipt_verified,true);
+  assert.equal(last.device_kind,'cpu');
+  await assert.rejects(send(env,{...a,nodeId:'node-a'},gA,[1,2,-1]),/HTTP 409/);
+  t.diagnostic('CONFIRMED: one tiny model, two independent CPU processes, dimension-changing TLS edge; physical GPUs NOT VERIFIED');
+});

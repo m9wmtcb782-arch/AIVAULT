@@ -7,6 +7,8 @@ import { createHttpsTensorSender } from './gpu-fabric-https-channel-v0.1.mjs';
 import { sendTensorOverAuthenticatedChannel } from './gpu-fabric-transport-v0.1.mjs';
 import { executeBackendOperation } from './gpu-fabric-backend-v0.1.mjs';
 
+import { validateDenseOperation } from './gpu-fabric-dense-v0.1.mjs';
+
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
 function equal(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
 export function createPlannedHttpsStage({ localNodeId, jobId, plan, operations,
@@ -24,13 +26,15 @@ export function createPlannedHttpsStage({ localNodeId, jobId, plan, operations,
   const byId = new Map(), placements = new Map(), producers = new Map();
   for (const op of ops) {
     if (typeof op?.operation_id !== 'string' || !ID.test(op.operation_id) || byId.has(op.operation_id) ||
-        !['mul_scalar', 'add_scalar'].includes(op.operator) || !Number.isFinite(op.scalar) ||
+        !['mul_scalar', 'add_scalar', 'dense'].includes(op.operator) ||
+        (op.operator !== 'dense' && !Number.isFinite(op.scalar)) ||
         !Array.isArray(op.input_tensor_ids) || op.input_tensor_ids.length !== 1 ||
         !Array.isArray(op.output_tensor_ids) || op.output_tensor_ids.length !== 1 ||
         !Array.isArray(op.dependency_ids) ||
         ![...op.input_tensor_ids, ...op.output_tensor_ids].every(x => typeof x === 'string' && ID.test(x))) {
       throw new Error('stage supports unique operations with one input and one output');
     }
+    if (op.operator === 'dense') validateDenseOperation(op);
     if (producers.has(op.output_tensor_ids[0])) throw new Error('duplicate tensor producer');
     producers.set(op.output_tensor_ids[0], op.operation_id);
     byId.set(op.operation_id, op);
@@ -47,6 +51,8 @@ export function createPlannedHttpsStage({ localNodeId, jobId, plan, operations,
     const op = byId.get(id);
     if (!op || visited.has(id) || op.dependency_ids.some(d => !visited.has(d))) throw new Error('invalid topological order');
     const producer = producers.get(op.input_tensor_ids[0]);
+    const source = producer ? byId.get(producer) : null;
+    if (source?.operator === 'dense' && op.operator === 'dense' && source.output_size !== op.input_size) throw new Error('dense graph edge shape mismatch');
     if (producer && (!visited.has(producer) || !op.dependency_ids.includes(producer))) throw new Error('missing tensor dependency');
     if (!equal(op.dependency_ids, producer ? [producer] : [])) throw new Error('stage supports a linear tensor dependency chain');
     visited.add(id);
@@ -58,6 +64,9 @@ export function createPlannedHttpsStage({ localNodeId, jobId, plan, operations,
   if (!g || g.jobId !== jobId || g.operationId !== op.operation_id ||
       g.tensorId !== op.input_tensor_ids[0] ||
       (producer && g.senderNodeId !== placements.get(producer).node_id)) throw new Error('input grant does not match planned stage');
+  if (producer && byId.get(producer).operator === 'dense' && !equal(g.shape, [byId.get(producer).output_size])) throw new Error('dense predecessor grant shape mismatch');
+  if (op.operator === 'dense' && !equal(g.shape, [op.input_size])) throw new Error('dense input grant shape mismatch');
+  const outputShape = op.operator === 'dense' ? [op.output_size] : g.shape;
   const consumers = ops.filter(x => x.input_tensor_ids.includes(op.output_tensor_ids[0]));
   let channel;
   if (consumers.length > 1) throw new Error('fan-out requires a future multi-edge runtime');
@@ -66,7 +75,8 @@ export function createPlannedHttpsStage({ localNodeId, jobId, plan, operations,
     if (!route || route.nodeId !== node || node === localNodeId ||
         route.grant?.jobId !== jobId || route.grant?.operationId !== target.operation_id ||
         route.grant?.tensorId !== op.output_tensor_ids[0] || route.grant?.senderNodeId !== localNodeId ||
-        route.grant?.dtype !== 'float32' || !equal(route.grant?.shape, g.shape)) throw new Error('outgoing route does not match planned edge');
+        route.grant?.dtype !== 'float32' || !equal(route.grant?.shape, outputShape) ||
+        (target.operator === 'dense' && !equal(outputShape, [target.input_size]))) throw new Error('outgoing route does not match planned edge');
     channel = createHttpsTensorSender({ endpoint: route.endpoint, localNodeId, peerNodeId: node,
       accessToken: route.grant.token, sessionExpiresAt: route.grant.expiresAt, fetchImpl });
   } else if (route) throw new Error('terminal operation must not forward tensors');
@@ -77,7 +87,7 @@ export function createPlannedHttpsStage({ localNodeId, jobId, plan, operations,
       try {
         const bytes = Buffer.from(tensor.payload);
         const input = Array.from({ length: tensor.shape[0] }, (_, i) => bytes.readFloatLE(i * 4));
-        const result = await executeBackendOperation(adapter, { operator: op.operator, scalar: op.scalar }, [input], context);
+        const result = await executeBackendOperation(adapter, op, [input], context);
         const output = Buffer.alloc(result.output.length * 4);
         result.output.forEach((v, i) => {
           if (!Number.isFinite(Math.fround(v))) throw new Error('output exceeds Float32 range');
@@ -87,7 +97,7 @@ export function createPlannedHttpsStage({ localNodeId, jobId, plan, operations,
           state = { ...state, status: 'FORWARDING' };
           await sendTensorOverAuthenticatedChannel({ channel, sender_node_id: localNodeId,
             receiver_node_id: route.nodeId, tensor_id: op.output_tensor_ids[0], dtype: 'float32',
-            shape: g.shape, payload: output, context: { job_id: jobId, operation_id: route.grant.operationId } });
+            shape: outputShape, payload: output, context: { job_id: jobId, operation_id: route.grant.operationId } });
         }
         // Float32 wire values, not the adapter's possibly higher-precision array.
         const outcome = { ...state, status: 'PLANNED_STAGE_COMPLETED', device_kind: result.device_kind,

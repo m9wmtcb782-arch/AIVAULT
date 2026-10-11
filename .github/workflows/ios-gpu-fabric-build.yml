@@ -19,6 +19,11 @@ on:
       - "tests/gpu-fabric-native-receiver.swift"
       - "tests/gpu-fabric-native-receiver-v0.1.mjs"
       - ".github/workflows/ios-gpu-fabric-build.yml"
+      - "tests/gpu-fabric-metal-dense-cli.swift"
+      - "tests/gpu-fabric-metal-dense-tls-v0.1.mjs"
+      - "tests/fixtures/gpu-fabric-tiny-model-v0.1.mjs"
+      - "aivault-collab-v0.2/gpu-fabric-dense-v0.1.mjs"
+      - "aivault-collab-v0.2/gpu-fabric-backend-v0.1.mjs"
   workflow_dispatch:
 
 permissions:
@@ -163,3 +168,14 @@ jobs:
             tests/gpu-fabric-native-receiver.swift \
             -o /tmp/aivault-native-receiver
           node tests/gpu-fabric-native-receiver-v0.1.mjs /tmp/aivault-native-receiver
+
+      - name: Test dense two-layer model over loopback TLS (one local Metal device)
+        timeout-minutes: 3
+        run: |
+          xcrun swiftc -parse-as-library \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTMetalCompute.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTFloat32TensorV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTTensorHTTPSV01.swift \
+            tests/gpu-fabric-metal-dense-cli.swift \
+            -o /tmp/aivault-metal-dense-cli
+          node tests/gpu-fabric-metal-dense-tls-v0.1.mjs /tmp/aivault-metal-dense-cli

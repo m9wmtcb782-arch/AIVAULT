@@ -3,7 +3,7 @@ import Metal
 
 /// A minimal, allowlisted real-Metal compute adapter for the AIVAULT iOS worker.
 ///
-/// Scope: one local device, Float32 vectors, scalar multiply/add only.
+/// Scope: one local device, Float32 vectors, scalar multiply/add and bounded dense layers.
 /// This file is intentionally not wired into the coordinator or app lifecycle.
 /// A host app must call this explicitly after obtaining user consent.
 public final class AIVAULTMetalCompute {
@@ -56,9 +56,28 @@ public final class AIVAULTMetalCompute {
             uint gid [[thread_position_in_grid]]) {
             if (gid < count) { output[gid] = input[gid] + scalar; }
         }
+        kernel void av_dense(
+            device const float* input [[buffer(0)]],
+            device const float* weights [[buffer(1)]],
+            device const float* bias [[buffer(2)]],
+            device float* output [[buffer(3)]],
+            constant uint& inputCount [[buffer(4)]],
+            constant uint& outputCount [[buffer(5)]],
+            constant uint& activation [[buffer(6)]],
+            uint row [[thread_position_in_grid]]) {
+            if (row >= outputCount) return;
+            float sum = bias[row];
+            for (uint col = 0; col < inputCount; col++) {
+                sum += weights[row * inputCount + col] * input[col];
+            }
+            // Preserve overflow/NaN for host validation, including before ReLU.
+            output[row] = !isfinite(sum) ? sum : (activation == 1 ? max(0.0f, sum) : sum);
+        }
         """
         do {
-            self.library = try device.makeLibrary(source: source, options: nil)
+            let options = MTLCompileOptions()
+            options.fastMathEnabled = false
+            self.library = try device.makeLibrary(source: source, options: options)
         } catch {
             throw ComputeError.executionFailed("Metal shader compilation failed: \\(error.localizedDescription)")
         }
@@ -155,4 +174,51 @@ public final class AIVAULTMetalCompute {
             elementCount: input.count
         )
     }
+    /// One locally provisioned dense layer; weights are W[output][input].
+    /// No arbitrary shaders, model download or bridge exposure.
+    public func executeDense(input: [Float], weights: [Float], bias: [Float],
+                             activation: String) throws -> Result {
+        guard !input.isEmpty, !bias.isEmpty, input.count <= 4096, bias.count <= 4096,
+              input.count * bias.count <= 1_048_576,
+              weights.count == input.count * bias.count,
+              input.allSatisfy({ $0.isFinite }), weights.allSatisfy({ $0.isFinite }),
+              bias.allSatisfy({ $0.isFinite }) else { throw ComputeError.invalidInput }
+        guard activation == "identity" || activation == "relu" else { throw ComputeError.unsupportedOperation }
+        guard let function = library.makeFunction(name: "av_dense") else { throw ComputeError.pipelineUnavailable }
+        let pipeline = try device.makeComputePipelineState(function: function)
+        func buffer(_ values: [Float]) -> MTLBuffer? {
+            values.withUnsafeBytes { raw in
+                guard let address = raw.baseAddress else { return nil }
+                return device.makeBuffer(bytes: address, length: raw.count, options: .storageModeShared)
+            }
+        }
+        guard let x = buffer(input), let w = buffer(weights), let b = buffer(bias),
+              let y = device.makeBuffer(length: bias.count * MemoryLayout<Float>.stride, options: .storageModeShared)
+        else { throw ComputeError.bufferAllocationFailed }
+        guard let command = queue.makeCommandBuffer() else { throw ComputeError.commandBufferUnavailable }
+        guard let encoder = command.makeComputeCommandEncoder() else { throw ComputeError.encoderUnavailable }
+        var inputCount = UInt32(input.count), outputCount = UInt32(bias.count)
+        var relu: UInt32 = activation == "relu" ? 1 : 0
+        encoder.setComputePipelineState(pipeline)
+        encoder.setBuffer(x, offset: 0, index: 0)
+        encoder.setBuffer(w, offset: 0, index: 1)
+        encoder.setBuffer(b, offset: 0, index: 2)
+        encoder.setBuffer(y, offset: 0, index: 3)
+        encoder.setBytes(&inputCount, length: MemoryLayout<UInt32>.stride, index: 4)
+        encoder.setBytes(&outputCount, length: MemoryLayout<UInt32>.stride, index: 5)
+        encoder.setBytes(&relu, length: MemoryLayout<UInt32>.stride, index: 6)
+        encoder.dispatchThreads(MTLSize(width: bias.count, height: 1, depth: 1),
+            threadsPerThreadgroup: MTLSize(width: min(bias.count, pipeline.maxTotalThreadsPerThreadgroup), height: 1, depth: 1))
+        encoder.endEncoding()
+        command.commit(); command.waitUntilCompleted()
+        guard command.status == .completed else {
+            throw ComputeError.executionFailed(command.error?.localizedDescription ?? "Dense kernel did not complete")
+        }
+        let pointer = y.contents().bindMemory(to: Float.self, capacity: bias.count)
+        let output = Array(UnsafeBufferPointer(start: pointer, count: bias.count))
+        guard output.allSatisfy({ $0.isFinite }) else { throw ComputeError.executionFailed("Dense output contains non-finite values") }
+        return Result(output: output, deviceName: device.name, operation: "dense", elementCount: output.count)
+    }
+
 }
+
