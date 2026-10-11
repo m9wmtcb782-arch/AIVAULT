@@ -66,3 +66,40 @@ test("marks all simulator traces as simulated, never as GPU execution", () => {
   assert.equal(result.status, "SIMULATED");
   assert.match(result.note, /not evidence of real GPU execution/);
 });
+
+test("matches an independently computed single-device reference", () => {
+  const input = [-3, 0, 2.5, 11];
+  const reference = input.map((x) => (x * 2) + 1);
+  const result = runSimulatedGraph({
+    jobId: "sim-reference-check",
+    inputValue: input,
+    operations: graph,
+    nodeAssignments: { "op-a": "sim-node-a", "op-b": "sim-node-b" },
+  });
+  assert.deepEqual(result.output_value, reference);
+  assert.equal(result.status, "SIMULATED");
+});
+
+test("rejects multi-input operations until explicit operator semantics exist", () => {
+  assert.throws(() => runSimulatedGraph({
+    jobId: "sim-multi-input",
+    inputValue: [1, 2],
+    operations: [{
+      operation_id: "op-add", operator: "add_scalar", dependency_ids: [],
+      input_tensor_ids: ["x", "x"], output_tensor_id: "y", scalar: 1,
+    }],
+    nodeAssignments: { "op-add": "sim-node-a" },
+  }), /exactly one input tensor/);
+});
+
+test("rejects outputs that would overflow to non-finite values", () => {
+  assert.throws(() => runSimulatedGraph({
+    jobId: "sim-overflow",
+    inputValue: [Number.MAX_VALUE],
+    operations: [{
+      operation_id: "op-overflow", operator: "mul_scalar", dependency_ids: [],
+      input_tensor_ids: ["x"], output_tensor_id: "y", scalar: 2,
+    }],
+    nodeAssignments: { "op-overflow": "sim-node-a" },
+  }), /non-finite value/);
+});
