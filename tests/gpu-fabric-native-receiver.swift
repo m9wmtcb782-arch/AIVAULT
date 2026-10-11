@@ -162,11 +162,17 @@ struct NativeReceiverTest {
             }
             foregroundSession.join(consentGranted:true)
         }
+        let probeEndpoint=URL(string:"https://localhost:\(probePort)/tensor")!
+        let probeDelegate=try ReceiveTestAnchor(Data(contentsOf:URL(fileURLWithPath:config.certDERPath)))
+        // Positive control: trusted TLS is reachable before stop. GET rejects
+        // at the HTTP method gate without consuming the granted tensor stage.
+        let reachableSession=URLSession(configuration:.ephemeral,delegate:probeDelegate,delegateQueue:nil)
+        let (_,reachableResponse)=try await reachableSession.data(from:probeEndpoint)
+        reachableSession.invalidateAndCancel()
+        try check((reachableResponse as? HTTPURLResponse)?.statusCode == 404,"foreground TLS not reachable before stop")
         foregroundSession.setForeground(false)
         foregroundSession.setForeground(true)
         try check(foregroundSession.status == .stopped && !foregroundSession.canJoin,"foreground auto-resumed")
-        let probeEndpoint=URL(string:"https://localhost:\(probePort)/tensor")!
-        let probeDelegate=try ReceiveTestAnchor(Data(contentsOf:URL(fileURLWithPath:config.certDERPath)))
         let probeClient=try AIVAULTTensorHTTPSClientV01(endpoint:probeEndpoint,localNodeID:"node-a",peerNodeID:"node-b",accessToken:token,
             sessionExpiresAt:expiry,configuration:.ephemeral,testDelegate:probeDelegate)
         let probeWire=try wire(operation:"foreground-probe")
