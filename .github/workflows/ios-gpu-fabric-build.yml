@@ -9,6 +9,7 @@ on:
       - "native-worker/ios/AIVAULTNativeWorker/*.swift"
       - "native-worker/ios/AIVAULTNativeWorkerApp/*.swift"
       - "native-worker/ios/AIVAULTNativeWorkerApp/LaunchScreen.storyboard"
+      - "compute-mesh-gpu-test.html"
       - ".github/workflows/ios-gpu-fabric-build.yml"
   workflow_dispatch:
 
@@ -25,6 +26,28 @@ jobs:
           ref: research/unified-gpu-fabric-v0.1
       - name: Show Xcode version
         run: xcodebuild -version
+
+      - name: Validate inline JavaScript in the worker page
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const vm = require('vm');
+          const html = fs.readFileSync('compute-mesh-gpu-test.html', 'utf8');
+          const scripts = [...html.matchAll(/<script\\b[^>]*>([\\s\\S]*?)<\\/script>/gi)];
+          if (!scripts.length) throw new Error('No inline script blocks found');
+          scripts.forEach((match, index) => {
+            new vm.Script(match[1], { filename: `compute-mesh-gpu-test.html:inline-script-${index + 1}` });
+          });
+          const required = [
+            'function runNativeMetalSmokeTest()',
+            'gpuFabric.execute',
+            'nativeMetalBtn'
+          ];
+          for (const token of required) {
+            if (!html.includes(token)) throw new Error(`Missing native Metal UI integration token: ${token}`);
+          }
+          console.log(`PASS: parsed ${scripts.length} inline script block(s); native Metal UI hook present`);
+          NODE
       - name: Type-check Swift sources against iOS Simulator SDK
         run: |
           SDK_PATH="$(xcrun --sdk iphonesimulator --show-sdk-path)"
