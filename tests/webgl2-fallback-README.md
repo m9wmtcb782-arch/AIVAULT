@@ -11,3 +11,13 @@ Pool view separately shows recorded nodes and currently online reported-GPU node
 Verification: 49/49 offline coordinator/policy/view/fallback tests pass, plus canvas smoke and frontend syntax checks. WebGL API stub tests validate data flow and reject incorrect pixels; they do not execute actual GPU shaders. iPhone X's actual WebGL2 calibration and remote task still need validation after the user reloads the Worker page in Safari and leaves it foreground. No real GPU result is fabricated or marked complete.
 
 Sources: WebKit Safari 15 release notes https://webkit.org/blog/11989/new-webkit-features-in-safari-15/ and Khronos WebGL2 specification https://registry.khronos.org/webgl/specs/latest/2.0/ .
+
+## Automatic pool entrance
+
+The main aivault-compute-mesh.html entrance now registers the current browser device, detects WebGPU then WebGL2, calibrates actual GPU readback, and creates a tiny targeted remote proof automatically. It has a visible stop/resume control. Unsupported devices remain registered with the explicit GPU failure reason; they are not counted as currently contributing GPU capacity. Basic monitoring uses 30-second heartbeats and idle polling, while registration events refresh the aquarium immediately. Legacy engineering controls are collapsed.
+
+Counters distinguish current connected device IDs, actively providing GPUs, idle GPUs and historical registration IDs. Pale water represents stored GPU reports; bright water represents active capacity. A stopped provider is removed from active water. IDs are stable within the browser origin and shared with the dedicated GPU Worker page. Different browser installations can still create different IDs for one physical device; physical-device uniqueness cannot be guaranteed by this web client. No device count is invented from the user's stated number of phones.
+
+Updated verification: 52/52 offline tests passed, including three automatic entrance/unsupported-device/stop-flow tests. Actual GPU initialization in iPhone X/iPhone 17 and phone visual rendering remain pending until those devices reload the new main entrance. Pricing and reward settlement are not enabled; this entrance currently accepts only fixed small GPU verification tasks.
+
+Pool participation unit: one online browser/device ID equals one pool node. All online devices swim, including GPU-unavailable phones. Water percentage counts participation, separately from active GPU count; minimum visible water height is 18% with any online member. No phone-to-5090 compute conversion is claimed before comparable hardware benchmarks.

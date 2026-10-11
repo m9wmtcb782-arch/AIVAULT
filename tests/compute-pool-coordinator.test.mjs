@@ -9,7 +9,7 @@ const source=stripTypeScriptTypes(readFileSync(new URL('../supabase/functions/ai
 function fixture({allowed=false,workers=[],registered=[],tasks=[],assignments=[],fail=false,taskWriteFails=false}={}){
  let handler;const writes=[];
  class Query{
-  constructor(table){this.table=table;this.op='select';}select(){return this;}eq(){return this;}neq(){return this;}in(){return this;}order(){return this;}limit(){return this;}
+  constructor(table){this.table=table;this.op='select';}select(){return this;}eq(){return this;}neq(){return this;}or(){return this;}in(){return this;}order(){return this;}limit(){return this;}
   upsert(value){this.op='upsert';this.value=value;return this;}insert(value){this.op='insert';this.value=value;return this;}update(value){this.op='update';this.value=value;return this;}
   async single(){const r=await this.run();return {...r,data:Array.isArray(r.data)?r.data[0]:r.data};}async maybeSingle(){return this.single();}then(a,b){return this.run().then(a,b);}
   async run(){if(this.op!=='select'){writes.push({table:this.table,value:this.value});return {data:this.value,error:taskWriteFails&&this.table==='compute_mesh_tasks'?{message:'failed'}:null};}const data=this.table==='compute_mesh_nodes'?workers:this.table==='aivault_compute_nodes'?registered:this.table==='compute_mesh_tasks'?tasks:this.table==='compute_mesh_assignments'?assignments:[];return {data,error:fail?{message:'offline'}:null,count:data.length};}

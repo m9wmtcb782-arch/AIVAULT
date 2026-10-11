@@ -13,7 +13,7 @@ function element(){return {value:'20',children:[],dataset:{},clientWidth:360,wid
 const nodes=new Map([...ids].map(id=>[id,element()]));let frame;
 const document={hidden:false,getElementById:id=>{assert(nodes.has(id),'Missing DOM ID '+id);return nodes.get(id);},createElement:()=>element(),addEventListener(){}};
 const calls=[];
-vm.runInNewContext(source,{SPECIES,classify,waterState,transitions,document,window:{},devicePixelRatio:2,localStorage:{getItem:()=>null,setItem(){}},matchMedia:()=>({matches:false}),requestAnimationFrame:fn=>{frame=fn;},setInterval(){},performance,Date,Math,Map,Set,AbortSignal,fetch:async(url,options)=>{calls.push(JSON.parse(options.body));return {ok:true,json:async()=>({success:true,nodes:[],fetched_at:new Date().toISOString()})};}});
+vm.runInNewContext(source,{SPECIES,classify,waterState,transitions,document,window:{addEventListener(){}},devicePixelRatio:2,localStorage:{getItem:()=>null,setItem(){}},matchMedia:()=>({matches:false}),requestAnimationFrame:fn=>{frame=fn;},setInterval(){},performance,Date,Math,Map,Set,AbortSignal,fetch:async(url,options)=>{calls.push(JSON.parse(options.body));return {ok:true,json:async()=>({success:true,nodes:[],fetched_at:new Date().toISOString()})};}});
 await new Promise(resolve=>setImmediate(resolve));
 assert.deepEqual(calls,[{type:'mesh.pool'}]);
 frame(100);nodes.get('poolDemo').handlers.click();frame(200);nodes.get('poolCatchDemo').handlers.click();frame(300);

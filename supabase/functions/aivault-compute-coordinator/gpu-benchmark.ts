@@ -9,6 +9,7 @@ export function benchmarkChecksum(elements: number, iterations: number): number 
 }
 export function compatibleGpuTask(node: any, task: any): boolean {
   const payload=task.payload || {};
+  if(Array.isArray(node.capability?.supported_task_types) && !node.capability.supported_task_types.includes(task.type))return false;
   if(payload.target_node_id && payload.target_node_id !== node.node_id)return false;
   if(node.runtime !== 'webgl2')return true;
   return task.type === 'gpu-u32-mix' && Number.isInteger(task.elements) && task.elements>0 && task.elements<=4096 && Number.isInteger(task.iterations) && task.iterations>0 && task.iterations<=16;

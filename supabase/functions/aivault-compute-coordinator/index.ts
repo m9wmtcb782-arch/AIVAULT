@@ -151,11 +151,11 @@ async function poolStatus() {
     return Number.isFinite(time) && time <= now + 5000 && now - time <= ttl;
   };
   for (const row of registeredResult.data || []) {
-    nodes.set(row.id, { id:row.id, name:row.node_name || row.id, source:"registered", platform:row.platform, browser:row.browser, gpu_reported:row.webgpu_supported === true, online:onlineAt(row.last_heartbeat_at,60000) && !["offline","error"].includes(row.status), available:!row.paused_by_user && row.status === "online", status:row.status, last_seen:row.last_heartbeat_at, hardware:null });
+    nodes.set(row.id, { id:row.id, name:row.node_name || row.id, source:"registered", platform:row.platform, browser:row.browser, gpu_reported:row.webgpu_supported === true, online:onlineAt(row.last_heartbeat_at,60000) && !["offline","error"].includes(row.status), available:!row.paused_by_user && row.status === "online", status:row.status, last_seen:row.last_heartbeat_at, hardware:null,reason:!onlineAt(row.last_heartbeat_at,60000)?"心跳逾時（可能已關頁、鎖屏或斷線）":row.paused_by_user?"使用者已暫停":row.webgpu_supported!==true?"尚未回報可用 GPU":"" });
   }
   for (const row of workerResult.data || []) {
     const capability = row.capability || {};
-    nodes.set(row.node_id, { id:row.node_id, name:row.node_id, source:"coordinator", runtime:row.runtime, platform:row.platform, gpu_reported:row.gpu === true || Boolean(row.gpu && typeof row.gpu === "object"), online:onlineAt(row.last_seen,120000) && !["OFFLINE","FAILED","ERROR"].includes(String(row.status).toUpperCase()), available:row.available === true, status:row.status, last_seen:row.last_seen, hardware:{ gpu:typeof row.gpu === "object" ? row.gpu : null, accelerator:row.accelerator, gpu_info:capability.gpu_info || capability.gpu || capability.aivault_compute_capability || null } });
+    nodes.set(row.node_id, { id:row.node_id, name:row.node_id, source:"coordinator", runtime:row.runtime, platform:row.platform, gpu_reported:row.gpu === true || Boolean(row.gpu && typeof row.gpu === "object"), online:onlineAt(row.last_seen,120000) && !["OFFLINE","FAILED","ERROR"].includes(String(row.status).toUpperCase()), available:row.available === true, status:row.status, last_seen:row.last_seen, reason:!onlineAt(row.last_seen,120000)?"心跳逾時（可能已關頁、鎖屏或斷線）":capability.gpu_failure_reason || (["PAUSED","STOPPED"].includes(String(row.status).toUpperCase())?"使用者已停止提供":""), hardware:{ gpu:typeof row.gpu === "object" ? row.gpu : null, accelerator:row.accelerator, gpu_info:capability.gpu_info || capability.gpu || capability.aivault_compute_capability || null } });
   }
   return json({success:true,nodes:[...nodes.values()], fetched_at:new Date(now).toISOString(), truncated:(workerResult.count || 0)>1000 || (registeredResult.count || 0)>1000, policy:{mode:"FIRST_PARTY_ONLY",external_models:"CLOSED",pricing:"UNSET",gpu_inference_validated:false}, counting:"browser_nodes_not_unique_physical_devices"});
 }
@@ -216,12 +216,13 @@ async function requestTask(body: Record<string, unknown>) {
     return json({ success: false, error: "no gpu worker" });
   }
 
-  const { data: waiting, error: waitErr } = await db
-    .from("compute_mesh_tasks")
-    .select("*")
-    .eq("status", "WAITING")
-    .order("created_at", { ascending: true })
-    .limit(5);
+  if (!/^[a-zA-Z0-9_-]{1,128}$/.test(nodeId)) return json({success:false,error:"INVALID_NODE_ID"},400);
+  let waitingQuery = db.from("compute_mesh_tasks").select("*").eq("status","WAITING")
+    .or("payload->>target_node_id.is.null,payload->>target_node_id.eq." + nodeId);
+  const supportedTypes = node.capability?.supported_task_types;
+  if (Array.isArray(supportedTypes) && supportedTypes.length > 0) waitingQuery = waitingQuery.in("type",supportedTypes.filter((v: unknown)=>typeof v === "string"));
+  else if (node.runtime === "webgl2") waitingQuery = waitingQuery.eq("type","gpu-u32-mix");
+  const {data:waiting,error:waitErr} = await waitingQuery.order("created_at",{ascending:true}).limit(20);
   if (waitErr) return json({ success: false, error: waitErr.message }, 500);
   let task: any = null;
   for (const row of waiting || []) {
