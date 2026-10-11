@@ -23,6 +23,7 @@ try {
     wrongNode:pack({...payload,node_id:'node-c'}),
     expired:pack({...payload,issued_at:new Date(now-120000).toISOString(),expires_at:new Date(now-60000).toISOString()}),
     future:pack({...payload,issued_at:new Date(now+60000).toISOString()}),
+    expiryMismatch:pack({...payload,expires_at:new Date(now+60000).toISOString()}),
     badGraph:pack({...payload,operations:[{...payload.operations[0],layer:{...payload.operations[0].layer,weights:[1]}}]}),
     badGrant:pack({...payload,incoming_grant:{...payload.incoming_grant,job_id:'wrong-job'}}),
     changedKeyID:{...valid,key_id:'research-key-2'}};

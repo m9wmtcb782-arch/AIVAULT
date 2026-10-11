@@ -9,7 +9,7 @@ struct SignedConfigTest {
         }
         let valid=try verify("valid")
         precondition(valid.configuration.localNodeID == "node-b" && valid.configuration.operations[0].layer.outputSize == 2)
-        for name in ["tampered","wrongKey","wrongNode","expired","future","badGraph","badGrant"] {
+        for name in ["tampered","wrongKey","wrongNode","expired","future","expiryMismatch","badGraph","badGrant"] {
             var rejected=false;do{_ = try verify(name)}catch{rejected=true}
             precondition(rejected,"invalid config accepted: "+name)
         }

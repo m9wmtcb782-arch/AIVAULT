@@ -59,7 +59,7 @@ final class AIVAULTSignedStagePackageV01 {
               let issued=AIVAULTTensorTransportV01.date(p.issued_at), let expiry=AIVAULTTensorTransportV01.date(p.expires_at),
               issued <= now, expiry > now, expiry > issued, expiry.timeIntervalSince(issued) <= 600 else { throw Failure.expired }
         let grant=try p.incoming_grant.native()
-        guard expiry <= grant.expiresAt else { throw Failure.invalidPackage }
+        guard expiry == grant.expiresAt else { throw Failure.invalidPackage }
         let operations=p.operations.map { op in
             AIVAULTPlannedDenseStageV01.Operation(operationID:op.operation_id,nodeID:op.node_id,inputTensorID:op.input_tensor_id,
                 outputTensorID:op.output_tensor_id,dependencyID:op.dependency_id,
