@@ -47,6 +47,14 @@ struct NativeReceiverTest {
         }
         let headers = ["authorization": "Bearer " + token, "content-type": "application/json",
                        "x-aivault-sender-node": "node-a", "x-aivault-receiver-node": "node-b"]
+        let badID = AIVAULTTensorReceiverV01.Grant(token:token,senderNodeID:"node-a",jobID:"bad\n",
+            operationID:"op-b",tensorID:"h",shape:[3],expiresAt:expiry)
+        do {
+            _ = try AIVAULTTensorReceiverV01(localNodeID:"node-b",grant:badID,
+                ledger:AIVAULTTensorReplayLedgerV01(directory:directory.appendingPathComponent("bad-id-ledger")),
+                onTensor:{ _,_ in throw Failure.test("invalid ID executed") })
+            throw Failure.test("newline grant ID accepted")
+        } catch AIVAULTTensorReceiverV01.ConfigurationError.invalidGrant {}
         let body = try JSONEncoder().encode(wire())
         func raw(_ extras: String = "", body: Data? = nil, length: String? = nil) -> Data {
             let data = body ?? Data("{}".utf8)
@@ -75,6 +83,9 @@ struct NativeReceiverTest {
             ledger: AIVAULTTensorReplayLedgerV01(directory:ledgerPath),onTensor: { tensor,_ in
                 try await state.record(tensor.verifiedValues(expectedReceiverNodeID:"node-b"))
             })
+        var invalidMessage = try JSONSerialization.jsonObject(with:body) as! [String:Any]
+        invalidMessage["message_id"] = "invalid\n"
+        try check(await receiver.receive(body:JSONSerialization.data(withJSONObject:invalidMessage),headers:headers).statusCode == 400,"newline message ID")
         var badHeaders = headers; badHeaders["authorization"] = "Bearer bad-token-native-test-0001"
         try check(await receiver.receive(body:body,headers:badHeaders).statusCode == 401,"bad token")
         badHeaders = headers; badHeaders["x-aivault-sender-node"] = "wrong-node"

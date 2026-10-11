@@ -53,7 +53,9 @@ public struct AIVAULTTensorHTTPRequestV01 {
 /// Research HTTPS listener. Explicit start + caller-provisioned identity only.
 /// Default bind is loopback; app foreground consent/lifecycle wiring is pending.
 /// It never installs certificates or relaxes the sender's TLS trust checks.
-public final class AIVAULTTensorTLSListenerV01 {
+// All mutable listener/socket state is confined to queue. The receiver is an
+// actor; stop only calls its lock-protected nonisolated revoke before queuing.
+public final class AIVAULTTensorTLSListenerV01: @unchecked Sendable {
     public enum ListenerError: Error { case invalidIdentity, consentRequired }
     private let listener: NWListener
     private let receiver: AIVAULTTensorReceiverV01
@@ -83,9 +85,11 @@ public final class AIVAULTTensorTLSListenerV01 {
         queue.async {
             guard !self.started, !self.stopped else { return }
             self.started = true
+            var readyReported = false
             self.listener.stateUpdateHandler = { state in
                 switch state {
-                case .ready: if let port = self.listener.port { onReady(port.rawValue) }
+                case .ready:
+                    if !readyReported, let port = self.listener.port { readyReported = true; onReady(port.rawValue) }
                 case .failed(let error): onFailure(error); self.stop()
                 default: break
                 }
@@ -106,6 +110,8 @@ public final class AIVAULTTensorTLSListenerV01 {
             self.listener.cancel()
             self.connections.values.forEach { $0.cancel() }
             self.connections.removeAll()
+            self.listener.newConnectionHandler = nil
+            self.listener.stateUpdateHandler = nil
         }
     }
     private final class Incoming {

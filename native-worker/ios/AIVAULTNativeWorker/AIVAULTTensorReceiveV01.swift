@@ -2,6 +2,17 @@ import Foundation
 import CryptoKit
 import Darwin
 
+private enum AIVAULTReceiveIdentifierV01 {
+    static func valid(_ value: String) -> Bool {
+        let bytes = Array(value.utf8)
+        func alphanumeric(_ byte: UInt8) -> Bool {
+            (byte >= 48 && byte <= 57) || (byte >= 65 && byte <= 90) || (byte >= 97 && byte <= 122)
+        }
+        guard !bytes.isEmpty, bytes.count <= 200, alphanumeric(bytes[0]) else { return false }
+        return bytes.allSatisfy { alphanumeric($0) || [46, 95, 58, 45].contains($0) }
+    }
+}
+
 /// Durable at-most-once reservation. No automatic cleanup or execution retry.
 /// Caller supplies a private directory on durable local storage, not a cache.
 public final class AIVAULTTensorReplayLedgerV01 {
@@ -28,8 +39,8 @@ public final class AIVAULTTensorReplayLedgerV01 {
     func reserve(localNodeID: String, wire: AIVAULTTensorTransportV01) throws -> Bool {
         let identity = [localNodeID, wire.tensor.sender_node_id, wire.context.job_id,
                         wire.context.operation_id, wire.tensor.tensor_id]
-        guard identity.allSatisfy(AIVAULTTensorTransportV01.validID),
-              AIVAULTTensorTransportV01.validID(wire.message_id) else { throw LedgerError.invalidClaim }
+        guard identity.allSatisfy(AIVAULTReceiveIdentifierV01.valid),
+              AIVAULTReceiveIdentifierV01.valid(wire.message_id) else { throw LedgerError.invalidClaim }
         let data = try JSONSerialization.data(withJSONObject: identity)
         let key = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
         let claim = directory.appendingPathComponent(key, isDirectory: true)
@@ -68,7 +79,7 @@ private final class AIVAULTReceiveAdmissionV01: @unchecked Sendable {
 /// Single granted tensor stage. Transport adapters must enforce TLS themselves.
 /// Reservation precedes the callback; callback failure keeps the stage consumed.
 public actor AIVAULTTensorReceiverV01 {
-    public struct Grant {
+    public struct Grant: Sendable {
         public let token: String
         public let senderNodeID: String
         public let jobID: String
@@ -83,7 +94,7 @@ public actor AIVAULTTensorReceiverV01 {
             self.shape = shape; self.expiresAt = expiresAt
         }
     }
-    public struct Response {
+    public struct Response: Sendable {
         public let statusCode: Int
         public let body: Data
         static func error(_ code: Int, _ message: String) -> Response {
@@ -104,7 +115,7 @@ public actor AIVAULTTensorReceiverV01 {
                 maxBytes: Int = 1024 * 1024,
                 onTensor: @escaping (AIVAULTFloat32TensorV01, AIVAULTTensorTransportV01.Context) async throws -> Void) throws {
         guard [localNodeID, grant.senderNodeID, grant.jobID, grant.operationID, grant.tensorID]
-                .allSatisfy(AIVAULTTensorTransportV01.validID),
+                .allSatisfy(AIVAULTReceiveIdentifierV01.valid),
               localNodeID != grant.senderNodeID, grant.token.utf8.count >= 16,
               grant.token.rangeOfCharacter(from: .newlines) == nil, grant.expiresAt > Date(),
               maxBytes > 0, maxBytes <= 64 * 1024 * 1024,
@@ -131,7 +142,7 @@ public actor AIVAULTTensorReceiverV01 {
         guard body.count <= ((maxBytes + 2) / 3) * 4 + 8192 else { return .error(413, "BODY_TOO_LARGE") }
         guard let wire = try? JSONDecoder().decode(AIVAULTTensorTransportV01.self, from: body),
               wire.protocol_version == "aivault.gpu-fabric-transport/0.1",
-              AIVAULTTensorTransportV01.validID(wire.message_id),
+              AIVAULTReceiveIdentifierV01.valid(wire.message_id),
               let expiry = AIVAULTTensorTransportV01.date(wire.expires_at),
               expiry > now, expiry <= grant.expiresAt, expiry <= now.addingTimeInterval(30) else {
             return .error(400, "INVALID_ENVELOPE")
