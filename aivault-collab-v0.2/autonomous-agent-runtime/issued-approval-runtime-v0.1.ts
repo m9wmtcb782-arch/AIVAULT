@@ -28,6 +28,7 @@ export class IssuedApprovalRuntime {
           previous.inputDigest !== digest) {
         throw new Error("APPROVAL_CHALLENGE_COLLISION");
       }
+      if (!Number.isFinite(Date.parse(previous.expiresAt)) || Date.parse(previous.expiresAt) <= Date.now()) throw new Error("APPROVAL_EXPIRED");
       return previous;
     }
     return issueApproval(this.agentId, this.ownerId, snapshot.pending, this.issued);
