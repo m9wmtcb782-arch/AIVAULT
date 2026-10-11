@@ -6,7 +6,7 @@ import type { ApprovalDecision, ApprovalDecisionStore, ApprovalRequest } from ".
 import type { IssuedApprovalStore } from "./trusted-approval-issuer-v0.1.ts";
 
 export interface SqlExecutor {
-  query<T extends Record<string, unknown>>(sql: string, params: readonly unknown[]): Promise<{ rows: T[] }>;
+  query<T extends object>(sql: string, params: readonly unknown[]): Promise<{ rows: T[] }>;
 }
 type ChallengeRow = {
   request_id: string; agent_id: string; owner_id: string; tool_name: string;
@@ -37,6 +37,7 @@ export class PostgresApprovalStore implements IssuedApprovalStore, ApprovalDecis
     } : null;
   }
   async consumeOnce(requestId: string, decision: ApprovalDecision): Promise<boolean> {
+    if (requestId !== decision.requestId) throw new Error("APPROVAL_REQUEST_ID_MISMATCH");
     // Never take kind or expiry from a browser-supplied decision.
     // The database reads kind from the original immutable challenge.
     const result = await this.db.query<{ consumed: boolean }>(
