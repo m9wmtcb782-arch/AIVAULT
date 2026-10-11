@@ -33,11 +33,22 @@ jobs:
           const fs = require('fs');
           const vm = require('vm');
           const html = fs.readFileSync('compute-mesh-gpu-test.html', 'utf8');
-          const start = html.indexOf('<script');
-          const bodyStart = html.indexOf('>', start) + 1;
-          const end = html.indexOf('</script>', bodyStart);
-          if (start < 0 || bodyStart <= 0 || end < bodyStart) throw new Error('Could not locate inline script');
-          new vm.Script(html.slice(bodyStart, end), { filename: 'compute-mesh-gpu-test.html:inline-script' });
+          const scripts = [];
+          let cursor = 0;
+          while (true) {
+            const start = html.indexOf('<script', cursor);
+            if (start < 0) break;
+            const tagEnd = html.indexOf('>', start);
+            if (tagEnd < 0) throw new Error('Malformed script opening tag');
+            const close = html.indexOf('</script>', tagEnd + 1);
+            if (close < 0) throw new Error('Missing closing script tag');
+            scripts.push(html.slice(tagEnd + 1, close));
+            cursor = close + '</script>'.length;
+          }
+          if (!scripts.length) throw new Error('No script blocks found');
+          scripts.forEach((source, index) => {
+            new vm.Script(source, { filename: `compute-mesh-gpu-test.html:script-${index + 1}` });
+          });
           const required = [
             'function runNativeMetalSmokeTest()',
             'gpuFabric.execute',
@@ -46,7 +57,7 @@ jobs:
           for (const token of required) {
             if (!html.includes(token)) throw new Error(`Missing native Metal UI integration token: ${token}`);
           }
-          console.log('PASS: inline JavaScript parsed; native Metal UI hook present');
+          console.log(`PASS: parsed ${scripts.length} inline JavaScript block(s); native Metal UI hook present`);
           NODE
       - name: Type-check Swift sources against iOS Simulator SDK
         run: |
