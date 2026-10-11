@@ -3,7 +3,7 @@ import Metal
 
 /// A minimal, allowlisted real-Metal compute adapter for the AIVAULT iOS worker.
 ///
-/// Scope: one local device, Float32 vectors, scalar multiply/add and bounded dense layers.
+/// Scope: one local device, Float32 vectors, scalar multiply/add, bounded dense layers, matrix multiplication and row softmax.
 /// This file is intentionally not wired into the coordinator or app lifecycle.
 /// A host app must call this explicitly after obtaining user consent.
 public final class AIVAULTMetalCompute {
@@ -72,6 +72,38 @@ public final class AIVAULTMetalCompute {
             }
             // Preserve overflow/NaN for host validation, including before ReLU.
             output[row] = !isfinite(sum) ? sum : (activation == 1 ? max(0.0f, sum) : sum);
+        }
+        kernel void av_matmul(
+            device const float* left [[buffer(0)]],
+            device const float* right [[buffer(1)]],
+            device float* output [[buffer(2)]],
+            constant uint* p [[buffer(3)]],
+            uint gid [[thread_position_in_grid]]) {
+            uint rows = p[0], inner = p[1], columns = p[2];
+            if (gid >= rows * columns) return;
+            uint row = gid / columns, col = gid % columns;
+            float sum = 0.0f;
+            for (uint k = 0; k < inner; k++) {
+                uint offset = p[3] == 1 ? col * inner + k : k * columns + col;
+                sum += left[row * inner + k] * right[offset];
+            }
+            output[gid] = sum; // Host rejects non-finite accumulation.
+        }
+        kernel void av_row_softmax(
+            device const float* input [[buffer(0)]],
+            device float* output [[buffer(1)]],
+            constant uint* p [[buffer(2)]],
+            uint row [[thread_position_in_grid]]) {
+            if (row >= p[0]) return;
+            uint base = row * p[1];
+            float maximum = input[base];
+            for (uint col = 1; col < p[1]; col++) maximum = max(maximum, input[base + col]);
+            float total = 0.0f;
+            for (uint col = 0; col < p[1]; col++) {
+                float value = exp(input[base + col] - maximum);
+                output[base + col] = value; total += value;
+            }
+            for (uint col = 0; col < p[1]; col++) output[base + col] /= total;
         }
         """
         do {
@@ -223,6 +255,63 @@ public final class AIVAULTMetalCompute {
         let output = Array(UnsafeBufferPointer(start: pointer, count: bias.count))
         guard output.allSatisfy({ $0.isFinite }) else { throw ComputeError.executionFailed("Dense output contains non-finite values") }
         return Result(output: output, deviceName: device.name, operation: "dense", elementCount: output.count)
+    }
+
+    /// Bounded row-major A[rows,inner] * B[inner,columns]. When transposed,
+    /// B is stored as [columns,inner], e.g. Q * K^T. No model/bridge exposure.
+    public func executeMatmul(left: [Float], right: [Float], rows: Int,
+                              inner: Int, columns: Int, transposeRight: Bool = false) throws -> Result {
+        guard rows > 0, inner > 0, columns > 0, rows <= 4096, inner <= 4096, columns <= 4096,
+              rows * inner + inner * columns + rows * columns <= 1_048_576,
+              left.count == rows * inner, right.count == inner * columns,
+              left.allSatisfy({ $0.isFinite }), right.allSatisfy({ $0.isFinite })
+        else { throw ComputeError.invalidInput }
+        return try runBoundedMatrixKernel(name: "av_matmul", operation: "matmul", inputs: [left, right],
+            outputCount: rows * columns, parameters: [UInt32(rows), UInt32(inner), UInt32(columns), transposeRight ? 1 : 0],
+            gridCount: rows * columns)
+    }
+
+    /// Stable softmax independently over each row, one Metal thread per row.
+    /// No masks, batching, multi-head attention or backward pass in this version.
+    public func executeRowSoftmax(input: [Float], rows: Int, columns: Int) throws -> Result {
+        guard rows > 0, columns > 0, rows <= 4096, columns <= 4096,
+              2 * rows * columns <= 1_048_576, input.count == rows * columns,
+              input.allSatisfy({ $0.isFinite }) else { throw ComputeError.invalidInput }
+        return try runBoundedMatrixKernel(name: "av_row_softmax", operation: "row_softmax", inputs: [input],
+            outputCount: input.count, parameters: [UInt32(rows), UInt32(columns)], gridCount: rows)
+    }
+
+    private func runBoundedMatrixKernel(name: String, operation: String, inputs: [[Float]],
+                                       outputCount: Int, parameters: [UInt32], gridCount: Int) throws -> Result {
+        guard let function = library.makeFunction(name: name) else { throw ComputeError.pipelineUnavailable }
+        let pipeline = try device.makeComputePipelineState(function: function)
+        let buffers = try inputs.map { values -> MTLBuffer in
+            let buffer = values.withUnsafeBytes { raw -> MTLBuffer? in
+                guard let address = raw.baseAddress else { return nil }
+                return device.makeBuffer(bytes: address, length: raw.count, options: .storageModeShared)
+            }
+            guard let buffer else { throw ComputeError.bufferAllocationFailed }; return buffer
+        }
+        guard let output = device.makeBuffer(length: outputCount * MemoryLayout<Float>.stride, options: .storageModeShared)
+        else { throw ComputeError.bufferAllocationFailed }
+        guard let command = queue.makeCommandBuffer() else { throw ComputeError.commandBufferUnavailable }
+        guard let encoder = command.makeComputeCommandEncoder() else { throw ComputeError.encoderUnavailable }
+        encoder.setComputePipelineState(pipeline)
+        for (index, buffer) in buffers.enumerated() { encoder.setBuffer(buffer, offset: 0, index: index) }
+        encoder.setBuffer(output, offset: 0, index: buffers.count)
+        parameters.withUnsafeBytes { raw in
+            encoder.setBytes(raw.baseAddress!, length: raw.count, index: buffers.count + 1)
+        }
+        encoder.dispatchThreads(MTLSize(width: gridCount, height: 1, depth: 1),
+            threadsPerThreadgroup: MTLSize(width: min(gridCount, pipeline.maxTotalThreadsPerThreadgroup), height: 1, depth: 1))
+        encoder.endEncoding(); command.commit(); command.waitUntilCompleted()
+        guard command.status == .completed else {
+            throw ComputeError.executionFailed(command.error?.localizedDescription ?? "Matrix kernel did not complete")
+        }
+        let pointer = output.contents().bindMemory(to: Float.self, capacity: outputCount)
+        let values = Array(UnsafeBufferPointer(start: pointer, count: outputCount))
+        guard values.allSatisfy({ $0.isFinite }) else { throw ComputeError.executionFailed("Matrix output contains non-finite values") }
+        return Result(output: values, deviceName: device.name, operation: operation, elementCount: outputCount)
     }
 
 }

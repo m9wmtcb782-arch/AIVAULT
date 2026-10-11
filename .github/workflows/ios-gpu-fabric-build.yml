@@ -5,6 +5,9 @@ on:
     branches:
       - research/unified-gpu-fabric-v0.1
     paths:
+      - "tests/gpu-fabric-metal-matrix.swift"
+      - "tests/gpu-fabric-metal-matrix-v0.1.mjs"
+      - "aivault-collab-v0.2/gpu-fabric-matrix-v0.1.mjs"
       - "native-worker/ios/AIVAULTNativeWorker.xcodeproj/project.pbxproj"
       - "native-worker/ios/AIVAULTNativeWorker/*.swift"
       - "native-worker/ios/AIVAULTNativeWorkerApp/*.swift"
@@ -228,3 +231,12 @@ jobs:
             tests/gpu-fabric-signed-config.swift \
             -o /tmp/aivault-signed-config
           node tests/gpu-fabric-signed-config-v0.1.mjs /tmp/aivault-signed-config
+
+      - name: Test native Metal matrix operators and tiny attention chain (one device)
+        timeout-minutes: 3
+        run: |
+          xcrun swiftc -parse-as-library \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTMetalCompute.swift \
+            tests/gpu-fabric-metal-matrix.swift \
+            -o /tmp/aivault-metal-matrix
+          node tests/gpu-fabric-metal-matrix-v0.1.mjs /tmp/aivault-metal-matrix
