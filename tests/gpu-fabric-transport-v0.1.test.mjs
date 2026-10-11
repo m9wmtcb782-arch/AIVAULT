@@ -45,3 +45,49 @@ test("rejects oversized wire payloads before decoding", async () => {
   b.receive = async () => ({ protocol_version: "aivault.gpu-fabric-transport/0.1", message_id: "msg-big", expires_at: new Date(Date.now() + 10000).toISOString(), tensor: { payload_base64: Buffer.alloc(64).toString("base64") } });
   await assert.rejects(receiveTensorOverAuthenticatedChannel({ channel: b, local_node_id: "node-b", expected_sender_node_id: "node-a", max_bytes: 8 }), /encoded tensor exceeds/);
 });
+
+test("rejects an expired envelope and a tensor addressed to another node", async () => {
+  const { b } = pair();
+  b.receive = async () => ({
+    protocol_version: "aivault.gpu-fabric-transport/0.1",
+    message_id: "expired-1",
+    expires_at: new Date(Date.now() - 1000).toISOString(),
+    tensor: {},
+  });
+  await assert.rejects(receiveTensorOverAuthenticatedChannel({
+    channel: b, local_node_id: "node-b", expected_sender_node_id: "node-a",
+  }), /envelope is expired/);
+
+  b.receive = async () => ({
+    protocol_version: "aivault.gpu-fabric-transport/0.1",
+    message_id: "wrong-destination-1",
+    expires_at: new Date(Date.now() + 10000).toISOString(),
+    tensor: {
+      protocol_version: "aivault.gpu-fabric-tensor/0.1",
+      tensor_id: "t", sender_node_id: "node-a", receiver_node_id: "node-c",
+      dtype: "float32", shape: [1], layout: "contiguous", byte_length: 4,
+      payload_sha256: "0000000000000000000000000000000000000000000000000000000000000000",
+      payload_base64: Buffer.alloc(4).toString("base64"),
+    },
+  });
+  await assert.rejects(receiveTensorOverAuthenticatedChannel({
+    channel: b, local_node_id: "node-b", expected_sender_node_id: "node-a",
+  }), /sender or receiver/);
+});
+
+test("rejects corrupted tensor payload at the receiver", async () => {
+  const { a, b } = pair();
+  await sendTensorOverAuthenticatedChannel({
+    channel: a, sender_node_id: "node-a", receiver_node_id: "node-b",
+    tensor_id: "corrupt-t", dtype: "float32", shape: [1], payload: new Uint8Array([0, 0, 0, 0]),
+  });
+  const originalReceive = b.receive;
+  b.receive = async () => {
+    const wire = await originalReceive();
+    wire.tensor.payload_base64 = Buffer.from([1, 0, 0, 0]).toString("base64");
+    return wire;
+  };
+  await assert.rejects(receiveTensorOverAuthenticatedChannel({
+    channel: b, local_node_id: "node-b", expected_sender_node_id: "node-a",
+  }), /SHA-256 mismatch/);
+});
