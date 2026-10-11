@@ -57,9 +57,9 @@ export async function executeBackendOperation(adapter, operation, inputs, contex
   const caps = await readBackendCapabilities(adapter);
   if (!isRecord(operation) || typeof operation.operator !== "string") throw new Error("invalid operation");
   if (!caps.operators.includes(operation.operator)) throw new Error("backend does not support operator: " + operation.operator);
-  if (!Array.isArray(inputs) || inputs.length === 0 ||
+  if (!Array.isArray(inputs) || inputs.length !== 1 ||
       inputs.some((values) => !Array.isArray(values) || values.some((n) => typeof n !== "number" || !Number.isFinite(n)))) {
-    throw new Error("inputs must be non-empty arrays of finite numbers");
+    throw new Error("v0.1 backend operations require exactly one input array of finite numbers");
   }
   if (inputs.some((values) => values.length !== inputs[0].length)) throw new Error("input shapes do not match");
   const safeContext = {
