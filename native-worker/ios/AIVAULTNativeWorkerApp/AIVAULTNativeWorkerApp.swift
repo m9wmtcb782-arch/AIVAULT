@@ -57,6 +57,16 @@ final class AIVAULTWorkerViewController: UIViewController, WKNavigationDelegate 
         configureFabricListener(listener, expiresAt: configuration.incomingGrant.expiresAt)
         return stage
     }
+    // Called only by a future trusted enrollment flow; no URL/clipboard import.
+    @discardableResult
+    func configureSignedFabricPackage(_ data: Data, expectedNodeID: String,
+                                      pinnedKeyID: String, pinnedPublicKey: Data,
+                                      identity: SecIdentity, ledgerDirectory: URL) throws -> AIVAULTPlannedDenseStageV01 {
+        let package = try AIVAULTSignedStagePackageV01.verify(data, expectedNodeID: expectedNodeID,
+            pinnedKeyID: pinnedKeyID, pinnedPublicKey: pinnedPublicKey)
+        try AIVAULTSignedStagePackageV01.reserve(package, directory: ledgerDirectory)
+        return try configureFabricStage(package.configuration, identity: identity, ledgerDirectory: ledgerDirectory)
+    }
     @objc private func requestJoin() {
         guard fabricSession.canJoin else { return }
         let alert = UIAlertController(title: "加入算力池", message: "只在 App 前景接收已授權的張量工作。停止或離開前景後不自動重新加入；已開始的運算可能完成。", preferredStyle: .alert)
