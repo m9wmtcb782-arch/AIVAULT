@@ -1,0 +1,32 @@
+
+name: Deploy Agent Access Probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy independent authorization probe
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          if [ ! -f supabase/functions/aivault-agent-access-probe/index.ts ]; then
+            echo "Missing probe function source"
+            exit 1
+          fi
+
+          supabase functions deploy aivault-agent-access-probe \
+            --project-ref clcddygkaaqqtsbswgdf
