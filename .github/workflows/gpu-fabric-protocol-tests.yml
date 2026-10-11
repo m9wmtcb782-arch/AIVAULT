@@ -14,6 +14,7 @@ on:
       - "aivault-collab-v0.2/gpu-fabric-tensor-wire-v0.1.mjs"
       - "aivault-collab-v0.2/gpu-fabric-transport-v0.1.mjs"
       - "aivault-collab-v0.2/gpu-fabric-https-channel-v0.1.mjs"
+      - "aivault-collab-v0.2/gpu-fabric-https-receiver-v0.1.mjs"
       - "aivault-collab-v0.2/gpu-fabric-job-state-v0.1.mjs"
       - "tests/gpu-fabric-protocol-v0.1.test.mjs"
       - "tests/gpu-fabric-simulator-v0.1.test.mjs"
@@ -24,6 +25,7 @@ on:
       - "tests/gpu-fabric-tensor-wire-v0.1.test.mjs"
       - "tests/gpu-fabric-transport-v0.1.test.mjs"
       - "tests/gpu-fabric-https-channel-v0.1.test.mjs"
+      - "tests/gpu-fabric-https-two-node-v0.1.test.mjs"
       - "tests/gpu-fabric-job-state-v0.1.test.mjs"
       - ".github/workflows/gpu-fabric-protocol-tests.yml"
   workflow_dispatch:
@@ -38,7 +40,7 @@ jobs:
       - name: Checkout research branch
         uses: actions/checkout@v4
         with:
-          ref: research/unified-gpu-fabric-v0.1
+          ref: ${{ github.sha }}
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -54,6 +56,8 @@ jobs:
           node --check aivault-collab-v0.2/gpu-fabric-tensor-wire-v0.1.mjs
           node --check aivault-collab-v0.2/gpu-fabric-transport-v0.1.mjs
           node --check aivault-collab-v0.2/gpu-fabric-https-channel-v0.1.mjs
+          node --check aivault-collab-v0.2/gpu-fabric-https-receiver-v0.1.mjs
           node --check aivault-collab-v0.2/gpu-fabric-job-state-v0.1.mjs
       - name: Run isolated protocol and simulator tests
-        run: node --test tests/gpu-fabric-protocol-v0.1.test.mjs tests/gpu-fabric-simulator-v0.1.test.mjs tests/gpu-fabric-planner-v0.1.test.mjs tests/gpu-fabric-backend-v0.1.test.mjs tests/gpu-fabric-local-runtime-v0.1.test.mjs tests/gpu-fabric-tensor-transfer-v0.1.test.mjs tests/gpu-fabric-tensor-wire-v0.1.test.mjs tests/gpu-fabric-transport-v0.1.test.mjs tests/gpu-fabric-https-channel-v0.1.test.mjs tests/gpu-fabric-job-state-v0.1.test.mjs
+        run: node --test tests/gpu-fabric-*.test.mjs
+

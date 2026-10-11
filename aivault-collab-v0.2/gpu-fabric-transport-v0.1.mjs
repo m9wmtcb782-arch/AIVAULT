@@ -1,4 +1,5 @@
 import { createTensorTransfer, receiveTensorTransfer } from "./gpu-fabric-tensor-transfer-v0.1.mjs";
+import { randomUUID } from "node:crypto";
 
 const PROTOCOL = "aivault.gpu-fabric-transport/0.1";
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
@@ -46,13 +47,19 @@ function fromWire(wire, maxBytes) {
 export async function sendTensorOverAuthenticatedChannel({
   channel, sender_node_id, receiver_node_id, tensor_id, dtype, shape,
   layout = "contiguous", payload, max_bytes = 64 * 1024 * 1024, now = Date.now(),
+  context,
 }) {
   checkChannel(channel, sender_node_id, receiver_node_id, now);
   if (typeof channel.send !== "function") throw new Error("channel.send must be a function");
   const envelope = createTensorTransfer({
     tensor_id, sender_node_id, receiver_node_id, dtype, shape, layout, payload, max_bytes,
   });
-  const result = await channel.send(toWire(envelope));
+  const wire = stampTransportEnvelope(toWire(envelope), {
+    message_id: randomUUID(), expires_at: Math.min(Date.now() + 30000,
+      typeof channel.sessionExpiresAt === "number" ? channel.sessionExpiresAt : Date.parse(channel.sessionExpiresAt)),
+  });
+  if (context !== undefined) wire.context = structuredClone(context);
+  const result = await channel.send(wire);
   return {
     status: "HANDED_TO_CHANNEL_ADAPTER", tensor_id, sender_node_id, receiver_node_id,
     byte_length: envelope.byte_length, payload_sha256: envelope.payload_sha256,
@@ -90,3 +97,4 @@ export function stampTransportEnvelope(wire, { message_id, expires_at }) {
   if (!Number.isFinite(expiry) || expiry <= Date.now()) throw new Error("expires_at must be in the future");
   return { ...wire, message_id, expires_at: new Date(expiry).toISOString() };
 }
+
