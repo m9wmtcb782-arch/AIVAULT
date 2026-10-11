@@ -10,6 +10,7 @@ await import("./agent-runtime-v0.1.test.ts");
 await import("./agent-runtime-v0.2.test.ts");
 await import("./guarded-runtime-factory-v0.1.test.ts");
 await import("./postgres-approval-store-v0.1.test.ts");
+await import("./issued-approval-runtime-v0.1.test.ts");
 let failed = 0;
 for (const { name, fn } of tests) {
   try {
