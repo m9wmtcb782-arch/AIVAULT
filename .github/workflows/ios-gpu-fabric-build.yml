@@ -5,6 +5,8 @@ on:
     branches:
       - research/unified-gpu-fabric-v0.1
     paths:
+      - "tests/gpu-fabric-native-matrix-stage.swift"
+      - "tests/gpu-fabric-native-matrix-stage-v0.1.mjs"
       - "tests/gpu-fabric-metal-matrix.swift"
       - "tests/gpu-fabric-metal-matrix-v0.1.mjs"
       - "aivault-collab-v0.2/gpu-fabric-matrix-v0.1.mjs"
@@ -114,6 +116,8 @@ jobs:
             native-worker/ios/AIVAULTNativeWorker/AIVAULTForegroundTLSV01.swift \
             native-worker/ios/AIVAULTNativeWorker/AIVAULTPlannedDenseStageV01.swift \
             native-worker/ios/AIVAULTNativeWorker/AIVAULTSignedStagePackageV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTPlannedMatrixStageV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTSignedMatrixStagePackageV01.swift \
             native-worker/ios/AIVAULTNativeWorkerApp/AIVAULTNativeWorkerApp.swift
 
       - name: Build iOS Simulator app without code signing
@@ -240,3 +244,46 @@ jobs:
             tests/gpu-fabric-metal-matrix.swift \
             -o /tmp/aivault-metal-matrix
           node tests/gpu-fabric-metal-matrix-v0.1.mjs /tmp/aivault-metal-matrix
+
+      - name: Test signed native two-stage attention graph over TLS (one device)
+        timeout-minutes: 3
+        run: |
+          xcrun swiftc -parse-as-library \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTMetalCompute.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTFloat32TensorV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTTensorHTTPSV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTTensorReceiveV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTTensorTLSListenerV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTForegroundSessionV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTForegroundTLSV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTPlannedMatrixStageV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTSignedMatrixStagePackageV01.swift \
+            tests/gpu-fabric-native-matrix-stage.swift \
+            -o /tmp/aivault-native-matrix-stage
+          node tests/gpu-fabric-native-matrix-stage-v0.1.mjs /tmp/aivault-native-matrix-stage
+
+      - name: Package validated research Simulator app (not iPhone-installable)
+        run: |
+          mkdir -p /tmp/aivault-research-delivery
+          ditto -c -k --sequesterRsrc --keepParent \
+            /tmp/aivault-derived-data/Build/Products/Debug-iphonesimulator/AIVAULTNativeWorkerApp.app \
+            /tmp/aivault-research-delivery/AIVAULTNativeWorker-Simulator.zip
+          python3 - <<'PYCODE'
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path('/tmp/aivault-research-delivery')
+          archive = root / 'AIVAULTNativeWorker-Simulator.zip'
+          manifest = {'source_commit': os.environ['GITHUB_SHA'], 'target': 'iOS Simulator',
+                      'iphone_installable': False, 'production_deployed': False,
+                      'physical_multi_device_verified': False,
+                      'archive_sha256': hashlib.sha256(archive.read_bytes()).hexdigest()}
+          (root / 'manifest.json').write_text(json.dumps(manifest, indent=2))
+          (root / 'README.txt').write_text('Research Simulator build only. This is not an IPA or a deployed GPU pool. Physical iPhone use requires Apple distribution signing and trusted native provisioning. No private keys, grants or model weights are included.\n')
+          PYCODE
+      - name: Upload research delivery bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: aivault-research-simulator-${{ github.sha }}
+          path: /tmp/aivault-research-delivery/
+          if-no-files-found: error
+          retention-days: 7

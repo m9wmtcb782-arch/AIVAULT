@@ -92,6 +92,20 @@ final class AIVAULTWorkerViewController: UIViewController, WKNavigationDelegate 
         }
     }
 
+    /// Trusted native provisioning only; no web/imported key may activate it.
+    func configureSignedMatrixPackage(_ data: Data, expectedNodeID: String,
+                                      pinnedKeyID: String, pinnedPublicKey: Data, identity: SecIdentity,
+                                      packageLedgerDirectory: URL, executionLedgerDirectory: URL) throws -> AIVAULTPlannedMatrixStageV01 {
+        let package=try AIVAULTSignedMatrixStagePackageV01.verify(data,expectedNodeID:expectedNodeID,
+            pinnedKeyID:pinnedKeyID,pinnedPublicKey:pinnedPublicKey)
+        try AIVAULTSignedMatrixStagePackageV01.reserve(package,directory:packageLedgerDirectory)
+        let stage=try AIVAULTPlannedMatrixStageV01(configuration:package.configuration,
+            ledger:AIVAULTTensorReplayLedgerV01(directory:executionLedgerDirectory))
+        let listener=try stage.makeListener(identity:identity)
+        configureFabricListener(listener,expiresAt:package.configuration.incomingGrant.expiresAt)
+        return stage
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
