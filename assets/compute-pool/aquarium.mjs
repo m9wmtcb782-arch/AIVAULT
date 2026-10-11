@@ -1,4 +1,4 @@
-import {SPECIES,classify,deviceLabel,waterState,transitions} from './pool-view.mjs?v=fish-v2';
+import {SPECIES,classify,deviceLabel,waterState,transitions} from './pool-view.mjs?v=gpu-tiers-v3';
 const root=document.getElementById('computePoolAquarium');
 if(root){
   const $=id=>document.getElementById(id),canvas=$('poolCanvas'),ctx=canvas.getContext('2d');
@@ -6,7 +6,7 @@ if(root){
   let realNodes=[],previous=null,hasSnapshot=false,demo=false,water=0,target=0,registeredWater=0,color='#fc6374',fish=[],catches=[],visible=true,lastFrame=0,lastPoll=0,fetching=false,refreshQueued=false,reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
   const reference=$('poolReference');reference.value=localStorage.getItem('aivault_pool_display_reference')||'20';
   const seed=s=>Array.from(s).reduce((a,c)=>(a*31+c.charCodeAt(0))>>>0,17);
-  const demoNodes=()=>Array.from({length:18},(_,i)=>({id:'demo-'+i,name:'示意節點 '+(i+1),platform:['iPhone','iPad','Windows','Windows','Windows','Windows'][i%6],hardware:i%6>=3?{gpu:{description:['RTX 4090','RTX 5090','RTX 6000 Ada'][i%6-3]}}:null,online:true,gpu_reported:true,available:true,source:'demo',status:'示意',last_seen:null}));
+  const demoNodes=()=>Array.from({length:18},(_,i)=>({id:'demo-'+i,name:'示意節點 '+(i+1),platform:['iPhone','iPad','Windows','Windows','Windows','Windows'][i%6],gpu_rating:{version:'pool-u32-v1',units:[.5,5,50,200,700,1500][i%6]},hardware:i%6>=3?{gpu:{description:['RTX 4090','RTX 5090','RTX 6000 Ada'][i%6-3]}}:null,online:true,gpu_reported:true,available:true,source:'demo',status:'示意',last_seen:null}));
   function event(text){const p=document.createElement('p');p.textContent=new Date().toLocaleTimeString('zh-TW')+' · '+text;$('poolEvents').prepend(p);while($('poolEvents').children.length>8)$('poolEvents').lastChild.remove();}
   function display(nodes){
     const view=waterState(nodes,reference.value);target=view.members.length?Math.max(.18,view.ratio):0;registeredWater=0;color=view.color;
@@ -17,7 +17,7 @@ if(root){
     fish=view.members.slice(0,80).map(n=>({...old.get(n.id),id:n.id,node:n,kind:classify(n),seed:seed(n.id),phase:seed(n.id)%100}));
     $('poolDensity').textContent=view.members.length>80?'畫面聚合顯示 80 條魚，完整節點請看清單。':'';
     const tbody=$('poolNodeRows');tbody.replaceChildren();
-    for(const n of nodes){const tr=document.createElement('tr'),kind=SPECIES[classify(n)];for(const v of [deviceLabel(n)+' · '+String(n.id).slice(-8),deviceLabel(n)+' · '+kind.fish,n.online?(n.gpu_reported?'在線 / GPU 回報':'在線 / 未回報 GPU'):'離線',String(n.status||'—'),n.source==='registered'?'帳號登記':n.source==='demo'?'示意':'運算節點',n.runtime==='webgl2'?'WebGL2':n.runtime==='webgpu'?'WebGPU':'待確認',n.reason||'—']){const td=document.createElement('td');td.textContent=v;tr.append(td);}tbody.append(tr);}
+    for(const n of nodes){const tr=document.createElement('tr'),kind=SPECIES[classify(n)];for(const v of [deviceLabel(n)+' · '+String(n.id).slice(-8),deviceLabel(n)+' · '+kind.fish+' · '+(n.gpu_rating?Number(n.gpu_rating.units).toFixed(2)+' PGU（估測）':'算力待測'),n.online?(n.gpu_reported?'在線 / GPU 回報':'在線 / 未回報 GPU'):'離線',String(n.status||'—'),n.source==='registered'?'帳號登記':n.source==='demo'?'示意':'運算節點',n.runtime==='webgl2'?'WebGL2':n.runtime==='webgpu'?'WebGPU':'待確認',n.reason||'—']){const td=document.createElement('td');td.textContent=v;tr.append(td);}tbody.append(tr);}
     $('poolListCount').textContent='查看全部裝置與 GPU 狀態（'+nodes.length+'）';
     if(reduced) {water=target;draw(performance.now());}
   }
