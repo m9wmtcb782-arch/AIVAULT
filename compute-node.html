@@ -427,9 +427,10 @@
   <div id="tokenCard" class="card">
 
     <div class="section-title">
-      Supabase Access Token
+      註冊／登入後加入算力池
     </div>
 
+    <p class="help"><a href="aivault-login.html">註冊或登入 AIVAULT</a>，完成後返回本頁。同一帳號可登記多台裝置，目前不設台數上限。</p>
     <textarea
       id="tokenInput"
       class="token-input"
@@ -885,6 +886,12 @@ function setToken(token) {
 
 
 function getToken() {
+  try {
+    const session = JSON.parse(localStorage.getItem("sb-clcddygkaaqqtsbswgdf-auth-token") || "null");
+    if (session?.access_token && (!session.expires_at || session.expires_at * 1000 > Date.now())) {
+      return session.access_token;
+    }
+  } catch { /* Manual session token remains available for compatibility. */ }
 
   return (
     accessToken ||
@@ -931,7 +938,8 @@ async function api(action, body = {}) {
         body:
           JSON.stringify({
             action,
-            ...body
+            ...body,
+            node_id: nodeId || undefined
           })
       }
     );
@@ -1315,11 +1323,20 @@ async function registerNode() {
       navigator.platform || null
   };
 
+  if (!nodeId) {
+    nodeId = crypto.randomUUID();
+    localStorage.setItem(CONFIG.NODE_STORAGE_KEY, nodeId);
+  }
+
   const result =
     await api(
       "register",
       {
         capabilities,
+        cpu_threads: navigator.hardwareConcurrency || null,
+        device_memory_gb: navigator.deviceMemory || null,
+        webgpu_supported: !!navigator.gpu,
+        platform: navigator.platform || null,
 
         contribution_limit:
           CONFIG.MAX_CONTRIBUTION,
@@ -2381,7 +2398,7 @@ function updateControls() {
 async function connectNode() {
 
   const token =
-    tokenInput.value.trim();
+    tokenInput.value.trim() || getToken();
 
   if (!token) {
 
@@ -2534,10 +2551,11 @@ window.addEventListener(
    * 如果之前登入過，
    * 自動帶入 Token，但不直接自動運算。
    */
-  if (accessToken) {
+  const savedLoginToken = getToken();
+  if (savedLoginToken) {
 
     tokenInput.value =
-      accessToken;
+      savedLoginToken;
 
     log(
       "偵測到已保存的 Access Token"
