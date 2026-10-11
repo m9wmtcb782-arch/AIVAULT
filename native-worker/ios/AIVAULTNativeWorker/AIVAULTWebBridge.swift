@@ -39,7 +39,8 @@ public final class AIVAULTWebBridge: NSObject, WKScriptMessageHandlerWithReply {
     ) {
         guard message.frameInfo.isMainFrame,
               message.frameInfo.securityOrigin.protocol == "https",
-              message.frameInfo.securityOrigin.host == Self.trustedHost else {
+              message.frameInfo.securityOrigin.host == Self.trustedHost,
+              message.frameInfo.request.url?.path == "/AIVAULT/compute-mesh-gpu-test.html" else {
             replyHandler(nil, "untrusted_origin")
             return
         }
