@@ -1,4 +1,4 @@
-import {SPECIES,classify,waterState,transitions} from './pool-view.mjs';
+import {SPECIES,classify,deviceLabel,waterState,transitions} from './pool-view.mjs?v=fish-v2';
 const root=document.getElementById('computePoolAquarium');
 if(root){
   const $=id=>document.getElementById(id),canvas=$('poolCanvas'),ctx=canvas.getContext('2d');
@@ -17,7 +17,7 @@ if(root){
     fish=view.members.slice(0,80).map(n=>({...old.get(n.id),id:n.id,node:n,kind:classify(n),seed:seed(n.id),phase:seed(n.id)%100}));
     $('poolDensity').textContent=view.members.length>80?'畫面聚合顯示 80 條魚，完整節點請看清單。':'';
     const tbody=$('poolNodeRows');tbody.replaceChildren();
-    for(const n of nodes){const tr=document.createElement('tr'),kind=SPECIES[classify(n)];for(const v of [String(n.name||n.id).slice(0,30),kind.name+' · '+kind.fish,n.online?(n.gpu_reported?'在線 / GPU 回報':'在線 / 未回報 GPU'):'離線',String(n.status||'—'),n.source==='registered'?'帳號登記':n.source==='demo'?'示意':'運算節點',n.runtime==='webgl2'?'WebGL2':n.runtime==='webgpu'?'WebGPU':'待確認',n.reason||'—']){const td=document.createElement('td');td.textContent=v;tr.append(td);}tbody.append(tr);}
+    for(const n of nodes){const tr=document.createElement('tr'),kind=SPECIES[classify(n)];for(const v of [deviceLabel(n)+' · '+String(n.id).slice(-8),deviceLabel(n)+' · '+kind.fish,n.online?(n.gpu_reported?'在線 / GPU 回報':'在線 / 未回報 GPU'):'離線',String(n.status||'—'),n.source==='registered'?'帳號登記':n.source==='demo'?'示意':'運算節點',n.runtime==='webgl2'?'WebGL2':n.runtime==='webgpu'?'WebGPU':'待確認',n.reason||'—']){const td=document.createElement('td');td.textContent=v;tr.append(td);}tbody.append(tr);}
     $('poolListCount').textContent='查看全部裝置與 GPU 狀態（'+nodes.length+'）';
     if(reduced) {water=target;draw(performance.now());}
   }
@@ -28,7 +28,7 @@ if(root){
       if(!r.ok)throw Error('HTTP '+r.status);const data=await r.json();if(data.success!==true||!Array.isArray(data.nodes))throw Error('節點資料尚未可用');
       realNodes=data.nodes;hasSnapshot=true;
       const departed=transitions(previous,realNodes,{truncated:data.truncated});
-      if(!demo)for(const n of departed){const kind=classify(n),f=fish.find(f=>f.id===n.id);catches.push({kind,start:performance.now(),x:f?.x||450,y:f?.y||400});event(SPECIES[kind].name+' 節點離線 · 使用'+SPECIES[kind].tool+'捕撈，裝置紀錄保留。');}
+      if(!demo)for(const n of departed){const kind=classify(n),f=fish.find(f=>f.id===n.id);catches.push({kind,start:performance.now(),x:f?.x||450,y:f?.y||400});event(deviceLabel(n)+' 節點離線 · 使用'+SPECIES[kind].tool+'捕撈，裝置紀錄保留。');}
       previous=realNodes.map(n=>({...n}));
       $('poolLive').dataset.live='true';$('poolLiveText').textContent='資料已更新';$('poolDataNote').textContent='更新於 '+new Date(data.fetched_at).toLocaleTimeString('zh-TW')+(data.truncated?' · 顯示最近節點，清單有截取':'');
       if(!demo)display(realNodes);
@@ -74,7 +74,7 @@ if(root){
     basin();ctx.fillStyle='#08111d';ctx.fill();ctx.save();basin();ctx.clip();
     if(registeredWater>0){ctx.fillStyle='#52799238';ctx.fillRect(100,525-registeredWater*355,700,450);}
     if(water>0.001){const gradient=ctx.createLinearGradient(0,surface,0,550);gradient.addColorStop(0,color+'c0');gradient.addColorStop(1,color+'24');ctx.fillStyle=gradient;ctx.beginPath();ctx.moveTo(100,surface);for(let x=100;x<=800;x+=8)ctx.lineTo(x,surface+Math.sin(x*.025+t*.0014)*4+Math.sin(x*.052-t*.001)*2);ctx.lineTo(800,570);ctx.lineTo(100,570);ctx.closePath();ctx.fill();ctx.strokeStyle=color+'bb';ctx.lineWidth=1;ctx.beginPath();for(let x=135;x<766;x+=8){const y=surface+Math.sin(x*.025+t*.0014)*4+Math.sin(x*.052-t*.001)*2;if(x===135)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.stroke();}
-    for(const f of fish){const s=SPECIES[f.kind],phase=f.phase;const cycle=(t*.000025*(.7+(phase%5)*.12)+phase*.017)%2;const dir=cycle<1?1:-1;const q=cycle<1?cycle:2-cycle;f.x=220+s.size*.2+q*(470-s.size*.4);const minY=Math.min(surface+s.size*.38+16,490),maxY=490-s.size*.1;f.y=minY+Math.max(0,maxY-minY)*((Math.sin(phase*3+t*.00025)+1)/2);drawFish(f.x,f.y,f.kind,dir,Math.sin(t*.001+phase)*.03);ctx.save();ctx.textAlign='center';ctx.font='11px system-ui';ctx.fillStyle='#eaf5ff';ctx.fillText((String(f.node.name||SPECIES[f.kind].name).slice(0,22))+' · '+(f.node.gpu_reported&&!['PAUSED','STOPPED'].includes(String(f.node.status||'').toUpperCase())?'GPU':'待提供 GPU'),f.x,f.y+SPECIES[f.kind].size*.65+12);ctx.restore();}
+    for(const f of fish){const s=SPECIES[f.kind],phase=f.phase;const cycle=(t*.000025*(.7+(phase%5)*.12)+phase*.017)%2;const dir=cycle<1?1:-1;const q=cycle<1?cycle:2-cycle;f.x=220+s.size*.2+q*(470-s.size*.4);const minY=Math.min(surface+s.size*.38+16,490),maxY=490-s.size*.1;f.y=minY+Math.max(0,maxY-minY)*((Math.sin(phase*3+t*.00025)+1)/2);drawFish(f.x,f.y,f.kind,dir,Math.sin(t*.001+phase)*.03);ctx.save();ctx.textAlign='center';ctx.font='11px system-ui';ctx.fillStyle='#eaf5ff';ctx.fillText((deviceLabel(f.node)+' '+s.fish+' #'+String(f.id).slice(-4))+' · '+(f.node.gpu_reported&&!['PAUSED','STOPPED'].includes(String(f.node.status||'').toUpperCase())?'GPU':'待提供 GPU'),f.x,f.y+SPECIES[f.kind].size*.65+12);ctx.restore();}
     ctx.fillStyle='#b0def630';for(let i=0;i<12;i++){const y=535-((t*.016+i*33)%Math.max(20,535-surface));if(y>surface+5)ellipse(195+(i*57)%520,y,1.5+i%3,1.5+i%3,'#c6efff25');}ctx.restore();
     ctx.strokeStyle='#84a9c6';ctx.lineWidth=9;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(135,145);ctx.lineTo(135,375);ctx.quadraticCurveTo(135,535,310,535);ctx.lineTo(590,535);ctx.quadraticCurveTo(765,535,765,375);ctx.lineTo(765,145);ctx.stroke();
     ctx.strokeStyle='#345b7d';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(120,145);ctx.lineTo(120,375);ctx.quadraticCurveTo(120,552,310,552);ctx.lineTo(590,552);ctx.quadraticCurveTo(780,552,780,375);ctx.lineTo(780,145);ctx.stroke();
