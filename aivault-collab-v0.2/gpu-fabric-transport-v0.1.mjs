@@ -62,12 +62,12 @@ export async function sendTensorOverAuthenticatedChannel({
 }
 
 export async function receiveTensorOverAuthenticatedChannel({
-  channel, local_node_id, expected_sender_node_id, seenMessageIds = new Set(),
+  channel, local_node_id, expected_sender_node_id, seenMessageIds,
   max_bytes = 64 * 1024 * 1024, now = Date.now(),
 }) {
   checkChannel(channel, local_node_id, expected_sender_node_id, now);
   if (typeof channel.receive !== "function") throw new Error("channel.receive must be a function");
-  if (!(seenMessageIds instanceof Set)) throw new Error("seenMessageIds must be a Set");
+  if (!(seenMessageIds instanceof Set)) throw new Error("seenMessageIds Set is required for replay protection");
   const wire = await channel.receive();
   if (!wire || typeof wire !== "object") throw new Error("channel returned no envelope");
   if (typeof wire.message_id !== "string" || !ID.test(wire.message_id)) throw new Error("message_id is required");
