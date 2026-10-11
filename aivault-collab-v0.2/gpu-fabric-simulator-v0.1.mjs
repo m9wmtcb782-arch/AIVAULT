@@ -38,6 +38,9 @@ export function runSimulatedGraph({ jobId, inputTensorId = "x", inputValue, oper
     if (!Array.isArray(dependency_ids) || !Array.isArray(input_tensor_ids) || input_tensor_ids.length === 0) {
       throw new Error("operation dependencies and inputs must be arrays");
     }
+    if (input_tensor_ids.length !== 1) {
+      throw new Error("v0.1 simulator operators require exactly one input tensor");
+    }
     if (typeof output_tensor_id !== "string" || !output_tensor_id.trim() || tensors.has(output_tensor_id)) {
       throw new Error("missing or duplicate output_tensor_id");
     }
