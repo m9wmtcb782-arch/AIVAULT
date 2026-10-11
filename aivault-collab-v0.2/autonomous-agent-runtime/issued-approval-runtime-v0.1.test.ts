@@ -72,3 +72,18 @@ Deno.test("concurrent issuance does not hide database failures",async()=>{
  try{await retry.issue();}catch(e){rejected=String(e).includes("DATABASE_UNAVAILABLE");}
  if(!rejected) throw new Error("DATABASE_FAILURE_SWALLOWED");
 });
+
+Deno.test("concurrent conflicting issuance fails closed",async()=>{
+ const x=fixture();
+ await x.runtime.step();
+ const original=await x.adapter.issue();
+ let reads=0;
+ const store: IssuedApprovalStore={
+   async get(id){reads++;return reads===1?null:{...original,inputDigest:"c".repeat(64)};},
+   async issue(){throw new Error("APPROVAL_ALREADY_ISSUED");}
+ };
+ const retry=new IssuedApprovalRuntime(x.runtime,"agent-1","owner-1",store);
+ let rejected=false;
+ try{await retry.issue();}catch(e){rejected=String(e).includes("APPROVAL_CHALLENGE_COLLISION");}
+ if(!rejected||reads!==2) throw new Error("CONCURRENT_COLLISION_NOT_REJECTED");
+});
