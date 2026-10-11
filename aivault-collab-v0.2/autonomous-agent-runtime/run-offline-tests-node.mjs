@@ -1,7 +1,7 @@
 /** AIVAULT offline test harness for Node.js 22+.
  * Runs existing Deno.test() suites without installing Deno.
  * Does not call any provider, database, network service or production API.
- * Invoke: node --experimental-strip-types run-offline-tests-node.mjs
+ * Invoke: node --experimental-transform-types run-offline-tests-node.mjs
  */
 import { strict as assert } from "node:assert";
 const tests = [];
