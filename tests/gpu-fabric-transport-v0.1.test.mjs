@@ -16,7 +16,7 @@ test("transfers a tensor through a supplied channel adapter and verifies integri
   const { a, b } = pair();
   const sent = await sendTensorOverAuthenticatedChannel({ channel: a, sender_node_id: "node-a", receiver_node_id: "node-b", tensor_id: "h1", dtype: "float32", shape: [2], payload: new Uint8Array(8) });
   assert.equal(sent.status, "HANDED_TO_CHANNEL_ADAPTER");
-  const received = await receiveTensorOverAuthenticatedChannel({ channel: b, local_node_id: "node-b", expected_sender_node_id: "node-a" });
+  const received = await receiveTensorOverAuthenticatedChannel({ channel: b, local_node_id: "node-b", expected_sender_node_id: "node-a", seenMessageIds: new Set() });
   assert.equal(received.status, "CHANNEL_TENSOR_INTEGRITY_VERIFIED");
   assert.equal(received.tensor_id, "h1");
   assert.equal(received.byte_length, 8);
