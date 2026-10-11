@@ -11,13 +11,13 @@ if(root){
   function display(nodes){
     const view=waterState(nodes,reference.value);target=view.ratio;color=view.color;
     $('poolPercent').textContent=!hasSnapshot&&!demo?'—':Math.round(view.ratio*100)+'%';$('poolLevel').textContent=!hasSnapshot&&!demo?'水位待確認':view.label+' · '+view.count+' 個在線 GPU 節點';
-    $('poolGpuCount').textContent=!hasSnapshot&&!demo?'—':view.count;$('poolOnlineCount').textContent=!hasSnapshot&&!demo?'—':nodes.filter(n=>n.online===true).length;$('poolIdleCount').textContent=!hasSnapshot&&!demo?'—':view.active.filter(n=>n.available===true).length;
+    $('poolGpuCount').textContent=!hasSnapshot&&!demo?'—':view.count;$('poolOnlineCount').textContent=!hasSnapshot&&!demo?'—':nodes.length;$('poolIdleCount').textContent=!hasSnapshot&&!demo?'—':view.active.filter(n=>n.available===true).length;
     $('poolEmpty').hidden=view.count>0;$('poolEmpty').textContent=hasSnapshot||demo?'目前沒有在線 GPU 節點，水池保持空池。':'正在取得節點資料…';
     const old=new Map(fish.map(f=>[f.id,f]));
     fish=view.active.slice(0,80).map(n=>({...old.get(n.id),id:n.id,node:n,kind:classify(n),seed:seed(n.id),phase:seed(n.id)%100}));
     $('poolDensity').textContent=view.count>80?'畫面聚合顯示 80 條魚，完整節點請看清單。':'';
     const tbody=$('poolNodeRows');tbody.replaceChildren();
-    for(const n of nodes){const tr=document.createElement('tr'),kind=SPECIES[classify(n)];for(const v of [String(n.name||n.id).slice(0,30),kind.name+' · '+kind.fish,n.online?(n.gpu_reported?'在線 / GPU 回報':'在線 / 未回報 GPU'):'離線',String(n.status||'—'),n.source==='registered'?'帳號登記':n.source==='demo'?'示意':'運算節點']){const td=document.createElement('td');td.textContent=v;tr.append(td);}tbody.append(tr);}
+    for(const n of nodes){const tr=document.createElement('tr'),kind=SPECIES[classify(n)];for(const v of [String(n.name||n.id).slice(0,30),kind.name+' · '+kind.fish,n.online?(n.gpu_reported?'在線 / GPU 回報':'在線 / 未回報 GPU'):'離線',String(n.status||'—'),n.source==='registered'?'帳號登記':n.source==='demo'?'示意':'運算節點',n.runtime==='webgl2'?'WebGL2':n.runtime==='webgpu'?'WebGPU':'待確認']){const td=document.createElement('td');td.textContent=v;tr.append(td);}tbody.append(tr);}
     $('poolListCount').textContent='查看提供算力的節點（'+nodes.length+'）';
     if(reduced) {water=target;draw(performance.now());}
   }
