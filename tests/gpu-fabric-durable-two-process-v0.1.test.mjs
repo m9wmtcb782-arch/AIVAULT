@@ -98,9 +98,9 @@ test("one graph passes a Float32 tensor between two independent CPU worker proce
   ], tensorBytes: { h: 12 } });
   assert.deepEqual(plan.operations.map(x => x.node_id), ["node-a", "node-b"]);
   const b = await worker(t, env, { nodeId: "node-b", grant: gB, operator: "add_scalar",
-    scalar: 2, ledgerPath: join(env.dir, "ledger-b") });
+    scalar: 2, plan, operations, ledgerPath: join(env.dir, "ledger-b") });
   const a = await worker(t, env, { nodeId: "node-a", grant: gA, operator: "mul_scalar",
-    scalar: 3, ledgerPath: join(env.dir, "ledger-a"),
+    scalar: 3, plan, operations, ledgerPath: join(env.dir, "ledger-a"),
     next: { endpoint: b.endpoint, nodeId: "node-b", grant: gB } });
   assert.notEqual(a.pid, b.pid);
   assert.notEqual(a.pid, process.pid);
@@ -109,12 +109,16 @@ test("one graph passes a Float32 tensor between two independent CPU worker proce
   const baseline = [0.1, 2, -1].map(v => Math.fround(Math.fround(Math.fround(v) * 3) + 2));
   assert.deepEqual(executedB.output, baseline);
   assert.equal(executedB.device_kind, "cpu");
+  assert.equal(executedB.status, "PLANNED_STAGE_COMPLETED");
+  const executedA = await a.waitFor("executed");
+  assert.equal(executedA.downstream_receipt_verified, true);
+  assert.equal(executedA.operation_id, plan.topological_order[0]);
   // Restart endpoint B with the SAME durable ledger; a NEW token/message cannot
   // bypass the consumed logical stage.
   const exited = once(b.child, "exit"); b.child.kill("SIGKILL"); await exited;
   const rotated = { ...gB, token: "rotated-test-token-node-a-0003" };
   const restarted = await worker(t, env, { nodeId: "node-b", grant: rotated, operator: "add_scalar",
-    scalar: 2, ledgerPath: join(env.dir, "ledger-b") });
+    scalar: 2, plan, operations, ledgerPath: join(env.dir, "ledger-b") });
   await assert.rejects(send(env, { ...restarted, nodeId: "node-b" }, rotated, [0.3, 6, -3]), /HTTP 409/);
   assert.equal(restarted.events.filter(x => x.type === "executed").length, 0);
   t.diagnostic(JSON.stringify({ evidence: "TWO_CPU_PROCESSES_LOOPBACK_TLS",

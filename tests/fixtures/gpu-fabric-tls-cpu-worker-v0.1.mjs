@@ -7,6 +7,8 @@ import { createHttpsTensorSender } from "../../aivault-collab-v0.2/gpu-fabric-ht
 import { sendTensorOverAuthenticatedChannel } from "../../aivault-collab-v0.2/gpu-fabric-transport-v0.1.mjs";
 import { executeBackendOperation } from "../../aivault-collab-v0.2/gpu-fabric-backend-v0.1.mjs";
 
+import { createPlannedHttpsStage } from "../../aivault-collab-v0.2/gpu-fabric-planned-stage-v0.1.mjs";
+
 process.once("message", async config => {
   try {
     const ca = readFileSync(config.certPath);
@@ -27,7 +29,12 @@ process.once("message", async config => {
         Math.fround(operation.operator === "mul_scalar" ? v * operation.scalar : v + operation.scalar)) }),
       release: async () => ({ released: true }),
     };
-    const handler = createHttpsTensorReceiver({
+    const handler = config.plan ? createPlannedHttpsStage({
+      localNodeId: config.nodeId, jobId: config.grant.jobId, plan: config.plan,
+      operations: config.operations, grant: config.grant, adapter, next: config.next, fetchImpl,
+      replayStore: createFileReplayLedger({ directory: config.ledgerPath }),
+      onCompleted: async outcome => process.send({ type: "executed", pid: process.pid, ...outcome }),
+    }).handler : createHttpsTensorReceiver({
       localNodeId: config.nodeId, grants: [config.grant],
       replayStore: createFileReplayLedger({ directory: config.ledgerPath }),
       onTensor: async (tensor, context) => {
