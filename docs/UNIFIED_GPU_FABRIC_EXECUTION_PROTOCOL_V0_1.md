@@ -146,3 +146,33 @@ Pass requires reproducible logs/artifacts and matching output within tolerance. 
 - `NOT VERIFIED`: evidence is absent or insufficient.
 - `BLOCKED`: a required dependency or permission prevents the test.
 - Never label a design document as an implementation or a planned test as PASS.
+
+## 10. Repository implementation status (2026-10-11)
+
+The following status is evidence-based and applies only to the research branch:
+
+| Component | Status | Evidence / limitation |
+|---|---|---|
+| Message/protocol validation | IMPLEMENTED + TESTED | Node unit tests validate the protocol contract. |
+| Deterministic graph planner | IMPLEMENTED + TESTED | Produces a plan only; it does not dispatch remote operations. |
+| Local DAG runtime | IMPLEMENTED + TESTED | Runs through injected local adapters in one process. |
+| Tensor descriptor, byte-length and SHA-256 validation | IMPLEMENTED + TESTED | Local serialization/verification; not a network transport. |
+| Transport adapter contract | IMPLEMENTED + TESTED | `gpu-fabric-transport-v0.1.mjs` calls an injected channel adapter and checks declared peer, encryption, expiry, replay ID, destination, size and hash. |
+| Concrete authenticated network adapter | NOT IMPLEMENTED | No production WebRTC, WebSocket, or Supabase Realtime tensor channel is wired to this contract. Adapter metadata is not independent proof of encryption or peer identity. |
+| iOS WebKit-to-Metal local bridge | IMPLEMENTED + CI TESTED | Local smoke operations only; no remote tensor reception or remote operation dispatch. |
+| iOS Simulator app build + macOS-runner Metal smoke test | CI PASS | See GitHub Actions run `38121543357`. This is not a physical iPhone test. |
+| Two-physical-node graph execution | NOT VERIFIED | Requires a concrete secure transport, authenticated node sessions, remote worker operation endpoint, and two real devices. |
+
+Latest transport-contract CI run: `38121763071` (44 tests passed, 0 failed). These tests use injected test channel adapters; they do not demonstrate physical network transfer.
+
+### Next implementation gate
+
+Before enabling real tensor traffic, implement and review a concrete transport with:
+1. server-verified node identity and short-lived, node-scoped sessions;
+2. authenticated encrypted transport, not client-supplied boolean claims;
+3. message expiry and replay protection enforced across reconnects;
+4. bounded chunking/backpressure for large tensors and cancellation;
+5. explicit node opt-in/revocation and authorization for each job/tensor;
+6. a two-device integration test that verifies the receiving device's output against a trusted single-device reference.
+
+Do not mark distributed execution as complete until that integration test passes. No production database schema or Edge Function was changed by this repository work.
