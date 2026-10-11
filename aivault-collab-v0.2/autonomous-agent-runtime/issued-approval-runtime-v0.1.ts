@@ -31,7 +31,20 @@ export class IssuedApprovalRuntime {
       if (!Number.isFinite(Date.parse(previous.expiresAt)) || Date.parse(previous.expiresAt) <= Date.now()) throw new Error("APPROVAL_EXPIRED");
       return previous;
     }
-    return issueApproval(this.agentId, this.ownerId, snapshot.pending, this.issued);
+    try {
+      return await issueApproval(this.agentId, this.ownerId, snapshot.pending, this.issued);
+    } catch (error) {
+      // A concurrent issuer may have inserted the challenge first.
+      // Only recover the known unique-key collision; never swallow DB outages.
+      if (!(error instanceof Error) || error.message !== "APPROVAL_ALREADY_ISSUED") throw error;
+      const winner = await this.issued.get(snapshot.pending.id);
+      const digest = await digestToolInput(snapshot.pending.input);
+      if (!winner || winner.agentId !== this.agentId || winner.ownerId !== this.ownerId ||
+          winner.toolName !== snapshot.pending.name || winner.kind !== snapshot.pending.kind ||
+          winner.inputDigest !== digest) throw new Error("APPROVAL_CHALLENGE_COLLISION");
+      if (!Number.isFinite(Date.parse(winner.expiresAt)) || Date.parse(winner.expiresAt) <= Date.now()) throw new Error("APPROVAL_EXPIRED");
+      return winner;
+    }
   }
   async decide(presented: ApprovalRequest, decision: ApprovalDecision): Promise<RuntimeSnapshot> {
     // Do not use user-supplied expiry or identity as authority.
