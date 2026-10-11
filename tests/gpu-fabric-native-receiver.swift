@@ -126,7 +126,8 @@ struct NativeReceiverTest {
             ledger:AIVAULTTensorReplayLedgerV01(directory:storagePath),onTensor:{ _,_ in await storageState.record([]) })
         try FileManager.default.removeItem(at:storagePath)
         try Data("not-a-directory".utf8).write(to:storagePath)
-        try check(await storage.receive(body:JSONEncoder().encode(wire(operation:"storage")),headers:headers).statusCode == 503,"storage failure")
+        let storageResponse = await storage.receive(body:try JSONEncoder().encode(wire(operation:"storage")),headers:headers)
+        try check(storageResponse.statusCode == 503,"storage failure status=\(storageResponse.statusCode) body=\(String(data:storageResponse.body,encoding:.utf8) ?? "")")
         try check(await storageState.snapshot().0 == 0,"storage failure executed")
         print("CONFIRMED: native HTTP bounds, task/peer/hash/expiry rejection, concurrency, revoke and restart replay")
 

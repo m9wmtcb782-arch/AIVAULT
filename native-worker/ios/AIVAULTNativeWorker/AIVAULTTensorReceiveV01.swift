@@ -132,7 +132,10 @@ public actor AIVAULTTensorReceiverV01 {
         for i in a.indices { difference |= a[i] ^ b[i] }
         return difference == 0
     }
-    public func receive(body: Data, headers: [String: String], now: Date = Date()) async -> Response {
+    public func receive(body: Data, headers: [String: String], now: Date? = nil) async -> Response {
+        // Read the clock when this actor actually processes the complete body,
+        // rather than while the caller constructs arguments or waits for it.
+        let now = now ?? Date()
         guard grant.expiresAt > now,
               let authorization = headers["authorization"], authorization.hasPrefix("Bearer "),
               sameToken(String(authorization.dropFirst(7))) else { return .error(401, "UNAUTHORIZED") }
