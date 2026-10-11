@@ -52,3 +52,17 @@ test("rejects a missing node assignment", () => {
     jobId: "sim-job-4", inputValue: [1], operations: [graph[0]], nodeAssignments: {},
   }), /missing node assignment/);
 });
+
+test("marks all simulator traces as simulated, never as GPU execution", () => {
+  const result = runSimulatedGraph({
+    jobId: "sim-job-5", inputValue: [3],
+    operations: [
+      { operation_id: "op-a", operator: "mul_scalar", dependency_ids: [], input_tensor_ids: ["x"], output_tensor_id: "h", scalar: 2 },
+      { operation_id: "op-b", operator: "add_scalar", dependency_ids: ["op-a"], input_tensor_ids: ["h"], output_tensor_id: "y", scalar: 1 },
+    ],
+    nodeAssignments: { "op-a": "sim-node-a", "op-b": "sim-node-b" },
+  });
+  assert.ok(result.trace.every((entry) => entry.status === "SIMULATED"));
+  assert.equal(result.status, "SIMULATED");
+  assert.match(result.note, /not evidence of real GPU execution/);
+});
