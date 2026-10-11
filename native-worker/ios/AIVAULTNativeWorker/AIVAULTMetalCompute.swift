@@ -96,14 +96,20 @@ public final class AIVAULTMetalCompute {
         }
 
         let byteCount = input.count * MemoryLayout<Float>.stride
-        guard let inputBuffer = device.makeBuffer(
-            bytes: input,
-            length: byteCount,
-            options: .storageModeShared
-        ), let outputBuffer = device.makeBuffer(
-            length: byteCount,
-            options: .storageModeShared
-        ) else {
+        let inputBuffer: MTLBuffer?
+        inputBuffer = input.withUnsafeBytes { rawBuffer in
+            guard let baseAddress = rawBuffer.baseAddress else { return nil }
+            return device.makeBuffer(
+                bytes: baseAddress,
+                length: byteCount,
+                options: .storageModeShared
+            )
+        }
+        guard let inputBuffer,
+              let outputBuffer = device.makeBuffer(
+                length: byteCount,
+                options: .storageModeShared
+              ) else {
             throw ComputeError.bufferAllocationFailed
         }
 
