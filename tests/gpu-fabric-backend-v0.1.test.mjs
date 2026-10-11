@@ -77,3 +77,10 @@ test("rejects invalid capability declarations before dispatch", async () => {
     /device_kind is invalid/,
   );
 });
+
+test("rejects multi-input operations until their semantics are implemented", async () => {
+  await assert.rejects(
+    executeBackendOperation(testAdapter(), { operator: "add_scalar", scalar: 1 }, [[1], [2]]),
+    /exactly one input array/,
+  );
+});
