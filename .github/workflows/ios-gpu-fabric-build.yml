@@ -50,3 +50,12 @@ jobs:
             -derivedDataPath /tmp/aivault-derived-data \
             CODE_SIGNING_ALLOWED=NO \
             build
+
+      - name: Execute real Metal kernels on the macOS runner
+        run: |
+          xcrun swiftc \
+            -parse-as-library \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTMetalCompute.swift \
+            tests/gpu-fabric-metal-smoke.swift \
+            -o /tmp/aivault-gpu-fabric-metal-smoke
+          /tmp/aivault-gpu-fabric-metal-smoke
