@@ -1,11 +1,11 @@
 export const SPECIES = {
-  phone:{name:'手機',fish:'小魚',size:19,color:'#56dcc3',tool:'魚竿'},
-  tablet:{name:'平板',fish:'中魚',size:29,color:'#f8c973',tool:'抄網'},
-  computer:{name:'電腦',fish:'大魚',size:40,color:'#70c7fa',tool:'大型抄網'},
-  shark:{name:'電腦',fish:'鯊魚',size:58,color:'#b1c5e0',tool:'捕撈網'},
-  whale:{name:'電腦',fish:'鯨魚',size:76,color:'#b0a1ff',tool:'吊網'},
-  leviathan:{name:'電腦',fish:'巨鯨',size:94,color:'#73d8fa',tool:'起重吊具'},
-  unknown:{name:'待辨識',fish:'待辨識魚',size:25,color:'#9faebb',tool:'抄網'},
+  phone:{name:'GPU I',fish:'小魚',size:19,color:'#56dcc3',tool:'魚竿'},
+  tablet:{name:'GPU II',fish:'中魚',size:29,color:'#f8c973',tool:'抄網'},
+  computer:{name:'GPU III',fish:'大魚',size:40,color:'#70c7fa',tool:'大型抄網'},
+  shark:{name:'GPU IV',fish:'鯊魚',size:58,color:'#b1c5e0',tool:'捕撈網'},
+  whale:{name:'GPU V',fish:'鯨魚',size:76,color:'#b0a1ff',tool:'吊網'},
+  leviathan:{name:'GPU VI',fish:'巨鯨',size:94,color:'#73d8fa',tool:'起重吊具'},
+  unknown:{name:'算力待測',fish:'待測魚',size:25,color:'#9faebb',tool:'抄網'},
 };
 // Aquarium tiers are presentation categories, not measured performance or payout weights.
 function platformText(node){return typeof node.platform==='string'?node.platform:JSON.stringify(node.platform||{});}
@@ -18,20 +18,16 @@ export function deviceLabel(node){
  return '待辨識';
 }
 export function classify(node) {
- const platform=platformText(node);
- // Device form factor wins: a phone/tablet cannot become a desktop tier from a GPU string.
- if(/iPad|tablet|平板/i.test(platform))return 'tablet';
- if(/iPhone|iPod|Android|mobile|手機/i.test(platform))return 'phone';
- const gpu=JSON.stringify(node.hardware||{});
- if(/(?:RTX|QUADRO|NVIDIA)[^\d]{0,20}6000\b|\b6000\s*(?:ADA|BLACKWELL)/i.test(gpu))return 'leviathan';
- if(/\b(?:RTX\s*)?5090\b/i.test(gpu))return 'whale';
- if(/\b(?:RTX\s*)?4090\b/i.test(gpu))return 'shark';
- // Apple chip tier must be explicitly reported; Mac model name alone does not imply a chip.
- if(/\bApple\s+M\d+\s+Ultra\b/i.test(gpu))return 'leviathan';
- if(/\bApple\s+M\d+\s+Max\b/i.test(gpu))return 'whale';
- if(/\bApple\s+M\d+\s+Pro\b/i.test(gpu))return 'shark';
- if(/Windows|Mac|Linux|desktop|computer|電腦/i.test(platform)||/\bApple\s+M\d+\b/i.test(gpu))return 'computer';
- return 'unknown';
+ if(node.gpu_reported===false)return 'unknown';
+ const r=node.gpu_rating;
+ if(!r||r.version!=='pool-u32-v1'||!Number.isFinite(r.units)||r.units<=0)return 'unknown';
+ // Exactly the same thresholds for every phone, tablet, PC and Apple device.
+ if(r.units<1)return 'phone';
+ if(r.units<10)return 'tablet';
+ if(r.units<100)return 'computer';
+ if(r.units<500)return 'shark';
+ if(r.units<1000)return 'whale';
+ return 'leviathan';
 }
 export function waterState(nodes,reference=20) {
   const active=nodes.filter(n=>n.online===true&&n.gpu_reported===true&&!['PAUSED','STOPPED'].includes(String(n.status||'').toUpperCase()));

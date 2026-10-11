@@ -1,6 +1,6 @@
 // AIVAULT Compute Coordinator
 // Minimal lifecycle fix: real assignment row, no COMPLETED without verified WebGPU result.
-import { compatibleGpuTask, verifyPortableGpuResult } from "./gpu-benchmark.ts";
+import { compatibleGpuTask, verifyPortableGpuResult, poolGpuRating } from "./gpu-benchmark.ts";
 import { checkPoolTaskAccess } from "./task-access.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -139,13 +139,20 @@ async function modelAllowedInPool(modelId: string): Promise<boolean> {
 }
 
 async function poolStatus() {
-  const [workerResult, registeredResult] = await Promise.all([
+  const [workerResult, registeredResult, benchmarkResult] = await Promise.all([
     db.from("compute_mesh_nodes").select("node_id,status,available,gpu,capability,platform,runtime,accelerator,last_seen", {count:"exact"}).order("last_seen", {ascending:false}).limit(1000),
     db.from("aivault_compute_nodes").select("id,node_name,platform,browser,webgpu_supported,status,paused_by_user,last_heartbeat_at", {count:"exact"}).order("last_heartbeat_at", {ascending:false}).limit(1000),
+    db.from("compute_mesh_assignments").select("node_id,result,updated_at").eq("status","COMPLETED").order("updated_at",{ascending:false}).limit(3000),
   ]);
-  if (workerResult.error || registeredResult.error) return json({success:false,error:"POOL_STATUS_UNAVAILABLE"},503);
+  if (workerResult.error || registeredResult.error || benchmarkResult.error) return json({success:false,error:"POOL_STATUS_UNAVAILABLE"},503);
   const nodes = new Map<string, unknown>();
   const now = Date.now();
+  const ratings = new Map<string, unknown>();
+  for(const row of benchmarkResult.data || []){
+    if(ratings.has(row.node_id) || now-Date.parse(row.updated_at)>7*86400000 || !Number.isFinite(Date.parse(row.updated_at)))continue;
+    const rating=poolGpuRating(row.result);
+    if(rating)ratings.set(row.node_id,{...rating,measured_at:row.updated_at});
+  }
   const onlineAt = (timestamp: unknown, ttl: number) => {
     const time = typeof timestamp === "string" ? Date.parse(timestamp) : NaN;
     return Number.isFinite(time) && time <= now + 5000 && now - time <= ttl;
@@ -155,7 +162,7 @@ async function poolStatus() {
   }
   for (const row of workerResult.data || []) {
     const capability = row.capability || {};
-    nodes.set(row.node_id, { id:row.node_id, name:row.node_id, source:"coordinator", runtime:row.runtime, platform:row.platform, gpu_reported:row.gpu === true || Boolean(row.gpu && typeof row.gpu === "object"), online:onlineAt(row.last_seen,120000) && !["OFFLINE","FAILED","ERROR"].includes(String(row.status).toUpperCase()), available:row.available === true, status:row.status, last_seen:row.last_seen, reason:!onlineAt(row.last_seen,120000)?"心跳逾時（可能已關頁、鎖屏或斷線）":capability.gpu_failure_reason || (["PAUSED","STOPPED"].includes(String(row.status).toUpperCase())?"使用者已停止提供":""), hardware:{ gpu:typeof row.gpu === "object" ? row.gpu : null, accelerator:row.accelerator, gpu_info:capability.gpu_info || capability.gpu || capability.aivault_compute_capability || null } });
+    nodes.set(row.node_id, { id:row.node_id, name:row.node_id, source:"coordinator", gpu_rating:ratings.get(row.node_id) || null, runtime:row.runtime, platform:row.platform, gpu_reported:row.gpu === true || Boolean(row.gpu && typeof row.gpu === "object"), online:onlineAt(row.last_seen,120000) && !["OFFLINE","FAILED","ERROR"].includes(String(row.status).toUpperCase()), available:row.available === true, status:row.status, last_seen:row.last_seen, reason:!onlineAt(row.last_seen,120000)?"心跳逾時（可能已關頁、鎖屏或斷線）":capability.gpu_failure_reason || (["PAUSED","STOPPED"].includes(String(row.status).toUpperCase())?"使用者已停止提供":""), hardware:{ gpu:typeof row.gpu === "object" ? row.gpu : null, accelerator:row.accelerator, gpu_info:capability.gpu_info || capability.gpu || capability.aivault_compute_capability || null } });
   }
   return json({success:true,nodes:[...nodes.values()], fetched_at:new Date(now).toISOString(), truncated:(workerResult.count || 0)>1000 || (registeredResult.count || 0)>1000, policy:{mode:"FIRST_PARTY_ONLY",external_models:"CLOSED",pricing:"UNSET",gpu_inference_validated:false}, counting:"browser_nodes_not_unique_physical_devices"});
 }

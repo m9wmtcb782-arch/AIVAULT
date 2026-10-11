@@ -31,7 +31,12 @@ if(root){
    state('GPU 正在執行',backend.toUpperCase()+' · '+task.elements+' 個元素，'+task.iterations+' 次迭代。');
    try{
     await api({type:'task.progress',nodeId,taskId:task.id,assignmentId,progress:5,status:'RUNNING'});
-    const result=await runner.run(Number(task.elements),Number(task.iterations));
+    let result=await runner.run(Number(task.elements),Number(task.iterations));
+    if(Number(task.elements)===4096&&Number(task.iterations)===16){
+     const samples=[result.gpu_time_ms];
+     for(let i=1;i<5;i++){result=await runner.run(4096,16);samples.push(result.gpu_time_ms);}
+     result={...result,gpu_time_ms:[...samples].sort((a,b)=>a-b)[2],benchmark_version:'pool-u32-v1',benchmark_samples_ms:samples};
+    }
     const ack=await api({type:'task.result',nodeId,taskId:task.id,assignmentId,status:'COMPLETED',result});
     if(ack.verified!==true||ack.taskStatus!=='COMPLETED')throw Error('後端未接受 GPU 結果');
     $('autoProof').textContent='GPU 驗證已完成 · '+result.executed_on+' · checksum '+result.checksum;
@@ -51,7 +56,7 @@ if(root){
    catch(webgpuError){try{runner=AivaultWebGL2.createRunner();await runner.run(16,1);backend='webgl2';}catch(glError){reason='WebGPU：'+webgpuError.message+'；WebGL2：'+glError.message;backend='unavailable';await register();state('已登記，無法提供 GPU',reason+'。裝置仍會以魚呈現並計入參與水位，GPU 節點數不增加。');$('autoGpuToggle').textContent='重新偵測';return;}}
    if(stopped)return;ready=true;await register();state('正在提供 GPU',backend==='webgl2'?'已啟用 WebGL2 備援，只接相容的小型任務。':'已啟用 WebGPU，正在等待相容任務。');
    clearInterval(heartbeatTimer);clearInterval(pollTimer);heartbeatTimer=setInterval(()=>{if(!document.hidden&&!stopped)heartbeat();},30000);pollTimer=setInterval(poll,30000);
-   const id='auto-gpu-proof-'+nodeId+'-'+Date.now();await api({type:'task.create',task:{id,name:'裝置自動 GPU 驗證',type:'gpu-u32-mix',target_node_id:nodeId,elements:256,iterations:1,gpu_required:true,backend:'portable-gpu'}});await poll();
+   const id='auto-gpu-proof-'+nodeId+'-'+Date.now();await api({type:'task.create',task:{id,name:'裝置自動 GPU 驗證',type:'gpu-u32-mix',target_node_id:nodeId,elements:4096,iterations:16,gpu_required:true,backend:'portable-gpu'}});await poll();
   }catch(e){reason=e.message;state('暫時無法加入',reason+'。請檢查網路後重新嘗試。');$('autoGpuToggle').textContent='重新嘗試';}finally{starting=false;}
  }
  $('autoGpuToggle').addEventListener('click',async()=>{if(starting){stopped=true;clearInterval(heartbeatTimer);clearInterval(pollTimer);$('autoGpuToggle').textContent='恢復提供';state('已停止提供','已取消自動加入，不再領取新任務。');await heartbeat(true);return;}if(stopped||!ready){await start();return;}stopped=true;clearInterval(heartbeatTimer);clearInterval(pollTimer);$('autoGpuToggle').textContent='恢復提供';state('已停止提供','裝置登記保留；不再領取新任務。');await heartbeat(true);});

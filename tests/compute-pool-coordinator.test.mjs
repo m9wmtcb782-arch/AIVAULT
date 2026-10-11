@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {stripTypeScriptTypes} from 'node:module';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import {compatibleGpuTask,verifyPortableGpuResult} from '../supabase/functions/aivault-compute-coordinator/gpu-benchmark.ts';
+import {compatibleGpuTask,verifyPortableGpuResult,poolGpuRating,benchmarkChecksum} from '../supabase/functions/aivault-compute-coordinator/gpu-benchmark.ts';
 import {checkPoolTaskAccess} from '../supabase/functions/aivault-compute-coordinator/task-access.ts';
 const source=stripTypeScriptTypes(readFileSync(new URL('../supabase/functions/aivault-compute-coordinator/index.ts',import.meta.url),'utf8').replace(/^import .*;\n/gm,''));
 function fixture({allowed=false,workers=[],registered=[],tasks=[],assignments=[],fail=false,taskWriteFails=false}={}){
@@ -15,7 +15,7 @@ function fixture({allowed=false,workers=[],registered=[],tasks=[],assignments=[]
   async run(){if(this.op!=='select'){writes.push({table:this.table,value:this.value});return {data:this.value,error:taskWriteFails&&this.table==='compute_mesh_tasks'?{message:'failed'}:null};}const data=this.table==='compute_mesh_nodes'?workers:this.table==='aivault_compute_nodes'?registered:this.table==='compute_mesh_tasks'?tasks:this.table==='compute_mesh_assignments'?assignments:[];return {data,error:fail?{message:'offline'}:null,count:data.length};}
  }
  const client={from:t=>new Query(t),rpc:async(name)=>{if(name==='darkstar_normalize_compute_capability')return {data:{platform_family:'reported'},error:null};assert.equal(name,'aivault_check_pool_model_access');return {data:allowed,error:fail?{message:'offline'}:null};}};
- vm.runInNewContext(source,{checkPoolTaskAccess,compatibleGpuTask,verifyPortableGpuResult,createClient:()=>client,Request,Response,console,Date,Map,Set,Deno:{env:{get:()=> 'offline'},serve:fn=>handler=fn}});
+ vm.runInNewContext(source,{checkPoolTaskAccess,compatibleGpuTask,verifyPortableGpuResult,poolGpuRating,benchmarkChecksum,createClient:()=>client,Request,Response,console,Date,Map,Set,Deno:{env:{get:()=> 'offline'},serve:fn=>handler=fn}});
  return {writes,invoke:async(body,headers={})=>{const r=await handler(new Request('https://offline.invalid',{method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(body)}));return {status:r.status,body:await r.json()};}};
 }
 test('external model task refused before any database write',async()=>{const f=fixture();const r=await f.invoke({type:'task.create',task:{id:'external',type:'inference',model_id:'external',ownership:'first_party'}});assert.equal(r.status,403);assert.equal(f.writes.length,0);});
@@ -30,3 +30,5 @@ test('completion persists result only on assignment and checks task update',asyn
 test('task database update failure must not report completion',async()=>{const f=fixture({assignments:[{id:'assignment'}],taskWriteFails:true});const r=await f.invoke({type:'task.result',taskId:'task',nodeId:'node',result:proof});assert.equal(r.status,500);assert.equal(r.body.success,false);assert.equal(r.body.error,'TASK_STATUS_WRITE_FAILED');});
 test('device metadata platform survives registration',async()=>{const f=fixture();await f.invoke({type:'node.register',node:{id:'node',gpu:true,metadata:{platform:'iPhone'}}});assert.equal(f.writes.find(w=>w.table==='compute_mesh_nodes').value.platform,'iPhone');});
 test('heartbeat can restore missing platform from reported browser header',async()=>{const f=fixture();await f.invoke({type:'node.heartbeat',nodeId:'node',gpu:true},{'User-Agent':'Mozilla iPhone OS Safari'});assert.equal(f.writes.find(w=>w.table==='compute_mesh_nodes').value.platform,'Mozilla iPhone OS Safari');});
+
+test('pool derives GPU units from completed calibrated result, not reported card',async()=>{const result={executed_on:'WebGPU',gpu:true,verified:true,elements:4096,iterations_per_element:16,sample_count:1024,checksum:benchmarkChecksum(4096,16),gpu_time_ms:2,benchmark_version:'pool-u32-v1',benchmark_samples_ms:[1,2,2,3,4]};const f=fixture({workers:[{node_id:'phone',gpu:true,platform:'iPhone',last_seen:new Date().toISOString(),status:'READY'}],assignments:[{node_id:'phone',updated_at:new Date().toISOString(),result}]});const r=await f.invoke({type:'mesh.pool'});assert.equal(r.body.nodes[0].gpu_rating.units,32.768);assert.equal(r.body.nodes[0].gpu_rating.settlement_eligible,false);});

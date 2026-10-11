@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import {benchmarkChecksum,compatibleGpuTask,verifyPortableGpuResult} from '../supabase/functions/aivault-compute-coordinator/gpu-benchmark.ts';
+import {benchmarkChecksum,compatibleGpuTask,verifyPortableGpuResult,poolGpuRating} from '../supabase/functions/aivault-compute-coordinator/gpu-benchmark.ts';
 const portable={type:'gpu-u32-mix',elements:256,iterations:1,payload:{}};
 test('WebGL2 cannot claim a WebGPU-only workload',()=>assert.equal(compatibleGpuTask({runtime:'webgl2'}, {...portable,type:'webgpu-compute'}),false));
 test('WebGL2 can claim the small portable benchmark',()=>assert.equal(compatibleGpuTask({runtime:'webgl2'},portable),true));
@@ -25,3 +25,9 @@ function glFixture({wrong=false,compile=true}={}){
 test('real runner code reads the GPU framebuffer and verifies it',async()=>{const f=glFixture();const result=await f.engine.createRunner().run(256,1);assert.equal(f.calls.draw,1);assert.equal(f.calls.read,1);assert.equal(result.checksum,benchmarkChecksum(256,1));assert.equal(result.executed_on,'WebGL2');});
 test('runner never substitutes CPU output for wrong GPU pixels',async()=>{const f=glFixture({wrong:true});await assert.rejects(f.engine.createRunner().run(256,1),/輸出與參考值不符/);assert.equal(f.calls.read,1);});
 test('shader compilation failure does not enable a GPU node',()=>assert.throws(()=>glFixture({compile:false}).engine.createRunner(),/編譯失敗/));
+
+const ratingProof={executed_on:'WebGL2',gpu:true,verified:true,elements:4096,iterations_per_element:16,sample_count:1024,checksum:benchmarkChecksum(4096,16),gpu_time_ms:2,benchmark_version:'pool-u32-v1',benchmark_samples_ms:[1,2,2,3,4]};
+test('fixed five-run median derives visual GPU units',()=>assert.equal(poolGpuRating(ratingProof).units,32.768));
+test('small proof cannot masquerade as GPU rating',()=>assert.equal(poolGpuRating({...proof,benchmark_version:'pool-u32-v1',benchmark_samples_ms:[1,1,1,1,1]}),null));
+test('zero or inconsistent times do not rate GPU',()=>{assert.equal(poolGpuRating({...ratingProof,benchmark_samples_ms:[0,0,0,0,0],gpu_time_ms:0}),null);assert.equal(poolGpuRating({...ratingProof,gpu_time_ms:1}),null);});
+test('wrong output cannot get GPU rating',()=>assert.equal(poolGpuRating({...ratingProof,checksum:1}),null));

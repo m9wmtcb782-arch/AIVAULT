@@ -15,9 +15,6 @@ test('authorization outage fails closed',async()=>assert.equal((await checkPoolT
 test('RPC must be literal true',async()=>assert.equal((await checkPoolTaskAccess({model_id:'owned'},async()=> 'true')).allowed,false));
 test('built-in benchmark preserved',async()=>assert.equal((await checkPoolTaskAccess({type:'webgpu-compute',elements:100,iters:2},denied)).allowed,true));
 test('unknown workload requires model',async()=>assert.equal((await checkPoolTaskAccess({type:'external-inference'},denied)).allowed,false));
-for(const [platform,expected] of [['iPhone','phone'],['iPad','tablet'],['Windows','computer'],['unknown','unknown']])test('device classification '+platform,()=>assert.equal(classify({platform}),expected));
-for(const [gpu,expected] of [['NVIDIA RTX 4090','shark'],['NVIDIA RTX 5090','whale'],['RTX PRO 6000 Blackwell','leviathan'],['AMD Radeon RX 6000','computer']])test('reported hardware '+gpu,()=>assert.equal(classify({platform:'Windows',hardware:{gpu:{description:gpu}}}),expected));
-test('unknown GPU is not guessed as a premium card',()=>assert.equal(classify({platform:'Windows',hardware:{gpu:{vendor:'NVIDIA'}}}),'computer'));
 test('water includes connected non-GPU devices and keeps GPU count separate',()=>{const r=waterState([{online:true,gpu_reported:true},{online:false,gpu_reported:true},{online:true,gpu_reported:false}],20);assert.equal(r.count,1);assert.equal(r.ratio,.1);assert.equal(r.members.length,2);assert.equal(r.label,'低水位');});
 test('water colors change by live-node ratio',()=>{const nodes=Array.from({length:8},()=>({online:true,gpu_reported:true}));assert.equal(waterState(nodes,20).label,'中水位');assert.equal(waterState(nodes,8).label,'高水位');});
 test('display scale does not cap available node count',()=>{const r=waterState(Array.from({length:120},()=>({online:true,gpu_reported:true})),20);assert.equal(r.count,120);assert.equal(r.ratio,1);});
@@ -25,10 +22,12 @@ test('initial snapshot never triggers fishing',()=>assert.deepEqual(transitions(
 test('confirmed departure catches exactly one previously online GPU',()=>{const old=[{id:'a',online:true,gpu_reported:true},{id:'b',online:false,gpu_reported:true}];assert.deepEqual(transitions(old,[{id:'a',online:false},{id:'b',online:false}]).map(n=>n.id),['a']);});
 test('truncated response does not create false departure',()=>assert.deepEqual(transitions([{id:'a',online:true,gpu_reported:true}],[],{truncated:true}),[]));
 
-test('unsupported phone remains a pool member and is caught when offline',()=>{const n={id:'iphone',platform:'iPhone',online:true,gpu_reported:false};assert.equal(waterState([n],20).ratio,.05);assert.equal(waterState([n],20).count,0);assert.equal(classify(n),'phone');assert.equal(transitions([n],[{...n,online:false}]).length,1);});
+test('unsupported phone remains a pool member and is caught when offline',()=>{const n={id:'iphone',platform:'iPhone',online:true,gpu_reported:false};assert.equal(waterState([n],20).ratio,.05);assert.equal(waterState([n],20).count,0);assert.equal(classify(n),'unknown');assert.equal(transitions([n],[{...n,online:false}]).length,1);});
 
 for(const p of ['Macintosh','MacBook Air','MacBook Pro','Mac mini','iMac','Mac Studio','Mac Pro','iPhone','iPad'])test('Apple display group '+p,()=>assert.equal(deviceLabel({platform:p}),'iOS'));
-for(const [chip,tier] of [['Apple M1','computer'],['Apple M4 Pro','shark'],['Apple M3 Max','whale'],['Apple M2 Ultra','leviathan']])test('explicit Apple chip tier '+chip,()=>assert.equal(classify({platform:'Macintosh',hardware:{gpu:{description:chip}}}),tier));
-test('Mac model name alone does not imply chip tier',()=>assert.equal(classify({platform:'MacBook Pro'}),'computer'));
-test('phone form factor wins over desktop GPU metadata',()=>assert.equal(classify({platform:'iPhone',hardware:{gpu:{description:'Apple M4 Max'}}}),'phone'));
-test('desktop GPU model is hidden from public device label',()=>assert.equal(deviceLabel({platform:'Windows',hardware:{gpu:{description:'NVIDIA RTX 5090'}}}),'電腦'));
+for(const [units,tier] of [[.5,'phone'],[1,'tablet'],[10,'computer'],[100,'shark'],[500,'whale'],[1000,'leviathan']])test('GPU throughput tier '+units,()=>{for(const platform of ['iPhone','iPad','MacBook Pro','Windows'])assert.equal(classify({platform,gpu_rating:{version:'pool-u32-v1',units}}),tier);});
+test('faster phone is larger than slower tablet',()=>{assert.equal(classify({platform:'iPhone',gpu_rating:{version:'pool-u32-v1',units:200}}),'shark');assert.equal(classify({platform:'iPad',gpu_rating:{version:'pool-u32-v1',units:5}}),'tablet');});
+test('GPU brand alone never implies fish tier',()=>assert.equal(classify({platform:'Windows',hardware:{gpu:{description:'RTX 5090'}}}),'unknown'));
+test('Mac chip alone never implies fish tier',()=>assert.equal(classify({platform:'MacBook Pro',hardware:{gpu:{description:'Apple M4 Max'}}}),'unknown'));
+for(const units of [0,-1,NaN,Infinity])test('invalid score remains unrated '+units,()=>assert.equal(classify({gpu_rating:{version:'pool-u32-v1',units}}),'unknown'));
+test('desktop GPU model hidden from device label',()=>assert.equal(deviceLabel({platform:'Windows',hardware:{gpu:{description:'NVIDIA RTX 5090'}}}),'電腦'));

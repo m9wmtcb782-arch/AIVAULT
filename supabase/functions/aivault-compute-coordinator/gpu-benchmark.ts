@@ -21,3 +21,17 @@ export function verifyPortableGpuResult(task: any, result: any): boolean {
     result.elements===elements && result.iterations_per_element===iterations && result.sample_count===Math.min(1024,elements) &&
     Number.isFinite(result.gpu_time_ms)&&result.gpu_time_ms>=0 && result.checksum===benchmarkChecksum(elements,iterations);
 }
+
+// Visual capacity estimate only: browser wall time includes dispatch and GPU readback.
+// Client timings are not attested and must never be used for payment settlement.
+export function poolGpuRating(result: any) {
+ if(!result || result.benchmark_version!=='pool-u32-v1')return null;
+ if(!verifyPortableGpuResult({type:'gpu-u32-mix',elements:4096,iterations:16},result))return null;
+ const times=result.benchmark_samples_ms;
+ if(!Array.isArray(times)||times.length!==5||!times.every((t:any)=>typeof t==='number'&&Number.isFinite(t)&&t>0))return null;
+ const median=[...times].sort((a,b)=>a-b)[2];
+ if(Math.abs(median-result.gpu_time_ms)>.001)return null;
+ const units=4096*16/(median*1000); // One PGU = one million u32-mix rounds per second.
+ if(!Number.isFinite(units)||units<=0)return null;
+ return {version:'pool-u32-v1',units,median_ms:median,engine:result.executed_on,samples:5,timing:'browser_wall_with_readback',settlement_eligible:false};
+}
