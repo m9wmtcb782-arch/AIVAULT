@@ -11,7 +11,7 @@ const decision: ApprovalDecision = {
 };
 Deno.test("postgres adapter uses parameterized insert and rejects duplicate", async () => {
  const calls: {sql:string;params:readonly unknown[]}[] = [];
- const db:SqlExecutor={async query<T extends Record<string,unknown>>(sql:string,params:readonly unknown[]){
+ const db:SqlExecutor={async query<T extends object>(sql:string,params:readonly unknown[]){
   calls.push({sql,params});return {rows:(calls.length===1?[{request_id:"request-1"}]:[]) as T[]};
  }};
  const store=new PostgresApprovalStore(db);
@@ -22,7 +22,7 @@ Deno.test("postgres adapter uses parameterized insert and rejects duplicate", as
  if(!duplicateRejected) throw new Error("DUPLICATE_NOT_REJECTED");
 });
 Deno.test("postgres adapter returns original challenge fields",async()=>{
- const db:SqlExecutor={async query<T extends Record<string,unknown>>(){
+ const db:SqlExecutor={async query<T extends object>(){
   return {rows:[{request_id:request.requestId,agent_id:request.agentId,owner_id:request.ownerId,
    tool_name:request.toolName,kind:request.kind,input_digest:request.inputDigest,
    expires_at:new Date(request.expiresAt)}] as T[]};
@@ -33,7 +33,7 @@ Deno.test("postgres adapter returns original challenge fields",async()=>{
 Deno.test("postgres adapter consumes once with database-owned kind",async()=>{
  const calls:readonly unknown[][]=[];
  let count=0;
- const db:SqlExecutor={async query<T extends Record<string,unknown>>(sql:string,params:readonly unknown[]){
+ const db:SqlExecutor={async query<T extends object>(sql:string,params:readonly unknown[]){
   (calls as unknown[][]).push([...params]);count++;
   if(!sql.includes("select kind from aivault_agent_security.approval_challenges")) throw new Error("KIND_NOT_DATABASE_OWNED");
   return {rows:[{consumed:count===1}] as T[]};
@@ -42,4 +42,14 @@ Deno.test("postgres adapter consumes once with database-owned kind",async()=>{
  if(!await store.consumeOnce(request.requestId,decision)) throw new Error("FIRST_FAILED");
  if(await store.consumeOnce(request.requestId,decision)) throw new Error("REPLAY_ACCEPTED");
  if(calls[0][5]!=="approved") throw new Error("WRONG_DECISION");
+});
+
+Deno.test("postgres adapter rejects request ID mismatch before SQL",async()=>{
+ let queries=0;
+ const db:SqlExecutor={async query<T extends object>(){queries++;return {rows:[] as T[]};}};
+ const store=new PostgresApprovalStore(db);
+ let rejected=false;
+ try {await store.consumeOnce("different-id",decision);}
+ catch(e){rejected=String(e).includes("APPROVAL_REQUEST_ID_MISMATCH");}
+ if(!rejected || queries!==0) throw new Error("MISMATCH_NOT_REJECTED_BEFORE_DB");
 });
