@@ -62,7 +62,12 @@ struct ForegroundSessionTests {
         s.onChange = nil
         let timed = ControlledTransport()
         s.prepare(timed,expiresAt:Date().addingTimeInterval(0.02))
-        try await Task.sleep(nanoseconds:100_000_000)
+        // Runner scheduling is nondeterministic; wait for the timer callback,
+        // without manually calling expire() and masking a broken timer.
+        let deadline = Date().addingTimeInterval(2)
+        while s.status != .expired && Date() < deadline {
+            try await Task.sleep(nanoseconds:10_000_000)
+        }
         precondition(s.status == .expired && timed.stops == 1)
         print("CONFIRMED: foreground lifecycle, explicit consent, no auto-resume, stale callbacks, failures, replacement and expiry")
         print("NOT VERIFIED: UIKit gestures, physical iPhone or GPU; controlled transport only")
