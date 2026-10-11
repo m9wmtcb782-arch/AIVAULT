@@ -513,6 +513,10 @@ async function darkStarAnalyzeWorkerLog(){
         ⚡ 本機 GPU 測試
       </button>
 
+      <button id="nativeMetalBtn" class="primary">
+         原生 Metal 驗證
+      </button>
+
       <button id="pollBtn">
         📥 立即取得任務
       </button>
@@ -2804,6 +2808,53 @@ async function executeRemoteTask(
 
    --------------------------------------------------------- */
 
+async function runNativeMetalSmokeTest(){
+  const handler=window.webkit?.messageHandlers?.aivaultNativeWorker;
+  if(!handler||typeof handler.postMessage!=="function"){
+    log("原生 Metal：此頁沒有可用的 iOS 原生橋接；請從 AIVAULT Native Worker App 開啟。",null,"warn");
+    return;
+  }
+  const button=$("nativeMetalBtn");
+  if(button)button.disabled=true;
+  try{
+    log("開始原生 Metal 驗證：mul_scalar → add_scalar。");
+    const multiplied=await handler.postMessage({
+      type:"gpuFabric.execute",
+      operation:"mul_scalar",
+      input:[1,2,-1],
+      scalar:3
+    });
+    if(multiplied?.status!=="LOCAL_METAL_EXECUTED"||
+       JSON.stringify(multiplied.output)!==JSON.stringify([3,6,-3])){
+      throw new Error("乘法結果不符："+JSON.stringify(multiplied));
+    }
+    log("原生 Metal 乘法通過",multiplied,"ok");
+    const added=await handler.postMessage({
+      type:"gpuFabric.execute",
+      operation:"add_scalar",
+      input:multiplied.output,
+      scalar:2
+    });
+    if(added?.status!=="LOCAL_METAL_EXECUTED"||
+       JSON.stringify(added.output)!==JSON.stringify([5,8,-1])){
+      throw new Error("加法結果不符："+JSON.stringify(added));
+    }
+    log("原生 Metal 加法通過",added,"ok");
+    log("原生 Metal Smoke Test PASS；這只證明目前裝置的本機運算，不代表跨裝置 GPU 運算。",{
+      device_name:added.device_name,
+      first_output:multiplied.output,
+      final_output:added.output
+    },"ok");
+  }catch(error){
+    log("原生 Metal 驗證失敗",{
+      error:String(error?.message||error),
+      hint:"確認使用原生 AIVAULT Worker App、指定測試頁與支援 Metal 的裝置。"
+    },"error");
+  }finally{
+    if(button)button.disabled=false;
+  }
+}
+
 async function runLocalBenchmark(){
 
   if(
@@ -3169,6 +3220,12 @@ $("benchmarkBtn")
   .addEventListener(
     "click",
     runLocalBenchmark
+  );
+
+$("nativeMetalBtn")
+  .addEventListener(
+    "click",
+    runNativeMetalSmokeTest
   );
 
 
