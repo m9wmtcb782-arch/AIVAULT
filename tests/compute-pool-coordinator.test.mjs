@@ -3,18 +3,19 @@ import assert from 'node:assert/strict';
 import {stripTypeScriptTypes} from 'node:module';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {compatibleGpuTask,verifyPortableGpuResult} from '../supabase/functions/aivault-compute-coordinator/gpu-benchmark.ts';
 import {checkPoolTaskAccess} from '../supabase/functions/aivault-compute-coordinator/task-access.ts';
 const source=stripTypeScriptTypes(readFileSync(new URL('../supabase/functions/aivault-compute-coordinator/index.ts',import.meta.url),'utf8').replace(/^import .*;\n/gm,''));
 function fixture({allowed=false,workers=[],registered=[],tasks=[],assignments=[],fail=false,taskWriteFails=false}={}){
  let handler;const writes=[];
  class Query{
-  constructor(table){this.table=table;this.op='select';}select(){return this;}eq(){return this;}neq(){return this;}in(){return this;}order(){return this;}limit(){return this;}
+  constructor(table){this.table=table;this.op='select';}select(){return this;}eq(){return this;}neq(){return this;}or(){return this;}in(){return this;}order(){return this;}limit(){return this;}
   upsert(value){this.op='upsert';this.value=value;return this;}insert(value){this.op='insert';this.value=value;return this;}update(value){this.op='update';this.value=value;return this;}
   async single(){const r=await this.run();return {...r,data:Array.isArray(r.data)?r.data[0]:r.data};}async maybeSingle(){return this.single();}then(a,b){return this.run().then(a,b);}
   async run(){if(this.op!=='select'){writes.push({table:this.table,value:this.value});return {data:this.value,error:taskWriteFails&&this.table==='compute_mesh_tasks'?{message:'failed'}:null};}const data=this.table==='compute_mesh_nodes'?workers:this.table==='aivault_compute_nodes'?registered:this.table==='compute_mesh_tasks'?tasks:this.table==='compute_mesh_assignments'?assignments:[];return {data,error:fail?{message:'offline'}:null,count:data.length};}
  }
  const client={from:t=>new Query(t),rpc:async(name)=>{if(name==='darkstar_normalize_compute_capability')return {data:{platform_family:'reported'},error:null};assert.equal(name,'aivault_check_pool_model_access');return {data:allowed,error:fail?{message:'offline'}:null};}};
- vm.runInNewContext(source,{checkPoolTaskAccess,createClient:()=>client,Request,Response,console,Date,Map,Set,Deno:{env:{get:()=> 'offline'},serve:fn=>handler=fn}});
+ vm.runInNewContext(source,{checkPoolTaskAccess,compatibleGpuTask,verifyPortableGpuResult,createClient:()=>client,Request,Response,console,Date,Map,Set,Deno:{env:{get:()=> 'offline'},serve:fn=>handler=fn}});
  return {writes,invoke:async(body,headers={})=>{const r=await handler(new Request('https://offline.invalid',{method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(body)}));return {status:r.status,body:await r.json()};}};
 }
 test('external model task refused before any database write',async()=>{const f=fixture();const r=await f.invoke({type:'task.create',task:{id:'external',type:'inference',model_id:'external',ownership:'first_party'}});assert.equal(r.status,403);assert.equal(f.writes.length,0);});

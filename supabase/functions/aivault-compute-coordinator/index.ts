@@ -1,5 +1,6 @@
 // AIVAULT Compute Coordinator
 // Minimal lifecycle fix: real assignment row, no COMPLETED without verified WebGPU result.
+import { compatibleGpuTask, verifyPortableGpuResult } from "./gpu-benchmark.ts";
 import { checkPoolTaskAccess } from "./task-access.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -150,11 +151,11 @@ async function poolStatus() {
     return Number.isFinite(time) && time <= now + 5000 && now - time <= ttl;
   };
   for (const row of registeredResult.data || []) {
-    nodes.set(row.id, { id:row.id, name:row.node_name || row.id, source:"registered", platform:row.platform, browser:row.browser, gpu_reported:row.webgpu_supported === true, online:onlineAt(row.last_heartbeat_at,60000) && !["offline","error"].includes(row.status), available:!row.paused_by_user && row.status === "online", status:row.status, last_seen:row.last_heartbeat_at, hardware:null });
+    nodes.set(row.id, { id:row.id, name:row.node_name || row.id, source:"registered", platform:row.platform, browser:row.browser, gpu_reported:row.webgpu_supported === true, online:onlineAt(row.last_heartbeat_at,60000) && !["offline","error"].includes(row.status), available:!row.paused_by_user && row.status === "online", status:row.status, last_seen:row.last_heartbeat_at, hardware:null,reason:!onlineAt(row.last_heartbeat_at,60000)?"心跳逾時（可能已關頁、鎖屏或斷線）":row.paused_by_user?"使用者已暫停":row.webgpu_supported!==true?"尚未回報可用 GPU":"" });
   }
   for (const row of workerResult.data || []) {
     const capability = row.capability || {};
-    nodes.set(row.node_id, { id:row.node_id, name:row.node_id, source:"coordinator", platform:row.platform, gpu_reported:row.gpu === true || Boolean(row.gpu && typeof row.gpu === "object"), online:onlineAt(row.last_seen,120000) && !["OFFLINE","FAILED","ERROR"].includes(String(row.status).toUpperCase()), available:row.available === true, status:row.status, last_seen:row.last_seen, hardware:{ gpu:typeof row.gpu === "object" ? row.gpu : null, accelerator:row.accelerator, gpu_info:capability.gpu_info || capability.gpu || capability.aivault_compute_capability || null } });
+    nodes.set(row.node_id, { id:row.node_id, name:row.node_id, source:"coordinator", runtime:row.runtime, platform:row.platform, gpu_reported:row.gpu === true || Boolean(row.gpu && typeof row.gpu === "object"), online:onlineAt(row.last_seen,120000) && !["OFFLINE","FAILED","ERROR"].includes(String(row.status).toUpperCase()), available:row.available === true, status:row.status, last_seen:row.last_seen, reason:!onlineAt(row.last_seen,120000)?"心跳逾時（可能已關頁、鎖屏或斷線）":capability.gpu_failure_reason || (["PAUSED","STOPPED"].includes(String(row.status).toUpperCase())?"使用者已停止提供":""), hardware:{ gpu:typeof row.gpu === "object" ? row.gpu : null, accelerator:row.accelerator, gpu_info:capability.gpu_info || capability.gpu || capability.aivault_compute_capability || null } });
   }
   return json({success:true,nodes:[...nodes.values()], fetched_at:new Date(now).toISOString(), truncated:(workerResult.count || 0)>1000 || (registeredResult.count || 0)>1000, policy:{mode:"FIRST_PARTY_ONLY",external_models:"CLOSED",pricing:"UNSET",gpu_inference_validated:false}, counting:"browser_nodes_not_unique_physical_devices"});
 }
@@ -167,6 +168,7 @@ async function createTask(body: Record<string, unknown>) {
   if (!access.allowed) return json({success:false,error:access.reason},403);
   const elements = Number(task.elements ?? ((task.payload as Record<string, unknown> | undefined)?.elements ?? 0));
   const iterations = Number(task.iterations ?? task.iters ?? 1);
+  if ((task.type || task.task_type) === "gpu-u32-mix" && (!Number.isInteger(elements) || elements < 1 || elements > 4096 || !Number.isInteger(iterations) || iterations < 1 || iterations > 16)) return json({success:false,error:"PORTABLE_GPU_WORKLOAD_OUT_OF_RANGE"},400);
   const row = {
     task_id: taskId,
     name: String(task.name || task.title || taskId),
@@ -214,17 +216,18 @@ async function requestTask(body: Record<string, unknown>) {
     return json({ success: false, error: "no gpu worker" });
   }
 
-  const { data: waiting, error: waitErr } = await db
-    .from("compute_mesh_tasks")
-    .select("*")
-    .eq("status", "WAITING")
-    .order("created_at", { ascending: true })
-    .limit(5);
+  if (!/^[a-zA-Z0-9_-]{1,128}$/.test(nodeId)) return json({success:false,error:"INVALID_NODE_ID"},400);
+  let waitingQuery = db.from("compute_mesh_tasks").select("*").eq("status","WAITING")
+    .or("payload->>target_node_id.is.null,payload->>target_node_id.eq." + nodeId);
+  const supportedTypes = node.capability?.supported_task_types;
+  if (Array.isArray(supportedTypes) && supportedTypes.length > 0) waitingQuery = waitingQuery.in("type",supportedTypes.filter((v: unknown)=>typeof v === "string"));
+  else if (node.runtime === "webgl2") waitingQuery = waitingQuery.eq("type","gpu-u32-mix");
+  const {data:waiting,error:waitErr} = await waitingQuery.order("created_at",{ascending:true}).limit(20);
   if (waitErr) return json({ success: false, error: waitErr.message }, 500);
   let task: any = null;
   for (const row of waiting || []) {
     const payload = row.payload || {};
-    if (payload.gpu_required === false) continue;
+    if (payload.gpu_required === false || !compatibleGpuTask(node,row)) continue;
     const access = await checkPoolTaskAccess({ ...row, payload }, modelAllowedInPool);
     if (access.allowed) { task = row; break; }
   }
@@ -364,7 +367,14 @@ async function taskResult(body: Record<string, unknown>) {
     }, 409);
   }
 
-  const ok = body.status !== "FAILED" && resultVerified(result);
+  let verified = resultVerified(result);
+  if (result.executed_on === "WebGL2" || result.executed_on === "WebGPU") {
+    const { data: storedTask, error: loadError } = await db.from("compute_mesh_tasks").select("task_id,type,elements,iterations,payload").eq("task_id",taskId).maybeSingle();
+    if (loadError) return json({success:false,error:"TASK_VERIFICATION_UNAVAILABLE"},503);
+    if (storedTask?.type === "gpu-u32-mix") verified = verifyPortableGpuResult(storedTask,result);
+    else if (result.executed_on === "WebGL2") verified = false;
+  }
+  const ok = body.status !== "FAILED" && verified;
   const assignmentStatus = ok ? "COMPLETED" : "FAILED";
   const { error: updErr } = await db.from("compute_mesh_assignments").update({
     status: assignmentStatus,

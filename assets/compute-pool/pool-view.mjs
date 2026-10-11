@@ -19,13 +19,14 @@ export function classify(node) {
   return 'unknown';
 }
 export function waterState(nodes,reference=20) {
-  const active=nodes.filter(n=>n.online===true&&n.gpu_reported===true);
+  const active=nodes.filter(n=>n.online===true&&n.gpu_reported===true&&!['PAUSED','STOPPED'].includes(String(n.status||'').toUpperCase()));
   const scale=Number.isFinite(Number(reference))&&Number(reference)>0?Number(reference):20;
-  const ratio=Math.min(1,active.length/scale);
-  return {active,ratio,count:active.length,color:ratio<.33?'#fc6374':ratio<.67?'#f5c04d':'#3da6f6',label:ratio<.33?'低水位':ratio<.67?'中水位':'高水位'};
+  const members=nodes.filter(n=>n.online===true);
+  const ratio=Math.min(1,members.length/scale);
+  return {active,members,ratio,count:active.length,color:ratio<.33?'#fc6374':ratio<.67?'#f5c04d':'#3da6f6',label:ratio<.33?'低水位':ratio<.67?'中水位':'高水位'};
 }
 export function transitions(previous,current,{truncated=false}={}) {
   if(!previous)return [];
   const now=new Map(current.map(n=>[n.id,n]));
-  return previous.filter(n=>n.online===true&&n.gpu_reported===true&&(now.has(n.id)?now.get(n.id).online===false:!truncated));
+  return previous.filter(n=>n.online===true&&(now.has(n.id)?now.get(n.id).online===false:!truncated));
 }

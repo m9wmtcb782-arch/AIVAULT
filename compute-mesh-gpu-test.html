@@ -429,7 +429,7 @@ async function darkStarAnalyzeWorkerLog(){
       <div>
         <h1>AIVAULT Compute Mesh</h1>
         <div class="subtitle">
-          遠端 GPU Worker · WebGPU 實際運算
+          遠端 GPU Worker · WebGPU／WebGL2 GPU 運算
         </div>
       </div>
     </div>
@@ -444,7 +444,7 @@ async function darkStarAnalyzeWorkerLog(){
       </div>
 
       <div class="status">
-        <div class="statusLabel">WebGPU</div>
+        <div class="statusLabel">GPU 引擎</div>
         <div id="gpuStatus" class="statusValue warn">
           偵測中
         </div>
@@ -473,7 +473,7 @@ async function darkStarAnalyzeWorkerLog(){
 
     <div class="cardTitle">
       <h2>🖥 GPU Node</h2>
-      <div class="badge">WebGPU Remote Worker</div>
+      <div class="badge" id="workerEngineBadge">GPU Remote Worker</div>
     </div>
 
     <div class="infoGrid">
@@ -518,7 +518,7 @@ async function darkStarAnalyzeWorkerLog(){
       </button>
 
       <button id="proofTaskBtn" class="primary">
-        🧪 建立最終 WebGPU 驗證任務
+        🧪 建立小型 GPU 驗證任務
       </button>
 
       <button id="copyTestBtn" class="primary">
@@ -550,7 +550,7 @@ async function darkStarAnalyzeWorkerLog(){
       <div style="margin-top:8px;color:#748297;font-size:12px;line-height:1.7">
         Worker 會自動向 Compute Coordinator 請求 GPU 任務。
         <br>
-        只有需要 GPU 且本 Node 具備 WebGPU 能力時才執行。
+        WebGPU 裝置執行原有任務；WebGL2 備援只領取相容的小型驗證任務。
       </div>
     </div>
 
@@ -641,6 +641,7 @@ async function darkStarAnalyzeWorkerLog(){
 </div>
 
 
+<script src="assets/compute-pool/webgl2-engine.js"></script>
 <script>
 "use strict";
 
@@ -690,6 +691,8 @@ let nodeId = null;
 let registered = false;
 
 let webgpuReady = false;
+let activeBackend = "WebGPU";
+let legacyGpu = null;
 
 let adapter = null;
 
@@ -1167,6 +1170,22 @@ async function initializeWebGPU(){
    Node Register
    --------------------------------------------------------- */
 
+async function initializeGPU(){
+  try { await initializeWebGPU(); activeBackend = "WebGPU"; $("workerEngineBadge").textContent = "WebGPU Remote Worker"; }
+  catch (webgpuError) {
+    log("WebGPU 不可用，嘗試 WebGL2 GPU 備援", {reason:webgpuError.message});
+    legacyGpu = AivaultWebGL2.createRunner();
+    await legacyGpu.run(16,1);
+    activeBackend = "WebGL2";
+    webgpuReady = true; // Existing readiness flag now indicates a real usable GPU engine.
+    adapterInfo = {vendor:"reported",description:legacyGpu.renderer};
+    setGpuStatus("WebGL2 GPU 備援已通過自檢","ok");
+    $("workerEngineBadge").textContent = "WebGL2 Remote Worker";
+    $("adapterInfo").textContent = legacyGpu.renderer;
+    log("WebGL2 備援已啟用；僅領取相容的小型 GPU 驗證任務",null,"ok");
+  }
+}
+
 async function registerNode(){
 
   if(!webgpuReady){
@@ -1205,14 +1224,18 @@ async function registerNode(){
 
       gpu:
         true,
+      runtime: activeBackend === "WebGL2" ? "webgl2" : "webgpu",
+      platform: navigator.userAgent,
 
       capability:{
 
         cpu:true,
 
-        webgpu:true,
+        webgpu:activeBackend === "WebGPU",
+        webgl2:activeBackend === "WebGL2",
 
-        browser:true
+        browser:true,
+        gpu_info: adapterInfo
 
       },
 
@@ -1225,7 +1248,7 @@ async function registerNode(){
           "2.1.0-lifecycle",
 
         execution:
-          "WebGPU",
+          activeBackend,
 
         browser:
           navigator.userAgent,
@@ -1313,7 +1336,8 @@ async function heartbeat(){
 
           cpu:true,
 
-          webgpu:true,
+          webgpu:activeBackend === "WebGPU",
+        webgl2:activeBackend === "WebGL2",
 
           browser:true
 
@@ -1387,7 +1411,8 @@ async function requestTask(){
 
         cpu:true,
 
-        webgpu:true,
+        webgpu:activeBackend === "WebGPU",
+        webgl2:activeBackend === "WebGL2",
 
         browser:true
 
@@ -1399,7 +1424,7 @@ async function requestTask(){
           "aivault-compute-mesh-gpu-worker",
 
         execution:
-          "WebGPU",
+          activeBackend,
 
         gpu:
           true
@@ -1792,7 +1817,7 @@ async function createFinalProofTask(){
     return;
   }
 
-  const taskId = "iphone17-webgpu-proof-final-20261007";
+  const taskId = "gpu-portable-proof-" + nodeId + "-" + Date.now();
   $("proofTaskBtn").disabled = true;
 
   try{
@@ -1800,17 +1825,18 @@ async function createFinalProofTask(){
       type: "task.create",
       task: {
         id: taskId,
-        name: "iPhone 17 WebGPU 最終驗證",
-        title: "iPhone 17 · WebGPU Remote Proof",
-        type: "webgpu-compute",
-        elements: 1000000,
-        iterations: 20,
+        name: "手機 GPU 小型驗證",
+        title: activeBackend + " · GPU Remote Proof",
+        type: "gpu-u32-mix",
+        target_node_id: nodeId,
+        elements: 256,
+        iterations: 1,
         nodes_needed: 1,
         priority: "HIGH",
         gpu_required: true,
-        backend: "webgpu",
+        backend: "portable-gpu",
         execution: "remote",
-        requirements: { webgpu_required: true }
+        requirements: { gpu_required: true }
       }
     });
 
@@ -1823,7 +1849,7 @@ async function createFinalProofTask(){
       status: data.task?.status || "WAITING"
     }, "ok");
 
-    setTaskStatus("等待 iPhone Worker 領取", "ok");
+    setTaskStatus("等待目前手機 Worker 領取", "ok");
 
     await requestTask();
 
@@ -1917,6 +1943,7 @@ async function runWebGPUCompute(
   progressCallback
 ){
 
+  if(activeBackend === "WebGL2") return legacyGpu.run(elements,iterations,progressCallback);
   if(
     !webgpuReady ||
     !device
@@ -2580,7 +2607,7 @@ async function executeRemoteTask(
       coordinatorResult?.taskStatus === "COMPLETED" &&
       coordinatorResult?.verified === true &&
       result.verified === true &&
-      result.executed_on === "WebGPU";
+      result.executed_on === activeBackend;
 
 
     setProgress(
@@ -2819,10 +2846,10 @@ async function runLocalBenchmark(){
   try{
 
     const elements =
-      1000000;
+      activeBackend === "WebGL2" ? 256 : 1000000;
 
     const iterations =
-      256;
+      activeBackend === "WebGL2" ? 1 : 256;
 
 
     log(
@@ -3035,7 +3062,9 @@ async function startWorker(){
      * WebGPU
      */
 
-    await initializeWebGPU();
+    // Preserve device registration even when this browser cannot initialize either GPU API.
+    await coordinatorRequest({type:"node.register",node:{id:nodeId,gpu:false,available:false,status:"READY",runtime:"initializing",platform:navigator.userAgent,capability:{cpu:true,webgpu:false,webgl2:false}}});
+    await initializeGPU();
 
 
     /*
@@ -3115,7 +3144,9 @@ function darkStarAddMessage(role,text){const box=$("darkStarMessages"),row=docum
 function darkStarTopic(){const key="technical-dark-star-topic-id";let v="";try{v=localStorage.getItem(key)||"";}catch{}if(!v){v="technical-dark-star-"+crypto.randomUUID();try{localStorage.setItem(key,v);}catch{}}return v;}
 async function darkStarSharedMemory(text){try{const r=await fetch("https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star/learning/retrieve",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:String(text||"").trim(),message:String(text||"").trim()})});if(!r.ok)return "";const d=await r.json().catch(()=>({}));const ms=Array.isArray(d?.memories)?d.memories:[];return ms.length?"【暗星共用記憶】\n"+ms.slice(0,6).map((m,i)=>(i+1)+". "+String(m?.title||"未命名")+"："+String(m?.content||"").slice(0,1800)).join("\n"):"";}catch{return "";}}
 async function askDarkStarFromComputePage(text){const memory=await darkStarSharedMemory(text);const message=[memory,text].filter(Boolean).join("\n\n");const payload={engine:DARK_STAR_ENGINE,agent_id:DARK_STAR_AGENT_ID,source:"compute-mesh-gpu-test",message,topic_id:darkStarTopic(),conversation_id:null,provider:"gemini",model:"gemini-3.6-flash",stream:false};const r=await fetch(DARK_STAR_GATEWAY_URL,{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(payload)});const raw=await r.text();let d={};try{d=raw?JSON.parse(raw):{};}catch{throw new Error("暗星 Gateway 回傳不是 JSON");}if(!r.ok)throw new Error(String(d?.message||d?.error||"暗星 Gateway 請求失敗"));return String(d?.content||d?.text||d?.reply||d?.response||d?.answer||d?.output||"").trim()||"暗星沒有收到可顯示的文字結果。";}
-async function darkStarDispatchCurrentTask(){const node=localStorage.getItem("aivault_compute_mesh_gpu_node_id"),box=$("darkStarDispatchStatus");if(!node){box.textContent="BLOCKED：找不到目前 Worker 的 Node ID，先讓 Worker 保持運作。";darkStarAddMessage("system",box.textContent);return;}box.textContent="暗星正在把目前 WebGPU 驗證任務交給 iPhone Worker…";try{const r=await coordinatorRequest({type:"task.request",taskId:DARK_STAR_TASK_ID,task_id:DARK_STAR_TASK_ID,nodeId:node,node_id:node,status:"READY",available:true,gpu_available:true,webgpu:true,capabilities:{cpu:true,webgpu:true,browser:true},metadata:{worker:"aivault-compute-mesh-gpu-worker",execution:"remote",gpu:true,dispatched_by:"technical-dark-star"}});if(!r?.success)throw new Error(r?.error||r?.message||"Coordinator 沒有接受調度");box.textContent="CONFIRMED：暗星已向 Coordinator 發出 task.request。等待 iPhone 17 Worker 實際執行。";darkStarAddMessage("ai",box.textContent+"\nTask: "+DARK_STAR_TASK_ID+"\nNode: "+node);log("暗星已調度目前 WebGPU 驗證任務",{task_id:DARK_STAR_TASK_ID,node_id:node,coordinator:r},"ok");}catch(error){box.textContent="BLOCKED：暗星調度失敗："+error.message;darkStarAddMessage("system",box.textContent);log("暗星調度失敗",{error:error.message},"error");}}
+async function darkStarDispatchCurrentTask(){const node=localStorage.getItem("aivault_compute_mesh_gpu_node_id"),box=$("darkStarDispatchStatus");if(!node){box.textContent="BLOCKED：找不到目前 Worker 的 Node ID，先讓 Worker 保持運作。";darkStarAddMessage("system",box.textContent);return;}box.textContent="暗星正在把目前 WebGPU 驗證任務交給 iPhone Worker…";try{const r=await coordinatorRequest({type:"task.request",taskId:DARK_STAR_TASK_ID,task_id:DARK_STAR_TASK_ID,nodeId:node,node_id:node,status:"READY",available:true,gpu_available:true,webgpu:activeBackend === "WebGPU",
+        webgl2:activeBackend === "WebGL2",capabilities:{cpu:true,webgpu:activeBackend === "WebGPU",
+        webgl2:activeBackend === "WebGL2",browser:true},metadata:{worker:"aivault-compute-mesh-gpu-worker",execution:"remote",gpu:true,dispatched_by:"technical-dark-star"}});if(!r?.success)throw new Error(r?.error||r?.message||"Coordinator 沒有接受調度");box.textContent="CONFIRMED：暗星已向 Coordinator 發出 task.request。等待 iPhone 17 Worker 實際執行。";darkStarAddMessage("ai",box.textContent+"\nTask: "+DARK_STAR_TASK_ID+"\nNode: "+node);log("暗星已調度目前 WebGPU 驗證任務",{task_id:DARK_STAR_TASK_ID,node_id:node,coordinator:r},"ok");}catch(error){box.textContent="BLOCKED：暗星調度失敗："+error.message;darkStarAddMessage("system",box.textContent);log("暗星調度失敗",{error:error.message},"error");}}
 async function sendDarkStarMessage(){const input=$("darkStarInput"),text=input.value.trim();if(!text)return;$("darkStarSend").disabled=true;input.value="";darkStarAddMessage("user",text);try{darkStarAddMessage("ai",await askDarkStarFromComputePage(text));}catch(error){darkStarAddMessage("system","暗星回覆失敗："+error.message);}finally{$("darkStarSend").disabled=false;}}
 /* ---------------------------------------------------------
    Buttons
@@ -3136,7 +3167,7 @@ $("registerBtn")
 
         if(!webgpuReady){
 
-          await initializeWebGPU();
+          await initializeGPU();
 
         }
 
