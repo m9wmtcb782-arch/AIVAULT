@@ -23,7 +23,7 @@
 
 - **CONFIRMED**：本地與 GitHub CI 76 項 Node 測試通過，兩個獨立 CPU 程序在同一主機以真實 loopback TLS 接續兩層，輸出與單機基準相符；重播拒絕。
 - **CONFIRMED**：來源提交 `147ce53d9883a5183638a8755a0554c7855cfdbf` 的 iOS Simulator 建置、原生 Metal Dense 與 TLS 接續均通過，日誌顯示 `Apple Paravirtual device`，非實體雙設備。五組輸入對照單機代數與 Float32 reference，維度、NaN／Infinity、未允許啟用函數及 ReLU 前溢位均有拒絕測試。
-- **REQUIRES TEST**：編譯選項的 API 棄用提示已改為新 OS 使用 `mathMode = .safe` 與 `.precise`；舊 OS 保留關閉 fast math 的相容分支，修正後 CI 尚待確認。
+- **CONFIRMED**：新 OS 使用 `mathMode = .safe` 與 `.precise`，舊 OS 保留關閉 fast math 的相容分支。修正後 iOS 建置與所有原生測試通過，Metal API 棄用提示已消除；runner 仍有既有的 AppIntents metadata 提示。
 - **NOT VERIFIED**：兩台實體 GPU／iPhone 共同執行；目前所有多程序測試均在同一主機。CPU 測試不是 GPU 證據。
 - **NOT VERIFIED**：大型模型、batch、Transformer／attention、量化或吞吐收益；目前是固定權重的小型 Dense 模型。
 - **REQUIRES TEST**：前景 App 加入／停止整合、憑證配置、簽署安裝與實體雙設備網路測試；本次不將 listener 或 Dense 自動接入 WebBridge。
@@ -46,4 +46,4 @@
 
 提交 `27cd07a62fa3fa9ff22f53cbda70ed2f0575b5f6` 的重跑在既有 receiver 的 backend failure 測試失敗，後面的 Dense 步驟未執行。新的安全算術設定已成功建置，不能將此 run 說成全部通過。
 
-檢查發現原生 envelope 的 ISO8601 毫秒序列化可能把截止時間向上捨入，超過嚴格的 grant／30 秒上界，導致極快的本地接收偶發拒絕。sender 現在檢查序列化後時間，必要時提前 1 毫秒，並重新驗證不超界且未到期；receiver 的期限限制保持不變。新增凍結時間的次毫秒邊界測試涵蓋 TTL 上界與較短 grant 上界，不以等待或寬鬆容差迴避問題。修正後 CI 為 **REQUIRES TEST**，待記錄結果。
+檢查發現原生 envelope 的 ISO8601 毫秒序列化可能把截止時間向上捨入，超過嚴格的 grant／30 秒上界，此邊界可使極快的本地接收偶發拒絕；前次失敗日誌未記錄 HTTP 狀態，因此不將該次錯誤的原因認定為已完全證實。sender 現在檢查序列化後時間，必要時提前 1 毫秒，並重新驗證不超界且未到期；receiver 的期限限制保持不變。新增凍結時間的次毫秒邊界測試涵蓋 TTL 上界與較短 grant 上界，不以等待或寬鬆容差迴避問題。**CONFIRMED**：修正提交 `9e22d35f0cad09dddc16e4ef01e0f7b661d5db30` 的 [完整原生 CI](https://github.com/m9wmtcb782-arch/AIVAULT/actions/runs/38129351955) 通過。凍結時間測試覆蓋 200 個 TTL／grant 邊界，其中 100 個原始格式化值向上捨入；修正後全部保持在上界內。原生接收／backend failure／storage failure／重啟重播／TLS 及 Dense 模型步驟均成功。
