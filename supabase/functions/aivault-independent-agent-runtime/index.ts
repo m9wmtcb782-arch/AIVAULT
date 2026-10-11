@@ -26,36 +26,56 @@ async function rest(path: string, init: RequestInit = {}) {
   });
 }
 
+// Authentication outages and malformed responses must never permit execution.
+async function checkExecuteAccess(req: Request, agentId: string): Promise<Response | null> {
+  if (!SUPABASE_URL || !SERVICE_ROLE) return json({success:false,error:"AUTHORIZATION_UNAVAILABLE"},503);
+  const bearer = /^Bearer\s+(\S+)$/i.exec(req.headers.get("authorization") || "");
+  if (!bearer || bearer[1] === SERVICE_ROLE) return json({success:false,error:"AUTH_REQUIRED"},401);
+  try {
+    const userResp = await fetch(SUPABASE_URL + "/auth/v1/user", {
+      headers: { apikey: SERVICE_ROLE, Authorization: "Bearer " + bearer[1] },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (userResp.status >= 500 || userResp.status === 429) return json({success:false,error:"AUTHORIZATION_UNAVAILABLE"},503);
+    if (!userResp.ok) return json({success:false,error:"AUTH_INVALID"},401);
+    const user = await userResp.json();
+    if (!user || typeof user.id !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)) {
+      return json({success:false,error:"AUTH_INVALID"},401);
+    }
+    const accessResp = await rest("rpc/aivault_check_agent_execute_access", {
+      method: "POST",
+      body: JSON.stringify({p_agent_id:agentId,p_user_id:user.id}),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!accessResp.ok) return json({success:false,error:"AUTHORIZATION_UNAVAILABLE"},503);
+    if (await accessResp.json() !== true) return json({success:false,error:"AGENT_ACCESS_DENIED"},403);
+    return null;
+  } catch {
+    return json({success:false,error:"AUTHORIZATION_UNAVAILABLE"},503);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, {status:204, headers:cors()});
   if (req.method !== "POST") return json({success:false,error:"METHOD_NOT_ALLOWED"},405);
 
   try {
-    const body = await req.json();
+    let body: any;
+    try { body = await req.json(); }
+    catch { return json({success:false,error:"INVALID_JSON"},400); }
+    if (!body || typeof body !== "object" || Array.isArray(body)) return json({success:false,error:"INVALID_JSON"},400);
     const agentId = String(body.agent_id || body.agent || "").trim();
     const task = String(body.task || body.question || body.prompt || "").trim();
     const executionId = String(body.execution_id || crypto.randomUUID());
 
-    if (!agentId || !task) return json({success:false,error:"AGENT_ID_AND_TASK_REQUIRED"},400);
+    const accessCheckOnly = body.action === "check_access";
+    if (!agentId || agentId.length > 128 || (!accessCheckOnly && !task)) return json({success:false,error:"AGENT_ID_AND_TASK_REQUIRED"},400);
 
     // Fail closed before context access, model inference, or learning writes.
-    if (!SUPABASE_URL || !SERVICE_ROLE) return json({success:false,error:"AUTHORIZATION_UNAVAILABLE"},503);
-    const bearer = /^Bearer\s+(\S+)$/i.exec(req.headers.get("authorization") || "");
-    if (!bearer || bearer[1] === SERVICE_ROLE) return json({success:false,error:"AUTH_REQUIRED"},401);
-    const userResp = await fetch(SUPABASE_URL + "/auth/v1/user", {
-      headers: { apikey: SERVICE_ROLE, Authorization: "Bearer " + bearer[1] }
-    });
-    if (!userResp.ok) return json({success:false,error:"AUTH_INVALID"},401);
-    const user = await userResp.json();
-    if (typeof user.id !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)) {
-      return json({success:false,error:"AUTH_INVALID"},401);
-    }
-    const accessResp = await rest("rpc/aivault_check_agent_execute_access", {
-      method: "POST",
-      body: JSON.stringify({p_agent_id:agentId,p_user_id:user.id})
-    });
-    if (!accessResp.ok) return json({success:false,error:"AUTHORIZATION_UNAVAILABLE"},503);
-    if (await accessResp.json() !== true) return json({success:false,error:"AGENT_ACCESS_DENIED"},403);
+    const denied = await checkExecuteAccess(req, agentId);
+    if (denied) return denied;
+    // A zero-inference probe on the existing route needs no additional function.
+    if (accessCheckOnly) return json({success:true,authorized:true,agent_id:agentId,inference_executed:false});
 
     const contextResp = await rest("rpc/aivault_prepare_agent_context", {
       method:"POST",
