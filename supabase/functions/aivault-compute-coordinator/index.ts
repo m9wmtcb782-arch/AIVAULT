@@ -67,11 +67,13 @@ async function meshStatus() {
   };
 }
 
-async function registerNode(body: Record<string, unknown>) {
+async function registerNode(body: Record<string, unknown>, request?: Request) {
   const node = (body.node && typeof body.node === "object" ? body.node : body) as Record<string, unknown>;
   const nodeId = String(pick(node, ["node_id", "id"]) || pick(body, ["nodeId", "node_id"]) || "");
   if (!nodeId) return json({ success: false, error: "node.id required" }, 400);
-  const recognized = await recognize(node);
+  const metadata = node.metadata && typeof node.metadata === "object" ? node.metadata as Record<string, unknown> : {};
+  const platform = node.platform ?? metadata.platform ?? request?.headers.get("user-agent") ?? null;
+  const recognized = await recognize({ ...node, platform });
   const row = {
     node_id: nodeId,
     status: String(node.status || "READY"),
@@ -82,7 +84,7 @@ async function registerNode(body: Record<string, unknown>) {
       aivault_compute_capability: recognized,
       ...(node.gpu && typeof node.gpu === "object" ? {gpu_info:node.gpu} : {}),
     },
-    platform: node.platform ?? null,
+    platform,
     runtime: node.runtime ?? "webgpu",
     memory_gb: node.memory_gb ?? null,
     accelerator: node.accelerator ?? {},
@@ -105,7 +107,7 @@ async function registerNode(body: Record<string, unknown>) {
   });
 }
 
-async function heartbeat(body: Record<string, unknown>) {
+async function heartbeat(body: Record<string, unknown>, request?: Request) {
   const nodeId = String(pick(body, ["nodeId", "node_id"]) || "");
   if (!nodeId) return json({ success: false, error: "nodeId required" }, 400);
   const recognized = await recognize(body);
@@ -116,6 +118,8 @@ async function heartbeat(body: Record<string, unknown>) {
     available: body.available !== false,
     gpu: body.gpu === true || body.gpu === "true" || (body.webgpu === true && body.gpu !== false),
   };
+  const platform = body.platform ?? request?.headers.get("user-agent");
+  if (platform) patch.platform = platform;
   const { error } = await db.from("compute_mesh_nodes").update(patch).eq("node_id", nodeId);
   if (error) return json({ success: false, error: error.message }, 500);
   return json({
@@ -375,8 +379,9 @@ async function taskResult(body: Record<string, unknown>) {
     status: taskStatus,
     updated_at: new Date().toISOString(),
   };
-  if (ok) taskPatch.result = result;
-  await db.from("compute_mesh_tasks").update(taskPatch).eq("task_id", taskId);
+  // Results belong to assignments; compute_mesh_tasks has no result column.
+  const { error: taskError } = await db.from("compute_mesh_tasks").update(taskPatch).eq("task_id", taskId);
+  if (taskError) return json({success:false,error:"TASK_STATUS_WRITE_FAILED",taskId},500);
   await db.from("compute_mesh_nodes").update({
     status: "READY",
     available: true,
@@ -416,9 +421,9 @@ Deno.serve(async (req: Request) => {
   }
   const type = String(body.type || "");
   try {
-    if (type === "node.register") return await registerNode(body);
-    if (type === "node.heartbeat") return await heartbeat(body);
-    if (type === "node.capability") return await heartbeat(body);
+    if (type === "node.register") return await registerNode(body, req);
+    if (type === "node.heartbeat") return await heartbeat(body, req);
+    if (type === "node.capability") return await heartbeat(body, req);
     if (type === "task.create") return await createTask(body);
     if (type === "task.request") return await requestTask(body);
     if (type === "task.progress") return await taskProgress(body);
