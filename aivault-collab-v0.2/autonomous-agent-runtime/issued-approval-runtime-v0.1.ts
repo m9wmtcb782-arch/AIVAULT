@@ -6,7 +6,7 @@
 import type { ApprovalDecision, ApprovalRequest } from "./approval-authority-v0.1.ts";
 import type { RuntimeSnapshot } from "./agent-runtime-v0.1.ts";
 import { AutonomousAgentRuntimeV2 } from "./agent-runtime-v0.2.ts";
-import { issueApproval, requireIssuedApproval, type IssuedApprovalStore } from "./trusted-approval-issuer-v0.1.ts";
+import { digestToolInput, issueApproval, requireIssuedApproval, type IssuedApprovalStore } from "./trusted-approval-issuer-v0.1.ts";
 
 export class IssuedApprovalRuntime {
   constructor(
@@ -18,6 +18,18 @@ export class IssuedApprovalRuntime {
   async issue(): Promise<ApprovalRequest> {
     const snapshot = this.runtime.snapshot();
     if (snapshot.state !== "APPROVAL_REQUIRED" || !snapshot.pending) throw new Error("NO_PENDING_APPROVAL");
+    const previous = await this.issued.get(snapshot.pending.id);
+    if (previous) {
+      const digest = await digestToolInput(snapshot.pending.input);
+      if (previous.agentId !== this.agentId ||
+          previous.ownerId !== this.ownerId ||
+          previous.toolName !== snapshot.pending.name ||
+          previous.kind !== snapshot.pending.kind ||
+          previous.inputDigest !== digest) {
+        throw new Error("APPROVAL_CHALLENGE_COLLISION");
+      }
+      return previous;
+    }
     return issueApproval(this.agentId, this.ownerId, snapshot.pending, this.issued);
   }
   async decide(presented: ApprovalRequest, decision: ApprovalDecision): Promise<RuntimeSnapshot> {
