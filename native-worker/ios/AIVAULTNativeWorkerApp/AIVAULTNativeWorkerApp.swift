@@ -1,5 +1,6 @@
 import UIKit
 import WebKit
+import Security
 
 @main
 final class AIVAULTNativeWorkerApp: UIResponder, UIApplicationDelegate {
@@ -44,6 +45,17 @@ final class AIVAULTWorkerViewController: UIViewController, WKNavigationDelegate 
     // A fresh scoped receiver/grant and trusted SecIdentity must be supplied.
     func configureFabricListener(_ listener: AIVAULTTensorTLSListenerV01, expiresAt: Date) {
         fabricSession.prepare(AIVAULTForegroundTLSV01(listener: listener), expiresAt: expiresAt)
+    }
+    // Full trusted graph factory. Certificate/grant issuance is still external.
+    @discardableResult
+    func configureFabricStage(_ configuration: AIVAULTPlannedDenseStageV01.Configuration,
+                              identity: SecIdentity, ledgerDirectory: URL,
+                              bindHost: String = "127.0.0.1") throws -> AIVAULTPlannedDenseStageV01 {
+        let stage = try AIVAULTPlannedDenseStageV01(configuration: configuration,
+            ledger: AIVAULTTensorReplayLedgerV01(directory: ledgerDirectory))
+        let listener = try stage.makeListener(identity: identity, bindHost: bindHost)
+        configureFabricListener(listener, expiresAt: configuration.incomingGrant.expiresAt)
+        return stage
     }
     @objc private func requestJoin() {
         guard fabricSession.canJoin else { return }

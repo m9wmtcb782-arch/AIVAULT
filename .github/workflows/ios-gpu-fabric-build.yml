@@ -25,6 +25,7 @@ on:
       - "aivault-collab-v0.2/gpu-fabric-dense-v0.1.mjs"
       - "aivault-collab-v0.2/gpu-fabric-backend-v0.1.mjs"
       - "tests/gpu-fabric-foreground-session.swift"
+      - "tests/gpu-fabric-native-dense-stage.swift"
   workflow_dispatch:
 
 permissions:
@@ -105,6 +106,7 @@ jobs:
             native-worker/ios/AIVAULTNativeWorker/AIVAULTTensorTLSListenerV01.swift \
             native-worker/ios/AIVAULTNativeWorker/AIVAULTForegroundSessionV01.swift \
             native-worker/ios/AIVAULTNativeWorker/AIVAULTForegroundTLSV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTPlannedDenseStageV01.swift \
             native-worker/ios/AIVAULTNativeWorkerApp/AIVAULTNativeWorkerApp.swift
 
       - name: Build iOS Simulator app without code signing
@@ -192,3 +194,19 @@ jobs:
             tests/gpu-fabric-foreground-session.swift \
             -o /tmp/aivault-foreground-session
           /tmp/aivault-foreground-session
+
+      - name: Test native planned two-layer model with two TLS listeners (one Metal device)
+        timeout-minutes: 3
+        run: |
+          xcrun swiftc -parse-as-library \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTMetalCompute.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTFloat32TensorV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTTensorHTTPSV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTTensorReceiveV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTTensorTLSListenerV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTForegroundSessionV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTForegroundTLSV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTPlannedDenseStageV01.swift \
+            tests/gpu-fabric-native-dense-stage.swift \
+            -o /tmp/aivault-native-dense-stage
+          node tests/gpu-fabric-native-receiver-v0.1.mjs /tmp/aivault-native-dense-stage
