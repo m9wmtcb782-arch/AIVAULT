@@ -38,7 +38,7 @@ public struct AIVAULTFloat32TensorV01: Codable {
 
     private static func bytes(from values: [Float]) -> Data {
         // The wire format is explicitly little-endian, independent of host CPU.
-        var words = values.map { $0.bitPattern.littleEndian }
+        let words = values.map { $0.bitPattern.littleEndian }
         return words.withUnsafeBytes { Data($0) }
     }
 
