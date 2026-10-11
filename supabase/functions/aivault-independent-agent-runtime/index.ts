@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
 
     // Fail closed before context access, model inference, or learning writes.
     if (!SUPABASE_URL || !SERVICE_ROLE) return json({success:false,error:"AUTHORIZATION_UNAVAILABLE"},503);
-    const bearer = /^Bearer\\s+(\\S+)$/i.exec(req.headers.get("authorization") || "");
+    const bearer = /^Bearer\s+(\S+)$/i.exec(req.headers.get("authorization") || "");
     if (!bearer || bearer[1] === SERVICE_ROLE) return json({success:false,error:"AUTH_REQUIRED"},401);
     const userResp = await fetch(SUPABASE_URL + "/auth/v1/user", {
       headers: { apikey: SERVICE_ROLE, Authorization: "Bearer " + bearer[1] }
