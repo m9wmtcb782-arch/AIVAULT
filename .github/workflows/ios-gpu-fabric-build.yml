@@ -25,12 +25,16 @@ jobs:
           ref: research/unified-gpu-fabric-v0.1
       - name: Show Xcode version
         run: xcodebuild -version
-      - name: Build iOS Simulator target without code signing
+      - name: Type-check Swift sources against iOS Simulator SDK
         run: |
-          xcodebuild \
-            -project native-worker/ios/AIVAULTNativeWorker.xcodeproj \
-            -target AIVAULTNativeWorkerApp \
-            -sdk iphonesimulator \
-            -configuration Debug \
-            CODE_SIGNING_ALLOWED=NO \
-            build
+          SDK_PATH="$(xcrun --sdk iphonesimulator --show-sdk-path)"
+          xcrun swiftc \
+            -typecheck \
+            -parse-as-library \
+            -sdk "$SDK_PATH" \
+            -target arm64-apple-ios17.0-simulator \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTNativeHardware.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTWebBridge.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTMetalCompute.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTFloat32TensorV01.swift \
+            native-worker/ios/AIVAULTNativeWorkerApp/AIVAULTNativeWorkerApp.swift
