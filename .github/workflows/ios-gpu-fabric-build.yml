@@ -16,6 +16,8 @@ on:
       - "aivault-collab-v0.2/gpu-fabric-planned-stage-v0.1.mjs"
       - "tests/gpu-fabric-native-real-tls.swift"
       - "tests/gpu-fabric-native-real-tls-v0.1.mjs"
+      - "tests/gpu-fabric-native-receiver.swift"
+      - "tests/gpu-fabric-native-receiver-v0.1.mjs"
       - ".github/workflows/ios-gpu-fabric-build.yml"
   workflow_dispatch:
 
@@ -93,6 +95,8 @@ jobs:
             native-worker/ios/AIVAULTNativeWorker/AIVAULTMetalCompute.swift \
             native-worker/ios/AIVAULTNativeWorker/AIVAULTFloat32TensorV01.swift \
             native-worker/ios/AIVAULTNativeWorker/AIVAULTTensorHTTPSV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTTensorReceiveV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTTensorTLSListenerV01.swift \
             native-worker/ios/AIVAULTNativeWorkerApp/AIVAULTNativeWorkerApp.swift
 
       - name: Build iOS Simulator app without code signing
@@ -146,3 +150,16 @@ jobs:
             -o /tmp/aivault-native-real-tls
           node tests/gpu-fabric-native-real-tls-v0.1.mjs /tmp/aivault-native-real-tls /tmp/aivault-metal-wire-cli
 
+
+      - name: Test native TLS receiver and durable replay with local Metal (one GPU)
+        timeout-minutes: 3
+        run: |
+          xcrun swiftc -parse-as-library \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTMetalCompute.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTFloat32TensorV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTTensorHTTPSV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTTensorReceiveV01.swift \
+            native-worker/ios/AIVAULTNativeWorker/AIVAULTTensorTLSListenerV01.swift \
+            tests/gpu-fabric-native-receiver.swift \
+            -o /tmp/aivault-native-receiver
+          node tests/gpu-fabric-native-receiver-v0.1.mjs /tmp/aivault-native-receiver
