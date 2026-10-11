@@ -76,7 +76,12 @@ public final class AIVAULTMetalCompute {
         """
         do {
             let options = MTLCompileOptions()
-            options.fastMathEnabled = false
+            if #available(iOS 18.0, macOS 15.0, *) {
+                options.mathMode = .safe
+                options.mathFloatingPointFunctions = .precise
+            } else {
+                options.fastMathEnabled = false
+            }
             self.library = try device.makeLibrary(source: source, options: options)
         } catch {
             throw ComputeError.executionFailed("Metal shader compilation failed: \\(error.localizedDescription)")
