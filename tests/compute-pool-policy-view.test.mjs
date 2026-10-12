@@ -15,14 +15,18 @@ test('authorization outage fails closed',async()=>assert.equal((await checkPoolT
 test('RPC must be literal true',async()=>assert.equal((await checkPoolTaskAccess({model_id:'owned'},async()=> 'true')).allowed,false));
 test('built-in benchmark preserved',async()=>assert.equal((await checkPoolTaskAccess({type:'webgpu-compute',elements:100,iters:2},denied)).allowed,true));
 test('unknown workload requires model',async()=>assert.equal((await checkPoolTaskAccess({type:'external-inference'},denied)).allowed,false));
-test('water includes connected non-GPU devices and keeps GPU count separate',()=>{const r=waterState([{online:true,gpu_reported:true},{online:false,gpu_reported:true},{online:true,gpu_reported:false}],20);assert.equal(r.count,1);assert.equal(r.ratio,.1);assert.equal(r.members.length,2);assert.equal(r.label,'低水位');});
-test('water colors change by live-node ratio',()=>{const nodes=Array.from({length:8},()=>({online:true,gpu_reported:true}));assert.equal(waterState(nodes,20).label,'中水位');assert.equal(waterState(nodes,8).label,'高水位');});
-test('display scale does not cap available node count',()=>{const r=waterState(Array.from({length:120},()=>({online:true,gpu_reported:true})),20);assert.equal(r.count,120);assert.equal(r.ratio,1);});
+const ratedNode=(units,extra={})=>({online:true,gpu_reported:true,available:true,gpu_rating:{version:'pool-u32-v1',units},...extra});
+test('water sums PGU and excludes offline, paused and unavailable GPU',()=>{const r=waterState([ratedNode(5),ratedNode(100,{online:false}),ratedNode(100,{status:'PAUSED'}),ratedNode(100,{available:false}),{online:true,gpu_reported:false}],500);assert.equal(r.totalPGU,5);assert.equal(r.rawRatio,.01);assert.equal(r.members.length,4);assert.equal(r.label,'低水位');});
+test('water colors change with total GPU throughput, not device count',()=>{assert.equal(waterState([ratedNode(200)],500).label,'中水位');assert.equal(waterState([ratedNode(400)],500).label,'高水位');});
+test('full-water reference never caps GPU total or percentage',()=>{const r=waterState([ratedNode(700)],500);assert.equal(r.totalPGU,700);assert.equal(r.rawRatio,1.4);assert.equal(r.ratio,1);});
+test('running GPU continues contributing water',()=>assert.equal(waterState([ratedNode(3,{available:false,status:'RUNNING'})]).totalPGU,3));
+test('many unrated devices never invent capacity',()=>{const r=waterState(Array.from({length:100},()=>({online:true,gpu_reported:true,available:true})));assert.equal(r.totalPGU,0);assert.equal(r.members.length,100);assert.equal(r.unrated,100);});
+test('tiny tested capacity has proportional water',()=>assert.equal(waterState([ratedNode(.00001)],500).rawRatio,.00001/500));
 test('initial snapshot never triggers fishing',()=>assert.deepEqual(transitions(null,[{id:'phone',online:false}]),[]));
 test('confirmed departure catches exactly one previously online GPU',()=>{const old=[{id:'a',online:true,gpu_reported:true},{id:'b',online:false,gpu_reported:true}];assert.deepEqual(transitions(old,[{id:'a',online:false},{id:'b',online:false}]).map(n=>n.id),['a']);});
 test('truncated response does not create false departure',()=>assert.deepEqual(transitions([{id:'a',online:true,gpu_reported:true}],[],{truncated:true}),[]));
 
-test('unsupported phone remains a pool member and is caught when offline',()=>{const n={id:'iphone',platform:'iPhone',online:true,gpu_reported:false};assert.equal(waterState([n],20).ratio,.05);assert.equal(waterState([n],20).count,0);assert.equal(classify(n),'unknown');assert.equal(transitions([n],[{...n,online:false}]).length,1);});
+test('unsupported phone remains a pool member and is caught when offline',()=>{const n={id:'iphone',platform:'iPhone',online:true,gpu_reported:false};assert.equal(waterState([n],500).ratio,0);assert.equal(waterState([n],20).count,0);assert.equal(classify(n),'unknown');assert.equal(transitions([n],[{...n,online:false}]).length,1);});
 
 for(const p of ['Macintosh','MacBook Air','MacBook Pro','Mac mini','iMac','Mac Studio','Mac Pro','iPhone','iPad'])test('Apple display group '+p,()=>assert.equal(deviceLabel({platform:p}),'iOS'));
 for(const [units,tier] of [[.5,'phone'],[1,'tablet'],[10,'computer'],[100,'shark'],[500,'whale'],[1000,'leviathan']])test('GPU throughput tier '+units,()=>{for(const platform of ['iPhone','iPad','MacBook Pro','Windows'])assert.equal(classify({platform,gpu_rating:{version:'pool-u32-v1',units}}),tier);});

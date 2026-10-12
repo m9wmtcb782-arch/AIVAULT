@@ -24,3 +24,6 @@ Pool participation unit: one online browser/device ID equals one pool node. All 
 
 ## GPU-only visual tiers (supersedes all device/model-based fish tiers)
 All form factors use one fixed benchmark: 4096 u32 elements, 16 mixing rounds, five GPU runs and median browser wall time. One PGU equals one million rounds per second. Boundaries: 1, 10, 100, 500, 1000 PGU for medium, large, shark, whale, giant whale. No usable rating means unrated fish, never disappearance. GPU model and Apple Pro/Max/Ultra no longer determine size. Pool snapshots derive ratings from completed assignment outputs, validate checksum/dimensions/timing samples, and discard ratings older than seven days. Client timing is not attested; PGU includes dispatch/readback overhead, is an estimate and is not used for billing.
+
+## PGU water (supersedes device-participation water)
+Default full water = 500 PGU. Sum valid rated GPU throughput for online enabled nodes that are available or RUNNING; exclude paused/stopped/offline/unrated nodes. Fish remain visible for all online devices. No minimum invented water height. Display raw percentage even above 100%, while canvas height caps at full water. A new local preference key prevents old device-count scales leaking into the PGU scale. The 500 PGU reference is independent of any card model score.

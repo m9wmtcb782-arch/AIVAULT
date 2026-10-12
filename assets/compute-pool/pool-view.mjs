@@ -29,12 +29,18 @@ export function classify(node) {
  if(r.units<1000)return 'whale';
  return 'leviathan';
 }
-export function waterState(nodes,reference=20) {
-  const active=nodes.filter(n=>n.online===true&&n.gpu_reported===true&&!['PAUSED','STOPPED'].includes(String(n.status||'').toUpperCase()));
-  const scale=Number.isFinite(Number(reference))&&Number(reference)>0?Number(reference):20;
-  const members=nodes.filter(n=>n.online===true);
-  const ratio=Math.min(1,members.length/scale);
-  return {active,members,ratio,count:active.length,color:ratio<.33?'#fc6374':ratio<.67?'#f5c04d':'#3da6f6',label:ratio<.33?'低水位':ratio<.67?'中水位':'高水位'};
+export function waterState(nodes,reference=500) {
+ const active=nodes.filter(n=>n.online===true&&n.gpu_reported===true&&!['PAUSED','STOPPED'].includes(String(n.status||'').toUpperCase())&&(n.available===true||String(n.status||'').toUpperCase()==='RUNNING'));
+ const rated=active.filter(n=>n.gpu_rating?.version==='pool-u32-v1'&&Number.isFinite(n.gpu_rating.units)&&n.gpu_rating.units>0);
+ const totalPGU=rated.reduce((sum,n)=>sum+n.gpu_rating.units,0);
+ const scale=Number.isFinite(Number(reference))&&Number(reference)>0?Number(reference):500;
+ const rawRatio=totalPGU/scale,ratio=Math.min(1,rawRatio);
+ const members=nodes.filter(n=>n.online===true);
+ return {active,members,rated,totalPGU,unrated:active.length-rated.length,reference:scale,rawRatio,ratio,count:active.length,color:ratio<.33?'#fc6374':ratio<.67?'#f5c04d':'#3da6f6',label:totalPGU===0?'可用算力未測得':ratio<.33?'低水位':ratio<.67?'中水位':'高水位'};
+}
+export function formatPoolNumber(value){
+ if(value>0&&value<1e-10)return value.toExponential(3);
+ return Number(value).toLocaleString('en-US',{maximumFractionDigits:10});
 }
 export function transitions(previous,current,{truncated=false}={}) {
   if(!previous)return [];
