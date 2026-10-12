@@ -34,18 +34,18 @@ export async function tensorPipelineStart(db:any){
  return r.error?{status:500,body:{success:false,error:'PIPELINE_CREATE_FAILED'}}:{status:200,body:{success:true,pipeline_id:id,kernel:TENSOR_KERNEL,status:'QUEUED_OR_EXISTING',purpose:'FIXED_KERNEL_VALIDATION_NOT_VIDEO',distinct_browser_nodes_required:2}};
 }
 export async function recoverTensorLeases(db:any,tasks:any[],now=Date.now()){
- const pending=tasks.filter(t=>(['ASSIGNED','RUNNING'].includes(t.status)||(t.status==='FAILED'&&(t.payload.retry_count||0)<2))&&t.payload?.lease_node_id);
+ const pending=tasks.filter(t=>(['QUEUED','RUNNING'].includes(t.status)||(t.status==='FAILED'&&(t.payload.retry_count||0)<2))&&t.payload?.lease_node_id);
  if(!pending.length)return 0;
- const nodes=await db.from('compute_mesh_nodes').select('node_id,last_seen').in('node_id',pending.map(t=>t.payload.lease_node_id));
+ const nodes=await db.from('compute_mesh_nodes').select('node_id,last_seen,status').in('node_id',pending.map(t=>t.payload.lease_node_id));
  if(nodes.error)return 0;
  let recovered=0;
  for(const task of pending){
   const n=(nodes.data||[]).find((n:any)=>n.node_id===task.payload.lease_node_id),seen=Date.parse(n?.last_seen),updated=Date.parse(task.updated_at);
-  if(task.status!=='FAILED'&&Number.isFinite(seen)&&now-seen<120000&&Number.isFinite(updated)&&now-updated<180000&&Date.parse(task.payload.lease_expires_at)>now)continue;
+  if(task.status!=='FAILED'&&n?.status!=='OFFLINE'&&n?.status!=='ERROR'&&Number.isFinite(seen)&&now-seen<120000&&Number.isFinite(updated)&&now-updated<180000&&Date.parse(task.payload.lease_expires_at)>now)continue;
   const payload={...task.payload,lease_node_id:null,lease_generation:null,lease_expires_at:null,retry_count:(task.payload.retry_count||0)+(task.status==='FAILED'?1:0),excluded_node_ids:task.status==='FAILED'?[...(task.payload.excluded_node_ids||[]),task.payload.lease_node_id]:(task.payload.excluded_node_ids||[])};
   const r=await db.from('compute_mesh_tasks').update({status:'WAITING',payload,updated_at:new Date(now).toISOString()}).eq('task_id',task.task_id).eq('status',task.status).eq('updated_at',task.updated_at).select('task_id');
   if(r.error||!r.data?.length)continue;
-  await db.from('compute_mesh_assignments').update({status:'EXPIRED',updated_at:new Date(now).toISOString()}).eq('task_id',task.task_id).eq('node_id',task.payload.lease_node_id).in('status',['ASSIGNED','RECEIVED','RUNNING']);
+  await db.from('compute_mesh_assignments').update({status:'CANCELLED',updated_at:new Date(now).toISOString()}).eq('task_id',task.task_id).eq('node_id',task.payload.lease_node_id).in('status',['ASSIGNED','RUNNING']);
   task.status='WAITING';task.payload=payload;recovered++;
  }
  return recovered;

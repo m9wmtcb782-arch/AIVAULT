@@ -12,7 +12,7 @@ Layer 1 uses fixed input and AIVAULT-owned deterministic test coefficients; afte
 
 ## Failures and fencing
 
-Task claim uses a WAITING-state compare-and-set. Every tensor attempt has a random generation and a hard three-minute lease. Heartbeats and progress cannot extend that hard deadline. Missing/expired node heartbeats (two minutes), expired lease, or stalled progress cause a compatible worker/status poll to atomically requeue only the unfinished stage, preserving its input. Completed upstream stages do not rerun. No available compatible distinct node means waiting.
+Task claim uses a WAITING-state compare-and-set. Tasks store leased work as QUEUED; cancelled assignments use CANCELLED, matching the live CHECK constraints. The same task/node/slice assignment is renewed on reuse rather than violating its unique key. Paused browser nodes store OFFLINE. Every tensor attempt has a random generation and a hard three-minute lease. Heartbeats and progress cannot extend that hard deadline. Missing/expired node heartbeats (two minutes), expired lease, or stalled progress cause a compatible worker/status poll to atomically requeue only the unfinished stage, preserving its input. Completed upstream stages do not rerun. No available compatible distinct node means waiting.
 
 Completion and progress are fenced by the current lease generation. An old worker cannot complete, fail, extend or overwrite a replacement attempt. Replay after successful completion is idempotent. Invalid outputs do not enqueue downstream work; failed workers are excluded from that proof, with at most two retries. This is a per-proof exclusion, not evidence of malicious intent or a global account ban. Permanent reputation and settlement controls are not implemented.
 
