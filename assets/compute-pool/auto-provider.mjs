@@ -5,10 +5,10 @@ if(root){
  let nodeId=localStorage.getItem('aivault_compute_mesh_gpu_node_id');
  if(!nodeId){nodeId='GPU-NODE-'+crypto.randomUUID();localStorage.setItem('aivault_compute_mesh_gpu_node_id',nodeId);}
  $('autoDeviceId').textContent=nodeId;
- let stopped=false,starting=false,ready=false,running=false,polling=false,runner=null,backend='initializing',heartbeatTimer=null,pollTimer=null,reason='';
+ let stopped=false,starting=false,ready=false,running=false,polling=false,runner=null,tensorRunner=null,tensorReason="",backend='initializing',heartbeatTimer=null,pollTimer=null,reason='';
  const api=async body=>{const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await r.json();if(!r.ok)throw Error(data.error||'HTTP '+r.status);return data;};
  function state(title,detail){$('autoGpuTitle').textContent=title;$('autoGpuDetail').textContent=detail;$('autoGpuState').dataset.state=ready&&!stopped?'ready':'pending';}
- async function register(){const result=await api({type:'node.register',node:{id:nodeId,node_id:nodeId,status:stopped?'PAUSED':running?'RUNNING':'READY',gpu:ready,available:ready&&!stopped&&!running,runtime:backend,platform:navigator.userAgent,capability:{cpu:true,webgpu:backend==='webgpu',webgl2:backend==='webgl2',supported_task_types:['gpu-u32-mix'],gpu_failure_reason:reason,self_test_passed:ready,gpu_info:runner?.info||(runner?.renderer?{description:runner.renderer}:null)}}});window.dispatchEvent(new Event('aivault:gpu-provider-updated'));return result;}
+ async function register(){const result=await api({type:'node.register',node:{id:nodeId,node_id:nodeId,status:stopped?'PAUSED':running?'RUNNING':'READY',gpu:ready,available:ready&&!stopped&&!running,runtime:backend,platform:navigator.userAgent,capability:{cpu:true,webgpu:backend==='webgpu',webgl2:backend==='webgl2',supported_task_types:tensorRunner?['gpu-u32-mix','gpu-tensor-stage']:['gpu-u32-mix'],tensor_failure_reason:tensorReason,gpu_failure_reason:reason,self_test_passed:ready,gpu_info:runner?.info||(runner?.renderer?{description:runner.renderer}:null)}}});window.dispatchEvent(new Event('aivault:gpu-provider-updated'));return result;}
  async function heartbeat(refresh=false){try{await api({type:'node.heartbeat',nodeId,status:stopped?'PAUSED':running?'RUNNING':'READY',gpu:ready,available:ready&&!stopped&&!running,platform:navigator.userAgent});if(refresh)window.dispatchEvent(new Event('aivault:gpu-provider-updated'));}catch(e){state('暫時無法連線',e.message+'。保留裝置登記，等待恢復連線。');}}
  async function nativeRunner(){
   if(!navigator.gpu)throw Error('瀏覽器沒有 WebGPU');const adapter=await navigator.gpu.requestAdapter();if(!adapter)throw Error('WebGPU adapter 無法取得');const device=await adapter.requestDevice();let info={};try{info=adapter.info||(typeof adapter.requestAdapterInfo==='function'?await adapter.requestAdapterInfo():{});}catch{}
@@ -26,23 +26,23 @@ if(root){
  async function poll(){
   if(!ready||stopped||running||polling||document.hidden)return;polling=true;
   try{const data=await api({type:'task.request',nodeId,gpu_available:true});if(!data.task)return;
-   if(data.task.type!=='gpu-u32-mix'){state('等待相容任務','此入口不支援目前任務，未以其他運算冒充結果。');return;}
+   if(!['gpu-u32-mix','gpu-tensor-stage'].includes(data.task.type)){state('等待相容任務','此入口不支援目前任務，未以其他運算冒充結果。');return;}
    running=true;const task=data.task,assignmentId=data.assignmentId||data.assignment?.id;
    state('GPU 正在執行',backend.toUpperCase()+' · '+task.elements+' 個元素，'+task.iterations+' 次迭代。');
    try{
-    await api({type:'task.progress',nodeId,taskId:task.id,assignmentId,progress:5,status:'RUNNING'});
-    let result=await runner.run(Number(task.elements),Number(task.iterations));
-    if(Number(task.elements)===4096&&Number(task.iterations)===16){
+    await api({type:'task.progress',nodeId,taskId:task.id,assignmentId,lease_generation:task.lease_generation,progress:5,status:'RUNNING'});
+    let result=task.type==='gpu-tensor-stage'?await tensorRunner.run(task.input,task.stage):await runner.run(Number(task.elements),Number(task.iterations));
+    if(task.type==='gpu-u32-mix'&&Number(task.elements)===4096&&Number(task.iterations)===16){
      const samples=[result.gpu_time_ms];
      for(let i=1;i<5;i++){result=await runner.run(4096,16);samples.push(result.gpu_time_ms);}
      result={...result,gpu_time_ms:[...samples].sort((a,b)=>a-b)[2],benchmark_version:'pool-u32-v1',benchmark_samples_ms:samples};
     }
-    const ack=await api({type:'task.result',nodeId,taskId:task.id,assignmentId,status:'COMPLETED',result});
+    const ack=await api({type:'task.result',nodeId,taskId:task.id,assignmentId,lease_generation:task.lease_generation,status:'COMPLETED',result});
     if(ack.verified!==true||ack.taskStatus!=='COMPLETED')throw Error('後端未接受 GPU 結果');
-    $('autoProof').textContent='基礎 GPU 診斷已完成（影片待驗證） · '+result.executed_on+' · checksum '+result.checksum;
+    $('autoProof').textContent=task.type==='gpu-tensor-stage'?'跨設備 GPU 第 '+task.stage+' 層輸出已通過校驗': '基礎 GPU 診斷已完成（影片待驗證） · '+result.executed_on+' · checksum '+result.checksum;
     localStorage.setItem('aivault_gpu_proof_'+nodeId,new Date().toISOString());
     if(!stopped)state('正在提供 GPU','基礎 GPU 診斷通過；影片生成與跨設備協作仍待驗證。請保持此頁前景。');else state('已停止提供','本次驗證已結束，未再領取新任務。');
-   }catch(e){reason=e.message;state('本次任務未完成',reason);await api({type:'task.failure',nodeId,taskId:task.id,assignmentId,status:'FAILED',result:{verified:false,error:reason}}).catch(()=>{});}
+   }catch(e){reason=e.message;state('本次任務未完成',reason);await api({type:'task.failure',nodeId,taskId:task.id,assignmentId,lease_generation:task.lease_generation,status:'FAILED',result:{verified:false,error:reason}}).catch(()=>{});}
    finally{running=false;await heartbeat(true);}
   }catch(e){state('暫時無法取得任務',e.message);}finally{polling=false;}
  }
@@ -53,7 +53,8 @@ if(root){
    await register();
    clearInterval(heartbeatTimer);heartbeatTimer=setInterval(()=>{if(!document.hidden&&!stopped)heartbeat();},30000);
    try{runner=await nativeRunner();await runner.run(16,1);backend='webgpu';}
-   catch(webgpuError){try{runner=AivaultWebGL2.createRunner();await runner.run(16,1);backend='webgl2';}catch(glError){reason='WebGPU：'+webgpuError.message+'；WebGL2：'+glError.message;backend='unavailable';await register();state('已登記，無法提供 GPU',reason+'。裝置仍會以魚呈現並計入參與水位，GPU 節點數不增加。');$('autoGpuToggle').textContent='重新偵測';return;}}
+   catch(webgpuError){try{runner=AivaultWebGL2.createRunner();await runner.run(16,1);backend='webgl2';}catch(glError){reason='WebGPU：'+webgpuError.message+'；WebGL2：'+glError.message;backend='unavailable';await register();state('已登記，無法提供 GPU',reason+'。裝置仍會以魚呈現；未提供 GPU，不計入可提供 GPU 節點數。');$('autoGpuToggle').textContent='重新偵測';return;}}
+   try{tensorRunner=await AivaultTensor.createRunner();await tensorRunner.run(AivaultTensor.initial(),1);tensorReason='';}catch(e){tensorRunner=null;tensorReason=e.message;}
    if(stopped)return;ready=true;await register();state('正在提供 GPU',backend==='webgl2'?'已啟用 WebGL2 備援，只接相容的小型任務。':'已啟用 WebGPU，正在等待相容任務。');
    clearInterval(heartbeatTimer);clearInterval(pollTimer);heartbeatTimer=setInterval(()=>{if(!document.hidden&&!stopped)heartbeat();},30000);pollTimer=setInterval(poll,30000);
    const id='auto-gpu-proof-'+nodeId+'-'+Date.now();await api({type:'task.create',task:{id,name:'裝置自動 GPU 驗證',type:'gpu-u32-mix',target_node_id:nodeId,elements:4096,iterations:16,gpu_required:true,backend:'portable-gpu'}});await poll();

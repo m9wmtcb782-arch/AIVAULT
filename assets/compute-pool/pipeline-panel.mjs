@@ -1,0 +1,10 @@
+const root=document.getElementById('poolPipeline');
+if(root){
+ const $=id=>document.getElementById(id),url='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/aivault-compute-coordinator';
+ let pipeline=localStorage.getItem('aivault_tensor_pipeline'),busy=false;
+ const api=async body=>{const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(15000)});const d=await r.json();if(!r.ok)throw Error(d.error||'HTTP '+r.status);return d;};
+ async function refresh(){if(busy||document.hidden||!pipeline)return;busy=true;try{const d=await api({type:'pipeline.status',pipeline_id:pipeline});$('pipelineState').textContent=d.verified?'兩個節點的 GPU 分層輸出已通過校驗（非影片）':d.status==='FAILED'?'驗證失敗，未產生可用影片算力':d.status==='NOT_FOUND'?'此驗證尚未建立':'跨設備 GPU 驗證執行中／等待相容節點';$('pipelineDetail').textContent='管線 '+pipeline+' · '+(d.stages||[]).map(s=>'第 '+s.stage+' 層 '+s.status).join(' → ')+(d.recovered_leases?' · 已回收 '+d.recovered_leases+' 個逾時租約':'');$('pipelineEvidence').textContent=(d.gpu_reports||[]).map(s=>'第 '+s.stage+' 層：'+s.engine+' · '+s.node_id+' · '+s.gpu_time_ms+' ms').join('；');}catch(e){$('pipelineDetail').textContent='狀態暫時無法更新：'+e.message+'；不判定驗證完成。';}finally{busy=false;}}
+ $('pipelineStart').addEventListener('click',async()=>{if(busy)return;busy=true;$('pipelineStart').disabled=true;try{const d=await api({type:'pipeline.start'});pipeline=d.pipeline_id;localStorage.setItem('aivault_tensor_pipeline',pipeline);$('pipelineState').textContent='固定 GPU 張量管線已排入，等待兩個不同節點';}catch(e){$('pipelineState').textContent=e.message==='TWO_TENSOR_CAPABLE_NODES_REQUIRED'?'需要至少兩個已啟用 FP32 張量運算的在線節點；請在兩台設備開啟此頁。':e.message;}finally{busy=false;$('pipelineStart').disabled=false;await refresh();}});
+ $('pipelineRefresh').addEventListener('click',refresh);setInterval(refresh,15000);refresh();
+ api({type:'enterprise.status'}).then(d=>{$('rentalState').textContent=d.available_for_rental?'租用已開放':'企業租用尚未開放 · 價格未訂 · 收費未啟用';}).catch(()=>{$('rentalState').textContent='企業租用狀態未取得，不宣稱可出租';});
+}
