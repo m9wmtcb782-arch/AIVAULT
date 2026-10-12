@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {checkPoolTaskAccess} from '../supabase/functions/aivault-compute-coordinator/task-access.ts';
-import {classify,deviceLabel,waterState,transitions} from '../assets/compute-pool/pool-view.mjs';
+import {classify,deviceLabel,oceanScale,waterState,transitions} from '../assets/compute-pool/pool-view.mjs';
 const denied=async()=>false,approved=async id=>id==='owned-and-tested';
 test('external model cannot self-approve',async()=>assert.equal((await checkPoolTaskAccess({type:'inference',model_id:'external',approved:true,ownership:'first_party',test_passed:true},denied)).allowed,false));
 test('planned own model remains denied',async()=>assert.equal((await checkPoolTaskAccess({model_id:'planned-vision'},denied)).allowed,false));
@@ -15,13 +15,13 @@ test('authorization outage fails closed',async()=>assert.equal((await checkPoolT
 test('RPC must be literal true',async()=>assert.equal((await checkPoolTaskAccess({model_id:'owned'},async()=> 'true')).allowed,false));
 test('built-in benchmark preserved',async()=>assert.equal((await checkPoolTaskAccess({type:'webgpu-compute',elements:100,iters:2},denied)).allowed,true));
 test('unknown workload requires model',async()=>assert.equal((await checkPoolTaskAccess({type:'external-inference'},denied)).allowed,false));
-const ratedNode=(units,extra={})=>({online:true,gpu_reported:true,available:true,gpu_rating:{version:'pool-u32-v1',units},...extra});
-test('water sums PGU and excludes offline, paused and unavailable GPU',()=>{const r=waterState([ratedNode(5),ratedNode(100,{online:false}),ratedNode(100,{status:'PAUSED'}),ratedNode(100,{available:false}),{online:true,gpu_reported:false}],500);assert.equal(r.totalPGU,5);assert.equal(r.rawRatio,.01);assert.equal(r.members.length,4);assert.equal(r.label,'低水位');});
-test('water colors change with total GPU throughput, not device count',()=>{assert.equal(waterState([ratedNode(200)],500).label,'中水位');assert.equal(waterState([ratedNode(400)],500).label,'高水位');});
-test('full-water reference never caps GPU total or percentage',()=>{const r=waterState([ratedNode(700)],500);assert.equal(r.totalPGU,700);assert.equal(r.rawRatio,1.4);assert.equal(r.ratio,1);});
-test('running GPU continues contributing water',()=>assert.equal(waterState([ratedNode(3,{available:false,status:'RUNNING'})]).totalPGU,3));
-test('many unrated devices never invent capacity',()=>{const r=waterState(Array.from({length:100},()=>({online:true,gpu_reported:true,available:true})));assert.equal(r.totalPGU,0);assert.equal(r.members.length,100);assert.equal(r.unrated,100);});
-test('tiny tested capacity has proportional water',()=>assert.equal(waterState([ratedNode(.00001)],500).rawRatio,.00001/500));
+const videoCapacity=units=>({status:'VALIDATED',unit:'standard_5s_videos_per_hour',workload_id:'fixed-owned-video-v1',scope:'pool',units});
+test('GPU microbenchmarks never become video water',()=>{const r=waterState([{online:true,gpu_reported:true,available:true,gpu_rating:{version:'pool-u32-v1',units:1000000}}]);assert.equal(r.validated,false);assert.equal(r.totalVideo,null);assert.equal(r.ratio,0);assert.equal(r.members.length,1);});
+test('standalone video ratings are not summed into cluster capacity',()=>{const r=waterState([{online:true,video_rating:{status:'VALIDATED',unit:'standard_5s_videos_per_hour',workload_id:'own',units:5000}}]);assert.equal(r.totalVideo,null);});
+test('whole-pool validated capacity drives water',()=>{const r=waterState([],videoCapacity(600));assert.equal(r.totalVideo,600);assert.equal(r.reference,1000);assert.equal(r.ratio,.6);});
+test('ocean scale grows far beyond 500',()=>{assert(oceanScale(100000000)>100000000);assert.equal(waterState([],videoCapacity(100000000)).totalVideo,100000000);});
+test('missing profile and wrong units cannot validate water',()=>{assert.equal(waterState([],{...videoCapacity(5),workload_id:null}).validated,false);assert.equal(waterState([],{...videoCapacity(5),unit:'PGU'}).validated,false);});
+test('validated zero differs from unverified capacity',()=>{assert.equal(waterState([],videoCapacity(0)).totalVideo,0);assert.equal(waterState([]).totalVideo,null);});
 test('initial snapshot never triggers fishing',()=>assert.deepEqual(transitions(null,[{id:'phone',online:false}]),[]));
 test('confirmed departure catches exactly one previously online GPU',()=>{const old=[{id:'a',online:true,gpu_reported:true},{id:'b',online:false,gpu_reported:true}];assert.deepEqual(transitions(old,[{id:'a',online:false},{id:'b',online:false}]).map(n=>n.id),['a']);});
 test('truncated response does not create false departure',()=>assert.deepEqual(transitions([{id:'a',online:true,gpu_reported:true}],[],{truncated:true}),[]));
@@ -29,9 +29,11 @@ test('truncated response does not create false departure',()=>assert.deepEqual(t
 test('unsupported phone remains a pool member and is caught when offline',()=>{const n={id:'iphone',platform:'iPhone',online:true,gpu_reported:false};assert.equal(waterState([n],500).ratio,0);assert.equal(waterState([n],20).count,0);assert.equal(classify(n),'unknown');assert.equal(transitions([n],[{...n,online:false}]).length,1);});
 
 for(const p of ['Macintosh','MacBook Air','MacBook Pro','Mac mini','iMac','Mac Studio','Mac Pro','iPhone','iPad'])test('Apple display group '+p,()=>assert.equal(deviceLabel({platform:p}),'iOS'));
-for(const [units,tier] of [[.5,'phone'],[1,'tablet'],[10,'computer'],[100,'shark'],[500,'whale'],[1000,'leviathan']])test('GPU throughput tier '+units,()=>{for(const platform of ['iPhone','iPad','MacBook Pro','Windows'])assert.equal(classify({platform,gpu_rating:{version:'pool-u32-v1',units}}),tier);});
-test('faster phone is larger than slower tablet',()=>{assert.equal(classify({platform:'iPhone',gpu_rating:{version:'pool-u32-v1',units:200}}),'shark');assert.equal(classify({platform:'iPad',gpu_rating:{version:'pool-u32-v1',units:5}}),'tablet');});
+for(const [units,tier] of [[.5,'phone'],[1,'tablet'],[10,'computer'],[100,'shark'],[1000,'whale'],[10000,'leviathan']])test('GPU throughput tier '+units,()=>{for(const platform of ['iPhone','iPad','MacBook Pro','Windows'])assert.equal(classify({platform,video_rating:{status:'VALIDATED',unit:'standard_5s_videos_per_hour',workload_id:'fixed',units}}),tier);});
+test('faster phone is larger than slower tablet',()=>{assert.equal(classify({platform:'iPhone',video_rating:{status:'VALIDATED',unit:'standard_5s_videos_per_hour',workload_id:'fixed',units:200}}),'shark');assert.equal(classify({platform:'iPad',video_rating:{status:'VALIDATED',unit:'standard_5s_videos_per_hour',workload_id:'fixed',units:5}}),'tablet');});
 test('GPU brand alone never implies fish tier',()=>assert.equal(classify({platform:'Windows',hardware:{gpu:{description:'RTX 5090'}}}),'unknown'));
 test('Mac chip alone never implies fish tier',()=>assert.equal(classify({platform:'MacBook Pro',hardware:{gpu:{description:'Apple M4 Max'}}}),'unknown'));
-for(const units of [0,-1,NaN,Infinity])test('invalid score remains unrated '+units,()=>assert.equal(classify({gpu_rating:{version:'pool-u32-v1',units}}),'unknown'));
+for(const units of [0,-1,NaN,Infinity])test('invalid score remains unrated '+units,()=>assert.equal(classify({video_rating:{status:'VALIDATED',unit:'standard_5s_videos_per_hour',workload_id:'fixed',units}}),'unknown'));
 test('desktop GPU model hidden from device label',()=>assert.equal(deviceLabel({platform:'Windows',hardware:{gpu:{description:'NVIDIA RTX 5090'}}}),'電腦'));
+
+test('PGU never determines fish size',()=>assert.equal(classify({gpu_rating:{version:'pool-u32-v1',units:1000000}}),'unknown'));

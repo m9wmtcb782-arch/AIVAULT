@@ -27,3 +27,6 @@ All form factors use one fixed benchmark: 4096 u32 elements, 16 mixing rounds, f
 
 ## PGU water (supersedes device-participation water)
 Default full water = 500 PGU. Sum valid rated GPU throughput for online enabled nodes that are available or RUNNING; exclude paused/stopped/offline/unrated nodes. Fish remain visible for all online devices. No minimum invented water height. Display raw percentage even above 100%, while canvas height caps at full water. A new local preference key prevents old device-count scales leaking into the PGU scale. The 500 PGU reference is independent of any card model score.
+
+## Video ocean contract (supersedes PGU water and PGU fish size)
+PGU is diagnostic only. Current backend returns UNVALIDATED video_capacity with null workload/throughput and closed external billing, and null node video_rating. All online nodes remain fish. No fixed 500 scale, no synthetic video capacity. Future water requires an authoritative validated whole-pool benchmark; standalone device results must never be summed as distributed inference capacity. The ocean display scale expands automatically. Video contribution tiers use the same workload and tentative VCU/h boundaries 1/10/100/1000/10000; no device/model-name inference.

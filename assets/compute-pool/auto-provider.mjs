@@ -39,9 +39,9 @@ if(root){
     }
     const ack=await api({type:'task.result',nodeId,taskId:task.id,assignmentId,status:'COMPLETED',result});
     if(ack.verified!==true||ack.taskStatus!=='COMPLETED')throw Error('後端未接受 GPU 結果');
-    $('autoProof').textContent='GPU 驗證已完成 · '+result.executed_on+' · checksum '+result.checksum;
+    $('autoProof').textContent='基礎 GPU 診斷已完成（影片待驗證） · '+result.executed_on+' · checksum '+result.checksum;
     localStorage.setItem('aivault_gpu_proof_'+nodeId,new Date().toISOString());
-    if(!stopped)state('正在提供 GPU','已通過小型 GPU 驗證，目前等待相容任務。請保持此頁前景。');else state('已停止提供','本次驗證已結束，未再領取新任務。');
+    if(!stopped)state('正在提供 GPU','基礎 GPU 診斷通過；影片生成與跨設備協作仍待驗證。請保持此頁前景。');else state('已停止提供','本次驗證已結束，未再領取新任務。');
    }catch(e){reason=e.message;state('本次任務未完成',reason);await api({type:'task.failure',nodeId,taskId:task.id,assignmentId,status:'FAILED',result:{verified:false,error:reason}}).catch(()=>{});}
    finally{running=false;await heartbeat(true);}
   }catch(e){state('暫時無法取得任務',e.message);}finally{polling=false;}
