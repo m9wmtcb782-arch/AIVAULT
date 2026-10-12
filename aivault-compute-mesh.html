@@ -512,8 +512,10 @@
       <details class="pool-species-rules"><summary>影片算力與魚種規則（驗證中）</summary><p>1 VCU＝同一標準工作負載下完成一支 5 秒影片的工作量；VCU/h 表示每小時可完成的標準影片數。工作負載必須固定自有模型與權重版本、解析度、幀率、步數、精度及品質驗收條件，目前尚未定版，影片容量尚未驗證。</p><p>魚大小按同一工作負載的實測貢獻分級，手機、平板、Mac、電腦適用同一規則。暫定門檻：小魚低於 1、中魚 1–10、大魚 10–100、鯊魚 100–1000、鯨魚 1000–10000、巨鯨 10000 以上 VCU/h；上界不包含。沒有有效影片測試的設備顯示待測魚。</p><p>分散式算力必須通過整池協作影片測試，不能將手機基礎分數或各機單獨分數相加當成可生成影片的能力。PGU 只保留作為基礎 GPU 診斷，不決定池水、魚大小或收益。</p></details>
       <div class="pool-status"><div class="pool-policy"><span>自有模型專用</span><span>外來模型受控 · 尚未開放</span><span>付費與價格待驗收</span></div><div id="poolDataNote" role="status">等待真實節點資料。</div><div>海洋保持藍色滿水，作為設備與捕鯨船動畫背景，不代表實際容量已滿。上方大字顯示 Token/s（每秒生成 token 數），僅接受固定模型與工作負載的整池實測；未測時顯示「—」。下方小字 PGU 加總在線、啟用且可用或執行中節點的基礎 GPU 診斷；未測分數不推估，PGU 不換算 token。捕鯨船來回航行，鯨魚級節點確認離線後會靠近、撒網、收網上船。影片吞吐能力仍另行驗證，PGU 不換算成影片或收益。</div><div>Apple 裝置統一顯示「iOS」，其他電腦顯示「電腦」。所有在線設備保留魚；未提供 GPU 的原因見清單。裝置以保存的 ID 去重，同一手機不同瀏覽器可能有不同 ID。模型推論、跨設備影片協作與防作弊結算仍待驗收；外部付費使用保持關閉。</div><div id="poolDensity"></div></div>
       <div id="poolEvents" class="pool-events" aria-label="節點捕撈紀錄"></div>
-      <details class="pool-nodes"><summary id="poolListCount">查看提供算力的節點</summary><div class="pool-table-scroll"><table class="pool-table"><thead><tr><th>節點</th><th>設備 / 魚種</th><th>連線狀態</th><th>回報狀態</th><th>來源</th><th>GPU 引擎</th><th>未提供原因</th></tr></thead><tbody id="poolNodeRows"></tbody></table></div></details>
+      <details class="pool-nodes"><summary id="poolListCount">查看提供算力的節點</summary><div class="pool-table-scroll"><table class="pool-table"><thead><tr><th>節點</th><th>設備 / 魚種</th><th>連線狀態</th><th>回報狀態</th><th>來源</th><th>GPU 引擎</th><th>限制 / 未提供原因</th></tr></thead><tbody id="poolNodeRows"></tbody></table></div></details>
     </section>
+
+    <section class="card" id="poolPipeline" aria-label="跨設備 GPU 協同驗證"><h2>跨設備 GPU 協同</h2><p id="pipelineState" role="status">準備驗證：第一台 GPU 算第一層，輸出張量交給第二台 GPU 算下一層。</p><p id="pipelineDetail" class="tiny">目前為固定、未訓練的 16 維兩層 kernel 測試，不是影片模型。</p><p id="pipelineEvidence" class="tiny"></p><button id="pipelineStart" type="button">驗證兩台 GPU 接力運算</button> <button id="pipelineRefresh" type="button">更新驗證狀態</button><p class="tiny">上一層輸出校驗後保存；下層離線或超時時回收租約，由其他相容節點接手。舊租約結果拒收，錯誤輸出不得進入下一層；沒有相容節點時等待，不假裝完成。</p><p id="rentalState" class="tiny">企業租用尚未開放 · 價格與收費待模型及商業驗收。</p></section>
 
     <details class="card" id="poolAdvanced"><summary>進階控制與工程測試</summary>
     <!-- Coordinator -->
@@ -5340,7 +5342,9 @@ document.getElementById("meshBackLink").addEventListener("click", function (even
 });
 </script>
 <script src="assets/compute-pool/webgl2-engine.js"></script>
-<script type="module" src="assets/compute-pool/auto-provider.mjs?v=token-headline-v7"></script>
-<script type="module" src="assets/compute-pool/aquarium.mjs?v=token-headline-v7"></script>
+<script src="assets/compute-pool/tensor-engine.js?v=tensor-pipeline-v8"></script>
+<script type="module" src="assets/compute-pool/auto-provider.mjs?v=tensor-pipeline-v8"></script>
+<script type="module" src="assets/compute-pool/aquarium.mjs?v=tensor-pipeline-v8"></script>
+<script type="module" src="assets/compute-pool/pipeline-panel.mjs?v=tensor-pipeline-v8"></script>
 </body>
 </html>

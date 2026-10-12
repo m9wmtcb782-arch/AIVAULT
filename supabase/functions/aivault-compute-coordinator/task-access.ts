@@ -23,7 +23,7 @@ export async function checkPoolTaskAccess(task: Record<string, unknown>, modelAl
     } catch { return { allowed: false, reason: 'MODEL_AUTHORIZATION_UNAVAILABLE' }; }
   }
   const type = String(task.type || task.task_type || 'compute').toLowerCase();
-  return ['compute', 'compute_test', 'webgpu-compute', 'gpu-u32-mix'].includes(type)
+  return ['compute', 'compute_test', 'webgpu-compute', 'gpu-u32-mix', 'gpu-tensor-stage'].includes(type)
     ? { allowed: true, reason: 'FIXED_POOL_VALIDATION' }
     : { allowed: false, reason: 'MODEL_ID_REQUIRED' };
 }
