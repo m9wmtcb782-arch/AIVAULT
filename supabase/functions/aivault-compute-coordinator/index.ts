@@ -69,6 +69,8 @@ async function meshStatus() {
   };
 }
 
+function storedNodeStatus(value:unknown){const status=String(value||"READY").toUpperCase();return ["PAUSED","STOPPED"].includes(status)?"OFFLINE":status;}
+
 async function registerNode(body: Record<string, unknown>, request?: Request) {
   const node = (body.node && typeof body.node === "object" ? body.node : body) as Record<string, unknown>;
   const nodeId = String(pick(node, ["node_id", "id"]) || pick(body, ["nodeId", "node_id"]) || "");
@@ -78,8 +80,8 @@ async function registerNode(body: Record<string, unknown>, request?: Request) {
   const recognized = await recognize({ ...node, platform });
   const row = {
     node_id: nodeId,
-    status: String(node.status || "READY"),
-    available: node.available !== false,
+    status:storedNodeStatus(node.status),
+    available:node.available!==false&&!["PAUSED","STOPPED","OFFLINE"].includes(String(node.status||"").toUpperCase()),
     gpu: node.gpu === true || node.gpu === "true" || (node.webgpu === true && node.gpu !== false),
     capability: {
       ...(typeof node.capability === "object" && node.capability ? node.capability as object : {}),
@@ -116,8 +118,8 @@ async function heartbeat(body: Record<string, unknown>, request?: Request) {
   const patch: Record<string, unknown> = {
     last_seen: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    status: String(body.status || "READY"),
-    available: body.available !== false,
+    status:storedNodeStatus(body.status),
+    available:body.available!==false&&!["PAUSED","STOPPED","OFFLINE"].includes(String(body.status||"").toUpperCase()),
     gpu: body.gpu === true || body.gpu === "true" || (body.webgpu === true && body.gpu !== false),
   };
   const platform = body.platform ?? request?.headers.get("user-agent");
@@ -163,7 +165,7 @@ async function poolStatus() {
   }
   for (const row of workerResult.data || []) {
     const capability = row.capability || {};
-    nodes.set(row.node_id, { id:row.node_id, name:row.node_id, source:"coordinator", gpu_rating:ratings.get(row.node_id) || null, video_rating:null, runtime:row.runtime, tensor_supported:capability.supported_task_types?.includes("gpu-tensor-stage")===true, tensor_reason:capability.tensor_failure_reason||null, platform:row.platform, gpu_reported:row.gpu === true || Boolean(row.gpu && typeof row.gpu === "object"), online:onlineAt(row.last_seen,120000) && !["OFFLINE","FAILED","ERROR"].includes(String(row.status).toUpperCase()), available:row.available === true, status:row.status, last_seen:row.last_seen, reason:!onlineAt(row.last_seen,120000)?"心跳逾時（可能已關頁、鎖屏或斷線）":capability.gpu_failure_reason || (["PAUSED","STOPPED"].includes(String(row.status).toUpperCase())?"使用者已停止提供":""), hardware:{ gpu:typeof row.gpu === "object" ? row.gpu : null, accelerator:row.accelerator, gpu_info:capability.gpu_info || capability.gpu || capability.aivault_compute_capability || null } });
+    nodes.set(row.node_id, { id:row.node_id, name:row.node_id, source:"coordinator", gpu_rating:ratings.get(row.node_id) || null, video_rating:null, runtime:row.runtime, tensor_supported:capability.supported_task_types?.includes("gpu-tensor-stage")===true, tensor_reason:capability.tensor_failure_reason||null, platform:row.platform, gpu_reported:row.gpu === true || Boolean(row.gpu && typeof row.gpu === "object"), online:onlineAt(row.last_seen,120000) && !["OFFLINE","FAILED","ERROR"].includes(String(row.status).toUpperCase()), available:row.available === true, status:row.status, last_seen:row.last_seen, reason:!onlineAt(row.last_seen,120000)?"心跳逾時（可能已關頁、鎖屏或斷線）":capability.gpu_failure_reason || (["PAUSED","STOPPED","OFFLINE"].includes(String(row.status).toUpperCase())?"使用者已停止提供":""), hardware:{ gpu:typeof row.gpu === "object" ? row.gpu : null, accelerator:row.accelerator, gpu_info:capability.gpu_info || capability.gpu || capability.aivault_compute_capability || null } });
   }
   return json({success:true,nodes:[...nodes.values()], video_capacity:{version:"video-throughput-v1",status:"UNVALIDATED",unit:"standard_5s_videos_per_hour",scope:"pool",workload_id:null,units:null,reason:"自有影片模型與跨設備影片協作尚未通過驗證；PGU 僅為基礎 GPU 診斷",pricing:"UNSET",external_access:"CLOSED"}, fetched_at:new Date(now).toISOString(), truncated:(workerResult.count || 0)>1000 || (registeredResult.count || 0)>1000, policy:{mode:"FIRST_PARTY_ONLY",external_models:"CLOSED",pricing:"UNSET",gpu_inference_validated:false}, counting:"browser_nodes_not_unique_physical_devices"});
 }
@@ -222,13 +224,13 @@ async function requestTask(body: Record<string, unknown>) {
     .maybeSingle();
   if (nodeErr) return json({ success: false, error: nodeErr.message }, 500);
   if (!node) return json({ success: false, error: "node not registered" }, 404);
-  if (body.gpu_available === false || node.gpu !== true) {
+  if (body.gpu_available === false || node.gpu !== true || node.status === "OFFLINE" || node.status === "ERROR") {
     return json({ success: false, error: "no gpu worker" });
   }
 
   if (!/^[a-zA-Z0-9_-]{1,128}$/.test(nodeId)) return json({success:false,error:"INVALID_NODE_ID"},400);
   if(node.capability?.supported_task_types?.includes("gpu-tensor-stage")){
-    const stale=await db.from("compute_mesh_tasks").select("*").eq("type","gpu-tensor-stage").in("status",["ASSIGNED","RUNNING","FAILED"]).order("updated_at",{ascending:true}).limit(20);
+    const stale=await db.from("compute_mesh_tasks").select("*").eq("type","gpu-tensor-stage").in("status",["QUEUED","RUNNING","FAILED"]).order("updated_at",{ascending:true}).limit(20);
     if(!stale.error)await recoverTensorLeases(db,stale.data||[]);
   }
   let waitingQuery = db.from("compute_mesh_tasks").select("*").eq("status","WAITING")
@@ -247,23 +249,24 @@ async function requestTask(body: Record<string, unknown>) {
   }
   if (!task) return json({ success: false, error: "no available task" });
 
-  const claimPatch: Record<string, unknown> = {status:"ASSIGNED",updated_at:new Date().toISOString()};
+  const claimPatch: Record<string, unknown> = {status:"QUEUED",updated_at:new Date().toISOString()};
   if(task.type==="gpu-tensor-stage")claimPatch.payload={...task.payload,lease_node_id:nodeId,lease_generation:crypto.randomUUID(),lease_expires_at:new Date(Date.now()+180000).toISOString()};
   const {data:claimed,error:claimError}=await db.from("compute_mesh_tasks").update(claimPatch).eq("task_id",task.task_id).eq("status","WAITING").select("task_id");
   if(claimError)return json({success:false,error:"TASK_CLAIM_FAILED"},503);
   if(!claimed?.length)return json({success:false,error:"task already claimed"});
   if(task.type==="gpu-tensor-stage")task.payload=claimPatch.payload;
 
-  const { data: existing, error: existErr } = await db
-    .from("compute_mesh_assignments")
-    .select("*")
-    .eq("task_id", task.task_id)
-    .eq("node_id", nodeId)
-    .in("status", ["ASSIGNED", "RECEIVED", "RUNNING", "COMPLETED"])
-    .maybeSingle();
+  let existingQuery=db.from("compute_mesh_assignments").select("*").eq("task_id",task.task_id).eq("node_id",nodeId);
+  if(task.type!=="gpu-tensor-stage")existingQuery=existingQuery.in("status",["ASSIGNED","RUNNING","COMPLETED"]);
+  const {data:existing,error:existErr}=await existingQuery.maybeSingle();
   if (existErr) return json({ success: false, error: existErr.message }, 500);
 
-  let assignment = existing;
+  let assignment=existing;
+  if(assignment&&task.type==="gpu-tensor-stage"){
+    const refreshed=await db.from("compute_mesh_assignments").update({status:"ASSIGNED",progress:0,result:{},updated_at:new Date().toISOString()}).eq("id",assignment.id).select("*").single();
+    if(refreshed.error)return json({success:false,error:"ASSIGNMENT_RENEW_FAILED"},503);
+    assignment=refreshed.data;
+  }
   if (!assignment) {
     const insert = {
       task_id: task.task_id,
@@ -278,7 +281,7 @@ async function requestTask(body: Record<string, unknown>) {
       .select("*")
       .single();
     if (insErr) {
-      await db.from("compute_mesh_tasks").update({status:"WAITING",updated_at:new Date().toISOString()}).eq("task_id",task.task_id).eq("status","ASSIGNED");
+      await db.from("compute_mesh_tasks").update({status:"WAITING",updated_at:new Date().toISOString()}).eq("task_id",task.task_id).eq("status","QUEUED");
       return json({
         success: false,
         error: "assignment insert failed",
@@ -288,10 +291,6 @@ async function requestTask(body: Record<string, unknown>) {
     assignment = created;
   }
 
-  await db.from("compute_mesh_tasks").update({
-    status: "ASSIGNED",
-    updated_at: new Date().toISOString(),
-  }).eq("task_id", task.task_id).eq("status", "WAITING");
   await db.from("compute_mesh_nodes").update({
     status: "RUNNING",
     available: false,
@@ -345,7 +344,7 @@ async function taskProgress(body: Record<string, unknown>) {
   if(taskId.startsWith("tensor-chain-")){
     const {data:task,error:taskError}=await db.from("compute_mesh_tasks").select("type,payload,status").eq("task_id",taskId).maybeSingle();
     if(taskError)return json({success:false,error:"TASK_VERIFICATION_UNAVAILABLE"},503);
-    if(task?.type!=="gpu-tensor-stage"||task.payload?.lease_node_id!==nodeId||task.payload?.lease_generation!==body.lease_generation||!(Date.parse(task.payload?.lease_expires_at)>Date.now())||!["ASSIGNED","RUNNING"].includes(task.status))return json({success:false,error:"TENSOR_LEASE_MISMATCH"},409);
+    if(task?.type!=="gpu-tensor-stage"||task.payload?.lease_node_id!==nodeId||task.payload?.lease_generation!==body.lease_generation||!(Date.parse(task.payload?.lease_expires_at)>Date.now())||!["QUEUED","RUNNING"].includes(task.status))return json({success:false,error:"TENSOR_LEASE_MISMATCH"},409);
   }
   let query = db.from("compute_mesh_assignments").update({
     status: String(body.status || "RUNNING"),
@@ -360,7 +359,7 @@ async function taskProgress(body: Record<string, unknown>) {
     return json({ success: false, error: "assignment missing", taskStatus: "WAITING" }, 409);
   }
   if (taskId) {
-    let progressQuery=db.from("compute_mesh_tasks").update({status:"RUNNING",updated_at:new Date().toISOString()}).eq("task_id",taskId).in("status",["WAITING","ASSIGNED","RUNNING"]);
+    let progressQuery=db.from("compute_mesh_tasks").update({status:"RUNNING",updated_at:new Date().toISOString()}).eq("task_id",taskId).in("status",["WAITING","QUEUED","RUNNING"]);
     if(taskId.startsWith("tensor-chain-"))progressQuery=progressQuery.eq("payload->>lease_generation",body.lease_generation);
     const progressWrite=await progressQuery.select("task_id");
     if(progressWrite.error)return json({success:false,error:"TASK_PROGRESS_WRITE_FAILED"},503);
@@ -397,7 +396,7 @@ async function taskResult(body: Record<string, unknown>) {
     const { data: storedTask, error: loadError } = await db.from("compute_mesh_tasks").select("task_id,type,elements,iterations,payload,status,updated_at").eq("task_id",taskId).maybeSingle();
     if (loadError) return json({success:false,error:"TASK_VERIFICATION_UNAVAILABLE"},503);
     if(storedTask?.type==="gpu-tensor-stage"){
-      if(storedTask.payload?.lease_node_id!==nodeId||storedTask.payload?.lease_generation!==body.lease_generation||(storedTask.status!=="COMPLETED"&&!(Date.parse(storedTask.payload?.lease_expires_at)>Date.now()))||!["ASSIGNED","RUNNING","COMPLETED"].includes(storedTask.status))return json({success:false,error:"TENSOR_LEASE_MISMATCH"},409);
+      if(storedTask.payload?.lease_node_id!==nodeId||storedTask.payload?.lease_generation!==body.lease_generation||(storedTask.status!=="COMPLETED"&&!(Date.parse(storedTask.payload?.lease_expires_at)>Date.now()))||!["QUEUED","RUNNING","COMPLETED"].includes(storedTask.status))return json({success:false,error:"TENSOR_LEASE_MISMATCH"},409);
       tensorTask=storedTask;verified=verifyTensorStage(storedTask,result);
       if(storedTask.status==="COMPLETED"){
         if(body.status==='FAILED'||assignment.status!=='COMPLETED'||!verifyTensorStage(storedTask,assignment.result))return json({success:false,error:"TENSOR_ALREADY_COMPLETED"},409);
@@ -424,7 +423,7 @@ async function taskResult(body: Record<string, unknown>) {
   };
   // Results belong to assignments; compute_mesh_tasks has no result column.
   let completionQuery=db.from("compute_mesh_tasks").update(taskPatch).eq("task_id",taskId);
-  if(tensorTask)completionQuery=completionQuery.eq("payload->>lease_generation",tensorTask.payload.lease_generation).in("status",["ASSIGNED","RUNNING"]);
+  if(tensorTask)completionQuery=completionQuery.eq("payload->>lease_generation",tensorTask.payload.lease_generation).in("status",["QUEUED","RUNNING"]);
   const {data:completedRows,error:taskError}=await completionQuery.select("task_id");
   if(taskError)return json({success:false,error:"TASK_STATUS_WRITE_FAILED",taskId},500);
   if(tensorTask&&!completedRows?.length)return json({success:false,error:"TENSOR_LEASE_MISMATCH"},409);
