@@ -10,7 +10,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 
 /** Read-only safety gates. Local diagnostic may run without charging;
- * future sustained contribution MUST call canContribute() before each lease. */
+ * future sustained contribution MUST call inspect() before each lease. */
 object DevicePolicy {
     data class Status(
         val charging: Boolean,
