@@ -22,6 +22,14 @@ class MainActivity : Activity() {
             text = "AIVAULT GPU Worker\n尚未測試。此版本只驗證本機 GPU，不會連線或提供算力。"
             textSize = 18f
         }
+        val policy = DevicePolicy.inspect(this)
+        val safety = TextView(this).apply {
+            text = "持續算力安全檢查：\\n" +
+                "充電：" + (if (policy.charging) "是" else "否") +
+                "｜電量：" + (policy.batteryPercent?.toString() ?: "未知") + "%\\n" +
+                policy.reason + "\\n目前只執行一次本機測試，不會持續提供算力。"
+            textSize = 15f
+        }
         val button = Button(this).apply {
             text = "測試我的 GPU"
             setOnClickListener {
@@ -40,6 +48,7 @@ class MainActivity : Activity() {
             }
         }
         layout.addView(status, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        layout.addView(safety, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         layout.addView(button, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         setContentView(layout)
     }
