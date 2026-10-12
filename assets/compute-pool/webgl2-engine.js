@@ -4,7 +4,13 @@
   function checksum(elements,iterations){let sum=0;for(let i=0;i<Math.min(1024,elements);i++){let x=(i+1)>>>0;for(let j=0;j<iterations;j++){x=(Math.imul(x,1664525)+1013904223)>>>0;x=(x^(x>>>13))>>>0;x=Math.imul(x,2246822519)>>>0;x=(x^(x>>>16))>>>0;}sum=(sum+x)>>>0;}return sum;}
   function createRunner(){
     const canvas=document.createElement('canvas');
-    const gl=canvas.getContext('webgl2',{alpha:false,antialias:false,depth:false,stencil:false,preserveDrawingBuffer:false,failIfMajorPerformanceCaveat:true});
+    // Some older Android GPUs are rejected by the strict performance-caveat
+    // policy even though they can execute our tiny verified shader workload.
+    // Retry without that policy; acceptance still requires correct GPU pixels.
+    const contextOptions={alpha:false,antialias:false,depth:false,stencil:false,preserveDrawingBuffer:false};
+    let gl=null;
+    try{gl=canvas.getContext('webgl2',{...contextOptions,failIfMajorPerformanceCaveat:true});}catch(_){}
+    if(!gl){try{gl=canvas.getContext('webgl2',{...contextOptions,failIfMajorPerformanceCaveat:false});}catch(_){}}
     if(!gl)throw Error('此瀏覽器也無法啟用 WebGL2，裝置將保留登記但不計入可用 GPU。');
     let lost=false;canvas.addEventListener('webglcontextlost',()=>{lost=true;});
     function shader(type,code){const s=gl.createShader(type);gl.shaderSource(s,code);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){const msg=gl.getShaderInfoLog(s);gl.deleteShader(s);throw Error('WebGL2 shader 編譯失敗：'+msg);}return s;}
