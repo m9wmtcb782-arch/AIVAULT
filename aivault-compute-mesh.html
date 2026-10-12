@@ -5261,7 +5261,15 @@
           // Android/older-browser local GPU proof: use the same real
           // WebGL2 integer shader/readback validator as auto-provider.
           // Do not claim WebGPU or publish a PGU rating from this check.
-          if (!navigator.gpu) {
+          // The legacy WebGPU benchmark is retained for capable browsers.
+          // On Android WebGPU can exist but requestAdapter() still return null.
+          // In that case, run the actual WebGL2 shader/readback proof.
+          let webgpuAvailable = false;
+          if (navigator.gpu) {
+            try { webgpuAvailable = !!(await navigator.gpu.requestAdapter()); }
+            catch (_) { webgpuAvailable = false; }
+          }
+          if (!webgpuAvailable) {
             if (!window.AivaultWebGL2) throw new Error("WebGL2 驗證引擎未載入");
             const runner = window.AivaultWebGL2.createRunner();
             try {
@@ -5273,7 +5281,7 @@
                 "WebGL2 真實 GPU 運算通過 · 256 elements / 1 iteration · " +
                 proof.gpu_time_ms + " ms。此為本機驗證，非 PGU 或影片能力認證。";
             } finally {
-              runner.destroy?.();
+              runner.dispose?.();
             }
             return;
           }
