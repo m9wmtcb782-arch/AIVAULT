@@ -30,3 +30,6 @@ Default full water = 500 PGU. Sum valid rated GPU throughput for online enabled 
 
 ## Video ocean contract (supersedes PGU water and PGU fish size)
 PGU is diagnostic only. Current backend returns UNVALIDATED video_capacity with null workload/throughput and closed external billing, and null node video_rating. All online nodes remain fish. No fixed 500 scale, no synthetic video capacity. Future water requires an authoritative validated whole-pool benchmark; standalone device results must never be summed as distributed inference capacity. The ocean display scale expands automatically. Video contribution tiers use the same workload and tentative VCU/h boundaries 1/10/100/1000/10000; no device/model-name inference.
+
+## Blue ocean and roaming capture ship
+Blue full water is decorative, independent of capacity. The headline is summed online schedulable diagnostic PGU, explicitly not video capacity. A procedural ship patrols the surface; confirmed offline whale-tier nodes trigger approach, net deployment and winch-to-deck animation. Missing/failed snapshots do not trigger captures. Current nodes without video contribution evidence remain unrated fish. The demo tests every ship capture stage without inventing real hardware evidence.
