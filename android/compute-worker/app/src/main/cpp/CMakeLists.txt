@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.22.1)
+project(aivault_compute_worker LANGUAGES CXX)
+add_library(aivault_gpu SHARED gpu_probe.cpp gpu_jni.cpp)
+target_compile_features(aivault_gpu PRIVATE cxx_std_17)
+target_link_libraries(aivault_gpu EGL GLESv3 log)
