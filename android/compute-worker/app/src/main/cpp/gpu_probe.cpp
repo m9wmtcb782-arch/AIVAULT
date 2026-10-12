@@ -10,7 +10,7 @@ namespace aivault {
 struct Proof { bool verified = false; uint32_t checksum = 0; std::string error; };
 static uint32_t oracle(int count, int iterations) {
   uint32_t sum=0;
-  for(int i=0;i<count && i<1024;i++){
+  for(int i=0;i<count;i++){
     uint32_t x=static_cast<uint32_t>(i+1);
     for(int j=0;j<iterations;j++){x=x*1664525u+1013904223u;x^=x>>13u;x*=2246822519u;x^=x>>16u;}
     sum+=x;
@@ -65,7 +65,7 @@ Proof probe(int elements=256,int iterations=1) {
     glReadPixels(0,0,side,side,GL_RGBA_INTEGER,GL_UNSIGNED_INT,pixels.data());
     if(glGetError()!=GL_NO_ERROR){p.error="GPU draw/readback failed";goto cleanup;}
     uint32_t sum=0;
-    for(int i=0;i<elements && i<1024;i++)sum+=pixels[static_cast<size_t>(i)*4];
+    for(int i=0;i<elements;i++)sum+=pixels[static_cast<size_t>(i)*4];
     p.checksum=sum;p.verified=(sum==oracle(elements,iterations));
     if(!p.verified)p.error="GPU checksum mismatch";
   }
