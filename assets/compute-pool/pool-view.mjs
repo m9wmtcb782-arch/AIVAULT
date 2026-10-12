@@ -5,7 +5,7 @@ export const SPECIES = {
   shark:{name:'GPU IV',fish:'鯊魚',size:58,color:'#b1c5e0',tool:'捕撈網'},
   whale:{name:'GPU V',fish:'鯨魚',size:76,color:'#b0a1ff',tool:'吊網'},
   leviathan:{name:'GPU VI',fish:'巨鯨',size:94,color:'#73d8fa',tool:'起重吊具'},
-  unknown:{name:'算力待測',fish:'待測魚',size:25,color:'#9faebb',tool:'抄網'},
+  unknown:{name:'影片算力待測',fish:'待測魚',size:25,color:'#9faebb',tool:'抄網'},
 };
 // Aquarium tiers are presentation categories, not measured performance or payout weights.
 function platformText(node){return typeof node.platform==='string'?node.platform:JSON.stringify(node.platform||{});}
@@ -19,24 +19,29 @@ export function deviceLabel(node){
 }
 export function classify(node) {
  if(node.gpu_reported===false)return 'unknown';
- const r=node.gpu_rating;
- if(!r||r.version!=='pool-u32-v1'||!Number.isFinite(r.units)||r.units<=0)return 'unknown';
- // Exactly the same thresholds for every phone, tablet, PC and Apple device.
+ const r=node.video_rating;
+ if(!r||r.status!=='VALIDATED'||r.unit!=='standard_5s_videos_per_hour'||!r.workload_id||!Number.isFinite(r.units)||r.units<=0)return 'unknown';
  if(r.units<1)return 'phone';
  if(r.units<10)return 'tablet';
  if(r.units<100)return 'computer';
- if(r.units<500)return 'shark';
- if(r.units<1000)return 'whale';
+ if(r.units<1000)return 'shark';
+ if(r.units<10000)return 'whale';
  return 'leviathan';
 }
-export function waterState(nodes,reference=500) {
+export function oceanScale(total) {
+ if(!Number.isFinite(total)||total<=0)return 1;
+ const goal=total*1.25,power=10**Math.floor(Math.log10(goal));
+ return [1,2,5,10].map(n=>n*power).find(n=>n>=goal)||goal;
+}
+export function waterState(nodes,capacity=null) {
  const active=nodes.filter(n=>n.online===true&&n.gpu_reported===true&&!['PAUSED','STOPPED'].includes(String(n.status||'').toUpperCase())&&(n.available===true||String(n.status||'').toUpperCase()==='RUNNING'));
- const rated=active.filter(n=>n.gpu_rating?.version==='pool-u32-v1'&&Number.isFinite(n.gpu_rating.units)&&n.gpu_rating.units>0);
- const totalPGU=rated.reduce((sum,n)=>sum+n.gpu_rating.units,0);
- const scale=Number.isFinite(Number(reference))&&Number(reference)>0?Number(reference):500;
- const rawRatio=totalPGU/scale,ratio=Math.min(1,rawRatio);
  const members=nodes.filter(n=>n.online===true);
- return {active,members,rated,totalPGU,unrated:active.length-rated.length,reference:scale,rawRatio,ratio,count:active.length,color:ratio<.33?'#fc6374':ratio<.67?'#f5c04d':'#3da6f6',label:totalPGU===0?'可用算力未測得':ratio<.33?'低水位':ratio<.67?'中水位':'高水位'};
+ // Pool throughput must come from a validated whole-pool video test, never summed microbenchmarks or standalone estimates.
+ const validated=capacity?.status==='VALIDATED'&&capacity.unit==='standard_5s_videos_per_hour'&&capacity.workload_id&&capacity.scope==='pool'&&Number.isFinite(capacity.units)&&capacity.units>=0;
+ const totalVideo=validated?capacity.units:null;
+ const reference=validated?oceanScale(totalVideo):null;
+ const ratio=validated?totalVideo/reference:0;
+ return {active,members,validated:Boolean(validated),totalVideo,reference,ratio,count:active.length,color:ratio<.33?'#fc6374':ratio<.67?'#f5c04d':'#3da6f6',label:!validated?'影片算力尚未驗證':totalVideo===0?'目前無可用影片算力':ratio<.33?'低水位':ratio<.67?'中水位':'高水位'};
 }
 export function formatPoolNumber(value){
  if(value>0&&value<1e-10)return value.toExponential(3);

@@ -1,23 +1,23 @@
-import {SPECIES,classify,deviceLabel,formatPoolNumber,waterState,transitions} from './pool-view.mjs?v=pgu-water-v4';
+import {SPECIES,classify,deviceLabel,formatPoolNumber,waterState,transitions} from './pool-view.mjs?v=video-ocean-v5';
 const root=document.getElementById('computePoolAquarium');
 if(root){
   const $=id=>document.getElementById(id),canvas=$('poolCanvas'),ctx=canvas.getContext('2d');
   const endpoint='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/aivault-compute-coordinator';
-  let realNodes=[],previous=null,hasSnapshot=false,demo=false,water=0,target=0,registeredWater=0,color='#fc6374',fish=[],catches=[],visible=true,lastFrame=0,lastPoll=0,fetching=false,refreshQueued=false,reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const reference=$('poolReference');reference.value=localStorage.getItem('aivault_pool_pgu_reference_v1')||'500';
+  let realCapacity=null,realNodes=[],previous=null,hasSnapshot=false,demo=false,water=0,target=0,registeredWater=0,color='#fc6374',fish=[],catches=[],visible=true,lastFrame=0,lastPoll=0,fetching=false,refreshQueued=false,reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reference=$('poolReference');reference.value='自動調整（待驗證）';
   const seed=s=>Array.from(s).reduce((a,c)=>(a*31+c.charCodeAt(0))>>>0,17);
-  const demoNodes=()=>Array.from({length:18},(_,i)=>({id:'demo-'+i,name:'示意節點 '+(i+1),platform:['iPhone','iPad','Windows','Windows','Windows','Windows'][i%6],gpu_rating:{version:'pool-u32-v1',units:[.5,5,50,200,700,1500][i%6]},hardware:i%6>=3?{gpu:{description:['RTX 4090','RTX 5090','RTX 6000 Ada'][i%6-3]}}:null,online:true,gpu_reported:true,available:true,source:'demo',status:'示意',last_seen:null}));
+  const demoNodes=()=>Array.from({length:18},(_,i)=>({id:'demo-'+i,name:'示意節點 '+(i+1),platform:['iPhone','iPad','Windows','Windows','Windows','Windows'][i%6],video_rating:{status:'VALIDATED',unit:'standard_5s_videos_per_hour',workload_id:'DEMO',units:[.5,5,50,500,5000,15000][i%6]},hardware:i%6>=3?{gpu:{description:['RTX 4090','RTX 5090','RTX 6000 Ada'][i%6-3]}}:null,online:true,gpu_reported:true,available:true,source:'demo',status:'示意',last_seen:null}));
   function event(text){const p=document.createElement('p');p.textContent=new Date().toLocaleTimeString('zh-TW')+' · '+text;$('poolEvents').prepend(p);while($('poolEvents').children.length>8)$('poolEvents').lastChild.remove();}
   function display(nodes){
-    const view=waterState(nodes,reference.value);target=view.ratio;registeredWater=0;color=view.color;
-    $('poolPercent').textContent=!hasSnapshot&&!demo?'—':formatPoolNumber(view.rawRatio*100)+'%';$('poolLevel').textContent=!hasSnapshot&&!demo?'水位待確認':view.label+' · '+formatPoolNumber(view.totalPGU)+' / '+formatPoolNumber(view.reference)+' PGU'+(view.unrated?' · '+view.unrated+' 個 GPU 待測':'');
+    const view=waterState(nodes,demo?{status:'VALIDATED',unit:'standard_5s_videos_per_hour',workload_id:'DEMO',scope:'pool',units:63166.5}:realCapacity);reference.value=view.validated?formatPoolNumber(view.reference)+' VCU/h':'自動調整（待驗證）';target=view.ratio;registeredWater=0;color=view.color;
+    $('poolPercent').textContent=!hasSnapshot&&!demo?'—':view.validated?formatPoolNumber(view.totalVideo)+' VCU/h':'尚未驗證';$('poolLevel').textContent=!hasSnapshot&&!demo?'水位待確認':view.label+(view.validated?' · 刻度 '+formatPoolNumber(view.reference)+' VCU/h':' · GPU 診斷不換算影片容量');
     $('poolGpuCount').textContent=!hasSnapshot&&!demo?'—':view.count;$('poolOnlineCount').textContent=!hasSnapshot&&!demo?'—':nodes.filter(n=>n.online===true).length;$('poolRecordedCount').textContent=!hasSnapshot&&!demo?'—':nodes.length;$('poolIdleCount').textContent=!hasSnapshot&&!demo?'—':view.active.filter(n=>n.available===true).length;
     $('poolEmpty').hidden=view.members.length>0;$('poolEmpty').textContent=hasSnapshot||demo?'目前沒有在線裝置；離線登記仍保留在清單。':'正在取得節點資料…';
     const old=new Map(fish.map(f=>[f.id,f]));
     fish=view.members.slice(0,80).map(n=>({...old.get(n.id),id:n.id,node:n,kind:classify(n),seed:seed(n.id),phase:seed(n.id)%100}));
     $('poolDensity').textContent=view.members.length>80?'畫面聚合顯示 80 條魚，完整節點請看清單。':'';
     const tbody=$('poolNodeRows');tbody.replaceChildren();
-    for(const n of nodes){const tr=document.createElement('tr'),kind=SPECIES[classify(n)];for(const v of [deviceLabel(n)+' · '+String(n.id).slice(-8),deviceLabel(n)+' · '+kind.fish+' · '+(n.gpu_rating?formatPoolNumber(n.gpu_rating.units)+' PGU（估測）':'算力待測'),n.online?(n.gpu_reported?'在線 / GPU 回報':'在線 / 未回報 GPU'):'離線',String(n.status||'—'),n.source==='registered'?'帳號登記':n.source==='demo'?'示意':'運算節點',n.runtime==='webgl2'?'WebGL2':n.runtime==='webgpu'?'WebGPU':'待確認',n.reason||'—']){const td=document.createElement('td');td.textContent=v;tr.append(td);}tbody.append(tr);}
+    for(const n of nodes){const tr=document.createElement('tr'),kind=SPECIES[classify(n)];for(const v of [deviceLabel(n)+' · '+String(n.id).slice(-8),deviceLabel(n)+' · '+kind.fish+' · '+(n.video_rating?.status==='VALIDATED'?formatPoolNumber(n.video_rating.units)+' VCU/h':'影片算力待測')+(n.gpu_rating?' · 基礎診斷 '+formatPoolNumber(n.gpu_rating.units)+' PGU':''),n.online?(n.gpu_reported?'在線 / GPU 回報':'在線 / 未回報 GPU'):'離線',String(n.status||'—'),n.source==='registered'?'帳號登記':n.source==='demo'?'示意':'運算節點',n.runtime==='webgl2'?'WebGL2':n.runtime==='webgpu'?'WebGPU':'待確認',n.reason||'—']){const td=document.createElement('td');td.textContent=v;tr.append(td);}tbody.append(tr);}
     $('poolListCount').textContent='查看全部裝置與 GPU 狀態（'+nodes.length+'）';
     if(reduced) {water=target;draw(performance.now());}
   }
@@ -26,7 +26,7 @@ if(root){
     try{
       const r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'mesh.pool'}),signal:AbortSignal.timeout(10000)});
       if(!r.ok)throw Error('HTTP '+r.status);const data=await r.json();if(data.success!==true||!Array.isArray(data.nodes))throw Error('節點資料尚未可用');
-      realNodes=data.nodes;hasSnapshot=true;
+      realNodes=data.nodes;realCapacity=data.video_capacity||null;hasSnapshot=true;
       const departed=transitions(previous,realNodes,{truncated:data.truncated});
       if(!demo)for(const n of departed){const kind=classify(n),f=fish.find(f=>f.id===n.id);catches.push({kind,start:performance.now(),x:f?.x||450,y:f?.y||400});event(deviceLabel(n)+' 節點離線 · 使用'+SPECIES[kind].tool+'捕撈，裝置紀錄保留。');}
       previous=realNodes.map(n=>({...n}));
@@ -36,7 +36,6 @@ if(root){
     finally{fetching=false;lastPoll=Date.now();$('poolStage').setAttribute('aria-busy','false');if(refreshQueued){refreshQueued=false;poll();}}
   }
   window.addEventListener('aivault:gpu-provider-updated',poll);
-  reference.addEventListener('change',()=>{const n=Math.max(.0000000001,Number(reference.value)||500);reference.value=n;localStorage.setItem('aivault_pool_pgu_reference_v1',n);display(demo?demoNodes():realNodes);});
   $('poolDemo').addEventListener('click',()=>{demo=!demo;fish=[];catches=[];$('poolDemo').setAttribute('aria-pressed',String(demo));$('poolDemo').textContent=demo?'返回真實水池':'查看魚種示意';$('poolDemoNotice').hidden=!demo;display(demo?demoNodes():realNodes);});
   $('poolRefresh').addEventListener('click',poll);
   // The demo is explicitly separate from every live statistic and only runs on request.
