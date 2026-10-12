@@ -1,23 +1,23 @@
-import {SPECIES,classify,deviceLabel,waterState,transitions} from './pool-view.mjs?v=gpu-tiers-v3';
+import {SPECIES,classify,deviceLabel,formatPoolNumber,waterState,transitions} from './pool-view.mjs?v=pgu-water-v4';
 const root=document.getElementById('computePoolAquarium');
 if(root){
   const $=id=>document.getElementById(id),canvas=$('poolCanvas'),ctx=canvas.getContext('2d');
   const endpoint='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/aivault-compute-coordinator';
   let realNodes=[],previous=null,hasSnapshot=false,demo=false,water=0,target=0,registeredWater=0,color='#fc6374',fish=[],catches=[],visible=true,lastFrame=0,lastPoll=0,fetching=false,refreshQueued=false,reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const reference=$('poolReference');reference.value=localStorage.getItem('aivault_pool_display_reference')||'20';
+  const reference=$('poolReference');reference.value=localStorage.getItem('aivault_pool_pgu_reference_v1')||'500';
   const seed=s=>Array.from(s).reduce((a,c)=>(a*31+c.charCodeAt(0))>>>0,17);
   const demoNodes=()=>Array.from({length:18},(_,i)=>({id:'demo-'+i,name:'示意節點 '+(i+1),platform:['iPhone','iPad','Windows','Windows','Windows','Windows'][i%6],gpu_rating:{version:'pool-u32-v1',units:[.5,5,50,200,700,1500][i%6]},hardware:i%6>=3?{gpu:{description:['RTX 4090','RTX 5090','RTX 6000 Ada'][i%6-3]}}:null,online:true,gpu_reported:true,available:true,source:'demo',status:'示意',last_seen:null}));
   function event(text){const p=document.createElement('p');p.textContent=new Date().toLocaleTimeString('zh-TW')+' · '+text;$('poolEvents').prepend(p);while($('poolEvents').children.length>8)$('poolEvents').lastChild.remove();}
   function display(nodes){
-    const view=waterState(nodes,reference.value);target=view.members.length?Math.max(.18,view.ratio):0;registeredWater=0;color=view.color;
-    $('poolPercent').textContent=!hasSnapshot&&!demo?'—':Math.round(view.ratio*100)+'%';$('poolLevel').textContent=!hasSnapshot&&!demo?'水位待確認':view.label+' · '+view.members.length+' 池節點 / '+view.count+' GPU 節點';
+    const view=waterState(nodes,reference.value);target=view.ratio;registeredWater=0;color=view.color;
+    $('poolPercent').textContent=!hasSnapshot&&!demo?'—':formatPoolNumber(view.rawRatio*100)+'%';$('poolLevel').textContent=!hasSnapshot&&!demo?'水位待確認':view.label+' · '+formatPoolNumber(view.totalPGU)+' / '+formatPoolNumber(view.reference)+' PGU'+(view.unrated?' · '+view.unrated+' 個 GPU 待測':'');
     $('poolGpuCount').textContent=!hasSnapshot&&!demo?'—':view.count;$('poolOnlineCount').textContent=!hasSnapshot&&!demo?'—':nodes.filter(n=>n.online===true).length;$('poolRecordedCount').textContent=!hasSnapshot&&!demo?'—':nodes.length;$('poolIdleCount').textContent=!hasSnapshot&&!demo?'—':view.active.filter(n=>n.available===true).length;
     $('poolEmpty').hidden=view.members.length>0;$('poolEmpty').textContent=hasSnapshot||demo?'目前沒有在線裝置；離線登記仍保留在清單。':'正在取得節點資料…';
     const old=new Map(fish.map(f=>[f.id,f]));
     fish=view.members.slice(0,80).map(n=>({...old.get(n.id),id:n.id,node:n,kind:classify(n),seed:seed(n.id),phase:seed(n.id)%100}));
     $('poolDensity').textContent=view.members.length>80?'畫面聚合顯示 80 條魚，完整節點請看清單。':'';
     const tbody=$('poolNodeRows');tbody.replaceChildren();
-    for(const n of nodes){const tr=document.createElement('tr'),kind=SPECIES[classify(n)];for(const v of [deviceLabel(n)+' · '+String(n.id).slice(-8),deviceLabel(n)+' · '+kind.fish+' · '+(n.gpu_rating?Number(n.gpu_rating.units).toFixed(2)+' PGU（估測）':'算力待測'),n.online?(n.gpu_reported?'在線 / GPU 回報':'在線 / 未回報 GPU'):'離線',String(n.status||'—'),n.source==='registered'?'帳號登記':n.source==='demo'?'示意':'運算節點',n.runtime==='webgl2'?'WebGL2':n.runtime==='webgpu'?'WebGPU':'待確認',n.reason||'—']){const td=document.createElement('td');td.textContent=v;tr.append(td);}tbody.append(tr);}
+    for(const n of nodes){const tr=document.createElement('tr'),kind=SPECIES[classify(n)];for(const v of [deviceLabel(n)+' · '+String(n.id).slice(-8),deviceLabel(n)+' · '+kind.fish+' · '+(n.gpu_rating?formatPoolNumber(n.gpu_rating.units)+' PGU（估測）':'算力待測'),n.online?(n.gpu_reported?'在線 / GPU 回報':'在線 / 未回報 GPU'):'離線',String(n.status||'—'),n.source==='registered'?'帳號登記':n.source==='demo'?'示意':'運算節點',n.runtime==='webgl2'?'WebGL2':n.runtime==='webgpu'?'WebGPU':'待確認',n.reason||'—']){const td=document.createElement('td');td.textContent=v;tr.append(td);}tbody.append(tr);}
     $('poolListCount').textContent='查看全部裝置與 GPU 狀態（'+nodes.length+'）';
     if(reduced) {water=target;draw(performance.now());}
   }
@@ -36,7 +36,7 @@ if(root){
     finally{fetching=false;lastPoll=Date.now();$('poolStage').setAttribute('aria-busy','false');if(refreshQueued){refreshQueued=false;poll();}}
   }
   window.addEventListener('aivault:gpu-provider-updated',poll);
-  reference.addEventListener('change',()=>{const n=Math.max(1,Math.floor(Number(reference.value)||20));reference.value=n;localStorage.setItem('aivault_pool_display_reference',n);display(demo?demoNodes():realNodes);});
+  reference.addEventListener('change',()=>{const n=Math.max(.0000000001,Number(reference.value)||500);reference.value=n;localStorage.setItem('aivault_pool_pgu_reference_v1',n);display(demo?demoNodes():realNodes);});
   $('poolDemo').addEventListener('click',()=>{demo=!demo;fish=[];catches=[];$('poolDemo').setAttribute('aria-pressed',String(demo));$('poolDemo').textContent=demo?'返回真實水池':'查看魚種示意';$('poolDemoNotice').hidden=!demo;display(demo?demoNodes():realNodes);});
   $('poolRefresh').addEventListener('click',poll);
   // The demo is explicitly separate from every live statistic and only runs on request.
@@ -73,7 +73,7 @@ if(root){
     const surface=525-water*355;
     basin();ctx.fillStyle='#08111d';ctx.fill();ctx.save();basin();ctx.clip();
     if(registeredWater>0){ctx.fillStyle='#52799238';ctx.fillRect(100,525-registeredWater*355,700,450);}
-    if(water>0.001){const gradient=ctx.createLinearGradient(0,surface,0,550);gradient.addColorStop(0,color+'c0');gradient.addColorStop(1,color+'24');ctx.fillStyle=gradient;ctx.beginPath();ctx.moveTo(100,surface);for(let x=100;x<=800;x+=8)ctx.lineTo(x,surface+Math.sin(x*.025+t*.0014)*4+Math.sin(x*.052-t*.001)*2);ctx.lineTo(800,570);ctx.lineTo(100,570);ctx.closePath();ctx.fill();ctx.strokeStyle=color+'bb';ctx.lineWidth=1;ctx.beginPath();for(let x=135;x<766;x+=8){const y=surface+Math.sin(x*.025+t*.0014)*4+Math.sin(x*.052-t*.001)*2;if(x===135)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.stroke();}
+    if(water>0){const gradient=ctx.createLinearGradient(0,surface,0,550);gradient.addColorStop(0,color+'c0');gradient.addColorStop(1,color+'24');ctx.fillStyle=gradient;ctx.beginPath();ctx.moveTo(100,surface);for(let x=100;x<=800;x+=8)ctx.lineTo(x,surface+Math.sin(x*.025+t*.0014)*4+Math.sin(x*.052-t*.001)*2);ctx.lineTo(800,570);ctx.lineTo(100,570);ctx.closePath();ctx.fill();ctx.strokeStyle=color+'bb';ctx.lineWidth=1;ctx.beginPath();for(let x=135;x<766;x+=8){const y=surface+Math.sin(x*.025+t*.0014)*4+Math.sin(x*.052-t*.001)*2;if(x===135)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.stroke();}
     for(const f of fish){const s=SPECIES[f.kind],phase=f.phase;const cycle=(t*.000025*(.7+(phase%5)*.12)+phase*.017)%2;const dir=cycle<1?1:-1;const q=cycle<1?cycle:2-cycle;f.x=220+s.size*.2+q*(470-s.size*.4);const minY=Math.min(surface+s.size*.38+16,490),maxY=490-s.size*.1;f.y=minY+Math.max(0,maxY-minY)*((Math.sin(phase*3+t*.00025)+1)/2);drawFish(f.x,f.y,f.kind,dir,Math.sin(t*.001+phase)*.03);ctx.save();ctx.textAlign='center';ctx.font='11px system-ui';ctx.fillStyle='#eaf5ff';ctx.fillText((deviceLabel(f.node)+' '+s.fish+' #'+String(f.id).slice(-4))+' · '+(f.node.gpu_reported&&!['PAUSED','STOPPED'].includes(String(f.node.status||'').toUpperCase())?'GPU':'待提供 GPU'),f.x,f.y+SPECIES[f.kind].size*.65+12);ctx.restore();}
     ctx.fillStyle='#b0def630';for(let i=0;i<12;i++){const y=535-((t*.016+i*33)%Math.max(20,535-surface));if(y>surface+5)ellipse(195+(i*57)%520,y,1.5+i%3,1.5+i%3,'#c6efff25');}ctx.restore();
     ctx.strokeStyle='#84a9c6';ctx.lineWidth=9;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(135,145);ctx.lineTo(135,375);ctx.quadraticCurveTo(135,535,310,535);ctx.lineTo(590,535);ctx.quadraticCurveTo(765,535,765,375);ctx.lineTo(765,145);ctx.stroke();
