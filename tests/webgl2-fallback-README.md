@@ -33,3 +33,6 @@ PGU is diagnostic only. Current backend returns UNVALIDATED video_capacity with 
 
 ## Blue ocean and roaming capture ship
 Blue full water is decorative, independent of capacity. The headline is summed online schedulable diagnostic PGU, explicitly not video capacity. A procedural ship patrols the surface; confirmed offline whale-tier nodes trigger approach, net deployment and winch-to-deck animation. Missing/failed snapshots do not trigger captures. Current nodes without video contribution evidence remain unrated fish. The demo tests every ship capture stage without inventing real hardware evidence.
+
+## Token headline
+Large text shows Token/s for an authoritative validated whole-pool model/workload benchmark, otherwise an em dash with an explicit not-measured label. Current API has no validated token_capacity, so no throughput is synthesized. Diagnostic PGU and active GPU count move to smaller text. Token throughput is not a token balance, accumulated token counter, or PGU conversion. Blue ship visuals remain unchanged.

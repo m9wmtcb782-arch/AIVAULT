@@ -1,9 +1,9 @@
-import {SPECIES,classify,deviceLabel,formatPoolNumber,waterState,transitions} from './pool-view.mjs?v=blue-ship-v6';
+import {SPECIES,classify,deviceLabel,formatPoolNumber,waterState,transitions} from './pool-view.mjs?v=token-headline-v7';
 const root=document.getElementById('computePoolAquarium');
 if(root){
   const $=id=>document.getElementById(id),canvas=$('poolCanvas'),ctx=canvas.getContext('2d');
   const endpoint='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/aivault-compute-coordinator';
-  let realCapacity=null,realNodes=[],previous=null,hasSnapshot=false,demo=false,water=1,target=1,registeredWater=0,color='#fc6374',fish=[],catches=[],visible=true,lastFrame=0,lastPoll=0,fetching=false,refreshQueued=false,reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let realTokens=null,realCapacity=null,realNodes=[],previous=null,hasSnapshot=false,demo=false,water=1,target=1,registeredWater=0,color='#fc6374',fish=[],catches=[],visible=true,lastFrame=0,lastPoll=0,fetching=false,refreshQueued=false,reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
   const reference=$('poolReference');reference.value='自動調整（待驗證）';
   const seed=s=>Array.from(s).reduce((a,c)=>(a*31+c.charCodeAt(0))>>>0,17);
   const demoNodes=()=>Array.from({length:18},(_,i)=>({id:'demo-'+i,name:'示意節點 '+(i+1),platform:['iPhone','iPad','Windows','Windows','Windows','Windows'][i%6],gpu_rating:{version:'pool-u32-v1',units:[.5,5,50,200,700,1500][i%6]},video_rating:{status:'VALIDATED',unit:'standard_5s_videos_per_hour',workload_id:'DEMO',units:[.5,5,50,500,5000,15000][i%6]},hardware:i%6>=3?{gpu:{description:['RTX 4090','RTX 5090','RTX 6000 Ada'][i%6-3]}}:null,online:true,gpu_reported:true,available:true,source:'demo',status:'示意',last_seen:null}));
@@ -11,8 +11,10 @@ if(root){
   function display(nodes){
     const view=waterState(nodes,demo?{status:'VALIDATED',unit:'standard_5s_videos_per_hour',workload_id:'DEMO',scope:'pool',units:63166.5}:realCapacity);reference.value=view.validated?formatPoolNumber(view.reference)+' VCU/h':'自動調整（待驗證）';target=1;registeredWater=0;color='#3da6f6';
     const diagnostic=view.active.filter(n=>n.gpu_rating?.version==='pool-u32-v1'&&Number.isFinite(n.gpu_rating.units)&&n.gpu_rating.units>0).reduce((sum,n)=>sum+n.gpu_rating.units,0);
-    $('poolPercent').textContent=!hasSnapshot&&!demo?'—':formatPoolNumber(diagnostic)+' PGU';
-    $('poolLevel').textContent=!hasSnapshot&&!demo?'正在取得算力':view.active.length+' 個可提供 GPU 節點 · 影片能力'+(view.validated?'已驗證':'尚未驗證');
+    const tokenReady=!demo&&realTokens?.status==='VALIDATED'&&realTokens.unit==='tokens_per_second'&&realTokens.scope==='pool'&&realTokens.workload_id&&Number.isFinite(realTokens.units)&&realTokens.units>=0;
+    $('poolPercent').textContent=tokenReady?formatPoolNumber(realTokens.units)+' Token/s':'— Token/s';
+    $('poolLevel').textContent=!hasSnapshot&&!demo?'正在取得運算診斷':formatPoolNumber(diagnostic)+' PGU · '+view.active.length+' 個可提供 GPU 節點';
+    $('poolTokenNote').textContent=tokenReady?'Token/s：固定模型與工作負載的整池實測生成速度':'Token/s 尚未測得 · PGU 不換算成 token';
     $('poolGpuCount').textContent=!hasSnapshot&&!demo?'—':view.count;$('poolOnlineCount').textContent=!hasSnapshot&&!demo?'—':nodes.filter(n=>n.online===true).length;$('poolRecordedCount').textContent=!hasSnapshot&&!demo?'—':nodes.length;$('poolIdleCount').textContent=!hasSnapshot&&!demo?'—':view.active.filter(n=>n.available===true).length;
     $('poolEmpty').hidden=view.members.length>0;$('poolEmpty').textContent=hasSnapshot||demo?'目前沒有在線裝置；離線登記仍保留在清單。':'正在取得節點資料…';
     const old=new Map(fish.map(f=>[f.id,f]));
@@ -28,7 +30,7 @@ if(root){
     try{
       const r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'mesh.pool'}),signal:AbortSignal.timeout(10000)});
       if(!r.ok)throw Error('HTTP '+r.status);const data=await r.json();if(data.success!==true||!Array.isArray(data.nodes))throw Error('節點資料尚未可用');
-      realNodes=data.nodes;realCapacity=data.video_capacity||null;hasSnapshot=true;
+      realNodes=data.nodes;realCapacity=data.video_capacity||null;realTokens=data.token_capacity||null;hasSnapshot=true;
       const departed=transitions(previous,realNodes,{truncated:data.truncated});
       if(!demo)for(const n of departed){const kind=classify(n),f=fish.find(f=>f.id===n.id);queueCatch(kind,f?.x||450,f?.y||400);event(deviceLabel(n)+' 節點離線 · 使用'+SPECIES[kind].tool+'捕撈，裝置紀錄保留。');}
       previous=realNodes.map(n=>({...n}));
