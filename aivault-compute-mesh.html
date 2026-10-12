@@ -5258,6 +5258,26 @@
 
         try {
 
+          // Android/older-browser local GPU proof: use the same real
+          // WebGL2 integer shader/readback validator as auto-provider.
+          // Do not claim WebGPU or publish a PGU rating from this check.
+          if (!navigator.gpu) {
+            if (!window.AivaultWebGL2) throw new Error("WebGL2 驗證引擎未載入");
+            const runner = window.AivaultWebGL2.createRunner();
+            try {
+              const proof = await runner.run(256, 1);
+              if (proof.verified !== true || proof.gpu !== true) {
+                throw new Error("WebGL2 GPU 驗證未通過");
+              }
+              $("benchOut").textContent =
+                "WebGL2 真實 GPU 運算通過 · 256 elements / 1 iteration · " +
+                proof.gpu_time_ms + " ms。此為本機驗證，非 PGU 或影片能力認證。";
+            } finally {
+              runner.destroy?.();
+            }
+            return;
+          }
+
           const cap =
             await runBenchmark(
               Math.max(
