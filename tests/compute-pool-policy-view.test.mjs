@@ -37,3 +37,7 @@ for(const units of [0,-1,NaN,Infinity])test('invalid score remains unrated '+uni
 test('desktop GPU model hidden from device label',()=>assert.equal(deviceLabel({platform:'Windows',hardware:{gpu:{description:'NVIDIA RTX 5090'}}}),'電腦'));
 
 test('PGU never determines fish size',()=>assert.equal(classify({gpu_rating:{version:'pool-u32-v1',units:1000000}}),'unknown'));
+
+test('AppleWebKit on Android is not an Apple device',()=>assert.equal(deviceLabel({platform:'Mozilla/5.0 (Linux; Android 8.1.0) AppleWebKit/537.36 Chrome/138 Mobile Safari/537.36'}),'手機'));
+test('Miui desktop-mode browser still identifies as mobile',()=>assert.equal(deviceLabel({platform:'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/534.24 Chrome/135 XiaoMi/MiuiBrowser/14.60.0-gn'}),'手機'));
+test('AppleWebKit on Windows is still a computer',()=>assert.equal(deviceLabel({platform:'Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 Chrome/138 Safari/537.36'}),'電腦'));
