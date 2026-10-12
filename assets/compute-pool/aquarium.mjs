@@ -1,4 +1,4 @@
-import {SPECIES,classify,deviceLabel,formatPoolNumber,waterState,transitions} from './pool-view.mjs?v=token-headline-v7';
+import {SPECIES,classify,deviceLabel,formatPoolNumber,waterState,transitions} from './pool-view.mjs?v=android-status-v9';
 const root=document.getElementById('computePoolAquarium');
 if(root){
   const $=id=>document.getElementById(id),canvas=$('poolCanvas'),ctx=canvas.getContext('2d');

@@ -11,9 +11,10 @@ export const SPECIES = {
 function platformText(node){return typeof node.platform==='string'?node.platform:JSON.stringify(node.platform||{});}
 export function deviceLabel(node){
  const p=platformText(node),h=JSON.stringify(node.hardware||{});
- if(/iPhone|iPad|iPod|Macintosh|MacBook|Mac mini|Mac Studio|Mac Pro|iMac|\bMac\b|Apple/i.test(p+' '+h))return 'iOS';
+ if(/iPhone|iPad|iPod/i.test(p))return 'iOS';
  if(/tablet|平板/i.test(p))return '平板';
- if(/Android|mobile|手機/i.test(p))return '手機';
+ if(/Android|mobile|手機|MiuiBrowser|XiaoMi/i.test(p))return '手機';
+ if(/Macintosh|MacBook|Mac mini|Mac Studio|Mac Pro|iMac|\bMac\b/i.test(p)||/\bApple\b/i.test(h))return 'iOS';
  if(/Windows|Linux|desktop|computer|電腦/i.test(p)||/RTX|QUADRO|NVIDIA/i.test(h))return '電腦';
  return '待辨識';
 }

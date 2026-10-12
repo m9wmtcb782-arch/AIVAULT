@@ -39,7 +39,8 @@ if(root){
     }
     const ack=await api({type:'task.result',nodeId,taskId:task.id,assignmentId,lease_generation:task.lease_generation,status:'COMPLETED',result});
     if(ack.verified!==true||ack.taskStatus!=='COMPLETED')throw Error('後端未接受 GPU 結果');
-    $('autoProof').textContent=task.type==='gpu-tensor-stage'?'跨設備 GPU 第 '+task.stage+' 層輸出已通過校驗': '基礎 GPU 診斷已完成（影片待驗證） · '+result.executed_on+' · checksum '+result.checksum;
+    if(task.type==='gpu-tensor-stage')$('autoTensorStatus').textContent='FP32 張量：第 '+task.stage+' 層 GPU 輸出已通過後端校驗';
+    else $('autoProof').textContent='GPU 基礎診斷：已完成 · '+result.executed_on+' · checksum '+result.checksum;
     localStorage.setItem('aivault_gpu_proof_'+nodeId,new Date().toISOString());
     if(!stopped)state('正在提供 GPU','基礎 GPU 診斷通過；影片生成與跨設備協作仍待驗證。請保持此頁前景。');else state('已停止提供','本次驗證已結束，未再領取新任務。');
    }catch(e){reason=e.message;state('本次任務未完成',reason);await api({type:'task.failure',nodeId,taskId:task.id,assignmentId,lease_generation:task.lease_generation,status:'FAILED',result:{verified:false,error:reason}}).catch(()=>{});}
@@ -53,8 +54,8 @@ if(root){
    await register();
    clearInterval(heartbeatTimer);heartbeatTimer=setInterval(()=>{if(!document.hidden&&!stopped)heartbeat();},30000);
    try{runner=await nativeRunner();await runner.run(16,1);backend='webgpu';}
-   catch(webgpuError){try{runner=AivaultWebGL2.createRunner();await runner.run(16,1);backend='webgl2';}catch(glError){reason='WebGPU：'+webgpuError.message+'；WebGL2：'+glError.message;backend='unavailable';await register();state('已登記，無法提供 GPU',reason+'。裝置仍會以魚呈現；未提供 GPU，不計入可提供 GPU 節點數。');$('autoGpuToggle').textContent='重新偵測';return;}}
-   try{tensorRunner=await AivaultTensor.createRunner();await tensorRunner.run(AivaultTensor.initial(),1);tensorReason='';}catch(e){tensorRunner=null;tensorReason=e.message;}
+   catch(webgpuError){try{runner=AivaultWebGL2.createRunner();await runner.run(16,1);backend='webgl2';}catch(glError){reason='WebGPU：'+webgpuError.message+'；WebGL2：'+glError.message;backend='unavailable';$('autoTensorStatus').textContent='FP32 張量：未啟用（基礎 GPU 無法啟用）';await register();state('已登記，無法提供 GPU',reason+'。裝置仍會以魚呈現；未提供 GPU，不計入可提供 GPU 節點數。');$('autoGpuToggle').textContent='重新偵測';return;}}
+   try{tensorRunner=await AivaultTensor.createRunner();await tensorRunner.run(AivaultTensor.initial(),1);tensorReason='';$('autoTensorStatus').textContent='FP32 張量：本機測試通過；兩台接力需另一個相容節點。';}catch(e){tensorRunner=null;tensorReason=e.message;$('autoTensorStatus').textContent='FP32 張量：未啟用 · '+tensorReason+'；基礎 GPU 診斷仍可繼續。';}
    if(stopped)return;ready=true;await register();state('正在提供 GPU',backend==='webgl2'?'已啟用 WebGL2 備援，只接相容的小型任務。':'已啟用 WebGPU，正在等待相容任務。');
    clearInterval(heartbeatTimer);clearInterval(pollTimer);heartbeatTimer=setInterval(()=>{if(!document.hidden&&!stopped)heartbeat();},30000);pollTimer=setInterval(poll,30000);
    const id='auto-gpu-proof-'+nodeId+'-'+Date.now();await api({type:'task.create',task:{id,name:'裝置自動 GPU 驗證',type:'gpu-u32-mix',target_node_id:nodeId,elements:4096,iterations:16,gpu_required:true,backend:'portable-gpu'}});await poll();
