@@ -25,6 +25,7 @@ class MainActivity : Activity() {
         val policy = DevicePolicy.inspect(this)
         val safety = TextView(this).apply {
             text = "持續算力安全檢查：\\n" +
+                "Wi-Fi：" + (if (policy.wifiConnected) "已連接" else "未連接") + "\\n" +
                 "充電：" + (if (policy.charging) "是" else "否") +
                 "｜電量：" + (policy.batteryPercent?.toString() ?: "未知") + "%\\n" +
                 policy.reason + "\\n目前只執行一次本機測試，不會持續提供算力。"
