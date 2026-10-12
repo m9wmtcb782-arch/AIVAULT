@@ -503,14 +503,14 @@
     <!-- Read-only live compute pool: no task or provider calls -->
     <section id="computePoolAquarium" class="card pool-card" aria-label="GPU 算力水池">
       <div class="pool-top"><div><div class="pool-eyebrow">AIVAULT · GPU RESERVOIR</div><h2>算力水池</h2></div><div id="poolLive" class="pool-live" data-live="false"><i class="pool-dot"></i><span id="poolLiveText">正在讀取</span></div></div>
-      <div id="poolStage" class="pool-stage" aria-busy="true"><canvas id="poolCanvas" role="img" aria-label="U 型 GPU 水池。設備以魚種呈現，實際數字與設備狀態請見下方清單。"></canvas><div class="pool-overlay"><div id="poolPercent" class="pool-percentage">—</div><div id="poolLevel" class="pool-level">水位待確認</div><div class="pool-water-note">藍色滿水為海洋動畫 · 上方 PGU 為在線 GPU 基礎診斷總量</div></div></div>
+      <div id="poolStage" class="pool-stage" aria-busy="true"><canvas id="poolCanvas" role="img" aria-label="U 型 GPU 水池。設備以魚種呈現，實際數字與設備狀態請見下方清單。"></canvas><div class="pool-overlay"><div id="poolPercent" class="pool-percentage">— Token/s</div><div id="poolLevel" class="pool-level">正在取得運算診斷</div><div id="poolTokenNote" class="pool-water-note">Token/s 尚未測得 · PGU 不換算成 token</div></div></div>
       <div id="poolEmpty" class="pool-empty">正在取得節點資料…</div>
       <div id="poolDemoNotice" class="pool-demo-notice" hidden>魚種示意模式 · 下方數字為模擬資料，不代表真實算力。 <button id="poolCatchDemo" type="button">示意捕撈</button></div>
       <div class="pool-summary"><div><small>在線 GPU 節點</small><b id="poolGpuCount">—</b></div><div><small>連線裝置</small><b id="poolOnlineCount">—</b></div><div><small>空閒 GPU 節點</small><b id="poolIdleCount">—</b></div><div><small>歷史登記 ID</small><b id="poolRecordedCount">—</b></div></div>
       <div class="pool-tools"><label>影片能力刻度 <input id="poolReference" type="text" value="自動調整（待驗證）" readonly aria-label="影片算力自動顯示刻度" /></label><div><button id="poolRefresh" type="button">更新</button> <button id="poolDemo" type="button" aria-pressed="false">查看魚種示意</button></div></div>
       <div class="pool-legend"><span><i style="--fish-color:#56dcc3"></i><b>GPU I</b> 小魚</span><span><i style="--fish-color:#f8c973"></i><b>GPU II</b> 中魚</span><span><i style="--fish-color:#70c7fa"></i><b>GPU III</b> 大魚</span><span><i style="--fish-color:#b1c5e0"></i><b>GPU IV</b> 鯊魚</span><span><i style="--fish-color:#b0a1ff"></i><b>GPU V</b> 鯨魚</span><span><i style="--fish-color:#73d8fa"></i><b>GPU VI</b> 巨鯨</span></div>
       <details class="pool-species-rules"><summary>影片算力與魚種規則（驗證中）</summary><p>1 VCU＝同一標準工作負載下完成一支 5 秒影片的工作量；VCU/h 表示每小時可完成的標準影片數。工作負載必須固定自有模型與權重版本、解析度、幀率、步數、精度及品質驗收條件，目前尚未定版，影片容量尚未驗證。</p><p>魚大小按同一工作負載的實測貢獻分級，手機、平板、Mac、電腦適用同一規則。暫定門檻：小魚低於 1、中魚 1–10、大魚 10–100、鯊魚 100–1000、鯨魚 1000–10000、巨鯨 10000 以上 VCU/h；上界不包含。沒有有效影片測試的設備顯示待測魚。</p><p>分散式算力必須通過整池協作影片測試，不能將手機基礎分數或各機單獨分數相加當成可生成影片的能力。PGU 只保留作為基礎 GPU 診斷，不決定池水、魚大小或收益。</p></details>
-      <div class="pool-status"><div class="pool-policy"><span>自有模型專用</span><span>外來模型受控 · 尚未開放</span><span>付費與價格待驗收</span></div><div id="poolDataNote" role="status">等待真實節點資料。</div><div>海洋保持藍色滿水，作為設備與捕鯨船動畫背景，不代表實際容量已滿。上方 PGU 加總在線、啟用且可用或執行中節點的基礎 GPU 診斷；未測分數不推估。捕鯨船來回航行，鯨魚級節點確認離線後會靠近、撒網、收網上船。影片吞吐能力仍另行驗證，PGU 不換算成影片或收益。</div><div>Apple 裝置統一顯示「iOS」，其他電腦顯示「電腦」。所有在線設備保留魚；未提供 GPU 的原因見清單。裝置以保存的 ID 去重，同一手機不同瀏覽器可能有不同 ID。模型推論、跨設備影片協作與防作弊結算仍待驗收；外部付費使用保持關閉。</div><div id="poolDensity"></div></div>
+      <div class="pool-status"><div class="pool-policy"><span>自有模型專用</span><span>外來模型受控 · 尚未開放</span><span>付費與價格待驗收</span></div><div id="poolDataNote" role="status">等待真實節點資料。</div><div>海洋保持藍色滿水，作為設備與捕鯨船動畫背景，不代表實際容量已滿。上方大字顯示 Token/s（每秒生成 token 數），僅接受固定模型與工作負載的整池實測；未測時顯示「—」。下方小字 PGU 加總在線、啟用且可用或執行中節點的基礎 GPU 診斷；未測分數不推估，PGU 不換算 token。捕鯨船來回航行，鯨魚級節點確認離線後會靠近、撒網、收網上船。影片吞吐能力仍另行驗證，PGU 不換算成影片或收益。</div><div>Apple 裝置統一顯示「iOS」，其他電腦顯示「電腦」。所有在線設備保留魚；未提供 GPU 的原因見清單。裝置以保存的 ID 去重，同一手機不同瀏覽器可能有不同 ID。模型推論、跨設備影片協作與防作弊結算仍待驗收；外部付費使用保持關閉。</div><div id="poolDensity"></div></div>
       <div id="poolEvents" class="pool-events" aria-label="節點捕撈紀錄"></div>
       <details class="pool-nodes"><summary id="poolListCount">查看提供算力的節點</summary><div class="pool-table-scroll"><table class="pool-table"><thead><tr><th>節點</th><th>設備 / 魚種</th><th>連線狀態</th><th>回報狀態</th><th>來源</th><th>GPU 引擎</th><th>未提供原因</th></tr></thead><tbody id="poolNodeRows"></tbody></table></div></details>
     </section>
@@ -5340,7 +5340,7 @@ document.getElementById("meshBackLink").addEventListener("click", function (even
 });
 </script>
 <script src="assets/compute-pool/webgl2-engine.js"></script>
-<script type="module" src="assets/compute-pool/auto-provider.mjs?v=blue-ship-v6"></script>
-<script type="module" src="assets/compute-pool/aquarium.mjs?v=blue-ship-v6"></script>
+<script type="module" src="assets/compute-pool/auto-provider.mjs?v=token-headline-v7"></script>
+<script type="module" src="assets/compute-pool/aquarium.mjs?v=token-headline-v7"></script>
 </body>
 </html>

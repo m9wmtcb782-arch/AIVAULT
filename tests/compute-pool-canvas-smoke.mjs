@@ -16,7 +16,7 @@ const document={hidden:false,getElementById:id=>{assert(nodes.has(id),'Missing D
 const calls=[];
 vm.runInNewContext(source,{SPECIES,classify,deviceLabel,formatPoolNumber,waterState,transitions,document,window:{addEventListener(){}},devicePixelRatio:2,localStorage:{getItem:()=>null,setItem(){}},matchMedia:()=>({matches:false}),requestAnimationFrame:fn=>{frame=fn;},setInterval(){},performance,Date,Math:deterministicMath,Map,Set,AbortSignal,fetch:async(url,options)=>{calls.push(JSON.parse(options.body));return {ok:true,json:async()=>({success:true,nodes:[],fetched_at:new Date().toISOString()})};}});
 await new Promise(resolve=>setImmediate(resolve));
-assert.deepEqual(calls,[{type:'mesh.pool'}]);assert.equal(nodes.get('poolPercent').textContent,'0 PGU');
+assert.deepEqual(calls,[{type:'mesh.pool'}]);assert.equal(nodes.get('poolPercent').textContent,'— Token/s');assert.match(nodes.get('poolLevel').textContent,/0 PGU/);assert.match(nodes.get('poolTokenNote').textContent,/尚未測得/);
 frame(100);nodes.get('poolDemo').handlers.click();frame(200);nodes.get('poolCatchDemo').handlers.click();frame(300);frame(performance.now()+2100);frame(performance.now()+5000);frame(performance.now()+7500);assert(drawnText.includes('撒網捕撈'));assert(drawnText.includes('收網上船'));assert(drawnText.includes('已收上船'));assert(drawnText.includes('AIVAULT'));
 assert.equal(nodes.get('poolDemoNotice').hidden,false);assert.equal(nodes.get('poolGpuCount').textContent,18);
 nodes.get('poolDemo').handlers.click();frame(400);assert.equal(nodes.get('poolGpuCount').textContent,0);
