@@ -54,6 +54,7 @@ Proof probe(int elements=256,int iterations=1) {
   glBindFramebuffer(GL_FRAMEBUFFER,framebuffer);
   glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,texture,0);
   if(glCheckFramebufferStatus(GL_FRAMEBUFFER)!=GL_FRAMEBUFFER_COMPLETE){p.error="integer framebuffer unsupported";goto cleanup;}
+  while(glGetError()!=GL_NO_ERROR) {} // discard stale GL errors before measured draw
   glUseProgram(program);glBindVertexArray(vao);
   glUniform1ui(glGetUniformLocation(program,"u_width"),static_cast<GLuint>(side));
   glUniform1ui(glGetUniformLocation(program,"u_elements"),static_cast<GLuint>(elements));
