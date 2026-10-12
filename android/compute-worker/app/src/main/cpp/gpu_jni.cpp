@@ -1,5 +1,7 @@
 #include <jni.h>
 #include <EGL/egl.h>
+#include <EGL/eglext.h>
+#include <cstdint>
 #include <GLES3/gl3.h>
 #include <string>
 
