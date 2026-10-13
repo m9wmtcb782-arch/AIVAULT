@@ -71,7 +71,6 @@
   function showReader() {
     $("listenView").hidden=true;
     state.view = "read";
-    setQS(state.bookId,state.pageNumber,"read");
     $("shelfView").hidden = true;
     $("readerView").hidden = false;
     $("readerView").classList.remove("controls-open");
@@ -572,7 +571,7 @@
     let savedScreen=null;try {savedScreen=JSON.parse(localStorage.getItem("aivault_reader_screen_"+id)||"null");}catch(e){}
     await goPage(start, false);
     if(savedScreen&&savedScreen.page===state.pageNumber){state.subPage=Number(savedScreen.screen)||0;renderSpread();try {localStorage.setItem("aivault_reader_screen_"+id,JSON.stringify({page:state.pageNumber,screen:state.subPage}));}catch(e){}}
-    if (!state.shelfBooks.some(function(b){return b.id===id;})) collectBooks().then(function(books){state.shelfBooks=books;if(state.bookId===id&&state.view==="read")renderSpread();}).catch(function(){});
+    if (!state.shelfBooks.some(function(b){return b.id===id;})) collectBooks().then(function(books){state.shelfBooks=books;if(state.bookId===id&&(state.view==="read"||state.view==="listen"))renderSpread();}).catch(function(){});
     if (start > 1) toast("繼續閱讀第 " + start + " 頁");
 
     // 遠端電子書若沒有後端 TOC，背景建立完整章節目錄；
@@ -699,9 +698,9 @@
     const cur = state.pageNumber;
     let from = 1, title = "本章";
     let to = state.totalPages;
-    const items = state.toc.slice().sort(function (a, b) { return (a.page_number || 0) - (b.page_number || 0); });
+    const items = state.toc.filter(function(x){return Number(E.pick(x,["page_number","page","target_page"]))>0;}).sort(function(a,b){return Number(E.pick(a,["page_number","page","target_page"]))-Number(E.pick(b,["page_number","page","target_page"]));});
     for (let i = 0; i < items.length; i++) {
-      const p = Number(items[i].page_number || 1);
+      const p = Number(E.pick(items[i],["page_number","page","target_page"]));
       if (p <= cur) { from = p; title = items[i].title || title; }
       if (p > cur) { to = p - 1; break; }
     }
@@ -878,6 +877,11 @@
     $("spStop").onclick = stopSpeak;
   }
 
+  function narrationChapterTitle(){
+    const p=state.cache.get(state.pageNumber)||{};if(p.chapter||p.section)return p.chapter||p.section;
+    const chapters=state.toc.filter(function(t){return /^(第[一二三四五六七八九十百千0-9]+[編章节節章]|[壹貳參肆伍陸柒捌玖拾]、)/.test(String(t.title||""))&&Number(E.pick(t,["page_number","page","target_page"]))<=state.pageNumber;}).sort(function(a,b){return Number(E.pick(a,["page_number","page","target_page"]))-Number(E.pick(b,["page_number","page","target_page"]));});
+    return chapters.length?chapters[chapters.length-1].title:"第 "+state.pageNumber+" 頁";
+  }
   function currentChapterTitle() {
     const ch = chapterPages();
     return ch.title;
@@ -1136,12 +1140,12 @@
   bindShelf();
   bindNav();
   window.AIVAULTReaderBridge = {
-    info:function(){const known=state.shelfBooks.find(function(b){return b.id===state.bookId;})||{};return {id:state.bookId,page:state.pageNumber,total:state.totalPages,title:$("readerTitle").textContent,chapter:currentChapterTitle(),cover:(state.book&&state.book.cover_url)||known.cover_url||"",view:state.view};},
+    info:function(){const known=state.shelfBooks.find(function(b){return b.id===state.bookId;})||{};return {id:state.bookId,page:state.pageNumber,total:state.totalPages,title:$("readerTitle").textContent,chapter:narrationChapterTitle(),cover:(state.book&&state.book.cover_url)||known.cover_url||"",view:state.view};},
     paper:function(){return $("paperRight");},
     visibleSegment:function(){const paper=$("paperRight"),clip=paper.querySelector('.qq-page-viewport')||paper,r=clip.getBoundingClientRect();const mark=Array.from(paper.querySelectorAll('[data-narration]')).find(function(el){return Array.from(el.getClientRects()).some(function(m){return m.right>r.left&&m.left<r.right&&m.bottom>r.top&&m.top<r.bottom;});});return mark?Number(mark.dataset.narration):0;},
     loadPage:async function(n){await goPage(n,false,null,true);return state.pageNumber===n;},
     listen:function(){closeDrawer();state.view="listen";$("shelfView").hidden=true;$("readerView").hidden=true;$("listenView").hidden=false;setQS(state.bookId,state.pageNumber,"listen");},
-    read:function(){closeDrawer();showReader();renderSpread();},
+    read:function(){closeDrawer();showReader();setQS(state.bookId,state.pageNumber,"read");renderSpread();},
     follow:function(index){
       const paper=$("paperRight"), marks=Array.from(paper.querySelectorAll('[data-narration="'+index+'"]'));
       paper.querySelectorAll('.narration-active').forEach(function(el){el.classList.remove('narration-active');});
