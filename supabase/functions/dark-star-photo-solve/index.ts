@@ -65,6 +65,7 @@ export async function photoSolve(req:Request){
     const sources:any[]=rows.filter((p:any)=>{
       if(!['CN','TW'].includes(jurisdiction.code))return true;
       const j=identifyLaw(p.book_title+' '+p.excerpt);
+      if(j.foreign_reference&&!j.confirmed)return false;
       return !(['CN','TW'].includes(j.code)&&j.code!==jurisdiction.code);
     }).map((p:any,i:number)=>({...p,kind:'ebook',ref:i+1}));
     const common={question,terms,jurisdiction};

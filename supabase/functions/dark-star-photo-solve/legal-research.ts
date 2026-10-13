@@ -4,6 +4,8 @@ export function identifyLaw(question:string,selected='auto'){
   const traditional=[...question].filter(c=>'這為與國華條規權義務訴訟審罰證據認賠償損傷勞動產買賣約違憲議復廳機關檢護設應當過從對無會書學問'.includes(c)).length;
   const script=simplified>traditional?'簡體':traditional>simplified?'繁體':'共用字／無法判定';
   const cn=question.match(/中[华華]人民共和[国國]|中[国國]大[陆陸]|大[陆陸](?:的)?(?:法|地[区區])|民法典|人民法院|最高人民[检檢]察院|人民代表大[会會]|人大常委|[国國][务務]院|行政[复複復][议議]|治安管理[处處][罚罰]法/g)||[];
+  const foreign=/德[國国]|日本|韓國|韩国|美國|美国|英國|英国|法國|法国|歐盟|欧盟|香港|澳門|澳门/.test(question);
+  if(foreign&&cn.every(x=>x==='民法典'))cn.length=0;
   const tw=question.match(/中華民國|中华民国|[台臺][湾灣]|司法院|憲法法庭|宪法法庭|釋字|释字|行政程序法|中央法規標準法|中央法规标准法|勞動基準法|劳动基准法|訴願法|诉愿法|立法院/g)||[];
   const legal=cn.length>0||tw.length>0||/法律|法[條条典規规]|[憲宪]法|刑法|民法|行政法|司法|法院|比例原[則则]|[違违]法|[違违][憲宪]|第.{0,12}[條条]|基本[權权]/.test(question);
   let code:Jurisdiction='GENERAL',reason='未辨識為法律題';
@@ -11,8 +13,9 @@ export function identifyLaw(question:string,selected='auto'){
   else if(cn.length&&tw.length){code='UNKNOWN';reason='題目同時涉及兩岸法域，請選擇本次要解答的法域';}
   else if(cn.length){code='CN';reason='題目出現大陸法律／機關線索：'+[...new Set(cn)].join('、');}
   else if(tw.length){code='TW';reason='題目出現臺灣法律／機關線索：'+[...new Set(tw)].join('、');}
+  else if(legal&&foreign){code='UNKNOWN';reason='題目涉及其他法域，不能直接套用大陸或臺灣法律';}
   else if(legal){code=simplified>traditional&&simplified>=2?'CN':'UNKNOWN';reason=code==='CN'?'簡體法律題暫按大陸法律判讀，可手動改選':'繁體或共用字不能確定法域，請選擇大陸或臺灣法律';}
-  return {code,label:{CN:'大陸法律',TW:'臺灣法律',UNKNOWN:'待確認法律法域',GENERAL:'一般題目'}[code],script,reason,legal,confirmed:selected==='CN'||selected==='TW'||cn.length>0||tw.length>0};
+  return {code,foreign_reference:foreign,label:{CN:'大陸法律',TW:'臺灣法律',UNKNOWN:'待確認法律法域',GENERAL:'一般題目'}[code],script,reason,legal,confirmed:selected==='CN'||selected==='TW'||cn.length>0||tw.length>0};
 }
 export function officialUrl(raw:string,code:Jurisdiction){
   try{const u=new URL(raw);if(u.protocol!=='https:'||u.username||u.password||u.port)return false;const h=u.hostname.toLowerCase();

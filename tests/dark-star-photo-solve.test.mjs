@@ -35,6 +35,7 @@ test('jurisdiction uses explicit law clues before script',()=>{
  assert.equal(identifyLaw('司法院釋字第七四八號解釋').code,'TW');
  assert.equal(identifyLaw('臺灣與大陸法律比較').code,'UNKNOWN');
  assert.equal(identifyLaw('刑法第十條','TW').code,'TW');
+ assert.equal(identifyLaw('德國民法典侵權責任').code,'UNKNOWN');
 });
 test('ambiguous traditional legal question stops before retrieval or generation',async()=>{
  globalThis.fetch=()=>{throw Error('unexpected network');};const d=await (await photoSolve(request({action:'solve',question:'民法第184條如何適用？',image}))).json();assert.equal(d.status,'JURISDICTION_REQUIRED');
