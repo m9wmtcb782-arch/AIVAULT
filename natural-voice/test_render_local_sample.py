@@ -36,6 +36,19 @@ class SampleTests(unittest.TestCase):
                 self.assertEqual(audio.getnchannels(),1)
                 self.assertEqual(audio.getsampwidth(),2)
                 self.assertEqual(audio.getnframes(),24000)
+            self.assertFalse(target.with_name(target.name+".partial").exists())
+
+    def test_synthesis_failure_does_not_create_wave(self):
+        class Broken:
+            available=True
+            def synthesize(self, text, sample_rate=24000):
+                raise RuntimeError("offline model failed")
+        with tempfile.TemporaryDirectory() as directory:
+            target=pathlib.Path(directory)/"voice.wav"
+            with patch.object(render, "create_engine", return_value=Broken()):
+                self.assertEqual(render.main(["--output",str(target)]),3)
+            self.assertFalse(target.exists())
+            self.assertFalse(target.with_name(target.name+".partial").exists())
 
 if __name__ == "__main__":
     unittest.main()
