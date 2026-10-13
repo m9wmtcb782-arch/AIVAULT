@@ -12,11 +12,11 @@ def check_environment(env=None):
     model=env.get("PIPER_MODEL_PATH","")
     config=model+".json" if model else ""
     checks["piper_executable"]=bool(shutil.which(executable))
-    checks["piper_model"]=bool(model and Path(model).is_file())
+    checks["piper_model"]=bool(model and Path(model).is_file() and Path(model).stat().st_size>0)
     checks["piper_config"]=bool(config and Path(config).is_file())
     checks["voice_token"]=len(env.get("AIVAULT_VOICE_TOKEN",""))>=24
     asr=env.get("ASR_MODEL_PATH","")
-    checks["asr_model"]=bool(asr and Path(asr).is_dir())
+    checks["asr_model"]=bool(asr and Path(asr).is_dir() and (Path(asr)/"model.bin").is_file())
     checks["tts_24khz"]=False
     if checks["piper_config"]:
         try:
