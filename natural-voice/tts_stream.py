@@ -20,7 +20,7 @@ def clauses_with_offsets(text, max_chars=120):
         raise ValueError("EMPTY_TEXT")
     if max_chars < 8:
         raise ValueError("INVALID_MAX_CHARS")
-    for match in re.finditer(r"[^，。！？!?；;\\n]+[，。！？!?；;\\n]?", text):
+    for match in re.finditer(r"[^，。！？!?；;\n]+[，。！？!?；;\n]?", text):
         phrase = match.group()
         for offset in range(0, len(phrase), max_chars):
             piece = phrase[offset:offset+max_chars]
