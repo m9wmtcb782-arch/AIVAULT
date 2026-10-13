@@ -25,3 +25,16 @@ test("rejects skipped frame sequence",async()=>{
   const r=mockResponse([JSON.stringify({type:"audio",sequence:2,pcm_base64:"AAA="})+"\n"]);
   await assert.rejects(async()=>{for await(const pcm of parseTtsNdjson(r)) void pcm;},/INVALID_TTS_EVENT/);
 });
+
+test("accepts many short lines delivered in one packet",async()=>{
+ const audio=JSON.stringify({type:"audio",sequence:0,pcm_base64:"AAA="})+"\n";
+ const done=JSON.stringify({type:"complete",frames:1})+"\n";
+ const frames=[];
+ for await(const pcm of parseTtsNdjson(mockResponse([audio+done]),{maxLineBytes:100}))frames.push([...pcm]);
+ assert.deepEqual(frames,[[0,0]]);
+});
+test("rejects incorrect completed frame count",async()=>{
+ const r=mockResponse([JSON.stringify({type:"audio",sequence:0,pcm_base64:"AAA="})+"\n"+
+ JSON.stringify({type:"complete",frames:2})+"\n"]);
+ await assert.rejects(async()=>{for await(const pcm of parseTtsNdjson(r))void pcm;},/INVALID_TTS_COMPLETE/);
+});
