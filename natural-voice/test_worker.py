@@ -24,6 +24,15 @@ class WorkerTests(unittest.TestCase):
         self.token.start()
         self.addCleanup(self.token.stop)
 
+    def test_https_cors_origin_validation(self):
+        self.assertTrue(worker._valid_origin("https://voice.example.com"))
+        self.assertTrue(worker._valid_origin("https://voice.example.com:8443"))
+        for origin in ("*", "http://voice.example.com", "https://",
+                       "https://voice.example.com/path", "https://voice.example.com?x=1",
+                       "https://user:pass@voice.example.com", "https://voice.example.com:bad"):
+            with self.subTest(origin=origin):
+                self.assertFalse(worker._valid_origin(origin))
+
     def test_health_no_model(self):
         with patch.object(worker,"_tts",None):
             r=self.client.get("/health")
