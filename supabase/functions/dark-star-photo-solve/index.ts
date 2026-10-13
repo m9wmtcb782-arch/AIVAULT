@@ -1,4 +1,4 @@
-import { citationTarget, statuteMatches, exactArticleText } from './legal-citation.ts';
+import { citationTarget, statuteMatches, exactArticleText, articleForms } from './legal-citation.ts';
 import { identifyLaw, researchWeb } from './legal-research.ts';
 const BASE = Deno.env.get('SUPABASE_URL') || '';
 const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
@@ -70,7 +70,24 @@ export async function photoSolve(req:Request){
     if(citation.articles.length)terms=[citation.law_name,...citation.articles.map(id=>'第'+id+'條')];
     if(['solve','research'].includes(action)&&jurisdiction.code==='UNKNOWN')return out({ok:true,status:'JURISDICTION_REQUIRED',question,terms,jurisdiction,sources:[],answer:jurisdiction.reason+'。確認後再按解題。'});
     if(action==='research'){const web=await researchWeb(question,terms,jurisdiction.code,citation.law_name);return out({ok:true,question,terms,jurisdiction,web,sources:web.sources.map((x:any,i:number)=>({...x,ref:i+1})),found:web.sources.length>0});}
-    const rows=await database('rpc/dark_star_search_ebook_pages',{terms,book_id:bookId,result_limit:6});
+    let rows:any[];
+    if(citation.articles.length){
+      const catalog=await database('dark_star_ebooks?select=id,title'+(bookId?'&id=eq.'+bookId:'')+'&limit=200');
+      const matching=catalog.filter((book:any)=>{
+        if(!book.id||!statuteMatches(String(book.title||''),'',citation))return false;
+        const scope=identifyLaw(String(book.title||''));
+        return !(['CN','TW'].includes(scope.code)&&scope.code!==jurisdiction.code);
+      });
+      const ids=matching.map((x:any)=>x.id),aliases=citation.articles.flatMap(articleForms);
+      if(ids.length){
+        const conditions=['article_number.in.('+aliases.join(',')+')',...aliases.flatMap(id=>['title.ilike.*第'+id+'條*','title.ilike.*第'+id+'条*'])];
+        const path='dark_star_ebook_pages?select=id,ebook_id,page_number,title,article_number,content,chapter,section&ebook_id=in.'+encodeURIComponent('('+ids.join(',')+')')+'&or='+encodeURIComponent('('+conditions.join(',')+')')+'&limit=60';
+        const pages=await database(path);
+        rows=pages.map((p:any)=>({...p,page_id:p.id,book_title:matching.find((book:any)=>book.id===p.ebook_id)?.title,excerpt:String(p.title||'')+'\n'+String(p.content||'')}));
+      }else rows=[];
+      // Full-text fallback also searches Chinese article aliases when the book has no article metadata.
+      if(!rows.length)rows=await database('rpc/dark_star_search_ebook_pages',{terms:[citation.law_name,...aliases.flatMap(id=>['第'+id+'條','第'+id+'条'])],book_id:bookId,result_limit:10});
+    }else rows=await database('rpc/dark_star_search_ebook_pages',{terms,book_id:bookId,result_limit:6});
     // Clear references to the other jurisdiction are excluded from legal authority.
     const sources:any[]=rows.filter((p:any)=>{
       if(!['CN','TW'].includes(jurisdiction.code))return true;

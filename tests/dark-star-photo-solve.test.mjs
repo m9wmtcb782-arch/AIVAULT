@@ -94,3 +94,12 @@ test('precise article web lookup excludes wrong statutes and supplies only targe
  throw Error('unexpected URL');};
  const d=await (await photoSolve(request({action:'solve',question:'中華人民共和國刑法第143條'}))).json();assert.equal(d.status,'ANSWERED');assert.equal(d.sources.length,1);assert.deepEqual(d.sources[0].matched_articles,['143']);
 });
+
+test('split title and Chinese article metadata retrieve the uploaded constitution article',async()=>{
+ globalThis.fetch=async(url,options)=>{
+ if(url.includes('dark_star_ebooks?'))return Response.json([{id:'b1',title:'中華人民共和國憲法｜2018年修正本｜繁體電子書'}]);
+ if(url.includes('dark_star_ebook_pages?')){assert.match(decodeURIComponent(url),/一百四十三/);return Response.json([{id:'p143',ebook_id:'b1',title:'第一百四十三条',article_number:'一百四十三',page_number:143,content:'中华人民共和国首都是北京。'}]);}
+ if(url.includes('ai-gateway')){const b=JSON.parse(options.body);assert.match(b.messages[0].content,/中华人民共和国首都是北京/);return Response.json({success:true,content:JSON.stringify({sufficient:true,answer:'條文：中華人民共和國首都是北京。[1]'})});}
+ throw Error('unexpected URL '+url);};
+ const d=await (await photoSolve(request({action:'solve',question:'中華人民共和國憲法第143條',allow_web:false}))).json();assert.equal(d.status,'ANSWERED');assert.equal(d.sources[0].page_number,143);assert.equal(d.sources[0].matched_articles[0],'143');
+});

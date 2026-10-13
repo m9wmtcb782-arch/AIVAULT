@@ -7,6 +7,15 @@ export function chineseNumber(raw:string):number{
   if(!/[十百千萬万]/.test(s))return Number([...s].map(c=>digits[c]??'').join(''));
   let total=0,section=0,n=0;for(const c of s){if(c in digits){n=digits[c];continue;}const unit=({'十':10,'百':100,'千':1000,'萬':10000,'万':10000} as Record<string,number>)[c];if(!unit)return NaN;if(unit===10000){total+=(section+n||1)*unit;section=0;}else section+=(n||1)*unit;n=0;}return total+section+n;
 }
+export function chineseOrdinal(n:number):string{
+  if(n===0)return '零';const d='零一二三四五六七八九';if(n<10)return d[n];
+  if(n<20)return '十'+(n%10?d[n%10]:'');
+  if(n<100)return d[Math.floor(n/10)]+'十'+(n%10?d[n%10]:'');
+  if(n<1000)return d[Math.floor(n/100)]+'百'+(n%100?(n%100<10?'零':'')+chineseOrdinal(n%100):'');
+  if(n<10000)return d[Math.floor(n/1000)]+'千'+(n%1000?(n%1000<100?'零':'')+chineseOrdinal(n%1000):'');
+  return String(n);
+}
+export function articleForms(id:string){const [n,suffix]=id.split('-');const chinese=chineseOrdinal(Number(n));return [id,chinese+(suffix?'之'+chineseOrdinal(Number(suffix)):'')];}
 const number='[零〇一二三四五六七八九十百千萬万兩两0-9\\s]+';
 export function articleReferences(text:string){
   const ids:string[]=[];for(const m of text.matchAll(new RegExp('第\\s*('+number+')\\s*[條条](?:\\s*之\\s*('+number+'))?','g'))){const n=chineseNumber(m[1]);if(!Number.isFinite(n)||n<1)continue;const suffix=m[2]?'-'+chineseNumber(m[2]):'';ids.push(String(n)+suffix);}return [...new Set(ids)];
