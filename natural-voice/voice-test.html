@@ -68,6 +68,10 @@ record.onclick=async()=>{
  }finally{
   if(stream)stream.getTracks().forEach(t=>t.stop());
   if(source)try{source.disconnect()}catch{}
+  if(capture&&player?.context===capture&&!controller.signal.aborted){
+   const remaining=Math.max(0,player.nextTime-capture.currentTime);
+   if(remaining>0)await Promise.race([delay(Math.ceil(remaining*1000)+100),new Promise(resolve=>controller.signal.addEventListener("abort",resolve,{once:true}))]);
+  }
   if(capture&&capture.state!=="closed")try{await capture.close()}catch{}
   if(player?.context===capture)player=null;
   stop.disabled=true;
