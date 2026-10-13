@@ -7,6 +7,9 @@ import subprocess
 import wave
 import shutil
 import tempfile
+import math
+import numpy as np
+from scipy.signal import resample_poly
 from pathlib import Path
 
 class LocalPiperTTS:
@@ -42,9 +45,12 @@ class LocalPiperTTS:
             except (wave.Error, EOFError) as exc:
                 raise ValueError("INVALID_TTS_WAV") from exc
         if original_rate != sample_rate:
-            # Explicitly reject incompatible sample rate rather than mislabel PCM.
-            # A production resampler can be added once model voice rate is known.
-            raise ValueError("TTS_SAMPLE_RATE_MISMATCH")
+            if original_rate not in (22050, 24000):
+                raise ValueError("TTS_SAMPLE_RATE_MISMATCH")
+            samples = np.frombuffer(pcm, dtype="<i2").astype(np.float64)
+            divisor = math.gcd(original_rate, sample_rate)
+            converted = resample_poly(samples, sample_rate // divisor, original_rate // divisor)
+            pcm = np.clip(np.rint(converted), -32768, 32767).astype("<i2").tobytes()
         if not pcm:
             raise ValueError("EMPTY_TTS_AUDIO")
         return pcm
