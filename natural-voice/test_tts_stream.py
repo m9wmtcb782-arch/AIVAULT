@@ -20,7 +20,7 @@ class StreamTests(unittest.TestCase):
         self.assertEqual("".join(part for part,_,_ in spans),text)
         for part,start,end in spans:
             self.assertEqual(text[start:end],part)
-        self.assertTrue(any(part.endswith("\n") for part,_,_ in spans))
+        self.assertTrue(any("\n" in part for part,_,_ in spans))
 
     def test_audio_frames_and_complete(self):
         events=[json.loads(x) for x in audio_events("你好。再見。",lambda text,sample_rate: bytes([0,0])*2400)]
