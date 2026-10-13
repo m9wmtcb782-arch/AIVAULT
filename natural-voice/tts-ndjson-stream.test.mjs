@@ -38,3 +38,9 @@ test("rejects incorrect completed frame count",async()=>{
  JSON.stringify({type:"complete",frames:2})+"\n"]);
  await assert.rejects(async()=>{for await(const pcm of parseTtsNdjson(r))void pcm;},/INVALID_TTS_COMPLETE/);
 });
+
+test("rejects unexpected audio after completion",async()=>{
+ const done=JSON.stringify({type:"complete",frames:0})+"\n";
+ const audio=JSON.stringify({type:"audio",sequence:0,pcm_base64:"AAA="})+"\n";
+ await assert.rejects(async()=>{for await(const pcm of parseTtsNdjson(mockResponse([done+audio]))void pcm;},/TRAILING_TTS_DATA/);
+});
