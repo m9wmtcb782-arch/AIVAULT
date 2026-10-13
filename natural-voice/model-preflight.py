@@ -22,7 +22,7 @@ def check_environment(env=None):
     if checks["piper_config"]:
         try:
             metadata=json.loads(Path(config).read_text(encoding="utf-8"))
-            checks["tts_24khz"]=metadata.get("audio",{}).get("sample_rate") in (22050,24000)
+            checks["tts_supported_rate"]=metadata.get("audio",{}).get("sample_rate") in (22050,24000)
             checks["tts_mandarin"]=str(metadata.get("language",{}).get("code","")).lower().replace("_","-").startswith("zh")
         except (ValueError,OSError,TypeError,AttributeError):
             pass
@@ -31,6 +31,6 @@ def check_environment(env=None):
 if __name__=="__main__":
     result=check_environment()
     print(json.dumps({"checks":result,"tts_ready":all(result[k] for k in
-        ("piper_executable","piper_model","piper_config","voice_token","tts_24khz","tts_mandarin")),
+        ("piper_executable","piper_model","piper_config","voice_token","tts_supported_rate","tts_mandarin")),
         "asr_ready":result["asr_model"]},ensure_ascii=False,indent=2))
     sys.exit(0 if all(result.values()) else 1)
