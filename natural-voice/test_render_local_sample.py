@@ -14,7 +14,7 @@ class FakeEngine:
     available = True
     def synthesize(self, text, sample_rate=24000):
         assert sample_rate == 24000
-        return bytes([0,0])*24000
+        return bytes([0,16])*24000
 
 class SampleTests(unittest.TestCase):
     def test_missing_model_fails_without_output(self):
@@ -37,6 +37,17 @@ class SampleTests(unittest.TestCase):
                 self.assertEqual(audio.getsampwidth(),2)
                 self.assertEqual(audio.getnframes(),24000)
             self.assertFalse(target.with_name(target.name+".partial").exists())
+
+    def test_silence_is_not_reported_as_speech(self):
+        class Silent:
+            available=True
+            def synthesize(self,text,sample_rate=24000):
+                return bytes([0,0])*24000
+        with tempfile.TemporaryDirectory() as directory:
+            target=pathlib.Path(directory)/"voice.wav"
+            with patch.object(render,"create_engine",return_value=Silent()):
+                self.assertEqual(render.main(["--output",str(target)]),3)
+            self.assertFalse(target.exists())
 
     def test_synthesis_failure_does_not_create_wave(self):
         class Broken:
