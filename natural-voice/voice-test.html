@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AIVAULT 自有語音｜獨立測試</title>
+<style>body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:#f6f8fc;color:#16243a}main{max-width:680px;margin:auto;padding:24px 18px 48px}h1{font-size:1.5rem}p{line-height:1.6}label{display:block;margin:14px 0 6px;font-weight:650}input{width:100%;box-sizing:border-box;padding:12px;border:1px solid #aeb9c9;border-radius:10px;font-size:16px}button{padding:13px 16px;margin:12px 8px 0 0;border:0;border-radius:12px;background:#164fbb;color:white;font-size:16px}button:disabled{opacity:.4}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#fff;border:1px solid #dbe1e9;border-radius:12px;padding:14px;min-height:90px}.note{color:#5a6677;font-size:.93rem}</style></head>
+<body><main><h1>AIVAULT 自有語音測試</h1><p>獨立開發頁：測試手機錄音 → 本機 ASR → 本機 TTS → 播放。此頁不連接暗星大腦，也不呼叫 Gemini。</p>
+<label for="endpoint">自架 HTTPS 語音服務網址</label><input id="endpoint" type="url" placeholder="https://voice.example.com" autocomplete="off">
+<label for="token">測試用短期 Token（勿使用正式金鑰）</label><input id="token" type="password" autocomplete="off" spellcheck="false">
+<p class="note">此頁直接將 Token 送到你指定的服務；僅適用於可信任的獨立測試環境。正式產品必須改用後端代理與登入驗證。手機需要 HTTPS、麥克風權限及後端允許的 CORS 設定。</p>
+<button id="record">錄音 4 秒並測試</button><button id="stop" disabled>停止播放</button>
+<label>狀態與辨識結果</label><pre id="status" role="status" aria-live="polite">尚未開始。模型未部署時會顯示錯誤，不會假裝成功。</pre>
+</main><script type="module">
+import {createGpuSpeechAdapter} from "./gpu-speech-adapter.mjs";
+import {PcmAudioPlayer} from "./pcm-audio-player.mjs";
+const record=document.getElementById("record"),stop=document.getElementById("stop"),status=document.getElementById("status");
+let player=null,controller=null;
+const show=t=>{status.textContent=t};
+function pcm16(samples,inputRate,outputRate=16000){
+ const length=Math.floor(samples.length*outputRate/inputRate);
+ const out=new Uint8Array(length*2);const view=new DataView(out.buffer);
+ for(let i=0;i<length;i++){
+  const start=Math.floor(i*inputRate/outputRate),end=Math.max(start+1,Math.floor((i+1)*inputRate/outputRate));
+  let sum=0;for(let j=start;j<end&&j<samples.length;j++)sum+=samples[j];
+  const value=Math.max(-1,Math.min(1,sum/(end-start)));
+  view.setInt16(i*2,Math.round(value<0?value*32768:value*32767),true);
+ }
+ return out;
+}
+const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+record.onclick=async()=>{
+ record.disabled=true;controller=new AbortController();let stream=null,capture=null,source=null;
+ try{
+  const baseUrl=document.getElementById("endpoint").value.trim();
+  const token=document.getElementById("token").value;
+  const adapter=createGpuSpeechAdapter({baseUrl,token});
+  if(!navigator.mediaDevices?.getUserMedia)throw new Error("MICROPHONE_UNAVAILABLE");
+  const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+  if(!AudioContextClass)throw new Error("WEB_AUDIO_UNAVAILABLE");
+  capture=new AudioContextClass();await capture.resume();
+  stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,channelCount:1}});
+  source=capture.createMediaStreamSource(stream);
+  const processor=capture.createScriptProcessor(4096,1,1);
+  const silent=capture.createGain();silent.gain.value=0;
+  const buffers=[];
+  processor.onaudioprocess=e=>buffers.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+  source.connect(processor);processor.connect(silent);silent.connect(capture.destination);
+  show("錄音中（4 秒）…");
+  await delay(4000);
+  processor.disconnect();source.disconnect();silent.disconnect();stream.getTracks().forEach(t=>t.stop());stream=null;
+  if(controller.signal.aborted)throw new DOMException("Cancelled","AbortError");
+  const total=buffers.reduce((n,b)=>n+b.length,0),joined=new Float32Array(total);
+  let offset=0;for(const b of buffers){joined.set(b,offset);offset+=b.length;}
+  const audio=pcm16(joined,capture.sampleRate);
+  show("辨識中…");
+  const transcript=await adapter.asr.transcribe({audio,signal:controller.signal});
+  if(!transcript.trim())throw new Error("NO_SPEECH_DETECTED");
+  show("辨識："+transcript+"\n語音合成中…");
+  const ttsFrames=await adapter.tts.synthesize({text:transcript,voiceId:"anxing-default",signal:controller.signal});
+  player=new PcmAudioPlayer({audioContext:capture});
+  stop.disabled=false;
+  let count=0;
+  for await(const frame of ttsFrames){if(controller.signal.aborted)break;player.enqueue(frame);count++;}
+  show("辨識："+transcript+"\n已排程音訊區塊："+count+"（請確認手機實際有聲音）");
+ }catch(error){
+  show("測試未完成："+(error?.message||String(error))+"\n請確認本機模型、服務憑證、HTTPS 與 CORS。");
+ }finally{
+  if(stream)stream.getTracks().forEach(t=>t.stop());
+  if(source)try{source.disconnect()}catch{}
+  record.disabled=false;
+ }
+};
+stop.onclick=()=>{controller?.abort();player?.interrupt();stop.disabled=true;show("已要求停止播放");};
+</script></body></html>
