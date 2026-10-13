@@ -31,7 +31,8 @@ def main():
               file=sys.stderr)
         return 4
     port = int(os.environ.get("AIVAULT_VOICE_PORT", "8765"))
-    uvicorn.run("worker:app", host=host, port=port, app_dir=str(ROOT))
+    os.chdir(ROOT)
+    uvicorn.run("worker:app", host=host, port=port)
     return 0
 
 if __name__ == "__main__":
