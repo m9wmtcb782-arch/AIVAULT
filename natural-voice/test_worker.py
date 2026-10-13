@@ -47,5 +47,26 @@ class WorkerTests(unittest.TestCase):
                 json={"text":"你好","voice_id":"anxing-default"})
         self.assertEqual(r.status_code,503)
 
+
+    def test_tts_stream_requires_auth(self):
+        r=self.client.post("/v1/tts/stream",json={"text":"你好","voice_id":"anxing-default"})
+        self.assertEqual(r.status_code,401)
+
+    def test_tts_stream_yields_ordered_frames(self):
+        import json
+        with patch.object(worker,"_tts",FakeTTS()):
+            r=self.client.post("/v1/tts/stream",headers={"Authorization":"Bearer local-test-secret"},
+                json={"text":"你好。再見。","voice_id":"anxing-default"})
+        self.assertEqual(r.status_code,200)
+        events=[json.loads(line) for line in r.text.splitlines()]
+        self.assertEqual([e["type"] for e in events],["audio","audio","complete"])
+        self.assertEqual([e["sequence"] for e in events[:2]],[0,1])
+
+    def test_tts_stream_missing_model_returns_503(self):
+        with patch.object(worker,"_tts",None):
+            r=self.client.post("/v1/tts/stream",headers={"Authorization":"Bearer local-test-secret"},
+                json={"text":"你好","voice_id":"anxing-default"})
+        self.assertEqual(r.status_code,503)
+
 if __name__=="__main__":
     unittest.main()
