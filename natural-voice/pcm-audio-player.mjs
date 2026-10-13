@@ -26,7 +26,11 @@ export class PcmAudioPlayer {
   source.onended=()=>{this.sources.delete(source);this.onEvent({type:"playback.ended",generation,sequence});};
   this.sources.add(source);source.start(start);
   this.nextTime=start+frames/this.sampleRate;
-  if(charStart!==null)this.pendingHighlights.push({start,end:this.nextTime,charStart,charEnd,generation,sequence});
+  if(charStart!==null){
+   const previous=this.pendingHighlights[this.pendingHighlights.length-1];
+   if(!previous||previous.charStart!==charStart||previous.charEnd!==charEnd||previous.generation!==generation)
+    this.pendingHighlights.push({start,end:this.nextTime,charStart,charEnd,generation,sequence});
+  }
   this.onEvent({type:"playback.scheduled",generation,sequence,start,duration:frames/this.sampleRate});
   return true;
  }
