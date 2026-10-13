@@ -18,6 +18,16 @@ class ReadinessTests(unittest.TestCase):
         self.assertEqual(len(result["missing"]),3)
         self.assertNotIn("READY_FOR_REAL_INFERENCE",result["next_step"])
 
+    def test_tts_only_can_proceed_without_asr_model(self):
+        with patch.object(host,"load_preflight") as load:
+            load.return_value.check_environment.return_value={
+                "piper_executable":True,"piper_model":True,"tts_supported_rate":True,
+                "tts_mandarin":True,"voice_token":True,"asr_model":False}
+            result=host.report({},tts_only=True)
+        self.assertEqual(result["status"],"READY_FOR_REAL_INFERENCE")
+        self.assertEqual(result["mode"],"tts_only")
+        self.assertFalse(result["checks"]["asr_model"])
+
     def test_all_checks_pass_only_means_ready_for_inference(self):
         with patch.object(host,"load_preflight") as load:
             load.return_value.check_environment.return_value={
