@@ -30,7 +30,7 @@ with wave.open(path,'wb') as f:
             engine=module.LocalPiperTTS(executable=str(script),model_path=str(model))
             self.assertTrue(engine.available)
             self.assertEqual(engine.synthesize("你好"),bytes([0,0])*240)
-    def test_rejects_incorrect_voice_rate(self):
+    def test_resamples_22050hz_voice_to_24000hz(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder)
             model=root/"voice.onnx"
@@ -47,7 +47,8 @@ with wave.open(path,'wb') as f:
 """)
             script.chmod(0o755)
             engine=module.LocalPiperTTS(executable=str(script),model_path=str(model))
-            with self.assertRaisesRegex(ValueError,"TTS_SAMPLE_RATE_MISMATCH"):
-                engine.synthesize("你好")
+            output=engine.synthesize("你好")
+            self.assertGreater(len(output),len(bytes([0,0])*240))
+            self.assertEqual(len(output)%2,0)
 
 if __name__=="__main__":unittest.main()
