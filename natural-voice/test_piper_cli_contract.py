@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 import wave
 
 spec=importlib.util.spec_from_file_location("local_piper_tts",Path(__file__).with_name("local-piper-tts.py"))
@@ -11,6 +12,18 @@ module=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
 class PiperCliTests(unittest.TestCase):
+    def test_rejects_empty_text_before_running_piper(self):
+        engine=module.LocalPiperTTS()
+        with patch.object(module.LocalPiperTTS, "available", new_callable=lambda: property(lambda self: True)):
+            with self.assertRaisesRegex(ValueError, "INVALID_TTS_TEXT"):
+                engine.synthesize("   ")
+
+    def test_rejects_invalid_timeout(self):
+        with patch.dict(os.environ, {"PIPER_TIMEOUT_SECONDS":"nan"}):
+            with self.assertRaisesRegex(ValueError, "INVALID_PIPER_TIMEOUT"):
+                module.LocalPiperTTS()
+
+
     def test_wav_output_is_read_and_temp_file_removed(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder)
