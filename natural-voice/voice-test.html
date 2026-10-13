@@ -11,6 +11,7 @@
 </main><script type="module">
 import {createGpuSpeechAdapter} from "./gpu-speech-adapter.mjs";
 import {PcmAudioPlayer} from "./pcm-audio-player.mjs";
+import {openTtsStream} from "./tts-stream-adapter.mjs";
 const record=document.getElementById("record"),stop=document.getElementById("stop"),status=document.getElementById("status");
 let player=null,controller=null;
 const show=t=>{status.textContent=t};
@@ -54,7 +55,7 @@ record.onclick=async()=>{
   const transcript=await adapter.asr.transcribe({audio,signal:controller.signal});
   if(!transcript.trim())throw new Error("NO_SPEECH_DETECTED");
   show("辨識："+transcript+"\n語音合成中…");
-  const ttsFrames=await adapter.tts.synthesize({text:transcript,voiceId:"anxing-default",signal:controller.signal});
+  const ttsFrames=await openTtsStream({baseUrl,token,text:transcript,signal:controller.signal});
   player=new PcmAudioPlayer({audioContext:capture});
   stop.disabled=false;
   let count=0;
