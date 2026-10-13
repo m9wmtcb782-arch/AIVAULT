@@ -16,12 +16,14 @@ def check_environment(env=None):
     checks["piper_config"]=bool(config and Path(config).is_file())
     checks["voice_token"]=len(env.get("AIVAULT_VOICE_TOKEN",""))>=24
     asr=env.get("ASR_MODEL_PATH","")
-    checks["asr_model"]=bool(asr and Path(asr).is_dir() and (Path(asr)/"model.bin").is_file())
+    checks["asr_model"]=bool(asr and Path(asr).is_dir() and (Path(asr)/"model.bin").is_file() and (Path(asr)/"model.bin").stat().st_size>0)
     checks["tts_24khz"]=False
+    checks["tts_mandarin"]=False
     if checks["piper_config"]:
         try:
             metadata=json.loads(Path(config).read_text(encoding="utf-8"))
             checks["tts_24khz"]=metadata.get("audio",{}).get("sample_rate")==24000
+            checks["tts_mandarin"]=str(metadata.get("language",{}).get("code","")).lower().replace("_","-").startswith("zh")
         except (ValueError,OSError,TypeError,AttributeError):
             pass
     return checks
@@ -29,6 +31,6 @@ def check_environment(env=None):
 if __name__=="__main__":
     result=check_environment()
     print(json.dumps({"checks":result,"tts_ready":all(result[k] for k in
-        ("piper_executable","piper_model","piper_config","voice_token","tts_24khz")),
+        ("piper_executable","piper_model","piper_config","voice_token","tts_24khz","tts_mandarin")),
         "asr_ready":result["asr_model"]},ensure_ascii=False,indent=2))
     sys.exit(0 if all(result.values()) else 1)
