@@ -14,7 +14,7 @@ export async function runVoicePoolSession({text,modelId,pool,approved=false,weig
  const tasks=planVoiceClauses({text,modelId});
  const queue=new OrderedVoiceResults(tasks,{maxBuffered:Math.max(16,tasks.length)});
  // Limit concurrent model requests; preserve original playback order.
- let cursor=0,failed=null;
+ let cursor=0,failed=null,playback=Promise.resolve();
  const cancelled=()=>signal?.aborted===true;
  const workers=Array.from({length:Math.min(2,tasks.length)},async()=>{
   while(cursor<tasks.length&&!failed&&!cancelled()){
@@ -23,10 +23,14 @@ export async function runVoicePoolSession({text,modelId,pool,approved=false,weig
     const result=await dispatch(task,{signal});
     if(cancelled())return;
     const ready=queue.accept(result);
-    for(const audio of ready){
-     if(cancelled())return;
-     await onAudio(audio);
-    }
+    const batch=ready;
+    playback=playback.then(async()=>{
+     for(const audio of batch){
+      if(cancelled())return;
+      await onAudio(audio);
+     }
+    });
+    await playback;
    }catch(error){failed=error;queue.fail();return;}
   }
  });
