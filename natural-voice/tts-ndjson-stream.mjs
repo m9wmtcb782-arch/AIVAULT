@@ -1,5 +1,5 @@
 /** Parse NDJSON TTS over Fetch ReadableStream, including split UTF-8 boundaries. */
-export async function* parseTtsNdjson(response,{signal,maxLineBytes=200000}={}) {
+export async function* parseTtsNdjson(response,{signal,maxLineBytes=200000,withMetadata=false}={}) {
  if(!response?.ok)throw new Error("TTS_HTTP_ERROR");
  if(!response.body?.getReader)throw new Error("STREAM_UNAVAILABLE");
  const reader=response.body.getReader(),decoder=new TextDecoder();
@@ -28,7 +28,12 @@ export async function* parseTtsNdjson(response,{signal,maxLineBytes=200000}={}) 
     if(!raw.length||raw.length%2)throw new Error("INVALID_PCM");
     const pcm=Uint8Array.from(raw,c=>c.charCodeAt(0));
     lastSequence=event.sequence;
-    yield pcm;
+    if(withMetadata){
+      const {char_start:start,char_end:end,sample_rate:rate}=event;
+      if(!Number.isSafeInteger(start)||start<0||!Number.isSafeInteger(end)||end<=start||
+         rate!==24000)throw new Error("INVALID_TTS_TEXT_METADATA");
+      yield {pcm,sequence:event.sequence,charStart:start,charEnd:end,sampleRate:rate};
+    }else yield pcm;
    }
    if(completed)break;
    if(pending.length>maxLineBytes)throw new Error("STREAM_LINE_TOO_LONG");
