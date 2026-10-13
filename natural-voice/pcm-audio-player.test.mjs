@@ -50,3 +50,13 @@ test("interrupt discards queued highlight markers",()=>{
  player.interrupt();player.updatePlaybackPosition(10);
  assert.equal(events.filter(e=>e.type==="playback.highlight").length,0);
 });
+
+test("multiple audio frames for one clause trigger a single highlight",()=>{
+ const {ctx}=fakeContext(),events=[];
+ const player=new PcmAudioPlayer({audioContext:ctx,onEvent:e=>events.push(e)});
+ player.enqueue(new Uint8Array(4800),{sequence:0,charStart:0,charEnd:3});
+ player.enqueue(new Uint8Array(4800),{sequence:1,charStart:0,charEnd:3});
+ player.enqueue(new Uint8Array(4800),{sequence:2,charStart:3,charEnd:6});
+ player.updatePlaybackPosition(2);
+ assert.deepEqual(events.filter(e=>e.type==="playback.highlight").map(e=>[e.charStart,e.charEnd]),[[0,3],[3,6]]);
+});
