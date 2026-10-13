@@ -7,6 +7,8 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
+from urllib.parse import urlsplit
 from tts_stream import audio_events
 
 from fastapi import FastAPI, Header, HTTPException
@@ -36,9 +38,19 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="AIVAULT Local Voice Worker", lifespan=lifespan)
 # Explicit, comma-separated browser origins only; never use wildcard with bearer credentials.
+def _valid_origin(origin):
+    try:
+        parsed = urlsplit(origin)
+        return (parsed.scheme == "https" and bool(parsed.hostname)
+                and parsed.username is None and parsed.password is None
+                and not parsed.path and not parsed.query and not parsed.fragment
+                and parsed.port != 0 and parsed.netloc == parsed.netloc.strip())
+    except ValueError:
+        return False
+
 ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv("AIVAULT_VOICE_ALLOWED_ORIGINS", "").split(",") if origin.strip()]
 if ALLOWED_ORIGINS:
-    if any(origin == "*" or not origin.startswith("https://") or "/" in origin[8:] for origin in ALLOWED_ORIGINS):
+    if any(not _valid_origin(origin) for origin in ALLOWED_ORIGINS):
         raise RuntimeError("INVALID_VOICE_ALLOWED_ORIGINS")
     app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS,
                        allow_methods=["POST"], allow_headers=["Authorization", "Content-Type"],
