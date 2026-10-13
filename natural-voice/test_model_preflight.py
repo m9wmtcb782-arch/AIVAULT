@@ -39,13 +39,22 @@ class PreflightTests(unittest.TestCase):
             (Path(folder)/"model.bin").write_bytes(b"test")
             result=preflight.check_environment({"ASR_MODEL_PATH":folder})
             self.assertTrue(result["asr_model"])
+    def test_non_mandarin_voice_is_rejected(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/"voice.onnx"
+            path.write_bytes(b"test")
+            Path(str(path)+".json").write_text(json.dumps({"audio":{"sample_rate":24000},"language":{"code":"en_US"}}))
+            result=preflight.check_environment({"PIPER_MODEL_PATH":str(path)})
+            self.assertTrue(result["tts_24khz"])
+            self.assertFalse(result["tts_mandarin"])
     def test_matching_rate_is_accepted(self):
         with tempfile.TemporaryDirectory() as folder:
             path=Path(folder)/"voice.onnx"
             path.write_bytes(b"test")
-            Path(str(path)+".json").write_text(json.dumps({"audio":{"sample_rate":24000}}))
+            Path(str(path)+".json").write_text(json.dumps({"audio":{"sample_rate":24000},"language":{"code":"zh_TW"}}))
             with patch.object(preflight.shutil,"which",return_value="/bin/piper"):
                 result=preflight.check_environment({"PIPER_MODEL_PATH":str(path),"AIVAULT_VOICE_TOKEN":"x"*32})
             self.assertTrue(result["tts_24khz"])
+            self.assertTrue(result["tts_mandarin"])
 
 if __name__=="__main__":unittest.main()
