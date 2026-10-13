@@ -7,7 +7,7 @@ This service is intentionally separate from production Dark Star and Supabase Ed
 ```sh
 python -m venv .venv
 . .venv/bin/activate
-pip install fastapi uvicorn numpy faster-whisper
+pip install fastapi uvicorn "numpy>=1.26,<3" "scipy>=1.12,<2" faster-whisper
 ```
 
 Provide a **previously downloaded, local** compatible Whisper model directory; this worker does not download model weights automatically. For GPU execution, install a compatible CUDA/cuDNN environment and faster-whisper dependencies.
@@ -26,7 +26,7 @@ To use a CUDA GPU, change ASR_DEVICE and compute type only after checking driver
 
 - `GET /health`: reports whether local ASR is loaded. Does not reveal token.
 - `POST /v1/asr`: authenticated; JSON `{"audio_pcm16_base64":"...","sample_rate":16000,"language":"zh-TW"}`. Returns `{"text":"..."}`.
-- `POST /v1/tts`: authenticated; returns base64 PCM16 frames if Piper is installed with a compatible 24 kHz voice; otherwise returns 503.
+- `POST /v1/tts`: authenticated; returns base64 PCM16 frames if Piper is installed with a compatible 22.05 kHz or 24 kHz voice; otherwise returns 503.
 - `POST /v1/tts/stream`: authenticated; sends NDJSON audio frames clause by clause, then a completion marker. This is **clause-level streaming**, not token-level neural synthesis.
 
 ## Security and production gaps
@@ -40,7 +40,7 @@ To use a CUDA GPU, change ASR_DEVICE and compute type only after checking driver
 
 ## Piper local setup (no API calls)
 
-Install a compatible Piper CLI locally and place the voice ONNX and its matching configuration JSON in a private model directory. Choose a voice whose actual output is **24,000 Hz mono PCM16**; the current worker rejects other sample rates rather than incorrectly relabeling audio. Verify the voice license before distribution.
+Install a compatible Piper CLI locally and place the voice ONNX and its matching configuration JSON in a private model directory. Choose a Mandarin voice whose actual output is **22,050 Hz or 24,000 Hz mono PCM16**. The worker converts 22,050 Hz audio to 24,000 Hz before returning it. Verify the voice license before distribution.
 
 ```sh
 export PIPER_EXECUTABLE=/usr/local/bin/piper
@@ -54,7 +54,7 @@ The worker now uses Piper's `--output_file` to write a temporary WAV, validates 
 
 ## Guarded offline startup
 
-Run `python start-local-worker.py` from this directory after setting local model paths and a strong token. The launcher checks Mandarin Piper metadata, 24 kHz PCM, local ASR weights and token before starting on loopback. It does not download models, use paid APIs, or expose a public server. A reachable authenticated HTTPS reverse proxy is still needed for phone testing.
+Run `python start-local-worker.py` from this directory after setting local model paths and a strong token. The launcher checks Mandarin Piper metadata, supported 22.05/24 kHz PCM, local ASR weights and token before starting on loopback. It does not download models, use paid APIs, or expose a public server. A reachable authenticated HTTPS reverse proxy is still needed for phone testing.
 
 ## Mandarin Piper model sample rates
 
