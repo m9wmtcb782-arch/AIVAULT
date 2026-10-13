@@ -11,7 +11,7 @@
     let pieces=[], text='', number=0;
     function flush(){if(text.trim()){pieces.push(text.trim());number++;}text='';}
     nodes.forEach(node=>{
-      const heading=node.parentElement.closest('h1,h2,h3,h4');if(heading)flush();
+      const heading=node.parentElement.closest('h1,h2,h3,h4');if(heading||(node.previousSibling&&node.previousSibling.nodeName==='BR'&&node.previousSibling.previousSibling&&node.previousSibling.previousSibling.nodeName==='BR'))flush();
       const fragment=document.createDocumentFragment();
       const chunks=node.textContent.match(/[^。！？；!?;]+[。！？；!?;]?|[。！？；!?;]/g)||[node.textContent];
       chunks.forEach(chunk=>{
@@ -106,7 +106,7 @@
       if(!window.speechSynthesis){error('此裝置不支援朗讀，請設定自然朗讀聲音。');return;}
       const list=voices(), selected=list.find(v=>v.voiceURI===voiceChoice)||list.find(v=>/^zh-TW$/i.test(v.lang))||list.find(v=>/^zh|^cmn/i.test(v.lang));
       utterance=new SpeechSynthesisUtterance(text);utterance.lang=selected?selected.lang:'zh-TW';utterance.rate=rate;if(selected)utterance.voice=selected;
-      utterance.onstart=started;utterance.onend=ended;utterance.onerror=e=>{if(token===generation)error('朗讀中斷：'+e.error+'，請按播放重試。');};
+      utterance.onstart=started;utterance.onboundary=e=>{if(token===generation&&status==='playing')bridge.follow(index,e.charIndex||0);};utterance.onend=ended;utterance.onerror=e=>{if(token===generation)error('朗讀中斷：'+e.error+'，請按播放重試。');};
       try{speechSynthesis.speak(utterance);}catch(e){error('朗讀無法啟動，請再試一次。');}
     }
   }

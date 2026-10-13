@@ -1143,16 +1143,17 @@
     info:function(){const known=state.shelfBooks.find(function(b){return b.id===state.bookId;})||{};return {id:state.bookId,page:state.pageNumber,total:state.totalPages,title:$("readerTitle").textContent,chapter:narrationChapterTitle(),cover:(state.book&&state.book.cover_url)||known.cover_url||"",view:state.view};},
     paper:function(){return $("paperRight");},
     visibleSegment:function(){const paper=$("paperRight"),clip=paper.querySelector('.qq-page-viewport')||paper,r=clip.getBoundingClientRect();const mark=Array.from(paper.querySelectorAll('[data-narration]')).find(function(el){return Array.from(el.getClientRects()).some(function(m){return m.right>r.left&&m.left<r.right&&m.bottom>r.top&&m.top<r.bottom;});});return mark?Number(mark.dataset.narration):0;},
-    loadPage:async function(n){await goPage(n,false,null,true);return state.pageNumber===n;},
+    loadPage:async function(n){try{await goPage(n,false,null,true);return state.pageNumber===n;}catch(e){return false;}},
     listen:function(){closeDrawer();state.view="listen";$("shelfView").hidden=true;$("readerView").hidden=true;$("listenView").hidden=false;setQS(state.bookId,state.pageNumber,"listen");},
     read:function(){closeDrawer();showReader();setQS(state.bookId,state.pageNumber,"read");renderSpread();},
-    follow:function(index){
+    follow:function(index,charIndex){
       const paper=$("paperRight"), marks=Array.from(paper.querySelectorAll('[data-narration="'+index+'"]'));
       paper.querySelectorAll('.narration-active').forEach(function(el){el.classList.remove('narration-active');});
       marks.forEach(function(el){el.classList.add('narration-active');});
       if(state.view!=="read"||!marks.length||useSpread())return;
       const flow=paper.querySelector('.qq-page-flow'), viewport=paper.querySelector('.qq-page-viewport');if(!flow||!viewport||!viewport.clientWidth)return;
-      const x=marks[0].getBoundingClientRect().left-flow.getBoundingClientRect().left;
+      let anchor=marks[0],remaining=Number(charIndex)||0;for(const mark of marks){anchor=mark;if(remaining<mark.textContent.length)break;remaining-=mark.textContent.length;}
+      const x=anchor.getBoundingClientRect().left-flow.getBoundingClientRect().left;
       state.subPage=Math.max(0,Math.min(state.subPages-1,Math.floor(Math.max(0,x)/(viewport.clientWidth+40))));
       flow.style.transform='translateX('+(-state.subPage*(viewport.clientWidth+40))+'px)';updateReadingLabel();
     }
