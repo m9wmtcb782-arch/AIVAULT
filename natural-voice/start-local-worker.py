@@ -14,7 +14,7 @@ def main():
     spec.loader.exec_module(module)
     checks = module.check_environment()
     required = ("piper_executable", "piper_model", "piper_config",
-                "voice_token", "tts_24khz", "tts_mandarin", "asr_model")
+                "voice_token", "tts_supported_rate", "tts_mandarin", "asr_model")
     missing = [key for key in required if not checks[key]]
     if missing:
         print(json.dumps({"status": "NOT_READY", "failed_checks": missing},
