@@ -17,7 +17,7 @@ small{display:block;color:#53647a;line-height:1.6}
 <label for="token">短期測試 Token</label><input id="token" type="password" autocomplete="off" spellcheck="false">
 <small>僅連線至你信任的測試服務。Token 不儲存於瀏覽器；正式產品必須使用後端代理。服務需啟用 HTTPS 與允許此頁來源的 CORS。</small>
 <label for="text">朗讀文字</label><textarea id="text">你好，我是暗星。這是 AIVAULT 自有語音引擎的閱讀同步測試。現在請注意，正在朗讀的文字會反藍顯示。</textarea>
-<button id="play">開始聽書</button><button id="pause" class="secondary" disabled>暫停</button><button id="stop" class="secondary" disabled>停止</button>
+<button id="check" class="secondary">檢查語音模型</button><button id="play">開始聽書</button><button id="pause" class="secondary" disabled>暫停</button><button id="stop" class="secondary" disabled>停止</button>
 <h2>閱讀區</h2><article id="reader" aria-label="同步閱讀文字"></article>
 <p id="status" role="status" aria-live="polite">尚未開始。需要先部署真實中文模型與語音服務。</p>
 </main><script type="module">
@@ -37,6 +37,23 @@ function highlight(start,end){
 $("text").addEventListener("input",()=>{if(!abort)reader.textContent=$("text").value;});
 reader.textContent=$("text").value;
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+$("check").onclick=async()=>{
+ const button=$("check"),base=$("endpoint").value.trim();
+ button.disabled=true;
+ try{
+  if(!/^https:\/\//.test(base))throw new Error("HTTPS_REQUIRED");
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),8000);
+  let response;
+  try{response=await fetch(base.replace(/\/+$/,"")+"/health",{signal:controller.signal,cache:"no-store",credentials:"omit"});}
+  finally{clearTimeout(timeout);}
+  if(!response.ok)throw new Error("HEALTH_HTTP_"+response.status);
+  const health=await response.json();
+  if(health.service!=="aivault-voice-worker")throw new Error("UNRECOGNIZED_VOICE_SERVICE");
+  show(health.tts_loaded?"語音模型已載入；可嘗試播放。":"語音服務在線，但中文發聲模型尚未載入。");
+ }catch(error){show("語音服務檢查失敗："+(error?.message||String(error)));}
+ finally{button.disabled=false;}
+};
 play.onclick=async()=>{
  play.disabled=true;pause.disabled=false;pause.textContent="暫停";stop.disabled=false;activeText=$("text").value;
  reader.textContent=activeText;abort=new AbortController();const signal=abort.signal;
