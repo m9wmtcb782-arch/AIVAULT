@@ -60,3 +60,13 @@ test("multiple audio frames for one clause trigger a single highlight",()=>{
  player.updatePlaybackPosition(2);
  assert.deepEqual(events.filter(e=>e.type==="playback.highlight").map(e=>[e.charStart,e.charEnd]),[[0,3],[3,6]]);
 });
+
+test("automatic audio clock polling emits highlights without manual update",async()=>{
+ const {ctx}=fakeContext(),events=[];
+ const player=new PcmAudioPlayer({audioContext:ctx,onEvent:e=>events.push(e)});
+ player.enqueue(new Uint8Array(4800),{charStart:0,charEnd:2});
+ ctx.currentTime=1.05;
+ await new Promise(resolve=>setTimeout(resolve,70));
+ assert.equal(events.filter(e=>e.type==="playback.highlight").length,1);
+ assert.equal(player.highlightTimer,null);
+});
