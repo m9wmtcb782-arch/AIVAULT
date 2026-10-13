@@ -17,7 +17,7 @@ export AIVAULT_VOICE_TOKEN='replace-with-strong-random-secret'
 export ASR_MODEL_PATH='/models/faster-whisper'
 export ASR_DEVICE='cpu'
 export ASR_COMPUTE_TYPE='int8'
-uvicorn worker:app --host 127.0.0.1 --port 8765
+python start-local-worker.py
 ```
 
 To use a CUDA GPU, change ASR_DEVICE and compute type only after checking driver compatibility.
@@ -46,7 +46,12 @@ Install a compatible Piper CLI locally and place the voice ONNX and its matching
 export PIPER_EXECUTABLE=/usr/local/bin/piper
 export PIPER_MODEL_PATH=/models/zh-voice.onnx
 # Keep AIVAULT_VOICE_TOKEN configured as above.
-uvicorn worker:app --host 127.0.0.1 --port 8765
+python start-local-worker.py
 ```
 
 The worker now uses Piper's `--output_file` to write a temporary WAV, validates its format, and removes the temporary file after reading. This avoids assuming the CLI writes WAV bytes to standard output. Do not expose the worker directly to the public internet.
+
+
+## Guarded offline startup
+
+Run `python start-local-worker.py` from this directory after setting local model paths and a strong token. The launcher checks Mandarin Piper metadata, 24 kHz PCM, local ASR weights and token before starting on loopback. It does not download models, use paid APIs, or expose a public server. A reachable authenticated HTTPS reverse proxy is still needed for phone testing.
