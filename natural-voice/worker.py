@@ -6,6 +6,8 @@ import importlib.util
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
+from fastapi.responses import StreamingResponse
+from tts_stream import audio_events
 
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
@@ -90,3 +92,16 @@ def tts(request: TTSRequest, authorization: str | None = Header(default=None)):
     frame_bytes = 4800  # 100ms at 24kHz, mono, signed 16-bit
     return {"frames":[base64.b64encode(pcm[i:i+frame_bytes]).decode("ascii")
                       for i in range(0,len(pcm),frame_bytes)]}
+
+@app.post("/v1/tts/stream")
+def tts_stream(request: TTSRequest, authorization: str | None = Header(default=None)):
+    authorize(authorization)
+    if request.language != "zh-TW" or request.format != "pcm_s16le" or request.sample_rate != 24000:
+        raise HTTPException(status_code=422, detail="UNSUPPORTED_AUDIO_SETTINGS")
+    if _tts is None or not _tts.available:
+        raise HTTPException(status_code=503, detail="TTS_MODEL_UNAVAILABLE")
+    return StreamingResponse(
+        audio_events(request.text, _tts.synthesize, sample_rate=request.sample_rate),
+        media_type="application/x-ndjson",
+        headers={"Cache-Control":"no-store", "X-Accel-Buffering":"no"}
+    )
