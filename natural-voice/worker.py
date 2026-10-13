@@ -35,6 +35,14 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="AIVAULT Local Voice Worker", lifespan=lifespan)
+# Explicit, comma-separated browser origins only; never use wildcard with bearer credentials.
+ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv("AIVAULT_VOICE_ALLOWED_ORIGINS", "").split(",") if origin.strip()]
+if ALLOWED_ORIGINS:
+    if any(origin == "*" or not origin.startswith("https://") or "/" in origin[8:] for origin in ALLOWED_ORIGINS):
+        raise RuntimeError("INVALID_VOICE_ALLOWED_ORIGINS")
+    app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS,
+                       allow_methods=["POST"], allow_headers=["Authorization", "Content-Type"],
+                       allow_credentials=False)
 
 class ASRRequest(BaseModel):
     audio_pcm16_base64: str = Field(min_length=4, max_length=16000000)
