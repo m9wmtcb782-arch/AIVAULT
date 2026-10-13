@@ -31,11 +31,16 @@ def main(argv=None):
         if not isinstance(pcm, bytes) or not pcm or len(pcm)%2:
             raise ValueError("INVALID_PCM16")
         args.output.parent.mkdir(parents=True,exist_ok=True)
-        with wave.open(str(args.output),"wb") as wav:
-            wav.setnchannels(1)
-            wav.setsampwidth(2)
-            wav.setframerate(24000)
-            wav.writeframes(pcm)
+        partial = args.output.with_name(args.output.name + ".partial")
+        try:
+            with wave.open(str(partial),"wb") as wav:
+                wav.setnchannels(1)
+                wav.setsampwidth(2)
+                wav.setframerate(24000)
+                wav.writeframes(pcm)
+            partial.replace(args.output)
+        finally:
+            partial.unlink(missing_ok=True)
     except (OSError, RuntimeError, ValueError, TimeoutError) as exc:
         print(json.dumps({"status":"FAILED","error":str(exc)},ensure_ascii=False),file=sys.stderr)
         return 3
