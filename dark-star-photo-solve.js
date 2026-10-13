@@ -3,7 +3,7 @@ const $=id=>document.getElementById(id);
 const base='https://clcddygkaaqqtsbswgdf.supabase.co';
 let image='',busy=false,version=0;
 const buttons=['recognize','solve','search','refresh'];
-function state(){buttons.forEach(id=>$(id).disabled=busy||(['recognize','solve'].includes(id)&&!image));$('photo').disabled=busy;}
+function state(){buttons.forEach(id=>$(id).disabled=busy||(id==='recognize'&&!image));$('photo').disabled=busy;}
 function status(text,error=false){$('status').textContent=text;$('status').classList.toggle('error',error);}
 async function api(body){
  const response=await fetch(base+'/functions/v1/dark-star-ebook-ingest?feature=photo-solve',{method:'POST',headers:{'Content-Type':'application/json',apikey:AIVAULTEbook.ANON_KEY,Authorization:'Bearer '+AIVAULTEbook.ANON_KEY},body:JSON.stringify(body),signal:AbortSignal.timeout(360000)});
@@ -22,7 +22,7 @@ function payload(action){return {action,image,jurisdiction:$('jurisdiction').val
 $('photo').addEventListener('change',()=>run(async()=>{const current=++version;image='';$('preview').style.display='none';$('question').value='';$('terms').value='';$('result').hidden=true;$('lawStatus').textContent='等待辨識新題目的字體與法域。';const prepared=await prepare($('photo').files[0]);if(current!==version)return;image=prepared;$('preview').src=image;$('preview').style.display='block';status('照片已準備好，請先辨識題目，確認後解題。');}));
 $('recognize').onclick=()=>run(async()=>{status('暗星正在辨識題目…');const d=await api(payload('ocr'));$('question').value=d.question;$('terms').value=d.terms.join('、');law(d);status('辨識完成。請確認題目與關鍵詞，再搜尋教材並解題。');});
 $('search').onclick=()=>run(async()=>{if(!$('question').value.trim())throw Error('請先輸入或辨識題目');status('正在搜尋後端電子書正文…');const d=await api(payload('search'));show(d);status(d.found?'已找到 '+d.sources.length+' 段教材依據。':'已搜尋，沒有找到相關教材。');});
-$('solve').onclick=()=>run(async()=>{status('暗星正在辨識法域、搜尋教材與官方來源，請稍候…');const d=await api(payload('solve'));if(d.question)$('question').value=d.question;show(d);if(d.status==='JURISDICTION_REQUIRED'){$('jurisdiction').focus();status('請先選擇大陸或臺灣法律，再按解題。');}else if(d.status==='WEB_UNAVAILABLE'||d.status==='NO_MATCH'||d.status==='INSUFFICIENT_SOURCES'){status('已完成查詢，來源不足以確定答案，詳見下方說明。');}else{status('已完成解題；'+(d.source_mode==='WEB_AND_BOOKS'?'已查官方網路來源。':'依教材分析。'));}});
+$('solve').onclick=()=>run(async()=>{if(!image&&!$('question').value.trim())throw Error('請輸入題目或上傳題目照片');status('暗星正在辨識法域、搜尋教材與官方來源，請稍候…');const d=await api(payload('solve'));if(d.question)$('question').value=d.question;show(d);if(d.status==='JURISDICTION_REQUIRED'){$('jurisdiction').focus();status('請先選擇大陸或臺灣法律，再按解題。');}else if(d.status==='WEB_UNAVAILABLE'||d.status==='NO_MATCH'||d.status==='INSUFFICIENT_SOURCES'){status('已完成查詢，來源不足以確定答案，詳見下方說明。');}else{status('已完成解題；'+(d.source_mode==='WEB_AND_BOOKS'?'已查官方網路來源。':'依教材分析。'));}});
 
 $('refresh').onclick=()=>run(async()=>{await books();status('教材清單已更新。');});
 run(books);

@@ -58,3 +58,11 @@ test('unreadable official page is not treated as verified evidence',async()=>{
  globalThis.fetch=async url=>url.includes('/rest/')?Response.json([]):new Response('<rss></rss>',{headers:{'content-type':'application/rss+xml'}});
  const d=await (await photoSolve(request({action:'solve',question:'中華人民共和國民法典如何規定？',image}))).json();assert.equal(d.status,'WEB_UNAVAILABLE');assert.equal(d.sources.length,0);
 });
+
+test('typed question needs no image and pins the allowed provider',async()=>{
+ globalThis.fetch=async(url,options)=>{if(url.includes('/rest/'))return Response.json([{page_id:'p1',ebook_id:'b1',book_title:'讀書教材',page_number:1,excerpt:'讀書可先做筆記。',score:4}]);const body=JSON.parse(options.body);assert.equal(body.capability,'chat');assert.deepEqual(body.allowed_providers,['gemini']);assert.equal(body.media,undefined);return Response.json({success:true,content:'先做筆記。[1]'});};
+ const d=await (await photoSolve(request({action:'solve',question:'讀書如何做筆記？',allow_web:false}))).json();assert.equal(d.status,'ANSWERED');assert.match(d.answer,/筆記/);
+});
+test('typed ambiguous legal question requests jurisdiction without photo',async()=>{
+ globalThis.fetch=()=>{throw Error('unexpected network');};const d=await (await photoSolve(request({action:'solve',question:'民法第184條如何適用？'}))).json();assert.equal(d.status,'JURISDICTION_REQUIRED');
+});
