@@ -25,6 +25,8 @@ def benchmark(engine,text="你好，我是暗星。",repeats=3):
         started=time.perf_counter()
         pcm=engine.synthesize(text,sample_rate=24000)
         elapsed=(time.perf_counter()-started)*1000
+        if not isinstance(pcm,(bytes,bytearray)) or not pcm or len(pcm)%2:
+            raise RuntimeError("INVALID_TTS_PCM")
         results.append({"inference_ms":round(elapsed,1),"audio_ms":round(len(pcm)/48,1),
                         "realtime_factor":round(elapsed/(len(pcm)/48),3)})
     return {"runs":results,"mean_inference_ms":round(statistics.mean(x["inference_ms"] for x in results),1),
