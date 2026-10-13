@@ -14,6 +14,14 @@ class StreamTests(unittest.TestCase):
         for part,start,end in spans:
             self.assertEqual(text[start:end],part)
 
+    def test_newlines_do_not_corrupt_source_offsets(self):
+        text="第一段。\\n第二段。"
+        spans=list(clauses_with_offsets(text))
+        self.assertEqual("".join(part for part,_,_ in spans),text)
+        for part,start,end in spans:
+            self.assertEqual(text[start:end],part)
+        self.assertTrue(any(part.endswith("\\n") for part,_,_ in spans))
+
     def test_audio_frames_and_complete(self):
         events=[json.loads(x) for x in audio_events("你好。再見。",lambda text,sample_rate: bytes([0,0])*2400)]
         self.assertEqual([e["type"] for e in events],["audio","audio","complete"])
