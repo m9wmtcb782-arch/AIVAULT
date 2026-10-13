@@ -79,6 +79,24 @@ def health():
     return {"service":"aivault-voice-worker","asr_loaded":_model is not None,
             "tts_loaded":bool(_tts and _tts.available)}
 
+@app.get("/v1/capabilities")
+def capabilities(authorization: str | None = Header(default=None)):
+    """Authenticated model readiness, without unverified GPU claims."""
+    authorize(authorization)
+    model_id = os.getenv("AIVAULT_VOICE_MODEL_ID", "")
+    if not model_id.startswith("aivault-") or len(model_id) > 64:
+        model_id = ""
+    loaded = bool(_tts and _tts.available)
+    return {
+        "voice_tts_runtime": "local-piper-cli",
+        "voice_model_id": model_id,
+        "voice_model_loaded": loaded,
+        "voice_inference_verified": False,
+        "gpu_inference_verified": False,
+        "pool_eligible": False,
+        "reason": "REAL_INFERENCE_AND_POOL_AUTHORIZATION_NOT_VERIFIED",
+    }
+
 @app.post("/v1/asr")
 def asr(request: ASRRequest, authorization: str | None = Header(default=None)):
     authorize(authorization)
