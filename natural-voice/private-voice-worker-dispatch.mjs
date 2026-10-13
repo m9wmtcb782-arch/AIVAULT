@@ -25,6 +25,15 @@ export function createPrivateVoiceDispatch({baseUrl,token,fetchImpl=globalThis.f
    if(!response.ok)throw new Error("VOICE_WORKER_HTTP_"+response.status);
    const payload=await response.json();
    if(!payload||!Array.isArray(payload.frames)||!payload.frames.length)throw new Error("EMPTY_VOICE_AUDIO");
+   // Bound worker memory before decoding: at most 60 seconds of mono 24kHz PCM16.
+   if(payload.frames.length>1200)throw new Error("VOICE_AUDIO_TOO_LARGE");
+   const maxBase64=3840000; // 2.88 MB PCM, approx. 60 seconds.
+   let totalEncoded=0;
+   for(const frame of payload.frames){
+    if(typeof frame!=="string")throw new Error("INVALID_VOICE_AUDIO_FRAME");
+    totalEncoded+=frame.length;
+    if(totalEncoded>maxBase64)throw new Error("VOICE_AUDIO_TOO_LARGE");
+   }
    // Node server runtime only. Never deserialize arbitrary worker metadata as task identity.
    const chunks=payload.frames.map(frame=>{
     if(typeof frame!=="string"||frame.length>4000000||!/^([A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(frame))
