@@ -1,15 +1,17 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AIVAULT 手機語音 GPU 實測</title>
-<style>body{font:17px/1.6 system-ui,-apple-system,sans-serif;background:#f7f9fc;color:#14253c;margin:0;padding:20px}main{max-width:650px;margin:auto}section{background:white;border:1px solid #dce4ee;border-radius:16px;padding:18px;margin:14px 0}button{font:inherit;border:0;border-radius:12px;background:#174ca2;color:white;padding:12px 18px;min-height:48px}button:disabled{opacity:.5}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px}strong{color:#114b95}.note{color:#5d6878;font-size:14px}</style></head><body><main><h1>AIVAULT 語音算力池</h1><p>手機 WebGPU 真實能力檢查。這個頁面不下載模型、不呼叫付費 API、不偽造語音。</p>
+<style>body{font:17px/1.6 system-ui,-apple-system,sans-serif;background:#f7f9fc;color:#14253c;margin:0;padding:20px}main{max-width:650px;margin:auto}section{background:white;border:1px solid #dce4ee;border-radius:16px;padding:18px;margin:14px 0}button{font:inherit;border:0;border-radius:12px;background:#174ca2;color:white;padding:12px 18px;min-height:48px}button:disabled{opacity:.5}input,textarea{box-sizing:border-box;width:100%;font:inherit;padding:10px;margin:5px 0 12px;border:1px solid #bac8d8;border-radius:8px}label{display:block}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px}strong{color:#114b95}.note{color:#5d6878;font-size:14px}</style></head><body><main><h1>AIVAULT 語音算力池</h1><p>手機 WebGPU 真實能力檢查。這個頁面不下載模型、不呼叫付費 API、不偽造語音。</p>
 <section><h2>第一步：GPU 能力</h2><button id="probe">檢查這部手機的 GPU</button><pre id="gpu">尚未測試</pre></section>
 <section><h2>第二步：GPU 實際運算</h2><button id="compute">執行手機 GPU 計算</button><pre id="compute-result">尚未執行</pre><p class="note">此步驟執行真正的 WebGPU 矩陣前置計算驗證，但不是語音模型推論。</p></section><section><h2>第三步：語音模型</h2><p id="model"><strong>尚未安裝瀏覽器相容的中文語音模型</strong></p><p class="note">Piper Python Worker 不能直接在手機 WebGPU 執行。需另行部署相容模型和推論執行器。</p></section>
-<section><h2>第四步：算力池語音</h2><button disabled>生成中文語音（尚未具備模型）</button><p id="speech">尚未產生音訊。只有真實模型推論完成才會開放播放。</p></section>
+<section><h2>第四步：自有語音 Worker 實際發聲</h2><p class="note">需要你已部署的 HTTPS 語音 Worker 及授權 Token；不會把 Token 儲存到瀏覽器。這是單一 Worker 語音，不代表算力池 GPU 推論。</p><label>Worker TTS 網址 <input id="voice-url" type="url" placeholder="https://你的主機/v1/tts"></label><label>Worker Token <input id="voice-token" type="password" autocomplete="off"></label><label>朗讀文字 <textarea id="voice-text" rows="3">歡迎使用 AIVAULT 自有中文語音引擎。</textarea></label><button id="voice-play">透過自有 Worker 生成並播放</button><pre id="voice-result">尚未連接 Worker</pre></section><section><h2>第五步：算力池語音</h2><button disabled>生成中文語音（尚未具備模型）</button><p id="speech">尚未產生音訊。只有真實模型推論完成才會開放播放。</p></section>
 <p class="note">獨立測試頁，不更動正式暗星或電子書。測試結果只留在這個頁面，不會上傳設備資料。</p>
 </main><script type="module">
 import {probeMobileVoiceRuntime} from "./mobile-webgpu-voice-preflight.mjs";
 import {runMobileGpuComputeTest} from "./mobile-gpu-compute-test.mjs";
+import {playSelfHostedVoice} from "./self-hosted-voice-playback.mjs";
 const out=document.getElementById("gpu");
+document.getElementById("voice-play").addEventListener("click",async()=>{const el=document.getElementById("voice-result"),btn=document.getElementById("voice-play");btn.disabled=true;el.textContent="正在向自有 Worker 請求真實語音…";try{const result=await playSelfHostedVoice({url:document.getElementById("voice-url").value,token:document.getElementById("voice-token").value,text:document.getElementById("voice-text").value});el.textContent=JSON.stringify(result,null,2)}catch(e){el.textContent="尚未成功發聲："+String(e.message||e)}finally{btn.disabled=false}});
 document.getElementById("compute").addEventListener("click",async()=>{const output=document.getElementById("compute-result");output.textContent="GPU 計算執行中…";output.textContent=JSON.stringify(await runMobileGpuComputeTest(),null,2)});
 document.getElementById("probe").addEventListener("click",async()=>{
  out.textContent="正在取得 WebGPU Adapter…";
