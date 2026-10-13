@@ -10,6 +10,10 @@ This is an isolated self-hosted test. No Gemini/Grok/Kling requests, no model do
 - A strong private bearer token, not stored in GitHub or browser source
 - An HTTPS reverse proxy with explicit CORS policy for the isolated test page
 
+## Host readiness (no downloads or API calls)
+
+Run `python host-readiness.py --output voice-readiness.json` on the actual inference machine. It reports which local prerequisites are missing and returns a nonzero exit code until they are satisfied. Do not commit the generated report if it contains private host paths. A readiness pass only verifies prerequisites, not inference or voice quality.
+
 ## Validation sequence
 
 1. On the private host, set PIPER_EXECUTABLE, PIPER_MODEL_PATH, ASR_MODEL_PATH, AIVAULT_VOICE_TOKEN and run `python model-preflight.py`. A pass means files/settings appear ready, **not** that inference works.
