@@ -26,6 +26,19 @@ class PreflightTests(unittest.TestCase):
             self.assertTrue(result["piper_model"])
             self.assertTrue(result["piper_config"])
             self.assertFalse(result["tts_24khz"])
+    def test_empty_weights_are_not_ready(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/"voice.onnx"
+            path.touch()
+            result=preflight.check_environment({"PIPER_MODEL_PATH":str(path)})
+            self.assertFalse(result["piper_model"])
+    def test_asr_requires_model_weights(self):
+        with tempfile.TemporaryDirectory() as folder:
+            result=preflight.check_environment({"ASR_MODEL_PATH":folder})
+            self.assertFalse(result["asr_model"])
+            (Path(folder)/"model.bin").write_bytes(b"test")
+            result=preflight.check_environment({"ASR_MODEL_PATH":folder})
+            self.assertTrue(result["asr_model"])
     def test_matching_rate_is_accepted(self):
         with tempfile.TemporaryDirectory() as folder:
             path=Path(folder)/"voice.onnx"
