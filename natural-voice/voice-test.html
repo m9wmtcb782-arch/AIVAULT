@@ -12,6 +12,7 @@
 import {createGpuSpeechAdapter} from "./gpu-speech-adapter.mjs";
 import {PcmAudioPlayer} from "./pcm-audio-player.mjs";
 import {openTtsStream} from "./tts-stream-adapter.mjs";
+import {enqueueWithPacing} from "./stream-playback-pacing.mjs";
 const record=document.getElementById("record"),stop=document.getElementById("stop"),status=document.getElementById("status");
 let player=null,controller=null;
 const show=t=>{status.textContent=t};
@@ -59,7 +60,7 @@ record.onclick=async()=>{
   player=new PcmAudioPlayer({audioContext:capture});
   stop.disabled=false;
   let count=0;
-  for await(const frame of ttsFrames){if(controller.signal.aborted)break;player.enqueue(frame);count++;}
+  for await(const frame of ttsFrames){if(controller.signal.aborted)break;const queued=await enqueueWithPacing(player,frame,{signal:controller.signal});if(!queued)break;count++;}
   show("辨識："+transcript+"\n已排程音訊區塊："+count+"（請確認手機實際有聲音）");
  }catch(error){
   show("測試未完成："+(error?.message||String(error))+"\n請確認本機模型、服務憑證、HTTPS 與 CORS。");
