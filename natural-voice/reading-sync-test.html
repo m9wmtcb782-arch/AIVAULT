@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AIVAULT｜獨立聽書同步測試</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f8fafc;color:#172338;font-family:system-ui,-apple-system,sans-serif}
+header{padding:16px 20px;background:#fff;border-bottom:1px solid #d9e2ee;font-weight:700}
+main{max-width:800px;margin:auto;padding:20px 18px 50px}label{display:block;font-weight:650;margin:15px 0 6px}
+input,textarea{width:100%;padding:12px;border:1px solid #b7c4d3;border-radius:10px;font:16px system-ui}
+textarea{min-height:120px;resize:vertical}button{background:#174da9;color:white;border:0;border-radius:12px;padding:13px 17px;font-size:16px;margin:12px 8px 0 0}
+button:disabled{opacity:.45}button.secondary{background:#53647a}
+#reader{font-size:1.3rem;line-height:2.1;white-space:pre-wrap;overflow-wrap:anywhere;background:#fff;border:1px solid #e0e7ef;border-radius:16px;padding:20px;min-height:180px}
+mark{background:#a7caff;color:#092a61;border-radius:4px}#status{white-space:pre-wrap;color:#53647a;line-height:1.6}
+small{display:block;color:#53647a;line-height:1.6}
+</style></head><body><header>AIVAULT｜獨立聽書同步測試</header><main>
+<p>測試自架中文語音與閱讀反藍。此頁不連接正式電子書、暗星、Gemini 或其他付費 API。</p>
+<label for="endpoint">自架 HTTPS 語音服務</label><input id="endpoint" type="url" placeholder="https://voice.example.com" autocomplete="off">
+<label for="token">短期測試 Token</label><input id="token" type="password" autocomplete="off" spellcheck="false">
+<small>僅連線至你信任的測試服務。Token 不儲存於瀏覽器；正式產品必須使用後端代理。服務需啟用 HTTPS 與允許此頁來源的 CORS。</small>
+<label for="text">朗讀文字</label><textarea id="text">你好，我是暗星。這是 AIVAULT 自有語音引擎的閱讀同步測試。現在請注意，正在朗讀的文字會反藍顯示。</textarea>
+<button id="play">開始聽書</button><button id="stop" class="secondary" disabled>停止</button>
+<h2>閱讀區</h2><article id="reader" aria-label="同步閱讀文字"></article>
+<p id="status" role="status" aria-live="polite">尚未開始。需要先部署真實中文模型與語音服務。</p>
+</main><script type="module">
+import {openTtsStream} from "./tts-stream-adapter.mjs";
+import {PcmAudioPlayer} from "./pcm-audio-player.mjs";
+const $=id=>document.getElementById(id),play=$("play"),stop=$("stop"),reader=$("reader"),status=$("status");
+let abort=null,player=null,context=null,activeText="";
+const show=s=>status.textContent=s;
+function highlight(start,end){
+ if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start<0||end<=start||end>activeText.length)return;
+ reader.replaceChildren(document.createTextNode(activeText.slice(0,start)));
+ const mark=document.createElement("mark");mark.textContent=activeText.slice(start,end);reader.append(mark,document.createTextNode(activeText.slice(end)));
+}
+$("text").addEventListener("input",()=>{if(!abort)reader.textContent=$("text").value;});
+reader.textContent=$("text").value;
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+play.onclick=async()=>{
+ play.disabled=true;stop.disabled=false;activeText=$("text").value;
+ reader.textContent=activeText;abort=new AbortController();const signal=abort.signal;
+ try{
+  if(!activeText.trim())throw new Error("EMPTY_TEXT");
+  const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+  if(!AudioContextClass)throw new Error("WEB_AUDIO_UNAVAILABLE");
+  context=new AudioContextClass();await context.resume();
+  player=new PcmAudioPlayer({audioContext:context,onEvent:e=>{
+   if(e.type==="playback.highlight"&&!signal.aborted)highlight(e.charStart,e.charEnd);
+  }});
+  const stream=await openTtsStream({baseUrl:$("endpoint").value.trim(),token:$("token").value,text:activeText,withMetadata:true,signal});
+  show("正在接收自架語音…");let count=0;
+  for await(const item of stream){
+   if(signal.aborted)break;
+   while(player.nextTime-context.currentTime>player.maxQueuedSeconds-0.2){
+    if(signal.aborted)break;
+    await sleep(35);
+   }
+   if(signal.aborted)break;
+   player.enqueue(item.pcm,{generation:player.generation,sequence:item.sequence,charStart:item.charStart,charEnd:item.charEnd});
+   count++;
+  }
+  if(!signal.aborted){
+   show("已收到 "+count+" 個音訊區塊；正在播放。");
+   while(!signal.aborted&&context.currentTime<player.nextTime)await sleep(60);
+   if(!signal.aborted)show("朗讀完成。");
+  }
+ }catch(error){if(!signal.aborted)show("無法播放："+(error?.message||String(error)));}
+ finally{
+  player?.interrupt();
+  if(context&&context.state!=="closed")try{await context.close()}catch{}
+  player=null;context=null;abort=null;play.disabled=false;stop.disabled=true;
+ }
+};
+stop.onclick=()=>{abort?.abort();player?.interrupt();show("已停止朗讀。");stop.disabled=true;};
+</script></body></html>
