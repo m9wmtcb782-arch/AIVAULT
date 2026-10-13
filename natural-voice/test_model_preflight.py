@@ -15,7 +15,7 @@ class PreflightTests(unittest.TestCase):
         result=preflight.check_environment({"PIPER_EXECUTABLE":"not-installed-piper","PIPER_MODEL_PATH":"/missing/voice.onnx"})
         self.assertFalse(result["piper_model"])
         self.assertFalse(result["asr_model"])
-        self.assertFalse(result["tts_24khz"])
+        self.assertFalse(result["tts_supported_rate"])
     def test_voice_config_rate_is_checked(self):
         with tempfile.TemporaryDirectory() as folder:
             path=Path(folder)/"voice.onnx"
@@ -25,7 +25,7 @@ class PreflightTests(unittest.TestCase):
                 result=preflight.check_environment({"PIPER_MODEL_PATH":str(path),"AIVAULT_VOICE_TOKEN":"x"*32})
             self.assertTrue(result["piper_model"])
             self.assertTrue(result["piper_config"])
-            self.assertFalse(result["tts_24khz"])
+            self.assertTrue(result["tts_supported_rate"])
     def test_empty_weights_are_not_ready(self):
         with tempfile.TemporaryDirectory() as folder:
             path=Path(folder)/"voice.onnx"
@@ -45,7 +45,7 @@ class PreflightTests(unittest.TestCase):
             path.write_bytes(b"test")
             Path(str(path)+".json").write_text(json.dumps({"audio":{"sample_rate":24000},"language":{"code":"en_US"}}))
             result=preflight.check_environment({"PIPER_MODEL_PATH":str(path)})
-            self.assertTrue(result["tts_24khz"])
+            self.assertTrue(result["tts_supported_rate"])
             self.assertFalse(result["tts_mandarin"])
     def test_matching_rate_is_accepted(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -54,7 +54,7 @@ class PreflightTests(unittest.TestCase):
             Path(str(path)+".json").write_text(json.dumps({"audio":{"sample_rate":24000},"language":{"code":"zh_TW"}}))
             with patch.object(preflight.shutil,"which",return_value="/bin/piper"):
                 result=preflight.check_environment({"PIPER_MODEL_PATH":str(path),"AIVAULT_VOICE_TOKEN":"x"*32})
-            self.assertTrue(result["tts_24khz"])
+            self.assertTrue(result["tts_supported_rate"])
             self.assertTrue(result["tts_mandarin"])
 
 if __name__=="__main__":unittest.main()
