@@ -13,7 +13,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
  */
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
-const MAX_FILE_BYTES = 18 * 1024 * 1024;
+const MAX_FILE_BYTES = 100 * 1024 * 1024;
 const MAX_TRANSCRIPT_CHARS = 500_000;
 const GATEWAY_TIMEOUT_MS = 110_000;
 
@@ -106,7 +106,7 @@ Deno.serve(async (req: Request) => {
         ok: false,
         error: "FILE_TOO_LARGE",
         max_bytes: MAX_FILE_BYTES,
-        message: "單檔上限為 18 MB，請壓縮影片後重試。",
+        message: "單檔上限為 100 MB，請壓縮影片後重試。",
       }, 413);
     }
 
