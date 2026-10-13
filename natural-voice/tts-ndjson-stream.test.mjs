@@ -57,7 +57,7 @@ test("metadata mode exposes original text range",async()=>{
 });
 
 test("rejects trailing audio in a separate network packet",async()=>{
- const done=JSON.stringify({type:"complete",frames:0})+"\\n";
- const extra=JSON.stringify({type:"audio",sequence:0,pcm_base64:"AAA="})+"\\n";
+ const done=JSON.stringify({type:"complete",frames:0})+"\n";
+ const extra=JSON.stringify({type:"audio",sequence:0,pcm_base64:"AAA="})+"\n";
  await assert.rejects(async()=>{for await(const frame of parseTtsNdjson(mockResponse([done,extra])))void frame;},/TRAILING_TTS_DATA/);
 });
