@@ -58,6 +58,8 @@
   }
 
   function showShelf() {
+    if(window.AIVAULTAudiobook)window.AIVAULTAudiobook.stop();
+    $("listenView").hidden=true;
     state.view = "shelf";
     $("shelfView").hidden = false;
     $("readerView").hidden = true;
@@ -67,7 +69,9 @@
     renderShelf();
   }
   function showReader() {
+    $("listenView").hidden=true;
     state.view = "read";
+    setQS(state.bookId,state.pageNumber,"read");
     $("shelfView").hidden = true;
     $("readerView").hidden = false;
     $("readerView").classList.remove("controls-open");
@@ -295,6 +299,7 @@
       else if(provider==="direct"&&url) body+='<div style="margin-top:16px"><h3>🎬 本頁影音</h3><video controls playsinline preload="metadata" src="'+E.esc(url)+'" style="width:100%;max-height:520px;background:#000;border-radius:10px"></video><div style="font-size:13px;margin-top:6px">'+E.esc(title)+'</div></div>';
     });
     el.innerHTML = (bits ? "<h3>" + E.esc(bits) + "</h3>" : "") + body;
+    if(window.AIVAULTAudiobook)window.AIVAULTAudiobook.preparePaper(el);
   }
 
   function paginatePaper(el) {
@@ -352,6 +357,7 @@
     $("jumpRange").value = String(state.pageNumber);
     $("readerTitle").textContent = (state.book && (state.book.title || state.book.book_title)) || ((state.shelfBooks.find(function(b){return (b.ebook_id || b.id) === state.bookId;}) || {}).title) || ((E.catalog().find(function(b){return (b.ebook_id || b.id) === state.bookId;}) || {}).title) || "電子書";
     $("readerAuthor").textContent = "作者：" + ((state.book && state.book.author) || "—");
+    if(window.AIVAULTAudiobook)window.AIVAULTAudiobook.syncReader();
   }
 
   async function getPage(n) {
@@ -422,7 +428,7 @@
     }
   }
 
-  async function goPage(n, animate, dir) {
+  async function goPage(n, animate, dir, narrationNavigation) {
     if (!state.bookId || state.flipping) return;
     const oldPage=state.pageNumber, oldSub=state.subPage;
     n = Math.max(1, Math.min(state.totalPages || 1, Number(n) || 1));
@@ -433,6 +439,7 @@
       else if(n===oldPage) {toast(dir==="next"?"已到最後一頁":"已是第一頁");return;}
       else if(dir==="prev") nextSub=Number.MAX_SAFE_INTEGER;
     }
+    if(n!==oldPage&&!narrationNavigation&&window.AIVAULTAudiobook)window.AIVAULTAudiobook.stop();
     state.flipping=true;$("stage").setAttribute("aria-busy","true");
     try {
       const targets=useSpread()?currentPairFor(n):[n];
@@ -441,7 +448,7 @@
       const before=snapshotLeaf("paperRight");
       state.pageNumber=n;state.subPage=nextSub;renderSpread();
       if(animate&&dir) await runCurl(before,snapshotLeaf("paperRight"),dir);
-      setQS(state.bookId,state.pageNumber,"read");
+      setQS(state.bookId,state.pageNumber,state.view==="listen"?"listen":"read");
       try { localStorage.setItem("aivault_reader_screen_"+state.bookId,JSON.stringify({page:state.pageNumber,screen:state.subPage})); } catch(e){}
       [n-1,n+1,n+2].filter(function(x){return x>0&&x<=state.totalPages;}).forEach(function(x){getPage(x).catch(function(){});});
       persistProgress().catch(function(){});
@@ -1016,7 +1023,8 @@
     $("btnMark").onclick = renderBookmarkPanel;
     $("btnSearch").onclick = renderSearchPanel;
     $("btnNote").onclick = renderNotePanel;
-    $("btnSpeak").onclick = renderSpeakPanel;
+    $("btnSpeak").onclick = function(){window.AIVAULTAudiobook.open();};
+    $("qqListenShortcut").onclick=function(){window.AIVAULTAudiobook.open();};
     $("btnAsk").onclick = renderAskPanel;
     $("btnSettings").onclick = renderSettings;
     $("btnMore").onclick = renderMore;
@@ -1127,8 +1135,26 @@
   updateClock();setInterval(updateClock,30000);
   bindShelf();
   bindNav();
+  window.AIVAULTReaderBridge = {
+    info:function(){const known=state.shelfBooks.find(function(b){return b.id===state.bookId;})||{};return {id:state.bookId,page:state.pageNumber,total:state.totalPages,title:$("readerTitle").textContent,chapter:currentChapterTitle(),cover:(state.book&&state.book.cover_url)||known.cover_url||"",view:state.view};},
+    paper:function(){return $("paperRight");},
+    visibleSegment:function(){const paper=$("paperRight"),clip=paper.querySelector('.qq-page-viewport')||paper,r=clip.getBoundingClientRect();const mark=Array.from(paper.querySelectorAll('[data-narration]')).find(function(el){return Array.from(el.getClientRects()).some(function(m){return m.right>r.left&&m.left<r.right&&m.bottom>r.top&&m.top<r.bottom;});});return mark?Number(mark.dataset.narration):0;},
+    loadPage:async function(n){await goPage(n,false,null,true);return state.pageNumber===n;},
+    listen:function(){closeDrawer();state.view="listen";$("shelfView").hidden=true;$("readerView").hidden=true;$("listenView").hidden=false;setQS(state.bookId,state.pageNumber,"listen");},
+    read:function(){closeDrawer();showReader();renderSpread();},
+    follow:function(index){
+      const paper=$("paperRight"), marks=Array.from(paper.querySelectorAll('[data-narration="'+index+'"]'));
+      paper.querySelectorAll('.narration-active').forEach(function(el){el.classList.remove('narration-active');});
+      marks.forEach(function(el){el.classList.add('narration-active');});
+      if(state.view!=="read"||!marks.length||useSpread())return;
+      const flow=paper.querySelector('.qq-page-flow'), viewport=paper.querySelector('.qq-page-viewport');if(!flow||!viewport||!viewport.clientWidth)return;
+      const x=marks[0].getBoundingClientRect().left-flow.getBoundingClientRect().left;
+      state.subPage=Math.max(0,Math.min(state.subPages-1,Math.floor(Math.max(0,x)/(viewport.clientWidth+40))));
+      flow.style.transform='translateX('+(-state.subPage*(viewport.clientWidth+40))+'px)';updateReadingLabel();
+    }
+  };
   const startId = qs().get("ebook_id");
   const view = qs().get("view");
-  if (startId && view !== "shelf") openBook(startId);
+  if (startId && view !== "shelf") openBook(startId).then(function(){if(view==="listen"&&window.AIVAULTAudiobook)window.AIVAULTAudiobook.open();});
   else showShelf();
 })();

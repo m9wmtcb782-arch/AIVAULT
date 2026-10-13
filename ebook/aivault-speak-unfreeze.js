@@ -1,6 +1,7 @@
 /* iPhone-safe speaker: toggle current-page read, never open mask/drawer. */
 (function () {
   "use strict";
+  if(window.AIVAULTQQReader)return;
 
   var speaking = false;
   var gen = 0;
