@@ -55,3 +55,7 @@ The worker now uses Piper's `--output_file` to write a temporary WAV, validates 
 ## Guarded offline startup
 
 Run `python start-local-worker.py` from this directory after setting local model paths and a strong token. The launcher checks Mandarin Piper metadata, 24 kHz PCM, local ASR weights and token before starting on loopback. It does not download models, use paid APIs, or expose a public server. A reachable authenticated HTTPS reverse proxy is still needed for phone testing.
+
+## Mandarin Piper model sample rates
+
+The isolated worker accepts Piper voice WAV output at **22050 Hz or 24000 Hz**. For 22050 Hz models it uses SciPy polyphase resampling to 24000 Hz PCM16; install `numpy>=1.26,<3` and `scipy>=1.12,<2` in the worker Python environment. This changes sample-rate compatibility, **not** model naturalness. No model files are downloaded automatically.
