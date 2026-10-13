@@ -29,7 +29,7 @@ function pcm16(samples,inputRate,outputRate=16000){
 }
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 record.onclick=async()=>{
- record.disabled=true;controller=new AbortController();let stream=null,capture=null,source=null;
+ record.disabled=true;player?.interrupt();player=null;controller=new AbortController();let stream=null,capture=null,source=null;
  try{
   const baseUrl=document.getElementById("endpoint").value.trim();
   const token=document.getElementById("token").value;
@@ -68,7 +68,8 @@ record.onclick=async()=>{
  }finally{
   if(stream)stream.getTracks().forEach(t=>t.stop());
   if(source)try{source.disconnect()}catch{}
-  if(capture&&!player&&capture.state!=="closed")try{await capture.close()}catch{}
+  if(capture&&capture.state!=="closed")try{await capture.close()}catch{}
+  if(player?.context===capture)player=null;
   stop.disabled=true;
   record.disabled=false;
  }
