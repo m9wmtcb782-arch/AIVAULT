@@ -18,6 +18,7 @@ export async function* parseTtsNdjson(response,{signal,maxLineBytes=200000}={}) 
     if(event.type==="error")throw new Error("TTS_REMOTE_ERROR");
     if(event.type==="complete"){
       if(!Number.isSafeInteger(event.frames)||event.frames!==lastSequence+1)throw new Error("INVALID_TTS_COMPLETE");
+      if(pending.trim())throw new Error("TRAILING_TTS_DATA");
       completed=true;break;
     }
     if(event.type!=="audio"||!Number.isSafeInteger(event.sequence)||event.sequence!==lastSequence+1||
