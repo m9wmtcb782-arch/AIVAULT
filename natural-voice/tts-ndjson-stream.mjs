@@ -35,7 +35,13 @@ export async function* parseTtsNdjson(response,{signal,maxLineBytes=200000,withM
       yield {pcm,sequence:event.sequence,charStart:start,charEnd:end,sampleRate:rate};
     }else yield pcm;
    }
-   if(completed)break;
+   if(completed){
+    if(!done){
+     const extra=await reader.read();
+     if(!extra.done&&extra.value?.length)throw new Error("TRAILING_TTS_DATA");
+    }
+    break;
+   }
    if(pending.length>maxLineBytes)throw new Error("STREAM_LINE_TOO_LONG");
    if(done)break;
   }
