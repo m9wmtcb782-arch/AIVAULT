@@ -11,6 +11,9 @@ class StreamTests(unittest.TestCase):
         events=[json.loads(x) for x in audio_events("你好。再見。",lambda text,sample_rate: bytes([0,0])*2400)]
         self.assertEqual([e["type"] for e in events],["audio","audio","complete"])
         self.assertEqual(base64.b64decode(events[0]["pcm_base64"]),bytes([0,0])*2400)
+    def test_odd_frame_size_rejected(self):
+        with self.assertRaisesRegex(ValueError,"INVALID_FRAME_BYTES"):
+            list(audio_events("你好",lambda text,sample_rate: bytes([0,0]),frame_bytes=3))
     def test_model_failure_is_error_not_complete(self):
         def fail(text,sample_rate): raise RuntimeError("unavailable")
         events=[json.loads(x) for x in audio_events("你好",fail)]
