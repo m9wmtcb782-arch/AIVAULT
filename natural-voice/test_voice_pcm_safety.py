@@ -16,5 +16,15 @@ class LocalPiperSafetyTest(unittest.TestCase):
         self.assertLess(source.index("len(pcm) > 2_880_000"),source.index('return {"frames":'))
         ast.parse(source)
 
+    def test_capabilities_are_authenticated_and_fail_closed(self):
+        source=(ROOT/"worker.py").read_text(encoding="utf-8")
+        tree=ast.parse(source)
+        function=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=="capabilities")
+        function_source=ast.get_source_segment(source,function)
+        self.assertIn("authorize(authorization)",function_source)
+        self.assertIn('"voice_inference_verified": False',function_source)
+        self.assertIn('"gpu_inference_verified": False',function_source)
+        self.assertIn('"pool_eligible": False',function_source)
+
 if __name__=="__main__":
     unittest.main()
