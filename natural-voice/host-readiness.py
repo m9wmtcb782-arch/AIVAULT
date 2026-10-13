@@ -15,12 +15,14 @@ def load_preflight():
     spec.loader.exec_module(module)
     return module
 
-def report(env=None):
+def report(env=None, tts_only=False):
     checks=load_preflight().check_environment(env)
-    missing=[key for key,ok in checks.items() if not ok]
+    required = {key: ok for key, ok in checks.items() if not (tts_only and key == "asr_model")}
+    missing=[key for key,ok in required.items() if not ok]
     return {"status":"READY_FOR_REAL_INFERENCE" if not missing else "BLOCKED",
             "python":platform.python_version(),
             "checks":checks,
+            "mode":"tts_only" if tts_only else "asr_and_tts",
             "missing":missing,
             "next_step":("python render-local-sample.py --output voice-sample.wav"
                          if not missing else "Install the missing local models or configuration; no automatic downloads")}
@@ -28,8 +30,9 @@ def report(env=None):
 def main(argv=None):
     parser=argparse.ArgumentParser(description="Offline voice-host readiness report")
     parser.add_argument("--output",type=Path,help="Optional JSON report path")
+    parser.add_argument("--tts-only",action="store_true",help="Check first voice synthesis without requiring ASR weights")
     args=parser.parse_args(argv)
-    result=report()
+    result=report(tts_only=args.tts_only)
     payload=json.dumps(result,ensure_ascii=False,indent=2)
     if args.output:
         args.output.parent.mkdir(parents=True,exist_ok=True)
