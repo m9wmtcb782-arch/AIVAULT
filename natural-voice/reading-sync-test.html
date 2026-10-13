@@ -23,11 +23,14 @@ small{display:block;color:#53647a;line-height:1.6}
 </main><script type="module">
 import {openTtsStream} from "./tts-stream-adapter.mjs";
 import {PcmAudioPlayer} from "./pcm-audio-player.mjs";
+import {codePointRangeToUtf16} from "./reading-highlight.mjs";
 const $=id=>document.getElementById(id),play=$("play"),stop=$("stop"),reader=$("reader"),status=$("status");
 let abort=null,player=null,context=null,activeText="";
 const show=s=>status.textContent=s;
 function highlight(start,end){
- if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start<0||end<=start||end>activeText.length)return;
+ const range=codePointRangeToUtf16(activeText,start,end);
+ if(!range)return;
+ ({start,end}=range);
  reader.replaceChildren(document.createTextNode(activeText.slice(0,start)));
  const mark=document.createElement("mark");mark.textContent=activeText.slice(start,end);reader.append(mark,document.createTextNode(activeText.slice(end)));
 }
