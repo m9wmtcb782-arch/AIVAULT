@@ -13,11 +13,12 @@ This is an isolated self-hosted test. No Gemini/Grok/Kling requests, no model do
 ## Validation sequence
 
 1. On the private host, set PIPER_EXECUTABLE, PIPER_MODEL_PATH, ASR_MODEL_PATH, AIVAULT_VOICE_TOKEN and run `python model-preflight.py`. A pass means files/settings appear ready, **not** that inference works.
-2. Run `python benchmark-local-tts.py --text '你好，我是暗星。' --repeats 3` and record inference milliseconds, audio milliseconds and real-time factor. Do not report simulated test values as real results.
-3. Start `uvicorn worker:app --host 127.0.0.1 --port 8765` from the `natural-voice` directory.
-4. Verify `GET /health` reports both ASR and TTS loaded. Check the authenticated TTS stream endpoint using the private test host. A health check alone does not prove speech quality.
-5. On an HTTPS phone browser, open `voice-test.html` served from the same feature branch and use only a short-lived test token. Record spoken Taiwan Mandarin and listen to the returned synthesized audio.
-6. Capture: first audio frame latency, audible start latency, real-time factor, pronunciation, natural pauses, repeated turn reliability, interruption and memory usage. Measure on both iOS and Android before integrating with Dark Star.
+2. Render a **real playable WAV** directly from the offline model: `python render-local-sample.py --output /tmp/aivault-voice.wav`. Listen to the WAV and confirm it actually speaks Mandarin; do not treat a created file alone as a naturalness pass.
+3. Run `python benchmark-local-tts.py --text '你好，我是暗星。' --repeats 3` and record inference milliseconds, audio milliseconds and real-time factor. Do not report simulated test values as real results.
+4. Start `python start-local-worker.py` from the `natural-voice` directory.
+5. Verify `GET /health` reports both ASR and TTS loaded. Check the authenticated TTS stream endpoint using the private test host. A health check alone does not prove speech quality.
+6. On an HTTPS phone browser, open `voice-test.html` served from the same feature branch and use only a short-lived test token. Record spoken Taiwan Mandarin and listen to the returned synthesized audio.
+7. Capture: first audio frame latency, audible start latency, real-time factor, pronunciation, natural pauses, repeated turn reliability, interruption and memory usage. Measure on both iOS and Android before integrating with Dark Star.
 
 ## Acceptance gates
 
