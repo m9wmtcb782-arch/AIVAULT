@@ -1,3 +1,4 @@
+import { citationTarget, statuteMatches, exactArticleText } from './legal-citation.ts';
 export type Jurisdiction='CN'|'TW'|'UNKNOWN'|'GENERAL';
 export function identifyLaw(question:string,selected='auto'){
   const simplified=[...question].filter(c=>'这为与国华条规权义务诉讼审罚证据认赔偿损伤劳动产买卖约违宪议复厅机关检护设应当过从对无会书学问'.includes(c)).length;
@@ -25,6 +26,7 @@ export function officialUrl(raw:string,code:Jurisdiction){
   }catch{return false;}
 }
 export function cleanHtml(raw:string){return raw.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<noscript[\s\S]*?<\/noscript>/gi,' ').replace(/<[^>]*>/g,' ').replace(/&#(x[0-9a-f]+|\d+);/gi,(_,n)=>{const code=n[0].toLowerCase()==='x'?parseInt(n.slice(1),16):Number(n);return code<=0x10ffff?String.fromCodePoint(code):'';}).replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&').replace(/&quot;/gi,'"').replace(/&lt;/gi,'<').replace(/&gt;/gi,'>').replace(/\s+/g,' ').trim();}
+export function legalHtml(raw:string){const marked=raw.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi,' ').replace(/<(?:br|hr)\b[^>]*>|<\/(?:p|div|tr|li|h[1-6]|section|article)>/gi,'\n');return marked.split(/\r?\n/).map(cleanHtml).filter(Boolean).join('\n');}
 function decode(s:string){return s.replace(/&amp;/g,'&');}
 export function parseResults(text:string){
   const rows:{title:string,url:string,snippet:string}[]=[];
@@ -41,7 +43,10 @@ async function getText(url:string,limit=2000000,timeout=12000){
   while(true){const {value,done}=await reader.read();if(done)break;size+=value.length;if(size>limit){await reader.cancel();throw Error('來源過大');}chunks.push(value);}
   const bytes=new Uint8Array(size);let offset=0;for(const x of chunks){bytes.set(x,offset);offset+=x.length;}return {text:new TextDecoder().decode(bytes),redirect:''};
 }
-export async function researchWeb(question:string,terms:string[],code:Jurisdiction){
+export async function researchWeb(question:string,terms:string[],code:Jurisdiction,lawHint=''){
+  const target=citationTarget(question,lawHint);
+  if(target.missing_law||target.conflict)return {query:'',sources:[],checked_at:new Date().toISOString(),error:'請先確認完整法律名稱'};
+  if(target.articles.length)terms=[target.law_name];
   const domain=code==='CN'?'site:gov.cn':code==='TW'?'site:gov.tw':'(site:edu.tw OR site:gov.tw OR site:edu.cn OR site:gov.cn)';
   let queryText=terms.slice(0,5).join(' ')+' '+(question.match(/第[一二三四五六七八九十百千0-9]{1,12}[條条]|(?:19|20)[0-9]{2}年/g)||[]).join(' ');
   if(code==='CN'){const pairs=['華华','國国','條条','規规','權权','義义','務务','訴诉','訟讼','審审','罰罚','證证','據据','認认','賠赔','償偿','損损','傷伤','勞劳','動动','產产','買买','賣卖','約约','違违','憲宪','議议','復复','廳厅','機机','關关','檢检','護护','設设','應应','當当','過过','對对','無无','會会','書书','學学','問问'];const map=Object.fromEntries(pairs.map(x=>[x[0],x[1]]));queryText=[...queryText].map(c=>map[c]||c).join('');}
@@ -65,8 +70,14 @@ export async function researchWeb(question:string,terms:string[],code:Jurisdicti
   const sources:any[]=[];
   const unique=results.filter((x,i,a)=>a.findIndex(y=>y.url===x.url)===i).slice(0,6);
   const fetched=await Promise.allSettled(unique.map(async item=>{
-    let url=item.url,text='';for(let i=0;i<4;i++){if(!officialUrl(url,code))throw Error('非本法域官方來源');const r=await getText(url,2000000,30000);if(r.redirect){url=r.redirect;continue;}text=cleanHtml(r.text);break;}
+    let url=item.url,text='';for(let i=0;i<4;i++){if(!officialUrl(url,code))throw Error('非本法域官方來源');const r=await getText(url,2000000,30000);if(r.redirect){url=r.redirect;continue;}text=legalHtml(r.text);break;}
     if(text.length<200)throw Error('來源缺乏可讀正文');
+    if(target.articles.length){
+      if(!statuteMatches(item.title,text,target))throw Error('來源法律名稱不符');
+      const exact=exactArticleText(text,target.articles);
+      if(!target.articles.every(id=>exact.matched.includes(id)))throw Error('來源未包含指定條文正文');
+      return {kind:'web',book_title:item.title,title:item.title,url,excerpt:exact.excerpt,jurisdiction:code,law_name:target.law_name,matched_articles:exact.matched,retrieved_at:new Date().toISOString(),fetched:true};
+    }
     // Keep relevant passages rather than only the site's header/navigation.
     const targets=[...(question.match(/第[一二三四五六七八九十百千0-9]{1,12}[條条]/g)||[]),...terms.slice().reverse()];
     const anchors=targets.map(t=>text.indexOf(t)).filter(n=>n>=0);

@@ -5,8 +5,8 @@ const {photoSolve,keywords}=await import('../supabase/functions/dark-star-photo-
 const image='data:image/jpeg;base64,'+'A'.repeat(64);
 const request=body=>new Request('https://test.supabase.co/functions/v1/dark-star-ebook-ingest?feature=photo-solve',{method:'POST',headers:{authorization:'Bearer anon-test','content-type':'application/json'},body:JSON.stringify(body)});
 test('search is read-only and returns real source identifiers',async()=>{
- let calls=0;globalThis.fetch=async(url,options)=>{calls++;assert.match(url,/rest\/v1\/rpc\/dark_star_search_ebook_pages$/);assert.equal(JSON.parse(options.body).book_id,'12345678-1234-1234-1234-123456789abc');return Response.json([{page_id:'p1',ebook_id:'b1',book_title:'教材',page_number:12,excerpt:'比例原則',score:4}]);};
- const r=await photoSolve(request({action:'search',question:'比例原則',ebook_id:'12345678-1234-1234-1234-123456789abc'}));const d=await r.json();assert.equal(d.sources[0].ref,1);assert.equal(d.sources[0].page_number,12);assert.equal(calls,1);
+ let calls=0;globalThis.fetch=async(url,options)=>{calls++;if(url.includes('dark_star_ebooks?'))return Response.json([{title:'臺灣比例原則教材'}]);assert.match(url,/rest\/v1\/rpc\/dark_star_search_ebook_pages$/);assert.equal(JSON.parse(options.body).book_id,'12345678-1234-1234-1234-123456789abc');return Response.json([{page_id:'p1',ebook_id:'b1',book_title:'教材',page_number:12,excerpt:'比例原則',score:4}]);};
+ const r=await photoSolve(request({action:'search',question:'比例原則',ebook_id:'12345678-1234-1234-1234-123456789abc'}));const d=await r.json();assert.equal(d.sources[0].ref,1);assert.equal(d.sources[0].page_number,12);assert.equal(calls,2);
 });
 test('no match does not generate an unsupported answer',async()=>{
  let calls=0;globalThis.fetch=async()=>{calls++;return Response.json([]);};const d=await (await photoSolve(request({action:'solve',question:'未知概念',image,allow_web:false}))).json();assert.equal(d.status,'NO_MATCH');assert.equal(calls,1);
@@ -65,4 +65,32 @@ test('typed question needs no image and pins the allowed provider',async()=>{
 });
 test('typed ambiguous legal question requests jurisdiction without photo',async()=>{
  globalThis.fetch=()=>{throw Error('unexpected network');};const d=await (await photoSolve(request({action:'solve',question:'民法第184條如何適用？'}))).json();assert.equal(d.status,'JURISDICTION_REQUIRED');
+});
+
+const {citationTarget,exactArticleText,statuteMatches,chineseNumber}=await import('../supabase/functions/dark-star-photo-solve/legal-citation.ts');
+test('country plus article without statute never retrieves unrelated answers',async()=>{
+ globalThis.fetch=()=>{throw Error('unexpected network');};const d=await (await photoSolve(request({action:'solve',question:'中華人民共和國第143條'}))).json();assert.equal(d.status,'LAW_REQUIRED');assert.equal(d.sources.length,0);assert.match(d.answer,/法律名稱/);
+});
+test('Arabic and Chinese article headings match the same exact number',()=>{
+ assert.equal(chineseNumber('一百四十三'),143);assert.equal(chineseNumber('一千一百四十三'),1143);assert.deepEqual(citationTarget('中华人民共和国刑法第143条').articles,['143']);
+ const x=exactArticleText('第一百四十二条\n無關內容甲。\n第一百四十三条\n指定條文正文。\n第一百四十四条\n無關內容乙。\n第一千一百四十三条\n別的條文。',['143']);assert.deepEqual(x.matched,['143']);assert.match(x.excerpt,/指定條文正文/);assert.doesNotMatch(x.excerpt,/無關內容|別的條文/);
+ assert.equal(exactArticleText('第一千一百四十三条\n同尾數錯誤條文。',['143']).matched.length,0);
+});
+test('official title must be the specified statute',()=>{
+ const t=citationTarget('中華人民共和國刑法第143條');assert.equal(t.law_key,'刑法');assert.equal(statuteMatches('中华人民共和国刑法（修订文本）','',t),true);assert.equal(statuteMatches('中华人民共和国民法典','本文引用刑法第143条',t),false);
+ const civil=citationTarget('臺灣民法第143條');assert.equal(statuteMatches('中华人民共和国民法典','',civil),false);
+});
+test('missing exact article returns no answer instead of nearby passages',async()=>{
+ globalThis.fetch=async url=>url.includes('/rest/')?Response.json([{page_id:'wrong',book_title:'中華人民共和國刑法',excerpt:'第一百四十二条\n不是143條的正文。',page_number:1}]):new Response('<rss></rss>',{headers:{'content-type':'application/rss+xml'}});
+ const d=await (await photoSolve(request({action:'solve',question:'中華人民共和國刑法第143條',allow_web:false}))).json();assert.equal(d.status,'ARTICLE_NOT_VERIFIED');assert.equal(d.sources.length,0);
+});
+test('precise article web lookup excludes wrong statutes and supplies only target text',async()=>{
+ globalThis.fetch=async(url,options)=>{
+ if(url.includes('/rest/'))return Response.json([]);
+ if(url.includes('bing.com'))return new Response('<rss><item><title>中华人民共和国刑法</title><link>https://www.gov.cn/criminal</link></item><item><title>中华人民共和国民法典</title><link>https://www.gov.cn/civil</link></item></rss>',{headers:{'content-type':'application/rss+xml'}});
+ if(url.includes('/criminal'))return new Response('<h1>中华人民共和国刑法</h1><p>第一百四十二条</p><p>'+('無關規定。'.repeat(35))+'</p><p>第一百四十三条</p><p>符合本題的指定法律條文。</p><p>第一百四十四条</p><p>'+('其他規定。'.repeat(35))+'</p>',{headers:{'content-type':'text/html'}});
+ if(url.includes('/civil'))return new Response('<h1>中华人民共和国民法典</h1><p>第一百四十三条</p><p>'+('错误法律正文。'.repeat(40))+'</p>',{headers:{'content-type':'text/html'}});
+ if(url.includes('ai-gateway')){const b=JSON.parse(options.body);assert.match(b.messages[0].content,/符合本題的指定法律條文/);assert.doesNotMatch(b.messages[0].content,/無關規定|错误法律正文|其他規定/);return Response.json({success:true,content:JSON.stringify({sufficient:true,answer:'指定條文解析。[1]'})});}
+ throw Error('unexpected URL');};
+ const d=await (await photoSolve(request({action:'solve',question:'中華人民共和國刑法第143條'}))).json();assert.equal(d.status,'ANSWERED');assert.equal(d.sources.length,1);assert.deepEqual(d.sources[0].matched_articles,['143']);
 });
