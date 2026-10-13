@@ -9,7 +9,7 @@ test("preserves text and splits on punctuation",()=>{
 });
 test("handles unicode emoji without corruption",()=>{
  const text="你好😀你好😀你好😀";
- assert.equal([...speechChunks(text,{maxChars:8})].join(""),text);
+ assert.equal([...speechChunks(text,{maxChars:8,minChars:8})].join(""),text);
 });
 test("emits audio frames in clause order",async()=>{
  const seen=[];
