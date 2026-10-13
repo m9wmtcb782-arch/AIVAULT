@@ -44,3 +44,14 @@ test("rejects unexpected audio after completion",async()=>{
  const audio=JSON.stringify({type:"audio",sequence:0,pcm_base64:"AAA="})+"\n";
  await assert.rejects(async()=>{for await(const pcm of parseTtsNdjson(mockResponse([done+audio]))) { void pcm; }},/TRAILING_TTS_DATA/);
 });
+
+test("metadata mode exposes original text range",async()=>{
+ const audio=JSON.stringify({type:"audio",sequence:0,pcm_base64:"AAA=",char_start:0,char_end:3,sample_rate:24000})+"\n";
+ const done=JSON.stringify({type:"complete",frames:1})+"\n";
+ const frames=[];
+ for await(const item of parseTtsNdjson(mockResponse([audio+done]),{withMetadata:true}))frames.push(item);
+ assert.equal(frames[0].charStart,0);
+ assert.equal(frames[0].charEnd,3);
+ assert.equal(frames[0].sampleRate,24000);
+ assert.deepEqual([...frames[0].pcm],[0,0]);
+});
