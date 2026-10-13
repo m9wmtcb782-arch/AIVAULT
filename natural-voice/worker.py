@@ -108,7 +108,11 @@ def tts(request: TTSRequest, authorization: str | None = Header(default=None)):
         pcm = _tts.synthesize(request.text, sample_rate=request.sample_rate)
     except (RuntimeError, ValueError, TimeoutError) as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
-    if not isinstance(pcm, (bytes, bytearray)) or not pcm or len(pcm) % 2:\n        raise HTTPException(status_code=503, detail="INVALID_TTS_PCM")\n    if len(pcm) > 2_880_000:\n        raise HTTPException(status_code=413, detail="TTS_AUDIO_TOO_LARGE")\n    # Prototype adapter expects frames array. JSON response is not low-latency streaming.
+    if not isinstance(pcm, (bytes, bytearray)) or not pcm or len(pcm) % 2:
+        raise HTTPException(status_code=503, detail="INVALID_TTS_PCM")
+    if len(pcm) > 2_880_000:
+        raise HTTPException(status_code=413, detail="TTS_AUDIO_TOO_LARGE")
+    # Prototype adapter expects frames array. JSON response is not low-latency streaming.
     frame_bytes = 4800  # 100ms at 24kHz, mono, signed 16-bit
     return {"frames":[base64.b64encode(pcm[i:i+frame_bytes]).decode("ascii")
                       for i in range(0,len(pcm),frame_bytes)]}
