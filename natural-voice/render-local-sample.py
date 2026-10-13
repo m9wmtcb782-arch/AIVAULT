@@ -9,6 +9,12 @@ import wave
 
 ROOT = Path(__file__).resolve().parent
 
+def create_engine():
+    spec = importlib.util.spec_from_file_location("local_piper", ROOT / "local-piper-tts.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.LocalPiperTTS()
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Render an actual local Mandarin voice sample")
     parser.add_argument("--text", default="你好，我是暗星。這是 AIVAULT 自有語音引擎的離線測試。")
@@ -16,10 +22,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if not args.text.strip() or len(args.text) > 500:
         parser.error("text must contain 1 to 500 characters")
-    spec = importlib.util.spec_from_file_location("local_piper", ROOT / "local-piper-tts.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    engine = module.LocalPiperTTS()
+    engine = create_engine()
     if not engine.available:
         print(json.dumps({"status":"MODEL_UNAVAILABLE","note":"Install local Piper CLI and voice ONNX first"}), file=sys.stderr)
         return 2
