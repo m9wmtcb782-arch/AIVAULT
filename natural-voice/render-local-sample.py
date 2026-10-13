@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Offline Mandarin speech acceptance: synthesize an actual WAV without external APIs."""
 import argparse
+import array
+import sys
 import importlib.util
 import json
 from pathlib import Path
-import sys
 import wave
 
 ROOT = Path(__file__).resolve().parent
@@ -30,6 +31,13 @@ def main(argv=None):
         pcm = engine.synthesize(args.text, sample_rate=24000)
         if not isinstance(pcm, bytes) or not pcm or len(pcm)%2:
             raise ValueError("INVALID_PCM16")
+        samples = array.array("h")
+        samples.frombytes(pcm)
+        if sys.byteorder != "little":
+            samples.byteswap()
+        peak = max(abs(sample) for sample in samples)
+        if peak < 64:
+            raise ValueError("SILENT_OR_NEAR_SILENT_AUDIO")
         args.output.parent.mkdir(parents=True,exist_ok=True)
         partial = args.output.with_name(args.output.name + ".partial")
         try:
@@ -46,7 +54,7 @@ def main(argv=None):
         return 3
     print(json.dumps({"status":"WAV_CREATED","path":str(args.output),
                       "duration_seconds":round(len(pcm)/48000,3),
-                      "sample_rate":24000},ensure_ascii=False))
+                      "sample_rate":24000,"peak_pcm16":peak},ensure_ascii=False))
     return 0
 
 if __name__=="__main__":
