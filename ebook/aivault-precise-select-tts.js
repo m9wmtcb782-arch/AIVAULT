@@ -284,7 +284,7 @@
     speakViaExistingSpeechSynthesis(text, gen);
   }
   function speakSelected() {
-    var text = selectedText;
+    var text = selectedText || String(window.getSelection() || "");
     if (!text && liveRange) text = rangePlainText(liveRange);
     text = String(text || "").trim();
     if (!text) { toast("請先點擊文字設定開始與結束位置。"); return; }
@@ -307,6 +307,19 @@
     bar.id = "preciseSelectBar";
     bar.className = "precise-select-bar";
     bar.innerHTML = '<span class="ps-status" id="preciseSelectStatus">尚未選取</span><button class="ib" type="button" id="spSelected">🔊 朗讀選取內容</button><button class="ib" type="button" id="spClearSel">✕ 清除選取</button>';
+    if (window.AIVAULTQQReader) {
+      var toggle = document.createElement("button");
+      toggle.className = "ib"; toggle.type = "button"; toggle.textContent = "選取文字";
+      toggle.id = "qqSelectText"; toggle.setAttribute("aria-pressed", "false");
+      toggle.onclick = function () {
+        window.AIVAULTQQSelectionEnabled = !window.AIVAULTQQSelectionEnabled;
+        toggle.setAttribute("aria-pressed", String(window.AIVAULTQQSelectionEnabled));
+        toggle.textContent = window.AIVAULTQQSelectionEnabled ? "完成選取" : "選取文字";
+        if (!window.AIVAULTQQSelectionEnabled) pointerStart = null;
+        else toast("點文字設定開始與結束位置，再按朗讀選取內容。");
+      };
+      bar.insertBefore(toggle, bar.firstChild);
+    }
     var pagerow = bottom.querySelector(".pagerow");
     if (pagerow && pagerow.nextSibling) bottom.insertBefore(bar, pagerow.nextSibling);
     else bottom.insertBefore(bar, bottom.firstChild);
@@ -330,10 +343,12 @@
     setStatus();
   }
   function onPointerDown(ev) {
+    if (window.AIVAULTQQReader && !window.AIVAULTQQSelectionEnabled) return;
     if (!ev || ev.button) return;
     pointerStart = { x: ev.clientX, y: ev.clientY, t: Date.now() };
   }
   function onPointerUp(ev) {
+    if (window.AIVAULTQQReader && !window.AIVAULTQQSelectionEnabled) { pointerStart = null; return; }
     if (!pointerStart) return;
     var sx = pointerStart.x, sy = pointerStart.y;
     pointerStart = null;
@@ -379,7 +394,7 @@
   injectBar(); watchPapers();
   if ($("drawer")) new MutationObserver(function () { injectDrawer(); setStatus(); }).observe($("drawer"), { childList: true, subtree: true });
   window.AIVAULTPreciseSelect = {
-    getSelectedText: function () { return selectedText; },
+    getSelectedText: function () { return selectedText || String(window.getSelection() || ""); },
     lastSentText: function () { return window.__AIVAULT_LAST_TTS_TEXT || ""; },
     clear: function () { clearSelection(true); },
     speak: speakSelected,

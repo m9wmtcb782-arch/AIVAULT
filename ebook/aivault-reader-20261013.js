@@ -1,5 +1,7 @@
 (function () {
   "use strict";
+  window.AIVAULTQQReader = true;
+  window.AIVAULTQQSelectionEnabled = false;
   const E = window.AIVAULTEbook;
   const $ = function (id) { return document.getElementById(id); };
   const state = {
@@ -10,6 +12,7 @@
     remoteId: null,
     source: "remote",
     book: null,
+    shelfBooks: [],
     pages: [],
     toc: [],
     pageNumber: 1,
@@ -223,6 +226,7 @@
   async function renderShelf() {
     const q = ($("shelfQ").value || "").trim().toLowerCase();
     let books = await collectBooks();
+    state.shelfBooks = books.slice();
     const tab = state.tab;
     if (tab === "fav") books = books.filter(function (b) { return E.isFav(b.id); });
     if (tab === "recent") {
@@ -346,7 +350,7 @@
     updateReadingLabel();
     $("jumpRange").max = String(state.totalPages || 1);
     $("jumpRange").value = String(state.pageNumber);
-    $("readerTitle").textContent = (state.book && (state.book.title || state.book.book_title)) || ((E.catalog().find(function(b){return (b.ebook_id || b.id) === state.bookId;}) || {}).title) || "電子書";
+    $("readerTitle").textContent = (state.book && (state.book.title || state.book.book_title)) || ((state.shelfBooks.find(function(b){return (b.ebook_id || b.id) === state.bookId;}) || {}).title) || ((E.catalog().find(function(b){return (b.ebook_id || b.id) === state.bookId;}) || {}).title) || "電子書";
     $("readerAuthor").textContent = "作者：" + ((state.book && state.book.author) || "—");
   }
 
@@ -561,6 +565,7 @@
     let savedScreen=null;try {savedScreen=JSON.parse(localStorage.getItem("aivault_reader_screen_"+id)||"null");}catch(e){}
     await goPage(start, false);
     if(savedScreen&&savedScreen.page===state.pageNumber){state.subPage=Number(savedScreen.screen)||0;renderSpread();try {localStorage.setItem("aivault_reader_screen_"+id,JSON.stringify({page:state.pageNumber,screen:state.subPage}));}catch(e){}}
+    if (!state.shelfBooks.some(function(b){return b.id===id;})) collectBooks().then(function(books){state.shelfBooks=books;if(state.bookId===id&&state.view==="read")renderSpread();}).catch(function(){});
     if (start > 1) toast("繼續閱讀第 " + start + " 頁");
 
     // 遠端電子書若沒有後端 TOC，背景建立完整章節目錄；
@@ -1034,7 +1039,7 @@
 
     const stage=$("stage");let start=null,suppress=0;
     stage.addEventListener("pointerdown",function(e){
-      if(e.button!==0||state.flipping||e.target.closest("a,button,input,video,iframe,.precise-selecting"))return;
+      if(window.AIVAULTQQSelectionEnabled||e.button!==0||state.flipping||e.target.closest("a,button,input,video,iframe,.precise-selecting"))return;
       start={x:e.clientX,y:e.clientY,id:e.pointerId};
     });
     stage.addEventListener("pointerup",function(e){
@@ -1043,7 +1048,7 @@
     });
     stage.addEventListener("pointercancel",function(){start=null;});
     stage.addEventListener("click",function(e){
-      if(Date.now()<suppress||state.flipping||e.target.closest("a,button,input,video,iframe,.precise-selecting")||String(getSelection()||'').trim())return;
+      if(window.AIVAULTQQSelectionEnabled||Date.now()<suppress||state.flipping||e.target.closest("a,button,input,video,iframe,.precise-selecting")||String(getSelection()||'').trim())return;
       const r=stage.getBoundingClientRect(),x=(e.clientX-r.left)/r.width;
       if(x<.24)goPage(state.pageNumber-1,true,"prev");
       else if(x>.76)goPage(state.pageNumber+1,true,"next");
