@@ -21,17 +21,17 @@ export async function runVoicePoolSession({text,modelId,pool,approved=false,weig
    const task=tasks[cursor++];
    try{
     const result=await dispatch(task,{signal});
-    if(cancelled())return;
+    if(cancelled()||failed)return;
     const ready=queue.accept(result);
     const batch=ready;
     playback=playback.then(async()=>{
      for(const audio of batch){
-      if(cancelled())return;
+      if(cancelled()||failed)return;
       await onAudio(audio);
      }
     });
     await playback;
-   }catch(error){failed=error;queue.fail();return;}
+   }catch(error){if(!failed){failed=error;queue.fail();}return;}
   }
  });
  await Promise.all(workers);
