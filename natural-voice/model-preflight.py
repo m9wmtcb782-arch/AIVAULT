@@ -17,12 +17,12 @@ def check_environment(env=None):
     checks["voice_token"]=len(env.get("AIVAULT_VOICE_TOKEN",""))>=24
     asr=env.get("ASR_MODEL_PATH","")
     checks["asr_model"]=bool(asr and Path(asr).is_dir() and (Path(asr)/"model.bin").is_file() and (Path(asr)/"model.bin").stat().st_size>0)
-    checks["tts_24khz"]=False
+    checks["tts_supported_rate"]=False
     checks["tts_mandarin"]=False
     if checks["piper_config"]:
         try:
             metadata=json.loads(Path(config).read_text(encoding="utf-8"))
-            checks["tts_24khz"]=metadata.get("audio",{}).get("sample_rate")==24000
+            checks["tts_24khz"]=metadata.get("audio",{}).get("sample_rate") in (22050,24000)
             checks["tts_mandarin"]=str(metadata.get("language",{}).get("code","")).lower().replace("_","-").startswith("zh")
         except (ValueError,OSError,TypeError,AttributeError):
             pass
