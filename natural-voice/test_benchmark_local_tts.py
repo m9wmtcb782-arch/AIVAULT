@@ -24,6 +24,18 @@ class BenchmarkTests(unittest.TestCase):
         class Missing:available=False
         with self.assertRaisesRegex(RuntimeError,"TTS_MODEL_UNAVAILABLE"):
             benchmark.benchmark(Missing())
+    def test_rejects_empty_pcm(self):
+        class EmptyEngine:
+            available=True
+            def synthesize(self,text,sample_rate):return b""
+        with self.assertRaisesRegex(RuntimeError,"INVALID_TTS_PCM"):
+            benchmark.benchmark(EmptyEngine())
+    def test_rejects_odd_pcm(self):
+        class OddEngine:
+            available=True
+            def synthesize(self,text,sample_rate):return b"\\x00"
+        with self.assertRaisesRegex(RuntimeError,"INVALID_TTS_PCM"):
+            benchmark.benchmark(OddEngine())
     def test_limits_repeats(self):
         with self.assertRaisesRegex(ValueError,"INVALID_REPEATS"):
             benchmark.benchmark(FakeEngine(),repeats=21)
