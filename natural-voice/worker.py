@@ -1,13 +1,11 @@
-"""Self-hosted AIVAULT speech worker, optional local faster-whisper ASR.
-No cloud API, no model downloads at request time, no TTS placeholder output.
-Run: AIVAULT_VOICE_TOKEN=... ASR_MODEL_PATH=/models/whisper uvicorn worker:app --host 127.0.0.1 --port 8765
-Requires fastapi, uvicorn, faster-whisper installed separately.
-"""
+"""Self-hosted AIVAULT speech worker. No paid API or automatic model downloads."""
 import base64
 import binascii
 import hmac
+import importlib.util
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
@@ -15,10 +13,18 @@ from pydantic import BaseModel, Field
 TOKEN = os.getenv("AIVAULT_VOICE_TOKEN", "")
 ASR_MODEL_PATH = os.getenv("ASR_MODEL_PATH", "")
 _model = None
+_tts = None
+
+def load_local_tts():
+    spec = importlib.util.spec_from_file_location("aivault_local_piper", Path(__file__).with_name("local-piper-tts.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.LocalPiperTTS()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _model
+    global _model, _tts
+    _tts = load_local_tts()
     if ASR_MODEL_PATH:
         from faster_whisper import WhisperModel
         _model = WhisperModel(ASR_MODEL_PATH, device=os.getenv("ASR_DEVICE", "cpu"),
@@ -49,7 +55,7 @@ def authorize(authorization: str | None):
 @app.get("/health")
 def health():
     return {"service":"aivault-voice-worker","asr_loaded":_model is not None,
-            "tts_loaded":False}
+            "tts_loaded":bool(_tts and _tts.available)}
 
 @app.post("/v1/asr")
 def asr(request: ASRRequest, authorization: str | None = Header(default=None)):
@@ -72,4 +78,15 @@ def asr(request: ASRRequest, authorization: str | None = Header(default=None)):
 @app.post("/v1/tts")
 def tts(request: TTSRequest, authorization: str | None = Header(default=None)):
     authorize(authorization)
-    raise HTTPException(status_code=503, detail="TTS_MODEL_NOT_CONNECTED")
+    if request.language != "zh-TW" or request.format != "pcm_s16le" or request.sample_rate != 24000:
+        raise HTTPException(status_code=422, detail="UNSUPPORTED_AUDIO_SETTINGS")
+    if _tts is None or not _tts.available:
+        raise HTTPException(status_code=503, detail="TTS_MODEL_UNAVAILABLE")
+    try:
+        pcm = _tts.synthesize(request.text, sample_rate=request.sample_rate)
+    except (RuntimeError, ValueError, TimeoutError) as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    # Prototype adapter expects frames array. JSON response is not low-latency streaming.
+    frame_bytes = 4800  # 100ms at 24kHz, mono, signed 16-bit
+    return {"frames":[base64.b64encode(pcm[i:i+frame_bytes]).decode("ascii")
+                      for i in range(0,len(pcm),frame_bytes)]}
