@@ -31,7 +31,7 @@ class LauncherTests(unittest.TestCase):
         with patch.dict(os.environ, {"PIPER_MODEL_PATH":"/nonexistent/model.onnx",
                                      "ASR_MODEL_PATH":"/nonexistent/asr",
                                      "AIVAULT_VOICE_TOKEN":""}):
-            self.assertEqual(launcher.main(), 2)
+            self.assertEqual(launcher.main([]), 2)
 
 if __name__ == "__main__":
     unittest.main()
