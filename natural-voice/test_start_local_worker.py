@@ -18,10 +18,10 @@ class LauncherTests(unittest.TestCase):
         checks["asr_model"] = False
         fake_preflight = types.SimpleNamespace(check_environment=lambda: checks)
         fake_uvicorn = types.SimpleNamespace(run=lambda *args, **kwargs: None)
-        with patch.object(launcher.importlib.util, "module_from_spec", return_value=fake_preflight), \\
-             patch.object(launcher.importlib.util, "spec_from_file_location", return_value=types.SimpleNamespace(loader=types.SimpleNamespace(exec_module=lambda module: None))), \\
-             patch.dict(sys.modules, {"uvicorn": fake_uvicorn}), \\
-             patch.object(launcher.os, "chdir"), \\
+        with patch.object(launcher.importlib.util, "module_from_spec", return_value=fake_preflight), \
+             patch.object(launcher.importlib.util, "spec_from_file_location", return_value=types.SimpleNamespace(loader=types.SimpleNamespace(exec_module=lambda module: None))), \
+             patch.dict(sys.modules, {"uvicorn": fake_uvicorn}), \
+             patch.object(launcher.os, "chdir"), \
              patch.dict(os.environ, {"ASR_MODEL_PATH": "/missing/asr"}):
             self.assertEqual(launcher.main(["--tts-only"]), 0)
             self.assertNotIn("ASR_MODEL_PATH", os.environ)
