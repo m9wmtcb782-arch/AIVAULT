@@ -31,3 +31,22 @@ test("rejects malformed PCM",()=>{
  const {ctx}=fakeContext();const player=new PcmAudioPlayer({audioContext:ctx});
  assert.throws(()=>player.enqueue(new Uint8Array([1])),/INVALID_PCM/);
 });
+
+test("highlight is emitted only when playback clock reaches audio start",()=>{
+ const {ctx}=fakeContext(),events=[];
+ const player=new PcmAudioPlayer({audioContext:ctx,onEvent:e=>events.push(e)});
+ player.enqueue(new Uint8Array(4800),{sequence:0,charStart:0,charEnd:3});
+ player.updatePlaybackPosition(1);
+ assert.equal(events.filter(e=>e.type==="playback.highlight").length,0);
+ player.updatePlaybackPosition(1.04);
+ assert.deepEqual(events.filter(e=>e.type==="playback.highlight").map(e=>[e.charStart,e.charEnd]),[[0,3]]);
+ player.updatePlaybackPosition(2);
+ assert.equal(events.filter(e=>e.type==="playback.highlight").length,1);
+});
+test("interrupt discards queued highlight markers",()=>{
+ const {ctx}=fakeContext(),events=[];
+ const player=new PcmAudioPlayer({audioContext:ctx,onEvent:e=>events.push(e)});
+ player.enqueue(new Uint8Array(4800),{charStart:3,charEnd:6});
+ player.interrupt();player.updatePlaybackPosition(10);
+ assert.equal(events.filter(e=>e.type==="playback.highlight").length,0);
+});
