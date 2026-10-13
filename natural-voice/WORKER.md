@@ -26,7 +26,8 @@ To use a CUDA GPU, change ASR_DEVICE and compute type only after checking driver
 
 - `GET /health`: reports whether local ASR is loaded. Does not reveal token.
 - `POST /v1/asr`: authenticated; JSON `{"audio_pcm16_base64":"...","sample_rate":16000,"language":"zh-TW"}`. Returns `{"text":"..."}`.
-- `POST /v1/tts`: authenticated; currently **503 TTS_MODEL_NOT_CONNECTED**. No generated audio is available yet.
+- `POST /v1/tts`: authenticated; returns base64 PCM16 frames if Piper is installed with a compatible 24 kHz voice; otherwise returns 503.
+- `POST /v1/tts/stream`: authenticated; sends NDJSON audio frames clause by clause, then a completion marker. This is **clause-level streaming**, not token-level neural synthesis.
 
 ## Security and production gaps
 
@@ -34,5 +35,18 @@ To use a CUDA GPU, change ASR_DEVICE and compute type only after checking driver
 - Do not put bearer tokens in browser source. Proxy browser calls through an authenticated backend.
 - Current ASR uses a whole-buffer transcription request, **not real streaming ASR**.
 - Request size, concurrency, timeouts, model warm-up, latency and GPU availability must be measured before production.
-- The JavaScript adapter currently collects all returned TTS frames in one JSON response. It is **not** low-latency streaming audio yet.
+- The legacy JavaScript adapter collects full JSON; the isolated mobile test page uses the newer NDJSON streaming endpoint. Actual first-audio latency remains unmeasured.
 - No speech output or Gemini-equivalent quality is claimed.
+
+## Piper local setup (no API calls)
+
+Install a compatible Piper CLI locally and place the voice ONNX and its matching configuration JSON in a private model directory. Choose a voice whose actual output is **24,000 Hz mono PCM16**; the current worker rejects other sample rates rather than incorrectly relabeling audio. Verify the voice license before distribution.
+
+```sh
+export PIPER_EXECUTABLE=/usr/local/bin/piper
+export PIPER_MODEL_PATH=/models/zh-voice.onnx
+# Keep AIVAULT_VOICE_TOKEN configured as above.
+uvicorn worker:app --host 127.0.0.1 --port 8765
+```
+
+The worker now uses Piper's `--output_file` to write a temporary WAV, validates its format, and removes the temporary file after reading. This avoids assuming the CLI writes WAV bytes to standard output. Do not expose the worker directly to the public internet.
