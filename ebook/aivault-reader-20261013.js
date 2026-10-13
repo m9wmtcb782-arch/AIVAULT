@@ -1160,6 +1160,6 @@
   };
   const startId = qs().get("ebook_id");
   const view = qs().get("view");
-  if (startId && view !== "shelf") openBook(startId).then(function(){if(view==="listen"&&window.AIVAULTAudiobook)window.AIVAULTAudiobook.open();});
+  if (startId && view !== "shelf") openBook(startId).then(function(){if(view==="listen"&&window.AIVAULTAudiobook)window.AIVAULTAudiobook.open(true);});
   else showShelf();
 })();

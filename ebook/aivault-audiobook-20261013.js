@@ -169,8 +169,8 @@
     else if(target>=segments.length&&page<bridge.info().total){const ok=await bridge.loadPage(page+1);if(token!==generation)return;if(!ok){error('下一頁載入失敗');return;}loadSegments();target=0;}
     index=Math.max(0,Math.min(Math.max(0,segments.length-1),target));updatePosition();if(running)playSegment();
   }
-  function open(){
-    if(page!==bridge.info().page||book!==bridge.info().id||status==='idle'){const reading=bridge.info().view==='read';cancelPlayback();index=0;status='idle';loadSegments();const saved=savedPosition();if(reading)index=bridge.visibleSegment();else if(saved&&saved.page===page)index=Math.min(saved.index||0,Math.max(0,segments.length-1));}
+  function open(resumePosition){
+    if(page!==bridge.info().page||book!==bridge.info().id||status==='idle'){const reading=bridge.info().view==='read'&&!resumePosition;cancelPlayback();index=0;status='idle';loadSegments();const saved=savedPosition();if(reading)index=bridge.visibleSegment();else if(saved&&saved.page===page)index=Math.min(saved.index||0,Math.max(0,segments.length-1));}
     bridge.listen();refreshVoices();render();
   }
   function read(){bridge.read();syncReader();}
