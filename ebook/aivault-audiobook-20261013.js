@@ -4,6 +4,37 @@
   if(!bridge)return;
   let segments=[], index=0, page=0, book='', status='idle', generation=0, audio=null, audioURL='', request=null, utterance=null, timer=null;
   let voiceChoice=localStorage.getItem('aivault_listen_voice')||'', rate=Number(localStorage.getItem('aivault_listen_rate'))||1;
+  if(!localStorage.getItem('aivault_listen_gemini_v1')){voiceChoice='gemini:Aoede';localStorage.setItem('aivault_listen_voice',voiceChoice);localStorage.setItem('aivault_listen_gemini_v1','1');}
+  let cloudPlayer=null;
+  const audioCache=new Map();
+  function unlockCloudAudio(){if(!cloudPlayer)cloudPlayer=new Audio();if(!audio||!audio.src){cloudPlayer.src="data:audio/wav;base64,UklGRmQBAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YUABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==";cloudPlayer.play().catch(()=>{});}}
+  function clearAudioCache(){audioCache.forEach(entry=>entry.controller.abort());audioCache.clear();}
+  function cloudVoice(){return voiceChoice==='natural'||voiceChoice.startsWith('gemini:');}
+  function getCloudAudio(text){
+    const key=voiceChoice+'|'+text;if(audioCache.has(key))return audioCache.get(key);
+    const controller=new AbortController(), E=window.AIVAULTEbook, gemini=voiceChoice.startsWith('gemini:');
+    const entry={controller,promise:null};
+    entry.promise=fetch((E.SUPABASE_URL||'https://clcddygkaaqqtsbswgdf.supabase.co')+'/functions/v1/'+(gemini?'aivault-tts':'fish-tts'),{
+      method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json',apikey:E.ANON_KEY||'',Authorization:'Bearer '+(E.ANON_KEY||'')},
+      body:JSON.stringify(gemini?{action:'tts',provider:'gemini',text,voice_id:voiceChoice.slice(7),language:'zh-TW',save:false}:{text,reference_id:naturalVoice(),format:'mp3'})
+    }).then(async response=>{
+      if(gemini){
+        const data=await response.json();const result=data.result;
+        if(!response.ok||!data.success||result?.provider!=='gemini'||!result.audio_base64||result.fallback){
+          const message=String(data.message||data.error||'HTTP '+response.status);
+          if(/429/.test(message))throw new Error('Gemini 語音額度或速率已達上限，稍後再試');
+          if(/NOT_CONFIGURED/.test(message))throw new Error('Gemini 語音金鑰尚未設定');
+          throw new Error('Gemini 語音尚未可用：'+message);
+        }
+        const bytes=Uint8Array.from(atob(result.audio_base64),c=>c.charCodeAt(0));return new Blob([bytes],{type:result.mime||'audio/wav'});
+      }
+      if(!response.ok)throw new Error('語音服務 HTTP '+response.status);
+      if(/json/i.test(response.headers.get('content-type')||''))throw new Error('語音服務未回傳音訊');
+      return response.blob();
+    }).then(blob=>{if(blob.size<200)throw new Error('語音內容為空');return blob;}).catch(e=>{if(audioCache.get(key)===entry)audioCache.delete(key);throw e;});
+    audioCache.set(key,entry);if(audioCache.size>8){const first=audioCache.keys().next().value;if(first!==key)audioCache.delete(first);}
+    return entry;
+  }
   function naturalVoice(){return (localStorage.getItem('FISH_VOICE_ID')||'').trim();}
   function preparePaper(paper){
     const walker=document.createTreeWalker(paper,NodeFilter.SHOW_TEXT);const nodes=[];
@@ -40,7 +71,7 @@
     $('listenSegmentLabel').textContent=segments.length?'第 '+(index+1)+' / '+segments.length+' 段':'無文字';
     const running=status==='playing'||status==='loading';$('listenPlay').textContent=running?'Ⅱ':'▶';$('listenPlay').setAttribute('aria-label',running?'暫停聽書':'播放聽書');
     $('listenPrev').disabled=page<=1&&index===0;$('listenNext').disabled=page>=info.total&&index>=segments.length-1;
-    $('listenEngineBadge').textContent=voiceChoice==='natural'?'自然朗讀':'裝置語音';
+    $('listenEngineBadge').textContent=voiceChoice.startsWith('gemini:')?'Gemini 自然朗讀':voiceChoice==='natural'?'自然朗讀':'裝置語音';
     if(status!=='error')$('listenStatus').textContent=({idle:'準備播放',loading:'載入語音…',playing:'正在朗讀',paused:'已暫停',ended:'已讀完'})[status]||'準備播放';
     $('listenPlay').dataset.state=status;
   }
@@ -56,12 +87,13 @@
     if(audioURL){URL.revokeObjectURL(audioURL);audioURL='';}
     utterance=null;try{window.speechSynthesis.cancel();}catch(e){}
   }
-  function stop(){cancelPlayback();status='idle';clearTimeout(timer);timer=null;$('listenTimer').value='0';document.querySelectorAll('.narration-active').forEach(el=>el.classList.remove('narration-active'));render();}
+  function stop(){cancelPlayback();clearAudioCache();status='idle';clearTimeout(timer);timer=null;$('listenTimer').value='0';document.querySelectorAll('.narration-active').forEach(el=>el.classList.remove('narration-active'));render();}
   function error(message){cancelPlayback();status='error';$('listenStatus').textContent=message;render();}
   function voices(){return window.speechSynthesis?window.speechSynthesis.getVoices():[];}
   function refreshVoices(){
     const list=voices(), select=$('listenVoice');select.innerHTML='';
     const add=(value,label)=>{const option=document.createElement('option');option.value=value;option.textContent=label;select.appendChild(option);};
+    [['Aoede','輕柔自然'],['Kore','沉穩清晰'],['Charon','知性敘述'],['Puck','輕快親切'],['Zephyr','明亮有活力']].forEach(v=>add('gemini:'+v[0],'Gemini · '+v[1]+'（'+v[0]+'）'));
     add('','裝置預設中文');
     list.filter(v=>/^zh|^cmn|^yue/i.test(v.lang)).forEach(v=>add(v.voiceURI,v.name+' · '+v.lang));
     if(naturalVoice())add('natural','自然朗讀 · 已設定聲音');
@@ -86,22 +118,17 @@
     const text=spokenText(segments[index]);status='loading';render();
     const started=()=>{if(token!==generation)return;status='playing';updatePosition();};
     const ended=()=>{if(token!==generation||status==='paused')return;status='playing';advance(token);};
-    if(voiceChoice==='natural'){
-      if(!naturalVoice()){error('請先設定自然朗讀聲音。');return;}
-      const E=window.AIVAULTEbook;request=new AbortController();
-      audio=new Audio();audio.preload='auto';audio.playbackRate=rate;
-      fetch(E.SUPABASE_URL?E.SUPABASE_URL+'/functions/v1/fish-tts':'https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/fish-tts',{
-        method:'POST',signal:request.signal,headers:{'Content-Type':'application/json',apikey:E.ANON_KEY||'',Authorization:'Bearer '+(E.ANON_KEY||'')},
-        body:JSON.stringify({text,reference_id:naturalVoice(),format:'mp3'})
-      }).then(async response=>{
-        if(!response.ok)throw new Error('語音服務 HTTP '+response.status);
-        if(/json/i.test(response.headers.get('content-type')||''))throw new Error('語音服務未回傳音訊');
-        const blob=await response.blob();if(blob.size<200)throw new Error('語音內容為空');
+    if(cloudVoice()){
+      if(voiceChoice==='natural'&&!naturalVoice()){error('請先設定自然朗讀聲音。');return;}
+      if(!cloudPlayer)cloudPlayer=new Audio();audio=cloudPlayer;audio.preload='auto';audio.playbackRate=rate;
+      const entry=getCloudAudio(text);request=entry.controller;
+      entry.promise.then(async blob=>{
         if(token!==generation)return;
-        audioURL=URL.createObjectURL(blob);audio.src=audioURL;audio.onplaying=started;audio.onended=ended;
-        audio.onerror=()=>{if(token===generation)error('音訊播放失敗，請再按播放。');};
+        audioURL=URL.createObjectURL(blob);audio.src=audioURL;
+        audio.onplaying=()=>{started();if(token===generation&&index+1<segments.length)getCloudAudio(spokenText(segments[index+1])).promise.catch(()=>{});};
+        audio.onended=ended;audio.onerror=()=>{if(token===generation)error('音訊播放失敗，請再按播放。');};
         await audio.play();
-      }).catch(e=>{if(token===generation&&e.name!=='AbortError')error(e.message+'；請按播放重試或改選裝置語音。');});
+      }).catch(e=>{if(token===generation&&e.name!=='AbortError')error(e.message+'；請按播放重試或更換聲音。');});
     }else{
       if(!window.speechSynthesis){error('此裝置不支援朗讀，請設定自然朗讀聲音。');return;}
       const list=voices(), selected=list.find(v=>v.voiceURI===voiceChoice)||list.find(v=>/^zh-TW$/i.test(v.lang))||list.find(v=>/^zh|^cmn/i.test(v.lang));
@@ -120,7 +147,7 @@
     if(utterance&&window.speechSynthesis.paused){status='playing';render();speechSynthesis.resume();syncReader();return;}
     playSegment();
   }
-  function toggle(){if(status==='playing'||status==='loading')pause();else if(status==='paused')resume();else playSegment();}
+  function toggle(){if(cloudVoice()&&status!=='playing'&&status!=='loading')unlockCloudAudio();if(status==='playing'||status==='loading')pause();else if(status==='paused')resume();else playSegment();}
   async function seek(delta){
     const running=status==='playing'||status==='loading';cancelPlayback();const token=generation;status='paused';
     let target=index+delta;
@@ -137,12 +164,12 @@
   $('listenPrev').onclick=()=>seek(-1);$('listenNext').onclick=()=>seek(1);
   $('listenProgress').onchange=function(){const running=status==='playing'||status==='loading';cancelPlayback();status='paused';index=Number(this.value);updatePosition();if(running)playSegment();};
   $('listenRate').value=String(rate);$('listenRate').onchange=function(){rate=Number(this.value);localStorage.setItem('aivault_listen_rate',String(rate));if(audio)audio.playbackRate=rate;else if(status==='playing')playSegment();else if(status==='paused')cancelPlayback();};
-  $('listenVoice').onchange=function(){const running=status==='playing'||status==='loading';cancelPlayback();status='paused';voiceChoice=this.value;localStorage.setItem('aivault_listen_voice',voiceChoice);render();if(running)playSegment();};
+  $('listenVoice').onchange=function(){const running=status==='playing'||status==='loading';cancelPlayback();clearAudioCache();status='paused';voiceChoice=this.value;localStorage.setItem('aivault_listen_voice',voiceChoice);render();if(running)playSegment();};
   $('listenSaveVoice').onclick=function(){localStorage.setItem('FISH_VOICE_ID',$('listenNaturalVoice').value.trim());refreshVoices();};
   $('listenTimer').onchange=function(){clearTimeout(timer);timer=null;const minutes=Number(this.value);if(minutes)timer=setTimeout(()=>{pause();$('listenTimer').value='0';},minutes*60000);};
   $('listenCoverImg').onerror=function(){this.hidden=true;$('listenCoverArt').hidden=false;};
   if(window.speechSynthesis)window.speechSynthesis.addEventListener('voiceschanged',refreshVoices);
-  window.addEventListener('pagehide',()=>{remember();cancelPlayback();});
+  window.addEventListener('pagehide',()=>{remember();cancelPlayback();clearAudioCache();});
   window.AIVAULTAudiobook={open,read,stop,preparePaper,syncReader};
   if(bridge.paper().textContent.trim()&&!bridge.paper()._narrationSegments)preparePaper(bridge.paper());
   refreshVoices();

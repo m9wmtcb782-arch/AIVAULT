@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+const env=new Map([['GEMINI_API_KEY','test-key']]);globalThis.Deno={env:{get:k=>env.get(k)}};
+const {ttsGemini,wavAudio,bytesBase64}=await import('./gemini.ts');
+const pcm=new Uint8Array([0,0,1,0,255,255]);const pcm64=bytesBase64(pcm);
+const wav=wavAudio(pcm64,'audio/L16;codec=pcm;rate=24000');const bin=Buffer.from(wav.base64,'base64');
+assert.equal(bin.toString('ascii',0,4),'RIFF');assert.equal(bin.readUInt32LE(24),24000);assert.deepEqual(bin.subarray(44),Buffer.from(pcm));assert.equal(wavAudio(wav.base64,'audio/wav').base64,wav.base64);
+let calls=[];globalThis.fetch=async(url,options)=>{assert.ok(!url.includes('test-key'));assert.equal(options.headers['x-goog-api-key'],'test-key');calls.push({url,body:options.body&&JSON.parse(options.body)});return new Response(JSON.stringify(url.includes('/models?')?{models:[{name:'models/gemini-3.1-flash-tts-preview'}]}:{candidates:[{content:{parts:[{inlineData:{mimeType:'audio/L16;codec=pcm;rate=24000',data:pcm64}}]}}]}),{status:200})};
+await ttsGemini('中華人民共和國憲法第一百四十三條。','zh-TW','Aoede');assert.match(calls[1].body.contents[0].parts[0].text,/中華人民共和國憲法第一百四十三條。/);assert.equal(calls[1].body.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName,'Aoede');
+env.set('GEMINI_TTS_MODEL','gemini-3.8-flash-tts');globalThis.fetch=async(url,o)=>{calls.push({url,body:JSON.parse(o.body)});return new Response(JSON.stringify({steps:[{type:'model_output',content:[{type:'audio',data:wav.base64,mime_type:'audio/wav'}]}]}),{status:200})};
+await ttsGemini('保留完整原文。');assert.equal(calls.at(-1).body.input[0].content[0].text,'保留完整原文。');assert.ok(calls.at(-1).body.input[0].content[0].annotations[0].style.includes('conversational'));
+await assert.rejects(()=>ttsGemini('test','zh-TW','invalid'),/INVALID_VOICE/);env.delete('GEMINI_API_KEY');await assert.rejects(()=>ttsGemini('test'),/NOT_CONFIGURED/);
+console.log('PASS: PCM to WAV, WAV passthrough, model discovery, legacy and current Gemini payloads, exact original text, voice validation, missing-key errors. No real provider calls.');
