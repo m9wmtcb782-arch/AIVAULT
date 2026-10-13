@@ -47,7 +47,11 @@ class LocalPiperTTS:
                     if wav.getcomptype() != "NONE":
                         raise ValueError("INVALID_TTS_WAV_FORMAT")
                     original_rate = wav.getframerate()
-                    pcm = wav.readframes(wav.getnframes())
+                    frames = wav.getnframes()
+                    # Reject excessive model output before reading/allocating audio.
+                    if frames <= 0 or frames > original_rate * 60:
+                        raise ValueError("TTS_AUDIO_TOO_LARGE_OR_EMPTY")
+                    pcm = wav.readframes(frames)
             except (wave.Error, EOFError) as exc:
                 raise ValueError("INVALID_TTS_WAV") from exc
         if original_rate != sample_rate:
