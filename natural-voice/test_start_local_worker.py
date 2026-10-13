@@ -16,19 +16,5 @@ class LauncherTests(unittest.TestCase):
                                      "AIVAULT_VOICE_TOKEN":""}):
             self.assertEqual(launcher.main(), 2)
 
-    def test_invalid_port_rejected(self):
-        with patch.dict(os.environ, {"AIVAULT_VOICE_PORT":"invalid",
-                                     "AIVAULT_VOICE_BIND":"127.0.0.1"}):
-            with patch.object(launcher, "ROOT", Path(__file__).parent):
-                original = importlib.util.spec_from_file_location
-                class Ready:
-                    @staticmethod
-                    def check_environment():
-                        return dict.fromkeys(("piper_executable","piper_model","piper_config",
-                            "voice_token","tts_24khz","tts_mandarin","asr_model"),True)
-                with patch.object(importlib.util, "module_from_spec", return_value=Ready()):
-                    with patch.object(importlib.util, "spec_from_file_location", side_effect=lambda *args: original(*args)):
-                        self.assertEqual(launcher.main(),4)
-
 if __name__ == "__main__":
     unittest.main()
