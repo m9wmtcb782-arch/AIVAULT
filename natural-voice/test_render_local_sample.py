@@ -22,16 +22,14 @@ class SampleTests(unittest.TestCase):
             target=pathlib.Path(directory)/"voice.wav"
             class Missing:
                 available=False
-            with patch.object(importlib.util, "module_from_spec") as make:
-                make.return_value.LocalPiperTTS=lambda:Missing()
+            with patch.object(render, "create_engine", return_value=Missing()):
                 self.assertEqual(render.main(["--output",str(target)]),2)
             self.assertFalse(target.exists())
 
     def test_valid_pcm_writes_playable_wave(self):
         with tempfile.TemporaryDirectory() as directory:
             target=pathlib.Path(directory)/"voice.wav"
-            with patch.object(importlib.util, "module_from_spec") as make:
-                make.return_value.LocalPiperTTS=lambda:FakeEngine()
+            with patch.object(render, "create_engine", return_value=FakeEngine()):
                 self.assertEqual(render.main(["--output",str(target)]),0)
             with wave.open(str(target),"rb") as audio:
                 self.assertEqual(audio.getframerate(),24000)
