@@ -17,6 +17,8 @@ class LocalPiperTTS:
         self.executable = executable or os.getenv("PIPER_EXECUTABLE", "piper")
         self.model_path = model_path or os.getenv("PIPER_MODEL_PATH", "")
         self.timeout = float(os.getenv("PIPER_TIMEOUT_SECONDS", "30"))
+        if not math.isfinite(self.timeout) or not 0 < self.timeout <= 300:
+            raise ValueError("INVALID_PIPER_TIMEOUT")
 
     @property
     def available(self):
@@ -25,6 +27,8 @@ class LocalPiperTTS:
     def synthesize(self, text, sample_rate=24000):
         if not self.available:
             raise RuntimeError("TTS_MODEL_UNAVAILABLE")
+        if not isinstance(text, str) or not text.strip() or len(text) > 2000:
+            raise ValueError("INVALID_TTS_TEXT")
         if sample_rate != 24000:
             raise ValueError("UNSUPPORTED_SAMPLE_RATE")
         with tempfile.TemporaryDirectory(prefix="aivault-piper-") as directory:
@@ -39,6 +43,8 @@ class LocalPiperTTS:
             try:
                 with wave.open(str(output_path), "rb") as wav:
                     if wav.getnchannels() != 1 or wav.getsampwidth() != 2:
+                        raise ValueError("INVALID_TTS_WAV_FORMAT")
+                    if wav.getcomptype() != "NONE":
                         raise ValueError("INVALID_TTS_WAV_FORMAT")
                     original_rate = wav.getframerate()
                     pcm = wav.readframes(wav.getnframes())
