@@ -33,7 +33,7 @@ class BenchmarkTests(unittest.TestCase):
     def test_rejects_odd_pcm(self):
         class OddEngine:
             available=True
-            def synthesize(self,text,sample_rate):return b"\\x00"
+            def synthesize(self,text,sample_rate):return bytes([0])
         with self.assertRaisesRegex(RuntimeError,"INVALID_TTS_PCM"):
             benchmark.benchmark(OddEngine())
     def test_limits_repeats(self):
