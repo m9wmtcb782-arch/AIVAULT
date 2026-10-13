@@ -28,3 +28,16 @@ test("rejects malformed worker PCM",async()=>{
  const dispatch=createPrivateVoiceDispatch({baseUrl:"https://voice.example.test",token,fetchImpl:async()=>({ok:true,json:async()=>({frames:["AQ=="]})})});
  await assert.rejects(dispatch(task),/INVALID_VOICE_PCM/);
 });
+
+test("rejects oversized worker output before base64 decoding",async()=>{
+ const dispatch=createPrivateVoiceDispatch({baseUrl:"https://voice.example.test",token,fetchImpl:async()=>({
+  ok:true,json:async()=>({frames:Array(1201).fill("AQI=")})
+ })});
+ await assert.rejects(dispatch(task),/VOICE_AUDIO_TOO_LARGE/);
+});
+test("rejects worker frame total larger than one-minute PCM cap",async()=>{
+ const dispatch=createPrivateVoiceDispatch({baseUrl:"https://voice.example.test",token,fetchImpl:async()=>({
+  ok:true,json:async()=>({frames:["AQID".repeat(960001)]})
+ })});
+ await assert.rejects(dispatch(task),/VOICE_AUDIO_TOO_LARGE/);
+});
