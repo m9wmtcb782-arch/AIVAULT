@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { ttsGemini, geminiConfigured } from "./gemini.ts";
+import { ttsGemini, geminiConfigured, GeminiQuotaError } from "./gemini.ts";
 
 /**
  * AIVAULT TTS v1.0
@@ -8,7 +8,7 @@ import { ttsGemini, geminiConfigured } from "./gemini.ts";
  * If no TTS provider is configured, returns browser fallback.
  */
 
-const VERSION = "aivault-tts-v1.2-gemini";
+const VERSION = "aivault-tts-v1.3-quota";
 const SERVICE = "AIVAULT_TTS";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -249,6 +249,7 @@ Deno.serve(async (req) => {
       security: { api_keys_exposed: false },
     });
   } catch (error) {
+    if(error instanceof GeminiQuotaError)return json({success:false,error:"GEMINI_TTS_QUOTA",message:error.message,quota_kind:error.quota_kind,retry_after_seconds:error.retry_after_seconds,requests_per_minute:error.requests_per_minute,result:{fallback:null}},429);
     const message = error instanceof Error ? error.message : String(error);
     return json({
       success: false,

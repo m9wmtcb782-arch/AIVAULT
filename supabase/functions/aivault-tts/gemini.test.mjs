@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 const env=new Map([['GEMINI_API_KEY','test-key']]);globalThis.Deno={env:{get:k=>env.get(k)}};
-const {ttsGemini,wavAudio,bytesBase64}=await import('./gemini.ts');
+const {ttsGemini,wavAudio,bytesBase64,parseGeminiQuota}=await import('./gemini.ts');
 const pcm=new Uint8Array([0,0,1,0,255,255]);const pcm64=bytesBase64(pcm);
 const wav=wavAudio(pcm64,'audio/L16;codec=pcm;rate=24000');const bin=Buffer.from(wav.base64,'base64');
 assert.equal(bin.toString('ascii',0,4),'RIFF');assert.equal(bin.readUInt32LE(24),24000);assert.deepEqual(bin.subarray(44),Buffer.from(pcm));assert.equal(wavAudio(wav.base64,'audio/wav').base64,wav.base64);
@@ -10,3 +10,5 @@ env.set('GEMINI_TTS_MODEL','gemini-3.8-flash-tts');globalThis.fetch=async(url,o)
 await ttsGemini('保留完整原文。');assert.equal(calls.at(-1).body.input[0].content[0].text,'保留完整原文。');assert.ok(calls.at(-1).body.input[0].content[0].annotations[0].style.includes('conversational'));
 await assert.rejects(()=>ttsGemini('test','zh-TW','invalid'),/INVALID_VOICE/);env.delete('GEMINI_API_KEY');await assert.rejects(()=>ttsGemini('test'),/NOT_CONFIGURED/);
 console.log('PASS: PCM to WAV, WAV passthrough, model discovery, legacy and current Gemini payloads, exact original text, voice validation, missing-key errors. No real provider calls.');
+
+const rateQuota=parseGeminiQuota({error:{details:[{violations:[{quotaId:"GenerateRequestsPerMinutePerProjectPerModel-FreeTier",quotaValue:"3"}]},{retryDelay:"25.2s"}]}});assert.equal(rateQuota.quota_kind,"rate");assert.equal(rateQuota.retry_after_seconds,26);assert.equal(rateQuota.requests_per_minute,3);assert.equal(parseGeminiQuota({error:{details:[{violations:[{quotaId:"GenerateRequestsPerDay",quotaValue:"10"}]}]}}).quota_kind,"daily");assert.equal(parseGeminiQuota({error:{details:[{violations:[{quotaId:"GenerateRequestsPerDay",quotaValue:"0"}]}]}}).quota_kind,"disabled");console.log("PASS: minute cooldown, daily exhaustion, unavailable quota classifications");

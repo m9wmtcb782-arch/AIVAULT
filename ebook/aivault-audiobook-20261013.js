@@ -8,32 +8,46 @@
   let cloudPlayer=null;
   const audioCache=new Map();
   function unlockCloudAudio(){if(!cloudPlayer)cloudPlayer=new Audio();if(!audio||!audio.src){cloudPlayer.src="data:audio/wav;base64,UklGRmQBAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YUABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==";cloudPlayer.play().catch(()=>{});}}
-  function clearAudioCache(){audioCache.forEach(entry=>entry.controller.abort());audioCache.clear();}
+  let geminiQueue=Promise.resolve(), nextGeminiAt=0, intervalMs=0, loadingNote='';
+  function clearAudioCache(){audioCache.forEach((entry,key)=>{if(!entry.done){entry.controller.abort();audioCache.delete(key);}});}
   function cloudVoice(){return voiceChoice==='natural'||voiceChoice.startsWith('gemini:');}
-  function getCloudAudio(text){
-    const key=voiceChoice+'|'+text;if(audioCache.has(key))return audioCache.get(key);
-    const controller=new AbortController(), E=window.AIVAULTEbook, gemini=voiceChoice.startsWith('gemini:');
-    const entry={controller,promise:null};
-    entry.promise=fetch((E.SUPABASE_URL||'https://clcddygkaaqqtsbswgdf.supabase.co')+'/functions/v1/'+(gemini?'aivault-tts':'fish-tts'),{
-      method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json',apikey:E.ANON_KEY||'',Authorization:'Bearer '+(E.ANON_KEY||'')},
-      body:JSON.stringify(gemini?{action:'tts',provider:'gemini',text,voice_id:voiceChoice.slice(7),language:'zh-TW',save:false}:{text,reference_id:naturalVoice(),format:'mp3'})
-    }).then(async response=>{
-      if(gemini){
-        const data=await response.json();const result=data.result;
-        if(!response.ok||!data.success||result?.provider!=='gemini'||!result.audio_base64||result.fallback){
-          const message=String(data.message||data.error||'HTTP '+response.status);
-          if(/429/.test(message))throw new Error('Gemini 語音額度或速率已達上限，稍後再試');
-          if(/NOT_CONFIGURED/.test(message))throw new Error('Gemini 語音金鑰尚未設定');
-          throw new Error('Gemini 語音尚未可用：'+message);
-        }
-        const bytes=Uint8Array.from(atob(result.audio_base64),c=>c.charCodeAt(0));return new Blob([bytes],{type:result.mime||'audio/wav'});
+  function delay(ms,signal){return new Promise((resolve,reject)=>{if(signal.aborted){reject(new DOMException('Aborted','AbortError'));return;}const aborted=()=>{clearTimeout(id);reject(new DOMException('Aborted','AbortError'));};const id=setTimeout(()=>{signal.removeEventListener('abort',aborted);resolve();},Math.max(0,ms));signal.addEventListener('abort',aborted,{once:true});});}
+  let cacheDB=null;
+  function openAudioDB(){if(!window.indexedDB)return Promise.resolve(null);if(cacheDB)return cacheDB;cacheDB=new Promise(resolve=>{const req=window.indexedDB.open('aivault-narration-cache',1);req.onupgradeneeded=()=>req.result.createObjectStore('clips',{keyPath:'id'});req.onsuccess=()=>resolve(req.result);req.onerror=req.onblocked=()=>resolve(null);});return cacheDB;}
+  async function savedAudio(key){try{const db=await openAudioDB();if(!db)return null;return await new Promise(resolve=>{const req=db.transaction('clips').objectStore('clips').get(key);req.onsuccess=()=>resolve(req.result?.blob||null);req.onerror=()=>resolve(null);});}catch(e){return null;}}
+  async function saveAudio(key,blob){try{const db=await openAudioDB();if(!db)return;const tx=db.transaction('clips','readwrite'), store=tx.objectStore('clips');store.put({id:key,blob,at:Date.now()});const all=store.getAll();all.onsuccess=()=>{const rows=all.result.sort((a,b)=>b.at-a.at);let total=0;rows.forEach((r,i)=>{total+=r.blob.size;if(i>=32||total>33554432)store.delete(r.id);});};}catch(e){}}
+  async function geminiResponse(text,choice,controller){
+    const E=window.AIVAULTEbook;
+    for(let attempt=0;attempt<3;attempt++){
+      const wait=nextGeminiAt-Date.now();if(wait>0){if(request===controller&&status==='loading'){loadingNote='Gemini 暫時限流，約 '+Math.ceil(wait/1000)+' 秒後自動續播';render();}await delay(wait,controller.signal);}
+      if(controller.signal.aborted)throw new DOMException('Aborted','AbortError');
+      nextGeminiAt=Date.now()+intervalMs;
+      const response=await fetch((E.SUPABASE_URL||'https://clcddygkaaqqtsbswgdf.supabase.co')+'/functions/v1/aivault-tts',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json',apikey:E.ANON_KEY||'',Authorization:'Bearer '+(E.ANON_KEY||'')},body:JSON.stringify({action:'tts',provider:'gemini',text,voice_id:choice.slice(7),language:'zh-TW',save:false})});
+      const data=await response.json(),result=data.result;
+      if(response.status===429||/429|GEMINI_TTS_QUOTA/.test(String(data.message||data.error||''))){
+        if(data.quota_kind==='daily')throw new Error('Gemini 今日語音額度已用完，需等額度重置；更換音色無法增加額度');
+        if(data.quota_kind==='disabled')throw new Error('目前 Gemini 專案沒有這個語音模型的可用配額');
+        const seconds=Math.max(1,Number(data.retry_after_seconds)||60);intervalMs=Math.max(intervalMs,data.requests_per_minute?Math.ceil(60000/Number(data.requests_per_minute))+1000:21000);nextGeminiAt=Date.now()+seconds*1000;
+        if(attempt===2)throw new Error('Gemini 仍在限制請求，已保留閱讀位置；稍後再按播放');
+        continue;
       }
-      if(!response.ok)throw new Error('語音服務 HTTP '+response.status);
-      if(/json/i.test(response.headers.get('content-type')||''))throw new Error('語音服務未回傳音訊');
-      return response.blob();
-    }).then(blob=>{if(blob.size<200)throw new Error('語音內容為空');return blob;}).catch(e=>{if(audioCache.get(key)===entry)audioCache.delete(key);throw e;});
-    audioCache.set(key,entry);if(audioCache.size>8){const first=audioCache.keys().next().value;if(first!==key)audioCache.delete(first);}
-    return entry;
+      if(!response.ok||!data.success||result?.provider!=='gemini'||!result.audio_base64||result.fallback){const message=String(data.message||data.error||'HTTP '+response.status);if(/NOT_CONFIGURED/.test(message))throw new Error('Gemini 語音金鑰尚未設定');throw new Error('Gemini 語音尚未可用：'+message);}
+      loadingNote='';const bytes=Uint8Array.from(atob(result.audio_base64),c=>c.charCodeAt(0));return new Blob([bytes],{type:result.mime||'audio/wav'});
+    }
+  }
+  function getCloudAudio(text){
+    const choice=voiceChoice,key='tts-v1|'+choice+'|'+text,cached=audioCache.get(key);
+    if(cached&&(!cached.controller.signal.aborted||cached.done))return cached;
+    const controller=new AbortController(), E=window.AIVAULTEbook,gemini=choice.startsWith('gemini:'),entry={controller,promise:null,done:false};
+    const task=async()=>{
+      const saved=await savedAudio(key);if(saved)return saved;
+      if(gemini)return geminiResponse(text,choice,controller);
+      const response=await fetch((E.SUPABASE_URL||'https://clcddygkaaqqtsbswgdf.supabase.co')+'/functions/v1/fish-tts',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json',apikey:E.ANON_KEY||'',Authorization:'Bearer '+(E.ANON_KEY||'')},body:JSON.stringify({text,reference_id:naturalVoice(),format:'mp3'})});
+      if(!response.ok)throw new Error('語音服務 HTTP '+response.status);if(/json/i.test(response.headers.get('content-type')||''))throw new Error('語音服務未回傳音訊');return response.blob();
+    };
+    entry.promise=(gemini?geminiQueue.then(task):task()).then(blob=>{if(!blob||blob.size<200)throw new Error('語音內容為空');entry.done=true;saveAudio(key,blob);return blob;}).catch(e=>{if(audioCache.get(key)===entry)audioCache.delete(key);throw e;});
+    if(gemini)geminiQueue=entry.promise.catch(()=>{});
+    audioCache.set(key,entry);if(audioCache.size>8){const first=audioCache.keys().next().value;if(first!==key)audioCache.delete(first);}return entry;
   }
   function naturalVoice(){return (localStorage.getItem('FISH_VOICE_ID')||'').trim();}
   function preparePaper(paper){
@@ -72,7 +86,7 @@
     const running=status==='playing'||status==='loading';$('listenPlay').textContent=running?'Ⅱ':'▶';$('listenPlay').setAttribute('aria-label',running?'暫停聽書':'播放聽書');
     $('listenPrev').disabled=page<=1&&index===0;$('listenNext').disabled=page>=info.total&&index>=segments.length-1;
     $('listenEngineBadge').textContent=voiceChoice.startsWith('gemini:')?'Gemini 自然朗讀':voiceChoice==='natural'?'自然朗讀':'裝置語音';
-    if(status!=='error')$('listenStatus').textContent=({idle:'準備播放',loading:'載入語音…',playing:'正在朗讀',paused:'已暫停',ended:'已讀完'})[status]||'準備播放';
+    if(status!=='error')$('listenStatus').textContent=({idle:'準備播放',loading:loadingNote||'載入語音…',playing:'正在朗讀',paused:'已暫停',ended:'已讀完'})[status]||'準備播放';
     $('listenPlay').dataset.state=status;
   }
   function syncReader(){
@@ -115,7 +129,7 @@
     cancelPlayback();const token=generation;
     loadSegments();remember();
     if(!segments.length){status='playing';render();advance(token);return;}
-    const text=spokenText(segments[index]);status='loading';render();
+    const text=spokenText(segments[index]);loadingNote='';status='loading';render();
     const started=()=>{if(token!==generation)return;status='playing';updatePosition();};
     const ended=()=>{if(token!==generation||status==='paused')return;status='playing';advance(token);};
     if(cloudVoice()){
@@ -125,10 +139,10 @@
       entry.promise.then(async blob=>{
         if(token!==generation)return;
         audioURL=URL.createObjectURL(blob);audio.src=audioURL;
-        audio.onplaying=()=>{started();if(token===generation&&index+1<segments.length)getCloudAudio(spokenText(segments[index+1])).promise.catch(()=>{});};
+        audio.onplaying=()=>{started();if(token===generation&&!voiceChoice.startsWith('gemini:')&&index+1<segments.length)getCloudAudio(spokenText(segments[index+1])).promise.catch(()=>{});};
         audio.onended=ended;audio.onerror=()=>{if(token===generation)error('音訊播放失敗，請再按播放。');};
         await audio.play();
-      }).catch(e=>{if(token===generation&&e.name!=='AbortError')error(e.message+'；請按播放重試或更換聲音。');});
+      }).catch(e=>{if(token===generation&&e.name!=='AbortError')error(e.message);});
     }else{
       if(!window.speechSynthesis){error('此裝置不支援朗讀，請設定自然朗讀聲音。');return;}
       const list=voices(), selected=list.find(v=>v.voiceURI===voiceChoice)||list.find(v=>/^zh-TW$/i.test(v.lang))||list.find(v=>/^zh|^cmn/i.test(v.lang));

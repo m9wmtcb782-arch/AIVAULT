@@ -3,6 +3,22 @@ const VOICES = new Set("Zephyr Puck Charon Kore Fenrir Leda Orus Aoede Callirrho
 let modelCache: { key: string; model: string; expires: number } | null = null;
 function apiKey(): string { return Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY") || ""; }
 export function geminiConfigured(): boolean { return !!apiKey(); }
+export class GeminiQuotaError extends Error {
+  quota_kind: string; retry_after_seconds: number; requests_per_minute: number | null;
+  constructor(kind: string, seconds: number, rpm: number | null) {super("GEMINI_TTS_QUOTA_"+kind.toUpperCase());this.quota_kind=kind;this.retry_after_seconds=seconds;this.requests_per_minute=rpm;}
+}
+export function parseGeminiQuota(data: any): GeminiQuotaError {
+  const details=data?.error?.details||[];
+  const violations=details.flatMap((d:any)=>Array.isArray(d.violations)?d.violations:[]);
+  const ids=violations.map((v:any)=>String(v.quotaId||v.quotaMetric||""));
+  const disabled=violations.some((v:any)=>v.quotaValue!==undefined&&Number(v.quotaValue)===0);
+  const kind=disabled?"disabled":ids.some((id:string)=>/PerDay|daily|per_day/i.test(id))?"daily":"rate";
+  const retry=details.find((d:any)=>d.retryDelay)?.retryDelay;
+  const seconds=Math.max(1,Math.min(3600,Math.ceil(parseFloat(String(retry||"60"))||60)));
+  const minute=violations.find((v:any)=>/RequestsPerMinute/i.test(v.quotaId||""));
+  const rpm=minute&&Number(minute.quotaValue)>0?Number(minute.quotaValue):null;
+  return new GeminiQuotaError(kind,seconds,rpm);
+}
 async function googleFetch(path: string, key: string, body?: unknown): Promise<any> {
   const init = {
     method: body ? "POST" : "GET",
@@ -11,6 +27,7 @@ async function googleFetch(path: string, key: string, body?: unknown): Promise<a
   };
   let response = await fetch(API + path, { ...init, signal: AbortSignal.timeout(60000) });
   if(response.status===503){await new Promise(resolve=>setTimeout(resolve,800));response=await fetch(API+path,{...init,signal:AbortSignal.timeout(60000)});}
+  if(response.status===429){const problem=parseGeminiQuota(await response.json().catch(()=>({})));console.warn(JSON.stringify({event:"gemini_tts_quota",kind:problem.quota_kind,retry_after_seconds:problem.retry_after_seconds,rpm:problem.requests_per_minute}));throw problem;}
   if (!response.ok) throw new Error(`GEMINI_TTS_HTTP_${response.status}`);
   return await response.json();
 }
