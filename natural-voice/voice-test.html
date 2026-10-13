@@ -46,7 +46,8 @@ record.onclick=async()=>{
   processor.onaudioprocess=e=>buffers.push(new Float32Array(e.inputBuffer.getChannelData(0)));
   source.connect(processor);processor.connect(silent);silent.connect(capture.destination);
   show("錄音中（4 秒）…");
-  await delay(4000);
+  stop.disabled=false;
+  await Promise.race([delay(4000),new Promise(resolve=>controller.signal.addEventListener("abort",resolve,{once:true}))]);
   processor.disconnect();source.disconnect();silent.disconnect();stream.getTracks().forEach(t=>t.stop());stream=null;
   if(controller.signal.aborted)throw new DOMException("Cancelled","AbortError");
   const total=buffers.reduce((n,b)=>n+b.length,0),joined=new Float32Array(total);
@@ -67,6 +68,8 @@ record.onclick=async()=>{
  }finally{
   if(stream)stream.getTracks().forEach(t=>t.stop());
   if(source)try{source.disconnect()}catch{}
+  if(capture&&capture.state!=="closed")try{await capture.close()}catch{}
+  stop.disabled=true;
   record.disabled=false;
  }
 };
