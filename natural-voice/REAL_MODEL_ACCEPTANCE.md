@@ -12,7 +12,7 @@ This is an isolated self-hosted test. No Gemini/Grok/Kling requests, no model do
 
 ## Host readiness (no downloads or API calls)
 
-Run `python host-readiness.py --output voice-readiness.json` on the actual inference machine. It reports which local prerequisites are missing and returns a nonzero exit code until they are satisfied. Do not commit the generated report if it contains private host paths. A readiness pass only verifies prerequisites, not inference or voice quality.
+For the **first audible Mandarin sample**, run `python host-readiness.py --tts-only --output voice-readiness.json` on the actual inference machine. This checks the TTS prerequisites without requiring an ASR model. Before testing microphone-to-speech end-to-end, run `python host-readiness.py` without `--tts-only` to require both ASR and TTS. It reports which local prerequisites are missing and returns a nonzero exit code until they are satisfied. Do not commit the generated report if it contains private host paths. A readiness pass only verifies prerequisites, not inference or voice quality.
 
 ## Validation sequence
 
