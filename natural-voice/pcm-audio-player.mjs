@@ -7,7 +7,7 @@ export class PcmAudioPlayer {
   if(!audioContext?.createBuffer||!audioContext?.createBufferSource||!audioContext?.destination) throw new Error("AUDIO_CONTEXT_REQUIRED");
   if(!Number.isFinite(maxQueuedSeconds)||maxQueuedSeconds<=0) throw new Error("INVALID_QUEUE_LIMIT");
   this.context=audioContext;this.onEvent=onEvent;this.sampleRate=sampleRate;
-  this.maxQueuedSeconds=maxQueuedSeconds;this.nextTime=0;this.sources=new Set();this.generation=0;this.pendingHighlights=[];
+  this.maxQueuedSeconds=maxQueuedSeconds;this.nextTime=0;this.sources=new Set();this.generation=0;this.pendingHighlights=[];this.highlightTimer=null;
  }
  async resume(){if(this.context.state==="suspended")await this.context.resume();}
  enqueue(pcm,{generation=this.generation,sequence=0,charStart=null,charEnd=null}={}) {
@@ -30,9 +30,18 @@ export class PcmAudioPlayer {
    const previous=this.pendingHighlights[this.pendingHighlights.length-1];
    if(!previous||previous.charStart!==charStart||previous.charEnd!==charEnd||previous.generation!==generation)
     this.pendingHighlights.push({start,end:this.nextTime,charStart,charEnd,generation,sequence});
+   this.startHighlightClock();
   }
   this.onEvent({type:"playback.scheduled",generation,sequence,start,duration:frames/this.sampleRate});
   return true;
+ }
+ /** Poll the audio clock while a highlighted clause is queued, without scheduling a second audio stream. */
+ startHighlightClock(){
+  if(this.highlightTimer!==null||typeof setInterval!=="function")return;
+  this.highlightTimer=setInterval(()=>this.updatePlaybackPosition(),25);
+ }
+ stopHighlightClock(){
+  if(this.highlightTimer!==null){clearInterval(this.highlightTimer);this.highlightTimer=null;}
  }
  /** Emit a highlight only after the audio clock has reached its actual start time. */
  updatePlaybackPosition(now=this.context.currentTime){
@@ -41,11 +50,12 @@ export class PcmAudioPlayer {
    const item=this.pendingHighlights.shift();
    if(item.generation===this.generation)this.onEvent({type:"playback.highlight",generation:item.generation,sequence:item.sequence,charStart:item.charStart,charEnd:item.charEnd});
   }
+  if(!this.pendingHighlights.length)this.stopHighlightClock();
  }
  interrupt() {
   this.generation++;
   for(const source of this.sources){source.onended=null;try{source.stop();}catch{}try{source.disconnect();}catch{}}
-  this.sources.clear();this.nextTime=0;this.pendingHighlights=[];
+  this.sources.clear();this.nextTime=0;this.pendingHighlights=[];this.stopHighlightClock();
   this.onEvent({type:"playback.cleared",generation:this.generation});
   return this.generation;
  }
