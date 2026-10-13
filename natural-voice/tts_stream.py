@@ -16,6 +16,8 @@ def clauses(text, max_chars=120):
 
 def audio_events(text, synthesize, sample_rate=24000, frame_bytes=4800):
     """Yield NDJSON event lines as soon as each clause is synthesized."""
+    if not isinstance(frame_bytes,int) or frame_bytes<2 or frame_bytes%2:
+        raise ValueError("INVALID_FRAME_BYTES")
     sequence=0
     try:
         for clause in clauses(text):
