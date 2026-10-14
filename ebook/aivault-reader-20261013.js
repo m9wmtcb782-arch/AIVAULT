@@ -101,7 +101,8 @@
       '<div class="prog"><i style="width:' + Math.round((prog || 0) * 100) + '%"></i></div>' +
       "<p>閱讀進度 " + Math.round((prog || 0) * 100) + "%</p>" +
       "<p>" + E.esc(last) + "</p>" +
-      "<p>" + (E.isFav(id) ? "⭐ 已收藏" : "") + "</p></div></article>"
+      "<p>" + (E.isFav(id) ? "⭐ 已收藏" : "") + "</p>" +
+      '<button type="button" class="ib shelf-delete" data-delete-book="' + E.esc(id) + '" style="margin-top:8px;position:relative;z-index:2;color:#a52727" aria-label="刪除書籍：' + E.esc(title) + '">🗑 刪除書籍</button></div></article>'
     );
   }
 
@@ -265,6 +266,33 @@
       return;
     }
     $("shelfGrid").innerHTML = books.map(cardHtml).join("");
+    $("shelfGrid").querySelectorAll("[data-delete-book]").forEach(function (btn) {
+      btn.onclick = async function (event) {
+        event.stopPropagation();
+        const id = btn.getAttribute("data-delete-book");
+        const book = state.shelfBooks.find(function (b) { return String(b.id || b.ebook_id) === id; });
+        if (!book) return;
+        const remote = book.source === "remote";
+        const warning = remote
+          ? "確定永久刪除《" + book.title + "》？這會刪除伺服器上的電子書，其他裝置也將無法閱讀。此操作無法復原。"
+          : "確定刪除本機《" + book.title + "》？書頁、書籤、筆記和閱讀進度也會刪除。此操作無法復原。";
+        if (!confirm(warning)) return;
+        btn.disabled = true;
+        try {
+          if (remote) {
+            await E.deleteRemoteBook(id);
+            E.removeFromShelf(id);
+          } else {
+            await E.deleteLocalBook(id);
+          }
+          toast("已刪除《" + book.title + "》");
+          await renderShelf();
+        } catch (error) {
+          toast("刪除失敗：" + (error.message || error));
+          btn.disabled = false;
+        }
+      };
+    });
     $("shelfGrid").querySelectorAll("[data-open]").forEach(function (el) {
       el.onclick = function () {
         const url = el.getAttribute("data-url");
