@@ -17,7 +17,7 @@
       "#dsLiveCam{position:fixed;right:214px;top:72px;width:160px;height:120px;z-index:81;border-radius:14px;overflow:hidden;background:#111;box-shadow:0 10px 28px rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.4)}" +
       "#dsLiveCam[hidden]{display:none}#dsLiveCam video{width:100%;height:100%;object-fit:cover;display:block}#dsLiveCam video.mirror{transform:scaleX(-1)}" +
       "#dsLiveRotate{position:absolute;right:6px;bottom:6px;width:30px;height:30px;border-radius:50%;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:17px;line-height:30px;padding:0;cursor:pointer}" +
-      "#dsLiveCamState{position:absolute;left:6px;top:6px;padding:2px 6px;border-radius:99px;background:rgba(0,0,0,.5);color:#fff;font-size:10px}" +
+      "#dsLiveCamState{position:absolute;left:4px;right:4px;top:4px;padding:2px 6px;border-radius:8px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;line-height:1.35;word-break:break-all;max-height:60%;overflow:hidden}" +
       "@media(max-width:700px){#dsLiveCam{right:9px;top:64px;width:112px;height:150px}}";
     d.head.appendChild(s);
   }
@@ -54,7 +54,7 @@
   // 1) 在使用者點擊（手勢）當下就建立並 resume（iOS Safari 只有手勢內才能啟動聲音）
   // 2) 原本的輸出路徑完全不動（source → destination），另外「分接」一份給 AnalyserNode 做對嘴，
   //    分析器不接任何輸出，不會搶走聲音
-  var primed = null;
+  var primed = null, primedIn = null, inCtx = null;
   function Base() { return w.AudioContext || w.webkitAudioContext; }
   function tapContext(ctx) {
     if (ctx.__dsTapped) return ctx;
@@ -76,6 +76,9 @@
     try {
       var B = Base(); if (!B) return;
       if (!primed || primed.state === "closed") primed = tapContext(new B());
+      // 麥克風輸入用的 16kHz context 也必須在手勢內建立並啟動，否則 iOS 會一直暫停 → 麥克風聲音送不出去
+      if (!primedIn || primedIn.state === "closed") { try { primedIn = new B({ sampleRate: 16000 }); } catch (e) { primedIn = null; console.warn("[DarkStar live] 16k ctx", e); } }
+      if (primedIn && primedIn.state !== "running") primedIn.resume().catch(function () {});
       if (primed.state !== "running") primed.resume().catch(function () {});
       // iOS 解鎖：在手勢內播放一段極短的無聲音訊
       var buf = primed.createBuffer(1, 1, 22050), s = primed.createBufferSource();
@@ -85,7 +88,10 @@
   function makeAudioContext() {
     return function Ctx(opts) {
       var B = Base();
-      if (opts) return new B(opts); // 麥克風輸入用（16kHz），維持原樣
+      if (opts) { // 麥克風輸入用（16kHz）：優先使用手勢內已啟動的 context
+        var ic = primedIn && primedIn.state !== "closed" ? primedIn : new B(opts);
+        primedIn = null; inCtx = ic; return ic;
+      }
       var ctx = primed && primed.state !== "closed" ? primed : tapContext(new B());
       primed = null;
       return ctx;
@@ -93,9 +99,54 @@
   }
   function resumeIfNeeded() {
     // session 內部的播放 context 透過 analyser.context 取得
+    if (inCtx && inCtx.state !== "running") inCtx.resume().catch(function () {});
     var ctx = analyser && analyser.context;
     if (ctx && ctx.state !== "running") { ctx.resume().catch(function () {}); return false; }
     return true;
+  }
+  // ---- 狀態列 ----
+  var st = { open: false, mic: 0, audioIn: 0, err: "" };
+  function line(t) { camState(t); }
+  function refreshLine() {
+    if (st.err) return line("錯誤：" + st.err);
+    if (!st.open) return line("連線中…");
+    var talking = analyser && lastLevel > 0.03;
+    if (talking) return line("🗣️ 暗星說話中");
+    var micOk = st.mic > 0 ? "麥克風 ✓" : (inCtx && inCtx.state !== "running" ? "麥克風暫停（點小視窗）" : "麥克風等待中");
+    line("🟢 已連線・" + micOk + (st.audioIn ? "・已收到語音" : ""));
+  }
+  var lastLevel = 0, lineTimer = 0;
+  function makeWebSocket() {
+    var WS = w.WebSocket;
+    function DsWS(url, protocols) {
+      try { // 與頁面抽屜的即時語音一致：指定模型
+        var u = new URL(url); if (!u.searchParams.get("model")) u.searchParams.set("model", "gemini-3.1-flash"); url = u.toString();
+      } catch (e) {}
+      var sock = protocols ? new WS(url, protocols) : new WS(url);
+      sock.addEventListener("open", function () { st.open = true; st.err = ""; refreshLine(); });
+      sock.addEventListener("message", function (ev) {
+        if (typeof ev.data !== "string") { st.audioIn++; return; }
+        try {
+          var m = JSON.parse(ev.data), er = m && (m.error && (m.error.message || m.error) || (m.type === "error" && m.message));
+          if (er) {
+            er = String(er); st.err = /AUTH/i.test(er) ? er + "（請先登入 AIVAULT）" : er;
+            console.error("[DarkStar live] server error", er); refreshLine();
+          }
+          if (/audio/.test(ev.data) && /inlineData|"audio"/.test(ev.data)) st.audioIn++;
+        } catch (e) {}
+      });
+      sock.addEventListener("close", function (ev) {
+        st.open = false;
+        if (connected && !st.err) st.err = "連線中斷（" + ev.code + (ev.reason ? "：" + ev.reason : "") + "）";
+        console.warn("[DarkStar live] ws close", ev.code, ev.reason); refreshLine();
+      });
+      sock.addEventListener("error", function () { console.error("[DarkStar live] ws error"); });
+      var send = sock.send.bind(sock);
+      sock.send = function (data) { if (typeof data === "string" && data.indexOf('"type":"audio"') > 0) st.mic++; return send(data); };
+      return sock;
+    }
+    DsWS.CONNECTING = 0; DsWS.OPEN = 1; DsWS.CLOSING = 2; DsWS.CLOSED = 3;
+    return DsWS;
   }
   function load() {
     if (api) return Promise.resolve(api);
@@ -107,12 +158,12 @@
     }).then(function (src) {
       var fakeDoc = { getElementById: el, body: hidden, createElement: d.createElement.bind(d) };
       var fakeWin = {};
-      var factory = new Function("document", "window", "AudioContext", "localStorage", "location",
+      var factory = new Function("document", "window", "AudioContext", "localStorage", "location", "WebSocket",
         src + "\n;return {start:start,stop:stop,switchCamera:switchCamera,sendTextToLive:sendTextToLive,facing:function(){return facing},isOpen:function(){return !!(ws&&ws.readyState===1)}};");
-      api = factory(fakeDoc, fakeWin, makeAudioContext(), w.localStorage, w.location);
+      api = factory(fakeDoc, fakeWin, makeAudioContext(), w.localStorage, w.location, makeWebSocket());
       // 監看逐字稿與狀態
       new MutationObserver(onTranscript).observe(el("chat"), { childList: true, subtree: true, characterData: true });
-      new MutationObserver(function () { var t = el("status").textContent || ""; camState(t.replace(/^[^\s]+\s/, "").slice(0, 14) || "已連線"); }).observe(el("status"), { childList: true, characterData: true, subtree: true });
+      new MutationObserver(function () { var t = el("status").textContent || ""; if (/^🔴/.test(t)) { st.err = t.replace(/^🔴\s*/, ""); if (/AUTH/i.test(st.err)) st.err += "（請先登入 AIVAULT）"; refreshLine(); } }).observe(el("status"), { childList: true, characterData: true, subtree: true });
       return api;
     });
     loading.catch(function () { loading = null; });
@@ -130,7 +181,7 @@
       if (!buf || buf.length !== analyser.fftSize) buf = new Float32Array(analyser.fftSize);
       analyser.getFloatTimeDomainData(buf);
       var s = 0; for (var i = 0; i < buf.length; i++) s += buf[i] * buf[i];
-      A.speak(Math.min(1, Math.sqrt(s / buf.length) * 5));
+      lastLevel = Math.min(1, Math.sqrt(s / buf.length) * 5); A.speak(lastLevel);
     })();
   }
 
@@ -172,23 +223,28 @@
     if (b) { b.disabled = true; b.textContent = "⏳ 連線中…"; }
     try {
       await load();
-      box.hidden = false; camState("連線中…");
+      st = { open: false, mic: 0, audioIn: 0, err: "" };
+      box.hidden = false; line("連線中…");
+      clearInterval(lineTimer); lineTimer = setInterval(refreshLine, 500);
+      var hasLogin = false; try { hasLogin = !!w.localStorage.getItem("sb-clcddygkaaqqtsbswgdf-auth-token"); } catch (e) {}
+      if (!hasLogin) console.warn("[DarkStar live] 找不到登入資料（sb-…-auth-token）");
       await api.start();
       if (!api.isOpen()) throw new Error((el("status").textContent || "無法連線").replace(/^🔴\s*/, ""));
       connected = true; lipLoop();
-      if (!resumeIfNeeded()) camState("🔇 點小視窗開啟聲音");
+      if (!resumeIfNeeded()) line("🔇 點小視窗開啟聲音");
       var A = w.AIVAULTDarkStarAvatar; if (A && A.setLink) A.setLink(true, "已連結");
       if (b) b.textContent = "⛔ 中斷連結";
     } catch (e) {
       console.warn("[DarkStar live]", e);
       try { if (api) await api.stop(); } catch (x) {}
-      box.hidden = true; connected = false;
+      connected = false; st.err = st.err || String(e.message || e); refreshLine(); clearInterval(lineTimer);
+      setTimeout(function () { if (!connected) box.hidden = true; }, 6000);
       var A2 = w.AIVAULTDarkStarAvatar; if (A2 && A2.setLink) A2.setLink(false, "未連結", "⚠️ " + String(e.message || e).slice(0, 18));
       if (b) b.textContent = "🔗 連結即時暗星";
     } finally { if (b) b.disabled = false; }
   }
   async function disconnect() {
-    connected = false; cancelAnimationFrame(raf); analyser = null;
+    connected = false; cancelAnimationFrame(raf); analyser = null; clearInterval(lineTimer);
     try { if (api) await api.stop(); } catch (e) {}
     if (video) video.srcObject = null;
     if (box) box.hidden = true;
