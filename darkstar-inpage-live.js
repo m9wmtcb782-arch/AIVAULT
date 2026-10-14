@@ -7,10 +7,11 @@
 (function (w, d) {
   "use strict";
   if (w.AIVAULTDarkStarLive) return;
-  var SESSION_SRC = "technical-dark-star-live-session.js?v=23";
+  var SESSION_SRC = "technical-dark-star-live-session.js?v=24";
   var loadFailed = false, LIVE_PAGE = "technical-dark-star-live-video-test.html";
   var api = null, loading = null, connected = false, analyser = null, raf = 0, lastEmotion = "", lastEmoAt = 0;
-  var box = null, hidden = null, video = null;
+  var box = null, hidden = null, video = null, sessWin = null;
+  function tools() { return sessWin && sessWin.__AIVAULT_DS_LIVE_TOOLS__; }
 
   function css() {
     var s = d.createElement("style");
@@ -19,6 +20,8 @@
       "#dsLiveCam[hidden]{display:none}#dsLiveCam video{width:100%;height:100%;object-fit:cover;display:block}#dsLiveCam video.mirror{transform:scaleX(-1)}" +
       "#dsLiveRotate{position:absolute;right:6px;bottom:6px;width:30px;height:30px;border-radius:50%;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:17px;line-height:30px;padding:0;cursor:pointer}" +
       "#dsLiveCamState{display:none!important;position:absolute;left:4px;right:4px;top:4px;padding:2px 6px;border-radius:8px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;line-height:1.35;word-break:break-all;max-height:60%;overflow:hidden}" +
+      "#dsLiveCam .dsCamBtn{position:absolute;bottom:6px;width:30px;height:30px;border-radius:50%;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:15px;line-height:30px;padding:0;cursor:pointer}" +
+      "#dsLiveCamToggle{left:6px}#dsLivePhoto{left:42px}#dsLiveCam.camoff{height:42px!important;background:#222}#dsLiveCam.camoff video,#dsLiveCam.camoff #dsLiveRotate{display:none}" +
       "@media(max-width:700px){#dsLiveCam{right:9px;top:64px;width:112px;height:150px}}";
     d.head.appendChild(s);
   }
@@ -26,12 +29,19 @@
     if (box) return;
     css();
     box = d.createElement("div"); box.id = "dsLiveCam"; box.hidden = true;
-    box.innerHTML = '<video autoplay playsinline muted class="mirror"></video><span id="dsLiveCamState">連線中…</span><button id="dsLiveRotate" type="button" aria-label="切換前後鏡頭" title="切換前後鏡頭">↻</button>';
+    box.innerHTML = '<video autoplay playsinline muted class="mirror"></video><span id="dsLiveCamState">連線中…</span><button id="dsLiveRotate" type="button" aria-label="切換前後鏡頭" title="切換前後鏡頭">↻</button><button id="dsLiveCamToggle" class="dsCamBtn" type="button" title="鏡頭開／關">📷</button><button id="dsLivePhoto" class="dsCamBtn" type="button" title="拍照問問題">📸</button>';
+    box.classList.add("camoff");
     d.body.appendChild(box);
     video = box.querySelector("video"); video.muted = true; video.playsInline = true;
     // 不放進頁面 DOM：避免觸發本頁其他 MutationObserver
     hidden = d.createElement("div"); hidden.hidden = true;
-    box.addEventListener("click", function (e) { if (e.target.id !== "dsLiveRotate" && resumeIfNeeded()) camState("🔊 聲音已開啟"); });
+    d.getElementById("dsLiveCamToggle").onclick = function () {
+      var T = tools(); if (!T || !connected) return;
+      T.setCamera(!T.camOn()).then(function (on) { box.classList.toggle("camoff", !on); if (on) video.classList.toggle("mirror", api.facing() === "user"); })
+        .catch(function (e) { box.classList.add("camoff"); console.warn("[DarkStar live] camera", e); });
+    };
+    d.getElementById("dsLivePhoto").onclick = function () { if (w.AIVAULTPhotoAsk) w.AIVAULTPhotoAsk.ask(); };
+    box.addEventListener("click", function (e) { if (!/^(dsLiveRotate|dsLiveCamToggle|dsLivePhoto)$/.test(e.target.id) && resumeIfNeeded()) camState("🔊 聲音已開啟"); });
     d.getElementById("dsLiveRotate").onclick = function () {
       if (!api || !connected) return;
       api.switchCamera().then(function () { video.classList.toggle("mirror", api.facing() === "user"); })
@@ -226,7 +236,7 @@
     }).then(function (src) {
       var fakeDoc = { getElementById: el, body: hidden, createElement: d.createElement.bind(d) };
       var Ctx = makeAudioContext();
-      var fakeWin = { AudioContext: Ctx, webkitAudioContext: Ctx };
+      var fakeWin = { AudioContext: Ctx, webkitAudioContext: Ctx, dsCamOff: true }; sessWin = fakeWin; // 頁內即時語音預設不開鏡頭（只語音）
       var factory = new Function("document", "window", "AudioContext", "localStorage", "location", "WebSocket",
         src + "\n;return {start:start,stop:stop,switchCamera:switchCamera,sendTextToLive:sendTextToLive,facing:function(){return facing},unlock:unlockAudio,isOpen:function(){return !!(ws&&ws.readyState===1)}};");
       api = factory(fakeDoc, fakeWin, Ctx, w.localStorage, w.location, makeWebSocket());
@@ -315,7 +325,7 @@
     try {
       await load();
       st = { open: false, mic: 0, audioIn: 0, sent: 0, msgs: 0, err: "" }; w.__dsLiveSt = st;
-      box.hidden = false; line("連線中…");
+      box.hidden = false; line("連線中…"); box.classList.toggle("camoff", !(tools() && tools().camOn()));
       clearInterval(lineTimer); lineTimer = setInterval(refreshLine, 500);
       var hasLogin = false; try { hasLogin = !!w.localStorage.getItem("sb-clcddygkaaqqtsbswgdf-auth-token"); } catch (e) {}
       if (!hasLogin) console.warn("[DarkStar live] 找不到登入資料（sb-…-auth-token）");
@@ -351,5 +361,6 @@
   if (d.readyState === "complete") setTimeout(preload, 0); else w.addEventListener("load", function () { setTimeout(preload, 0); });
   w.AIVAULTDarkStarLive = { toggle: toggle, connect: connect, disconnect: disconnect, isConnected: function () { return connected; },
     sendRawText: function (t) { var k = w.__dsLiveSock; if (!connected || !k || k.readyState !== 1) return false; try { k.send(JSON.stringify({ type: "text", text: String(t) })); return true; } catch (e) { return false; } }, classify: classify,
+    tools: tools,
     audioState: function () { var c = analyser && analyser.context; return c ? c.state : "none"; } };
 })(window, document);
