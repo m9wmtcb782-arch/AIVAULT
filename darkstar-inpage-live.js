@@ -7,7 +7,7 @@
 (function (w, d) {
   "use strict";
   if (w.AIVAULTDarkStarLive) return;
-  var SESSION_SRC = "technical-dark-star-live-session.js?v=22";
+  var SESSION_SRC = "technical-dark-star-live-session.js?v=23";
   var loadFailed = false, LIVE_PAGE = "technical-dark-star-live-video-test.html";
   var api = null, loading = null, connected = false, analyser = null, raf = 0, lastEmotion = "", lastEmoAt = 0;
   var box = null, hidden = null, video = null;
@@ -68,7 +68,7 @@
         var r = conn.apply(src, arguments);
         // 輸出到喇叭或隱藏 <audio>（MediaStreamDestination）時，另分接一份給分析器；不改變原輸出
         var MSD = w.MediaStreamAudioDestinationNode;
-        if (node === ctx.destination || (MSD && node instanceof MSD)) { try { conn.call(src, an); } catch (e) {} }
+        if (node === ctx.destination || (node && node.__dsOut) || (MSD && node instanceof MSD)) { try { conn.call(src, an); } catch (e) {} }
         return r;
       };
       return src;
