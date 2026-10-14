@@ -1,0 +1,31 @@
+name: DB fix study-books grants
+on:
+  workflow_dispatch:
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Grant + verify
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request
+          def q(sql):
+              r = urllib.request.Request("https://api.supabase.com/v1/projects/clcddygkaaqqtsbswgdf/database/query",
+                  data=json.dumps({"query": sql}).encode(), headers={"Authorization": "Bearer " + os.environ["TOKEN"], "Content-Type": "application/json", "User-Agent": "aivault-fix"})
+              with urllib.request.urlopen(r) as resp:
+                return json.load(resp)
+          print("BEFORE", q("select grantee,privilege_type from information_schema.role_table_grants where table_schema='public' and table_name='dark_star_study_books' order by 1,2"))
+          print("OWNER", q("select tableowner from pg_tables where schemaname='public' and tablename='dark_star_study_books'"))
+          # Additive grants: service_role needs DML (edge function); authenticated needs DML for RLS policies; anon none for DML
+          q("""
+            grant select, insert, update, delete on table public.dark_star_study_books to service_role;
+            grant select, insert, update, delete on table public.dark_star_study_books to authenticated;
+            revoke all on table public.dark_star_study_books from anon;
+            grant select, insert, update, delete on table public.dark_star_study_books to postgres;
+          """)
+          print("AFTER", q("select grantee,privilege_type from information_schema.role_table_grants where table_schema='public' and table_name='dark_star_study_books' order by 1,2"))
+          # Simulate service_role select
+          print("SVC_SELECT", q("set local role service_role; select count(*)::int as n from public.dark_star_study_books;"))
+          PY

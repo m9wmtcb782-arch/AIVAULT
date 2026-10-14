@@ -22,3 +22,7 @@ do $$ begin
     create policy study_books_own_delete on public.dark_star_study_books for delete to authenticated using (auth.uid() = user_id);
   end if;
 end $$;
+
+-- DML grants (table was created without them; edge function uses service_role)
+grant select, insert, update, delete on table public.dark_star_study_books to service_role;
+grant select, insert, update, delete on table public.dark_star_study_books to authenticated;
