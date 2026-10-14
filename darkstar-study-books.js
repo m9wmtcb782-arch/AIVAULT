@@ -35,16 +35,26 @@
     if (!t) return { ok: true, logged_in: false, reason: "no_session", books: [] };
     async function go(tok) {
       var r = await fetch(INGEST, { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + tok }, body: JSON.stringify(body) });
-      var j = await r.json().catch(function () { return {}; }); j.__status = r.status; return j;
+      var j = await r.json().catch(function () { return { error: "回應不是 JSON（HTTP " + r.status + "）" }; });
+      j.__status = r.status; return j;
     }
-    var j = await go(t);
-    // 伺服器不認得這個 token（過期或平台 401）→ 強制續期後重試一次
-    if (j.__status === 401 || j.logged_in === false) { var t2 = await token(true); if (t2 && t2 !== t) j = await go(t2); }
-    if (j.logged_in === false || j.__status === 401) j.reason = "server_rejected";
+    var j;
+    try { j = await go(t); }
+    catch (e) { return { ok: false, logged_in: false, reason: "network", error: String(e && e.message || e), books: [] }; }
+    // 平台 401／logged_in:false → 強制續期後重試一次
+    if (j.__status === 401 || j.logged_in === false) {
+      try {
+        var t2 = await token(true);
+        if (t2 && t2 !== t) j = await go(t2);
+      } catch (e) { /* keep j */ }
+    }
+    if (j.__status === 401 || j.logged_in === false) j.reason = j.reason || "server_rejected";
+    else if (j.__status >= 500 || (j.error && j.logged_in !== true && j.ok === false)) j.reason = "server_error";
+    else if (j.__status && j.__status >= 400 && j.logged_in !== true) j.reason = "server_error";
     return j;
   }
   function apply(r) {
-    if (!r || !r.logged_in) { cache = { logged_in: false, reason: (r && r.reason) || "error", enabled: null, rows: {} }; return cache; }
+    if (!r || !r.logged_in) { cache = { logged_in: false, reason: (r && r.reason) || "error", error: r && (r.error || r.message), status: r && r.__status, enabled: null, rows: {} }; return cache; }
     var rows = {}; (r.books || []).forEach(function (x) { rows[x.ebook_id] = !!x.enabled; });
     var en = {}; var ids = Object.keys(rows);
     if (!ids.length) DEFAULT_IDS.forEach(function (id) { en[id] = 1; }); else ids.forEach(function (id) { if (rows[id]) en[id] = 1; });
@@ -53,7 +63,7 @@
   function get(force) {
     if (cache && !force) return Promise.resolve(cache);
     if (loading) return loading;
-    loading = call({ action: "study_list" }).then(apply, function () { return apply(null); }).then(function (c) { loading = null; return c; });
+    loading = call({ action: "study_list" }).then(apply, function (e) { return apply({ ok: false, logged_in: false, reason: "network", error: String(e && e.message || e) }); }).then(function (c) { loading = null; return c; });
     return loading;
   }
   async function set(id, on) {
@@ -70,9 +80,16 @@
     return cache;
   }
   function loginMsg(c) {
+    var detail = "";
+    if (c) {
+      if (c.status) detail += " HTTP " + c.status;
+      if (c.error) detail += " " + String(c.error).slice(0, 120);
+    }
     if (c && c.reason === "no_session") return "這個頁面找不到 AIVAULT 登入資料（同一個瀏覽器先到 AIVAULT 首頁登入，再回來重新整理）。未登入時暗星會讀全部書。";
-    if (c && c.reason === "server_rejected") return "伺服器不接受目前的登入（可能已過期且無法自動續期），請重新登入 AIVAULT 後再試。";
-    return "暫時無法讀取暗星學習書籍設定，請稍後再試。";
+    if (c && c.reason === "server_rejected") return "伺服器不接受目前的登入（可能已過期且無法自動續期），請重新登入 AIVAULT 後再試。" + detail;
+    if (c && c.reason === "network") return "網路錯誤，無法讀取暗星學習書籍設定。" + detail;
+    if (c && c.reason === "server_error") return "伺服器錯誤，無法讀取暗星學習書籍設定。" + detail + "（請稍後再試或把此訊息回報）";
+    return "暫時無法讀取暗星學習書籍設定，請稍後再試。" + detail;
   }
   w.AIVAULTStudyBooks = { get: get, set: set, isEnabled: function (id) { return !cache || !cache.enabled || !!cache.enabled[id]; } };
 
