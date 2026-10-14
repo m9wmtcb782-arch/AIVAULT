@@ -18,7 +18,7 @@
       "#dsLiveCam{position:fixed;right:214px;top:72px;width:160px;height:120px;z-index:81;border-radius:14px;overflow:hidden;background:#111;box-shadow:0 10px 28px rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.4)}" +
       "#dsLiveCam[hidden]{display:none}#dsLiveCam video{width:100%;height:100%;object-fit:cover;display:block}#dsLiveCam video.mirror{transform:scaleX(-1)}" +
       "#dsLiveRotate{position:absolute;right:6px;bottom:6px;width:30px;height:30px;border-radius:50%;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:17px;line-height:30px;padding:0;cursor:pointer}" +
-      "#dsLiveCamState{position:absolute;left:4px;right:4px;top:4px;padding:2px 6px;border-radius:8px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;line-height:1.35;word-break:break-all;max-height:60%;overflow:hidden}" +
+      "#dsLiveCamState{display:none!important;position:absolute;left:4px;right:4px;top:4px;padding:2px 6px;border-radius:8px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;line-height:1.35;word-break:break-all;max-height:60%;overflow:hidden}" +
       "@media(max-width:700px){#dsLiveCam{right:9px;top:64px;width:112px;height:150px}}";
     d.head.appendChild(s);
   }
@@ -120,6 +120,43 @@
     line("🟢 已連線・" + micOk + (st.audioIn ? "・已收到語音" : "") + dbg());
   }
   var lastLevel = 0, lineTimer = 0;
+  // ---- 逐字稿顯示在本頁一般聊天區（只顯示，不送到文字聊天後端、不存歷史）----
+  // 助理列刻意不加 .assistant／.ai class（本頁沒有針對它們的樣式），避免「我的聲音」等腳本把它再念一次或當成文字回覆處理
+  var turn = { user: null, ai: null, inTxt: "", outTxt: "" };
+  function chatRow(role) {
+    var inner = d.getElementById("messagesInner"); if (!inner) return null;
+    var welcome = d.getElementById("welcome"); if (welcome) welcome.remove();
+    var row = d.createElement("div"); row.className = role === "user" ? "message user" : "message";
+    row.setAttribute("data-ds-live", role);
+    var av = d.createElement("div"); av.className = "message-avatar"; av.textContent = role === "user" ? "你" : "✦";
+    var body = d.createElement("div"); body.className = "message-body";
+    var text = d.createElement("div"); text.className = "message-text"; body.appendChild(text);
+    row.appendChild(av); row.appendChild(body); inner.appendChild(row);
+    return row;
+  }
+  function scrollChat() { try { if (typeof w.scrollBottom === "function") w.scrollBottom(); else { var m = d.getElementById("messages"); if (m) m.scrollTop = m.scrollHeight; } } catch (e) {} }
+  function showTxt(role, txt) {
+    var key = role === "user" ? "user" : "ai";
+    if (!turn[key]) { if (key === "user" && turn.ai) finishTurn(); turn[key] = chatRow(role); }
+    if (!turn[key]) return;
+    turn[key].querySelector(".message-text").textContent = txt; scrollChat();
+  }
+  function finishTurn() {
+    var row = turn.ai;
+    if (row && turn.outTxt.trim() && typeof w.createCopyButton === "function") {
+      try { var a = d.createElement("div"); a.className = "message-actions"; a.appendChild(w.createCopyButton(turn.outTxt.trim())); row.querySelector(".message-body").appendChild(a); } catch (e) {}
+    }
+    turn = { user: null, ai: null, inTxt: "", outTxt: "" };
+  }
+  function onLiveMsg(m) {
+    if (!m || typeof m !== "object") return;
+    var sc = m.serverContent || m;
+    var it = (sc.inputTranscription && sc.inputTranscription.text) || (m.type === "inputTranscription" && m.text) || "";
+    var ot = (sc.outputTranscription && sc.outputTranscription.text) || (m.type === "outputTranscription" && m.text) || "";
+    if (it) { turn.inTxt += it; showTxt("user", turn.inTxt.trim()); }
+    if (ot) { turn.outTxt += ot; showTxt("assistant", turn.outTxt.trim()); }
+    if (sc.turnComplete || m.turnComplete || m.type === "turnComplete" || sc.interrupted || m.type === "interrupted") finishTurn();
+  }
   // 本頁其他腳本（dawn-light-dark-star-bridge.js、aivault-dual-agent-live.js）會包裝 WebSocket，
   // 未「喚醒」時把送往 live-voice 的麥克風音訊丟掉 → 伺服器收不到聲音、不回語音。
   // 這裡改用隱藏 iframe 內未被包裝的原生 WebSocket，與視訊頁完全相同的送出方式。
@@ -154,7 +191,9 @@
         st.msgs++;
         if (typeof ev.data !== "string") { st.audioIn++; return; }
         try {
-          var m = JSON.parse(ev.data), er = m && (m.error && (m.error.message || m.error) || (m.type === "error" && m.message));
+          var m = JSON.parse(ev.data);
+          try { onLiveMsg(m); } catch (x) { console.warn("[DarkStar live] transcript", x); }
+          var er = m && (m.error && (m.error.message || m.error) || (m.type === "error" && m.message));
           if (er) {
             er = String(er); st.err = /AUTH/i.test(er) ? er + "（請先登入 AIVAULT）" : er;
             console.error("[DarkStar live] server error", er); refreshLine();
@@ -280,6 +319,7 @@
   }
   async function disconnect() {
     connected = false; cancelAnimationFrame(raf); analyser = null; clearInterval(lineTimer);
+    finishTurn(); console.info("[DarkStar live] stats", JSON.stringify(st), map.dsAudioDbg ? map.dsAudioDbg.textContent : "");
     try { if (api) await api.stop(); } catch (e) {}
     if (video) video.srcObject = null;
     if (box) box.hidden = true;
