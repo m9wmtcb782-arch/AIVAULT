@@ -689,7 +689,7 @@
     $("drawerBody").querySelectorAll("[data-page]").forEach(function (btn) {
       btn.onclick = function () {
         const n = Number(btn.getAttribute("data-page"));
-        if (n) goPage(n, true, n > state.pageNumber ? "next" : "prev");
+        if (n) goPage(n, false); // 目錄直接跳到該頁（帶方向時單頁模式只會前進一屏）
         closeDrawer();
       };
     });
