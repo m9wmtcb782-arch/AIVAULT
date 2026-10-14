@@ -49,7 +49,7 @@
   // ---- 書架段落（繁簡皆可比對，來自 darkstar-book-qa.js）----
   function bookQA() {
     if (w.AIVAULTBookQA) return Promise.resolve(w.AIVAULTBookQA);
-    return new Promise(function (res) { var s = d.createElement("script"); s.src = "darkstar-book-qa.js?v=20261014-qa4"; s.onload = function () { res(w.AIVAULTBookQA || null); }; s.onerror = function () { res(null); }; d.head.appendChild(s); });
+    return new Promise(function (res) { var s = d.createElement("script"); s.src = "darkstar-book-qa.js?v=20261014-qa5"; s.onload = function () { res(w.AIVAULTBookQA || null); }; s.onerror = function () { res(null); }; d.head.appendChild(s); });
   }
   async function passages(q) {
     try { var Q = await bookQA(); if (!Q || !q) return []; var list = await Promise.race([Q.build(), new Promise(function (r) { setTimeout(function () { r(null); }, 15000); })]); return list ? Q.search(q, list).slice(0, 4) : []; } catch (e) { return []; }

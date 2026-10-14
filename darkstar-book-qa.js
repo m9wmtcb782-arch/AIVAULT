@@ -54,33 +54,53 @@
   async function cacheGet(key) { var db = await cacheDb(); if (!db) return null; return new Promise(function (res) { try { var q = db.transaction("books").objectStore("books").get(key); q.onsuccess = function () { res(q.result || null); }; q.onerror = function () { res(null); }; } catch (e) { res(null); } }); }
   async function cachePut(row) { var db = await cacheDb(); if (!db) return; try { db.transaction("books", "readwrite").objectStore("books").put(row); } catch (e) {} }
 
-  async function remoteBooks(skip) {
+  // 每本書：以伺服器 total_pages 為準驗證完整度；本機（閱讀器快取／索引快取）只當作起點，缺的頁一律補抓
+  var CVER = "v2", coverage = {}; // coverage[bid] = [已有頁數, 全書頁數]
+  async function fetchPages(id, need, into) {
+    // need: 缺頁頁碼陣列 → 以 context(radius 10) 視窗補抓，4 路並行，每窗最多重試 3 次
+    var starts = [], i = 0;
+    while (i < need.length) { var c = Math.min(need[i] + 10, need[need.length - 1]); starts.push(c); while (i < need.length && need[i] <= c + 10) i++; }
+    var k = 0;
+    await Promise.all([0, 1, 2, 3].map(async function () {
+      while (k < starts.length) {
+        var sp = starts[k++], r = null;
+        for (var t = 0; t < 3 && !(r && r.pages && r.pages.length); t++) r = await ingest({ action: "context", ebook_id: id, page_number: sp, radius: 10 });
+        ((r && r.pages) || []).forEach(function (x) { var n = Number(x.page_number || 0); if (n && x.content != null) into[n] = String(x.content || ""); });
+      }
+    }));
+  }
+  function missing(have, total) { var m = []; for (var p = 1; p <= total; p++) if (!(p in have)) m.push(p); return m; }
+  async function remoteBooks(local) {
     var out = [];
     var list = await ingest({ action: "list", limit: 80 });
     var books = ((list && (list.books || list.items)) || []).slice();
+    if (!books.length) throw new Error("書目清單取得失敗");
     books.sort(function (a, b) { return (PRIORITY[String(b.id || b.ebook_id)] || 0) - (PRIORITY[String(a.id || a.ebook_id)] || 0); });
     for (var i = 0; i < books.length; i++) {
       var b = books[i], id = String(b.id || b.ebook_id || ""), total = Number(b.total_pages || b.page_count || 0);
-      if (!id || skip[id]) continue;
-      var key = id + ":" + total, row = await cacheGet(key);
-      if (!row) {
-        var starts = []; for (var p = 11; total && p - 10 <= total; p += 21) starts.push(p);
-        var pages = [], k = 0;
-        // 4 路並行下載（467 頁約 23 次請求）
-        await Promise.all([0, 1, 2, 3].map(async function () {
-          while (k < starts.length) {
-            var sp = starts[k++], r = null;
-            for (var t = 0; t < 3 && !(r && r.pages); t++) r = await ingest({ action: "context", ebook_id: id, page_number: sp, radius: 10 });
-            ((r && r.pages) || []).forEach(function (x) { pages.push([Number(x.page_number || 0), String(x.content || "")]); });
-          }
-        }));
-        pages.sort(function (a, b) { return a[0] - b[0]; });
-        row = { key: key, id: id, t: b.title || "未命名", p: pages };
-        if (pages.length) cachePut(row);
-      }
-      out.push({ id: id, title: row.t, pages: row.p });
+      if (!id) continue;
+      var key = id + ":" + total + ":" + CVER, row = await cacheGet(key), have = {};
+      if (row && row.h) have = row.h;
+      // 伺服器有的書一律用伺服器內容（閱讀器本機快取可能只有讀過的頁或舊版本）
+      var need = missing(have, total);
+      if (need.length) { await fetchPages(id, need, have); need = missing(have, total); }
+      var done = Object.keys(have).length;
+      cachePut({ key: key, id: id, t: b.title || "未命名", h: have, complete: !need.length });
+      coverage[id] = [done, total];
+      if (need.length) console.warn("[BookQA] 《" + b.title + "》尚缺 " + need.length + " 頁，下次會補抓");
+      out.push({ id: id, title: b.title || "未命名", pages: Object.keys(have).map(function (n) { return [+n, have[n]]; }).sort(function (x, y) { return x[0] - y[0]; }) });
+      if (local[id]) local[id].used = 1;
     }
     return out;
+  }
+  // 結構性提問時：需要的頁若不在索引裡，當場向伺服器補抓並加入索引
+  async function ensurePages(list, bid, from, to, title) {
+    var have = {}; list.forEach(function (c) { if (c.bid === bid && c.page >= from && c.page <= to) have[c.page] = 1; });
+    var need = []; for (var p = from; p <= to; p++) if (!have[p]) need.push(p);
+    if (!need.length) return;
+    var got = {}; await fetchPages(bid, need, got);
+    Object.keys(got).forEach(function (n) { addChunks(list, title, +n, got[n], PRIORITY[bid], bid); });
+    if (coverage[bid]) coverage[bid][0] = Math.min(coverage[bid][1], coverage[bid][0] + Object.keys(got).length);
   }
   function addChunks(list, title, pageNo, text, boost, bid) {
     text = String(text || "").replace(/\s+/g, " ").trim();
@@ -93,11 +113,14 @@
     if (chunks) return Promise.resolve(chunks);
     if (building) return building;
     building = (async function () {
-      var list = [], skip = {};
-      var L = await idbAll(), titles = {};
-      var bids = {}; L.books.forEach(function (b) { titles[b.id] = b.title || "未命名"; bids[b.id] = b.ebook_id || b.id; if (b.ebook_id) skip[b.ebook_id] = 1; skip[b.id] = 1; });
-      L.pages.forEach(function (p) { addChunks(list, titles[p.book_id] || "未命名", p.page_number, p.content || p.text, 1, bids[p.book_id]); });
-      try { (await remoteBooks(skip)).forEach(function (b) { b.pages.forEach(function (p) { addChunks(list, b.title, p[0], p[1], PRIORITY[b.id], b.id); }); }); } catch (e) { console.warn("[BookQA] remote", e); }
+      var list = [];
+      var L = await idbAll(), titles = {}, local = {};
+      L.books.forEach(function (bk) { local[bk.id] = { bid: bk.ebook_id || bk.id, title: bk.title || "未命名", pages: {} }; });
+      L.pages.forEach(function (p) { var o = local[p.book_id]; if (o) o.pages[p.page_number] = p.content || p.text || ""; });
+      var byBid = {}; Object.keys(local).forEach(function (k) { byBid[local[k].bid] = local[k]; });
+      try { (await remoteBooks(byBid)).forEach(function (b) { b.pages.forEach(function (p) { addChunks(list, b.title, p[0], p[1], PRIORITY[b.id], b.id); }); }); } catch (e) { console.warn("[BookQA] remote", e); }
+      // 只存在本機（未上傳伺服器）的書，或伺服器暫時連不上時：用本機頁面
+      Object.keys(byBid).forEach(function (bid) { var o = byBid[bid]; if (o.used) return; var n = 0; for (var pg in o.pages) { addChunks(list, o.title, +pg, o.pages[pg], PRIORITY[bid], bid); n++; } if (!coverage[bid]) coverage[bid] = [n, n]; });
       var df = {}; list.forEach(function (c) { for (var k in c.g) df[k] = (df[k] || 0) + 1; });
       list.idf = function (k) { return Math.log(1 + list.length / (1 + (df[k] || 0))); };
       chunks = list; building = null; return list;
@@ -129,13 +152,14 @@
   var TRIVIAL = /^(你好|哈囉|嗨|hi|hello|嗯+|喂|好|好的|ok|謝謝|掰掰|再見|對|是|不是|沒有|可以)[啊呀喔哦嗎呢！!。.\s]*$/i;
   function isQuestion(t) { t = String(t || "").trim(); return t.length >= 4 && !TRIVIAL.test(t); }
 
-  function bubble(hits) {
+  function bubble(hits, bid0) {
     var inner = d.getElementById("messagesInner"); if (!inner) return;
     var row = d.createElement("div"); row.className = "message"; row.setAttribute("data-ds-bookqa", "1");
     var av = d.createElement("div"); av.className = "message-avatar"; av.textContent = "📚";
     var body = d.createElement("div"); body.className = "message-body";
     var det = d.createElement("details"); det.style.cssText = "font-size:12px;opacity:.85";
-    var sum = d.createElement("summary"); sum.textContent = "書架資料 " + hits.length + " 段（點開查看）"; det.appendChild(sum);
+    var sum = d.createElement("summary"); var bs = {}; hits.forEach(function (h) { if (h.bid) bs[h.bid] = 1; }); if (bid0) bs[bid0] = 1; var cov = Object.keys(bs).filter(function (b) { return coverage[b]; }).map(function (b) { return coverage[b][0] + "/" + coverage[b][1] + " 頁"; }).join("，");
+    sum.textContent = "書架資料 " + hits.length + " 段（點開查看）" + (cov ? "｜索引 " + cov : ""); det.appendChild(sum);
     hits.forEach(function (h) { var p = d.createElement("div"); p.style.cssText = "margin:6px 0;white-space:pre-wrap"; p.textContent = "《" + h.title + "》p." + h.page + "：" + h.text; det.appendChild(p); });
     body.appendChild(det); row.appendChild(av); row.appendChild(body); inner.appendChild(row);
     try { var m = d.getElementById("messages"); if (m) m.scrollTop = m.scrollHeight; } catch (e) {}
@@ -226,6 +250,7 @@
     }
     if (idx >= 0) {
       var e = toc[idx], from = +e.page_number, to = rangeOf(idx);
+      await ensurePages(list, bid, from, to, title);
       label = e.title + "（p." + from + "–" + to + "）";
       add("《" + title + "》" + label + " 的目次：");
       var subs = []; for (var j = idx + 1; j < toc.length && +toc[j].page_number <= to; j++) { if (lv(toc[j]) <= lv(e)) break; subs.push(toc[j]); add("  " + toc[j].title + " p." + toc[j].page_number); }
@@ -241,6 +266,7 @@
       return { st: st, bid: bid, text: out.join("\n"), sources: sources, label: label };
     }
     if (st.page) {
+      await ensurePages(list, bid, st.page, st.page, title);
       var pcs = chunksAt(list, bid, st.page, 4); label = "p." + st.page;
       add("《" + title + "》第 " + st.page + " 頁內容：");
       if (!pcs.length) add("（這一頁沒有文字，或超出全書頁數 " + end + "）");
@@ -259,12 +285,12 @@
     var hits = sv ? sv.sources : search(q, list);
     if (!sv && hits[0] && hits[0].bid) lastBid = hits[0].bid;
     var msg = sv ? "【書架資料】使用者剛才的題目：「" + q + "」\n" + sv.text + "\n請根據以上書架資料回答，說出書名與頁碼。若你剛才已開始回答，請以書架資料修正或補充剛才的回答。" + EXCERPT_NOTE
-      : hits.length ? compose(q, hits) : shelf ? "【書架資料】使用者在問書架本身：「" + q + "」。" : "【書架資料】使用者題目：「" + q + "」在書架上沒有搜尋到相關段落；如果這是考題，請說明書架上找不到依據。";
+      : hits.length ? compose(q, hits) : shelf ? "【書架資料】使用者在問書架本身：「" + q + "」。" : "【書架資料】使用者題目：「" + q + "」這次的關鍵詞沒有比對到合適段落（書架上的書仍是完整的）。請請使用者換個說法、說出章節或關鍵詞，不要說書裡沒有這些內容。";
     if (shelf) msg += "\n書架書目：" + bookTitles(list).join("、") + "。請回答你看得到這些書，並邀請使用者出題。";
     if (!introSent) msg = intro(list) + msg;
-    if (L.sendRawText(msg)) { introSent = true; if (hits.length) bubble(hits); }
+    if (L.sendRawText(msg)) { introSent = true; if (hits.length || sv) bubble(hits, sv && sv.bid); }
   }
   w.addEventListener("darkstar-live-user-turn", onTurn);
-  w.AIVAULTBookQA = { build: build, search: search, isQuestion: isQuestion, compose: compose, structural: structural, parseStruct: parseStruct, intro: intro, bookTitles: bookTitles, reset: function () { chunks = null; } };
+  w.AIVAULTBookQA = { build: build, search: search, isQuestion: isQuestion, compose: compose, structural: structural, coverage: coverage, parseStruct: parseStruct, intro: intro, bookTitles: bookTitles, reset: function () { chunks = null; } };
   setTimeout(function () { build().catch(function () {}); }, 4000); // 預先建索引
 })(window, document);
