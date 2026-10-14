@@ -143,6 +143,7 @@
   }
   function finishTurn() {
     var row = turn.ai;
+    try { var q = turn.inTxt.trim(); if (q) w.dispatchEvent(new CustomEvent("darkstar-live-user-turn", { detail: { text: q } })); } catch (e) {}
     if (row && turn.outTxt.trim() && typeof w.createCopyButton === "function") {
       try { var a = d.createElement("div"); a.className = "message-actions"; a.appendChild(w.createCopyButton(turn.outTxt.trim())); row.querySelector(".message-body").appendChild(a); } catch (e) {}
     }
@@ -208,6 +209,7 @@
       });
       sock.addEventListener("error", function () { console.error("[DarkStar live] ws error"); });
       var send = sock.send.bind(sock);
+      w.__dsLiveSock = sock;
       sock.send = function (data) { st.sent++; if (typeof data === "string" && data.indexOf('"type":"audio"') > 0) st.mic++; return send(data); };
       return sock;
     }
@@ -347,6 +349,7 @@
   // 預先載入連線模組（只下載程式，不開麥克風、不連線），讓點擊時能在手勢內直接解鎖聲音
   function preload() { load().catch(function () {}); }
   if (d.readyState === "complete") setTimeout(preload, 0); else w.addEventListener("load", function () { setTimeout(preload, 0); });
-  w.AIVAULTDarkStarLive = { toggle: toggle, connect: connect, disconnect: disconnect, isConnected: function () { return connected; }, classify: classify,
+  w.AIVAULTDarkStarLive = { toggle: toggle, connect: connect, disconnect: disconnect, isConnected: function () { return connected; },
+    sendRawText: function (t) { var k = w.__dsLiveSock; if (!connected || !k || k.readyState !== 1) return false; try { k.send(JSON.stringify({ type: "text", text: String(t) })); return true; } catch (e) { return false; } }, classify: classify,
     audioState: function () { var c = analyser && analyser.context; return c ? c.state : "none"; } };
 })(window, document);
