@@ -4,6 +4,8 @@
   window.__AIVAULT_WAKE_MIC_ON_LIVE__ = true;
 
   var warmed = null;
+  var warmStream = null;
+  var recs = [];
 
   function wake() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -13,6 +15,7 @@
     var orig = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
     warmed = orig({ audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 }, video: false })
       .then(function (stream) {
+        warmStream = stream;
         try {
           var AC = window.AudioContext || window.webkitAudioContext;
           if (AC) {
@@ -59,10 +62,25 @@
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (SR && SR.prototype && !SR.prototype.__aivaultDawnMicGuard) {
     var origStart = SR.prototype.start;
-    SR.prototype.start = function () { return origStart.apply(this, arguments); };
+    SR.prototype.start = function () { if (recs.indexOf(this) < 0) recs.push(this); return origStart.apply(this, arguments); };
     SR.prototype.__aivaultDawnMicGuard = true;
   }
   window.__AIVAULT_STOP_DARK_STAR_SPEECH__ = function () {};
+
+  function releaseAllAudio() {
+    try { if (warmStream) warmStream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+    warmStream = null; warmed = null;
+    try { var c = window.__AIVAULT_WAKE_AUDIO_CTX__; if (c && c.state !== "closed") c.close(); } catch (e) {}
+    window.__AIVAULT_WAKE_AUDIO_CTX__ = null;
+    try { if (window.__AIVAULT_DARK_STAR_STOP_LIVE_VOICE__) window.__AIVAULT_DARK_STAR_STOP_LIVE_VOICE__(); } catch (e) {}
+    window.__AIVAULT_SPEECH_AUTO_RESTART__ = false;
+    recs.forEach(function (r) { try { r.onend = null; r.abort(); } catch (e) {} });
+    recs = [];
+    try { if (typeof stopRecording === "function") stopRecording(); } catch (e) {}
+  }
+  window.__AIVAULT_RELEASE_ALL_AUDIO__ = releaseAllAudio;
+  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "hidden") releaseAllAudio(); });
+  window.addEventListener("pagehide", releaseAllAudio);
 
   scan();
   setInterval(scan, 500);

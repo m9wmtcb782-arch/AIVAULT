@@ -8539,18 +8539,18 @@ async function startVoice(){if(state.active||state.starting)return;state.liveWan
 // The bottom composer and Send button always remain on the normal AI channel.
 setMic(false);
 window.__AIVAULT_DARK_STAR_SEND_LIVE_TEXT__=text=>{const value=String(text||'').trim();if(!value||!state.ws||state.ws.readyState!==WebSocket.OPEN||!state.active)return false;try{state.ws.send(JSON.stringify({type:'text',text:value}));state.inputText=value;state.outputText='';state.userTextEl=makeBubble('user');state.userTextEl.textContent=value;scrollBottom();return true}catch(error){console.warn('[DarkStar live] text send failed',error);return false}};
-window.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__=async()=>{if(state.active||state.starting){state.liveWanted=false;clearLiveVoiceRetry();return stopVoice(true,false)}state.liveWanted=true;syncLiveVoiceChecked();setStatus('正在啟動即時語音……',true);return startVoice()};
+window.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__=async()=>{if(state.active||state.starting){state.liveWanted=false;clearLiveVoiceRetry();return stopVoice(true,false)}state.liveWanted=true;syncLiveVoiceChecked();setStatus('正在啟動即時語音……',true);return startVoice()};window.__AIVAULT_DARK_STAR_STOP_LIVE_VOICE__=()=>{state.liveWanted=false;clearLiveVoiceRetry();if(state.active||state.starting)return stopVoice(true,false)};
 })();
 </script>
 <!-- /AIVAULT_DARK_STAR_REALTIME_VOICE_V1 -->
 
-<script src="artifacts/wake-mic-on-live-voice.js?v=3"></script>
+<script src="artifacts/wake-mic-on-live-voice.js?v=4"></script>
 <script src="speech-input-mic.js?v=1"></script>
 <script src="dawn-light-speech-to-text.js?v=7"></script>
 <script src="dark-star-live-speech-to-text.js?v=7"></script>
 <script src="technical-dark-star-realtime-voice-v2.js?v=9"></script>
 <script src="technical-dark-star-my-voice.js?v=9"></script>
-<script src="artifacts/restore-live-controls.js?v=36"></script>
+<script src="artifacts/restore-live-controls.js?v=37"></script>
 <script src="technical-dark-star-strip-diagnostic.js?v=1"></script>
 <!-- prior file ended at a truncated script src=tec; closed without inventing that script -->
 <script>window.sendMessage = sendMessage;</script>
@@ -8597,7 +8597,7 @@ window.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__=async()=>{if(state.active||state.
     if(o)o.setExpression(m[t]||'neutral',m[t]?3000:0)};
   const loop=()=>{level+=(target-level)*.3;const o=orb();if(o)o.setTalking(level>.02?Math.min(1,level*1.6):0);requestAnimationFrame(loop)};loop();
   // 優先在本頁內連線（darkstar-inpage-live.js）；沒有該模組時維持舊行為（開啟視訊頁）
-  q('dsconnect').onclick=()=>{if(window.AIVAULTDarkStarLive){window.AIVAULTDarkStarLive.toggle();return}set(true,'已連結');q('dsstate').textContent='👂 暗星正在聆聽';window.open('technical-dark-star-live-video-test.html','_blank','noopener');};
+  q('dsconnect').onclick=()=>{if(window.AIVAULTDarkStarLive){window.AIVAULTDarkStarLive.toggle();return}set(true,'已連結');q('dsstate').textContent='👂 暗星正在聆聽';if(window.__AIVAULT_RELEASE_ALL_AUDIO__)window.__AIVAULT_RELEASE_ALL_AUDIO__();window.open('technical-dark-star-live-video-test.html','_blank','noopener');};
   q('dsdemo').onclick=async()=>{set(true,'表情測試');expr('happy');for(let i=0;i<26;i++){speak(Math.abs(Math.sin(i*.72))*.8);await new Promise(r=>setTimeout(r,75))}speak(0);setTimeout(()=>expr('neutral'),500)};
   // 視線：滑鼠／手指位置讓小球眼睛左右看
   document.addEventListener('pointermove',e=>{const o=orb(),b=q('dsorb');if(!o||!b||target>.035)return;const r=b.getBoundingClientRect();o.look((e.clientX-(r.left+r.width/2))/Math.max(200,innerWidth/2))},{passive:true});
