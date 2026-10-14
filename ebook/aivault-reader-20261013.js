@@ -360,7 +360,7 @@
     } else {
       // [[img:N]] 標記 → 書籍專屬圖檔（只影響含標記的頁面）
       const imgBase = "ebooks/" + encodeURIComponent(String(state.remoteId || state.bookId || "")) + "/img/";
-      body += "<div>" + E.esc(page.content || "").replace(/\[\[img:([A-Za-z0-9_-]+)\]\]/g, function (_, k) { return '<img loading="lazy" decoding="async" alt="" src="' + imgBase + k + '.jpg" style="display:block;max-width:100%;height:auto;margin:10px auto">'; }).replace(/\n/g, "<br>") + "</div>";
+      body += "<div>" + E.esc(page.content || "").replace(/\[\[img:([A-Za-z0-9_-]+)\]\]/g, function (_, k) { return '<img decoding="async" alt="" src="' + imgBase + k + '.jpg" style="display:block;max-width:100%;height:auto;margin:10px auto">'; }).replace(/\n/g, "<br>") + "</div>";
     }
     const videos=Array.isArray(page.metadata&&page.metadata.videos)?page.metadata.videos:[];
     videos.forEach(function(v){
