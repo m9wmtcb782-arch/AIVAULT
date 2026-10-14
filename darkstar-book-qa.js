@@ -57,17 +57,50 @@
   // 每本書：以伺服器 total_pages 為準驗證完整度；本機（閱讀器快取／索引快取）只當作起點，缺的頁一律補抓
   var studyInfo = null;
   w.addEventListener("darkstar-study-changed", function () { chunks = null; building = null; lastBid = ""; });
-  var CVER = "v2", coverage = {}; // coverage[bid] = [已有頁數, 全書頁數]
-  async function fetchPages(id, need, into) {
+  var CVER = "v2", coverage = {}, PROG_KEY = "aivault_bookqa_progress_v1"; // coverage[bid] = [已有頁數, 全書頁數]
+  function loadProg() { try { return JSON.parse(localStorage.getItem(PROG_KEY) || "{}"); } catch (e) { return {}; } }
+  (function hydrate() { var o = loadProg(); for (var id in o) { var x = o[id]; if (x && x.total) coverage[id] = [Number(x.have) || 0, Number(x.total) || 0]; } })();
+  function saveProg() {
+    var o = loadProg(), id;
+    for (id in coverage) {
+      var h = coverage[id][0] || 0, t = coverage[id][1] || 0;
+      o[id] = { have: h, total: t, pct: t ? Math.min(100, Math.round(100 * h / t)) : 0, t: Date.now() };
+    }
+    try { localStorage.setItem(PROG_KEY, JSON.stringify(o)); } catch (e) {}
+  }
+  function setCoverage(id, have, total) {
+    if (!id) return;
+    var t = Number(total) || (coverage[id] && coverage[id][1]) || 0;
+    var h = Number(have) || 0;
+    if (t) h = Math.min(h, t);
+    coverage[id] = [h, t];
+    saveProg();
+    try { w.dispatchEvent(new CustomEvent("darkstar-learn-progress", { detail: { id: id, have: h, total: t, pct: t ? Math.min(100, Math.round(100 * h / t)) : 0 } })); } catch (e) {}
+  }
+  function progressOf(id) {
+    if (id) {
+      var c = coverage[id] || (function () { var x = loadProg()[id]; return x ? [x.have, x.total] : null; })();
+      if (!c) return null;
+      var h = c[0] || 0, t = c[1] || 0;
+      return { id: id, have: h, total: t, pct: t ? Math.min(100, Math.round(100 * h / t)) : 0 };
+    }
+    var out = {}, o = loadProg(), k;
+    for (k in o) out[k] = { have: o[k].have || 0, total: o[k].total || 0, pct: o[k].pct || 0 };
+    for (k in coverage) out[k] = { have: coverage[k][0], total: coverage[k][1], pct: coverage[k][1] ? Math.min(100, Math.round(100 * coverage[k][0] / coverage[k][1])) : 0 };
+    return out;
+  }
+  async function fetchPages(id, need, into, total) {
     // need: 缺頁頁碼陣列 → 以 context(radius 10) 視窗補抓，4 路並行，每窗最多重試 3 次
     var starts = [], i = 0;
     while (i < need.length) { var c = Math.min(need[i] + 10, need[need.length - 1]); starts.push(c); while (i < need.length && need[i] <= c + 10) i++; }
     var k = 0;
+    if (total) setCoverage(id, Object.keys(into).length, total);
     await Promise.all([0, 1, 2, 3].map(async function () {
       while (k < starts.length) {
         var sp = starts[k++], r = null;
         for (var t = 0; t < 3 && !(r && r.pages && r.pages.length); t++) r = await ingest({ action: "context", ebook_id: id, page_number: sp, radius: 10 });
         ((r && r.pages) || []).forEach(function (x) { var n = Number(x.page_number || 0); if (n && x.content != null) into[n] = String(x.content || ""); });
+        if (total) setCoverage(id, Object.keys(into).length, total);
       }
     }));
   }
@@ -84,11 +117,12 @@
       var key = id + ":" + total + ":" + CVER, row = await cacheGet(key), have = {};
       if (row && row.h) have = row.h;
       // 伺服器有的書一律用伺服器內容（閱讀器本機快取可能只有讀過的頁或舊版本）
+      setCoverage(id, Object.keys(have).length, total);
       var need = missing(have, total);
-      if (need.length) { await fetchPages(id, need, have); need = missing(have, total); }
+      if (need.length) { await fetchPages(id, need, have, total); need = missing(have, total); }
       var done = Object.keys(have).length;
       cachePut({ key: key, id: id, t: b.title || "未命名", h: have, complete: !need.length });
-      coverage[id] = [done, total];
+      setCoverage(id, done, total);
       if (need.length) console.warn("[BookQA] 《" + b.title + "》尚缺 " + need.length + " 頁，下次會補抓");
       out.push({ id: id, title: b.title || "未命名", pages: Object.keys(have).map(function (n) { return [+n, have[n]]; }).sort(function (x, y) { return x[0] - y[0]; }) });
       if (local[id]) local[id].used = 1;
@@ -100,9 +134,10 @@
     var have = {}; list.forEach(function (c) { if (c.bid === bid && c.page >= from && c.page <= to) have[c.page] = 1; });
     var need = []; for (var p = from; p <= to; p++) if (!have[p]) need.push(p);
     if (!need.length) return;
-    var got = {}; await fetchPages(bid, need, got);
+    var tot = (coverage[bid] && coverage[bid][1]) || 0;
+    var got = {}; await fetchPages(bid, need, got, tot);
     Object.keys(got).forEach(function (n) { addChunks(list, title, +n, got[n], PRIORITY[bid], bid); });
-    if (coverage[bid]) coverage[bid][0] = Math.min(coverage[bid][1], coverage[bid][0] + Object.keys(got).length);
+    if (coverage[bid]) setCoverage(bid, Math.min(coverage[bid][1], coverage[bid][0] + Object.keys(got).length), coverage[bid][1]);
   }
   function addChunks(list, title, pageNo, text, boost, bid) {
     text = String(text || "").replace(/\s+/g, " ").trim();
@@ -295,6 +330,6 @@
     if (L.sendRawText(msg)) { introSent = true; if (hits.length || sv) bubble(hits, sv && sv.bid); }
   }
   w.addEventListener("darkstar-live-user-turn", onTurn);
-  w.AIVAULTBookQA = { build: build, search: search, isQuestion: isQuestion, compose: compose, structural: structural, coverage: coverage, parseStruct: parseStruct, intro: intro, bookTitles: bookTitles, reset: function () { chunks = null; } };
+  w.AIVAULTBookQA = { build: build, search: search, isQuestion: isQuestion, compose: compose, structural: structural, coverage: coverage, progress: progressOf, parseStruct: parseStruct, intro: intro, bookTitles: bookTitles, reset: function () { chunks = null; } };
   setTimeout(function () { build().catch(function () {}); }, 4000); // 預先建索引
 })(window, document);

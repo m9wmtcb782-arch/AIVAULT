@@ -93,33 +93,94 @@
   }
   w.AIVAULTStudyBooks = { get: get, set: set, isEnabled: function (id) { return !cache || !cache.enabled || !!cache.enabled[id]; } };
 
+  // ---- 學習進度（來自 darkstar-book-qa.js 的索引頁數／全書頁數）----
+  function pctLabel(p) {
+    if (!p || !p.total) return "學習 0%";
+    if (p.pct >= 100) return "已學習 ✓";
+    return "學習中 " + p.pct + "%";
+  }
+  function progressOf(id) {
+    try { if (w.AIVAULTBookQA && w.AIVAULTBookQA.progress) return w.AIVAULTBookQA.progress(id); } catch (e) {}
+    try {
+      var o = JSON.parse(localStorage.getItem("aivault_bookqa_progress_v1") || "{}")[id];
+      if (o && o.total) return { have: o.have || 0, total: o.total, pct: o.pct || 0 };
+    } catch (e) {}
+    return null;
+  }
+  function ensureBookQA(cb) {
+    if (w.AIVAULTBookQA) { if (cb) cb(w.AIVAULTBookQA); return Promise.resolve(w.AIVAULTBookQA); }
+    return new Promise(function (res) {
+      var s = d.createElement("script"); s.src = "darkstar-book-qa.js?v=20261015-qa7"; s.onload = function () { res(w.AIVAULTBookQA); if (cb) cb(w.AIVAULTBookQA); };
+      s.onerror = function () { res(null); }; d.head.appendChild(s);
+    });
+  }
+  var indexing = false;
+  function kickIndex() {
+    if (indexing) return;
+    ensureBookQA(function (Q) {
+      if (!Q || !Q.build) return;
+      indexing = true;
+      Q.build().then(function () { indexing = false; paintAllProgress(); }, function () { indexing = false; paintAllProgress(); });
+    });
+  }
+  function paintAllProgress() {
+    d.querySelectorAll("[data-study-progress]").forEach(function (el) {
+      var id = el.getAttribute("data-study-progress"), on = el.getAttribute("data-on") === "1";
+      if (!on) { el.hidden = true; el.textContent = ""; return; }
+      el.hidden = false; el.textContent = pctLabel(progressOf(id));
+    });
+    var bar = d.querySelector("#dsStudyOverall [data-fill]"), lab = d.querySelector("#dsStudyOverall [data-lab]");
+    if (bar && lab && cache && cache.enabled) {
+      var ids = Object.keys(cache.enabled), sum = 0, n = 0;
+      ids.forEach(function (id) { var p = progressOf(id); if (p && p.total) { sum += p.pct; n++; } else { n++; } });
+      var pct = n ? Math.round(sum / n) : 0;
+      bar.style.width = pct + "%"; lab.textContent = "整體學習進度 " + pct + "%（" + n + " 本）";
+    }
+  }
+  w.addEventListener("darkstar-learn-progress", function () { paintAllProgress(); });
+  w.addEventListener("darkstar-study-changed", function () { paintAllProgress(); kickIndex(); });
+
   // ---- 書架書卡 ----
   function decorateCards(clickId) {
     var grid = d.getElementById("shelfGrid"); if (!grid) return;
     get().then(function (c) {
       grid.querySelectorAll('article.card[data-open][data-src="remote"]').forEach(function (card) {
-        if (card.querySelector("[data-study-book]")) return;
         var id = card.getAttribute("data-open"), on = c.enabled ? !!c.enabled[id] : false;
-        var b = d.createElement("button"); b.type = "button"; b.className = "ib"; b.setAttribute("data-study-book", id);
-        b.style.cssText = "margin-top:8px;position:relative;z-index:2";
-        function paint(v) { b.textContent = v ? "✅ 暗星學習中" : "⭐ 讓暗星學習"; b.setAttribute("aria-pressed", v ? "true" : "false"); }
+        var b = card.querySelector("[data-study-book]"), prog = card.querySelector("[data-study-progress]");
+        if (!b) {
+          b = d.createElement("button"); b.type = "button"; b.className = "ib"; b.setAttribute("data-study-book", id);
+          b.style.cssText = "margin-top:8px;position:relative;z-index:2";
+          prog = d.createElement("div"); prog.setAttribute("data-study-progress", id);
+          prog.style.cssText = "margin-top:4px;font-size:12px;opacity:.85;position:relative;z-index:2";
+          var info = card.querySelector(".cinfo") || card; info.appendChild(b); info.appendChild(prog);
+          b.onclick = function (e) {
+            e.stopPropagation(); e.preventDefault();
+            if (!cache || !cache.logged_in) { b.disabled = true; get(true).then(function (c2) { b.disabled = false; if (!c2.logged_in) { alert(loginMsg(c2)); return; } grid.querySelectorAll("[data-study-book]").forEach(function (x) { x.remove(); }); grid.querySelectorAll("[data-study-progress]").forEach(function (x) { x.remove(); }); decorateCards(id); }); return; }
+            var next = !(cache.enabled && cache.enabled[id]); b.disabled = true; b.textContent = "⏳ 儲存中…";
+            set(id, next).then(function () { paint(next); if (next) kickIndex(); paintAllProgress(); }, function (err) { paint(!next); alert(err.message || err); }).then(function () { b.disabled = false; });
+          };
+        } else if (!prog) {
+          prog = d.createElement("div"); prog.setAttribute("data-study-progress", id);
+          prog.style.cssText = "margin-top:4px;font-size:12px;opacity:.85;position:relative;z-index:2";
+          b.insertAdjacentElement("afterend", prog);
+        }
+        function paint(v) {
+          b.textContent = v ? "✅ 暗星學習中" : "⭐ 讓暗星學習"; b.setAttribute("aria-pressed", v ? "true" : "false");
+          prog.setAttribute("data-on", v ? "1" : "0");
+          if (v) { prog.hidden = false; prog.textContent = pctLabel(progressOf(id)); } else { prog.hidden = true; prog.textContent = ""; }
+        }
         paint(on);
-        b.onclick = function (e) {
-          e.stopPropagation(); e.preventDefault();
-          if (!cache || !cache.logged_in) { b.disabled = true; get(true).then(function (c2) { b.disabled = false; if (!c2.logged_in) { alert(loginMsg(c2)); return; } grid.querySelectorAll("[data-study-book]").forEach(function (x) { x.remove(); }); decorateCards(id); }); return; }
-          var next = !(cache.enabled && cache.enabled[id]); b.disabled = true; b.textContent = "⏳ 儲存中…";
-          set(id, next).then(function () { paint(next); }, function (err) { paint(!next); alert(err.message || err); }).then(function () { b.disabled = false; });
-        };
-        var info = card.querySelector(".cinfo") || card; info.appendChild(b);
         if (clickId === id) setTimeout(function () { b.click(); }, 0);
       });
+      if (c.enabled && Object.keys(c.enabled).length) kickIndex();
+      paintAllProgress();
     });
   }
   // ---- 暗星設定面板 ----
   function decoratePanel() {
     var panel = d.getElementById("darkStarSettingsPanel"); if (!panel || d.getElementById("dsStudyBooks")) return;
     var box = d.createElement("div"); box.id = "dsStudyBooks"; box.style.cssText = "margin-top:8px;font-size:13px";
-    box.innerHTML = "<b>📚 暗星學習書籍</b><div data-list style='max-height:220px;overflow:auto;margin-top:4px'>載入中…</div>";
+    box.innerHTML = "<b>📚 暗星學習書籍</b><div id=\"dsStudyOverall\" style=\"margin:6px 0 8px\"><div style=\"height:8px;background:#eee;border-radius:6px;overflow:hidden\"><i data-fill style=\"display:block;height:100%;width:0;background:linear-gradient(90deg,#3b82f6,#10b981)\"></i></div><div data-lab style=\"margin-top:4px;font-size:12px;opacity:.85\">整體學習進度 —</div></div><div data-list style=\"max-height:220px;overflow:auto;margin-top:4px\">載入中…</div>";
     panel.appendChild(box);
     var list = box.querySelector("[data-list]");
     Promise.all([get(true), fetch(INGEST, { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + ANON }, body: JSON.stringify({ action: "list", limit: 80 }) }).then(function (r) { return r.json(); })]).then(function (res) {
@@ -129,10 +190,15 @@
       books.forEach(function (bk) {
         var id = bk.id || bk.ebook_id, lab = d.createElement("label"); lab.style.cssText = "display:flex;gap:6px;align-items:flex-start;margin:3px 0";
         var cb = d.createElement("input"); cb.type = "checkbox"; cb.checked = !!c.enabled[id];
-        cb.onchange = function () { cb.disabled = true; set(id, cb.checked).catch(function (e) { cb.checked = !cb.checked; alert(e.message || e); }).then(function () { cb.disabled = false; }); };
-        var sp = d.createElement("span"); sp.textContent = bk.title || "未命名";
+        cb.onchange = function () { cb.disabled = true; set(id, cb.checked).then(function () { if (cb.checked) kickIndex(); paintAllProgress(); }).catch(function (e) { cb.checked = !cb.checked; alert(e.message || e); }).then(function () { cb.disabled = false; }); };
+        var sp = d.createElement("span"); sp.style.flex = "1";
+        var title = d.createElement("div"); title.textContent = bk.title || "未命名";
+        var pr = d.createElement("div"); pr.setAttribute("data-study-progress", id); pr.setAttribute("data-on", cb.checked ? "1" : "0");
+        pr.style.cssText = "font-size:12px;opacity:.85"; pr.textContent = cb.checked ? pctLabel(progressOf(id)) : ""; pr.hidden = !cb.checked;
+        sp.appendChild(title); sp.appendChild(pr);
         lab.appendChild(cb); lab.appendChild(sp); list.appendChild(lab);
       });
+      kickIndex(); paintAllProgress();
     }).catch(function () { list.textContent = "書單載入失敗"; });
   }
   function scan() { decorateCards(); decoratePanel(); }
