@@ -10,7 +10,7 @@ from pathlib import Path
 
 p = Path('technical-dark-star.html')
 s = p.read_text(encoding='utf-8')
-ORB_MARKER = 'data-ds-orb-avatar="1"'
+ORB_MARKER = 'data-ds-orb-avatar="2"'
 if ORB_MARKER in s:
     print('avatar (orb version) already installed')
     raise SystemExit(0)
@@ -30,7 +30,7 @@ css = r'''
 '''
 
 html = r'''
-<div id="aivault-darkstar-avatar" data-ds-orb-avatar="1" aria-label="暗星數字人">
+<div id="aivault-darkstar-avatar" data-ds-orb-avatar="2" aria-label="暗星數字人">
   <div class="dsah"><span>🌟 暗星數字人</span><span class="dslink"><i id="dsdot" class="dsdot"></i><span id="dstxt">未連結</span></span></div>
   <div class="dsfacebox" id="dsfacebox">
     <span id="dsorb" data-darkstar-orb data-size="120" title="暗星"></span>
@@ -47,11 +47,13 @@ js = r'''
   // 臉部改由暗星黑色小球（darkstar-orb.js）呈現；小球腳本較晚載入，所以延遲取得
   const orb=()=>{const el=q('dsorb');if(!el)return null;return el.__dsOrb||(window.DarkStarOrb?window.DarkStarOrb.mount(el,{size:120}):null)};
   const set=(on,text)=>{linked=on;q('dsdot').classList.toggle('on',on);q('dstxt').textContent=text||'未連結'};
-  const speak=(v)=>{target=Math.max(0,Math.min(1,v));if(target>.035)q('dsstate').textContent='🗣️ 暗星正在說話';else q('dsstate').textContent=linked?'👂 暗星正在聆聽':'等待暗星說話'};
-  const expr=t=>{const o=orb();if(t==='happy'){q('dsstate').textContent='😊 暗星很開心'}else if(t==='surprise'){q('dsstate').textContent='😮 暗星有點驚訝'}else if(t==='think'){q('dsstate').textContent='🤔 暗星正在思考'}
-    if(o)o.setExpression(t==='surprise'?'surprised':t==='think'?'curious':t==='happy'?'happy':'neutral',t==='neutral'?0:3000)};
+  const speak=(v)=>{target=Math.max(0,Math.min(1,v));const st=target>.035?'🗣️ 暗星正在說話':(linked?'👂 暗星正在聆聽':'等待暗星說話');if(target>.035||speak.was){if(q('dsstate').textContent!==st)q('dsstate').textContent=st}speak.was=target>.035};
+  const expr=t=>{const o=orb();if(t==='happy'){q('dsstate').textContent='😊 暗星很開心'}else if(t==='surprise'){q('dsstate').textContent='😮 暗星有點驚訝'}else if(t==='think'){q('dsstate').textContent='🤔 暗星正在思考'}else if(t==='angry'){q('dsstate').textContent='😠 暗星有點生氣'}else if(t==='sad'){q('dsstate').textContent='😢 暗星有點難過'}else if(t==='joy'){q('dsstate').textContent='🤩 暗星好興奮'}
+    const m={surprise:'surprised',surprised:'surprised',think:'curious',happy:'happy',angry:'angry',sad:'sad',joy:'joy'};
+    if(o)o.setExpression(m[t]||'neutral',m[t]?3000:0)};
   const loop=()=>{level+=(target-level)*.3;const o=orb();if(o)o.setTalking(level>.02?Math.min(1,level*1.6):0);requestAnimationFrame(loop)};loop();
-  q('dsconnect').onclick=()=>{set(true,'已連結');q('dsstate').textContent='👂 暗星正在聆聽';window.open('technical-dark-star-live-video-test.html','_blank','noopener');};
+  // 優先在本頁內連線（darkstar-inpage-live.js）；沒有該模組時維持舊行為（開啟視訊頁）
+  q('dsconnect').onclick=()=>{if(window.AIVAULTDarkStarLive){window.AIVAULTDarkStarLive.toggle();return}set(true,'已連結');q('dsstate').textContent='👂 暗星正在聆聽';window.open('technical-dark-star-live-video-test.html','_blank','noopener');};
   q('dsdemo').onclick=async()=>{set(true,'表情測試');expr('happy');for(let i=0;i<26;i++){speak(Math.abs(Math.sin(i*.72))*.8);await new Promise(r=>setTimeout(r,75))}speak(0);setTimeout(()=>expr('neutral'),500)};
   // 視線：滑鼠／手指位置讓小球眼睛左右看
   document.addEventListener('pointermove',e=>{const o=orb(),b=q('dsorb');if(!o||!b||target>.035)return;const r=b.getBoundingClientRect();o.look((e.clientX-(r.left+r.width/2))/Math.max(200,innerWidth/2))},{passive:true});
@@ -59,13 +61,16 @@ js = r'''
   const hookAudio=()=>{document.querySelectorAll('audio,video').forEach(el=>{if(el.__dsHook)return;el.__dsHook=1;el.addEventListener('play',()=>{set(true,'已連結');q('dsstate').textContent='🗣️ 暗星正在說話';});el.addEventListener('pause',()=>speak(0));el.addEventListener('ended',()=>speak(0));});};
   new MutationObserver(hookAudio).observe(document.documentElement,{childList:true,subtree:true});hookAudio();
   // Text-response emotion cue: only visual expression; it never changes Dark Star's reply.
-  const obs=new MutationObserver(()=>{const nodes=[...document.querySelectorAll('.message-text')];const last=nodes[nodes.length-1];if(!last)return;const t=last.textContent||'';if(/哈哈|開心|太好了|成功|很棒/.test(t))expr('happy');else if(/等等|真的嗎|驚訝|沒想到/.test(t))expr('surprise');else if(/思考|分析|考慮|應該/.test(t))expr('think');});obs.observe(document.body,{childList:true,subtree:true});
-  window.AIVAULTDarkStarAvatar={speak:speak,expr:expr};
+  // 只在最後一則訊息文字改變時才判斷（避免 expr 改狀態文字 → 再觸發觀察器的無限迴圈）
+  let lastMsg='';const obs=new MutationObserver(()=>{const nodes=[...document.querySelectorAll('.message-text')];const last=nodes[nodes.length-1];if(!last)return;const t=last.textContent||'';if(t===lastMsg)return;lastMsg=t;if(/哈哈|開心|太好了|成功|很棒/.test(t))expr('happy');else if(/等等|真的嗎|驚訝|沒想到/.test(t))expr('surprise');else if(/思考|分析|考慮|應該/.test(t))expr('think');});obs.observe(document.body,{childList:true,subtree:true});
+  const setLink=(on,text,stateText)=>{set(on,text);q('dsstate').textContent=stateText||(on?'👂 暗星正在聆聽':'等待暗星說話')};
+  window.AIVAULTDarkStarAvatar={speak:speak,expr:expr,setLink:setLink};
 })();
 </script>
 '''
 
-ORB_SCRIPT = '<script src="darkstar-orb.js?v=20261014-orb2"></script>'
+ORB_SCRIPT = '<script src="darkstar-orb.js?v=20261014-emo2"></script>'
+LIVE_SCRIPT = '<script src="darkstar-inpage-live.js?v=20261014-live1"></script>'
 
 # Remove any previous (drawn-face) install so the old face is never kept/re-injected.
 s = re.sub(r'\n?<style id="aivault-darkstar-avatar-css">.*?</style>\n?', '\n', s, count=1, flags=re.S)
@@ -76,10 +81,15 @@ assert 'id="aivault-darkstar-avatar"' not in s, 'old avatar block not fully remo
 s = s.replace('</head>', css + '\n</head>', 1)
 i = s.rfind('</body>')
 s = s[:i] + html + '\n' + js + '\n' + s[i:]
-if 'darkstar-orb.js' in s:
+if 'src="darkstar-orb.js' in s:
     s = re.sub(r'<script src="darkstar-orb\.js[^"]*"></script>', ORB_SCRIPT, s)
 else:
     i = s.rfind('</body>')
     s = s[:i] + ORB_SCRIPT + '\n' + s[i:]
+if 'src="darkstar-inpage-live.js' in s:
+    s = re.sub(r'<script src="darkstar-inpage-live\.js[^"]*"></script>', LIVE_SCRIPT, s)
+else:
+    i = s.rfind('</body>')
+    s = s[:i] + LIVE_SCRIPT + '\n' + s[i:]
 p.write_text(s, encoding='utf-8')
 print('avatar (orb version) installed')

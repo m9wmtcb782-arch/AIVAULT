@@ -39,11 +39,20 @@
     curious: "M47 67 Q50 69 53 67",
     surprised: "M50 63 a4.5 5.5 0 1 0 0.01 0Z",
     sleepy: "M46 68 Q50 69.5 54 68",
-    wink: "M42 65 Q50 74 58 65"
+    wink: "M42 65 Q50 74 58 65",
+    angry: "M42 70 Q50 63 58 70",
+    sad: "M43 70 Q50 65 57 70",
+    joy: "M40 62 Q50 80 60 62 Q50 66 40 62Z"
+  };
+  // 眉毛（只有生氣／難過顯示）
+  var BROWS = {
+    angry: ["M31 39 L44 44", "M69 39 L56 44"],
+    sad: ["M32 43 L44 39", "M68 43 L56 39"]
   };
   var EYES = {
     neutral: ["open", "open", 1, 0], happy: ["arc", "arc", 1, 0], curious: ["open", "open", 1, 0],
-    surprised: ["open", "open", 1.28, 0], sleepy: ["line", "line", 1, 0], wink: ["arc", "open", 1, 0]
+    surprised: ["open", "open", 1.28, 0], sleepy: ["line", "line", 1, 0], wink: ["arc", "open", 1, 0],
+    angry: ["open", "open", .9, 0], sad: ["open", "open", .92, 0], joy: ["arc", "arc", 1.1, 0]
   };
   // 頭部動作：face 位移/旋轉；高光反向小幅移動，營造球體轉動的立體感
   var MOTIONS = {
@@ -66,6 +75,7 @@
       '<circle cx="50" cy="52" r="38" fill="url(#' + id + 'g)"/>' +
       '<g class="hl"><ellipse cx="37" cy="31" rx="11" ry="7" fill="url(#' + id + 'h)" transform="rotate(-28 37 31)"/><circle cx="64" cy="27" r="2" fill="#fff" opacity=".6"/>' +
       '</g><g class="face"><g class="eyes">' + eye("l", 38) + eye("r", 62) + '</g>' +
+      '<g class="brows" fill="none" stroke="#f7f5ff" stroke-width="3" stroke-linecap="round"><path class="bl" d=""/><path class="br" d=""/></g>' +
       '<ellipse class="cheek" cx="30" cy="63" rx="5" ry="2.6" fill="#ff8fb1" opacity=".35"/><ellipse class="cheek" cx="70" cy="63" rx="5" ry="2.6" fill="#ff8fb1" opacity=".35"/>' +
       '<g class="mouth"><path d="' + MOUTH.neutral + '" fill="#f4f0ff" stroke="#f4f0ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></g>' +
       '<text class="zz" x="78" y="24" font-size="13" font-weight="700" fill="#b9b0ff" font-family="sans-serif">z</text></g></g></svg>';
@@ -96,7 +106,7 @@
       var e = EYES[x] || EYES.neutral;
       el.setAttribute("data-expr", x);
       mouth.setAttribute("d", MOUTH[x] || MOUTH.neutral);
-      mouth.setAttribute("fill", x === "happy" || x === "surprised" ? "#f4f0ff" : "none");
+      mouth.setAttribute("fill", x === "happy" || x === "surprised" || x === "joy" ? "#f4f0ff" : "none");
       ["l", "r"].forEach(function (s, i) {
         var g = el.querySelector(".e" + s);
         ["open", "arc", "line"].forEach(function (k) {
@@ -104,7 +114,9 @@
         });
         g.style.transform = "scale(" + e[2] + ")";
       });
-      eyes.style.transform = x === "curious" ? "translateX(-4px)" : "";
+      eyes.style.transform = x === "curious" ? "translateX(-4px)" : x === "sad" ? "translateY(2px)" : "";
+      var br = BROWS[x] || ["", ""];
+      el.querySelector(".brows .bl").setAttribute("d", br[0]); el.querySelector(".brows .br").setAttribute("d", br[1]);
     }
     setExpr("neutral");
     var api = { el: el, setExpr: setExpr, timers: [], hold: 0, talking: 0 };
