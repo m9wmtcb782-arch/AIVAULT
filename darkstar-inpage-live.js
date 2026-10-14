@@ -108,9 +108,9 @@
     return true;
   }
   // ---- 狀態列 ----
-  var st = { open: false, mic: 0, audioIn: 0, err: "" };
+  var st = { open: false, mic: 0, audioIn: 0, sent: 0, msgs: 0, err: "" };
   function line(t) { camState(t); }
-  function dbg() { var t = map.dsAudioDbg && map.dsAudioDbg.textContent; return t ? "\n" + t : ""; }
+  function dbg() { var t = map.dsAudioDbg && map.dsAudioDbg.textContent; return "\n送" + st.mic + " 訊" + st.msgs + (t ? " " + t : ""); }
   function refreshLine() {
     if (st.err) return line("錯誤：" + st.err + dbg());
     if (!st.open) return line("連線中…");
@@ -120,15 +120,38 @@
     line("🟢 已連線・" + micOk + (st.audioIn ? "・已收到語音" : "") + dbg());
   }
   var lastLevel = 0, lineTimer = 0;
+  // 本頁其他腳本（dawn-light-dark-star-bridge.js、aivault-dual-agent-live.js）會包裝 WebSocket，
+  // 未「喚醒」時把送往 live-voice 的麥克風音訊丟掉 → 伺服器收不到聲音、不回語音。
+  // 這裡改用隱藏 iframe 內未被包裝的原生 WebSocket，與視訊頁完全相同的送出方式。
+  var cleanFrame = null;
+  function pristineWS() {
+    try {
+      if (!cleanFrame || !cleanFrame.contentWindow) {
+        cleanFrame = d.createElement("iframe"); cleanFrame.setAttribute("aria-hidden", "true"); cleanFrame.tabIndex = -1;
+        cleanFrame.style.cssText = "position:absolute;width:0;height:0;border:0;visibility:hidden";
+        d.documentElement.appendChild(cleanFrame);
+      }
+      var W = cleanFrame.contentWindow && cleanFrame.contentWindow.WebSocket;
+      if (W) return W;
+    } catch (e) { console.warn("[DarkStar live] clean WebSocket", e); }
+    return w.WebSocket;
+  }
   function makeWebSocket() {
-    var WS = w.WebSocket;
     function DsWS(url, protocols) {
-      try { // 與頁面抽屜的即時語音一致：指定模型
-        var u = new URL(url); if (!u.searchParams.get("model")) u.searchParams.set("model", "gemini-3.1-flash"); url = u.toString();
-      } catch (e) {}
+      var WS = pristineWS(); // 不加 model 參數：與視訊頁送出的網址一致
       var sock = protocols ? new WS(url, protocols) : new WS(url);
+      // iframe 來源的 ArrayBuffer 跨 realm，instanceof 會失敗 → 轉成本頁的 ArrayBuffer 再交給 session
+      var userOnMsg = null;
+      sock.addEventListener("message", function (ev) {
+        if (!userOnMsg) return;
+        var data = ev.data;
+        if (data && typeof data !== "string" && typeof data.byteLength === "number" && !(data instanceof ArrayBuffer)) data = new Uint8Array(data).slice().buffer;
+        userOnMsg({ data: data });
+      });
+      try { Object.defineProperty(sock, "onmessage", { configurable: true, get: function () { return userOnMsg; }, set: function (fn) { userOnMsg = fn; } }); } catch (e) {}
       sock.addEventListener("open", function () { st.open = true; st.err = ""; refreshLine(); });
       sock.addEventListener("message", function (ev) {
+        st.msgs++;
         if (typeof ev.data !== "string") { st.audioIn++; return; }
         try {
           var m = JSON.parse(ev.data), er = m && (m.error && (m.error.message || m.error) || (m.type === "error" && m.message));
@@ -146,7 +169,7 @@
       });
       sock.addEventListener("error", function () { console.error("[DarkStar live] ws error"); });
       var send = sock.send.bind(sock);
-      sock.send = function (data) { if (typeof data === "string" && data.indexOf('"type":"audio"') > 0) st.mic++; return send(data); };
+      sock.send = function (data) { st.sent++; if (typeof data === "string" && data.indexOf('"type":"audio"') > 0) st.mic++; return send(data); };
       return sock;
     }
     DsWS.CONNECTING = 0; DsWS.OPEN = 1; DsWS.CLOSING = 2; DsWS.CLOSED = 3;
@@ -235,7 +258,7 @@
     if (b) { b.disabled = true; b.textContent = "⏳ 連線中…"; }
     try {
       await load();
-      st = { open: false, mic: 0, audioIn: 0, err: "" };
+      st = { open: false, mic: 0, audioIn: 0, sent: 0, msgs: 0, err: "" }; w.__dsLiveSt = st;
       box.hidden = false; line("連線中…");
       clearInterval(lineTimer); lineTimer = setInterval(refreshLine, 500);
       var hasLogin = false; try { hasLogin = !!w.localStorage.getItem("sb-clcddygkaaqqtsbswgdf-auth-token"); } catch (e) {}
