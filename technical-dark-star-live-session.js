@@ -84,13 +84,18 @@ setInterval(paintDbg,1000);
 function paintSoundBtn(){let b=document.getElementById('dsSoundUnlock');if(!b){b=document.createElement('button');b.id='dsSoundUnlock';b.type='button';b.textContent='🔊 點一下開啟聲音';b.style.cssText='position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:99999;padding:12px 20px;border-radius:24px;border:0;background:#ffb300;color:#000;font-size:16px;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.4);display:none';b.addEventListener('click',function(){unlockAudio();setTimeout(paintSoundBtn,300)});document.body.appendChild(b)}b.style.display=(playCtx&&playCtx.state==='suspended')?'block':'none'}
 setInterval(function(){if(playCtx)paintSoundBtn()},1000);
 async function openAudio(){if(!playCtx)playCtx=new AudioContext();if(playCtx.state!=='running')await playCtx.resume();if(!inputCtx)inputCtx=new AudioContext({sampleRate:16000});if(inputCtx.state!=='running')await inputCtx.resume()}
-function scheduleReconnect(){if(!auto||!wanted||reconnecting)return;reconnecting=true;status('🟡 斷線重連中');log('1 秒後重連');setTimeout(()=>{reconnecting=false;if(!auto||!wanted)return;connect().then(()=>{if(!processor)startAudio();status('🟢 已重連')}).catch(()=>scheduleReconnect())},1000)}
+let retryN=0,authBlocked=false,topicRetried=false;const TOPIC_MSG='無法取得對話主題，請先在文字聊天傳一則訊息再連線';
+function ensureTopicId(){const k='technical-dark-star-topic-id';try{const v=String(localStorage.getItem(k)||'').trim();if(v)return v;const id='technical-dark-star-'+((typeof crypto!=='undefined'&&crypto.randomUUID)?crypto.randomUUID():(Date.now()+'-'+Math.random().toString(36).slice(2)));localStorage.setItem(k,id);log('建立對話主題 '+id);return id}catch(e){log('topic: '+(e&&e.message||e));return ''}}
+function topicRequired(){if(authBlocked)return;if(!topicRetried){topicRetried=true;try{localStorage.removeItem('technical-dark-star-topic-id')}catch(e){}ensureTopicId();log('TOPIC_ID_REQUIRED：已建立主題，重試一次');return}authBlocked=true;auto=false;wanted=false;log('TOPIC_ID_REQUIRED：'+TOPIC_MSG+'（停止重連）');stop().catch(function(){}).then(function(){status('🔴 '+TOPIC_MSG)})}
+const AUTH_MSG='請先登入 AIVAULT 再連線';
+function authRequired(){if(authBlocked)return;authBlocked=true;auto=false;wanted=false;log('AUTH_REQUIRED：'+AUTH_MSG+'（停止重連）');stop().catch(function(e){log('stop: '+(e&&e.message||e))}).then(function(){status('🔴 '+AUTH_MSG)})}
+function scheduleReconnect(){if(!auto||!wanted||reconnecting||authBlocked)return;if(retryN>=6){log('重連 6 次仍失敗，停止');auto=false;wanted=false;stop().catch(function(){}).then(function(){status('🔴 連線失敗，請稍後再試')});return}const delay=Math.min(30000,1000*Math.pow(2,retryN));retryN++;reconnecting=true;status('🟡 斷線重連中（第 '+retryN+' 次）');log((delay/1000)+' 秒後重連');setTimeout(()=>{reconnecting=false;if(!auto||!wanted)return;connect().then(()=>{if(!processor)startAudio();status('🟢 已重連')}).catch(()=>scheduleReconnect())},delay)}
 async function connect(){
   if(ws&&ws.readyState===1)return;
   if(connectPromise)return connectPromise;
   connectPromise=(async()=>{
   const q=new URLSearchParams();q.set('voice',($('voiceSelect')&&$('voiceSelect').value)||localStorage.getItem('darkStarVoice')||'Kore');q.set('agent_id','technical-dark-star');
-  const topicId=localStorage.getItem('technical-dark-star-topic-id')||'';const conversationId=localStorage.getItem('technical_dark_star_conversation_id')||'';const tok=await accessToken(forceAuthRefresh);
+  const topicId=ensureTopicId();const conversationId=localStorage.getItem('technical_dark_star_conversation_id')||'';const tok=await accessToken(forceAuthRefresh);
   forceAuthRefresh=false;
   if(topicId)q.set('topic_id',topicId);if(conversationId)q.set('conversation_id',conversationId);if(tok)q.set('access_token',tok);
   log('連線 '+FN);
@@ -100,9 +105,9 @@ async function connect(){
   try{
     await new Promise((resolve,reject)=>{
       const t=setTimeout(()=>{try{socket.close()}catch(e){}reject(new Error('連線逾時'))},8000);
-      socket.onopen=()=>{clearTimeout(t);status('🟢 已連線 live-voice');log('OPEN');flushPending();resolve()};
+      socket.onopen=()=>{clearTimeout(t);clearTimeout(window.__dsRetryOk);window.__dsRetryOk=setTimeout(function(){retryN=0},10000);status('🟢 已連線 live-voice');log('OPEN');flushPending();resolve()};
       socket.onerror=()=>{clearTimeout(t);log('WS error');reject(new Error('WebSocket error'))};
-      socket.onclose=function(ev){clearTimeout(t);log('CLOSE code='+ev.code+' reason='+(ev.reason||'')+' clean='+ev.wasClean);if(ws===socket)ws=null;if(auto&&wanted)scheduleReconnect();else status('⚪ 已斷線 '+ev.code)};
+      socket.onclose=function(ev){clearTimeout(t);clearTimeout(window.__dsRetryOk);log('CLOSE code='+ev.code+' reason='+(ev.reason||'')+' clean='+ev.wasClean);if(ws===socket)ws=null;if(auto&&wanted)scheduleReconnect();else if(!authBlocked)status('⚪ 已斷線 '+ev.code)};
       socket.onmessage=e=>handleMessage(e.data);
     });
     return;
@@ -134,11 +139,11 @@ function handleMessage(raw){
   if(d.type==='inputTranscription'&&d.text){inBuf+=d.text;bubble('user',inBuf,true)}
   if(d.type==='outputTranscription'&&d.text){outBuf+=d.text;bubble('ai',outBuf,true)}
   if(sc.turnComplete||d.turnComplete||d.type==='turnComplete')flushTurn();
-  if(d.type==='error'||d.error){const m=d.message||(d.error&&d.error.message)||JSON.stringify(d.error||d);log('錯誤：'+m);status('🔴 '+m);if(String(m).includes('INVALID_AUTH')){forceAuthRefresh=true;log('AUTH 失效：下一次重連先更新 Supabase session')}}
+  if(d.type==='error'||d.error){const m=d.message||(d.error&&d.error.message)||JSON.stringify(d.error||d);log('錯誤：'+m);status('🔴 '+m);if(String(m).includes('AUTH_REQUIRED')){authRequired();return}if(String(m).includes('TOPIC_ID_REQUIRED')){topicRequired();return}if(String(m).includes('INVALID_AUTH')){forceAuthRefresh=true;log('AUTH 失效：下一次重連先更新 Supabase session')}}
 }
 function playBase64PCM(b64,mime){dbgRx++;const m=/rate=(\d+)/.exec(String(mime||''));try{const bin=atob(b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);playPCM(u.buffer,m?+m[1]:24000,true)}catch(e){noteErr('decode',e)}}
 function playPCM(buf,rate,counted){if(!counted)dbgRx++;if(!playCtx){noteErr('play','no ctx');return}if(Date.now()<userTalkingUntil)return;const bytes=new Uint8Array(buf),pcm=new Int16Array(bytes.buffer,bytes.byteOffset,Math.floor(bytes.byteLength/2));if(!pcm.length)return;audioPackets++;audioBytes+=bytes.byteLength;if($('audioStat'))$('audioStat').textContent=audioPackets;if($('byteStat'))$('byteStat').textContent=audioBytes.toLocaleString();if(playCtx.state!=='running')playCtx.resume().catch(function(e){noteErr('resume',e)});const audio=playCtx.createBuffer(1,pcm.length,rate||24000),data=audio.getChannelData(0);for(let i=0;i<pcm.length;i++)data[i]=pcm[i]/32768;const src=playCtx.createBufferSource();src.buffer=audio;src.connect(outMode==='pending'?playCtx.destination:outNode());const now=playCtx.currentTime;if(nextPlayTime<now+.03)nextPlayTime=now+.03;src.start(nextPlayTime);nextPlayTime+=audio.duration;dbgPlayed++;playSources.push(src);src.onended=function(){const i=playSources.indexOf(src);if(i>=0)playSources.splice(i,1)}}
-async function start(){if(starting||wanted)return;starting=true;unlockAudio();try{wanted=true;auto=true;setAutoUi();audioPackets=0;audioBytes=0;if($('audioStat'))$('audioStat').textContent='0';await openMedia();await connect();await openAudio();startAudio();startVideo();if($('startBtn'))$('startBtn').disabled=true;if($('stopBtn'))$('stopBtn').disabled=false;status('🟢 已開始（視訊 JPEG 送往 live-voice）');log('視訊 JPEG 已啟用：每秒 1 張，送往 live-voice');const draft=($('liveInput')&&$('liveInput').value||'').trim();if(draft)sendTextToLive(draft)}catch(e){wanted=false;auto=false;status('🔴 無法啟動：'+(e.message||e));log('啟動失敗：'+(e.message||e))}finally{starting=false}}
+async function start(){if(starting||wanted)return;starting=true;authBlocked=false;retryN=0;topicRetried=false;unlockAudio();try{wanted=true;auto=true;setAutoUi();audioPackets=0;audioBytes=0;if($('audioStat'))$('audioStat').textContent='0';await openMedia();await connect();await openAudio();startAudio();startVideo();if($('startBtn'))$('startBtn').disabled=true;if($('stopBtn'))$('stopBtn').disabled=false;status('🟢 已開始（視訊 JPEG 送往 live-voice）');log('視訊 JPEG 已啟用：每秒 1 張，送往 live-voice');const draft=($('liveInput')&&$('liveInput').value||'').trim();if(draft)sendTextToLive(draft)}catch(e){wanted=false;auto=false;status('🔴 無法啟動：'+(e.message||e));log('啟動失敗：'+(e.message||e))}finally{starting=false}}
 function startVideo(){
   clearInterval(videoTimer);
   if(mode !== 'video' || !stream || !ws || ws.readyState !== 1) return;

@@ -7,7 +7,7 @@
 (function (w, d) {
   "use strict";
   if (w.AIVAULTDarkStarLive) return;
-  var SESSION_SRC = "technical-dark-star-live-session.js?v=21";
+  var SESSION_SRC = "technical-dark-star-live-session.js?v=22";
   var loadFailed = false, LIVE_PAGE = "technical-dark-star-live-video-test.html";
   var api = null, loading = null, connected = false, analyser = null, raf = 0, lastEmotion = "", lastEmoAt = 0;
   var box = null, hidden = null, video = null;
@@ -230,11 +230,26 @@
       api = factory(fakeDoc, fakeWin, Ctx, w.localStorage, w.location, makeWebSocket());
       // 監看逐字稿與狀態
       new MutationObserver(onTranscript).observe(el("chat"), { childList: true, subtree: true, characterData: true });
-      new MutationObserver(function () { var t = el("status").textContent || ""; if (/^🔴/.test(t)) { st.err = t.replace(/^🔴\s*/, ""); if (/AUTH/i.test(st.err)) st.err += "（請先登入 AIVAULT）"; refreshLine(); } }).observe(el("status"), { childList: true, characterData: true, subtree: true });
+      new MutationObserver(function () { var t = el("status").textContent || ""; if (/請先登入 AIVAULT|無法取得對話主題|連線失敗，請稍後再試/.test(t)) { authNotice(t.replace(/^🔴\s*/, "")); if (connected) disconnect(); return; } if (/^🔴/.test(t)) { st.err = t.replace(/^🔴\s*/, ""); if (/AUTH/i.test(st.err)) st.err += "（請先登入 AIVAULT）"; refreshLine(); } }).observe(el("status"), { childList: true, characterData: true, subtree: true });
       return api;
     });
     loading.catch(function (e) { loading = null; loadFailed = true; console.warn("[DarkStar live] load", e); });
     return loading;
+  }
+
+  // 未登入：在暗星數字人面板下方顯示小提示（迷你視窗狀態文字已隱藏）
+  var noticeTimer = 0;
+  function authNotice(msg) {
+    var n = d.getElementById("dsLiveAuthNotice");
+    if (!n) {
+      n = d.createElement("div"); n.id = "dsLiveAuthNotice"; n.setAttribute("role", "alert");
+      n.style.cssText = "position:fixed;z-index:82;right:14px;top:330px;max-width:190px;padding:8px 10px;border-radius:12px;background:#fff3f3;color:#b00020;border:1px solid #f3c2c2;font-size:13px;line-height:1.4;box-shadow:0 6px 18px rgba(0,0,0,.12)";
+      d.body.appendChild(n);
+    }
+    var panel = d.getElementById("aivault-darkstar-avatar");
+    if (panel) { var r = panel.getBoundingClientRect(); n.style.top = Math.round(r.bottom + 8) + "px"; n.style.right = Math.max(4, Math.round(w.innerWidth - r.right)) + "px"; n.style.maxWidth = Math.round(r.width) + "px"; }
+    n.textContent = (/登入/.test(msg || "") ? "🔒 " : "⚠️ ") + (msg || "請先登入 AIVAULT 再連線"); n.hidden = false;
+    clearTimeout(noticeTimer); noticeTimer = setTimeout(function () { n.hidden = true; }, 8000);
   }
 
   // ---- 對嘴 ----
