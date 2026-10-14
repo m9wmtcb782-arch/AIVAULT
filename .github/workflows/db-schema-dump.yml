@@ -1,0 +1,32 @@
+name: DB schema dump (reference only)
+on:
+  workflow_dispatch:
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump public schema via Management API (no data)
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request
+          def q(sql):
+              r = urllib.request.Request("https://api.supabase.com/v1/projects/clcddygkaaqqtsbswgdf/database/query",
+                  data=json.dumps({"query": sql}).encode(), headers={"Authorization": "Bearer " + os.environ["TOKEN"], "Content-Type": "application/json", "User-Agent": "aivault-schema-dump"})
+              return json.load(urllib.request.urlopen(r))
+          out = {}
+          out["columns"] = q("select table_name,column_name,data_type,is_nullable,column_default from information_schema.columns where table_schema='public' order by table_name,ordinal_position")
+          out["constraints"] = q("select conrelid::regclass::text as tbl, conname, pg_get_constraintdef(oid) as def from pg_constraint where connamespace='public'::regnamespace order by 1,2")
+          out["indexes"] = q("select tablename, indexname, indexdef from pg_indexes where schemaname='public' order by 1,2")
+          out["rls"] = q("select relname, relrowsecurity from pg_class where relnamespace='public'::regnamespace and relkind='r' order by 1")
+          out["policies"] = q("select tablename, policyname, cmd, roles::text, qual, with_check from pg_policies where schemaname='public' order by 1,2")
+          out["functions"] = q("select p.proname, pg_get_functiondef(p.oid) as def from pg_proc p where p.pronamespace='public'::regnamespace and p.prokind='f' order by 1")
+          os.makedirs("dump", exist_ok=True)
+          json.dump(out, open("dump/public-schema.json", "w"), ensure_ascii=False, indent=1)
+          print({k: len(v) if isinstance(v, list) else v for k, v in out.items()})
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: public-schema
+          path: dump/public-schema.json
