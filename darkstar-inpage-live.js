@@ -30,6 +30,7 @@
     video = box.querySelector("video"); video.muted = true; video.playsInline = true;
     // 不放進頁面 DOM：避免觸發本頁其他 MutationObserver
     hidden = d.createElement("div"); hidden.hidden = true;
+    box.addEventListener("click", function (e) { if (e.target.id !== "dsLiveRotate" && resumeIfNeeded()) camState("🔊 聲音已開啟"); });
     d.getElementById("dsLiveRotate").onclick = function () {
       if (!api || !connected) return;
       api.switchCamera().then(function () { video.classList.toggle("mirror", api.facing() === "user"); })
@@ -49,17 +50,52 @@
     return map[id];
   }
   // 播放端 AudioContext：destination 改為經過 AnalyserNode，讓小球對嘴
+  // 播放端 AudioContext：
+  // 1) 在使用者點擊（手勢）當下就建立並 resume（iOS Safari 只有手勢內才能啟動聲音）
+  // 2) 原本的輸出路徑完全不動（source → destination），另外「分接」一份給 AnalyserNode 做對嘴，
+  //    分析器不接任何輸出，不會搶走聲音
+  var primed = null;
+  function Base() { return w.AudioContext || w.webkitAudioContext; }
+  function tapContext(ctx) {
+    if (ctx.__dsTapped) return ctx;
+    ctx.__dsTapped = true;
+    var an = ctx.createAnalyser(); an.fftSize = 512; analyser = an;
+    var orig = ctx.createBufferSource.bind(ctx);
+    ctx.createBufferSource = function () {
+      var src = orig(), conn = src.connect;
+      src.connect = function (node) {
+        var r = conn.apply(src, arguments);
+        if (node === ctx.destination) { try { conn.call(src, an); } catch (e) {} }
+        return r;
+      };
+      return src;
+    };
+    return ctx;
+  }
+  function primeAudio() {
+    try {
+      var B = Base(); if (!B) return;
+      if (!primed || primed.state === "closed") primed = tapContext(new B());
+      if (primed.state !== "running") primed.resume().catch(function () {});
+      // iOS 解鎖：在手勢內播放一段極短的無聲音訊
+      var buf = primed.createBuffer(1, 1, 22050), s = primed.createBufferSource();
+      s.buffer = buf; s.connect(primed.destination); s.start(0);
+    } catch (e) { console.warn("[DarkStar live] prime audio", e); }
+  }
   function makeAudioContext() {
-    var Base = w.AudioContext || w.webkitAudioContext;
-    function Ctx(opts) {
-      var ctx = opts ? new Base(opts) : new Base();
-      if (!opts) {
-        var an = ctx.createAnalyser(); an.fftSize = 512; an.connect(ctx.destination); analyser = an;
-        try { Object.defineProperty(ctx, "destination", { get: function () { return an; } }); } catch (e) {}
-      }
+    return function Ctx(opts) {
+      var B = Base();
+      if (opts) return new B(opts); // 麥克風輸入用（16kHz），維持原樣
+      var ctx = primed && primed.state !== "closed" ? primed : tapContext(new B());
+      primed = null;
       return ctx;
-    }
-    return Ctx;
+    };
+  }
+  function resumeIfNeeded() {
+    // session 內部的播放 context 透過 analyser.context 取得
+    var ctx = analyser && analyser.context;
+    if (ctx && ctx.state !== "running") { ctx.resume().catch(function () {}); return false; }
+    return true;
   }
   function load() {
     if (api) return Promise.resolve(api);
@@ -132,6 +168,7 @@
   function btn() { return d.getElementById("dsconnect"); }
   async function connect() {
     var b = btn(); ensureUi();
+    primeAudio(); // 必須在任何 await 之前（仍在點擊手勢內）
     if (b) { b.disabled = true; b.textContent = "⏳ 連線中…"; }
     try {
       await load();
@@ -139,6 +176,7 @@
       await api.start();
       if (!api.isOpen()) throw new Error((el("status").textContent || "無法連線").replace(/^🔴\s*/, ""));
       connected = true; lipLoop();
+      if (!resumeIfNeeded()) camState("🔇 點小視窗開啟聲音");
       var A = w.AIVAULTDarkStarAvatar; if (A && A.setLink) A.setLink(true, "已連結");
       if (b) b.textContent = "⛔ 中斷連結";
     } catch (e) {
@@ -159,5 +197,6 @@
   }
   function toggle() { return connected ? disconnect() : connect(); }
   w.addEventListener("pagehide", function () { if (connected) disconnect(); });
-  w.AIVAULTDarkStarLive = { toggle: toggle, connect: connect, disconnect: disconnect, isConnected: function () { return connected; }, classify: classify };
+  w.AIVAULTDarkStarLive = { toggle: toggle, connect: connect, disconnect: disconnect, isConnected: function () { return connected; }, classify: classify,
+    audioState: function () { var c = analyser && analyser.context; return c ? c.state : "none"; } };
 })(window, document);

@@ -70,7 +70,7 @@ js = r'''
 '''
 
 ORB_SCRIPT = '<script src="darkstar-orb.js?v=20261014-emo2"></script>'
-LIVE_SCRIPT = '<script src="darkstar-inpage-live.js?v=20261014-live1"></script>'
+LIVE_SCRIPT = '<script src="darkstar-inpage-live.js?v=20261014-live2"></script>'
 
 # Remove any previous (drawn-face) install so the old face is never kept/re-injected.
 s = re.sub(r'\n?<style id="aivault-darkstar-avatar-css">.*?</style>\n?', '\n', s, count=1, flags=re.S)
