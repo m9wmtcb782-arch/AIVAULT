@@ -82,11 +82,11 @@
     }
     return out;
   }
-  function addChunks(list, title, pageNo, text, boost) {
+  function addChunks(list, title, pageNo, text, boost, bid) {
     text = String(text || "").replace(/\s+/g, " ").trim();
     for (var i = 0; i < text.length; i += 250) {
       var s = text.substr(Math.max(0, i - 50), 350);
-      list.push({ title: title, page: pageNo, text: s, g: grams(s), b: boost || 1 });
+      list.push({ title: title, page: Number(pageNo), text: s, g: grams(s), b: boost || 1, bid: bid || "" });
     }
   }
   function build() {
@@ -95,9 +95,9 @@
     building = (async function () {
       var list = [], skip = {};
       var L = await idbAll(), titles = {};
-      L.books.forEach(function (b) { titles[b.id] = b.title || "未命名"; if (b.ebook_id) skip[b.ebook_id] = 1; skip[b.id] = 1; });
-      L.pages.forEach(function (p) { addChunks(list, titles[p.book_id] || "未命名", p.page_number, p.content || p.text); });
-      try { (await remoteBooks(skip)).forEach(function (b) { b.pages.forEach(function (p) { addChunks(list, b.title, p[0], p[1], PRIORITY[b.id]); }); }); } catch (e) { console.warn("[BookQA] remote", e); }
+      var bids = {}; L.books.forEach(function (b) { titles[b.id] = b.title || "未命名"; bids[b.id] = b.ebook_id || b.id; if (b.ebook_id) skip[b.ebook_id] = 1; skip[b.id] = 1; });
+      L.pages.forEach(function (p) { addChunks(list, titles[p.book_id] || "未命名", p.page_number, p.content || p.text, 1, bids[p.book_id]); });
+      try { (await remoteBooks(skip)).forEach(function (b) { b.pages.forEach(function (p) { addChunks(list, b.title, p[0], p[1], PRIORITY[b.id], b.id); }); }); } catch (e) { console.warn("[BookQA] remote", e); }
       var df = {}; list.forEach(function (c) { for (var k in c.g) df[k] = (df[k] || 0) + 1; });
       list.idf = function (k) { return Math.log(1 + list.length / (1 + (df[k] || 0))); };
       chunks = list; building = null; return list;
@@ -105,7 +105,8 @@
     return building;
   }
   var QWORDS = /(請問|请问|什麼是|什么是|是什麼|是什么|為什麼|为什么|怎麼|怎么|如何|哪些|甚麼|嗎|吗|呢|一下|告訴我|告诉我|根據書上|书上|書上|書架|书架|這本書|这本书|暗星)/g;
-  function search(q, list) {
+  function search(q, list, rg) {
+    if (rg) list = Object.assign(list.filter(function (c) { return c.bid === rg.bid && c.page >= rg.from && c.page <= rg.to; }), { idf: list.idf });
     var qg = grams(String(q || "").replace(QWORDS, " ")), keys = Object.keys(qg); if (keys.length < 2) return [];
     var idf = list.idf || function () { return 1; }, tot = 0; keys.forEach(function (k) { tot += idf(k); });
     var qs = toS(norm(String(q || "").replace(QWORDS, " "))).replace(/[，。、！？；：「」『』（）()《》〈〉,.!?;:"'\-—…“”]/g, ""), tri = [];
@@ -141,7 +142,7 @@
   }
   function compose(q, hits) {
     return "【書架資料】使用者剛才的題目：「" + q + "」\n" + hits.map(function (h, i) { return (i + 1) + ". 《" + h.title + "》p." + h.page + "：" + h.text; }).join("\n") +
-      "\n請根據以上書架資料回答題目，並說出書名與頁碼；若資料中找不到答案，請直接說書架上找不到。若你剛才已開始回答，請以書架資料修正或補充剛才的回答。";
+      "\n請根據以上書架資料回答題目，並說出書名與頁碼。若你剛才已開始回答，請以書架資料修正或補充剛才的回答。" + EXCERPT_NOTE;
   }
   // 書架介紹：每次連線後只送一次，併在第一題的【書架資料】裡（避免開場時讓暗星無故開口）
   var introSent = false, wasConn = false;
@@ -158,18 +159,112 @@
       "。每當使用者提問，系統會送來【書架資料】段落，你必須依據這些段落回答並說出書名與頁碼。若使用者問你看不看得到電子書或書架上有什麼書，請回答看得到，簡短說出書名，並表示可以根據這些書回答題目。\n";
   }
   var SHELF_Q = /(看得到|看得見|看到|看見|有哪些書|有什麼書|什麼書|哪些書|書架|电子书|電子書|书架|讀得到|讀到)/;
+  // ===== 結構性提問：第X章／編／節、第N頁、目錄、章名 =====
+  var DEFAULT_BID = "e0bc8c57-646d-474c-988e-d6cb3d4f8972", lastBid = "", tocs = {}, tocLoading = null;
+  function loadTocs() {
+    if (tocLoading) return tocLoading;
+    tocLoading = fetch("ebook/aivault-toc-overrides.js", { cache: "no-cache" }).then(function (r) { return r.text(); }).then(function (t) {
+      var m = t.match(/var OVERRIDES = (\{[\s\S]*?\n  \});/); if (m) { var o = (new Function("return " + m[1]))(); for (var k in o) tocs[k] = o[k]; }
+    }).catch(function (e) { console.warn("[BookQA] toc overrides", e); });
+    return tocLoading;
+  }
+  async function tocFor(bid) {
+    await loadTocs();
+    if (!tocs[bid]) { try { var r = await ingest({ action: "toc", ebook_id: bid }); tocs[bid] = (r && (r.toc || r.items || r.entries)) || []; } catch (e) { tocs[bid] = []; } }
+    return tocs[bid];
+  }
+  var CN = { "零": 0, "〇": 0, "一": 1, "二": 2, "两": 2, "兩": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9 };
+  function num(t) {
+    t = String(t || ""); if (/^\d+$/.test(t)) return +t;
+    var n = 0, cur = 0;
+    for (var i = 0; i < t.length; i++) { var c = t[i]; if (c in CN) cur = CN[c]; else if (c === "十") { n += (cur || 1) * 10; cur = 0; } else if (c === "百") { n += (cur || 1) * 100; cur = 0; } }
+    return n + cur;
+  }
+  var NUMRE = "([0-9]+|[零〇一二两兩三四五六七八九十百]+)";
+  function parseStruct(q) {
+    var s = toS(norm(String(q || ""))).replace(/\s+/g, ""), r = {};
+    var m = s.match(new RegExp("第" + NUMRE + "章")); if (m) r.chapter = num(m[1]);
+    m = s.match(new RegExp("第" + NUMRE + "编")); if (m) r.part = num(m[1]);
+    m = s.match(new RegExp("第" + NUMRE + "节")); if (m) r.section = num(m[1]);
+    m = s.match(new RegExp("第" + NUMRE + "页")) || s.match(/(?:^|[^a-z])p\.?([0-9]+)/i); if (m) r.page = num(m[1]);
+    if (/目录|有哪些章|有几章|哪几章|几个章|章节|多少章|有哪些编|几编/.test(s)) r.toc = 1;
+    if (/重点|大意|讲什么|讲了什么|讲些什么|在讲|内容|概要|摘要|整理|架构|结构/.test(s)) r.overall = 1;
+    r.s = s; return r;
+  }
+  function bare(t) { return toS(norm(String(t || ""))).replace(/^第.+?[章编节]\s*|^[（(][^）)]+[）)]\s*|^[一二三四五六七八九十]+、\s*/, "").replace(/\s+/g, ""); }
+  function pickBook(st, list) {
+    var seen = {}, best = "";
+    list.forEach(function (c) { if (!c.bid || seen[c.bid]) return; seen[c.bid] = 1; var t = toS(norm(c.title)).replace(/[（(｜|].*$/, "").replace(/\s+/g, ""); if (t.length >= 3 && st.s.indexOf(t.slice(0, Math.min(6, t.length))) >= 0) best = c.bid; });
+    return best || lastBid || DEFAULT_BID;
+  }
+  function chunksAt(list, bid, page, n) { return list.filter(function (c) { return c.bid === bid && c.page === page; }).slice(0, n || 2); }
+  function lastPage(list, bid) { var m = 0; list.forEach(function (c) { if (c.bid === bid && c.page > m) m = c.page; }); return m; }
+  function lv(e) { return e.level === "part" ? 0 : e.level === "chapter" ? 1 : 2; }
+  async function structural(q, list) {
+    var st = parseStruct(q);
+    var bid = pickBook(st, list), toc = (await tocFor(bid)) || [], title = (list.find(function (c) { return c.bid === bid; }) || {}).title || "";
+    if (!title) return null;
+    var end = lastPage(list, bid), target = null, label = "";
+    function rangeOf(i) { var L0 = lv(toc[i]), p0 = +toc[i].page_number; for (var j = i + 1; j < toc.length; j++) if (lv(toc[j]) <= L0 && +toc[j].page_number > p0) return +toc[j].page_number - 1; return end; }
+    function findNum(kind, n) { for (var i = 0; i < toc.length; i++) { var t = toS(norm(toc[i].title)); var m = t.match(new RegExp("^第" + NUMRE + kind)); if (m && num(m[1]) === n) return i; } return -1; }
+    var idx = -1;
+    if (st.chapter) idx = findNum("章", st.chapter);
+    if (idx < 0 && st.part) idx = findNum("编", st.part);
+    if (idx < 0 && !st.page && !st.toc) {
+      // 章名（含簡繁）出現在問題裡
+      var bestLen = 0; toc.forEach(function (e, i) { if (lv(e) !== 1) return; var b = bare(e.title); if (b.length >= 4 && st.s.indexOf(b) >= 0 && b.length > bestLen) { bestLen = b.length; idx = i; } });
+    }
+    if (idx < 0 && !st.page && !st.toc && !st.chapter && !st.part) return null;
+    lastBid = bid;
+    var out = [], sources = [], budget = 2500, used = 0;
+    function add(line) { if (used + line.length > budget) return false; out.push(line); used += line.length; return true; }
+    function addChunk(c, tag) { if (!c || sources.indexOf(c) >= 0) return; if (add((tag || "") + "《" + c.title + "》p." + c.page + "：" + c.text)) sources.push(c); }
+    if (st.toc && idx < 0) {
+      add("《" + title + "》目錄（編、章與起始頁）：");
+      toc.forEach(function (e) { if (lv(e) <= 1 && /^第|导论|附录/.test(toS(e.title))) add((lv(e) ? "  " : "") + e.title + " p." + e.page_number); });
+      return { st: st, bid: bid, text: out.join("\n"), sources: sources, label: "目錄" };
+    }
+    if (idx >= 0) {
+      var e = toc[idx], from = +e.page_number, to = rangeOf(idx);
+      label = e.title + "（p." + from + "–" + to + "）";
+      add("《" + title + "》" + label + " 的目次：");
+      var subs = []; for (var j = idx + 1; j < toc.length && +toc[j].page_number <= to; j++) { if (lv(toc[j]) <= lv(e)) break; subs.push(toc[j]); add("  " + toc[j].title + " p." + toc[j].page_number); }
+      if (st.section && subs[st.section - 1]) { var se = subs[st.section - 1]; from = +se.page_number; label += "／" + se.title; }
+      add("【章節開頭】"); chunksAt(list, bid, from, 2).forEach(function (c) { addChunk(c); });
+      var words = st.s.replace(new RegExp("第" + NUMRE + "[章编节页]", "g"), "").replace(/重点|大意|讲什么|讲了什么|在讲|内容|概要|摘要|整理|架构|结构|这一章|本章|这章|的|是|有|什么/g, "");
+      var hits = words.length >= 2 ? search(words, list, { bid: bid, from: from, to: to }) : [];
+      if (hits.length) { add("【章內相關段落】"); hits.forEach(function (c) { addChunk(c); }); }
+      if (st.overall || !hits.length) {
+        add("【各節開頭】");
+        subs.forEach(function (sub) { var b = bare(sub.title), cs = list.filter(function (c) { return c.bid === bid && c.page === +sub.page_number; }); var c = cs.find(function (x) { return toS(norm(x.text)).replace(/\s/g, "").indexOf(b) >= 0; }) || cs[0]; addChunk(c); });
+      }
+      return { st: st, bid: bid, text: out.join("\n"), sources: sources, label: label };
+    }
+    if (st.page) {
+      var pcs = chunksAt(list, bid, st.page, 4); label = "p." + st.page;
+      add("《" + title + "》第 " + st.page + " 頁內容：");
+      if (!pcs.length) add("（這一頁沒有文字，或超出全書頁數 " + end + "）");
+      pcs.forEach(function (c) { addChunk(c); });
+      return { st: st, bid: bid, text: out.join("\n"), sources: sources, label: label };
+    }
+    return null;
+  }
+  var EXCERPT_NOTE = "注意：以上只是從整本書中擷取的片段，書中還有更多內容；若片段不足以回答，請請使用者說得更具體（例如哪一章、哪一節或關鍵詞），不要說書裡沒有這些內容。";
   async function onTurn(ev) {
     var q = ev && ev.detail && ev.detail.text;
     var L = w.AIVAULTDarkStarLive;
     if (!isQuestion(q) || !L || !L.isConnected || !L.isConnected() || !L.sendRawText) return;
-    var hits = search(q, await build());
-    var list = await build(), shelf = SHELF_Q.test(q);
-    var msg = hits.length ? compose(q, hits) : shelf ? "【書架資料】使用者在問書架本身：「" + q + "」。" : "【書架資料】使用者題目：「" + q + "」在書架上沒有搜尋到相關段落；如果這是考題，請說明書架上找不到依據。";
+    var list = await build(), shelf = SHELF_Q.test(q), sv = null;
+    try { sv = await structural(q, list); } catch (e) { console.warn("[BookQA] structural", e); }
+    var hits = sv ? sv.sources : search(q, list);
+    if (!sv && hits[0] && hits[0].bid) lastBid = hits[0].bid;
+    var msg = sv ? "【書架資料】使用者剛才的題目：「" + q + "」\n" + sv.text + "\n請根據以上書架資料回答，說出書名與頁碼。若你剛才已開始回答，請以書架資料修正或補充剛才的回答。" + EXCERPT_NOTE
+      : hits.length ? compose(q, hits) : shelf ? "【書架資料】使用者在問書架本身：「" + q + "」。" : "【書架資料】使用者題目：「" + q + "」在書架上沒有搜尋到相關段落；如果這是考題，請說明書架上找不到依據。";
     if (shelf) msg += "\n書架書目：" + bookTitles(list).join("、") + "。請回答你看得到這些書，並邀請使用者出題。";
     if (!introSent) msg = intro(list) + msg;
     if (L.sendRawText(msg)) { introSent = true; if (hits.length) bubble(hits); }
   }
   w.addEventListener("darkstar-live-user-turn", onTurn);
-  w.AIVAULTBookQA = { build: build, search: search, isQuestion: isQuestion, compose: compose, intro: intro, bookTitles: bookTitles, reset: function () { chunks = null; } };
+  w.AIVAULTBookQA = { build: build, search: search, isQuestion: isQuestion, compose: compose, structural: structural, parseStruct: parseStruct, intro: intro, bookTitles: bookTitles, reset: function () { chunks = null; } };
   setTimeout(function () { build().catch(function () {}); }, 4000); // 預先建索引
 })(window, document);
