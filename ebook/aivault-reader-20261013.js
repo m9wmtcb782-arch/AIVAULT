@@ -532,6 +532,10 @@
     return wrap;
   }
   function runCurl(before,after,dir) {
+    const hint=state.curlHint||{};state.curlHint=null;
+    if(window.AIVAULTPageCurl&&!useSpread()&&!matchMedia("(prefers-reduced-motion: reduce)").matches){
+      try{return window.AIVAULTPageCurl.run($("flipBook"),before,after,dir,{corner:hint.corner||"bottom",slope:hint.slope,hold:window.__AIVAULT_CURL_HOLD});}catch(e){console.warn("[AIVAULT reader] real curl fallback",e);}
+    }
     if(!window.St||!St.PageFlip||useSpread()||matchMedia("(prefers-reduced-motion: reduce)").matches)return Promise.resolve();
     return new Promise(function(resolve){
       const book=$("flipBook"),host=document.createElement("div");host.className="qq-curl-host";host.setAttribute("aria-hidden","true");
@@ -1127,7 +1131,7 @@
     });
     stage.addEventListener("pointerup",function(e){
       if(!start||start.id!==e.pointerId)return;const dx=e.clientX-start.x,dy=e.clientY-start.y;start=null;
-      if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)){suppress=Date.now()+450;goPage(state.pageNumber+(dx<0?1:-1),true,dx<0?"next":"prev");}
+      if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)){suppress=Date.now()+450;state.curlHint={corner:dy<0?"bottom":"top",slope:Math.abs(dy)/Math.abs(dx)};goPage(state.pageNumber+(dx<0?1:-1),true,dx<0?"next":"prev");}
     });
     stage.addEventListener("pointercancel",function(){start=null;});
     stage.addEventListener("click",function(e){
