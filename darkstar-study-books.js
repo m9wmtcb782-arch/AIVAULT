@@ -8,14 +8,43 @@
   var INGEST = "https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/dark-star-ebook-ingest", ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE";
   var DEFAULT_IDS = ["e0bc8c57-646d-474c-988e-d6cb3d4f8972"];
   var cache = null, loading = null;
-  function token() { try { var j = JSON.parse(localStorage.getItem("sb-clcddygkaaqqtsbswgdf-auth-token") || "null"); var t = j && (j.access_token || (j.currentSession && j.currentSession.access_token)); if (t && (!j.expires_at || j.expires_at * 1000 > Date.now() + 30000)) return t; } catch (e) {} return ""; }
-  function call(body) {
-    var t = token(); if (!t) return Promise.resolve({ ok: true, logged_in: false, books: [] });
-    return fetch(INGEST, { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + t }, body: JSON.stringify(body) })
-      .then(function (r) { return r.json().catch(function () { return {}; }); });
+  // 與即時語音（technical-dark-star-live-session.js accessToken）相同的取 token 方式：
+  // 讀 sb-<ref>-auth-token；過期或快過期時用 refresh_token 換新並寫回（電子書頁沒有 supabase client 會自動續期）
+  var AUTH_KEY = "sb-clcddygkaaqqtsbswgdf-auth-token", PUB = "sb_publishable_1D05YGthBrNGg-5L92TLCw_GiLnInBu";
+  function session() { try { var j = JSON.parse(localStorage.getItem(AUTH_KEY) || "null"); return j && typeof j === "object" ? j : null; } catch (e) { return null; } }
+  var refreshing = null;
+  async function token(force) {
+    var j = session(); if (!j) return "";
+    var cs = j.currentSession || {}, t = String(j.access_token || cs.access_token || "").trim();
+    var rt = String(j.refresh_token || cs.refresh_token || "").trim(), exp = Number(j.expires_at || cs.expires_at || 0);
+    if (!rt || !(force || !t || (exp > 0 && exp * 1000 - Date.now() < 60000))) return t;
+    if (!refreshing) refreshing = (async function () {
+      try {
+        var r = await fetch("https://clcddygkaaqqtsbswgdf.supabase.co/auth/v1/token?grant_type=refresh_token", { method: "POST", headers: { "Content-Type": "application/json", apikey: PUB }, body: JSON.stringify({ refresh_token: rt }) });
+        if (!r.ok) return t;
+        var f = await r.json(); if (!f || !f.access_token) return t;
+        var m = Object.assign({}, j, f, { access_token: f.access_token, refresh_token: f.refresh_token || rt });
+        try { localStorage.setItem(AUTH_KEY, JSON.stringify(m)); } catch (e) {}
+        return String(f.access_token);
+      } catch (e) { return t; } finally { setTimeout(function () { refreshing = null; }, 0); }
+    })();
+    return refreshing;
+  }
+  async function call(body) {
+    var t = await token(false);
+    if (!t) return { ok: true, logged_in: false, reason: "no_session", books: [] };
+    async function go(tok) {
+      var r = await fetch(INGEST, { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + tok }, body: JSON.stringify(body) });
+      var j = await r.json().catch(function () { return {}; }); j.__status = r.status; return j;
+    }
+    var j = await go(t);
+    // 伺服器不認得這個 token（過期或平台 401）→ 強制續期後重試一次
+    if (j.__status === 401 || j.logged_in === false) { var t2 = await token(true); if (t2 && t2 !== t) j = await go(t2); }
+    if (j.logged_in === false || j.__status === 401) j.reason = "server_rejected";
+    return j;
   }
   function apply(r) {
-    if (!r || !r.logged_in) { cache = { logged_in: false, enabled: null, rows: {} }; return cache; }
+    if (!r || !r.logged_in) { cache = { logged_in: false, reason: (r && r.reason) || "error", enabled: null, rows: {} }; return cache; }
     var rows = {}; (r.books || []).forEach(function (x) { rows[x.ebook_id] = !!x.enabled; });
     var en = {}; var ids = Object.keys(rows);
     if (!ids.length) DEFAULT_IDS.forEach(function (id) { en[id] = 1; }); else ids.forEach(function (id) { if (rows[id]) en[id] = 1; });
@@ -29,7 +58,8 @@
   }
   async function set(id, on) {
     var c = await get();
-    if (!c.logged_in) throw new Error("請先登入 AIVAULT");
+    if (!c.logged_in) c = await get(true);
+    if (!c.logged_in) throw new Error(loginMsg(c));
     var items = [{ ebook_id: id, enabled: !!on }];
     // 第一次設定時，把預設的宪法学讲义也寫進去，避免它因「已有設定」而消失
     if (!Object.keys(c.rows).length) DEFAULT_IDS.forEach(function (x) { if (x !== id) items.push({ ebook_id: x, enabled: true }); });
@@ -39,10 +69,15 @@
     try { w.dispatchEvent(new CustomEvent("darkstar-study-changed", { detail: cache })); } catch (e) {}
     return cache;
   }
+  function loginMsg(c) {
+    if (c && c.reason === "no_session") return "這個頁面找不到 AIVAULT 登入資料（同一個瀏覽器先到 AIVAULT 首頁登入，再回來重新整理）。未登入時暗星會讀全部書。";
+    if (c && c.reason === "server_rejected") return "伺服器不接受目前的登入（可能已過期且無法自動續期），請重新登入 AIVAULT 後再試。";
+    return "暫時無法讀取暗星學習書籍設定，請稍後再試。";
+  }
   w.AIVAULTStudyBooks = { get: get, set: set, isEnabled: function (id) { return !cache || !cache.enabled || !!cache.enabled[id]; } };
 
   // ---- 書架書卡 ----
-  function decorateCards() {
+  function decorateCards(clickId) {
     var grid = d.getElementById("shelfGrid"); if (!grid) return;
     get().then(function (c) {
       grid.querySelectorAll('article.card[data-open][data-src="remote"]').forEach(function (card) {
@@ -54,11 +89,12 @@
         paint(on);
         b.onclick = function (e) {
           e.stopPropagation(); e.preventDefault();
-          if (!c.logged_in) { alert("請先登入 AIVAULT，才能設定暗星學習書籍（未登入時暗星會讀全部書）。"); return; }
+          if (!cache || !cache.logged_in) { b.disabled = true; get(true).then(function (c2) { b.disabled = false; if (!c2.logged_in) { alert(loginMsg(c2)); return; } grid.querySelectorAll("[data-study-book]").forEach(function (x) { x.remove(); }); decorateCards(id); }); return; }
           var next = !(cache.enabled && cache.enabled[id]); b.disabled = true; b.textContent = "⏳ 儲存中…";
           set(id, next).then(function () { paint(next); }, function (err) { paint(!next); alert(err.message || err); }).then(function () { b.disabled = false; });
         };
         var info = card.querySelector(".cinfo") || card; info.appendChild(b);
+        if (clickId === id) setTimeout(function () { b.click(); }, 0);
       });
     });
   }
@@ -71,7 +107,7 @@
     var list = box.querySelector("[data-list]");
     Promise.all([get(true), fetch(INGEST, { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + ANON }, body: JSON.stringify({ action: "list", limit: 80 }) }).then(function (r) { return r.json(); })]).then(function (res) {
       var c = res[0], books = (res[1] && (res[1].books || res[1].items)) || [];
-      if (!c.logged_in) { list.textContent = "未登入：暗星會讀書架上全部的書。登入後可勾選。"; return; }
+      if (!c.logged_in) { list.textContent = loginMsg(c); return; }
       list.innerHTML = "";
       books.forEach(function (bk) {
         var id = bk.id || bk.ebook_id, lab = d.createElement("label"); lab.style.cssText = "display:flex;gap:6px;align-items:flex-start;margin:3px 0";
