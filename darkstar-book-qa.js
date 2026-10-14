@@ -143,15 +143,33 @@
     return "【書架資料】使用者剛才的題目：「" + q + "」\n" + hits.map(function (h, i) { return (i + 1) + ". 《" + h.title + "》p." + h.page + "：" + h.text; }).join("\n") +
       "\n請根據以上書架資料回答題目，並說出書名與頁碼；若資料中找不到答案，請直接說書架上找不到。若你剛才已開始回答，請以書架資料修正或補充剛才的回答。";
   }
+  // 書架介紹：每次連線後只送一次，併在第一題的【書架資料】裡（避免開場時讓暗星無故開口）
+  var introSent = false, wasConn = false;
+  setInterval(function () { var L = w.AIVAULTDarkStarLive, c = !!(L && L.isConnected && L.isConnected()); if (c && !wasConn) { introSent = false; build(); } wasConn = c; }, 1000);
+  function bookTitles(list) {
+    var seen = {}, out = [];
+    list.forEach(function (c) { if (!seen[c.title]) { seen[c.title] = 1; out.push({ t: c.title, b: c.b || 1 }); } });
+    out.sort(function (x, y) { return y.b - x.b; });
+    return out.map(function (x) { return "《" + x.t.slice(0, 30) + "》"; });
+  }
+  function intro(list) {
+    var t = bookTitles(list);
+    return "【系統說明】你已連上 AIVAULT 電子書書架，可以讀到書架上的書，共 " + t.length + " 本：" + t.slice(0, 15).join("、") + (t.length > 15 ? "等" : "") +
+      "。每當使用者提問，系統會送來【書架資料】段落，你必須依據這些段落回答並說出書名與頁碼。若使用者問你看不看得到電子書或書架上有什麼書，請回答看得到，簡短說出書名，並表示可以根據這些書回答題目。\n";
+  }
+  var SHELF_Q = /(看得到|看得見|看到|看見|有哪些書|有什麼書|什麼書|哪些書|書架|电子书|電子書|书架|讀得到|讀到)/;
   async function onTurn(ev) {
     var q = ev && ev.detail && ev.detail.text;
     var L = w.AIVAULTDarkStarLive;
     if (!isQuestion(q) || !L || !L.isConnected || !L.isConnected() || !L.sendRawText) return;
     var hits = search(q, await build());
-    var msg = hits.length ? compose(q, hits) : "【書架資料】使用者題目：「" + q + "」在書架上沒有搜尋到相關段落；如果這是考題，請說明書架上找不到依據。";
-    if (L.sendRawText(msg) && hits.length) bubble(hits);
+    var list = await build(), shelf = SHELF_Q.test(q);
+    var msg = hits.length ? compose(q, hits) : shelf ? "【書架資料】使用者在問書架本身：「" + q + "」。" : "【書架資料】使用者題目：「" + q + "」在書架上沒有搜尋到相關段落；如果這是考題，請說明書架上找不到依據。";
+    if (shelf) msg += "\n書架書目：" + bookTitles(list).join("、") + "。請回答你看得到這些書，並邀請使用者出題。";
+    if (!introSent) msg = intro(list) + msg;
+    if (L.sendRawText(msg)) { introSent = true; if (hits.length) bubble(hits); }
   }
   w.addEventListener("darkstar-live-user-turn", onTurn);
-  w.AIVAULTBookQA = { build: build, search: search, isQuestion: isQuestion, compose: compose, reset: function () { chunks = null; } };
+  w.AIVAULTBookQA = { build: build, search: search, isQuestion: isQuestion, compose: compose, intro: intro, bookTitles: bookTitles, reset: function () { chunks = null; } };
   setTimeout(function () { build().catch(function () {}); }, 4000); // 預先建索引
 })(window, document);
