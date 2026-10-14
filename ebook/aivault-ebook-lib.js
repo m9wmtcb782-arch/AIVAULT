@@ -575,7 +575,8 @@
     });
     await saveBook(book);
     await savePages(storedPages);
-    await idbPut("files", { id: id, name: name, type: mime, blob: file });
+    // PDF page images are already stored; avoid storing the source blob twice.
+    if (kind !== "pdf") await idbPut("files", { id: id, name: name, type: mime, blob: file });
     rememberRemote({
       ebook_id: id,
       title: title,
@@ -594,7 +595,7 @@
     const maxPages = Math.min(doc.numPages, 250);
     for (let n = 1; n <= maxPages; n++) {
       const page = await doc.getPage(n);
-      const viewport = page.getViewport({ scale: 1.25 });
+      const viewport = page.getViewport({ scale: 0.9 });
       const canvas = document.createElement("canvas");
       canvas.width = viewport.width;
       canvas.height = viewport.height;
@@ -607,7 +608,7 @@
       pages.push({
         page_number: n,
         content: text,
-        image: canvas.toDataURL("image/jpeg", 0.72),
+        image: canvas.toDataURL("image/jpeg", 0.52),
         kind: "pdf",
         title: ""
       });
