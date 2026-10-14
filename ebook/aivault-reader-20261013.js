@@ -358,7 +358,9 @@
     } else if (page.html) {
       body += page.html;
     } else {
-      body += "<div>" + E.esc(page.content || "").replace(/\n/g, "<br>") + "</div>";
+      // [[img:N]] 標記 → 書籍專屬圖檔（只影響含標記的頁面）
+      const imgBase = "ebooks/" + encodeURIComponent(String(state.remoteId || state.bookId || "")) + "/img/";
+      body += "<div>" + E.esc(page.content || "").replace(/\[\[img:([A-Za-z0-9_-]+)\]\]/g, function (_, k) { return '<img loading="lazy" decoding="async" alt="" src="' + imgBase + k + '.jpg" style="display:block;max-width:100%;height:auto;margin:10px auto">'; }).replace(/\n/g, "<br>") + "</div>";
     }
     const videos=Array.isArray(page.metadata&&page.metadata.videos)?page.metadata.videos:[];
     videos.forEach(function(v){
@@ -888,7 +890,7 @@
     // 已在 cache：點擊當下直接 speak()，不讓 await 打斷 iPhone 手勢。
     const current = from === to ? state.cache.get(from) : null;
     if (current) {
-      const text = current.content || "";
+      const text = (current.content || "").replace(/\[\[img:[A-Za-z0-9_-]+\]\]/g, "");
       toast("朗讀第 " + from + " 頁");
       speakText(text, function () { speaking = false; });
       return;
@@ -912,7 +914,7 @@
     speakQueue = [];
     for (let n = from; n <= to; n++) {
       const p = state.cache.get(n);
-      speakQueue.push({ n: n, text: p ? (p.content || "") : "" });
+      speakQueue.push({ n: n, text: p ? (p.content || "").replace(/\[\[img:[A-Za-z0-9_-]+\]\]/g, "") : "" });
     }
 
     toast("朗讀第 " + from + "–" + to + " 頁");
