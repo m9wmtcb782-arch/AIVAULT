@@ -55,6 +55,8 @@
   async function cachePut(row) { var db = await cacheDb(); if (!db) return; try { db.transaction("books", "readwrite").objectStore("books").put(row); } catch (e) {} }
 
   // 每本書：以伺服器 total_pages 為準驗證完整度；本機（閱讀器快取／索引快取）只當作起點，缺的頁一律補抓
+  var studyInfo = null;
+  w.addEventListener("darkstar-study-changed", function () { chunks = null; building = null; lastBid = ""; });
   var CVER = "v2", coverage = {}; // coverage[bid] = [已有頁數, 全書頁數]
   async function fetchPages(id, need, into) {
     // need: 缺頁頁碼陣列 → 以 context(radius 10) 視窗補抓，4 路並行，每窗最多重試 3 次
@@ -70,7 +72,7 @@
     }));
   }
   function missing(have, total) { var m = []; for (var p = 1; p <= total; p++) if (!(p in have)) m.push(p); return m; }
-  async function remoteBooks(local) {
+  async function remoteBooks(local, en) {
     var out = [];
     var list = await ingest({ action: "list", limit: 80 });
     var books = ((list && (list.books || list.items)) || []).slice();
@@ -78,7 +80,7 @@
     books.sort(function (a, b) { return (PRIORITY[String(b.id || b.ebook_id)] || 0) - (PRIORITY[String(a.id || a.ebook_id)] || 0); });
     for (var i = 0; i < books.length; i++) {
       var b = books[i], id = String(b.id || b.ebook_id || ""), total = Number(b.total_pages || b.page_count || 0);
-      if (!id) continue;
+      if (!id || (en && !en[id])) continue; // 只讀「暗星學習書籍」
       var key = id + ":" + total + ":" + CVER, row = await cacheGet(key), have = {};
       if (row && row.h) have = row.h;
       // 伺服器有的書一律用伺服器內容（閱讀器本機快取可能只有讀過的頁或舊版本）
@@ -118,9 +120,11 @@
       L.books.forEach(function (bk) { local[bk.id] = { bid: bk.ebook_id || bk.id, title: bk.title || "未命名", pages: {} }; });
       L.pages.forEach(function (p) { var o = local[p.book_id]; if (o) o.pages[p.page_number] = p.content || p.text || ""; });
       var byBid = {}; Object.keys(local).forEach(function (k) { byBid[local[k].bid] = local[k]; });
-      try { (await remoteBooks(byBid)).forEach(function (b) { b.pages.forEach(function (p) { addChunks(list, b.title, p[0], p[1], PRIORITY[b.id], b.id); }); }); } catch (e) { console.warn("[BookQA] remote", e); }
+      var study = null; try { if (w.AIVAULTStudyBooks) study = await w.AIVAULTStudyBooks.get(); } catch (e) {}
+      var en = study && study.enabled; studyInfo = study;
+      try { (await remoteBooks(byBid, en)).forEach(function (b) { b.pages.forEach(function (p) { addChunks(list, b.title, p[0], p[1], PRIORITY[b.id], b.id); }); }); } catch (e) { console.warn("[BookQA] remote", e); }
       // 只存在本機（未上傳伺服器）的書，或伺服器暫時連不上時：用本機頁面
-      Object.keys(byBid).forEach(function (bid) { var o = byBid[bid]; if (o.used) return; var n = 0; for (var pg in o.pages) { addChunks(list, o.title, +pg, o.pages[pg], PRIORITY[bid], bid); n++; } if (!coverage[bid]) coverage[bid] = [n, n]; });
+      Object.keys(byBid).forEach(function (bid) { var o = byBid[bid]; if (o.used || en) return; var n = 0; for (var pg in o.pages) { addChunks(list, o.title, +pg, o.pages[pg], PRIORITY[bid], bid); n++; } if (!coverage[bid]) coverage[bid] = [n, n]; });
       var df = {}; list.forEach(function (c) { for (var k in c.g) df[k] = (df[k] || 0) + 1; });
       list.idf = function (k) { return Math.log(1 + list.length / (1 + (df[k] || 0))); };
       chunks = list; building = null; return list;
