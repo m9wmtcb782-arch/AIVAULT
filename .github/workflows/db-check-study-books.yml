@@ -1,0 +1,28 @@
+name: DB check study-books table
+on:
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request
+          def q(sql):
+              r = urllib.request.Request("https://api.supabase.com/v1/projects/clcddygkaaqqtsbswgdf/database/query",
+                  data=json.dumps({"query": sql}).encode(), headers={"Authorization": "Bearer " + os.environ["TOKEN"], "Content-Type": "application/json", "User-Agent": "aivault-check"})
+              try:
+                return json.load(urllib.request.urlopen(r))
+              except Exception as e:
+                print("ERR", e)
+                if hasattr(e, 'read'): print(e.read().decode()[:500])
+                raise
+          print("TABLE", q("select column_name,data_type from information_schema.columns where table_schema='public' and table_name='dark_star_study_books' order by ordinal_position"))
+          print("RLS", q("select relrowsecurity from pg_class where relname='dark_star_study_books'"))
+          print("POL", q("select policyname,cmd,roles::text,qual,with_check from pg_policies where tablename='dark_star_study_books'"))
+          print("COUNT", q("select count(*)::int as n from public.dark_star_study_books"))
+          print("GRANT", q("select grantee,privilege_type from information_schema.role_table_grants where table_name='dark_star_study_books' order by 1,2"))
+          PY
