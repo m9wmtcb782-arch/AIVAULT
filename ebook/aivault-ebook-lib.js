@@ -172,6 +172,20 @@
     return idbReq(db.transaction(store, "readwrite").objectStore(store).delete(key));
   }
 
+  // User-selected covers are independent of imported pages and remote catalog refreshes.
+  async function customCover(bookId) {
+    try {
+      const row = await idbGet("files", "cover:" + bookId);
+      return row && row.image || "";
+    } catch (e) { return ""; }
+  }
+  async function setCustomCover(bookId, image) {
+    if (!bookId || !image) throw new Error("missing cover");
+    await idbPut("files", { id: "cover:" + bookId, image: image });
+  }
+  async function clearCustomCover(bookId) {
+    await idbDel("files", "cover:" + bookId);
+  }
   function favorites() { return lsGet(FAV_KEY, []); }
   function setFavorite(bookId, on) {
     let rows = favorites();
@@ -544,7 +558,7 @@
     }
 
     const id = uuid();
-    const cover = (pages[0] && pages[0].image) ? pages[0].image : makeCover(title, author);
+    const cover = makeCover(title, author);
     const tocSrc = inferTocFromText(pages);
     const book = {
       id: id,
@@ -740,6 +754,9 @@
     restoreToShelf: restoreToShelf,
     ingest: ingest,
     askGateway: askGateway,
+    customCover: customCover,
+    setCustomCover: setCustomCover,
+    clearCustomCover: clearCustomCover,
     favorites: favorites,
     setFavorite: setFavorite,
     isFav: isFav,
