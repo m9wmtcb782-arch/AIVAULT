@@ -1220,6 +1220,7 @@
     info:function(){const known=state.shelfBooks.find(function(b){return b.id===state.bookId;})||{};return {id:state.bookId,page:state.pageNumber,total:state.totalPages,title:$("readerTitle").textContent,chapter:narrationChapterTitle(),cover:(state.book&&state.book.cover_url)||known.cover_url||"",view:state.view};},
     paper:function(){return $("paperRight");},
     visibleSegment:function(){const paper=$("paperRight"),clip=paper.querySelector('.qq-page-viewport')||paper,r=clip.getBoundingClientRect();const mark=Array.from(paper.querySelectorAll('[data-narration]')).find(function(el){return Array.from(el.getClientRects()).some(function(m){return m.right>r.left&&m.left<r.right&&m.bottom>r.top&&m.top<r.bottom;});});return mark?Number(mark.dataset.narration):0;},
+    peek:async function(n){try{const p=await getPage(n);if(!p)return [];const el=document.createElement("div");paintPaper(el,p,n);return el._narrationSegments||[];}catch(e){return [];}},
     loadPage:async function(n){try{await goPage(n,false,null,true);return state.pageNumber===n;}catch(e){return false;}},
     listen:function(){closeDrawer();state.view="listen";$("shelfView").hidden=true;$("readerView").hidden=true;$("listenView").hidden=false;setQS(state.bookId,state.pageNumber,"listen");},
     read:function(){closeDrawer();showReader();setQS(state.bookId,state.pageNumber,"read");renderSpread();},

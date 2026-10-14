@@ -22,8 +22,9 @@
       const wait=nextGeminiAt-Date.now();if(wait>0){if(request===controller&&status==='loading'){loadingNote='Gemini 暫時限流，約 '+Math.ceil(wait/1000)+' 秒後自動續播';render();}await delay(wait,controller.signal);}
       if(controller.signal.aborted)throw new DOMException('Aborted','AbortError');
       nextGeminiAt=Date.now()+intervalMs;
-      const response=await fetch((E.SUPABASE_URL||'https://clcddygkaaqqtsbswgdf.supabase.co')+'/functions/v1/aivault-tts',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json',apikey:E.ANON_KEY||'',Authorization:'Bearer '+(E.ANON_KEY||'')},body:JSON.stringify({action:'tts',provider:'gemini',text,voice_id:choice.slice(7),language:'zh-TW',save:false})});
-      const data=await response.json(),result=data.result;
+      let response;try{response=await fetch((E.SUPABASE_URL||'https://clcddygkaaqqtsbswgdf.supabase.co')+'/functions/v1/aivault-tts',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json',apikey:E.ANON_KEY||'',Authorization:'Bearer '+(E.ANON_KEY||'')},body:JSON.stringify({action:'tts',provider:'gemini',text,voice_id:choice.slice(7),language:'zh-TW',save:false})});}catch(netErr){if(netErr.name==='AbortError'||attempt===2)throw netErr;await delay(800*(attempt+1),controller.signal);continue;}
+      const data=await response.json().catch(()=>({})),result=data.result;
+      if(response.status>=500&&attempt<2){await delay(800*(attempt+1),controller.signal);continue;}
       if(response.status===429||/429|GEMINI_TTS_QUOTA/.test(String(data.message||data.error||''))){
         if(data.quota_kind==='daily')throw new Error('Gemini 今日語音額度已用完，需等額度重置；更換音色無法增加額度');
         if(data.quota_kind==='disabled')throw new Error('目前 Gemini 專案沒有這個語音模型的可用配額');
@@ -97,7 +98,7 @@
   function updatePosition(){remember();render();syncReader();}
   function cancelPlayback(){
     generation++;if(request){request.abort();request=null;}
-    if(audio){audio.onended=audio.onplaying=audio.onerror=null;audio.pause();audio.removeAttribute('src');audio.load();audio=null;}
+    if(audio){audio.onended=audio.onplaying=audio.onerror=audio.ontimeupdate=null;audio.pause();audio.removeAttribute('src');audio.load();audio=null;}
     if(audioURL){URL.revokeObjectURL(audioURL);audioURL='';}
     utterance=null;try{window.speechSynthesis.cancel();}catch(e){}
   }
@@ -125,13 +126,26 @@
     index=0;loadSegments();playSegment();
   }
   function spokenText(text){return text.replace(/\s+/g,' ').trim();}
+  // Gemini：把連續段落合併成一次請求（約 600 字），大幅減少請求次數與限流；播放時預先抓下一組（含下一頁開頭）。
+  const GROUP_CHARS=600;let peeked=null,group=null;
+  function isGemini(){return voiceChoice.startsWith('gemini:');}
+  function groupAt(list,start){let end=start,len=0;while(end<list.length){const t=spokenText(list[end]);if(end>start&&len+t.length>GROUP_CHARS)break;len+=t.length+1;end++;}return {from:start,to:Math.max(start,end-1),text:list.slice(start,Math.max(start+1,end)).map(spokenText).filter(Boolean).join(' ')};}
+  function prefetchNext(token,g){
+    if(!isGemini())return;
+    if(g.to+1<segments.length){getCloudAudio(groupAt(segments,g.to+1).text).promise.catch(()=>{});return;}
+    const info=bridge.info(),next=page+1;if(next>info.total||!bridge.peek)return;
+    if(peeked&&peeked.book===book&&peeked.page===next){if(peeked.segments.length)getCloudAudio(groupAt(peeked.segments,0).text).promise.catch(()=>{});return;}
+    bridge.peek(next).then(list=>{if(token!==generation)return;peeked={book,page:next,segments:list||[]};if(peeked.segments.length)getCloudAudio(groupAt(peeked.segments,0).text).promise.catch(()=>{});}).catch(()=>{});
+  }
   function playSegment(){
     cancelPlayback();const token=generation;
     loadSegments();remember();
     if(!segments.length){status='playing';render();advance(token);return;}
-    const text=spokenText(segments[index]);loadingNote='';status='loading';render();
+    group=isGemini()?groupAt(segments,index):{from:index,to:index,text:spokenText(segments[index])};
+    const text=group.text;loadingNote='';status='loading';render();
     const started=()=>{if(token!==generation)return;status='playing';updatePosition();};
-    const ended=()=>{if(token!==generation||status==='paused')return;status='playing';advance(token);};
+    const g=group;
+    const ended=()=>{if(token!==generation||status==='paused')return;status='playing';index=g.to;advance(token);};
     if(cloudVoice()){
       if(voiceChoice==='natural'&&!naturalVoice()){error('請先設定自然朗讀聲音。');return;}
       if(!cloudPlayer)cloudPlayer=new Audio();audio=cloudPlayer;audio.preload='auto';audio.playbackRate=rate;
@@ -139,7 +153,8 @@
       entry.promise.then(async blob=>{
         if(token!==generation)return;
         audioURL=URL.createObjectURL(blob);audio.src=audioURL;
-        audio.onplaying=()=>{started();if(token===generation&&!voiceChoice.startsWith('gemini:')&&index+1<segments.length)getCloudAudio(spokenText(segments[index+1])).promise.catch(()=>{});};
+        audio.onplaying=()=>{started();if(token!==generation)return;if(isGemini())prefetchNext(token,g);else if(index+1<segments.length)getCloudAudio(spokenText(segments[index+1])).promise.catch(()=>{});};
+        audio.ontimeupdate=()=>{if(token!==generation||g.to===g.from||!audio.duration||!isFinite(audio.duration))return;const total=g.text.length,at=audio.currentTime/audio.duration*total;let acc=0,k=g.from;for(;k<g.to;k++){acc+=spokenText(segments[k]).length+1;if(acc>at)break;}if(k!==index){index=k;updatePosition();}};
         audio.onended=ended;audio.onerror=()=>{if(token===generation)error('音訊播放失敗，請再按播放。');};
         await audio.play();
       }).catch(e=>{if(token===generation&&e.name!=='AbortError')error(e.message);});
