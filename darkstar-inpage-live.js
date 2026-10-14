@@ -7,7 +7,8 @@
 (function (w, d) {
   "use strict";
   if (w.AIVAULTDarkStarLive) return;
-  var SESSION_SRC = "technical-dark-star-live-session.js?v=19";
+  var SESSION_SRC = "technical-dark-star-live-session.js?v=21";
+  var loadFailed = false, LIVE_PAGE = "technical-dark-star-live-video-test.html";
   var api = null, loading = null, connected = false, analyser = null, raf = 0, lastEmotion = "", lastEmoAt = 0;
   var box = null, hidden = null, video = null;
 
@@ -65,7 +66,9 @@
       var src = orig(), conn = src.connect;
       src.connect = function (node) {
         var r = conn.apply(src, arguments);
-        if (node === ctx.destination) { try { conn.call(src, an); } catch (e) {} }
+        // 輸出到喇叭或隱藏 <audio>（MediaStreamDestination）時，另分接一份給分析器；不改變原輸出
+        var MSD = w.MediaStreamAudioDestinationNode;
+        if (node === ctx.destination || (MSD && node instanceof MSD)) { try { conn.call(src, an); } catch (e) {} }
         return r;
       };
       return src;
@@ -107,13 +110,14 @@
   // ---- 狀態列 ----
   var st = { open: false, mic: 0, audioIn: 0, err: "" };
   function line(t) { camState(t); }
+  function dbg() { var t = map.dsAudioDbg && map.dsAudioDbg.textContent; return t ? "\n" + t : ""; }
   function refreshLine() {
-    if (st.err) return line("錯誤：" + st.err);
+    if (st.err) return line("錯誤：" + st.err + dbg());
     if (!st.open) return line("連線中…");
     var talking = analyser && lastLevel > 0.03;
-    if (talking) return line("🗣️ 暗星說話中");
+    if (talking) return line("🗣️ 暗星說話中" + dbg());
     var micOk = st.mic > 0 ? "麥克風 ✓" : (inCtx && inCtx.state !== "running" ? "麥克風暫停（點小視窗）" : "麥克風等待中");
-    line("🟢 已連線・" + micOk + (st.audioIn ? "・已收到語音" : ""));
+    line("🟢 已連線・" + micOk + (st.audioIn ? "・已收到語音" : "") + dbg());
   }
   var lastLevel = 0, lineTimer = 0;
   function makeWebSocket() {
@@ -157,16 +161,17 @@
       return r.text();
     }).then(function (src) {
       var fakeDoc = { getElementById: el, body: hidden, createElement: d.createElement.bind(d) };
-      var fakeWin = {};
+      var Ctx = makeAudioContext();
+      var fakeWin = { AudioContext: Ctx, webkitAudioContext: Ctx };
       var factory = new Function("document", "window", "AudioContext", "localStorage", "location", "WebSocket",
-        src + "\n;return {start:start,stop:stop,switchCamera:switchCamera,sendTextToLive:sendTextToLive,facing:function(){return facing},isOpen:function(){return !!(ws&&ws.readyState===1)}};");
-      api = factory(fakeDoc, fakeWin, makeAudioContext(), w.localStorage, w.location, makeWebSocket());
+        src + "\n;return {start:start,stop:stop,switchCamera:switchCamera,sendTextToLive:sendTextToLive,facing:function(){return facing},unlock:unlockAudio,isOpen:function(){return !!(ws&&ws.readyState===1)}};");
+      api = factory(fakeDoc, fakeWin, Ctx, w.localStorage, w.location, makeWebSocket());
       // 監看逐字稿與狀態
       new MutationObserver(onTranscript).observe(el("chat"), { childList: true, subtree: true, characterData: true });
       new MutationObserver(function () { var t = el("status").textContent || ""; if (/^🔴/.test(t)) { st.err = t.replace(/^🔴\s*/, ""); if (/AUTH/i.test(st.err)) st.err += "（請先登入 AIVAULT）"; refreshLine(); } }).observe(el("status"), { childList: true, characterData: true, subtree: true });
       return api;
     });
-    loading.catch(function () { loading = null; });
+    loading.catch(function (e) { loading = null; loadFailed = true; console.warn("[DarkStar live] load", e); });
     return loading;
   }
 
@@ -218,8 +223,15 @@
   // ---- 連線／中斷 ----
   function btn() { return d.getElementById("dsconnect"); }
   async function connect() {
-    var b = btn(); ensureUi();
+    var b = btn();
+    // 先釋放本頁抽屜即時語音／喚醒麥克風／語音辨識，避免與這裡搶麥克風
+    try { if (w.__AIVAULT_RELEASE_ALL_AUDIO__) w.__AIVAULT_RELEASE_ALL_AUDIO__(); } catch (e) { console.warn("[DarkStar live] release", e); }
+    if (loadFailed && !api) { // 後備：模組載入失敗 → 照舊開啟視訊頁
+      var win = w.open(LIVE_PAGE, "_blank", "noopener"); if (!win) w.location.href = LIVE_PAGE; return;
+    }
+    ensureUi();
     primeAudio(); // 必須在任何 await 之前（仍在點擊手勢內）
+    if (api && api.unlock) { try { api.unlock(); } catch (e) { console.warn("[DarkStar live] unlock", e); } } // 隱藏 <audio> 也要在手勢內啟動
     if (b) { b.disabled = true; b.textContent = "⏳ 連線中…"; }
     try {
       await load();
@@ -248,11 +260,15 @@
     try { if (api) await api.stop(); } catch (e) {}
     if (video) video.srcObject = null;
     if (box) box.hidden = true;
+    try { if (navigator.audioSession) navigator.audioSession.type = "auto"; } catch (e) {}
     var A = w.AIVAULTDarkStarAvatar; if (A) { A.speak(0); if (A.setLink) A.setLink(false, "未連結"); if (A.expr) A.expr("neutral"); }
     var b = btn(); if (b) b.textContent = "🔗 連結即時暗星";
   }
   function toggle() { return connected ? disconnect() : connect(); }
   w.addEventListener("pagehide", function () { if (connected) disconnect(); });
+  // 預先載入連線模組（只下載程式，不開麥克風、不連線），讓點擊時能在手勢內直接解鎖聲音
+  function preload() { load().catch(function () {}); }
+  if (d.readyState === "complete") setTimeout(preload, 0); else w.addEventListener("load", function () { setTimeout(preload, 0); });
   w.AIVAULTDarkStarLive = { toggle: toggle, connect: connect, disconnect: disconnect, isConnected: function () { return connected; }, classify: classify,
     audioState: function () { var c = analyser && analyser.context; return c ? c.state : "none"; } };
 })(window, document);
