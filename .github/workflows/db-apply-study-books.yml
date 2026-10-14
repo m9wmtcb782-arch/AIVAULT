@@ -1,0 +1,23 @@
+name: DB apply study-books migration (additive)
+on:
+  workflow_dispatch:
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply migration via Management API
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request
+          def q(sql):
+              r = urllib.request.Request("https://api.supabase.com/v1/projects/clcddygkaaqqtsbswgdf/database/query",
+                  data=json.dumps({"query": sql}).encode(), headers={"Authorization": "Bearer " + os.environ["TOKEN"], "Content-Type": "application/json", "User-Agent": "aivault-migrate"})
+              return json.load(urllib.request.urlopen(r))
+          q(open("supabase/migrations/20261014190000_dark_star_study_books.sql").read())
+          print(q("select column_name,data_type from information_schema.columns where table_schema='public' and table_name='dark_star_study_books' order by ordinal_position"))
+          print(q("select policyname,cmd from pg_policies where tablename='dark_star_study_books'"))
+          print(q("select relrowsecurity from pg_class where relname='dark_star_study_books'"))
+          PY

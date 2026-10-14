@@ -22,6 +22,10 @@ jobs:
           out["rls"] = q("select relname, relrowsecurity from pg_class where relnamespace='public'::regnamespace and relkind='r' order by 1")
           out["policies"] = q("select tablename, policyname, cmd, roles::text, qual, with_check from pg_policies where schemaname='public' order by 1,2")
           out["functions"] = q("select p.proname, pg_get_functiondef(p.oid) as def from pg_proc p where p.pronamespace='public'::regnamespace and p.prokind='f' order by 1")
+          import re
+          txt = json.dumps(out, ensure_ascii=False, indent=1)
+          txt = re.sub(r"('x-[a-z-]*secret[a-z-]*',\s*')[^']+'", r"\1<REDACTED>'", txt)
+          out = json.loads(txt)
           os.makedirs("dump", exist_ok=True)
           json.dump(out, open("dump/public-schema.json", "w"), ensure_ascii=False, indent=1)
           print({k: len(v) if isinstance(v, list) else v for k, v in out.items()})

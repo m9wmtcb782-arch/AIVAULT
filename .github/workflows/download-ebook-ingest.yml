@@ -1,0 +1,23 @@
+name: Download deployed dark-star-ebook-ingest (compare before deploy)
+on:
+  workflow_dispatch:
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Download deployed function
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          mkdir -p w && cd w
+          supabase functions download dark-star-ebook-ingest --project-ref clcddygkaaqqtsbswgdf --use-api
+          find . -type f | head -50
+          supabase functions list --project-ref clcddygkaaqqtsbswgdf | grep -E "ebook-ingest|photo" || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ingest-deployed
+          path: w
+          retention-days: 1
