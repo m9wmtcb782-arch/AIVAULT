@@ -88,7 +88,7 @@
     const pages = b.page_count || b.total_pages || 0;
     const prog = b.progress || 0;
     const last = b.last_read_at ? new Date(b.last_read_at).toLocaleString() : "尚未閱讀";
-    const coverSrc = b.cover_url || (E.makeCover ? E.makeCover(title, author) : "");
+    const coverSrc = b.custom_cover || (E.makeCover ? E.makeCover(title, author) : b.cover_url || "");
     const cover = coverSrc
       ? '<img class="cover" alt="" src="' + E.esc(coverSrc) + '">'
       : '<div class="cover-ph">' + E.esc(title) + "</div>";
@@ -102,6 +102,7 @@
       "<p>閱讀進度 " + Math.round((prog || 0) * 100) + "%</p>" +
       "<p>" + E.esc(last) + "</p>" +
       "<p>" + (E.isFav(id) ? "⭐ 已收藏" : "") + "</p>" +
+      '<button type="button" class="ib" data-cover-book="' + E.esc(id) + '" style="margin-top:8px;position:relative;z-index:2" aria-label="更換封面：' + E.esc(title) + '">🖼 更換封面</button>' +
       '<button type="button" class="ib shelf-delete" data-delete-book="' + E.esc(id) + '" style="margin-top:8px;position:relative;z-index:2;color:#a52727" aria-label="刪除書籍：' + E.esc(title) + '">🗑 刪除書籍</button></div></article>'
     );
   }
@@ -230,6 +231,7 @@
   async function renderShelf() {
     const q = ($("shelfQ").value || "").trim().toLowerCase();
     let books = await collectBooks();
+    await Promise.all(books.map(async function (b) { b.custom_cover = await E.customCover(b.id || b.ebook_id); }));
     state.shelfBooks = books.slice();
     const tab = state.tab;
     if (tab === "fav") books = books.filter(function (b) { return E.isFav(b.id); });
@@ -266,6 +268,47 @@
       return;
     }
     $("shelfGrid").innerHTML = books.map(cardHtml).join("");
+    $("shelfGrid").querySelectorAll("[data-cover-book]").forEach(function (btn) {
+      btn.onclick = function (event) {
+        event.stopPropagation();
+        const id = btn.getAttribute("data-cover-book");
+        const picker = document.createElement("input");
+        picker.type = "file";
+        picker.accept = "image/png,image/jpeg,image/webp";
+        picker.onchange = async function () {
+          const file = picker.files && picker.files[0];
+          if (!file) return;
+          if (file.size > 12 * 1024 * 1024) { toast("圖片請小於 12 MB"); return; }
+          btn.disabled = true;
+          try {
+            const data = await new Promise(function (resolve, reject) {
+              const reader = new FileReader();
+              reader.onload = function () { resolve(reader.result); };
+              reader.onerror = function () { reject(new Error("無法讀取圖片")); };
+              reader.readAsDataURL(file);
+            });
+            const img = new Image();
+            await new Promise(function (resolve, reject) {
+              img.onload = resolve;
+              img.onerror = function () { reject(new Error("圖片格式不支援")); };
+              img.src = data;
+            });
+            const canvas = document.createElement("canvas");
+            const scale = Math.min(1, 600 / img.naturalWidth, 900 / img.naturalHeight);
+            canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+            canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+            canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+            await E.setCustomCover(id, canvas.toDataURL("image/jpeg", 0.8));
+            toast("封面已更換");
+            await renderShelf();
+          } catch (err) {
+            toast("封面儲存失敗：" + (err.message || err));
+            btn.disabled = false;
+          }
+        };
+        picker.click();
+      };
+    });
     $("shelfGrid").querySelectorAll("[data-delete-book]").forEach(function (btn) {
       btn.onclick = async function (event) {
         event.stopPropagation();
