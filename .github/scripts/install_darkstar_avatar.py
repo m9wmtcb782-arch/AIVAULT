@@ -10,7 +10,7 @@ from pathlib import Path
 
 p = Path('technical-dark-star.html')
 s = p.read_text(encoding='utf-8')
-ORB_MARKER = 'data-ds-orb-avatar="2"'
+ORB_MARKER = 'data-ds-orb-avatar="2"'  # 2 = orb + emotions; no in-page live
 if ORB_MARKER in s:
     print('avatar (orb version) already installed')
     raise SystemExit(0)
@@ -70,7 +70,6 @@ js = r'''
 '''
 
 ORB_SCRIPT = '<script src="darkstar-orb.js?v=20261014-emo2"></script>'
-LIVE_SCRIPT = '<script src="darkstar-inpage-live.js?v=20261014-live3"></script>'
 
 # Remove any previous (drawn-face) install so the old face is never kept/re-injected.
 s = re.sub(r'\n?<style id="aivault-darkstar-avatar-css">.*?</style>\n?', '\n', s, count=1, flags=re.S)
@@ -86,10 +85,7 @@ if 'src="darkstar-orb.js' in s:
 else:
     i = s.rfind('</body>')
     s = s[:i] + ORB_SCRIPT + '\n' + s[i:]
-if 'src="darkstar-inpage-live.js' in s:
-    s = re.sub(r'<script src="darkstar-inpage-live\.js[^"]*"></script>', LIVE_SCRIPT, s)
-else:
-    i = s.rfind('</body>')
-    s = s[:i] + LIVE_SCRIPT + '\n' + s[i:]
+# 頁內即時連線模組已停用（回到開啟視訊頁的舊行為）；若頁面仍載入它就移除
+s = re.sub(r'<script src="darkstar-inpage-live\.js[^"]*"></script>\n?', '', s)
 p.write_text(s, encoding='utf-8')
 print('avatar (orb version) installed')
