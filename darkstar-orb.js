@@ -62,6 +62,7 @@
   function mount(el, opt) {
     if (!el || el.__dsOrb) return el && el.__dsOrb;
     css(); opt = opt || {};
+    if (el.getAttribute("data-auto") === "false") opt.auto = false;
     var size = Number(opt.size || el.getAttribute("data-size") || 40), id = "dso" + (++n);
     el.classList.add("ds-orb"); el.style.width = el.style.height = size + "px";
     el.setAttribute("role", "img"); el.setAttribute("aria-label", "暗星小球");
@@ -82,7 +83,19 @@
       eyes.style.transform = x === "curious" ? "translateX(-4px)" : "";
     }
     setExpr("neutral");
-    var api = { el: el, setExpr: setExpr, timers: [] };
+    var api = { el: el, setExpr: setExpr, timers: [], hold: 0, talking: 0 };
+    // 外部控制：表情（鎖定一段時間，不被隨機表情覆蓋）、說話嘴型、視線
+    api.setExpression = function (x, ms) { api.hold = Date.now() + (ms == null ? 2500 : ms); setExpr(x === "think" ? "curious" : (MOUTH[x] ? x : "neutral")); };
+    api.setTalking = function (level) {
+      level = Math.max(0, Math.min(1, Number(level) || 0)); api.talking = level;
+      if (level > 0.03) {
+        var ry = (1.6 + level * 6.5).toFixed(2), rx = (3.5 + level * 2.5).toFixed(2), top = (66 - ry).toFixed(2);
+        mouth.setAttribute("d", "M50 " + top + " a" + rx + " " + ry + " 0 1 0 0.01 0Z"); mouth.setAttribute("fill", "#f4f0ff");
+      } else if (el.__talkWas) { setExpr(el.getAttribute("data-expr") || "neutral"); }
+      el.__talkWas = level > 0.03;
+    };
+    api.look = function (dx) { eyes.style.transform = "translateX(" + (Math.max(-1, Math.min(1, dx || 0)) * 4) + "px)"; };
+    api.blink = function () { el.classList.add("blink"); setTimeout(function () { el.classList.remove("blink"); }, 130); };
     el.__dsOrb = api;
     function later(fn, ms) { var t = setTimeout(fn, ms); api.timers.push(t); }
     function react() {
@@ -106,10 +119,11 @@
       })();
       (function cycle() {
         later(function () {
+          if (Date.now() < api.hold || api.talking > 0.03 || opt.auto === false) { cycle(); return; }
           var x = CYCLE[Math.floor(Math.random() * CYCLE.length)];
           setExpr(x);
           if (x === "curious") { later(function () { eyes.style.transform = "translateX(4px)"; }, 700); }
-          later(function () { setExpr("neutral"); }, x === "sleepy" ? 2600 : 1600);
+          later(function () { if (Date.now() >= api.hold) setExpr("neutral"); }, x === "sleepy" ? 2600 : 1600);
           cycle();
         }, 4500 + Math.random() * 3500);
       })();
