@@ -6697,7 +6697,7 @@ async function callAIVAULT(
   updateDarkStarWorkLocation("📍 AIVAULT → AI Gateway → 等待真實回應");
 
   if(!payload.action){
-    payload.stream = true;
+    payload.stream = !window.__dsGatewayNoStream;
   }
 
   const response =
@@ -7011,6 +7011,20 @@ async function sendMessage(){
     return;
   }
 
+
+  // 表情指令（「做一個生氣的表情」「開心」「氣呼呼」😤）：直接在本機讓暗星小臉做表情，不呼叫 AI Gateway
+  {
+    const exText = input.value.trim(), O = window.DarkStarOrb;
+    const ex = !isSending && !attachments.length && exText && O && O.detectCommand ? O.detectCommand(exText) : null;
+    if(ex && (/表情|臉|脸|face/i.test(exText) || exText.replace(/[\s，。！？!?~～、]/g,"").length <= 4)){
+      const EXR = { angry:"😡 哼！我生氣了！", huffy:"😤 氣呼呼～", happy:"😃 好開心！", sad:"😢 嗚嗚…有點難過", surprised:"😮 哇！嚇我一跳！", thinking:"🤔 嗯…讓我想想", love:"😍 好喜歡你～", sleepy:"😴 呼…好想睡", laughing:"😆 哈哈哈哈！" };
+      input.value = ""; try{ resizeInput(); }catch(e){}
+      renderUserMessage(exText, []);
+      try{ if(window.AIVAULTDarkStarAvatar && window.AIVAULTDarkStarAvatar.expr) window.AIVAULTDarkStarAvatar.expr(ex, 5000); }catch(e){}
+      renderAIMessage(EXR[ex] || "🙂");
+      return;
+    }
+  }
 
   /*
     ========================================================
@@ -7352,11 +7366,16 @@ async function sendMessage(){
 
     }else{
 
-      result =
-        await callAIVAULT(
-          text,
-          outgoingFiles
-        );
+      // iOS Safari 的「Load failed」（TypeError：串流中斷、背景切換、網路切換）→ 以非串流模式自動重試一次
+      try{
+        result = await callAIVAULT(text, outgoingFiles);
+      }catch(firstError){
+        if(!(firstError instanceof TypeError) && !/Load failed|Failed to fetch|NetworkError|network connection was lost/i.test(String(firstError && firstError.message))) throw firstError;
+        console.warn("[DarkStar][SEND RETRY] network error, retrying without stream", firstError);
+        await new Promise(r=>setTimeout(r, 700));
+        window.__dsGatewayNoStream = true;
+        try{ result = await callAIVAULT(text, outgoingFiles); }finally{ window.__dsGatewayNoStream = false; }
+      }
 
     }
 
@@ -8574,7 +8593,7 @@ window.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__=async()=>{if(state.active||state.
 <script src="darkstar-study-books.js?v=20261015-sb8"></script>
 <script src="darkstar-book-qa.js?v=20261015-qa10"></script>
 <script src="darkstar-photo-ask.js?v=20261015-pa5"></script>
-<script src="darkstar-bots.js?v=20261016-bots3"></script>
+<script src="darkstar-bots.js?v=20261016-bots4"></script>
 
 
 

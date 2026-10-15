@@ -227,7 +227,7 @@
     if (d.getElementById("dsb-css")) return;
     var s = el("style"); s.id = "dsb-css";
     s.textContent = [
-      "#dsb-launch{position:fixed;right:12px;top:calc(env(safe-area-inset-top,0px) + 62px);z-index:2147482000;border:1px solid rgba(139,124,255,.5);background:rgba(10,10,18,.88);color:#fff;border-radius:999px;padding:7px 12px;font:600 13px system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.4);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}",
+      "#dsb-launch{display:inline-flex;align-items:center;gap:4px;flex:none;height:34px;padding:0 10px 0 5px;margin:0 4px;border:1px solid #e3e1ea;background:#fff;color:#222;border-radius:12px;font:600 13px system-ui,-apple-system,sans-serif;box-shadow:0 1px 3px rgba(0,0,0,.08);white-space:nowrap;-webkit-tap-highlight-color:transparent}#dsb-launch .ds-orb{pointer-events:none}@media(max-width:430px){#dsb-launch{padding:0 4px;margin:0 2px}#dsb-launch .lbl{display:none}}#dsb-launch.float{position:fixed;left:10px;top:calc(env(safe-area-inset-top,0px) + 62px);z-index:90}",
       "#dsb-root{position:fixed;inset:0;z-index:2147483000;background:#07070c;color:#eee;display:none;flex-direction:column;font:15px/1.5 system-ui,-apple-system,'PingFang TC',sans-serif;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}",
       "#dsb-root.open{display:flex}",
       "#dsb-root .dsb-top{display:flex;align-items:center;gap:6px;padding:8px 8px 0;border-bottom:1px solid #1d1d2a}",
@@ -260,7 +260,7 @@
       "#dsb-root .dsb-in textarea{flex:1;resize:none;min-height:40px;max-height:120px;border-radius:12px;border:1px solid #2a2a3a;background:#12121b;color:#fff;padding:9px 11px;font:inherit;font-size:16px}",
       "#dsb-root .dsb-in button{flex:none;width:52px;border-radius:12px;border:0;background:var(--g,#8b7cff);color:#000;font-weight:700;font-size:15px}"
     ,
-      "#dsb-root .dsb-tab,#dsb-root .dsb-close{background:transparent!important;color:#aaa!important;border-radius:0!important;border-top:0!important;border-left:0!important;border-right:0!important}#dsb-root .dsb-tab{border-bottom:2px solid transparent!important}#dsb-root .dsb-tab.on{color:#fff!important;border-bottom-color:var(--g,#8b7cff)!important}#dsb-root .dsb-close{border:0!important;color:#bbb!important}#dsb-root .dsb-add{background:transparent!important;color:#ccc!important;border:1px dashed #555!important;border-radius:50%!important}#dsb-root .dsb-acts button,#dsb-root .dsb-quick button{background:#1c1c2a!important;color:#ddd!important;border:1px solid #33334a!important;border-radius:999px!important}#dsb-root .dsb-acts button.ok{background:#14532d!important;border-color:#22c55e!important;color:#fff!important}#dsb-root .dsb-in button{background:var(--g,#8b7cff)!important;color:#000!important;border:0!important;border-radius:12px!important}#dsb-launch{background:rgba(10,10,18,.88)!important;color:#fff!important;border-radius:999px!important}#dsb-root .dsb-tab .zz{display:none}#dsb-root button{-webkit-appearance:none;appearance:none;box-shadow:none;min-height:0;cursor:pointer}#dsb-root .dsb-tab{background:transparent}"
+      "#dsb-root .dsb-tab,#dsb-root .dsb-close{background:transparent!important;color:#aaa!important;border-radius:0!important;border-top:0!important;border-left:0!important;border-right:0!important}#dsb-root .dsb-tab{border-bottom:2px solid transparent!important}#dsb-root .dsb-tab.on{color:#fff!important;border-bottom-color:var(--g,#8b7cff)!important}#dsb-root .dsb-close{border:0!important;color:#bbb!important}#dsb-root .dsb-add{background:transparent!important;color:#ccc!important;border:1px dashed #555!important;border-radius:50%!important}#dsb-root .dsb-acts button,#dsb-root .dsb-quick button{background:#1c1c2a!important;color:#ddd!important;border:1px solid #33334a!important;border-radius:999px!important}#dsb-root .dsb-acts button.ok{background:#14532d!important;border-color:#22c55e!important;color:#fff!important}#dsb-root .dsb-in button{background:var(--g,#8b7cff)!important;color:#000!important;border:0!important;border-radius:12px!important}#dsb-launch{background:#fff!important;color:#222!important}#dsb-root .dsb-tab .zz{display:none}#dsb-root button{-webkit-appearance:none;appearance:none;box-shadow:none;min-height:0;cursor:pointer}#dsb-root .dsb-tab{background:transparent}"
     ].join("\n");
     d.head.appendChild(s);
   }
@@ -438,9 +438,23 @@
     root.classList.add("open"); d.documentElement.style.overflow = "hidden";
   }
   function close() { if (root) root.classList.remove("open"); d.documentElement.style.overflow = ""; }
+  // 白色按鈕＋會眨眼、做表情的暗星小臉；放在頁首（與「我的聲音／返回 Home」同列），不會蓋住聊天訊息
+  var launchBtn = null, launchOrb = null;
+  function placeLauncher() {
+    var b = launchBtn; if (!b) return;
+    var bar = d.querySelector("header.topbar"), mv = d.getElementById("darkStarMyVoiceButton");
+    if (mv && mv.parentNode) { if (b.nextSibling !== mv) mv.parentNode.insertBefore(b, mv); b.classList.remove("float"); }
+    else if (bar) { if (b.parentNode !== bar) bar.appendChild(b); b.classList.remove("float"); }
+    else { if (b.parentNode !== d.body) d.body.appendChild(b); b.classList.add("float"); }
+  }
   function launcher() {
     if (d.getElementById("dsb-launch")) return; css();
-    var b = el("button", null, "🤖 機器人"); b.id = "dsb-launch"; b.setAttribute("aria-label", "開啟暗星機器人工作區"); b.onclick = open; d.body.appendChild(b);
+    var b = el("button"); b.id = "dsb-launch"; b.type = "button"; b.setAttribute("aria-label", "開啟暗星機器人工作區");
+    var face = el("span"); b.appendChild(face); b.appendChild(el("span", "lbl", "機器人")); b.title = "暗星機器人";
+    b.onclick = open; launchBtn = b; placeLauncher();
+    if (w.DarkStarOrb) { launchOrb = w.DarkStarOrb.mount(face, { size: 24 }); w.__dsLaunchOrb = launchOrb; }
+    d.addEventListener("darkstar:expr", function (e) { if (launchOrb && e.detail) launchOrb.setExpression(e.detail.expr, e.detail.ms); });
+    var n = 0, t = setInterval(function () { placeLauncher(); if (++n > 20) clearInterval(t); }, 500); // 「我的聲音」按鈕較晚才插入
   }
   if (d.readyState === "loading") d.addEventListener("DOMContentLoaded", launcher); else launcher();
   w.AIVAULTBots = { open: open, close: close, send: send, bots: function () { return bots; }, active: active, select: function (id) { activeId = id; render(); }, parseProposal: parseProposal, lineDiff: lineDiff, _status: bridgeStatus };
