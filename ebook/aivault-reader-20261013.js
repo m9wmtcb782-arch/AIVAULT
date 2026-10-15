@@ -518,15 +518,60 @@
     }
   }
 
+  // 連點翻頁佇列：動畫進行中的點擊不丟棄，依方向累加；動畫可被打斷以保持跟手
+  var turnQueue = []; // {dir:"next"|"prev"} 或 {n:number, animate, dir, narration}
+  function enqueueTurn(item) {
+    if (!item) return;
+    // 合併連續同向點擊為多次 delta，避免用當下 pageNumber 算死頁碼
+    if (item.dir && (item.delta === 1 || item.delta === -1)) {
+      turnQueue.push({ dir: item.dir, delta: item.delta });
+      if (turnQueue.length > 12) turnQueue.shift();
+      return;
+    }
+    turnQueue.push(item);
+    if (turnQueue.length > 12) turnQueue.shift();
+  }
+  function drainTurnQueue() {
+    if (state.flipping || !turnQueue.length) return;
+    var item = turnQueue.shift();
+    if (item.delta) {
+      var step = useSpread() ? 2 : 1;
+      var target = state.pageNumber + (item.delta > 0 ? step : -step);
+      goPage(target, true, item.dir);
+    } else {
+      goPage(item.n, item.animate, item.dir, item.narrationNavigation);
+    }
+  }
+  function requestTurn(dir) {
+    if (!state.bookId) return;
+    var delta = dir === "next" ? 1 : -1;
+    if (useSpread()) {
+      // 雙頁：一次跳兩個整頁
+      if (state.flipping) { enqueueTurn({ dir: dir, delta: delta }); return; }
+      if (dir === "next") goPage(currentPair()[0] + 2, true, "next");
+      else goPage(Math.max(1, currentPair()[0] - 2), true, "prev");
+      return;
+    }
+    if (state.flipping) { enqueueTurn({ dir: dir, delta: delta }); return; }
+    goPage(state.pageNumber + delta, true, dir);
+  }
   async function goPage(n, animate, dir, narrationNavigation) {
-    if (!state.bookId || state.flipping) return;
+    if (!state.bookId) return;
+    // 動畫中：有方向的翻頁請求進佇列；無動畫跳頁仍等待目前翻頁結束再執行
+    if (state.flipping) {
+      if (dir === "next" || dir === "prev") enqueueTurn({ dir: dir, delta: dir === "next" ? 1 : -1 });
+      else enqueueTurn({ n: n, animate: !!animate, dir: dir, narrationNavigation: narrationNavigation });
+      // 打斷當前捲頁，讓佇列盡快跟上連點
+      try { if (window.AIVAULTPageCurl && window.AIVAULTPageCurl.cancel) window.AIVAULTPageCurl.cancel(); } catch (e) {}
+      return;
+    }
     const oldPage=state.pageNumber, oldSub=state.subPage;
     n = Math.max(1, Math.min(state.totalPages || 1, Number(n) || 1));
     let nextSub=0;
     if(!useSpread() && animate && dir) {
       if(dir === "next" && oldSub + 1 < state.subPages) {n=oldPage;nextSub=oldSub+1;}
       else if(dir === "prev" && oldSub > 0) {n=oldPage;nextSub=oldSub-1;}
-      else if(n===oldPage) {toast(dir==="next"?"已到最後一頁":"已是第一頁");return;}
+      else if(n===oldPage) {toast(dir==="next"?"已到最後一頁":"已是第一頁");drainTurnQueue();return;}
       else if(dir==="prev") nextSub=Number.MAX_SAFE_INTEGER;
     }
     if(n!==oldPage&&!narrationNavigation&&window.AIVAULTAudiobook)window.AIVAULTAudiobook.stop();
@@ -537,13 +582,25 @@
       if(!state.cache.get(n)){toast("這一頁暫時無法載入，請再試一次");return;}
       const before=snapshotLeaf("paperRight");
       state.pageNumber=n;state.subPage=nextSub;renderSpread();
-      if(animate&&dir) await runCurl(before,snapshotLeaf("paperRight"),dir);
+      // 佇列中還有同向連點時：縮短／略過動畫以保持 1 點 = 1 頁跟手
+      var queuedAhead = turnQueue.length;
+      if(animate&&dir) {
+        if (queuedAhead > 0) {
+          // 有待處理點擊：極短捲頁或不播，立刻讓出
+          try { await runCurl(before, snapshotLeaf("paperRight"), dir, 90); } catch (e) {}
+        } else {
+          await runCurl(before,snapshotLeaf("paperRight"),dir);
+        }
+      }
       setQS(state.bookId,state.pageNumber,state.view==="listen"?"listen":"read");
       try { localStorage.setItem("aivault_reader_screen_"+state.bookId,JSON.stringify({page:state.pageNumber,screen:state.subPage})); } catch(e){}
       [n-1,n+1,n+2].filter(function(x){return x>0&&x<=state.totalPages;}).forEach(function(x){getPage(x).catch(function(){});});
       persistProgress().catch(function(){});
       if(state.source==="remote"||state.remoteId) E.fetchRemoteContext(state.remoteId||state.bookId,state.pageNumber,1).then(function(r){if(r.ok)state.context=r.data;}).catch(function(){});
-    } finally { state.flipping=false;$("stage").setAttribute("aria-busy","false"); }
+    } finally {
+      state.flipping=false;$("stage").setAttribute("aria-busy","false");
+      drainTurnQueue();
+    }
   }
   function snapshotLeaf(id) {
     const wrap=$(id).cloneNode(true);wrap.removeAttribute("id");
@@ -551,10 +608,10 @@
     wrap.querySelectorAll("[id]").forEach(function(x){x.removeAttribute("id");});
     return wrap;
   }
-  function runCurl(before,after,dir) {
+  function runCurl(before,after,dir,durationMs) {
     const hint=state.curlHint||{};state.curlHint=null;
     if(window.AIVAULTPageCurl&&!useSpread()&&!matchMedia("(prefers-reduced-motion: reduce)").matches){
-      try{return window.AIVAULTPageCurl.run($("flipBook"),before,after,dir,{corner:hint.corner||"bottom",slope:hint.slope,hold:window.__AIVAULT_CURL_HOLD});}catch(e){console.warn("[AIVAULT reader] real curl fallback",e);}
+      try{return window.AIVAULTPageCurl.run($("flipBook"),before,after,dir,{corner:hint.corner||"bottom",slope:hint.slope,duration:durationMs!=null?durationMs:300,hold:window.__AIVAULT_CURL_HOLD});}catch(e){console.warn("[AIVAULT reader] real curl fallback",e);}
     }
     if(!window.St||!St.PageFlip||useSpread()||matchMedia("(prefers-reduced-motion: reduce)").matches)return Promise.resolve();
     return new Promise(function(resolve){
@@ -1108,14 +1165,8 @@
   }
 
   function bindNav() {
-    $("prevBtn").onclick = function () {
-      if (useSpread()) goPage(Math.max(1, currentPair()[0] - 2), true, "prev");
-      else goPage(state.pageNumber - 1, true, "prev");
-    };
-    $("nextBtn").onclick = function () {
-      if (useSpread()) goPage(currentPair()[0] + 2, true, "next");
-      else goPage(state.pageNumber + 1, true, "next");
-    };
+    $("prevBtn").onclick = function () { requestTurn("prev"); };
+    $("nextBtn").onclick = function () { requestTurn("next"); };
     $("jumpRange").onchange = function () { goPage($("jumpRange").value); };
     $("btnBackShelf").onclick = showShelf;
     $("btnToc").onclick = renderTocPanel;
@@ -1140,25 +1191,31 @@
     document.addEventListener("keydown", function (e) {
       if (state.view !== "read") return;
       if (["INPUT", "TEXTAREA"].indexOf(e.target.tagName) >= 0) return;
-      if (e.key === "ArrowRight" || e.key === "PageDown") goPage(state.pageNumber + 1, true, "next");
-      if (e.key === "ArrowLeft" || e.key === "PageUp") goPage(state.pageNumber - 1, true, "prev");
+      if (e.key === "ArrowRight" || e.key === "PageDown") requestTurn("next");
+      if (e.key === "ArrowLeft" || e.key === "PageUp") requestTurn("prev");
     });
 
     const stage=$("stage");let start=null,suppress=0;
     stage.addEventListener("pointerdown",function(e){
-      if(window.AIVAULTQQSelectionEnabled||e.button!==0||state.flipping||e.target.closest("a,button,input,video,iframe,.precise-selecting"))return;
-      start={x:e.clientX,y:e.clientY,id:e.pointerId};
+      // 允許動畫中開始下一次手勢／點擊（由 requestTurn 佇列），不再因 flipping 丟掉 pointerdown
+      if(window.AIVAULTQQSelectionEnabled||e.button!==0||e.target.closest("a,button,input,video,iframe,.precise-selecting"))return;
+      start={x:e.clientX,y:e.clientY,id:e.pointerId,t:Date.now()};
     });
     stage.addEventListener("pointerup",function(e){
       if(!start||start.id!==e.pointerId)return;const dx=e.clientX-start.x,dy=e.clientY-start.y;start=null;
-      if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)){suppress=Date.now()+450;state.curlHint={corner:dy<0?"bottom":"top",slope:Math.abs(dy)/Math.abs(dx)};goPage(state.pageNumber+(dx<0?1:-1),true,dx<0?"next":"prev");}
+      if(Math.abs(dx)>36&&Math.abs(dx)>Math.abs(dy)*0.85){
+        suppress=Date.now()+280;
+        state.curlHint={corner:dy<0?"bottom":"top",slope:Math.abs(dy)/Math.max(1,Math.abs(dx))};
+        requestTurn(dx<0?"next":"prev");
+      }
     });
     stage.addEventListener("pointercancel",function(){start=null;});
     stage.addEventListener("click",function(e){
-      if(window.AIVAULTQQSelectionEnabled||Date.now()<suppress||state.flipping||e.target.closest("a,button,input,video,iframe,.precise-selecting")||String(getSelection()||'').trim())return;
+      // 不因 flipping 丟點：連點進佇列。僅略過剛發生的滑動翻頁，避免 click+swipe 雙計
+      if(window.AIVAULTQQSelectionEnabled||Date.now()<suppress||e.target.closest("a,button,input,video,iframe,.precise-selecting")||String(getSelection()||'').trim())return;
       const r=stage.getBoundingClientRect(),x=(e.clientX-r.left)/r.width;
-      if(x<.24)goPage(state.pageNumber-1,true,"prev");
-      else if(x>.76)goPage(state.pageNumber+1,true,"next");
+      if(x<.28)requestTurn("prev");
+      else if(x>.72)requestTurn("next");
       else $("readerView").classList.toggle("controls-open");
     });
   }
@@ -1235,6 +1292,11 @@
   bindShelf();
   bindNav();
   window.AIVAULTReaderBridge = {
+    requestTurn:requestTurn,
+    goPage:goPage,
+    get flipping(){return state.flipping;},
+    get page(){return state.pageNumber;},
+    get queueLen(){return turnQueue.length;},
     info:function(){const known=state.shelfBooks.find(function(b){return b.id===state.bookId;})||{};return {id:state.bookId,page:state.pageNumber,total:state.totalPages,title:$("readerTitle").textContent,chapter:narrationChapterTitle(),cover:(state.book&&state.book.cover_url)||known.cover_url||"",view:state.view};},
     paper:function(){return $("paperRight");},
     visibleSegment:function(){const paper=$("paperRight"),clip=paper.querySelector('.qq-page-viewport')||paper,r=clip.getBoundingClientRect();const mark=Array.from(paper.querySelectorAll('[data-narration]')).find(function(el){return Array.from(el.getClientRects()).some(function(m){return m.right>r.left&&m.left<r.right&&m.bottom>r.top&&m.top<r.bottom;});});return mark?Number(mark.dataset.narration):0;},
