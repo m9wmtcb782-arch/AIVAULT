@@ -59,12 +59,34 @@
     dawn = w.DarkStarOrb.mount(span, { size: small ? 46 : 58, theme: "dawn" });
     ["keydown", "pointerdown"].forEach(function (ev) { d.addEventListener(ev, function () { lastUser = Date.now(); }, true); });
     schedule(true);
+    mountChip();
+  }
+  // 頁首「曙光」小太陽：換成動態曙光機器人，並同步面板曙光的表情/說話
+  var chipOrb = null;
+  function mountChip() {
+    var sun = d.querySelector("#dawnLightChip .dawn-sun");
+    if (!sun || chipOrb || !w.DarkStarOrb) { if (!chipOrb) setTimeout(mountChip, 1500); return; }
+    var st = d.createElement("style");
+    st.textContent = "#dawnLightChip .dawn-sun{width:30px!important;height:30px!important;vertical-align:middle!important}#dawnLightChip .dawn-sun>i{display:none!important}#dawnLightChip .dawn-sun>.dsdawnchip{position:absolute;inset:0;line-height:0}";
+    d.head.appendChild(st);
+    var host = d.createElement("span"); host.className = "dsdawnchip"; sun.appendChild(host);
+    chipOrb = w.DarkStarOrb.mount(host, { size: 30, theme: "dawn" });
+    if (dawn) {
+      var se = dawn.setExpression.bind(dawn), stk = dawn.setTalking.bind(dawn);
+      dawn.setExpression = function (x, ms) { try { chipOrb.setExpression(x, ms); } catch (e) {} return se(x, ms); };
+      dawn.setTalking = function (v) { try { chipOrb.setTalking(v); } catch (e) {} return stk(v); };
+    }
+    w.addEventListener("aivault-agent-phase", function (ev) {
+      var dt = ev.detail || {}; if (dt.agent_id !== "dawn-light") return;
+      if (dt.phase === "speak") talk(chipOrb, 1500); else chipOrb.setTalking(0);
+    });
   }
   w.AIVAULTDawnAvatar = {
     expr: function (x, ms) { if (dawn) dawn.setExpression(x, ms || 4000); },
     say: function (text, x) { if (x && dawn) dawn.setExpression(x, 3600); bubble("dawn", text); talk(dawn, 900); },
     banter: function (i) { return play(SCRIPTS[i == null ? Math.floor(Math.random() * SCRIPTS.length) : i % SCRIPTS.length]); },
-    orb: function () { return dawn; }
+    orb: function () { return dawn; },
+    chipOrb: function () { return chipOrb; }
   };
   if (d.readyState === "complete") init(); else w.addEventListener("load", init);
   setTimeout(init, 2500);
