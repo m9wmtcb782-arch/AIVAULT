@@ -1,7 +1,7 @@
+// （Supabase 方案已達 function 數量上限，所以這個模組由 dark-star-ebook-ingest?feature=bot-pr 匯入執行，不單獨部署。）
 // AIVAULT App 管家：把使用者「核准」的修改提案開成 GitHub Pull Request（永不自動合併）。
 // 安全：GitHub token 只存在 Supabase secret（AIVAULT_PR_GITHUB_TOKEN，退回 ANXING_GITHUB_TOKEN）；
 // 只有 AIVAULT_OWNER_USER_ID 指定的 Supabase 使用者（JWT 驗證）能核准；禁止改 .github/ 等敏感路徑。
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 const OWNER = (Deno.env.get("AIVAULT_OWNER_USER_ID") || "").trim();
@@ -81,7 +81,7 @@ async function openPr(uid: string, p: any) {
   }
 }
 
-Deno.serve(async (r) => {
+export async function botPr(r: Request): Promise<Response> {
   if (r.method === "OPTIONS") return new Response("ok", { headers: H });
   try {
     const b = await r.json().catch(() => ({}));
@@ -103,4 +103,4 @@ Deno.serve(async (r) => {
     }
     return out({ ok: false, error: "UNKNOWN_ACTION" }, 400);
   } catch (e) { return out({ ok: false, error: String((e as Error).message || e) }, 500); }
-});
+}

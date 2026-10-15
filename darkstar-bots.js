@@ -202,13 +202,13 @@
   var prStatus = null;
   async function bridgeStatus(force) {
     if (prStatus && !force) return prStatus;
-    try { var t = await token(); var r = await fetch(BASE + "/functions/v1/aivault-bot-pr", { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + (t || ANON) }, body: JSON.stringify({ action: "status" }) }); prStatus = await r.json().catch(function () { return {}; }); }
+    try { var t = await token(); var r = await fetch(BASE + "/functions/v1/dark-star-ebook-ingest?feature=bot-pr", { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + (t || ANON) }, body: JSON.stringify({ action: "status" }) }); prStatus = await r.json().catch(function () { return {}; }); }
     catch (e) { prStatus = { ok: false, error: String(e.message || e) }; }
     return prStatus;
   }
   async function approve(b, msg) {
     var t = await token(); if (!t) throw new Error("請先登入 AIVAULT");
-    var r = await fetch(BASE + "/functions/v1/aivault-bot-pr", { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + t }, body: JSON.stringify({ action: "approve", proposal: Object.assign({ bot_id: b.id }, msg.proposal) }) });
+    var r = await fetch(BASE + "/functions/v1/dark-star-ebook-ingest?feature=bot-pr", { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + t }, body: JSON.stringify({ action: "approve", proposal: Object.assign({ bot_id: b.id }, msg.proposal) }) });
     var j = await r.json().catch(function () { return {}; });
     if (!r.ok || !j.ok) {
       var M = { NOT_OWNER: "只有 AIVAULT 擁有者帳號可以核准。", OWNER_NOT_CONFIGURED: "伺服器尚未設定擁有者（AIVAULT_OWNER_USER_ID）。你的使用者 ID：" + (j.user_id || userId()), TOKEN_NOT_CONFIGURED: "伺服器尚未設定 GitHub token（AIVAULT_PR_GITHUB_TOKEN）。", NOT_LOGGED_IN: "請先登入 AIVAULT。" };

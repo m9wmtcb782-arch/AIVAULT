@@ -39,3 +39,5 @@ end $$;
 grant select, insert, update, delete on table public.dark_star_bots to service_role, authenticated;
 grant select, insert, update, delete on table public.dark_star_bot_proposals to service_role;
 grant select on table public.dark_star_bot_proposals to authenticated;
+revoke truncate, trigger, references on table public.dark_star_bots, public.dark_star_bot_proposals from anon;
+revoke truncate, trigger, references on table public.dark_star_bot_proposals from authenticated;
