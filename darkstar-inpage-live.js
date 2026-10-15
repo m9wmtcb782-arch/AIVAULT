@@ -297,7 +297,20 @@
     return best;
   }
   w.AIVAULTDarkStarEmotion = classify;
+  var lastCmdKey = "";
+  // 明確表情指令：使用者說「做一個生氣的表情」「開心」「氣呼呼」（輸入逐字稿）或暗星回覆中的 [表情:xx] 標籤
+  function commandExpr() {
+    var O = w.DarkStarOrb, A = w.AIVAULTDarkStarAvatar; if (!O || !O.detectCommand || !A || !A.expr) return false;
+    var c = el("chat"), us = c.querySelectorAll(".bubble.user"), ai = c.querySelectorAll(".bubble.ai");
+    var u = us[us.length - 1], a = ai[ai.length - 1], hit = null, key = "";
+    if (a) { var at = a.textContent || "", tx = O.exprFromTag(at); if (tx) { hit = tx; key = "a" + ai.length + tx; } if (/[\[【［]\s*(表情|expr)/i.test(at)) stripBubble(a); }
+    if (!hit && u) { var ut = (u.textContent || "").replace(/^你/, "").slice(-40), ux = O.detectCommand(ut); if (ux) { hit = ux; key = "u" + us.length + ux; } }
+    if (!hit || key === lastCmdKey) return !!hit && key === lastCmdKey && Date.now() - lastEmoAt < 5000;
+    lastCmdKey = key; lastEmotion = hit; lastEmoAt = Date.now() + 2500; A.expr(hit, 5000); return true;
+  }
+  function stripBubble(b) { var O = w.DarkStarOrb, wk = d.createTreeWalker ? null : null; (function walk(n) { if (n.nodeType === 3) { var t = O.stripTags(n.nodeValue); if (t !== n.nodeValue.trim() && t !== n.nodeValue) n.nodeValue = t; } else n.childNodes.forEach(walk); })(b); }
   function onTranscript() {
+    if (commandExpr()) return;
     var bubbles = el("chat").querySelectorAll(".bubble.ai");
     var last = bubbles[bubbles.length - 1]; if (!last) return;
     var text = (last.textContent || "").replace(/^暗星/, "").slice(-80);

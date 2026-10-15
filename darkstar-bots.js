@@ -108,7 +108,9 @@
   function cite(hits) { return hits.map(function (h) { return { title: h.title, page: h.page, bid: h.bid }; }); }
 
   // ---------- 各角色 ----------
-  var SYS_BASE = "你是 AIVAULT 暗星工作區裡的機器人，請一律用繁體中文（台灣用語）回答，語氣親切、精簡。";
+  var SYS_BASE = "你是 AIVAULT 暗星工作區裡的機器人（外型是會做表情的黑色小球暗星），請一律用繁體中文（台灣用語）回答，語氣親切、精簡。" + ((w.DarkStarOrb && w.DarkStarOrb.TAG_HINT) || "");
+  var EXPR_TXT = { angry: "😡 哼！我生氣了！", huffy: "😤 氣呼呼～", happy: "😃 好開心！", sad: "😢 嗚嗚…有點難過", surprised: "😮 哇！嚇我一跳！", thinking: "🤔 嗯…讓我想想", love: "😍 好喜歡你～", sleepy: "😴 呼…好想睡", laughing: "😆 哈哈哈哈！" };
+  function exprReply(x) { return EXPR_TXT[x] || "🙂"; }
   var handlers = {
     general: async function (b, q) {
       return { text: await ai(SYS_BASE + "你的名字是「" + b.name + "」，角色是一般助理。", (historyText(b) ? "【先前對話】\n" + historyText(b) + "\n\n" : "") + "使用者：" + q) };
@@ -236,7 +238,7 @@
       "#dsb-root .dsb-tab.on{color:#fff;border-bottom-color:var(--g,#8b7cff)}",
       "#dsb-root .dsb-add{flex:none;width:34px;height:34px;border-radius:50%;border:1px dashed #555;background:none;color:#ccc;font-size:18px}",
       "#dsb-root .dsb-hero{display:flex;align-items:center;gap:12px;padding:10px 14px}",
-      "#dsb-root .dsb-av{position:relative;width:64px;height:64px;flex:none;filter:drop-shadow(0 0 10px var(--g,#8b7cff))}",
+      "#dsb-root .dsb-av{position:relative;width:76px;height:76px;flex:none;filter:drop-shadow(0 0 10px var(--g,#8b7cff))}",
       "#dsb-root .dsb-av .acc{position:absolute;right:-4px;bottom:-2px;font-size:20px}",
       "#dsb-root .dsb-av.thinking{animation:dsbThink 1.1s ease-in-out infinite}#dsb-root .dsb-av.talking{animation:dsbTalk .35s ease-in-out infinite alternate}#dsb-root .dsb-av.happy{animation:dsbHop .5s ease 2}",
       "@keyframes dsbThink{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg) translateY(-2px)}}@keyframes dsbTalk{from{transform:scale(1)}to{transform:scale(1.05)}}@keyframes dsbHop{0%,100%{transform:translateY(0)}40%{transform:translateY(-10px)}}",
@@ -266,7 +268,7 @@
   function orbInto(host, b, size) {
     host.innerHTML = ""; var span = el("span"); host.appendChild(span);
     var api = null;
-    if (w.DarkStarOrb) { api = w.DarkStarOrb.mount(span, { size: size, auto: size > 30 }); try { span.querySelectorAll("radialGradient[id$='o'] stop").forEach(function (s) { s.setAttribute("stop-color", glow(b)); }); } catch (e) {} }
+    if (w.DarkStarOrb) { api = w.DarkStarOrb.mount(span, { size: size }); span.style.setProperty("--g", glow(b)); try { span.querySelectorAll("radialGradient[id$='o'] stop").forEach(function (s) { s.setAttribute("stop-color", glow(b)); }); } catch (e) {} }
     else { span.style.cssText = "display:inline-block;width:" + size + "px;height:" + size + "px;border-radius:50%;background:radial-gradient(circle at 36% 30%,#4a4a58,#000)"; }
     return api;
   }
@@ -275,7 +277,7 @@
     var av = heroEl && heroEl.querySelector(".dsb-av"); if (!av) return;
     av.classList.remove("thinking", "talking", "happy"); if (mood && mood !== "idle") { void av.offsetWidth; av.classList.add(mood); }
     if (!heroOrb) return;
-    if (mood === "thinking") heroOrb.setExpression("curious", 60000);
+    if (mood === "thinking") heroOrb.setExpression("thinking", 60000);
     else if (mood === "happy") { heroOrb.setTalking(0); heroOrb.setExpression("happy", 2200); }
     else if (mood === "idle") { heroOrb.setTalking(0); heroOrb.setExpression("neutral", 0); }
   }
@@ -283,6 +285,14 @@
     if (!heroOrb) return Promise.resolve(); setMood("talking");
     return new Promise(function (res) { var t0 = Date.now(); (function f() { var k = Date.now() - t0; if (k > ms) { heroOrb.setTalking(0); return res(); } heroOrb.setTalking(.25 + .6 * Math.abs(Math.sin(k / 90))); requestAnimationFrame(f); })(); });
   }
+  // 表情指令（使用者打「做一個生氣的表情」「開心」「氣呼呼」或 😤）與回覆中的 [表情:xx] 標籤
+  function showExpr(x, ms) {
+    if (!x || !heroOrb) return; ms = ms || 4500; holdExprUntil = Date.now() + ms;
+    var av = heroEl && heroEl.querySelector(".dsb-av"); if (av) av.classList.remove("thinking", "talking", "happy");
+    heroOrb.setExpression(x, ms);
+    var t = tabsEl && tabsEl.querySelector(".dsb-tab.on .ds-orb"); if (t && t.__dsOrb) t.__dsOrb.setExpression(x, ms);
+  }
+  var holdExprUntil = 0;
   function active() { return bots.find(function (b) { return b.id === activeId; }) || bots[0]; }
   function setSync() { if (!syncEl) return; syncEl.textContent = userId() ? (remoteOk ? "☁️ 已同步到你的 AIVAULT 帳號" : "⚠️ 暫時只存在這台裝置（雲端同步失敗，稍後自動重試）") : "📱 未登入：機器人與對話只存在這台裝置"; }
 
@@ -304,7 +314,7 @@
   function renderHero() {
     var b = active(), R = ROLES[b.role] || ROLES.general; heroEl.innerHTML = ""; root.style.setProperty("--g", glow(b));
     var av = el("div", "dsb-av"); av.style.setProperty("--g", glow(b)); var host = el("span"); av.appendChild(host); av.appendChild(el("span", "dots", "•••")); av.appendChild(el("span", "acc", (b.avatar && b.avatar.icon) || R.icon));
-    heroEl.appendChild(av); heroOrb = orbInto(host, b, 64);
+    heroEl.appendChild(av); heroOrb = orbInto(host, b, 76);
     var meta = el("div", "dsb-meta"); meta.appendChild(el("b", null, b.name)); meta.appendChild(el("small", null, R.icon + " " + R.label)); heroEl.appendChild(meta);
     var sel = el("select", "dsb-menu"); sel.setAttribute("aria-label", "機器人設定");
     [["", "⋯ 設定"], ["rename", "✏️ 改名"], ["role", "🔁 換角色"], ["clear", "🧹 清除對話"], ["delete", "🗑️ 刪除機器人"]].forEach(function (o) { var op = el("option", null, o[1]); op.value = o[0]; sel.appendChild(op); });
@@ -388,18 +398,23 @@
   async function send(text) {
     var b = active(); text = String(text || "").trim(); if (!text || busy[b.id]) return;
     b.history.push({ who: "user", text: text, t: Date.now() }); persist(b); renderMsgs();
+    var O = w.DarkStarOrb, cmd = O && O.detectCommand ? O.detectCommand(text) : null;
+    if (cmd) { showExpr(cmd, 5000); if (text.replace(/[\s，。！？!?]/g, "").length <= 4 || /表情|臉|脸/.test(text)) { b.history.push({ who: "bot", text: exprReply(cmd), t: Date.now(), expr: cmd }); persist(b); renderMsgs(); return; } }
     busy[b.id] = true; setMood("thinking");
     var thinking = el("div", "dsb-m bot", "💭 " + b.name + " 思考中…"); msgsEl.appendChild(thinking); msgsEl.scrollTop = msgsEl.scrollHeight;
     var res;
-    try { res = await (handlers[b.role] || handlers.general)(b, text); }
+    function cleanRes(r) { if (r && r.text && w.DarkStarOrb && w.DarkStarOrb.exprFromTag) { var tx = w.DarkStarOrb.exprFromTag(r.text); if (tx) r.expr = tx; r.text = w.DarkStarOrb.stripTags(r.text); } return r; }
+    try { res = cleanRes(await (handlers[b.role] || handlers.general)(b, text)); }
     catch (e) { var m = String(e && e.message || e); res = { text: "⚠️ " + (/Failed to fetch|NetworkError|Load failed/.test(m) ? "網路連線失敗，請稍後再試。" : /TimeoutError|timed? ?out/i.test(m) ? "AI 回應逾時，請再試一次。" : "AI 暫時無法回應（" + m.slice(0, 120) + "）"), err: true }; }
     busy[b.id] = false;
-    var msg = { who: "bot", text: res.text, t: Date.now() }; if (res.cites && res.cites.length) msg.cites = res.cites; if (res.note) msg.note = res.note; if (res.proposal) msg.proposal = res.proposal; if (res.err) msg.err = true;
+    var msg = { who: "bot", text: res.text, t: Date.now() }; if (res.cites && res.cites.length) msg.cites = res.cites; if (res.note) msg.note = res.note; if (res.proposal) msg.proposal = res.proposal; if (res.err) msg.err = true; if (res.expr) msg.expr = res.expr;
     b.history.push(msg); if (b.history.length > MAXH) b.history = b.history.slice(-MAXH); persist(b);
     if (b.id !== activeId) return;
     thinking.remove(); renderMsgs();
     if (res.err) { setMood("idle"); if (heroOrb) heroOrb.setExpression("sad", 2500); return; }
-    await talk(Math.min(2400, 500 + res.text.length * 12)); setMood("happy"); setTimeout(function () { if (!busy[b.id]) setMood("idle"); }, 1100);
+    await talk(Math.min(2400, 500 + res.text.length * 12));
+    if (res.expr) { showExpr(res.expr, 4500); return; }
+    setMood("happy"); setTimeout(function () { if (!busy[b.id] && Date.now() > holdExprUntil) setMood("idle"); }, 1100);
   }
 
   function build() {
