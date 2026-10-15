@@ -6,7 +6,7 @@
   "use strict";
   if (w.AIVAULTStudyBooks) return;
   var INGEST = "https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/dark-star-ebook-ingest", ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE";
-  var DEFAULT_IDS = ["e0bc8c57-646d-474c-988e-d6cb3d4f8972", "840b333d-4329-4d47-80e2-a1b9d92aec03", "97a31aa4-8f72-4794-adf7-ee336411c804"];
+  var DEFAULT_IDS = ["e0bc8c57-646d-474c-988e-d6cb3d4f8972", "840b333d-4329-4d47-80e2-a1b9d92aec03", "97a31aa4-8f72-4794-adf7-ee336411c804", "9f20615b-fe5d-4abe-93f3-86c7025a866f"];
   var cache = null, loading = null, serverIds = null, serverIdsLoading = null;
   function isUuid(id) { return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id || "")); }
   async function loadServerIds(force) {
@@ -147,7 +147,7 @@
   function ensureBookQA(cb) {
     if (w.AIVAULTBookQA) { if (cb) cb(w.AIVAULTBookQA); return Promise.resolve(w.AIVAULTBookQA); }
     return new Promise(function (res) {
-      var s = d.createElement("script"); s.src = "darkstar-book-qa.js?v=20261015-qa9"; s.onload = function () { res(w.AIVAULTBookQA); if (cb) cb(w.AIVAULTBookQA); };
+      var s = d.createElement("script"); s.src = "darkstar-book-qa.js?v=20261015-qa10"; s.onload = function () { res(w.AIVAULTBookQA); if (cb) cb(w.AIVAULTBookQA); };
       s.onerror = function () { res(null); }; d.head.appendChild(s);
     });
   }

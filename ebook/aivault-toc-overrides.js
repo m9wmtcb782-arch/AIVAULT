@@ -1771,6 +1771,27 @@
         "print_page": 682
       }
     ],
+    "9f20615b-fe5d-4abe-93f3-86c7025a866f": [
+      {"ordinal": 0, "level": "part", "title": "壹、前言", "page_number": 2, "print_page": 2},
+      {"ordinal": 1, "level": "part", "title": "貳、司法院院長及大法官一再擴張審判權", "page_number": 3, "print_page": 3},
+      {"ordinal": 2, "level": "section", "title": "一、司法院院長的釋憲審判權從無到有", "page_number": 3, "print_page": 3},
+      {"ordinal": 3, "level": "section", "title": "二、憲法法庭成為第四審法院", "page_number": 5, "print_page": 5},
+      {"ordinal": 4, "level": "section", "title": "三、五人憲法法庭質變為太上皇", "page_number": 6, "print_page": 6},
+      {"ordinal": 5, "level": "section", "title": "四、司法院釋字第530號解釋被束之高閣", "page_number": 8, "print_page": 8},
+      {"ordinal": 6, "level": "part", "title": "參、司法行政凌駕審判的形象並無改善", "page_number": 9, "print_page": 9},
+      {"ordinal": 7, "level": "section", "title": "一、從司法行政部到司法（行政）院", "page_number": 9, "print_page": 9},
+      {"ordinal": 8, "level": "section", "title": "二、司法院下設人事審議委員會與法官遴選委員會", "page_number": 11, "print_page": 11},
+      {"ordinal": 9, "level": "section", "title": "三、司法院院長集法官人事行政權於一身", "page_number": 13, "print_page": 13},
+      {"ordinal": 10, "level": "section", "title": "四、司法院下設法官評鑑委員會、懲戒法院（含職務法庭）", "page_number": 15, "print_page": 15},
+      {"ordinal": 11, "level": "section", "title": "五、法官懲戒事由抽象、懲戒種類任選，違反罪刑法定主義", "page_number": 17, "print_page": 17},
+      {"ordinal": 12, "level": "part", "title": "肆、司法行政威權體制對法官的影響與霸凌", "page_number": 19, "print_page": 19},
+      {"ordinal": 13, "level": "section", "title": "一、行政權與審判權集結成司法行政威權體制", "page_number": 19, "print_page": 19},
+      {"ordinal": 14, "level": "section", "title": "二、對法官審判心理的影響與霸凌", "page_number": 20, "print_page": 20},
+      {"ordinal": 15, "level": "section", "title": "三、陳法官的行政懲處案", "page_number": 21, "print_page": 21},
+      {"ordinal": 16, "level": "section", "title": "四、陳法官的職務評定案", "page_number": 22, "print_page": 22},
+      {"ordinal": 17, "level": "section", "title": "五、周法官的懲戒案", "page_number": 24, "print_page": 24},
+      {"ordinal": 18, "level": "part", "title": "伍、結語", "page_number": 27, "print_page": 27}
+    ],
     "97a31aa4-8f72-4794-adf7-ee336411c804": [
       {
         "ordinal": 0,
