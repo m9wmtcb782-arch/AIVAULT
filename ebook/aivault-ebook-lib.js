@@ -407,7 +407,10 @@
     try {
       await deleteRemoteBook(bookId);
     } catch (e) {
-      if (e && e.status !== 404) throw e;
+      var msg = String((e && e.message) || e || "");
+      var missing = (e && e.status === 404) || /BOOK_NOT_FOUND|not found/i.test(msg);
+      if (!missing) throw e;
+      try { console.warn("[AIVAULT] remote book missing; cleaning local only", bookId, msg); } catch (x) {}
     }
     const db = await openDb();
     const stores = ["books", "files", "progress"];
@@ -747,6 +750,7 @@
     pick: pick,
     readerId: readerId,
     catalog: catalog,
+    saveCatalog: saveCatalog,
     rememberRemote: rememberRemote,
     removedShelfIds: removedShelfIds,
     isShelfRemoved: isShelfRemoved,

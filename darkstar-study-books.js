@@ -7,6 +7,37 @@
   if (w.AIVAULTStudyBooks) return;
   var INGEST = "https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/dark-star-ebook-ingest", ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE";
   var DEFAULT_IDS = ["e0bc8c57-646d-474c-988e-d6cb3d4f8972", "840b333d-4329-4d47-80e2-a1b9d92aec03"];
+  var cache = null, loading = null, serverIds = null, serverIdsLoading = null;
+  function isUuid(id) { return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id || "")); }
+  async function loadServerIds(force) {
+    if (serverIds && !force) return serverIds;
+    if (serverIdsLoading) return serverIdsLoading;
+    serverIdsLoading = fetch(INGEST, { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + ANON }, body: JSON.stringify({ action: "list", limit: 100 }) })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var m = {};
+        ((j && (j.books || j.items)) || []).forEach(function (b) {
+          var id = b && (b.id || b.ebook_id); if (id && Number(b.total_pages || b.page_count || 0) > 0) m[String(id)] = b;
+        });
+        serverIds = m; return m;
+      })
+      .catch(function () { serverIds = serverIds || {}; return serverIds; })
+      .then(function (m) { serverIdsLoading = null; return m; });
+    return serverIdsLoading;
+  }
+  function friendlyErr(err, fallback) {
+    var raw = String((err && err.message) || err || "");
+    try { console.error("[AIVAULTStudyBooks]", raw, err); } catch (e) {}
+    if (/foreign key|ebook_id_fkey|violates foreign key/i.test(raw))
+      return "這本書還沒同步到伺服器（或已從伺服器刪除），無法加入暗星學習。請只對書架上的雲端電子書按 ⭐。";
+    if (/BOOK_NOT_FOUND|not found/i.test(raw))
+      return "找不到這本雲端電子書，可能已刪除或尚未上傳。";
+    if (/請先登入|Unauthorized|401/i.test(raw))
+      return "請先登入 AIVAULT，才能設定暗星學習書籍。";
+    if (/網路|Failed to fetch|NetworkError|Load failed/i.test(raw))
+      return "網路錯誤，暫時無法儲存暗星學習設定，請稍後再試。";
+    return fallback || ("操作失敗：" + raw.slice(0, 80));
+  }
   var cache = null, loading = null;
   // 與即時語音（technical-dark-star-live-session.js accessToken）相同的取 token 方式：
   // 讀 sb-<ref>-auth-token；過期或快過期時用 refresh_token 換新並寫回（電子書頁沒有 supabase client 會自動續期）
@@ -70,11 +101,17 @@
     var c = await get();
     if (!c.logged_in) c = await get(true);
     if (!c.logged_in) throw new Error(loginMsg(c));
+    id = String(id || "");
+    if (!isUuid(id)) throw new Error("這不是雲端電子書編號，無法加入暗星學習。");
+    var live = await loadServerIds(true);
+    if (!live[id]) throw new Error("這本書還沒同步到伺服器（或已從伺服器刪除），無法加入暗星學習。");
     var items = [{ ebook_id: id, enabled: !!on }];
-    // 第一次設定時，把預設的宪法学讲义也寫進去，避免它因「已有設定」而消失
-    if (!Object.keys(c.rows).length) DEFAULT_IDS.forEach(function (x) { if (x !== id) items.push({ ebook_id: x, enabled: true }); });
+    // 第一次設定時，只寫「伺服器上仍存在」的預設書，避免 FK
+    if (!Object.keys(c.rows).length) DEFAULT_IDS.forEach(function (x) {
+      if (x !== id && live[x]) items.push({ ebook_id: x, enabled: true });
+    });
     var r = await call({ action: "study_set", items: items });
-    if (!r || r.ok === false || r.error) throw new Error((r && r.error) || "儲存失敗");
+    if (!r || r.ok === false || r.error) throw new Error(friendlyErr({ message: (r && r.error) || "儲存失敗" }));
     apply(r);
     try { w.dispatchEvent(new CustomEvent("darkstar-study-changed", { detail: cache })); } catch (e) {}
     return cache;
@@ -87,9 +124,9 @@
     }
     if (c && c.reason === "no_session") return "這個頁面找不到 AIVAULT 登入資料（同一個瀏覽器先到 AIVAULT 首頁登入，再回來重新整理）。未登入時暗星會讀全部書。";
     if (c && c.reason === "server_rejected") return "伺服器不接受目前的登入（可能已過期且無法自動續期），請重新登入 AIVAULT 後再試。" + detail;
-    if (c && c.reason === "network") return "網路錯誤，無法讀取暗星學習書籍設定。" + detail;
-    if (c && c.reason === "server_error") return "伺服器錯誤，無法讀取暗星學習書籍設定。" + detail + "（請稍後再試或把此訊息回報）";
-    return "暫時無法讀取暗星學習書籍設定，請稍後再試。" + detail;
+    if (c && c.reason === "network") return "網路錯誤，暗星學習設定讀不到，請稍後再試。" + detail;
+    if (c && c.reason === "server_error") return "伺服器忙碌，暗星學習設定讀不到。" + detail + "（請稍後再試）";
+    return "暗星學習設定暫時無法使用，請確認已登入後重新整理再試。" + detail;
   }
   w.AIVAULTStudyBooks = { get: get, set: set, isEnabled: function (id) { return !cache || !cache.enabled || !!cache.enabled[id]; } };
 
@@ -110,7 +147,7 @@
   function ensureBookQA(cb) {
     if (w.AIVAULTBookQA) { if (cb) cb(w.AIVAULTBookQA); return Promise.resolve(w.AIVAULTBookQA); }
     return new Promise(function (res) {
-      var s = d.createElement("script"); s.src = "darkstar-book-qa.js?v=20261015-qa7"; s.onload = function () { res(w.AIVAULTBookQA); if (cb) cb(w.AIVAULTBookQA); };
+      var s = d.createElement("script"); s.src = "darkstar-book-qa.js?v=20261015-qa8"; s.onload = function () { res(w.AIVAULTBookQA); if (cb) cb(w.AIVAULTBookQA); };
       s.onerror = function () { res(null); }; d.head.appendChild(s);
     });
   }
@@ -143,9 +180,17 @@
   // ---- 書架書卡 ----
   function decorateCards(clickId) {
     var grid = d.getElementById("shelfGrid"); if (!grid) return;
-    get().then(function (c) {
+    Promise.all([get(), loadServerIds()]).then(function (pair) {
+      var c = pair[0], live = pair[1] || {};
       grid.querySelectorAll('article.card[data-open][data-src="remote"]').forEach(function (card) {
-        var id = card.getAttribute("data-open"), on = c.enabled ? !!c.enabled[id] : false;
+        var id = card.getAttribute("data-open");
+        // 幽靈／本機誤標 remote：不顯示 ⭐，避免 FK
+        if (!live[id]) {
+          var ghost = card.querySelector("[data-study-book]"); if (ghost) ghost.remove();
+          var gp = card.querySelector("[data-study-progress]"); if (gp) gp.remove();
+          return;
+        }
+        var on = c.enabled ? !!c.enabled[id] : false;
         var b = card.querySelector("[data-study-book]"), prog = card.querySelector("[data-study-progress]");
         if (!b) {
           b = d.createElement("button"); b.type = "button"; b.className = "ib"; b.setAttribute("data-study-book", id);
@@ -157,7 +202,7 @@
             e.stopPropagation(); e.preventDefault();
             if (!cache || !cache.logged_in) { b.disabled = true; get(true).then(function (c2) { b.disabled = false; if (!c2.logged_in) { alert(loginMsg(c2)); return; } grid.querySelectorAll("[data-study-book]").forEach(function (x) { x.remove(); }); grid.querySelectorAll("[data-study-progress]").forEach(function (x) { x.remove(); }); decorateCards(id); }); return; }
             var next = !(cache.enabled && cache.enabled[id]); b.disabled = true; b.textContent = "⏳ 儲存中…";
-            set(id, next).then(function () { paint(next); if (next) kickIndex(); paintAllProgress(); }, function (err) { paint(!next); alert(err.message || err); }).then(function () { b.disabled = false; });
+            set(id, next).then(function () { paint(next); if (next) kickIndex(); paintAllProgress(); }, function (err) { paint(!next); alert(friendlyErr(err)); }).then(function () { b.disabled = false; });
           };
         } else if (!prog) {
           prog = d.createElement("div"); prog.setAttribute("data-study-progress", id);
@@ -187,10 +232,10 @@
       var c = res[0], books = (res[1] && (res[1].books || res[1].items)) || [];
       if (!c.logged_in) { list.textContent = loginMsg(c); return; }
       list.innerHTML = "";
-      books.forEach(function (bk) {
+      books.filter(function (bk) { return Number(bk.total_pages || bk.page_count || 0) > 0; }).forEach(function (bk) {
         var id = bk.id || bk.ebook_id, lab = d.createElement("label"); lab.style.cssText = "display:flex;gap:6px;align-items:flex-start;margin:3px 0";
         var cb = d.createElement("input"); cb.type = "checkbox"; cb.checked = !!c.enabled[id];
-        cb.onchange = function () { cb.disabled = true; set(id, cb.checked).then(function () { if (cb.checked) kickIndex(); paintAllProgress(); }).catch(function (e) { cb.checked = !cb.checked; alert(e.message || e); }).then(function () { cb.disabled = false; }); };
+        cb.onchange = function () { cb.disabled = true; set(id, cb.checked).then(function () { if (cb.checked) kickIndex(); paintAllProgress(); }).catch(function (e) { cb.checked = !cb.checked; alert(friendlyErr(e)); }).then(function () { cb.disabled = false; }); };
         var sp = d.createElement("span"); sp.style.flex = "1";
         var title = d.createElement("div"); title.textContent = bk.title || "未命名";
         var pr = d.createElement("div"); pr.setAttribute("data-study-progress", id); pr.setAttribute("data-on", cb.checked ? "1" : "0");

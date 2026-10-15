@@ -147,11 +147,8 @@
             String(r.title || "").indexOf("AIVAULT FlipBook Probe") < 0 &&
             String(r.title || "").indexOf("「當行政遇上科學") !== 0;
         });
-        E.catalog().forEach(function (r) {
-          if (remoteRows.some(function (x) { return x.ebook_id === r.ebook_id; })) return;
-          if (r.ebook_id === "1d8ce1b4-6f6b-4075-8e99-f5da89c680cd") return;
-          remoteRows.push(r);
-        });
+        // 直播成功：catalog 改成只含伺服器書單（丟掉已刪的幽靈 id，如林昱梅原版 9a3a2a12…）
+        try { if (E.saveCatalog) E.saveCatalog(remoteRows); } catch (e) {}
       }
     } catch (e) {
       console.warn("[AIVAULT FlipBook] live catalog failed; using local catalog", e);
@@ -339,16 +336,19 @@
         if (!confirm(warning)) return;
         btn.disabled = true;
         try {
-          if (remote) {
-            await E.deleteRemoteBook(id);
-            E.removeFromShelf(id);
-          } else {
-            await E.deleteLocalBook(id);
-          }
+          // deleteLocalBook：有伺服器列就永久刪；404/BOOK_NOT_FOUND 則只清本機（幽靈書卡／已刪 id）
+          await E.deleteLocalBook(id);
           toast("已刪除《" + book.title + "》");
           await renderShelf();
         } catch (error) {
-          toast("刪除失敗：" + (error.message || error));
+          console.error("[AIVAULT] shelf delete", id, error);
+          var em = String((error && error.message) || error || "");
+          var friendly = /BOOK_NOT_FOUND|not found/i.test(em)
+            ? "這本書在伺服器上已不存在，已嘗試從本機書架移除。請重新整理後再看一次。"
+            : /Unauthorized|401|登入/i.test(em)
+            ? "刪除伺服器書籍需要有效登入，請重新登入後再試。"
+            : ("刪除失敗：" + (em.slice(0, 80) || "未知錯誤"));
+          toast(friendly);
           btn.disabled = false;
         }
       };
