@@ -413,6 +413,7 @@
     thinking.remove(); renderMsgs();
     if (res.err) { setMood("idle"); if (heroOrb) heroOrb.setExpression("sad", 2500); return; }
     await talk(Math.min(2400, 500 + res.text.length * 12));
+    if (!res.expr && w.DarkStarOrb && w.DarkStarOrb.moodOf) res.expr = w.DarkStarOrb.moodOf(res.text);
     if (res.expr) { showExpr(res.expr, 4500); return; }
     setMood("happy"); setTimeout(function () { if (!busy[b.id] && Date.now() > holdExprUntil) setMood("idle"); }, 1100);
   }
@@ -449,6 +450,7 @@
   }
   function launcher() {
     if (d.getElementById("dsb-launch")) return; css();
+    if (d.querySelector(".composer-row")) return; // 有聊天輸入列的頁面：入口改在輸入列的白色「笑臉＋」按鈕（darkstar-chat-orbs.js）
     var b = el("button"); b.id = "dsb-launch"; b.type = "button"; b.setAttribute("aria-label", "開啟暗星機器人工作區");
     var face = el("span"); b.appendChild(face); b.appendChild(el("span", "lbl", "機器人")); b.title = "暗星機器人";
     b.onclick = open; launchBtn = b; placeLauncher();

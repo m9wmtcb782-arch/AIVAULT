@@ -289,6 +289,8 @@
     ["think", /思考|想想|分析|考慮|嗯+|讓我|也許|或許|可能|think|consider|let me|hmm|maybe|perhaps|🤔/gi]
   ];
   function classify(text) {
+    // 先用擴充情緒（表情符號／標籤／關鍵詞，含 😫😭✌️👍💓 等）；沒有命中再用舊規則
+    try { var O = w.DarkStarOrb, mo = O && O.moodOf ? O.moodOf(text) : null; if (mo) return mo; } catch (e) {}
     var best = "neutral", score = 0;
     RULES.forEach(function (r) {
       var m = text.match(r[1]); var n = m ? m.length : 0;
@@ -306,7 +308,7 @@
     if (a) { var at = a.textContent || "", tx = O.exprFromTag(at); if (tx) { hit = tx; key = "a" + ai.length + tx; } if (/[\[【［]\s*(表情|expr)/i.test(at)) stripBubble(a); }
     if (!hit && u) { var ut = (u.textContent || "").replace(/^你/, "").slice(-40), ux = O.detectCommand(ut); if (ux) { hit = ux; key = "u" + us.length + ux; } }
     if (!hit || key === lastCmdKey) return !!hit && key === lastCmdKey && Date.now() - lastEmoAt < 5000;
-    lastCmdKey = key; lastEmotion = hit; lastEmoAt = Date.now() + 2500; A.expr(hit, 5000); return true;
+    lastCmdKey = key; lastEmotion = hit; lastEmoAt = Date.now() + 2500; var who = (key[0] === "u" && u && /曙光|dawn/i.test(u.textContent || "") && w.AIVAULTDawnAvatar) ? w.AIVAULTDawnAvatar : A; who.expr(hit, 5000); return true;
   }
   function stripBubble(b) { var O = w.DarkStarOrb, wk = d.createTreeWalker ? null : null; (function walk(n) { if (n.nodeType === 3) { var t = O.stripTags(n.nodeValue); if (t !== n.nodeValue.trim() && t !== n.nodeValue) n.nodeValue = t; } else n.childNodes.forEach(walk); })(b); }
   function onTranscript() {
