@@ -1770,6 +1770,225 @@
         "page_number": 731,
         "ordinal": 47
       }
+    ],
+    "97a31aa4-8f72-4794-adf7-ee336411c804": [
+      {
+        "level": "part",
+        "title": "第一部分复习笔记",
+        "page_number": 3,
+        "print_page": 3,
+        "ordinal": 0
+      },
+      {
+        "level": "chapter",
+        "title": "引论",
+        "page_number": 3,
+        "print_page": 3,
+        "ordinal": 1
+      },
+      {
+        "level": "part",
+        "title": "第一编行政法总论",
+        "page_number": 4,
+        "print_page": 4,
+        "ordinal": 2
+      },
+      {
+        "level": "chapter",
+        "title": "第一章行政法概述",
+        "page_number": 4,
+        "print_page": 4,
+        "ordinal": 3
+      },
+      {
+        "level": "chapter",
+        "title": "第二章行政法的基本原则",
+        "page_number": 7,
+        "print_page": 7,
+        "ordinal": 4
+      },
+      {
+        "level": "chapter",
+        "title": "第三章行政主体",
+        "page_number": 12,
+        "print_page": 12,
+        "ordinal": 5
+      },
+      {
+        "level": "chapter",
+        "title": "第四章行政公产",
+        "page_number": 16,
+        "print_page": 16,
+        "ordinal": 6
+      },
+      {
+        "level": "chapter",
+        "title": "第五章行政行为概述",
+        "page_number": 19,
+        "print_page": 19,
+        "ordinal": 7
+      },
+      {
+        "level": "chapter",
+        "title": "第六章行政立法",
+        "page_number": 26,
+        "print_page": 26,
+        "ordinal": 8
+      },
+      {
+        "level": "chapter",
+        "title": "第七章行政许可",
+        "page_number": 30,
+        "print_page": 30,
+        "ordinal": 9
+      },
+      {
+        "level": "chapter",
+        "title": "第八章行政处罚",
+        "page_number": 36,
+        "print_page": 36,
+        "ordinal": 10
+      },
+      {
+        "level": "chapter",
+        "title": "第九章公务行政",
+        "page_number": 42,
+        "print_page": 42,
+        "ordinal": 11
+      },
+      {
+        "level": "chapter",
+        "title": "第十章行政合同",
+        "page_number": 45,
+        "print_page": 45,
+        "ordinal": 12
+      },
+      {
+        "level": "chapter",
+        "title": "第十一章行政救济",
+        "page_number": 48,
+        "print_page": 48,
+        "ordinal": 13
+      },
+      {
+        "level": "chapter",
+        "title": "第十二章行政复议",
+        "page_number": 50,
+        "print_page": 50,
+        "ordinal": 14
+      },
+      {
+        "level": "part",
+        "title": "第二编行政诉讼",
+        "page_number": 58,
+        "print_page": 58,
+        "ordinal": 15
+      },
+      {
+        "level": "chapter",
+        "title": "第十三章行政诉讼概述",
+        "page_number": 58,
+        "print_page": 58,
+        "ordinal": 16
+      },
+      {
+        "level": "chapter",
+        "title": "第十四章行政诉讼受案范围",
+        "page_number": 61,
+        "print_page": 61,
+        "ordinal": 17
+      },
+      {
+        "level": "chapter",
+        "title": "第十五章行政诉讼的管辖",
+        "page_number": 66,
+        "print_page": 66,
+        "ordinal": 18
+      },
+      {
+        "level": "chapter",
+        "title": "第十六章行政诉讼参加人",
+        "page_number": 68,
+        "print_page": 68,
+        "ordinal": 19
+      },
+      {
+        "level": "chapter",
+        "title": "第十七章行政诉讼证据",
+        "page_number": 75,
+        "print_page": 75,
+        "ordinal": 20
+      },
+      {
+        "level": "chapter",
+        "title": "第十八章诉讼程序",
+        "page_number": 82,
+        "print_page": 82,
+        "ordinal": 21
+      },
+      {
+        "level": "chapter",
+        "title": "第十九章行政诉讼的特殊制度与规则",
+        "page_number": 90,
+        "print_page": 90,
+        "ordinal": 22
+      },
+      {
+        "level": "chapter",
+        "title": "第二十章行政诉讼的结案",
+        "page_number": 95,
+        "print_page": 95,
+        "ordinal": 23
+      },
+      {
+        "level": "part",
+        "title": "第三编国家赔偿",
+        "page_number": 104,
+        "print_page": 104,
+        "ordinal": 24
+      },
+      {
+        "level": "chapter",
+        "title": "第二十一章国家赔偿与国家赔偿法",
+        "page_number": 104,
+        "print_page": 104,
+        "ordinal": 25
+      },
+      {
+        "level": "chapter",
+        "title": "第二十二章国家赔偿的范围",
+        "page_number": 106,
+        "print_page": 106,
+        "ordinal": 26
+      },
+      {
+        "level": "chapter",
+        "title": "第二十三章国家赔偿主体",
+        "page_number": 111,
+        "print_page": 111,
+        "ordinal": 27
+      },
+      {
+        "level": "chapter",
+        "title": "第二十四章国家赔偿程序",
+        "page_number": 113,
+        "print_page": 113,
+        "ordinal": 28
+      },
+      {
+        "level": "chapter",
+        "title": "第二十五章国家赔偿方式与计算标准",
+        "page_number": 116,
+        "print_page": 116,
+        "ordinal": 29
+      },
+      {
+        "level": "part",
+        "title": "第二部分名校考研真题详解",
+        "page_number": 119,
+        "print_page": 119,
+        "ordinal": 30
+      }
     ]
   };
   var orig = E.fetchRemoteToc;

@@ -27,7 +27,7 @@
     context: null
   };
 
-  var FIT_FONT_IDS = {"840b333d-4329-4d47-80e2-a1b9d92aec03": 1};
+  var FIT_FONT_IDS = {"840b333d-4329-4d47-80e2-a1b9d92aec03": 1, "97a31aa4-8f72-4794-adf7-ee336411c804": 1};
   function applyFitFont(book) {
     var on = false;
     try {
