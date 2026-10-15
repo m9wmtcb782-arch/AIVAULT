@@ -27,6 +27,18 @@
     context: null
   };
 
+  var FIT_FONT_IDS = {"840b333d-4329-4d47-80e2-a1b9d92aec03": 1};
+  function applyFitFont(book) {
+    var on = false;
+    try {
+      var id = String((book && (book.id || book.ebook_id || book.remote_id)) || state.bookId || state.remoteId || "");
+      var meta = (book && book.metadata) || {};
+      on = !!(meta.fit_font || book && book.fit_font || FIT_FONT_IDS[id]);
+    } catch (e) {}
+    try { document.documentElement.toggleAttribute("data-fit-font", !!on); } catch (e) {}
+  }
+
+
   function unwrapIngest(result) {
     if (!result) return {};
     const body = result.data || {};
@@ -58,6 +70,7 @@
   }
 
   function showShelf() {
+    try { document.documentElement.removeAttribute("data-fit-font"); } catch (e) {}
     if(window.AIVAULTAudiobook)window.AIVAULTAudiobook.stop();
     $("listenView").hidden=true;
     state.view = "shelf";
@@ -124,6 +137,8 @@
             page_count: r.total_pages || r.page_count || 0,
             cover_url: r.cover_url || "",
             edition: r.edition || "",
+            metadata: r.metadata || {},
+            fit_font: !!(r.metadata && r.metadata.fit_font),
             source: "remote",
             saved_at: r.updated_at || r.created_at
           };
@@ -155,8 +170,10 @@
         total_pages: r.total_pages || r.page_count || 0,
         cover_url: r.cover_url || "",
         edition: r.edition || "",
+        metadata: r.metadata || {},
+        fit_font: !!(r.fit_font || (r.metadata && r.metadata.fit_font)),
         source: "remote",
-        category: r.category || "法律",
+        category: r.category || (r.metadata && r.metadata.category) || "法律",
         created_at: r.saved_at || r.created_at || "",
         remote_id: r.ebook_id
       });
@@ -407,6 +424,7 @@
   }
 
   function renderSpread() {
+    applyFitFont(state.book);
     applyModeClass();
     const pair = currentPair();
     const a = pair[0], b = pair[1];

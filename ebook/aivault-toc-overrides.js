@@ -1,4 +1,4 @@
-/* ADD-only：只覆寫指定電子書的目次（林昱梅〈食品安全管理措施…〉），其他書與功能不變。
+/* ADD-only：只覆寫指定電子書的目次（林昱梅、林来梵、姜明安等），其他書與功能不變。
    page_number 為遠端 76 頁版本的頁碼（已依原文標題逐頁比對）；print_page 為原書頁碼。 */
 (function () {
   "use strict";
@@ -1432,6 +1432,344 @@
       "title": "二、《宪法学》课程体系化进阶学习推荐书单",
       "page_number": 465
      }
+    ],
+    "840b333d-4329-4d47-80e2-a1b9d92aec03": [
+      {
+        "title": "第一编绪论",
+        "level": "part",
+        "print_page": 1,
+        "page_number": 50,
+        "ordinal": 0
+      },
+      {
+        "title": "第一章行政法学的基本概念",
+        "level": "chapter",
+        "print_page": 1,
+        "page_number": 50,
+        "ordinal": 1
+      },
+      {
+        "title": "第二章行政法的法源",
+        "level": "chapter",
+        "print_page": 44,
+        "page_number": 93,
+        "ordinal": 2
+      },
+      {
+        "title": "第三章行政法的基本原则",
+        "level": "chapter",
+        "print_page": 63,
+        "page_number": 112,
+        "ordinal": 3
+      },
+      {
+        "title": "第四章数字行政法和应急行政法",
+        "level": "chapter",
+        "print_page": 82,
+        "page_number": 131,
+        "ordinal": 4
+      },
+      {
+        "title": "第二编行政法主体",
+        "level": "part",
+        "print_page": 93,
+        "page_number": 142,
+        "ordinal": 5
+      },
+      {
+        "title": "第五章行政法主体概述",
+        "level": "chapter",
+        "print_page": 93,
+        "page_number": 142,
+        "ordinal": 6
+      },
+      {
+        "title": "第六章行政机关",
+        "level": "chapter",
+        "print_page": 101,
+        "page_number": 150,
+        "ordinal": 7
+      },
+      {
+        "title": "第七章其他行政主体",
+        "level": "chapter",
+        "print_page": 115,
+        "page_number": 164,
+        "ordinal": 8
+      },
+      {
+        "title": "第八章公务员",
+        "level": "chapter",
+        "print_page": 127,
+        "page_number": 176,
+        "ordinal": 9
+      },
+      {
+        "title": "第九章行政相对人",
+        "level": "chapter",
+        "print_page": 140,
+        "page_number": 189,
+        "ordinal": 10
+      },
+      {
+        "title": "第十章行政法制监督主体",
+        "level": "chapter",
+        "print_page": 148,
+        "page_number": 197,
+        "ordinal": 11
+      },
+      {
+        "title": "第三编行政行为",
+        "level": "part",
+        "print_page": 161,
+        "page_number": 210,
+        "ordinal": 12
+      },
+      {
+        "title": "第十一章行政行为概述",
+        "level": "chapter",
+        "print_page": 161,
+        "page_number": 210,
+        "ordinal": 13
+      },
+      {
+        "title": "第十二章行政立法",
+        "level": "chapter",
+        "print_page": 173,
+        "page_number": 222,
+        "ordinal": 14
+      },
+      {
+        "title": "第十三章行政规范性文件",
+        "level": "chapter",
+        "print_page": 187,
+        "page_number": 236,
+        "ordinal": 15
+      },
+      {
+        "title": "第十四章具体行政行为",
+        "level": "chapter",
+        "print_page": 198,
+        "page_number": 247,
+        "ordinal": 16
+      },
+      {
+        "title": "第十五章行政处理(一)依申请行政行为",
+        "level": "chapter",
+        "print_page": 224,
+        "page_number": 273,
+        "ordinal": 17
+      },
+      {
+        "title": "第十六章行政处理(二)依职权行政行为",
+        "level": "chapter",
+        "print_page": 262,
+        "page_number": 311,
+        "ordinal": 18
+      },
+      {
+        "title": "第十七章行政机关实施的其他行为",
+        "level": "chapter",
+        "print_page": 312,
+        "page_number": 361,
+        "ordinal": 19
+      },
+      {
+        "title": "第十八章行政程序",
+        "level": "chapter",
+        "print_page": 337,
+        "page_number": 386,
+        "ordinal": 20
+      },
+      {
+        "title": "第四编行政复议",
+        "level": "part",
+        "print_page": 368,
+        "page_number": 417,
+        "ordinal": 21
+      },
+      {
+        "title": "第十九章行政救济概述",
+        "level": "chapter",
+        "print_page": 368,
+        "page_number": 417,
+        "ordinal": 22
+      },
+      {
+        "title": "第二十章行政复议概述",
+        "level": "chapter",
+        "print_page": 378,
+        "page_number": 427,
+        "ordinal": 23
+      },
+      {
+        "title": "第二十一章行政复议范围",
+        "level": "chapter",
+        "print_page": 385,
+        "page_number": 434,
+        "ordinal": 24
+      },
+      {
+        "title": "第二十二章行政复议法律关系主体",
+        "level": "chapter",
+        "print_page": 396,
+        "page_number": 445,
+        "ordinal": 25
+      },
+      {
+        "title": "第二十三章行政复议的程序",
+        "level": "chapter",
+        "print_page": 401,
+        "page_number": 450,
+        "ordinal": 26
+      },
+      {
+        "title": "第五编行政诉讼",
+        "level": "part",
+        "print_page": 414,
+        "page_number": 463,
+        "ordinal": 27
+      },
+      {
+        "title": "第二十四章行政诉讼概述",
+        "level": "chapter",
+        "print_page": 414,
+        "page_number": 463,
+        "ordinal": 28
+      },
+      {
+        "title": "第二十五章行政诉讼受案范围",
+        "level": "chapter",
+        "print_page": 427,
+        "page_number": 476,
+        "ordinal": 29
+      },
+      {
+        "title": "第二十六章行政诉讼管辖",
+        "level": "chapter",
+        "print_page": 448,
+        "page_number": 497,
+        "ordinal": 30
+      },
+      {
+        "title": "第二十七章行政诉讼参加人",
+        "level": "chapter",
+        "print_page": 462,
+        "page_number": 511,
+        "ordinal": 31
+      },
+      {
+        "title": "第二十八章行政诉讼证据",
+        "level": "chapter",
+        "print_page": 478,
+        "page_number": 527,
+        "ordinal": 32
+      },
+      {
+        "title": "第二十九章行政诉讼程序",
+        "level": "chapter",
+        "print_page": 500,
+        "page_number": 549,
+        "ordinal": 33
+      },
+      {
+        "title": "第三十章行政诉讼法律适用",
+        "level": "chapter",
+        "print_page": 524,
+        "page_number": 573,
+        "ordinal": 34
+      },
+      {
+        "title": "第三十一章行政诉讼的判决、裁定与决定",
+        "level": "chapter",
+        "print_page": 537,
+        "page_number": 586,
+        "ordinal": 35
+      },
+      {
+        "title": "第三十二章行政协议诉讼与行政公益诉讼",
+        "level": "chapter",
+        "print_page": 558,
+        "page_number": 607,
+        "ordinal": 36
+      },
+      {
+        "title": "第三十三章涉外行政诉讼",
+        "level": "chapter",
+        "print_page": 571,
+        "page_number": 620,
+        "ordinal": 37
+      },
+      {
+        "title": "第三十四章行政诉讼一并解决民事争议",
+        "level": "chapter",
+        "print_page": 578,
+        "page_number": 627,
+        "ordinal": 38
+      },
+      {
+        "title": "第六编行政赔偿",
+        "level": "part",
+        "print_page": 589,
+        "page_number": 638,
+        "ordinal": 39
+      },
+      {
+        "title": "第三十五章行政赔偿与国家赔偿",
+        "level": "chapter",
+        "print_page": 589,
+        "page_number": 638,
+        "ordinal": 40
+      },
+      {
+        "title": "第三十六章行政赔偿范围",
+        "level": "chapter",
+        "print_page": 607,
+        "page_number": 656,
+        "ordinal": 41
+      },
+      {
+        "title": "第三十七章行政赔偿请求人和赔偿义务机关",
+        "level": "chapter",
+        "print_page": 622,
+        "page_number": 671,
+        "ordinal": 42
+      },
+      {
+        "title": "第三十八章行政赔偿方式和计算标准",
+        "level": "chapter",
+        "print_page": 632,
+        "page_number": 681,
+        "ordinal": 43
+      },
+      {
+        "title": "第三十九章行政赔偿程序",
+        "level": "chapter",
+        "print_page": 641,
+        "page_number": 690,
+        "ordinal": 44
+      },
+      {
+        "title": "第四十章行政补偿",
+        "level": "chapter",
+        "print_page": 654,
+        "page_number": 703,
+        "ordinal": 45
+      },
+      {
+        "title": "附录",
+        "level": "chapter",
+        "print_page": 666,
+        "page_number": 715,
+        "ordinal": 46
+      },
+      {
+        "title": "索引",
+        "level": "chapter",
+        "print_page": 682,
+        "page_number": 731,
+        "ordinal": 47
+      }
     ]
   };
   var orig = E.fetchRemoteToc;

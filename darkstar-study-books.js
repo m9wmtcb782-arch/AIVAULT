@@ -6,7 +6,7 @@
   "use strict";
   if (w.AIVAULTStudyBooks) return;
   var INGEST = "https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/dark-star-ebook-ingest", ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE";
-  var DEFAULT_IDS = ["e0bc8c57-646d-474c-988e-d6cb3d4f8972"];
+  var DEFAULT_IDS = ["e0bc8c57-646d-474c-988e-d6cb3d4f8972", "840b333d-4329-4d47-80e2-a1b9d92aec03"];
   var cache = null, loading = null;
   // 與即時語音（technical-dark-star-live-session.js accessToken）相同的取 token 方式：
   // 讀 sb-<ref>-auth-token；過期或快過期時用 refresh_token 換新並寫回（電子書頁沒有 supabase client 會自動續期）
