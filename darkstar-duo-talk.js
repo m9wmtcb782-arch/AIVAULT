@@ -89,7 +89,7 @@
     });
   }
   function stop() {
-    runId++; running = false; stopListen(); if (listenDone) { var f = listenDone; listenDone = null; f(""); }
+    runId++; running = false; if (contMic) setCont(false); stopListen(); if (listenDone) { var f = listenDone; listenDone = null; f(""); }
     try { if (player) { player.pause(); player.removeAttribute("src"); player.load(); } } catch (e) {}
     mouth(null, false); say(null, ""); paint();
   }
@@ -121,25 +121,59 @@
     if (id === runId) { running = false; mouth(null, false); paint(); setTimeout(function () { if (!running) say(null, ""); }, 3500); }
   }
   // ---------- 三人聊天：使用者 ↔ 暗星 ↔ 曙光 ----------
-  function stopListen() { try { if (rec) { rec.onresult = rec.onend = rec.onerror = null; rec.abort(); } } catch (e) {} rec = null; }
+  function stopListen() { try { if (rec) { rec.onresult = rec.onend = rec.onerror = null; rec.abort(); } } catch (e) {} rec = null; micPaint(""); }
   function listen(id) { // 回傳使用者一句話（語音或打字）；空字串＝沒聽到
     return new Promise(function (res) {
       var done = false; function fin(t) { if (done) return; done = true; clearTimeout(to); stopListen(); listenDone = null; res(String(t || "").trim()); }
       listenDone = fin; var to = 0; // 預設打字：不自動開麥克風、不逾時；要用語音請按 🎤
       say(null, ""); if (sub) { sub.hidden = false; sub.textContent = "⌨️ 換你了：在下方輸入後按送出（按 🎤 可改用語音）"; }
-      setTimeout(function () { try { if (askIn && w.innerWidth > 700) askIn.focus(); } catch (e) {} }, 50);
+      if (contMic) setTimeout(function () { if (contMic && listenDone === fin && !rec) startRec(fin); }, 350); // 機器人講完 → 自動再開麥克風
+      else setTimeout(function () { try { if (askIn && w.innerWidth > 700) askIn.focus(); } catch (e) {} }, 50);
     });
+  }
+  // 連續聆聽模式：按一次 🎤 開啟，之後每輪機器人講完自動再開麥克風；再按一次 🎤 關閉
+  var contMic = false, keepStream = null, restartFails = 0;
+  function micPaint(state) {
+    var b = d.getElementById("dsTrioMic"); if (!b) return;
+    b.style.background = contMic ? (state === "listening" ? "#ff4d6d" : "#ffe1e7") : ""; b.style.color = contMic && state === "listening" ? "#fff" : "";
+    b.title = contMic ? "連續聆聽中（再按一次關閉）" : "開啟連續語音";
+  }
+  function setCont(on) {
+    contMic = on; restartFails = 0;
+    if (on) {
+      // 保持一條麥克風串流，讓 iOS 在非手勢情況下也能重新開始聽寫
+      try { if (!keepStream && navigator.mediaDevices) navigator.mediaDevices.getUserMedia({ audio: true }).then(function (st) { if (contMic) keepStream = st; else st.getTracks().forEach(function (t) { t.stop(); }); }).catch(function () {}); } catch (e) {}
+      if (listenDone) startRec(listenDone);
+    } else {
+      stopListen();
+      if (keepStream) { keepStream.getTracks().forEach(function (t) { t.stop(); }); keepStream = null; }
+      if (listenDone && sub) sub.textContent = "⌨️ 換你了：在下方輸入後按送出（按 🎤 可改用語音）";
+    }
+    micPaint(rec ? "listening" : "");
   }
   function startRec(fin) {
     stopListen();
-    var SR = w.SpeechRecognition || w.webkitSpeechRecognition; if (!SR) return;
+    var SR = w.SpeechRecognition || w.webkitSpeechRecognition; if (!SR) { if (sub) sub.textContent = "⚠️ 這個瀏覽器不支援語音辨識，請打字"; return; }
     try {
-      var r = new SR(); rec = r; r.lang = "zh-TW"; r.continuous = false; r.interimResults = true; var last = "";
-      r.onresult = function (e) { var t = "", fz = false; for (var i = 0; i < e.results.length; i++) { t += e.results[i][0].transcript; if (e.results[i].isFinal) fz = true; } last = t; if (sub) sub.textContent = "🎤 " + t; if (fz) fin(t); };
-      r.onend = function () { if (rec === r) { rec = null; if (last) fin(last); } };
-      r.onerror = function () { if (rec === r) rec = null; };
-      r.start();
-    } catch (e) { rec = null; }
+      var r = new SR(); rec = r; r.lang = "zh-TW"; r.continuous = true; r.interimResults = true; var last = "", gotFinal = false;
+      r.onresult = function (e) {
+        var t = "", fz = false; for (var i = e.resultIndex || 0; i < e.results.length; i++) { t += e.results[i][0].transcript; if (e.results[i].isFinal) fz = true; }
+        last = t; restartFails = 0; if (sub) sub.textContent = "🎤 " + t;
+        if (fz && t.trim()) { gotFinal = true; fin(t); }
+      };
+      r.onend = function () {
+        if (rec !== r) return; rec = null;
+        if (!gotFinal && last.trim()) { fin(last); return; }
+        // 靜音或 iOS 自動結束：仍在等使用者 → 自動重新開始聆聽（不結束對話）
+        if (contMic && listenDone === fin) {
+          if (++restartFails > 6) { micPaint(""); if (sub) sub.textContent = "🎤 聆聽暫停了，點一下 🎤 繼續（或打字）"; contMic = false; return; }
+          setTimeout(function () { if (contMic && listenDone === fin && !rec) startRec(fin); }, 250);
+        } else micPaint("");
+      };
+      r.onerror = function (ev) { if (ev && /not-allowed|service-not-allowed/.test(ev.error)) restartFails = 99; };
+      r.start(); micPaint("listening");
+      if (sub && contMic) sub.textContent = "🎤 聆聽中…請說話（也可以打字）";
+    } catch (e) { rec = null; micPaint(""); }
   }
   var TRIO = {
     dark: PERSONA.dark + " 你和曙光正在跟使用者一起語音聊天。先直接回應使用者，只用繁體中文口語回 1～2 句（40 字內），不要旁白、不要名字前綴。句尾可加一個表情標籤，例如 [表情:思考]。",
@@ -174,7 +208,7 @@
     try {
       while (id === runId) {
         var u = await listen(id); if (id !== runId) break;   // 麥克風只在這裡開；機器人說話時已關閉
-        if (!u) { if (++miss >= 2) break; continue; } miss = 0;
+        if (!u) continue;
         lines.push({ who: "user", text: u });
         if (/^(結束|停止|掰掰|拜拜|再見)/.test(u)) { await botLine(id, "dark", TRIO.dark + " 使用者要結束了，簡短道別。", lines); break; }
         if (!(await botLine(id, "dark", TRIO.dark, lines))) break;
@@ -199,7 +233,7 @@
     askRow.querySelector("#dsTrioSend").addEventListener("click", function (e) { e.stopPropagation(); sendTyped(); });
     askIn.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); sendTyped(); } });
     askRow.addEventListener("click", function (e) { e.stopPropagation(); });
-    askRow.querySelector("#dsTrioMic").addEventListener("click", function () { if (listenDone) startRec(listenDone); }); // iOS：手勢內重新開始聽寫
+    askRow.querySelector("#dsTrioMic").addEventListener("click", function () { setCont(!contMic); }); // 手勢內開／關連續聆聽
     var st = d.createElement("style"); st.textContent = "@media(max-width:700px){html.ds-trio-on #aivault-darkstar-avatar{bottom:150px!important}}"; d.head.appendChild(st);
     sub = d.createElement("div"); sub.id = "dsDuoSub"; sub.hidden = true;
     sub.style.cssText = "margin:6px 8px 0;padding:6px 8px;border-radius:10px;background:#f4f2ff;font-size:12px;line-height:1.4;color:#222";
