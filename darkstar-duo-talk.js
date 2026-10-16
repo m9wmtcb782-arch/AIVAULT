@@ -28,6 +28,7 @@
     if (!r.ok || typeof out !== "string") throw new Error(j.error || ("HTTP " + r.status));
     return out.replace(/^(暗星|曙光)\s*[:：]\s*/, "").trim();
   }
+  var ttsStats = { ok: 0, retryOk: 0, google: 0, textOnly: 0 };
   async function tts1(provider, voice, text) {
     var r = await fetch(BASE + "/functions/v1/aivault-tts", { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + ANON },
       body: JSON.stringify({ action: "tts", provider: provider, text: text, voice_id: voice, language: "zh-TW", save: false }) });
@@ -39,11 +40,14 @@
   // Gemini TTS 有每分鐘配額（429 GEMINI_TTS_QUOTA_RATE）→ 稍等重試一次 → 改用 Google TTS → 仍失敗就只顯示文字（對話不中斷）
   async function tts(who, text) {
     var voice = who === "dark" ? (localStorage.getItem("darkStarVoice") || "Kore") : (localStorage.getItem("dawnLightVoice") || "Aoede");
-    try { return await tts1("gemini", voice, text); } catch (e) { console.warn("[DuoTalk] gemini tts", e.message); }
-    await new Promise(function (r) { setTimeout(r, 1500); });
-    try { return await tts1("gemini", voice, text); } catch (e) {}
+    var waits = [0, 2000, 4000, 7000]; // 429 配額：逐步等待後重試同一個 Gemini 聲音，盡量不改用 Google 聲音
+    for (var k = 0; k < waits.length; k++) {
+      if (waits[k]) await new Promise(function (r) { setTimeout(r, waits[k]); });
+      try { var u = await tts1("gemini", voice, text); ttsStats[k ? "retryOk" : "ok"]++; return u; } catch (e) { console.warn("[DuoTalk] gemini tts", k, e.message); }
+    }
+    ttsStats.google++;
     try { return await tts1("google", who === "dark" ? "cmn-TW-Wavenet-C" : "cmn-TW-Wavenet-A", text); } catch (e) { console.warn("[DuoTalk] google tts", e.message); }
-    return null;
+    ttsStats.textOnly++; return null;
   }
   async function aiRaw(system, user) {
     var t = tok() || ANON;
@@ -122,57 +126,52 @@
   }
   // ---------- 三人聊天：使用者 ↔ 暗星 ↔ 曙光 ----------
   function stopListen() { try { if (rec) { rec.onresult = rec.onend = rec.onerror = null; rec.abort(); } } catch (e) {} rec = null; micPaint(""); }
-  function listen(id) { // 回傳使用者一句話（語音或打字）；空字串＝沒聽到
+  function listen(id) { // 回傳使用者一句話（語音或打字）
     return new Promise(function (res) {
-      var done = false; function fin(t) { if (done) return; done = true; clearTimeout(to); stopListen(); listenDone = null; res(String(t || "").trim()); }
-      listenDone = fin; var to = 0; // 預設打字：不自動開麥克風、不逾時；要用語音請按 🎤
-      say(null, ""); if (sub) { sub.hidden = false; sub.textContent = "⌨️ 換你了：在下方輸入後按送出（按 🎤 可改用語音）"; }
-      if (contMic) setTimeout(function () { if (contMic && listenDone === fin && !rec) startRec(fin); }, 350); // 機器人講完 → 自動再開麥克風
+      var done = false; function fin(t) { if (done) return; done = true; listenDone = null; if (!contMic) stopListen(); micPaint(contMic ? "idle" : ""); res(String(t || "").trim()); }
+      listenDone = fin; skipTo = lastLen; // 機器人說話期間（含回音）收到的辨識結果全部丟掉
+      say(null, ""); if (sub) { sub.hidden = false; sub.textContent = contMic ? "🎤 聆聽中…請說話（也可以打字）" : "⌨️ 換你了：在下方輸入後按送出（按 🎤 可改用語音）"; }
+      if (contMic) { micPaint("listening"); if (!rec) startRec(); }
       else setTimeout(function () { try { if (askIn && w.innerWidth > 700) askIn.focus(); } catch (e) {} }, 50);
     });
   }
-  // 連續聆聽模式：按一次 🎤 開啟，之後每輪機器人講完自動再開麥克風；再按一次 🎤 關閉
-  var contMic = false, keepStream = null, restartFails = 0;
+  // 連續聆聽模式（iOS 友善）：按一次 🎤 → 啟動「一個」持續運作的語音辨識，整個聊天期間不停止／不重開；
+  // 機器人說話時只是忽略辨識結果，輪到使用者時才採用 → 不需要在非手勢情況下重新 start()。
+  var contMic = false, restartFails = 0, lastLen = 0, skipTo = 0;
   function micPaint(state) {
     var b = d.getElementById("dsTrioMic"); if (!b) return;
-    b.style.background = contMic ? (state === "listening" ? "#ff4d6d" : "#ffe1e7") : ""; b.style.color = contMic && state === "listening" ? "#fff" : "";
+    var on = contMic && state === "listening" && !!listenDone;
+    b.style.background = contMic ? (on ? "#ff4d6d" : "#ffe1e7") : ""; b.style.color = on ? "#fff" : "";
     b.title = contMic ? "連續聆聽中（再按一次關閉）" : "開啟連續語音";
   }
   function setCont(on) {
     contMic = on; restartFails = 0;
-    if (on) {
-      // 保持一條麥克風串流，讓 iOS 在非手勢情況下也能重新開始聽寫
-      try { if (!keepStream && navigator.mediaDevices) navigator.mediaDevices.getUserMedia({ audio: true }).then(function (st) { if (contMic) keepStream = st; else st.getTracks().forEach(function (t) { t.stop(); }); }).catch(function () {}); } catch (e) {}
-      if (listenDone) startRec(listenDone);
-    } else {
-      stopListen();
-      if (keepStream) { keepStream.getTracks().forEach(function (t) { t.stop(); }); keepStream = null; }
-      if (listenDone && sub) sub.textContent = "⌨️ 換你了：在下方輸入後按送出（按 🎤 可改用語音）";
-    }
-    micPaint(rec ? "listening" : "");
+    if (on) { startRec(); if (listenDone && sub) sub.textContent = "🎤 聆聽中…請說話（也可以打字）"; }
+    else { stopListen(); if (listenDone && sub) sub.textContent = "⌨️ 換你了：在下方輸入後按送出（按 🎤 可改用語音）"; }
+    micPaint(listenDone ? "listening" : "");
   }
-  function startRec(fin) {
+  function startRec() {
     stopListen();
-    var SR = w.SpeechRecognition || w.webkitSpeechRecognition; if (!SR) { if (sub) sub.textContent = "⚠️ 這個瀏覽器不支援語音辨識，請打字"; return; }
+    var SR = w.SpeechRecognition || w.webkitSpeechRecognition; if (!SR) { if (sub) sub.textContent = "⚠️ 這個瀏覽器不支援語音辨識，請打字"; contMic = false; micPaint(""); return; }
     try {
-      var r = new SR(); rec = r; r.lang = "zh-TW"; r.continuous = true; r.interimResults = true; var last = "", gotFinal = false;
+      var r = new SR(); rec = r; r.lang = "zh-TW"; r.continuous = true; r.interimResults = true; lastLen = 0; skipTo = 0;
       r.onresult = function (e) {
-        var t = "", fz = false; for (var i = e.resultIndex || 0; i < e.results.length; i++) { t += e.results[i][0].transcript; if (e.results[i].isFinal) fz = true; }
-        last = t; restartFails = 0; if (sub) sub.textContent = "🎤 " + t;
-        if (fz && t.trim()) { gotFinal = true; fin(t); }
+        lastLen = e.results.length; restartFails = 0;
+        if (!listenDone) { skipTo = lastLen; return; } // 機器人說話中：忽略
+        var t = "", fz = false;
+        for (var i = Math.max(skipTo, e.resultIndex || 0); i < e.results.length; i++) { t += e.results[i][0].transcript; if (e.results[i].isFinal) fz = true; }
+        if (t.trim() && sub) sub.textContent = "🎤 " + t;
+        if (fz && t.trim()) { skipTo = lastLen; listenDone(t); }
       };
       r.onend = function () {
-        if (rec !== r) return; rec = null;
-        if (!gotFinal && last.trim()) { fin(last); return; }
-        // 靜音或 iOS 自動結束：仍在等使用者 → 自動重新開始聆聽（不結束對話）
-        if (contMic && listenDone === fin) {
-          if (++restartFails > 6) { micPaint(""); if (sub) sub.textContent = "🎤 聆聽暫停了，點一下 🎤 繼續（或打字）"; contMic = false; return; }
-          setTimeout(function () { if (contMic && listenDone === fin && !rec) startRec(fin); }, 250);
-        } else micPaint("");
+        if (rec !== r) return; rec = null; lastLen = 0; skipTo = 0;
+        if (!contMic) { micPaint(""); return; }
+        // iOS 偶爾自己結束 → 立即重開（失敗多次才請使用者再點一下）
+        if (++restartFails > 6) { contMic = false; micPaint(""); if (sub && listenDone) sub.textContent = "🎤 聆聽暫停了，點一下 🎤 繼續（或打字）"; return; }
+        setTimeout(function () { if (contMic && !rec) startRec(); }, 200);
       };
       r.onerror = function (ev) { if (ev && /not-allowed|service-not-allowed/.test(ev.error)) restartFails = 99; };
       r.start(); micPaint("listening");
-      if (sub && contMic) sub.textContent = "🎤 聆聽中…請說話（也可以打字）";
     } catch (e) { rec = null; micPaint(""); }
   }
   var TRIO = {
@@ -243,5 +242,5 @@
   }
   if (d.readyState === "complete") init(); else w.addEventListener("load", init);
   setTimeout(init, 2500);
-  w.AIVAULTDuoTalk = { start: start, startTrio: startTrio, stop: stop, mode: function () { return mode; }, running: function () { return running; } };
+  w.AIVAULTDuoTalk = { start: start, startTrio: startTrio, stop: stop, mode: function () { return mode; }, ttsStats: function () { return ttsStats; }, running: function () { return running; } };
 })(window, document);
