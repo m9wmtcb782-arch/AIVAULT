@@ -218,9 +218,9 @@
 
     const FALLBACK_PROVIDERS = [
       { code: 'groq', name: 'Groq', models: ['openai/gpt-oss-120b', 'llama-3.3-70b-versatile'] },
-      { code: 'gemini', name: 'Gemini', models: ['gemini-2.5-flash'] },
-      { code: 'gemini3', name: 'Gemini 3', models: ['gemini-2.5-flash'] },
-      { code: 'gemini2', name: 'Gemini 2', models: ['gemini-2.5-flash'] },
+      { code: 'gemini', name: '雲端大腦', models: ['gemini-2.5-flash'] },
+      { code: 'gemini3', name: '雲端大腦 3', models: ['gemini-2.5-flash'] },
+      { code: 'gemini2', name: '雲端大腦 2', models: ['gemini-2.5-flash'] },
       { code: 'openai', name: 'OpenAI', models: ['gpt-4o-mini'] }
     ];
     const DEFAULT_MODELS = {
@@ -1937,7 +1937,7 @@
       let gotSetup = false, customFails = 0;
       function dbg() {
         if (!dbgEl) { dbgEl = document.createElement('div'); dbgEl.style.cssText = 'position:absolute;left:4px;right:4px;bottom:4px;z-index:3;font:9px/1.25 monospace;color:#9f9;opacity:.7;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:6px;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'; }
-        if (!active) { dbgEl.remove(); return; }
+        if (!active || !/[?&]debug=1/.test(location.search)) { dbgEl.remove(); return; }
         if (dbgEl.parentNode !== dhVid.el) dhVid.el.appendChild(dbgEl);
         dbgEl.textContent = `${wsState} | 麥克風送出 ${micSent} | 收到音訊 ${rx} 播 ${played} | 聲音 ${playCtx ? playCtx.state : '-'} ${outMode}${outEl ? (outEl.paused ? ' 暫停' : '') : ''}${lastErr ? ' | ' + lastErr : ''}`;
       }
@@ -2045,7 +2045,7 @@
           if (typeof cid === 'string' && cid.trim()) localStorage.setItem(nsKey('aivault-dh-live-conversation-id'), cid.trim());
           if (typeof tp === 'string' && tp.trim()) localStorage.setItem(nsKey('aivault-dh-live-topic-id'), tp.trim());
         } catch {}
-        if (d.type === 'live_open' || d.setupComplete) { gotSetup = true; wsState = 'Gemini 已連線'; retry = 0; try { dhVid.stopWaiting(); dhVid.cancelAction(); } catch {} }
+        if (d.type === 'live_open' || d.setupComplete) { gotSetup = true; wsState = '已連線'; retry = 0; try { dhVid.stopWaiting(); dhVid.cancelAction(); } catch {} }
         const inn = (sc.inputTranscription && sc.inputTranscription.text) || (d.type === 'inputTranscription' ? d.text : '');
         if (inn) { inBuf += inn; upsert('user', inBuf); try { dhCommand(inBuf, cmdFired); } catch {} clearTimeout(knowT); const q = inBuf; knowT = setTimeout(() => liveKnow(q), 1200); }
         const out = (sc.outputTranscription && sc.outputTranscription.text) || (d.type === 'outputTranscription' ? d.text : '');
