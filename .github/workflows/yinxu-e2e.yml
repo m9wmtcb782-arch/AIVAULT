@@ -1,0 +1,21 @@
+name: Yinxu backend e2e (manual)
+on:
+  workflow_dispatch:
+    inputs:
+      step: { description: "ebooks | direct | tts | all | compile | audio", required: true, default: "ebooks" }
+      arg: { description: "ebook_id (compile) / job_id (audio)", required: false, default: "" }
+      maxsteps: { description: "max compile steps", required: false, default: "30" }
+      chunk: { description: "pages per parse chunk", required: false, default: "40" }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          STEP: ${{ inputs.step }}
+          ARG: ${{ inputs.arg }}
+          MAXSTEPS: ${{ inputs.maxsteps }}
+          CHUNK: ${{ inputs.chunk }}
+        run: python3 .github/scripts/yinxu_e2e.py
