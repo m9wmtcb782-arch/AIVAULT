@@ -21,7 +21,7 @@
       "#dsLiveRotate{position:absolute;right:6px;bottom:6px;width:30px;height:30px;border-radius:50%;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:17px;line-height:30px;padding:0;cursor:pointer}" +
       "#dsLiveCamState{display:none!important;position:absolute;left:4px;right:4px;top:4px;padding:2px 6px;border-radius:8px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;line-height:1.35;word-break:break-all;max-height:60%;overflow:hidden}" +
       "#dsLiveCam .dsCamBtn{position:absolute;bottom:6px;width:30px;height:30px;border-radius:50%;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:15px;line-height:30px;padding:0;cursor:pointer}" +
-      "#dsLiveCamToggle{left:6px}#dsLivePhoto{left:42px}#dsLiveCam.camoff{height:42px!important;background:#222}#dsLiveCam.camoff video,#dsLiveCam.camoff #dsLiveRotate{display:none}" +
+      "#dsLiveCam .dsCamBtn{background:#f0f0f0!important;display:inline-flex;align-items:center;justify-content:center}#dsLiveCamToggle{left:6px}#dsLivePhoto{left:42px}#dsLiveCam.camoff{height:42px!important;background:#222}#dsLiveCam.camoff video,#dsLiveCam.camoff #dsLiveRotate{display:none}" +
       "@media(max-width:700px){#dsLiveCam{right:9px;top:64px;width:112px;height:150px}}";
     d.head.appendChild(s);
   }
@@ -29,7 +29,7 @@
     if (box) return;
     css();
     box = d.createElement("div"); box.id = "dsLiveCam"; box.hidden = true;
-    box.innerHTML = '<video autoplay playsinline muted class="mirror"></video><span id="dsLiveCamState">連線中…</span><button id="dsLiveRotate" type="button" aria-label="切換前後鏡頭" title="切換前後鏡頭">↻</button><button id="dsLiveCamToggle" class="dsCamBtn" type="button" title="鏡頭開／關">📷</button><button id="dsLivePhoto" class="dsCamBtn" type="button" title="拍照問問題">📸</button>';
+    box.innerHTML = '<video autoplay playsinline muted class="mirror"></video><span id="dsLiveCamState">連線中…</span><button id="dsLiveRotate" type="button" aria-label="切換前後鏡頭" title="切換前後鏡頭">↻</button><button id="dsLiveCamToggle" class="dsCamBtn" type="button" title="鏡頭開／關"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.6-2.4h6.8L17 8h3v11H4z"/><circle cx="12" cy="13.2" r="3.4"/></svg></button><button id="dsLivePhoto" class="dsCamBtn" type="button" title="拍照問問題"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="3.5"/><circle cx="15" cy="9.5" r="1.8"/><path d="M3.8 17.5l5.4-5.4 7.6 7.4"/></svg></button>';
     box.classList.add("camoff");
     d.body.appendChild(box);
     video = box.querySelector("video"); video.muted = true; video.playsInline = true;

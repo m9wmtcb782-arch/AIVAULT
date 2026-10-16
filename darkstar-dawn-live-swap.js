@@ -15,8 +15,8 @@
       "#dsDawnCam{position:fixed;right:9px;top:64px;width:112px;height:150px;z-index:82;border-radius:14px;overflow:hidden;background:#222;box-shadow:0 10px 28px rgba(0,0,0,.25)}" +
       "#dsDawnCam[hidden]{display:none}#dsDawnCam video{width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1)}" +
       "#dsDawnCam.camoff{height:42px;width:42px}#dsDawnCam.camoff video{display:none}" +
-      "#dsDawnCamBtn{position:absolute;left:6px;bottom:6px;width:30px;height:30px;border-radius:50%;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:15px;line-height:30px;padding:0}" +
-      "#dsDawnCam.camoff #dsDawnCamBtn{background:#f5b301}" +
+      "#dsDawnCamBtn{position:absolute;left:6px;bottom:6px;width:30px;height:30px;border-radius:50%;border:0;background:#f0f0f0;color:#111;padding:0;display:inline-flex;align-items:center;justify-content:center}" +
+      "#dsDawnCam.camoff #dsDawnCamBtn{background:#f0f0f0}" +
       "@media(min-width:701px){#dsDawnCam{right:214px;top:72px;width:160px;height:120px}}";
     d.head.appendChild(s);
   }
@@ -36,7 +36,7 @@
   function ensureCam() {
     if (cam) return cam;
     cam = d.createElement("div"); cam.id = "dsDawnCam"; cam.className = "camoff"; cam.hidden = true;
-    cam.innerHTML = '<video autoplay playsinline muted></video><button id="dsDawnCamBtn" type="button" aria-label="曙光相機">📷</button>';
+    cam.innerHTML = '<video autoplay playsinline muted></video><button id="dsDawnCamBtn" type="button" aria-label="曙光相機"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.6-2.4h6.8L17 8h3v11H4z"/><circle cx="12" cy="13.2" r="3.4"/></svg></button>';
     d.body.appendChild(cam);
     cam.querySelector("#dsDawnCamBtn").addEventListener("click", function (e) { e.stopPropagation(); camOn ? stopCam() : startCam(); });
     return cam;
