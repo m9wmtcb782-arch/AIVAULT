@@ -50,6 +50,14 @@
     .icon-btn {
       width: 36px; height: 36px; background: #1e293b; border: 1px solid var(--border); color: #e2e8f0;
     }
+    .icon-btn.mic-ios { width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.14); color: #e5e7eb; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+    .icon-btn.mic-ios.on { background: rgba(168,85,247,.35); border-color: #a855f7; color: #fff; }
+    .msg-wrap { display: flex; flex-direction: column; }
+    .msg-wrap.me { align-items: flex-end; } .msg-wrap.bot { align-items: flex-start; }
+    .msg-acts { display: flex; gap: 10px; margin: 3px 4px 8px; }
+    .msg-acts button { background: none; border: none; color: #94a3b8; font-size: 11px; display: inline-flex; align-items: center; gap: 3px; padding: 2px 0; cursor: pointer; }
+    .msg-acts button svg { width: 13px; height: 13px; }
+    .msg-clear { text-align: center; margin: 4px 0 6px; } .msg-clear button { background: none; border: 1px solid var(--border); color: #94a3b8; font-size: 11px; border-radius: 10px; padding: 3px 10px; }
     .pill {
       padding: 8px 12px; font-size: 12px;
       background: linear-gradient(135deg, #a855f7, #6366f1); color: #fff;
@@ -218,9 +226,9 @@
 
     const FALLBACK_PROVIDERS = [
       { code: 'groq', name: 'Groq', models: ['openai/gpt-oss-120b', 'llama-3.3-70b-versatile'] },
-      { code: 'gemini', name: '雲端大腦', models: ['gemini-2.5-flash'] },
-      { code: 'gemini3', name: '雲端大腦 3', models: ['gemini-2.5-flash'] },
-      { code: 'gemini2', name: '雲端大腦 2', models: ['gemini-2.5-flash'] },
+      { code: 'gemini', name: 'AIVAULT AI', models: ['gemini-2.5-flash'] },
+      { code: 'gemini3', name: 'AIVAULT AI 3', models: ['gemini-2.5-flash'] },
+      { code: 'gemini2', name: 'AIVAULT AI 2', models: ['gemini-2.5-flash'] },
       { code: 'openai', name: 'OpenAI', models: ['gpt-4o-mini'] }
     ];
     const DEFAULT_MODELS = {
@@ -2195,11 +2203,11 @@
         ${chatClip?.url ? `<video controls playsinline src="${esc(chatClip.url)}" style="width:100%;margin-bottom:10px;border-radius:12px;background:#000;"></video>
           <button class="pill" type="button" id="btnDlClip">下載影片</button>` : ''}
         <div class="chat-box">
-          <div class="msgs" id="msgs">${chatLog.map(m => `<div class="bubble ${m.role==='user'?'me':'bot'}">${esc(m.text)}${m.src ? `<div style="margin-top:4px;font-size:11px;opacity:.7;">${esc(m.src)}</div>` : ''}</div>`).join('') || '<div class="muted">按麥克風開始說話，數位人會用聲音回答。</div>'}</div>
+          <div class="msgs" id="msgs">${chatLog.length > 1 ? `<div class="msg-clear"><button type="button" data-clear-all>清除全部</button></div>` : ''}${chatLog.map((m, i) => `<div class="msg-wrap ${m.role==='user'?'me':'bot'}"><div class="bubble ${m.role==='user'?'me':'bot'}">${esc(m.text)}${m.src ? `<div style="margin-top:4px;font-size:11px;opacity:.7;">${esc(m.src)}</div>` : ''}</div><div class="msg-acts"><button type="button" data-copy="${i}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><span>複製</span></button><button type="button" data-del="${i}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg><span>刪除</span></button></div></div>`).join('') || '<div class="muted">按麥克風開始說話，數位人會用聲音回答。</div>'}</div>
         </div>
         <div class="composer-dock">
           <div class="composer" style="background:var(--card);border:1px solid var(--border);border-radius:18px;">
-            <button class="icon-btn" id="btnMic" type="button">🎤</button>
+            <button class="icon-btn mic-ios" id="btnMic" type="button" aria-label="語音輸入"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"/></svg></button>
             <input id="chatIn" placeholder="說話或打字…" />
             <button class="pill" id="btnSend" type="button">送出</button>
           </div>
@@ -2210,6 +2218,14 @@
       document.getElementById('btnSend').onclick = sendChat;
       document.getElementById('chatIn').onkeydown = e => { if (e.key === 'Enter') sendChat(); };
       document.getElementById('btnMic').onclick = startListen;
+      box.onclick = ev => {
+        const c = ev.target.closest('[data-copy]'), d = ev.target.closest('[data-del]'), all = ev.target.closest('[data-clear-all]');
+        if (c) { const t = (chatLog[+c.dataset.copy] || {}).text || ''; const ok = () => { const sp = c.querySelector('span'); sp.textContent = '已複製'; setTimeout(() => { sp.textContent = '複製'; }, 1200); };
+          const fb = () => { const ta = document.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch {} ta.remove(); ok(); };
+          if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(ok, fb); else fb(); return; }
+        if (d) { chatLog.splice(+d.dataset.del, 1); lastSpoken = chatLog.length - 1; renderChat(); return; }
+        if (all) { if (!confirm('確定清除全部對話？')) return; chatLog.length = 0; lastSpoken = -1; renderChat(); }
+      };
       try { dhVid.attach(); } catch {}
       document.getElementById('btnVoiceDevice').onclick = () => { voiceMode='device'; sessionStorage.setItem('dh_voice_mode','device'); toast('已切換手機語音'); renderChat(); };
       document.getElementById('btnVoiceMine').onclick = () => { voiceMode='mine'; sessionStorage.setItem('dh_voice_mode','mine'); toast(selectedVoiceItem()?'已切換我的聲音':'先去錄音'); renderChat(); };
@@ -2354,6 +2370,7 @@
       r.lang = current?.persona_lang === 'en' ? 'en-US' : 'zh-TW';
       r.interimResults = false;
       toast('請開始說話…');
+      const mb = document.getElementById('btnMic'); mb && mb.classList.add('on'); r.onend = () => { const b = document.getElementById('btnMic'); b && b.classList.remove('on'); };
       r.onresult = ev => {
         const said = ev.results[0][0].transcript;
         const input = document.getElementById('chatIn');
