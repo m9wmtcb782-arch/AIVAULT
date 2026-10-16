@@ -58,6 +58,7 @@ export async function llm(system: string, user: string, opts: { maxTokens?: numb
         method: "POST", headers: { "x-goog-api-key": GKEY(), "Content-Type": "application/json" }, signal: AbortSignal.timeout(110000),
         body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: [{ role: "user", parts: [{ text: user }] }], generationConfig: { responseMimeType: "application/json", temperature: 0.9, maxOutputTokens: opts.maxTokens || 8192 } }),
       });
+      if (r.status === 404 && modelList) modelList = modelList.filter((x) => x !== m);
       if (!r.ok) { last += " " + m + ":" + r.status + ":" + (await r.text()).slice(0, 100).replace(/\s+/g, " "); continue; }
       const j = await r.json(); const t = (j.candidates?.[0]?.content?.parts || []).map((p: any) => p.text || "").join("");
       const mm = t.match(/\{[\s\S]*\}/); if (!mm) { last += " " + m + ":nojson(" + (j.candidates?.[0]?.finishReason || "") + "," + t.length + ")"; continue; }
@@ -126,18 +127,28 @@ async function compileStep(job: any) {
     return;
   }
   if (job.stage === "compose") {
-    const b = job.bible; const prot = Object.entries(b.protagonist_votes).sort((a: any, c: any) => c[1] - a[1])[0]?.[0] || "";
-    const cast = Object.values(b.characters).sort((a: any, c: any) => c.mentions - a.mentions).slice(0, 12);
-    const sys = "你是暗星，因序小說編譯協調 AI。整合解析結果，完成：角色分配（每個角色唯一 AI 人格與聲音類型）、旁白腳本（說書風格）、對話轉問答（對主角說的話一律改成開放式問題，不要選擇題）、音效/背景音樂規劃（依場景情緒）、結局知識封裝（加入不可誘導硬約束）。繁體中文。只輸出 JSON：" +
-      '{"protagonist":{"name":"","voice_type":"male|female"},"opening":"給讀者看的開場簡介（80字內，不劇透）","original_ending":"原結局（簡述）","characters":[{"id":"英文小寫id","name":"","voice_type":"male|female|old|child","gender":"male|female","personality":"","speech_style":""}],"outline":[{"act":1,"title":"","summary":"","mood":"calm|tense|sad|warm|mystery|storm|night|battle","bgm":"同 mood","sfx":["waves|rain|wind|fire|footsteps|door|bell|thunder|crowd|birds"],"original_turning_point":""}],"nodes":[{"type":"narrator|character|prompt","speaker":"narrator 或角色 id","text":"","original_answer":"僅 prompt：原著主角的反應","mood":"","sfx":""}]}' +
-      "\nnodes 只寫開場段落（12–20 個節點，至少 2 個 prompt），之後由執行期導演依讀者回答自由生成。outline 涵蓋全書 4–8 幕。";
-    const v = await llm(sys, `書名：${job.title}\n主角推測：${prot}\n角色：${JSON.stringify(cast)}\n各段摘要：\n${b.summaries.join("\n").slice(-40000)}\n關鍵事件：${b.events.slice(-80).join("；")}\n原文中對主角說的話（樣本）：${JSON.stringify(b.lines.slice(0, 30))}`, { maxTokens: 16000 });
-    const chars = [{ id: "narrator", name: "說書人", voice_type: "narrator", personality: "說書人" }, ...(v.characters || [])].map((c: any) => ({ ...c, knows_original_ending: c.id !== "narrator", anti_railroad_constraint: true }));
-    const pkg = { book_id: "yx-" + job.ebook_id.slice(0, 8) + "-" + Date.now().toString(36), source_ebook_id: job.ebook_id, title: job.title, part: 1, compiled_by: "暗星", compiled_at: new Date().toISOString(), model: v.__model,
-      protagonist: { id: "__me", ...(v.protagonist || { name: prot || "主角" }) }, opening: v.opening || "", original_ending: v.original_ending || "", characters: assignVoices(chars), outline: v.outline || [], nodes: (v.nodes || []).filter((n: any) => n && n.text),
+    const bb = job.bible; const prot = Object.entries(bb.protagonist_votes).sort((a: any, c: any) => c[1] - a[1])[0]?.[0] || "";
+    const cast = Object.values(bb.characters).sort((a: any, c: any) => c.mentions - a.mentions).slice(0, 12);
+    const sys = "你是暗星，因序小說編譯協調 AI。整合解析結果，完成：角色分配（每個角色唯一 AI 人格與聲音類型）、音效/背景音樂規劃（依場景情緒）、結局知識封裝（加入不可誘導硬約束）。繁體中文，精簡。只輸出 JSON：" +
+      '{"protagonist":{"name":"","voice_type":"male|female"},"opening":"給讀者的開場簡介（80字內，不劇透）","original_ending":"原結局（60字內）","characters":[{"id":"英文小寫id","name":"","voice_type":"male|female|old|child","gender":"male|female","personality":"40字內","speech_style":"20字內"}],"outline":[{"act":1,"title":"","summary":"60字內","mood":"calm|tense|sad|warm|mystery|storm|night|battle","sfx":["waves|rain|wind|fire|footsteps|door|bell|thunder|crowd|birds"],"original_turning_point":"30字內"}]}' +
+      "\n主角不要放進 characters。outline 涵蓋全書 4–8 幕。";
+    const v = await llm(sys, `書名：${job.title}\n主角推測：${prot}\n角色：${JSON.stringify(cast)}\n各段摘要：\n${bb.summaries.join("\n").slice(-30000)}\n關鍵事件：${bb.events.slice(-60).join("；")}`, { maxTokens: 8000 });
+    const chars = [{ id: "narrator", name: "說書人", voice_type: "narrator", personality: "說書人" }, ...(v.characters || []).filter((c: any) => c?.id && c.id !== "narrator")].map((c: any) => ({ ...c, knows_original_ending: c.id !== "narrator", anti_railroad_constraint: true }));
+    if (chars.length < 2) throw new Error("COMPOSE_NO_CAST");
+    job.package = { book_id: "yx-" + job.ebook_id.slice(-8) + "-" + Date.now().toString(36), source_ebook_id: job.ebook_id, title: job.title, part: 1, compiled_by: "暗星", compiled_at: new Date().toISOString(), model: v.__model,
+      protagonist: { id: "__me", ...(v.protagonist || {}), name: v.protagonist?.name || prot || "主角" }, opening: v.opening || "", original_ending: v.original_ending || "", characters: assignVoices(chars), outline: v.outline || [], nodes: [],
       timeline_state: { current_node: 0, decisions: [], irreversible: true }, audio: {} };
-    if (pkg.nodes.length < 3) throw new Error("COMPOSE_TOO_SHORT");
-    job.package = pkg; job.stage = "publish"; job.log.push(`暗星整合完成：${pkg.characters.length - 1} 角色、${pkg.outline.length} 幕、${pkg.nodes.length} 節點（${v.__model}）`); return;
+    job.stage = "script"; job.log.push(`暗星：角色分配與大綱完成（${chars.length - 1} 角色、${job.package.outline.length} 幕；${v.__model}）`); return;
+  }
+  if (job.stage === "script") {
+    const pkg = job.package; const ids = pkg.characters.map((c: any) => `${c.id}=${c.name}（${c.personality}）`).join("；");
+    const sys = "你是因序小說的「旁白腳本生成 AI」與「對話轉問答 AI」。寫開場段落：說書風格旁白 + 角色台詞；凡是原著中對主角說的話，一律改寫成角色直接問讀者（主角）的開放式問題（不要選擇題）。繁體中文，每句 60 字內。只輸出 JSON：" +
+      '{"nodes":[{"type":"narrator|character|prompt","speaker":"narrator 或角色 id","text":"","original_answer":"僅 prompt：原著主角怎麼回答","sfx":"可空"}]}' + "\n12–18 個節點，至少 2 個 prompt，最後一個節點必須是 prompt。之後的劇情由執行期導演依讀者回答自由生成。";
+    const v = await llm(sys, `書名：${pkg.title}\n主角：${pkg.protagonist.name}（讀者扮演，不可替他說話）\n角色 id：${ids}\n大綱：${JSON.stringify(pkg.outline.slice(0, 3))}\n開頭原文摘要：${job.bible.summaries.slice(0, 2).join("\n")}\n原文中對主角說的話（樣本）：${JSON.stringify(job.bible.lines.slice(0, 12))}`, { maxTokens: 8000 });
+    const ok = new Set(pkg.characters.map((c: any) => c.id));
+    pkg.nodes = (v.nodes || []).filter((n: any) => n && n.text && ok.has(n.speaker) && (n.type !== "prompt" || n.speaker !== "narrator"));
+    if (pkg.nodes.length < 4) throw new Error("SCRIPT_TOO_SHORT");
+    job.stage = "publish"; job.log.push(`旁白腳本與問答完成：${pkg.nodes.length} 節點（${v.__model}）`); return;
   }
   if (job.stage === "publish") { await savePackage(job.package); job.stage = "audio"; job.audio_pos = 0; job.log.push("已上架因序小說書架"); return; }
   if (job.stage === "audio") {
