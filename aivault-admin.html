@@ -342,6 +342,43 @@ h2{
 
 
   <!-- =====================================================
+       註冊申請（擁有者核准新帳號；後端：dark-star-ebook-ingest?feature=signup-approval）
+  ====================================================== -->
+  <div class="card" id="signupCard">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <h2>📝 註冊申請 <span id="signupCount" style="font-size:13px;color:#888"></span></h2>
+      <button type="button" id="signupReload" style="border:1px solid #ddd;background:#fff;border-radius:10px;padding:6px 12px">重新整理</button>
+    </div>
+    <div id="signupList" style="margin-top:8px;font-size:14px;color:#888">載入中…</div>
+  </div>
+  <script>
+  (function(){
+    var FN="https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/dark-star-ebook-ingest?feature=signup-approval", ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE";
+    function tok(){try{var j=JSON.parse(localStorage.getItem("sb-clcddygkaaqqtsbswgdf-auth-token")||"null");return j&&(j.access_token||(j.currentSession&&j.currentSession.access_token))||"";}catch(e){return "";}}
+    async function call(b){var r=await fetch(FN,{method:"POST",headers:{"Content-Type":"application/json",apikey:ANON,Authorization:"Bearer "+(tok()||ANON)},body:JSON.stringify(b)});var j=await r.json().catch(function(){return{};});if(!r.ok)throw new Error(j.error||("HTTP "+r.status));return j;}
+    var L=document.getElementById("signupList"),C=document.getElementById("signupCount");
+    function t(s){return s?new Date(s).toLocaleString("zh-TW",{hour12:false}):"—";}
+    async function load(){
+      L.textContent="載入中…";
+      try{var p=(await call({action:"list"})).pending||[];C.textContent=p.length?"（"+p.length+" 筆待處理）":"";
+        if(!p.length){L.textContent="目前沒有待核准的註冊。";return;}
+        L.innerHTML="";p.forEach(function(u){
+          var row=document.createElement("div");row.style.cssText="display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid #eee;color:inherit";
+          row.innerHTML='<div style="flex:1;min-width:0"><div class="e" style="font-weight:600;word-break:break-all"></div><div class="m" style="font-size:12px;color:#888"></div></div><label style="display:flex;align-items:center;gap:4px;white-space:nowrap"><input type="checkbox" style="width:22px;height:22px;accent-color:#16a34a"><span>允許</span></label><button type="button" style="border:0;border-radius:10px;padding:6px 10px;background:#fee2e2;color:#b91c1c">拒絕</button>';
+          row.querySelector(".e").textContent=u.email;
+          row.querySelector(".m").textContent="註冊："+t(u.created_at)+"　Email 驗證："+(u.email_confirmed_at?"✅ 已驗證":"❌ 尚未驗證");
+          var cb=row.querySelector("input"),lab=row.querySelector("label span"),bt=row.querySelector("button");
+          cb.onchange=async function(){if(!cb.checked)return;if(!u.email_confirmed_at&&!confirm("此帳號尚未完成 Email 驗證，仍要允許？")){cb.checked=false;return;}cb.disabled=true;lab.textContent="處理中…";try{await call({action:"approve",id:u.id});lab.textContent="✅ 已允許";setTimeout(load,900);}catch(e){cb.checked=false;cb.disabled=false;lab.textContent="允許";alert("允許失敗："+e.message);}};
+          bt.onclick=async function(){if(!confirm("確定拒絕並刪除 "+u.email+"？"))return;bt.disabled=true;try{await call({action:"reject",id:u.id});load();}catch(e){bt.disabled=false;alert("拒絕失敗："+e.message);}};
+          L.appendChild(row);});
+      }catch(e){L.textContent=/owner only/.test(e.message)?"只有擁有者帳號可以審核註冊。":"無法載入註冊申請："+e.message;}
+    }
+    document.getElementById("signupReload").onclick=load;
+    setTimeout(load,600);
+  })();
+  </script>
+
+  <!-- =====================================================
        AI PROVIDER 管理
   ====================================================== -->
 
