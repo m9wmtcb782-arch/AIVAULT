@@ -312,7 +312,7 @@ input:focus{border-color:rgba(101,232,255,.55);box-shadow:0 0 0 3px rgba(101,232
           return
         }
 
-        showSuccess('註冊成功！請至信箱點擊驗證連結後再登入。')
+        showSuccess('註冊成功！請至信箱點擊驗證連結；驗證後還需等待擁有者核准，核准後才能登入。')
         setLoading(false)
         setMode('login')
       } catch (err) {
@@ -338,6 +338,8 @@ input:focus{border-color:rgba(101,232,255,.55);box-shadow:0 0 0 3px rgba(101,232
           msg = '此帳號尚未完成 Email 驗證，請先至信箱點擊確認連結。'
         } else if (error.message?.includes('Invalid login credentials')) {
           msg = '帳號或密碼錯誤。'
+        } else if (/banned/i.test(error.message || '')) {
+          msg = '⏳ 帳號已建立，正在等待擁有者核准。核准後即可登入。'
         } else if (error.status === 429) {
           msg = '嘗試次數過多，請稍後再試。'
         }

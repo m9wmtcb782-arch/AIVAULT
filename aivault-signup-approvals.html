@@ -1,0 +1,28 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>註冊核准｜AIVAULT</title>
+<style>body{font-family:-apple-system,system-ui,sans-serif;margin:0;background:#f6f6f8;color:#111}header{padding:14px 16px;background:#fff;border-bottom:1px solid #eee;display:flex;gap:12px;align-items:center}h1{font-size:17px;margin:0;flex:1}main{padding:14px;max-width:640px;margin:auto}.card{background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.05)}.row{display:flex;gap:8px;margin-top:8px}button{border:0;border-radius:10px;padding:8px 14px;font-size:15px}.ok{background:#111;color:#fff}.no{background:#eee}.muted{color:#777;font-size:13px}</style></head>
+<body><header><a href="aivault-admin.html">‹ 返回</a><h1>新註冊待核准</h1><button id="reload" class="no">重新整理</button></header>
+<main id="list"><p class="muted">載入中…</p></main>
+<script>
+(function(){
+  var BASE="https://clcddygkaaqqtsbswgdf.supabase.co", ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE";
+  function tok(){try{var j=JSON.parse(localStorage.getItem("sb-clcddygkaaqqtsbswgdf-auth-token")||"null");return j&&(j.access_token||(j.currentSession&&j.currentSession.access_token))||"";}catch(e){return "";}}
+  async function call(body){var r=await fetch(BASE+"/functions/v1/dark-star-ebook-ingest?feature=signup-approval",{method:"POST",headers:{"Content-Type":"application/json",apikey:ANON,Authorization:"Bearer "+(tok()||ANON)},body:JSON.stringify(body)});var j=await r.json().catch(function(){return{};});if(!r.ok)throw new Error(j.error||("HTTP "+r.status));return j;}
+  var L=document.getElementById("list");
+  function t(s){return s?new Date(s).toLocaleString("zh-TW",{hour12:false}):"—";}
+  async function load(){
+    L.innerHTML='<p class="muted">載入中…</p>';
+    try{var j=await call({action:"list"});var p=j.pending||[];
+      if(!p.length){L.innerHTML='<p class="muted">目前沒有待核准的註冊。</p>';return;}
+      L.innerHTML="";p.forEach(function(u){var c=document.createElement("div");c.className="card";
+        c.innerHTML="<b></b><div class=muted></div><div class=row><button class=ok>核准</button><button class=no>拒絕並刪除</button></div>";
+        c.querySelector("b").textContent=u.email;c.querySelector(".muted").textContent="註冊："+t(u.created_at)+"　Email 驗證："+(u.email_confirmed_at?"✅ "+t(u.email_confirmed_at):"❌ 尚未驗證");
+        var bs=c.querySelectorAll("button");
+        bs[0].onclick=async function(){if(!u.email_confirmed_at&&!confirm("此帳號尚未完成 Email 驗證，仍要核准？"))return;await call({action:"approve",id:u.id});load();};
+        bs[1].onclick=async function(){if(!confirm("確定拒絕並刪除 "+u.email+"？"))return;await call({action:"reject",id:u.id});load();};
+        L.appendChild(c);});
+    }catch(e){L.innerHTML='<p class="muted"></p>';L.firstChild.textContent=/owner only/.test(e.message)?"只有擁有者帳號可以使用此頁，請先用擁有者帳號登入。":"錯誤："+e.message;}
+  }
+  document.getElementById("reload").onclick=load;load();
+})();
+</script></body></html>
