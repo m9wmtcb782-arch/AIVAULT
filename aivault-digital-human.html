@@ -1684,7 +1684,7 @@
       setInterval(() => { if (!isSpeaking && !drinking && !petting && !window.__dhLiveActive && phase === 'main' && clip === 'idle' && document.contains(el) && Math.random() < 0.2) petCat(false); }, 60000);
       setInterval(() => { if (!isSpeaking && !drinking && !window.__dhLiveActive && phase === 'main' && clip === 'idle' && document.contains(el) && Math.random() < 0.25) drink(); }, 45000);
       const status = document.createElement('div');
-      status.style.cssText = 'position:absolute;left:8px;top:8px;z-index:2;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700;background:rgba(15,23,42,.75);color:#e2e8f0;display:none;';
+      status.style.cssText = 'position:absolute;left:50%;bottom:30px;transform:translateX(-50%);z-index:2;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(15,23,42,.55);white-space:nowrap;color:#e2e8f0;display:none;';
       el.appendChild(status);
       function setStatus(t) { status.textContent = t || ''; status.style.display = t ? '' : 'none'; }
       const ACTION = { transition:1, drink:1, petcat:1, question:1, angry:1, affection:1, hair:1, screen:1, stretch:1, think:1, catplay:1 };
@@ -1753,6 +1753,19 @@
         if (cur && IM[cur]) IM[cur].style.opacity = 0;
         cur = k; if (k && IM[k]) IM[k].style.opacity = 1;
       }
+      // 平滑閘門：開口 attack 60ms、閉口 release 120ms、每個嘴型至少 120ms（≤ ~6.5 次/秒）、相鄰嘴型需持續 90ms 才切換（遲滯）
+      const NEAR = { slight:['mid'], mid:['slight','wide','ee','oh'], wide:['mid'], ee:['mid'], oh:['u','mid'], u:['oh'] };
+      let gLast = 0, gCand = null, gCandT = 0;
+      function gate(v, now) {
+        if (v === cur) { gCand = null; return; }
+        if (v !== gCand) { gCand = v; gCandT = now; }
+        const held = now - gCandT;
+        if (v === '') { if (held >= 120) { setVis(''); gLast = now; gCand = null; } return; }
+        if (cur === '') { if (held >= 60) { setVis(v); gLast = now; gCand = null; } return; }
+        if (now - gLast < 150) return;
+        if ((NEAR[cur] || []).includes(v) && held < 90) return;
+        setVis(v); gLast = now; gCand = null;
+      }
       // 中文字無法即時轉拼音：用字碼決定一個穩定的口型（同一字每次相同），英文用母音
       function charVis(ch) {
         if (/[，。！？、,.!?;；:：\s…—]/.test(ch)) return '';
@@ -1799,18 +1812,17 @@
         const idle = dhVid.video('idle');
         const on = !dhVid.failed && dhVid.clip === 'idle' && (isSpeaking || dhVoice.voiced) && document.contains(dhVid.el);
         if (box.parentNode !== dhVid.el) dhVid.el.appendChild(box);
-        if (!on) { setVis(''); box.style.display = 'none'; return; }
+        if (!on) { setVis(''); gCand = null; box.style.display = 'none'; return; }
         box.style.display = '';
         const fi = Math.floor((idle.currentTime || 0) * FPS) % IDLE_OFF.length; const o = IDLE_OFF[fi] || [0, 0];
         box.style.left = ((X0 + o[0]) / VW * 100) + '%'; box.style.top = ((Y0 + o[1]) / VH * 100) + '%';
-        if (live) { if (now < holdUntil) return; const lv = liveVis(); if (lv !== cur) { setVis(lv); holdUntil = now + 40; } return; }
-        if (now < holdUntil) return;
+        if (live) { gate(liveVis(), now); return; }
         let v = '';
         if (!dhVoice.voiced) v = '';
         else if (dhVoice.analysing) v = fromAudio();
         else if (seq.length && now < seqT + 200) { for (const [t, k] of seq) if (t <= now) v = k; }
         else v = fromRhythm(now);
-        setVis(v); holdUntil = now + 66;   // 每個嘴型至少 ~66ms，避免抖動
+        gate(v, now);
       }
       requestAnimationFrame(tick);
       return { setVis, schedule, clearSchedule };
@@ -1849,7 +1861,7 @@
       }
       let gotSetup = false, customFails = 0;
       function dbg() {
-        if (!dbgEl) { dbgEl = document.createElement('div'); dbgEl.style.cssText = 'position:absolute;left:4px;right:4px;top:34px;z-index:3;font:10px/1.3 monospace;color:#9f9;background:rgba(0,0,0,.6);padding:2px 6px;border-radius:6px;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'; }
+        if (!dbgEl) { dbgEl = document.createElement('div'); dbgEl.style.cssText = 'position:absolute;left:4px;right:4px;bottom:4px;z-index:3;font:9px/1.25 monospace;color:#9f9;opacity:.7;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:6px;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'; }
         if (!active) { dbgEl.remove(); return; }
         if (dbgEl.parentNode !== dhVid.el) dhVid.el.appendChild(dbgEl);
         dbgEl.textContent = `${wsState} | 麥克風送出 ${micSent} | 收到音訊 ${rx} 播 ${played} | 聲音 ${playCtx ? playCtx.state : '-'} ${outMode}${outEl ? (outEl.paused ? ' 暫停' : '') : ''}${lastErr ? ' | ' + lastErr : ''}`;
@@ -2097,7 +2109,7 @@
         </div>
         <div class="row" style="margin-bottom:8px;gap:8px;">
           <button class="pill ${window.__dhLiveActive ? 'danger' : ''}" type="button" id="btnLive" style="flex:2;font-size:17px;padding:14px 10px;">${window.__dhLiveActive ? '⏹ 結束' : '▶ 開始即時語音'}</button>
-          <button class="pill ghost" type="button" id="btnLiveCam" style="flex:1;">${window.__dhLiveCam ? '📷 鏡頭開' : '📷 鏡頭關'}</button>
+          <button class="pill ghost" type="button" id="btnLiveCam" style="flex:1;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:4px" aria-hidden="true"><path d="M3 9a3 3 0 0 1 3-3h1.5l1.4-2h6.2l1.4 2H18a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"/><circle cx="12" cy="13" r="3.5"/></svg>${window.__dhLiveCam ? '鏡頭開' : '鏡頭關'}</button>
         </div>
         <div class="row" style="margin-bottom:8px;gap:6px;align-items:center;flex-wrap:wrap;">
           <span class="muted" style="font-size:12px;">手機語音</span>
