@@ -46,7 +46,7 @@
     if (!isQ || !forDawn(q)) return;
     var A = w.DawnLightLiveVoice; if (!A || !A.isOpen || !A.isOpen()) return;
     var msg = await refFor(q); if (!msg) return;
-    A.sendRaw(JSON.stringify({ type: "text", text: msg }));
+    A.sendRaw(JSON.stringify({ type: "text", text: "【身分提醒】你是曙光（Dawn Light，視覺創作 AI），不是暗星。\n" + msg }));
   }
   function onIn(t) { if (!t || String(t).indexOf("留言板") >= 0) return; inBuf += t; clearTimeout(timer); timer = setTimeout(function () { var q = inBuf.trim(); inBuf = ""; handle(q); }, 900); }
   function hook() {

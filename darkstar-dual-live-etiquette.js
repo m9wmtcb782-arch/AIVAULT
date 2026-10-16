@@ -103,12 +103,9 @@
     var to = other(k);
     if (muted(to)) return; // 使用者只點名了 k，不要讓另一位插話
     if (++botChain > MAX_CHAIN) return;
-    var msg = "【留言板】" + S[k].label + "剛剛說：「" + line.slice(0, 300) + "」（這是同時在線的另一位 AI 說的話。開創者沒有點你的名字時，只有和你有關或需要補充時才簡短回應；正在吵架時可以回嘴；否則不用回覆。）";
+    var msg = "【留言板】另一位 AI「" + S[k].label + "」剛剛說：「" + line.slice(0, 300) + "」（這是同時在線的另一位 AI「" + S[k].label + "」說的話，不是你說的。開創者沒有點你的名字時，只有和你有關或需要補充時才簡短回應；正在吵架時可以回嘴；否則不用回覆。）";
     setTimeout(function () {
-      try {
-        if (to === "dark") { if (w.AIVAULTDarkStarLive) w.AIVAULTDarkStarLive.sendRawText(msg); }
-        else if (w.DawnLightLiveVoice) w.DawnLightLiveVoice.sendRaw(JSON.stringify({ type: "text", text: msg }));
-      } catch (e) {}
+      sendNoteTo(to, msg);
     }, 400);
   }
   // ---- 先看留言板（連線／重連時）：伺服器會自動打招呼 → 把連線後第一段未經詢問的回答靜音，改送留言板摘要 ----
@@ -119,12 +116,27 @@
   function boardLines() {
     var out = [], rows = []; try { rows = d.querySelectorAll("#messagesInner .message, #messages .message"); } catch (e) {}
     for (var i = 0; i < rows.length; i++) {
-      var r = rows[i], tx = r.querySelector(".message-text"); var t = (tx ? tx.textContent : r.textContent || "").replace(/\s+/g, " ").trim(); if (!t) continue;
-      var who = /\buser\b/.test(r.className) ? "開創者" : /^曙光[:：]/.test(t) ? "曙光" : (r.querySelector(".ds-dawn-av") || r.className.indexOf("dawn") >= 0 ? "曙光" : "暗星");
+      var r = rows[i];
+      if (r.getAttribute("data-ds-dup") === "1" || r.hasAttribute("data-ds-bookqa") || r.style.display === "none") continue; // 隱藏的重複泡泡、書架提示不算
+      var tx = r.querySelector(".message-text"); var t = (tx ? tx.textContent : r.textContent || "").replace(/\s+/g, " ").trim(); if (!t) continue;
+      var sp = (r.dataset && r.dataset.speaker) || "", who = null;
+      if (/\buser\b/.test(r.className) || sp === "user" || /^你[:：]/.test(t)) who = "開創者";
+      else if (sp === "dawn" || /^曙光[:：]/.test(t) || r.querySelector(".ds-dawn-av")) who = "曙光";
+      else if (sp === "dark" || r.getAttribute("data-ds-live") === "assistant" || /^暗星[:：]/.test(t)) who = "暗星";
+      if (!who) continue; // 認不出是誰說的就不放進留言板，避免把曙光的話標成暗星
       t = t.replace(/^(你|曙光|暗星)[:：]\s*/, ""); if (t) out.push({ who: who, t: t.slice(0, 200) });
     }
     if (!out.length) out = board.slice();
     return out.slice(-14);
+  }
+  var ID = { dawn: "【身分提醒】你是曙光（Dawn Light，視覺創作 AI），不是暗星。下面標「暗星：」的是另一位 AI 暗星說的話，不是你；標「曙光：」的才是你自己說過的話。\n",
+    dark: "【身分提醒】你是暗星（研究與工程 AI），不是曙光。下面標「曙光：」的是另一位 AI 曙光說的話，不是你；標「暗星：」的才是你自己說過的話。\n" };
+  function sendNoteTo(k, msg) {
+    msg = ID[k] + msg;
+    try {
+      if (k === "dark") { if (w.AIVAULTDarkStarLive) w.AIVAULTDarkStarLive.sendRawText(msg); }
+      else if (w.DawnLightLiveVoice) w.DawnLightLiveVoice.sendRaw(JSON.stringify({ type: "text", text: msg }));
+    } catch (e) {}
   }
   function startFresh(k) {
     if (!bfOn) return;
@@ -141,10 +153,7 @@
     var msg = "【留言板】你剛重新連線，以下是最近的對話紀錄（含另一位 AI 和開創者說的話）：\n" + body +
       "\n請先看留言板，不要打招呼；若開創者有未回答的問題就直接回答，否則安靜等待。" + (pending && !mine ? "（另一位 AI 已在回答這個問題，你不要重複回答，安靜等待。）" : "");
     s.mode = mine ? "normal" : "quiet";
-    try {
-      if (k === "dark") { if (w.AIVAULTDarkStarLive) w.AIVAULTDarkStarLive.sendRawText(msg); }
-      else if (w.DawnLightLiveVoice) w.DawnLightLiveVoice.sendRaw(JSON.stringify({ type: "text", text: msg }));
-    } catch (e) {}
+    sendNoteTo(k, msg);
   }
   function bfTick() {
     ["dark", "dawn"].forEach(function (k) { var s = S[k]; if (s.mode === "greet" && !s.greetSeen && Date.now() - s.freshAt > GREET_WAIT) sendNote(k); });
