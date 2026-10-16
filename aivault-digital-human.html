@@ -1726,6 +1726,19 @@
       function startWaiting(label, kind) { waiting = true; waitKind = kind || 'net'; setStatus(label); }
       function stopWaiting() { waiting = false; setStatus(''); }
       function flash(name, ms) { forced = name; forcedUntil = Date.now() + ms; update(); setTimeout(() => { if (forced === name) { forced = ''; update(); } }, ms + 50); }
+      // 使用者口令觸發動作／表情
+      let happyAfterTalk = false;
+      function cmd(name) {
+        if (failed || phase === 'intro') return false;
+        if (name === 'drink') { if (isSpeaking || dhVoice.voiced) return false; drink(); return true; }
+        if (name === 'petcat') { if (isSpeaking || dhVoice.voiced) return false; petCat(true); return true; }
+        if (name === 'happy' && (isSpeaking || dhVoice.voiced)) { happyAfterTalk = true; return true; }   // 說話中：講完立刻笑
+        if (isSpeaking || dhVoice.voiced) return false;
+        filler = ''; drinking = petting = false; moodOnce = '';
+        const v = V[name]; const ms = name === 'happy' ? 3500 : Math.min(9000, Math.max(2500, ((v && v.duration) || 5) * 1000));
+        flash(name, ms); return true;
+      }
+      dhVoice.onChange(() => { if (happyAfterTalk && !isSpeaking && !dhVoice.voiced) { happyAfterTalk = false; setTimeout(() => cmd('happy'), 150); } });
       function attach() {
         if (failed) return;
         const head = document.querySelector('.dh-head'); if (!head) return;
@@ -1733,9 +1746,39 @@
         if (el.parentNode !== head) { head.appendChild(el); if (V[clip]) V[clip].play().catch(() => {}); }
         update();
       }
-      return { attach, update, drink, petCat, waitIdle, cancelAction, startWaiting, stopWaiting, setStatus, flash, get clip() { return clip; }, video: n => V[n], el, get failed() { return failed; } };
+      return { attach, update, drink, petCat, cmd, waitIdle, cancelAction, startWaiting, stopWaiting, setStatus, flash, get clip() { return clip; }, video: n => V[n], el, get failed() { return failed; } };
     })();
 
+
+    // ===== 口令：使用者說／打的字觸發表情與動作（繁簡皆可）=====
+    const DH_CMDS = [
+      ['happy', /笑一笑|笑一個|笑一个|微笑|笑笑|開心一點|开心一点|開心點|开心点|笑一下/],
+      ['angry', /小生氣|小生气|生氣|生气/],
+      ['think', /想一想|想一下|思考/],
+      ['question', /疑問|疑问|歪頭|歪头/],
+      ['affection', /溫柔|温柔|撒嬌|撒娇/],
+      ['drink', /喝口水|喝水/],
+      ['catplay', /逗貓|逗猫/],
+      ['petcat', /摸貓|摸猫|貓咪|猫咪/],
+      ['hair', /撥頭髮|拨头发|撥頭发|撩頭髮|撩头发/],
+      ['stretch', /伸懶腰|伸懒腰/],
+      ['screen', /看螢幕|看屏幕|看荧幕/],
+      ['blink', /眨眼|眨眨眼|眨一下/],
+    ];
+    function dhCommand(text, fired) {
+      const t = String(text || ''); if (!t) return '';
+      for (const [name, re] of DH_CMDS) {
+        if (!re.test(t) || (fired && fired.has(name))) continue;
+        if (fired) fired.add(name);
+        try {
+          if (name === 'blink') { try { blinkOnce(() => blinkOnce(() => {})); } catch {} }
+          else dhVid.cmd(name);
+        } catch {}
+        return name;
+      }
+      return '';
+    }
+    window.__dhCommand = dhCommand;
 
     // ===== 即時嘴型：在 idle 影片上疊一塊羽化嘴部貼圖（取自 talk 影片），依聲音特徵選嘴型 =====
     const dhLip = (() => {
@@ -1746,7 +1789,7 @@
       box.style.cssText = `position:absolute;width:${PW/VW*100}%;height:${PH/VH*100}%;pointer-events:none;z-index:1;`;
       const IM = {};
       VIS.forEach(k => { const i = document.createElement('img'); i.src = REAL_FACE_DIR + 'lip/mouth_' + k + '.png'; i.alt = '';
-        i.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;opacity:0;'; box.appendChild(i); IM[k] = i; });
+        i.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;opacity:0;transform:scale(0.94,0.82);transform-origin:50% 38%;'; box.appendChild(i); IM[k] = i; });
       let cur = '', holdUntil = 0, seq = [], seqT = 0;
       function setVis(k) {
         if (k === cur) return;
@@ -1755,8 +1798,10 @@
       }
       // 平滑閘門：開口 attack 60ms、閉口 release 120ms、每個嘴型至少 120ms（≤ ~6.5 次/秒）、相鄰嘴型需持續 90ms 才切換（遲滯）
       const NEAR = { slight:['mid'], mid:['slight','wide','ee','oh'], wide:['mid'], ee:['mid'], oh:['u','mid'], u:['oh'] };
-      let gLast = 0, gCand = null, gCandT = 0;
+      let gWide = 0, gLast = 0, gCand = null, gCandT = 0;
       function gate(v, now) {
+        if (v === 'wide' && cur !== 'wide' && now - gWide < 450) v = 'mid';   // 張大嘴少用，偏向較小嘴型
+        if (v === 'wide' && cur !== 'wide') gWide = now;
         if (v === cur) { gCand = null; return; }
         if (v !== gCand) { gCand = v; gCandT = now; }
         const held = now - gCandT;
@@ -1771,7 +1816,7 @@
         if (/[，。！？、,.!?;；:：\s…—]/.test(ch)) return '';
         const c = ch.toLowerCase();
         if (/[a-z]/.test(c)) return /[a]/.test(c) ? 'wide' : /[ei]/.test(c) ? 'ee' : /[o]/.test(c) ? 'oh' : /[u w]/.test(c) ? 'u' : 'slight';
-        const pick = ['mid','wide','mid','ee','wide','oh','mid','u','slight','wide'];
+        const pick = ['mid','slight','mid','ee','wide','oh','mid','u','slight','mid'];
         return pick[ch.charCodeAt(0) % pick.length];
       }
       window.__dhLipWord = (word) => {
@@ -1783,16 +1828,16 @@
       function fromAudio() {
         const f = dhVoice.feat;
         if (f.rms < 0.02) return '';
-        if (f.rms < 0.045) return 'slight';
-        if (f.centroid < 1100 && f.low > 0.45) return f.rms > 0.09 ? 'oh' : 'u';
+        if (f.rms < 0.06) return 'slight';
+        if (f.centroid < 1100 && f.low > 0.45) return f.rms > 0.12 ? 'oh' : 'u';
         if (f.centroid > 2300 || f.high > 0.35) return 'ee';
-        return f.rms > 0.09 ? 'wide' : 'mid';
+        return f.rms > 0.14 ? 'wide' : 'mid';
       }
       let synthPhase = 0;
       function fromRhythm(now) {   // 沒有音訊特徵也沒有 boundary：約 5.5 音節/秒
         const t = (now / 1000) * 5.5 + synthPhase; const ph = t % 1;
         if (ph > 0.72) return '';
-        const k = Math.floor(t); return ['mid','wide','ee','mid','oh','slight','wide','u'][k % 8];
+        const k = Math.floor(t); return ['mid','slight','ee','mid','oh','slight','wide','u'][k % 8];
       }
       // Gemini Live：依實際播放時間排程的嘴型 [ctxTime, viseme]
       let liveQ = [], liveCtx = null, liveUntil = 0;
@@ -1843,6 +1888,7 @@
       let ws = null, stream = null, inCtx = null, micNode = null, micSrc = null, frameT = 0, pip = null, canvas = null;
       let playCtx = null, outGain = null, outDest = null, outEl = null, outMode = 'none', nextPlay = 0, sources = [], drainT = 0, userTalkingUntil = 0;
       let active = false, wanted = false, retry = 0, camOn = false, inBuf = '', outBuf = '', userIdx = -1, aiIdx = -1;
+      let cmdFired = new Set();
       let wsState = '未連線', micSent = 0, rx = 0, played = 0, lastErr = '', dbgEl = null, waitingAudio = false;
       window.__dhLiveCam = false;
       function token() {   // 同其他 live 頁：Supabase session（localStorage sb-…-auth-token）
@@ -1972,10 +2018,10 @@
         } catch {}
         if (d.type === 'live_open' || d.setupComplete) { gotSetup = true; wsState = 'Gemini 已連線'; retry = 0; try { dhVid.stopWaiting(); dhVid.cancelAction(); } catch {} }
         const inn = (sc.inputTranscription && sc.inputTranscription.text) || (d.type === 'inputTranscription' ? d.text : '');
-        if (inn) { inBuf += inn; upsert('user', inBuf); }
+        if (inn) { inBuf += inn; upsert('user', inBuf); try { dhCommand(inBuf, cmdFired); } catch {} }
         const out = (sc.outputTranscription && sc.outputTranscription.text) || (d.type === 'outputTranscription' ? d.text : '');
-        if (out) { if (inBuf) { inBuf = ''; userIdx = -1; } outBuf += out; upsert('assistant', outBuf); }
-        if (sc.turnComplete || d.turnComplete || d.type === 'turnComplete') { outBuf = ''; aiIdx = -1; inBuf = ''; userIdx = -1; }
+        if (out) { if (inBuf) { inBuf = ''; userIdx = -1; } outBuf += out; upsert('assistant', outBuf); if (/[（(]\s*(微笑|笑)/.test(outBuf) && !cmdFired.has('outsmile')) { cmdFired.add('outsmile'); try { dhVid.cmd('happy'); } catch {} } }
+        if (sc.turnComplete || d.turnComplete || d.type === 'turnComplete') { cmdFired = new Set(); outBuf = ''; aiIdx = -1; inBuf = ''; userIdx = -1; }
         if (d.type === 'error' || d.error) {
           const m = d.message || (d.error && d.error.message) || JSON.stringify(d.error || d); lastErr = String(m).slice(0, 60);
           if (/AUTH_REQUIRED|INVALID_AUTH/.test(m)) { wanted = false; toast('請先登入 AIVAULT 再使用即時語音'); }
@@ -2316,6 +2362,7 @@
       stopTalk();
       stopHum();
       singing = isSingAsk(text);
+      try { dhCommand(text); } catch {}
       chatLog.push({ role: 'user', text });
       renderChat();
       const h = current || {};
