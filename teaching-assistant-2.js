@@ -474,11 +474,12 @@ async function classroomPrepareRealtime(){
 }
 
 const ebookState={books:[],bookId:'',book:null,page:1,total:0,loaded:false,toc:[],units:[],unitIndex:-1,unitPages:[],pendingVideo:null};
+function taUserToken(){try{const j=JSON.parse(localStorage.getItem("sb-clcddygkaaqqtsbswgdf-auth-token")||"null");const t=j&&String(j.access_token||(j.currentSession&&j.currentSession.access_token)||"");if(!t)return "";const p=JSON.parse(atob(t.split(".")[1].replace(/-/g,"+").replace(/_/g,"/")));return p.exp*1000>Date.now()+30000?t:""}catch(e){return ""}}
 async function ebookApi(payload){
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),15000);
   try{
-    const r=await fetch(EBOOK_INGEST,{method:'POST',headers:{'Content-Type':'application/json',apikey:EBOOK_PUBLISHABLE_KEY},body:JSON.stringify(payload),signal:controller.signal});
+    const r=await fetch(EBOOK_INGEST,{method:'POST',headers:Object.assign({'Content-Type':'application/json',apikey:EBOOK_PUBLISHABLE_KEY},taUserToken()?{Authorization:'Bearer '+taUserToken()}:{}),body:JSON.stringify(payload),signal:controller.signal});
     const raw=await r.text();let data={};try{data=raw?JSON.parse(raw):{}}catch{}
     if(!r.ok)throw Error((data.error||data.message||('電子書服務 HTTP '+r.status)));
     return data;
