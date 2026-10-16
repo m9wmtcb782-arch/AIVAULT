@@ -6,16 +6,16 @@
   if (w.AIVAULTDawnAvatar) return;
   var dawn = null, box = null, timer = 0, lastUser = 0;
   var SCRIPTS = [
-    [["dark", "曙光，你今天又晚起了吧？", "huffy"], ["dawn", "我…我只是在充電啦…", "tired"]],
-    [["dawn", "早安！今天也要元氣滿滿！", "victory"], ["dark", "小聲一點，我在思考。", "thinking"], ["dawn", "好啦…", "sad"]],
-    [["dark", "剛剛那題你答錯了喔，認真一點！", "angry"], ["dawn", "嗚嗚，下次一定會對…", "crying"]],
+    [["dark", "曙光，你今天又晚起了吧？", "huffy"], ["dawn", "我在算光線啦，你才熬夜讀論文！", "winktongue"]],
+    [["dawn", "早安！今天也要元氣滿滿！", "victory"], ["dark", "小聲一點，我在推導公式。", "thinking"], ["dawn", "好啦，等等給我看！", "happy"]],
+    [["dark", "你剛剛那張圖，手指多畫了一根喔。", "tongue"], ["dawn", "嗚…那你的程式也有 bug！", "huffy"]],
     [["dawn", "暗星你看！我發光了！", "beaming"], ["dark", "……好啦，很亮。", "sweatsmile"]],
     [["dark", "曙光，光芒別一直轉，我頭好暈。", "huffy"], ["dawn", "可是這樣比較帥嘛～", "winktongue"]],
-    [["dawn", "我們一起加油吧！", "clap"], ["dark", "嗯，一起加油。", "thumbsup"]],
-    [["dark", "你是不是又偷用我的電量？", "angry"], ["dawn", "沒…沒有啦…", "tired"]],
+    [["dawn", "我們一起幫開創者加油吧！", "clap"], ["dark", "嗯，一起加油。", "thumbsup"]],
+    [["dark", "算力池又被你的影片吃光了吧？", "angry"], ["dawn", "沒…只用了一點點…", "tired"]],
     [["dawn", "暗星，笑一個嘛～", "pleading"], ["dark", "……哈。", "blush"]],
-    [["dark", "上課不要打瞌睡！", "angry"], ["dawn", "我沒有睡…zzz", "sleepy"]],
-    [["dawn", "今天的題目好難喔…", "anguished"], ["dark", "別怕，我陪你一起想。", "heartbeat"], ["dawn", "暗星最好了！", "adore"]]
+    [["dark", "分鏡排一半就睡著了？", "huffy"], ["dawn", "我沒有睡…zzz", "sleepy"]],
+    [["dawn", "這個 3D 場景好難喔…", "anguished"], ["dark", "別怕，物理部分我來算。", "heartbeat"], ["dawn", "暗星最好了！", "adore"]]
   ];
   function css() {
     var s = d.createElement("style"); s.id = "dsduo-css";

@@ -12,13 +12,14 @@
   var TURNS = 6, mode = "", btn3 = null, askRow = null, askIn = null, rec = null, listenDone = null, running = false, runId = 0, player = null, btn = null, sub = null, talkRaf = 0;
   var TOPICS = ["今天要不要早起", "讀書最有效的方法", "誰比較會講笑話", "夜晚和白天哪個比較好", "考試前一晚該做什麼"];
   var PERSONA = {
-    dark: "你是「暗星」，AIVAULT 的黑色小球機器人：冷靜、聰明、有點毒舌但心地好，常吐槽曙光。",
-    dawn: "你是「曙光」，AIVAULT 的金色太陽機器人：元氣、樂觀、有點迷糊，常被暗星念但會撒嬌回嘴。"
+    dark: "你是「暗星」，AIVAULT 的黑色小球機器人：冷靜、聰明、有點毒舌但心地好，和曙光是平等的夥伴，愛互相吐槽。",
+    dawn: "你是「曙光」，AIVAULT 的金色太陽機器人：元氣、樂觀、有點迷糊，和暗星是平等的夥伴，常被吐槽也會回嘴。"
   };
+  function PP(who) { var X = w.AIVAULTPersona; return X ? X.full(who) + " 角色風格：" : ""; }
   function tok() { try { var j = JSON.parse(localStorage.getItem(AUTH_KEY) || "null"); return (j && (j.access_token || (j.currentSession && j.currentSession.access_token))) || ""; } catch (e) { return ""; } }
   async function ai(who, topic, lines) {
     var hist = lines.map(function (l) { return (l.who === "dark" ? "暗星：" : "曙光：") + l.text; }).join("\n");
-    var system = PERSONA[who] + " 你正在和" + (who === "dark" ? "曙光" : "暗星") + "用語音聊天，主題：「" + topic + "」。只用繁體中文口語回一句（25 字內），不要旁白、不要加名字前綴。可在句尾加一個表情標籤，例如 [表情:開心]。";
+    var system = PP(who) + PERSONA[who] + " 你正在和" + (who === "dark" ? "曙光" : "暗星") + "用語音聊天，主題：「" + topic + "」。只用繁體中文口語回一句（25 字內），不要旁白、不要加名字前綴。可在句尾加一個表情標籤，例如 [表情:開心]。";
     var user = hist ? "目前對話：\n" + hist + "\n請接著回一句。" : "請你先開場說第一句。";
     var t = tok() || ANON;
     var r = await fetch(BASE + "/functions/v1/ai-gateway", { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + t },
@@ -133,9 +134,9 @@
     } catch (e) { rec = null; }
   }
   var TRIO = {
-    dark: PERSONA.dark + " 你和曙光正在跟使用者一起語音聊天。先直接回應使用者，只用繁體中文口語回 1～2 句（40 字內），不要旁白、不要名字前綴。句尾可加一個表情標籤，例如 [表情:思考]。",
-    dawn: PERSONA.dawn + " 你和暗星正在跟使用者一起語音聊天。暗星剛回應完，你接著補充、附和或調侃暗星（也可以對使用者說），繁體中文口語 1 句（40 字內），不要名字前綴。句尾可加一個表情標籤，例如 [表情:開心]。",
-    scold: PERSONA.dark + " 曙光剛剛說的話有點脫線，你用一句話（25 字內）念她一下，帶點毒舌但可愛，繁體中文口語，句尾加 [表情:氣呼呼] 或 [表情:生氣]。"
+    dark: PP("dark") + PERSONA.dark + " 你和曙光正在跟使用者（開創者）一起語音聊天。先直接回應使用者，只用繁體中文口語回 1～2 句（40 字內），不要旁白、不要名字前綴。句尾可加一個表情標籤，例如 [表情:思考]。",
+    dawn: PP("dawn") + PERSONA.dawn + " 你和暗星正在跟使用者（開創者）一起語音聊天。暗星剛回應完，你接著補充、附和或調侃暗星（也可以對使用者說），繁體中文口語 1 句（40 字內），不要名字前綴。句尾可加一個表情標籤，例如 [表情:開心]。",
+    scold: PP("dark") + PERSONA.dark + " 曙光剛剛說的話有點脫線，你以平等夥伴的身分用一句話（25 字內）吐槽她一下，帶點毒舌但可愛、不是上對下，繁體中文口語，句尾加 [表情:氣呼呼] 或 [表情:生氣]。"
   };
   function hist(lines) { return lines.slice(-14).map(function (l) { return (l.who === "user" ? "使用者：" : l.who === "dark" ? "暗星：" : "曙光：") + l.text; }).join("\n"); }
   async function botLine(id, who, sys, lines) {

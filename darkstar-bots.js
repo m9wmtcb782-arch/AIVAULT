@@ -81,6 +81,7 @@
   // ---------- AI Gateway ----------
   async function ai(system, user) {
     var t = (await token()) || ANON;
+    var X = w.AIVAULTPersona; if (X) system = X.short("dark") + "\n" + system;
     var body = JSON.stringify({ provider: "gemini", model: "gemini-3.6-flash", system: system, userMessage: user, source: "darkstar-bots" });
     var go = function (tk) { return fetch(BASE + "/functions/v1/ai-gateway", { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + tk }, body: body, signal: AbortSignal.timeout ? AbortSignal.timeout(120000) : undefined }); };
     var r = await go(t);
