@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>暗星數字人真實表情</title>
+<style>
+body { font-family: system-ui, sans-serif; background: #07080d; color: #e8edf7; margin: 0; padding: 16px; text-align: center; }
+.topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.back { background: #161924; color: #4da6ff; border: 1px solid #4da6ff; padding: 8px 14px; border-radius: 8px; text-decoration: none; font-size: 16px; }
+h1 { color: #4da6ff; font-size: 20px; margin: 0; }
+#human { width: 100%; max-width: 420px; border-radius: 16px; box-shadow: 0 0 30px #4da6ff44; margin: 16px auto; display: block; background: #05060c; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 16px 0; }
+button { background: #161924; color: #4da6ff; border: 1px solid #4da6ff; padding: 10px 14px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+button.active { background: #4da6ff; color: #000; }
+#status { margin-top: 8px; color: #8b93a7; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a class="back" href="javascript:history.back()">← 返回</a>
+  <h1>暗星數字人真實表情</h1>
+  <div style="width:60px"></div>
+</div>
+<img id="human" src="base.jpg" alt="暗星數字人">
+<div class="controls">
+<button onclick="play('happy')">開心說話</button>
+<button onclick="play('angry')">生氣說話</button>
+<button onclick="play('question')">疑問</button>
+<button onclick="play('affection')">愛慕</button>
+<button onclick="play('speak')">說話口型</button>
+<button onclick="play('blink')">眨眼</button>
+<button onclick="stop()">停止</button>
+</div>
+<div id="status">真實表情幀已放入，點擊播放</div>
+<script>
+const seqs = {
+  happy: ['base.jpg','speak.jpg','happy.jpg','speak.jpg','base.jpg'],
+  angry: ['base.jpg','angry.jpg','speak.jpg','angry.jpg','base.jpg'],
+  question: ['base.jpg','question.jpg','speak.jpg','question.jpg','base.jpg'],
+  affection: ['base.jpg','affection.jpg','speak.jpg','affection.jpg','base.jpg'],
+  speak: ['base.jpg','speak.jpg','base.jpg','speak.jpg','base.jpg'],
+  blink: ['base.jpg','blink.jpg','base.jpg']
+};
+let t;
+function play(name) {
+  clearInterval(t);
+  document.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+  const s = seqs[name] || seqs.speak;
+  let i=0;
+  document.getElementById('status').textContent = '播放：'+name;
+  t = setInterval(()=>{
+    document.getElementById('human').src = s[i%s.length];
+    i++;
+    if(i>s.length*2){ clearInterval(t); document.getElementById('human').src='base.jpg'; document.getElementById('status').textContent='結束'; }
+  }, 280);
+}
+function stop(){ clearInterval(t); document.getElementById('human').src='base.jpg'; document.getElementById('status').textContent='已停止'; }
+</script>
+</body>
+</html>
