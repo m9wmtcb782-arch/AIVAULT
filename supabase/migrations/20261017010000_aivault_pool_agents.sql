@@ -23,13 +23,14 @@ do $$ declare t text; begin
   foreach t in array array['aivault_pool_agents','aivault_pool_agent_tasks','aivault_pool_agent_memory','aivault_pool_agent_usage'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('revoke all on public.%I from anon', t);
-    execute format('grant select, insert, update, delete on public.%I to authenticated', t);
+    execute format('grant select, insert, update, delete on public.%I to authenticated, service_role', t);
     execute format('drop policy if exists owner_admin_all on public.%I', t);
     execute format($p$create policy owner_admin_all on public.%I for all to authenticated
       using ((auth.jwt() -> 'app_metadata' ->> 'role') in ('owner','admin'))
       with check ((auth.jwt() -> 'app_metadata' ->> 'role') in ('owner','admin'))$p$, t);
   end loop; end $$;
-grant usage, select on sequence public.aivault_pool_agent_memory_id_seq to authenticated;
+grant usage, select on sequence public.aivault_pool_agent_memory_id_seq to authenticated, service_role;
 create or replace function public.aivault_pool_usage_bump(p text) returns void language sql security definer set search_path = public as
 $$ insert into aivault_pool_agent_usage(day, provider, calls) values (current_date, p, 1) on conflict (day, provider) do update set calls = aivault_pool_agent_usage.calls + 1 $$;
 revoke all on function public.aivault_pool_usage_bump(text) from public, anon, authenticated;
+grant execute on function public.aivault_pool_usage_bump(text) to service_role;
