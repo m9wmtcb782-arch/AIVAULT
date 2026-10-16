@@ -12,9 +12,10 @@ def http(url,data=None,headers=None,method=None,timeout=150):
 def sql(q):
     s,b=http("https://api.supabase.com/v1/projects/%s/database/query"%REF,{"query":q},{"Authorization":"Bearer "+TOKEN},"POST"); assert s<300,(s,str(b)[:300]); return b
 if "migrate" in STEPS or "all" in STEPS:
-    sql(open("supabase/migrations/20261017010000_aivault_agents.sql").read())
-    print("migrate ok", sql("select tablename, rowsecurity from pg_tables where tablename like 'aivault_agent%'"))
-    print("policies", sql("select tablename, policyname from pg_policies where tablename like 'aivault_agent%'"))
+    print("existing check", sql("select tablename, rowsecurity, (select count(*) from pg_policies p where p.tablename=t.tablename and p.policyname='owner_admin_all') as mine from pg_tables t where schemaname='public' and tablename in ('aivault_agent_memory','aivault_agents','aivault_agent_tasks','aivault_agent_usage')"))
+    sql(open("supabase/migrations/20261017010000_aivault_pool_agents.sql").read())
+    print("migrate ok", sql("select tablename, rowsecurity from pg_tables where tablename like 'aivault_pool_agent%'"))
+    print("policies", sql("select tablename, policyname from pg_policies where tablename like 'aivault_pool_agent%'"))
 if "publish" in STEPS or "all" in STEPS:
     for f in glob.glob("private/*.html.gpg"):
         slug=os.path.basename(f)[:-9]; html=subprocess.check_output(["gpg","--batch","--quiet","--pinentry-mode","loopback","--passphrase",os.environ["PAGES_KEY"],"-d",f]).decode()
@@ -35,7 +36,7 @@ if any(s in STEPS for s in ("seed","test","all")):
         def y(body):
             t0=time.time(); s,b=http(BASE+"/functions/v1/dark-star-ebook-ingest?feature=agents",body,{"apikey":ANON,"Authorization":"Bearer "+JWT},"POST"); return s,b,round(time.time()-t0,1)
         s,b,_=http(BASE+"/functions/v1/dark-star-ebook-ingest?feature=agents",{"action":"providers"},{"apikey":ANON,"Authorization":"Bearer "+ANON},"POST"); print("anon ->",s)
-        s,b,_=(lambda r:(r[0],r[1],0))(http(BASE+"/rest/v1/aivault_agents?select=id&limit=1",headers={"apikey":ANON,"Authorization":"Bearer "+JWT})); print("rest as admin ->",s,str(b)[:80])
+        s,b,_=(lambda r:(r[0],r[1],0))(http(BASE+"/rest/v1/aivault_pool_agents?select=id&limit=1",headers={"apikey":ANON,"Authorization":"Bearer "+JWT})); print("rest as admin ->",s,str(b)[:80])
         if "seed" in STEPS or "all" in STEPS: print("SEED",y({"action":"seed"})[:2])
         s,b,dt=y({"action":"providers"}); print("PROVIDERS",s,json.dumps(b,ensure_ascii=False)[:600])
         s,b,dt=y({"action":"list","domain":"law","q":"行政","limit":3}); print("LIST",s,b.get("total"),[(a["id"],a["name"],a["specialty"],a["needs_key"]) for a in b.get("agents",[])]); print("DOMAINS",[(d["key"],d["n"],d["ready"]) for d in b.get("domains",[])])

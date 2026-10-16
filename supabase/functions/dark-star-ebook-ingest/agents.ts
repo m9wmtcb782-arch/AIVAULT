@@ -61,7 +61,7 @@ async function me(r: Request) {
   const u = await fetch(URL0 + "/auth/v1/user", { headers: { apikey: SR, Authorization: "Bearer " + tok } }).then((x) => x.ok ? x.json() : null).catch(() => null);
   const role = u?.app_metadata?.role; return u?.id && (role === "owner" || role === "admin") ? { id: u.id as string } : null;
 }
-async function bump(p: string) { try { await rest("rpc/aivault_agent_usage_bump", { method: "POST", body: JSON.stringify({ p }) }); } catch { /* ignore */ } }
+async function bump(p: string) { try { await rest("rpc/aivault_pool_usage_bump", { method: "POST", body: JSON.stringify({ p }) }); } catch { /* ignore */ } }
 async function think(system: string, user: string, maxTokens = 3000) {
   const v = await llm(system, user, { maxTokens, skipGemini: true }); await bump(String(v.__model || "llm").split(":")[0]); return v;
 }
@@ -80,8 +80,8 @@ async function pick(order: string, max: number) {
   const picked: any[] = []; const seen = new Set<string>();
   for (const s of subs) {
     const kw = String(s.specialty || "").replace(/[%,()*]/g, "").slice(0, 20);
-    let a = kw ? await rest(`aivault_agents?select=id,name,domain,specialty,avatar,status,model_route&domain=eq.${s.domain}&specialty=ilike.*${encodeURIComponent(kw)}*&order=status.asc,updated_at.asc&limit=10`) : [];
-    if (!a.length) a = await rest(`aivault_agents?select=id,name,domain,specialty,avatar,status,model_route&domain=eq.${s.domain}&order=status.asc,updated_at.asc&limit=10`);
+    let a = kw ? await rest(`aivault_pool_agents?select=id,name,domain,specialty,avatar,status,model_route&domain=eq.${s.domain}&specialty=ilike.*${encodeURIComponent(kw)}*&order=status.asc,updated_at.asc&limit=10`) : [];
+    if (!a.length) a = await rest(`aivault_pool_agents?select=id,name,domain,specialty,avatar,status,model_route&domain=eq.${s.domain}&order=status.asc,updated_at.asc&limit=10`);
     const ag = a.find((x: any) => !seen.has(x.id) && x.status !== "running") || a.find((x: any) => !seen.has(x.id)); if (!ag) continue;
     seen.add(ag.id); picked.push({ agent: ag, instruction: String(s.instruction || order) });
   }
@@ -90,13 +90,13 @@ async function pick(order: string, max: number) {
 
 /* ---------- 單一代理一步（plan → act×N → reflect） ---------- */
 async function agentStep(t: any) {
-  const [a] = await rest(`aivault_agents?id=eq.${t.agent_id}&select=*`);
-  const mem = await rest(`aivault_agent_memory?agent_id=eq.${t.agent_id}&select=kind,content&order=created_at.desc&limit=8`);
+  const [a] = await rest(`aivault_pool_agents?id=eq.${t.agent_id}&select=*`);
+  const mem = await rest(`aivault_pool_agent_memory?agent_id=eq.${t.agent_id}&select=kind,content&order=created_at.desc&limit=8`);
   const memText = mem.map((m: any) => `- (${m.kind}) ${m.content}`).join("\n") || "（尚無記憶）";
   const sys = a.persona + "\n\n你的記憶：\n" + memText;
   const prev = (t.steps || []).map((s: any, i: number) => `步驟${i + 1}［${s.type}］${s.title || ""}：${String(s.output || "").slice(0, 1500)}`).join("\n\n");
   if (t.step_no === 0) {
-    await rest(`aivault_agents?id=eq.${a.id}`, { method: "PATCH", body: JSON.stringify({ status: "running", updated_at: new Date().toISOString() }) });
+    await rest(`aivault_pool_agents?id=eq.${a.id}`, { method: "PATCH", body: JSON.stringify({ status: "running", updated_at: new Date().toISOString() }) });
     const v = await think(sys, `任務：${t.order_text}\n\n先規劃。拆成 1–${t.max_steps - 2} 個執行步驟（每步可獨立完成）。只輸出 JSON：{"plan":["步驟標題"],"approach":"整體做法一句話"}`, 1200);
     const plan = (v.plan || []).slice(0, t.max_steps - 2).map(String); if (!plan.length) plan.push("完成任務");
     t.plan = plan; t.steps = [{ type: "plan", title: "規劃", output: (v.approach || "") + "\n" + plan.map((p: string, i: number) => `${i + 1}. ${p}`).join("\n"), model: v.__model }];
@@ -118,9 +118,9 @@ async function agentStep(t: any) {
   } else {
     const v = await think(sys, `任務：${t.order_text}\n\n過程：\n${prev}\n\n反思並交付。只輸出 JSON：{"result":"給擁有者的最終成果（Markdown，完整可用）","lesson":"一句可重用的經驗，寫進你的記憶","quality":1到5}`, 4000);
     t.steps.push({ type: "reflect", title: "反思", output: String(v.lesson || ""), model: v.__model }); t.result = String(v.result || ""); t.status = "done";
-    if (v.lesson) await rest("aivault_agent_memory", { method: "POST", body: JSON.stringify({ agent_id: a.id, kind: "reflection", content: String(v.lesson).slice(0, 500), task_id: t.id }) });
+    if (v.lesson) await rest("aivault_pool_agent_memory", { method: "POST", body: JSON.stringify({ agent_id: a.id, kind: "reflection", content: String(v.lesson).slice(0, 500), task_id: t.id }) });
     const s = a.stats || {}; s.tasks = (s.tasks || 0) + 1; s.ok = (s.ok || 0) + 1; s.steps = (s.steps || 0) + t.steps.length; s.last_at = new Date().toISOString(); s.last_quality = v.quality;
-    await rest(`aivault_agents?id=eq.${a.id}`, { method: "PATCH", body: JSON.stringify({ status: "idle", stats: s, updated_at: new Date().toISOString() }) });
+    await rest(`aivault_pool_agents?id=eq.${a.id}`, { method: "PATCH", body: JSON.stringify({ status: "idle", stats: s, updated_at: new Date().toISOString() }) });
   }
   t.step_no++;
 }
@@ -131,16 +131,16 @@ export async function agents(r: Request) {
     const u = await me(r); if (!u) return out({ error: "owner only" }, 403);
     const b = await r.json().catch(() => ({})); const a = String(b.action || "");
     if (a === "providers") {
-      const usage = await rest(`aivault_agent_usage?day=eq.${new Date().toISOString().slice(0, 10)}&select=provider,calls`);
-      const running = await rest(`aivault_agents?status=eq.running&select=id`);
+      const usage = await rest(`aivault_pool_agent_usage?day=eq.${new Date().toISOString().slice(0, 10)}&select=provider,calls`);
+      const running = await rest(`aivault_pool_agents?status=eq.running&select=id`);
       return out({ ok: true, providers: providers(), usage, running: running.length, limits: { concurrent: 6, max_steps: 6, note: "Groq 免費層約 30 次/分、每日上限依帳號；Gemini 文字與語音額度目前幾乎用盡" } });
     }
     if (a === "seed") {
-      const rows = roster(); for (let i = 0; i < rows.length; i += 200) await rest("aivault_agents?on_conflict=id", { method: "POST", headers: { Prefer: "resolution=ignore-duplicates,return=minimal" }, body: JSON.stringify(rows.slice(i, i + 200)) });
-      const c = await fetch(URL0 + "/rest/v1/aivault_agents?select=id", { headers: { ...SRH, Prefer: "count=exact", Range: "0-0" } }); return out({ ok: true, count: c.headers.get("content-range") });
+      const rows = roster(); for (let i = 0; i < rows.length; i += 200) await rest("aivault_pool_agents?on_conflict=id", { method: "POST", headers: { Prefer: "resolution=ignore-duplicates,return=minimal" }, body: JSON.stringify(rows.slice(i, i + 200)) });
+      const c = await fetch(URL0 + "/rest/v1/aivault_pool_agents?select=id", { headers: { ...SRH, Prefer: "count=exact", Range: "0-0" } }); return out({ ok: true, count: c.headers.get("content-range") });
     }
     if (a === "list") {
-      let q = "aivault_agents?select=id,name,domain,specialty,avatar,status,stats,model_route&order=id.asc";
+      let q = "aivault_pool_agents?select=id,name,domain,specialty,avatar,status,stats,model_route&order=id.asc";
       if (b.domain) q += "&domain=eq." + encodeURIComponent(b.domain); if (b.status) q += "&status=eq." + encodeURIComponent(b.status);
       if (b.q) { const s = String(b.q).replace(/[%,()*]/g, "").slice(0, 40); q += `&or=(name.ilike.*${encodeURIComponent(s)}*,specialty.ilike.*${encodeURIComponent(s)}*,id.ilike.*${encodeURIComponent(s)}*)`; }
       const off = Math.max(0, Number(b.offset) || 0), lim = Math.min(200, Number(b.limit) || 60);
@@ -151,47 +151,47 @@ export async function agents(r: Request) {
     }
     if (a === "get") {
       const id = String(b.id || "").replace(/[^\w-]/g, "");
-      const [ag] = await rest(`aivault_agents?id=eq.${id}&select=*`); if (!ag) return out({ error: "not found" }, 404); ag.needs_key = !mediaReady(ag.model_route);
-      const memory = await rest(`aivault_agent_memory?agent_id=eq.${id}&select=id,kind,content,created_at&order=created_at.desc&limit=30`);
-      const tasks = await rest(`aivault_agent_tasks?agent_id=eq.${id}&select=id,order_text,status,result,created_at,steps&order=created_at.desc&limit=20`);
+      const [ag] = await rest(`aivault_pool_agents?id=eq.${id}&select=*`); if (!ag) return out({ error: "not found" }, 404); ag.needs_key = !mediaReady(ag.model_route);
+      const memory = await rest(`aivault_pool_agent_memory?agent_id=eq.${id}&select=id,kind,content,created_at&order=created_at.desc&limit=30`);
+      const tasks = await rest(`aivault_pool_agent_tasks?agent_id=eq.${id}&select=id,order_text,status,result,created_at,steps&order=created_at.desc&limit=20`);
       return out({ ok: true, agent: ag, memory, tasks });
     }
-    if (a === "remember") { const id = String(b.id || "").replace(/[^\w-]/g, ""); await rest("aivault_agent_memory", { method: "POST", body: JSON.stringify({ agent_id: id, kind: "note", content: String(b.content || "").slice(0, 1000) }) }); return out({ ok: true }); }
+    if (a === "remember") { const id = String(b.id || "").replace(/[^\w-]/g, ""); await rest("aivault_pool_agent_memory", { method: "POST", body: JSON.stringify({ agent_id: id, kind: "note", content: String(b.content || "").slice(0, 1000) }) }); return out({ ok: true }); }
     if (a === "command") {
       const order = String(b.order || "").trim().slice(0, 4000); if (!order) return out({ error: "order" }, 400);
       const max = Math.min(8, Math.max(1, Number(b.max_agents) || 5)), steps = Math.min(6, Math.max(3, Number(b.max_steps) || 5));
       let summary = "", picked: any[] = [];
       if (Array.isArray(b.agent_ids) && b.agent_ids.length) {
         const ids = b.agent_ids.slice(0, max).map((x: any) => String(x).replace(/[^\w-]/g, "")).join(",");
-        picked = (await rest(`aivault_agents?id=in.(${ids})&select=id,name,domain,specialty,avatar,status,model_route`)).map((ag: any) => ({ agent: ag, instruction: order })); summary = "擁有者直接指派";
+        picked = (await rest(`aivault_pool_agents?id=in.(${ids})&select=id,name,domain,specialty,avatar,status,model_route`)).map((ag: any) => ({ agent: ag, instruction: order })); summary = "擁有者直接指派";
       } else ({ summary, picked } = await pick(order, max));
       if (!picked.length) return out({ error: "暗星找不到合適的代理" }, 422);
-      const [parent] = await rest("aivault_agent_tasks", { method: "POST", body: JSON.stringify({ order_text: order, status: "running", created_by: u.id, plan: [summary], max_steps: steps }) });
-      const kids = await rest("aivault_agent_tasks", { method: "POST", body: JSON.stringify(picked.map((p) => ({ parent_id: parent.id, agent_id: p.agent.id, order_text: p.instruction, max_steps: steps, created_by: u.id }))) });
+      const [parent] = await rest("aivault_pool_agent_tasks", { method: "POST", body: JSON.stringify({ order_text: order, status: "running", created_by: u.id, plan: [summary], max_steps: steps }) });
+      const kids = await rest("aivault_pool_agent_tasks", { method: "POST", body: JSON.stringify(picked.map((p) => ({ parent_id: parent.id, agent_id: p.agent.id, order_text: p.instruction, max_steps: steps, created_by: u.id }))) });
       return out({ ok: true, parent, summary, tasks: kids.map((k: any) => ({ ...k, agent: picked.find((p) => p.agent.id === k.agent_id)?.agent })) });
     }
     if (a === "step") {
-      const [t] = await rest(`aivault_agent_tasks?id=eq.${String(b.task_id || "").replace(/[^0-9a-f-]/g, "")}&select=*`); if (!t) return out({ error: "not found" }, 404);
+      const [t] = await rest(`aivault_pool_agent_tasks?id=eq.${String(b.task_id || "").replace(/[^0-9a-f-]/g, "")}&select=*`); if (!t) return out({ error: "not found" }, 404);
       if (t.status === "done" || t.status === "failed") return out({ ok: true, task: t });
       try { await agentStep(t); } catch (e) {
         t.steps = [...(t.steps || []), { type: "error", title: "錯誤", output: String((e as any)?.message || e).slice(0, 300) }]; const errs = t.steps.filter((s: any) => s.type === "error").length;
-        if (errs >= 3) { t.status = "failed"; await rest(`aivault_agents?id=eq.${t.agent_id}`, { method: "PATCH", body: JSON.stringify({ status: "idle" }) }); }
+        if (errs >= 3) { t.status = "failed"; await rest(`aivault_pool_agents?id=eq.${t.agent_id}`, { method: "PATCH", body: JSON.stringify({ status: "idle" }) }); }
       }
-      const [n] = await rest(`aivault_agent_tasks?id=eq.${t.id}`, { method: "PATCH", body: JSON.stringify({ status: t.status, plan: t.plan, steps: t.steps, step_no: t.step_no, result: t.result, updated_at: new Date().toISOString() }) });
+      const [n] = await rest(`aivault_pool_agent_tasks?id=eq.${t.id}`, { method: "PATCH", body: JSON.stringify({ status: t.status, plan: t.plan, steps: t.steps, step_no: t.step_no, result: t.result, updated_at: new Date().toISOString() }) });
       return out({ ok: true, task: n });
     }
     if (a === "synth") {
-      const pid = String(b.task_id || "").replace(/[^0-9a-f-]/g, ""); const [p] = await rest(`aivault_agent_tasks?id=eq.${pid}&select=*`);
-      const kids = await rest(`aivault_agent_tasks?parent_id=eq.${pid}&select=agent_id,order_text,status,result`);
-      const names = await rest(`aivault_agents?id=in.(${kids.map((k: any) => k.agent_id).join(",") || "x"})&select=id,name`);
+      const pid = String(b.task_id || "").replace(/[^0-9a-f-]/g, ""); const [p] = await rest(`aivault_pool_agent_tasks?id=eq.${pid}&select=*`);
+      const kids = await rest(`aivault_pool_agent_tasks?parent_id=eq.${pid}&select=agent_id,order_text,status,result`);
+      const names = await rest(`aivault_pool_agents?id=in.(${kids.map((k: any) => k.agent_id).join(",") || "x"})&select=id,name`);
       const nm = (id: string) => names.find((x: any) => x.id === id)?.name || id;
       const v = kids.length === 1 ? { result: kids[0].result || "", __model: "single" } : await think("你是暗星，AIVAULT AI 協作池統籌者。整合各代理成果，回覆擁有者：先一句總結，再整合後的完整成果，最後列出各代理貢獻與需要擁有者決定或補金鑰的事項。繁體中文 Markdown。只輸出 JSON：{\"result\":\"...\"}",
         `命令：${p.order_text}\n\n${kids.map((k: any) => `【${nm(k.agent_id)}】(${k.status}) ${k.order_text}\n${String(k.result || "").slice(0, 5000)}`).join("\n\n")}`, 6000);
-      const [n] = await rest(`aivault_agent_tasks?id=eq.${pid}`, { method: "PATCH", body: JSON.stringify({ status: "done", result: String(v.result || ""), updated_at: new Date().toISOString() }) });
+      const [n] = await rest(`aivault_pool_agent_tasks?id=eq.${pid}`, { method: "PATCH", body: JSON.stringify({ status: "done", result: String(v.result || ""), updated_at: new Date().toISOString() }) });
       return out({ ok: true, task: n });
     }
-    if (a === "history") return out({ ok: true, tasks: await rest(`aivault_agent_tasks?parent_id=is.null&select=id,order_text,status,result,created_at&order=created_at.desc&limit=30`) });
-    if (a === "task") { const pid = String(b.task_id || "").replace(/[^0-9a-f-]/g, ""); return out({ ok: true, parent: (await rest(`aivault_agent_tasks?id=eq.${pid}&select=*`))[0], tasks: await rest(`aivault_agent_tasks?parent_id=eq.${pid}&select=*`) }); }
+    if (a === "history") return out({ ok: true, tasks: await rest(`aivault_pool_agent_tasks?parent_id=is.null&select=id,order_text,status,result,created_at&order=created_at.desc&limit=30`) });
+    if (a === "task") { const pid = String(b.task_id || "").replace(/[^0-9a-f-]/g, ""); return out({ ok: true, parent: (await rest(`aivault_pool_agent_tasks?id=eq.${pid}&select=*`))[0], tasks: await rest(`aivault_pool_agent_tasks?parent_id=eq.${pid}&select=*`) }); }
     return out({ error: "unknown action" }, 400);
   } catch (e) { return out({ error: String((e as any)?.message || e).slice(0, 300) }, 500); }
 }
