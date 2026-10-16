@@ -6,7 +6,7 @@
 create or replace function public.aivault_mark_signup_pending()
 returns trigger language plpgsql security definer set search_path = public, auth as $$
 begin
-  new.banned_until := 'infinity';
+  new.banned_until := '2999-12-31 00:00:00+00'; -- 不可用 infinity：GoTrue 無法解析，會讓 admin API 回 500
   new.raw_app_meta_data := coalesce(new.raw_app_meta_data, '{}'::jsonb) || jsonb_build_object('approved', false, 'pending_since', now());
   return new;
 end $$;

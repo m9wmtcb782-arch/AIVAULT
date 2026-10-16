@@ -12,6 +12,13 @@ def http(url, data=None, headers=None, method=None):
         except Exception: return e.code, b[:200].decode("utf-8", "replace")
 def mgmt(path, data=None, method=None): return http("https://api.supabase.com/v1/projects/" + REF + path, data, {"Authorization": "Bearer " + TOKEN}, method)
 def sql(q): s, b = mgmt("/database/query", {"query": q}, "POST"); assert s < 300, (s, b); return b
+if STEP == "fix":
+    print("infinity rows before", sql("select count(*) n from auth.users where banned_until = 'infinity'"))
+    sql(open("supabase/migrations/20261016170000_signup_owner_approval.sql").read())
+    sql("update auth.users set banned_until = '2999-12-31 00:00:00+00' where banned_until = 'infinity'")
+    print("pending rows", sql("select count(*) n, bool_or(raw_app_meta_data ? 'approved') has_flag from auth.users where banned_until > now()"))
+    print("non-pending banned", sql("select count(*) n from auth.users where banned_until > now() and email not like 'aivault-approval-test-%'"))
+    sys.exit(0)
 _, keys = mgmt("/api-keys?reveal=true")
 SR = next(k["api_key"] for k in keys if k.get("name") == "service_role"); ANON = next(k["api_key"] for k in keys if k.get("name") == "anon")
 print("::add-mask::" + SR); print("::add-mask::" + ANON)
