@@ -247,7 +247,7 @@
       const want = new URLSearchParams(location.search).get('avatar');
       try { const j = await (await fetch('digital-human-real/avatars.json', { cache: 'no-cache' })).json(); const L = (j && j.avatars) || []; return L.find(a => a.id === want) || L[0] || null; }
       catch { return null; }
-    })() || { id: 'darkstar', name: '暗星', title: '暗星數字人', tagline: '你的 AI 夥伴，會聽、會看、會讀書', lang: 'zh-Hant', liveVoice: 'Aoede', brain: { provider: 'groq', model: 'openai/gpt-oss-120b' } };
+    })() || { id: 'darkstar', name: '暗星', title: '暗星數字人', tagline: '你的 AI 夥伴，會聽、會看、會聊天', lang: 'zh-Hant', liveVoice: 'Aoede', brain: { provider: 'groq', model: 'openai/gpt-oss-120b' } };
     window.__dhAvatar = AVATAR;
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: { persistSession: true, autoRefreshToken: true, storage: window.localStorage }
@@ -1908,11 +1908,15 @@
       let playCtx = null, outGain = null, outDest = null, outEl = null, outMode = 'none', nextPlay = 0, sources = [], drainT = 0, userTalkingUntil = 0;
       let active = false, wanted = false, retry = 0, camOn = false, inBuf = '', outBuf = '', userIdx = -1, aiIdx = -1;
       let cmdFired = new Set(), knowT = 0, knowLast = '', liveChip = '', liveChipUsed = false;
-      async function liveKnow(q) {   // 使用者一句話講完：查書架→網路，把資料用文字送進即時對話（同暗星書架問答的 {type:'text'} 格式）
-        q = String(q || '').trim(); if (!q || q === knowLast || !window.DHKnow || !DHKnow.isQuestion(q)) return; knowLast = q;
+      let knowTurnDone = false;   // 每個使用者問題最多送一次資料
+      async function liveKnow(q) {   // 只有明確要求查資料時：等她講完話，再把資料靜默送進即時對話（一次）
+        q = String(q || '').trim(); if (!q || knowTurnDone || q === knowLast || !window.DHKnow || !DHKnow.wantsLookup || !DHKnow.wantsLookup(q)) return;
+        knowTurnDone = true; knowLast = q;
         let k = null; try { k = await DHKnow.lookup(q); } catch {}
-        if (!k || !k.prompt || !ws || ws.readyState !== 1) return;
-        try { ws.send(JSON.stringify({ type: 'text', text: `使用者剛才的問題：「${q}」\n${k.prompt}\n若你剛才已開始回答，請以這些資料修正或補充。` })); liveChip = k.chip; liveChipUsed = false; lastErr = ''; } catch {}
+        if (!k || !k.prompt) return;
+        for (let i = 0; i < 60 && (isSpeaking || (typeof dhVoice !== "undefined" && dhVoice.voiced)); i++) await new Promise(r => setTimeout(r, 250));
+        if (isSpeaking || !ws || ws.readyState !== 1) return;
+        try { ws.send(JSON.stringify({ type: 'text', text: `（系統備註，不要唸出來）使用者的問題：「${q}」\n${k.prompt}` })); liveChip = k.chip; liveChipUsed = false; lastErr = ''; } catch {}
       }
       let wsState = '未連線', micSent = 0, rx = 0, played = 0, lastErr = '', dbgEl = null, waitingAudio = false;
       window.__dhLiveCam = false;
@@ -2043,10 +2047,10 @@
         } catch {}
         if (d.type === 'live_open' || d.setupComplete) { gotSetup = true; wsState = 'Gemini 已連線'; retry = 0; try { dhVid.stopWaiting(); dhVid.cancelAction(); } catch {} }
         const inn = (sc.inputTranscription && sc.inputTranscription.text) || (d.type === 'inputTranscription' ? d.text : '');
-        if (inn) { inBuf += inn; upsert('user', inBuf); try { dhCommand(inBuf, cmdFired); } catch {} clearTimeout(knowT); const q = inBuf; knowT = setTimeout(() => liveKnow(q), 700); }
+        if (inn) { inBuf += inn; upsert('user', inBuf); try { dhCommand(inBuf, cmdFired); } catch {} clearTimeout(knowT); const q = inBuf; knowT = setTimeout(() => liveKnow(q), 1200); }
         const out = (sc.outputTranscription && sc.outputTranscription.text) || (d.type === 'outputTranscription' ? d.text : '');
         if (out) { if (inBuf) { inBuf = ''; userIdx = -1; } outBuf += out; upsert('assistant', outBuf); if (liveChip && chatLog[aiIdx]) chatLog[aiIdx].src = liveChip; if (/[（(]\s*(微笑|笑)/.test(outBuf) && !cmdFired.has('outsmile')) { cmdFired.add('outsmile'); try { dhVid.cmd('happy'); } catch {} } }
-        if (sc.turnComplete || d.turnComplete || d.type === 'turnComplete') { cmdFired = new Set(); if (liveChipUsed) liveChip = ''; liveChipUsed = !!liveChip; outBuf = ''; aiIdx = -1; inBuf = ''; userIdx = -1; }
+        if (sc.turnComplete || d.turnComplete || d.type === 'turnComplete') { cmdFired = new Set(); knowTurnDone = false; if (liveChipUsed) liveChip = ''; liveChipUsed = !!liveChip; outBuf = ''; aiIdx = -1; inBuf = ''; userIdx = -1; }
         if (d.type === 'error' || d.error) {
           const m = d.message || (d.error && d.error.message) || JSON.stringify(d.error || d); lastErr = String(m).slice(0, 60);
           if (/AUTH_REQUIRED|INVALID_AUTH/.test(m)) { wanted = false; toast('請先登入 AIVAULT 再使用即時語音'); }
@@ -2414,8 +2418,8 @@
         sendChat._fillT = setTimeout(() => { try { if (window.__dhReplyPending) dhVid.startWaiting(navigator.onLine === false ? '重新連線中…' : '連接中…', navigator.onLine === false ? 'net' : 'reply'); } catch {} }, 1200);
         await thinkBrain(text, singing ? 'CREATIVE' : 'CONVERSATION');
         let know = { prompt: '', chip: '' };
-        if (!singing && window.DHKnow) { try { know = await DHKnow.lookup(text); } catch {} }
-        if (know.prompt) systemPrompt += `\n\n${know.prompt}\n（引用資料時可以說到 5 句，仍保持口語、不條列。）`;
+        if (!singing && window.DHKnow && DHKnow.wantsLookup && DHKnow.wantsLookup(text)) { try { know = await DHKnow.lookup(text); } catch {} }
+        if (know.prompt) systemPrompt += `\n\n${know.prompt}\n（資料僅供參考，用自然聊天口吻回答，不要提「查到的資料」或電子書，除非被問來源。）`;
         const body = {
           provider: h.brain_provider || h.provider || 'groq',
           model: h.brain_model || h.model || 'openai/gpt-oss-120b',
@@ -2803,7 +2807,7 @@
         av.insertAdjacentHTML('afterend', `<div class="sc-feats">
           <div class="sc-f"><b>🎙️</b><span>即時語音對話</span></div>
           <div class="sc-f"><b>📹</b><span>視訊看得到你</span></div>
-          <div class="sc-f"><b>📚</b><span>讀 AIVAULT 書架</span></div>
+          <div class="sc-f"><b>💬</b><span>自然聊天陪伴</span></div>
           <div class="sc-f"><b>😊</b><span>表情與動作指令</span></div></div>`);
       }
       const live = document.getElementById('btnLive'); if (live) live.classList.add('sc-live');

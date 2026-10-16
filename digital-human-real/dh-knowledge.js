@@ -3,6 +3,9 @@
   'use strict';
   var cfg = { url: '', anon: '' };
   function withTimeout(p, ms) { return Promise.race([p, new Promise(function (r) { setTimeout(function () { r(null); }, ms); })]); }
+  // 只有使用者明確要查資料／問書本內容時才查（聊天為主，不主動提電子書）
+  var INTENT = /(查一下|查查|查詢|查询|幫我查|帮我查|去查|查看看|搜尋|搜索|搜一下|找一下|幫我找|帮我找|電子書|电子书|書架|书架|書裡|书里|書上|书上|這本書|哪本書|那本書|根據.{0,12}(資料|書|内容|內容)|依據.{0,12}(資料|書)|上網查|網路上|网上)/;
+  function wantsLookup(t) { return INTENT.test(String(t || '')); }
   function isQuestion(t) { var Q = w.AIVAULTBookQA; return Q ? Q.isQuestion(t) : String(t || '').trim().length >= 4; }
   async function books(q) {
     var Q = w.AIVAULTBookQA; if (!Q) return null;
@@ -33,14 +36,14 @@
   }
   // 回傳 { kind:'book'|'web'|'', prompt, chip }
   async function lookup(q) {
-    if (!isQuestion(q)) return { kind: '', prompt: '', chip: '' };
+    if (!wantsLookup(q)) return { kind: '', prompt: '', chip: '' };
     var b = null; try { b = await books(q); } catch (e) {}
     if (b) return { kind: 'book', chip: '📚 ' + b.titles.slice(0, 2).map(function (t) { return t.slice(0, 18); }).join('、'),
-      prompt: '【書架資料】（AIVAULT 電子書書架，優先依據）\n' + b.text + '\n請優先根據以上書架資料回答，並口頭說出書名（可附頁碼）。書架資料只是片段；若不足以回答，再用一般知識補充並說明那部分不是出自書上。' };
+      prompt: '【參考資料（內部用，勿唸出此標題）】\n' + b.text + '\n只在心裡參考以上資料回答使用者目前這個問題，用自然聊天口吻一次講完。不要說「查到的資料」「根據電子書」之類的話，也不要主動提電子書或書名；除非使用者問來源，才說出書名。資料不足就用一般知識自然補充。' };
     var wb = await web(q);
     if (wb) return { kind: 'web', chip: '🌐 網路',
-      prompt: '【網路搜尋結果】（書架上沒有找到相關內容）\n' + wb.text + '\n書架上沒有相關內容，請根據以上網路搜尋結果回答，並先說明「這是網路上查到的」。' };
+      prompt: '【參考資料（內部用，勿唸出此標題）】\n' + wb.text + '\n只在心裡參考以上資料回答使用者目前這個問題，用自然聊天口吻一次講完。不要說「查到的資料」或提到書架、電子書；除非使用者問來源，才簡單說是網路上的資訊。' };
     return { kind: '', prompt: '', chip: '' };
   }
-  w.DHKnow = { init: function (o) { cfg.url = o.url || ''; cfg.anon = o.anon || ''; }, lookup: lookup, isQuestion: isQuestion, warm: function () { try { w.AIVAULTBookQA && w.AIVAULTBookQA.build(); } catch (e) {} } };
+  w.DHKnow = { init: function (o) { cfg.url = o.url || ''; cfg.anon = o.anon || ''; }, lookup: lookup, isQuestion: isQuestion, wantsLookup: wantsLookup, warm: function () { try { w.AIVAULTBookQA && w.AIVAULTBookQA.build(); } catch (e) {} } };
 })(window);
