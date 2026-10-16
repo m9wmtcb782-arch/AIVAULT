@@ -1562,12 +1562,12 @@
     // ===== 影片頭像：每個片段一個 <video>，切換只換透明度（快、不重新載入）；失敗退回照片 =====
     const dhVid = (() => {
       const DIR = REAL_FACE_DIR + 'video/';
-      const CLIPS = ['transition','idle','talk','happy','question','angry','affection','drink','petcat'];
-      const ONCE = { transition:1, drink:1, petcat:1, question:1, angry:1, affection:1, happy:0 };
+      const CLIPS = ['transition','idle','talk','happy','question','angry','affection','drink','petcat','hair','screen','stretch','think','catplay'];
+      const ONCE = { transition:1, drink:1, petcat:1, hair:1, screen:1, stretch:1, think:1, catplay:1, question:1, angry:1, affection:1, happy:0 };
       const MOOD = { happy:'happy', think:'question', wow:'question', angry:'angry', sad:'affection', affection:'affection' };
       const el = document.createElement('div'); el.className = 'dh-vid';
       const V = {};
-      let failed = false, clip = '', phase = 'intro', drinking = false, petting = false, waiting = false, forced = '', forcedUntil = 0, fillerN = 0, moodOnce = '', lastEmotion = 'calm';
+      let failed = false, clip = '', phase = 'intro', drinking = false, petting = false, filler = '', lastFiller = '', waitKind = '', waiting = false, forced = '', forcedUntil = 0, fillerN = 0, moodOnce = '', lastEmotion = 'calm';
       function fail() { if (failed) return; failed = true; el.remove(); document.querySelectorAll('.dh-head.vid').forEach(h => h.classList.remove('vid')); }
       CLIPS.forEach(n => {
         const v = document.createElement('video');
@@ -1579,6 +1579,7 @@
         v.onended = () => {
           if (n === 'transition') phase = 'main';
           if (n === 'drink') drinking = false;
+          if (n === filler) filler = '';
           if (n === 'petcat') { petting = false; v.muted = true; }
           if (n === moodOnce) moodOnce = '';
           update();
@@ -1601,6 +1602,7 @@
         if (isSpeaking || dhVoice.voiced) return 'idle';          // 說話時用 idle + 即時嘴型疊圖
         if (drinking) return 'drink';
         if (petting) return 'petcat';
+        if (filler) return filler;
         if (forced && Date.now() < forcedUntil) return forced;
         if (window.__dhReplyPending) return 'idle';               // 等回覆時不播情緒片段（改由 filler 處理）
         if (moodOnce) return moodOnce;
@@ -1636,11 +1638,11 @@
       }
       dhVoice.onChange(() => update(true));
       setInterval(() => { if (clip === 'talk' || clip === 'happy') show(clip, 120); }, 250);
-      function drink() { if (failed || phase === 'intro' || isSpeaking || petting) return; drinking = true; update(); }
+      function drink() { if (failed || phase === 'intro' || isSpeaking || petting) return; filler = ''; drinking = true; update(); }
       function petCat(withSound) {
         if (failed || phase === 'intro' || isSpeaking || drinking) return;
         const v = V.petcat; v.muted = !withSound; if (withSound) { v.removeAttribute('muted'); v.volume = 1; }
-        petting = true; update();
+        filler = ''; petting = true; update();
         if (withSound) v.play().catch(() => { v.muted = true; v.play().catch(() => {}); });
       }
       setInterval(() => { if (!isSpeaking && !drinking && !petting && phase === 'main' && clip === 'idle' && document.contains(el) && Math.random() < 0.2) petCat(false); }, 60000);
@@ -1649,7 +1651,7 @@
       status.style.cssText = 'position:absolute;left:8px;top:8px;z-index:2;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700;background:rgba(15,23,42,.75);color:#e2e8f0;display:none;';
       el.appendChild(status);
       function setStatus(t) { status.textContent = t || ''; status.style.display = t ? '' : 'none'; }
-      const ACTION = { transition:1, drink:1, petcat:1, question:1, angry:1, affection:1 };
+      const ACTION = { transition:1, drink:1, petcat:1, question:1, angry:1, affection:1, hair:1, screen:1, stretch:1, think:1, catplay:1 };
       function remainingMs() {
         if (failed || !ACTION[clip]) return 0;
         const v = V[clip]; const d = (v.duration || 8) - (v.currentTime || 0);
@@ -1667,11 +1669,19 @@
       }
       // 等待中的填充動作：drink / petcat（靜音）輪流
       function fillerTick() {
-        if (!waiting || failed || phase !== 'main' || isSpeaking || clip !== 'idle' || drinking || petting) return;
-        if ((fillerN++) % 2 === 0) drink(); else petCat(false);
+        if (!waiting || failed || phase !== 'main' || isSpeaking || clip !== 'idle' || drinking || petting || filler) return;
+        // 隨機、不重複上一個；等 AI 回覆時優先 think
+        const pool = ['drink','petcat','hair','screen','stretch','think','catplay'].filter(n => n !== lastFiller);
+        let pick;
+        if (waitKind === 'reply' && lastFiller !== 'think' && Math.random() < 0.6) pick = 'think';
+        else pick = pool[Math.floor(Math.random() * pool.length)];
+        lastFiller = pick; fillerN++;
+        if (pick === 'drink') drink();
+        else if (pick === 'petcat') petCat(false);
+        else { filler = pick; update(); }
       }
       setInterval(fillerTick, 1500);
-      function startWaiting(label) { waiting = true; setStatus(label); }
+      function startWaiting(label, kind) { waiting = true; waitKind = kind || 'net'; setStatus(label); }
       function stopWaiting() { waiting = false; setStatus(''); }
       function flash(name, ms) { forced = name; forcedUntil = Date.now() + ms; update(); setTimeout(() => { if (forced === name) { forced = ''; update(); } }, ms + 50); }
       function attach() {
@@ -1973,7 +1983,7 @@
     window.addEventListener('offline', () => { try { dhVid.startWaiting('重新連線中…'); } catch {} });
     window.addEventListener('online', () => {
       try {
-        if (window.__dhReplyPending) dhVid.startWaiting('連接中…'); else dhVid.stopWaiting();
+        if (window.__dhReplyPending) dhVid.startWaiting('連接中…', 'reply'); else dhVid.stopWaiting();
         dhVid.setStatus('已重新連線'); setTimeout(() => { try { dhVid.setStatus(window.__dhReplyPending ? '連接中…' : ''); } catch {} }, 1500);
         if (!isSpeaking) dhVid.flash('happy', 3500);
       } catch {}
@@ -2009,7 +2019,7 @@
         window.__dhReplyPending = true;
         // 等超過 1.2 秒才開始播填充動作
         clearTimeout(sendChat._fillT);
-        sendChat._fillT = setTimeout(() => { try { if (window.__dhReplyPending) dhVid.startWaiting(navigator.onLine === false ? '重新連線中…' : '連接中…'); } catch {} }, 1200);
+        sendChat._fillT = setTimeout(() => { try { if (window.__dhReplyPending) dhVid.startWaiting(navigator.onLine === false ? '重新連線中…' : '連接中…', navigator.onLine === false ? 'net' : 'reply'); } catch {} }, 1200);
         await thinkBrain(text, singing ? 'CREATIVE' : 'CONVERSATION');
         const body = {
           provider: h.brain_provider || h.provider || 'groq',
