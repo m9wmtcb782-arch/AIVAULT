@@ -52,7 +52,20 @@ for t in tables:
             off += step
         with open(OUT + "/data/" + t + ".json", "w") as f: json.dump(rows, f, ensure_ascii=False)
         counts[t] = len(rows)
-    except Exception as e: counts[t] = "ERROR " + str(e)[:200]
+    except Exception as e:
+        # service_role 沒有 GRANT 的表 → 改用 Management API SQL（postgres 身分）分頁匯出
+        try:
+            rows, off = [], 0
+            while True:
+                b = sql('select coalesce(json_agg(t), \'[]\'::json) as j from (select * from public."%s" offset %d limit 500) t' % (t.replace('"', '""'), off))
+                part = b[0]["j"] if b else []
+                if isinstance(part, str): part = json.loads(part)
+                rows += part
+                if len(part) < 500: break
+                off += 500
+            with open(OUT + "/data/" + t + ".json", "w") as f: json.dump(rows, f, ensure_ascii=False)
+            counts[t] = len(rows)
+        except Exception as e2: counts[t] = "ERROR " + str(e)[:100] + " / sql " + str(e2)[:150]
 report["tables"] = counts
 # 4) auth users (admin API)
 users, page = [], 1
@@ -96,7 +109,7 @@ try:
     lst = mgmt("/functions"); json.dump(lst, open(OUT + "/functions-list.json", "w"), indent=1)
     os.makedirs(OUT + "/functions", exist_ok=True)
     for f in lst:
-        r = subprocess.run(["supabase", "functions", "download", f["slug"], "--project-ref", REF, "--use-api"], cwd=OUT + "/functions", capture_output=True, text=True)
+        r = subprocess.run(["npx", "-y", "supabase@latest", "functions", "download", f["slug"], "--project-ref", REF, "--use-api"], cwd=OUT + "/functions", capture_output=True, text=True)
         fn[f["slug"]] = "ok" if r.returncode == 0 else ("ERR " + (r.stderr or r.stdout)[-150:])
 except Exception as e: fn = "ERROR " + str(e)[:200]
 report["functions"] = fn
