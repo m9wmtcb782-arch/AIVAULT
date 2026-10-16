@@ -54,6 +54,8 @@ try:
             for o in bk.get("outline",[])[:8]: print("  ACT",o.get("act"),o.get("title"),o.get("mood"))
             for n in bk.get("nodes",[])[:20]: print("  NODE",n.get("type"),n.get("speaker"),n.get("text","")[:70])
             print("  audio urls",sum(1 for v in (bk.get("audio_urls") or {}).values() if v))
+    if STEP=="delete":
+        for bid in ARG.split(","): print("DELETE",bid,y({"action":"delete_book","book_id":bid})[:2])
     if STEP=="warm":
         book=json.load(open("yinxu-demo-book.json")); C={c["id"]:c for c in book["characters"]}; t_end=time.time()+int(os.environ.get("MAXSTEPS","25"))*60; ok=0
         for i,n in enumerate(book["nodes"]):
