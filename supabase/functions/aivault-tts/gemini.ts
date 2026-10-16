@@ -72,13 +72,13 @@ export function wavAudio(base64: string, mime: string): { mime: string; base64: 
   ascii(36, "data"); view.setUint32(40, raw.length, true); wav.set(raw, 44);
   return { mime: "audio/wav", base64: bytesBase64(wav) };
 }
-export async function ttsGemini(text: string, language = "zh-TW", voice = "Aoede"): Promise<{ mime: string; base64: string }> {
+export async function ttsGemini(text: string, language = "zh-TW", voice = "Aoede", styleOverride = ""): Promise<{ mime: string; base64: string }> {
   if (!text.trim() || text.length > 2400) throw new Error("GEMINI_TTS_TEXT_LENGTH");
   if (!VOICES.has(voice)) throw new Error("GEMINI_TTS_INVALID_VOICE");
   const key = apiKey(); if (!key) throw new Error("GEMINI_TTS_NOT_CONFIGURED");
   const model = await selectModel(key);
   const delivery = language === "zh-CN" ? "Natural Mandarin Chinese" : "Natural Taiwanese Mandarin Chinese";
-  const style = `${delivery}. Warm, relaxed, conversational audiobook narration, like a person explaining text to a listener. Smooth connected phrasing, meaningful emphasis, natural sentence pauses, not robotic or overly theatrical. Preserve every word and legal article number exactly. Do not paraphrase, add commentary, greetings or stage directions.`;
+  const style = styleOverride ? `${delivery}. ${styleOverride} Preserve every word exactly. Do not add commentary or stage directions.` : `${delivery}. Warm, relaxed, conversational audiobook narration, like a person explaining text to a listener. Smooth connected phrasing, meaningful emphasis, natural sentence pauses, not robotic or overly theatrical. Preserve every word and legal article number exactly. Do not paraphrase, add commentary, greetings or stage directions.`;
   let audio: { data: string; mime_type?: string; mimeType?: string } | undefined;
   if (/^gemini-(?:3\.[8-9]|[4-9]\.)/.test(model)) {
     const data = await googleFetch("/interactions", key, {
