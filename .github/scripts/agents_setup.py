@@ -35,7 +35,7 @@ if any(s in STEPS for s in ("seed","test","all")):
         s,t=http(BASE+"/auth/v1/token?grant_type=password",{"email":email,"password":pw},{"apikey":ANON}); JWT=t["access_token"]; print("::add-mask::"+JWT)
         def y(body):
             t0=time.time(); s,b=http(BASE+"/functions/v1/dark-star-ebook-ingest?feature=agents",body,{"apikey":ANON,"Authorization":"Bearer "+JWT},"POST"); return s,b,round(time.time()-t0,1)
-        s,b,_=http(BASE+"/functions/v1/dark-star-ebook-ingest?feature=agents",{"action":"providers"},{"apikey":ANON,"Authorization":"Bearer "+ANON},"POST"); print("anon ->",s)
+        s,b=http(BASE+"/functions/v1/dark-star-ebook-ingest?feature=agents",{"action":"providers"},{"apikey":ANON,"Authorization":"Bearer "+ANON},"POST"); print("anon ->",s)
         s,b,_=(lambda r:(r[0],r[1],0))(http(BASE+"/rest/v1/aivault_pool_agents?select=id&limit=1",headers={"apikey":ANON,"Authorization":"Bearer "+JWT})); print("rest as admin ->",s,str(b)[:80])
         if "seed" in STEPS or "all" in STEPS: print("SEED",y({"action":"seed"})[:2])
         s,b,dt=y({"action":"providers"}); print("PROVIDERS",s,json.dumps(b,ensure_ascii=False)[:600])
