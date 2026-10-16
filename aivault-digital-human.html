@@ -1675,8 +1675,8 @@
         filler = ''; petting = true; update();
         if (withSound) v.play().catch(() => { v.muted = true; v.play().catch(() => {}); });
       }
-      setInterval(() => { if (!isSpeaking && !drinking && !petting && phase === 'main' && clip === 'idle' && document.contains(el) && Math.random() < 0.2) petCat(false); }, 60000);
-      setInterval(() => { if (!isSpeaking && !drinking && phase === 'main' && clip === 'idle' && document.contains(el) && Math.random() < 0.25) drink(); }, 45000);
+      setInterval(() => { if (!isSpeaking && !drinking && !petting && !window.__dhLiveActive && phase === 'main' && clip === 'idle' && document.contains(el) && Math.random() < 0.2) petCat(false); }, 60000);
+      setInterval(() => { if (!isSpeaking && !drinking && !window.__dhLiveActive && phase === 'main' && clip === 'idle' && document.contains(el) && Math.random() < 0.25) drink(); }, 45000);
       const status = document.createElement('div');
       status.style.cssText = 'position:absolute;left:8px;top:8px;z-index:2;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700;background:rgba(15,23,42,.75);color:#e2e8f0;display:none;';
       el.appendChild(status);
@@ -1698,19 +1698,25 @@
         });
       }
       // 等待中的填充動作：drink / petcat（靜音）輪流
+      let bag = [];
       function fillerTick() {
         if (!waiting || failed || phase !== 'main' || isSpeaking || clip !== 'idle' || drinking || petting || filler) return;
-        // 隨機、不重複上一個；等 AI 回覆時優先 think
-        const pool = ['drink','petcat','hair','screen','stretch','think','catplay'].filter(n => n !== lastFiller);
-        let pick;
-        if (waitKind === 'reply' && lastFiller !== 'think' && Math.random() < 0.6) pick = 'think';
-        else pick = pool[Math.floor(Math.random() * pool.length)];
+        // 洗牌袋：7 個片段全部輪過一次才重複，跨袋也不連續重複；等 AI 回覆時若袋中還有 think 就優先
+        if (!bag.length) {
+          bag = ['drink','petcat','hair','screen','stretch','think','catplay'];
+          for (let i = bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [bag[i], bag[j]] = [bag[j], bag[i]]; }
+          if (bag[0] === lastFiller) bag.push(bag.shift());
+        }
+        let idx = 0;
+        if (waitKind === 'reply' && !window.__dhLiveActive) { const k = bag.indexOf('think'); if (k >= 0 && lastFiller !== 'think') idx = k; }
+        const pick = bag.splice(idx, 1)[0];
         lastFiller = pick; fillerN++;
         if (pick === 'drink') drink();
         else if (pick === 'petcat') petCat(false);
         else { filler = pick; update(); }
       }
       setInterval(fillerTick, 1500);
+      function cancelAction() { if (failed) return; filler = ''; drinking = false; petting = false; moodOnce = ''; if (phase === 'intro') phase = 'main'; waiting = false; setStatus(''); clip === 'idle' || show('idle', 100); }
       function startWaiting(label, kind) { waiting = true; waitKind = kind || 'net'; setStatus(label); }
       function stopWaiting() { waiting = false; setStatus(''); }
       function flash(name, ms) { forced = name; forcedUntil = Date.now() + ms; update(); setTimeout(() => { if (forced === name) { forced = ''; update(); } }, ms + 50); }
@@ -1721,7 +1727,7 @@
         if (el.parentNode !== head) { head.appendChild(el); if (V[clip]) V[clip].play().catch(() => {}); }
         update();
       }
-      return { attach, update, drink, petCat, waitIdle, startWaiting, stopWaiting, setStatus, flash, get clip() { return clip; }, video: n => V[n], el, get failed() { return failed; } };
+      return { attach, update, drink, petCat, waitIdle, cancelAction, startWaiting, stopWaiting, setStatus, flash, get clip() { return clip; }, video: n => V[n], el, get failed() { return failed; } };
     })();
 
 
@@ -1769,10 +1775,21 @@
         if (ph > 0.72) return '';
         const k = Math.floor(t); return ['mid','wide','ee','mid','oh','slight','wide','u'][k % 8];
       }
+      // Gemini Live：依實際播放時間排程的嘴型 [ctxTime, viseme]
+      let liveQ = [], liveCtx = null, liveUntil = 0;
+      function schedule(ctx, list) { liveCtx = ctx; for (const it of list) liveQ.push(it); if (list.length) liveUntil = Math.max(liveUntil, list[list.length - 1][0] + 0.03); }
+      function clearSchedule() { liveQ = []; liveUntil = 0; }
+      function liveVis() {
+        const t = liveCtx.currentTime; let v = '';
+        while (liveQ.length > 1 && liveQ[1][0] <= t) liveQ.shift();
+        if (liveQ.length && liveQ[0][0] <= t && t < liveUntil) v = liveQ[0][1];
+        return v;
+      }
       let last = 0;
       function tick(now) {
         requestAnimationFrame(tick);
-        if (now - last < 33) return; last = now;
+        const live = liveCtx && liveQ.length && liveCtx.currentTime < liveUntil + 0.05;
+        if (!live && now - last < 33) return; last = now;
         const idle = dhVid.video('idle');
         const on = !dhVid.failed && dhVid.clip === 'idle' && (isSpeaking || dhVoice.voiced) && document.contains(dhVid.el);
         if (box.parentNode !== dhVid.el) dhVid.el.appendChild(box);
@@ -1780,6 +1797,7 @@
         box.style.display = '';
         const fi = Math.floor((idle.currentTime || 0) * FPS) % IDLE_OFF.length; const o = IDLE_OFF[fi] || [0, 0];
         box.style.left = ((X0 + o[0]) / VW * 100) + '%'; box.style.top = ((Y0 + o[1]) / VH * 100) + '%';
+        if (live) { if (now < holdUntil) return; const lv = liveVis(); if (lv !== cur) { setVis(lv); holdUntil = now + 40; } return; }
         if (now < holdUntil) return;
         let v = '';
         if (!dhVoice.voiced) v = '';
@@ -1789,7 +1807,7 @@
         setVis(v); holdUntil = now + 66;   // 每個嘴型至少 ~66ms，避免抖動
       }
       requestAnimationFrame(tick);
-      return { setVis };
+      return { setVis, schedule, clearSchedule };
     })();
 
 
@@ -1800,126 +1818,219 @@
     }
     try { window.speechSynthesis && window.speechSynthesis.addEventListener('voiceschanged', dhFillTtsSelect); } catch {}
 
-    // ===== Gemini Live 即時視訊（經 AIVAULT 後端 relay；金鑰在伺服器端，前端只帶登入 token）=====
+    // ===== Gemini Live 即時語音／視訊：協定完全比照 technical-dark-star-live-session.js（同一個後端 relay）=====
     const dhLive = (() => {
       const RELAY = 'wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-voice-v2';
-      let ws = null, stream = null, actx = null, proc = null, src = null, frameT = 0, pip = null, canvas = null;
-      let outCtx = null, outGain = null, analyser = null, playHead = 0, sources = [], drainT = 0;
-      let active = false, retry = 0, wantOpen = false, inBuf = '', outBuf = '', userIdx = -1, aiIdx = -1;
+      const AC = window.AudioContext || window.webkitAudioContext;
+      let ws = null, stream = null, inCtx = null, micNode = null, micSrc = null, frameT = 0, pip = null, canvas = null;
+      let playCtx = null, outGain = null, outDest = null, outEl = null, outMode = 'none', nextPlay = 0, sources = [], drainT = 0, userTalkingUntil = 0;
+      let active = false, wanted = false, retry = 0, camOn = false, inBuf = '', outBuf = '', userIdx = -1, aiIdx = -1;
+      let wsState = '未連線', micSent = 0, rx = 0, played = 0, lastErr = '', dbgEl = null, waitingAudio = false;
+      window.__dhLiveCam = false;
+      function token() {   // 同其他 live 頁：Supabase session（localStorage sb-…-auth-token）
+        try { const j = JSON.parse(localStorage.getItem('sb-clcddygkaaqqtsbswgdf-auth-token') || 'null'); const t = String((j && (j.access_token || (j.currentSession && j.currentSession.access_token))) || '').trim(); if (t) return t; } catch {}
+        try { return (session && session.access_token) || ''; } catch { return ''; }
+      }
+      function topicId() {
+        const k = 'aivault-dh-live-topic-id';
+        try { let v = localStorage.getItem(k); if (!v) { v = 'technical-dark-star-' + (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2)); localStorage.setItem(k, v); } return v; }
+        catch { return 'technical-dark-star-' + Date.now(); }
+      }
+      function dbg() {
+        if (!dbgEl) { dbgEl = document.createElement('div'); dbgEl.style.cssText = 'position:absolute;left:4px;right:4px;top:34px;z-index:3;font:10px/1.3 monospace;color:#9f9;background:rgba(0,0,0,.6);padding:2px 6px;border-radius:6px;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'; }
+        if (!active) { dbgEl.remove(); return; }
+        if (dbgEl.parentNode !== dhVid.el) dhVid.el.appendChild(dbgEl);
+        dbgEl.textContent = `${wsState} | 麥克風送出 ${micSent} | 收到音訊 ${rx} 播 ${played} | 聲音 ${playCtx ? playCtx.state : '-'} ${outMode}${outEl ? (outEl.paused ? ' 暫停' : '') : ''}${lastErr ? ' | ' + lastErr : ''}`;
+      }
+      setInterval(dbg, 500);
+      // —— 必須在點擊當下同步執行（iOS）——
+      function unlock() {
+        try { if (navigator.audioSession) navigator.audioSession.type = 'play-and-record'; } catch {}
+        if (!playCtx || playCtx.state === 'closed') {
+          playCtx = new AC(); outGain = playCtx.createGain();
+          // iOS 開麥克風時 Web Audio 直出常變聽筒/無聲：改經 MediaStreamDestination → <audio> 元素播放（同暗星頁做法）
+          if (playCtx.createMediaStreamDestination) {
+            outDest = playCtx.createMediaStreamDestination(); outGain.connect(outDest);
+            outEl = document.createElement('audio'); outEl.setAttribute('playsinline', ''); outEl.setAttribute('webkit-playsinline', ''); outEl.autoplay = true; outEl.muted = false; outEl.style.display = 'none';
+            document.body.appendChild(outEl); outEl.srcObject = outDest.stream; outMode = '待定';
+            outEl.play().then(() => { outMode = 'audio元素'; }).catch(e => { outMode = '直出'; try { outGain.disconnect(); } catch {} outGain.connect(playCtx.destination); lastErr = 'audioEl ' + (e.name || ''); });
+          } else { outGain.connect(playCtx.destination); outMode = '直出'; }
+        }
+        try { playCtx.resume(); } catch {}
+        try { const b = playCtx.createBuffer(1, 1, 22050), sN = playCtx.createBufferSource(); sN.buffer = b; sN.connect(outGain); sN.start(0); } catch {}
+        if (!inCtx || inCtx.state === 'closed') { try { inCtx = new AC({ sampleRate: 16000 }); } catch { inCtx = new AC(); } }
+        try { inCtx.resume(); } catch {}
+      }
       function b64(u8) { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); }
-      function unb64(b) { const s = atob(b); const u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; }
-      function toPCM16(f32, inRate) {
-        const ratio = inRate / 16000, n = Math.floor(f32.length / ratio), out = new Int16Array(n);
-        for (let i = 0; i < n; i++) { const v = Math.max(-1, Math.min(1, f32[Math.floor(i * ratio)])); out[i] = v < 0 ? v * 0x8000 : v * 0x7fff; }
-        return new Uint8Array(out.buffer);
+      function sendPcm(f32, rate) {
+        if (!ws || ws.readyState !== 1) return;
+        let data = f32;
+        if (rate !== 16000) { const r = rate / 16000, n = Math.floor(f32.length / r); data = new Float32Array(n); for (let i = 0; i < n; i++) data[i] = f32[Math.floor(i * r)]; }
+        const pcm = new Int16Array(data.length); for (let i = 0; i < data.length; i++) pcm[i] = Math.max(-1, Math.min(1, data[i])) * 32767;
+        try { ws.send(JSON.stringify({ type: 'audio', data: b64(new Uint8Array(pcm.buffer)), mimeType: 'audio/pcm;rate=16000' })); micSent++; } catch {}
       }
-      function ensureOut() {
-        if (outCtx) return;
-        outCtx = new (window.AudioContext || window.webkitAudioContext)();
-        outGain = outCtx.createGain(); analyser = outCtx.createAnalyser(); analyser.fftSize = 512;
-        outGain.connect(analyser); analyser.connect(outCtx.destination);
-        try { dhVoice.liveFeed(analyser, outCtx.sampleRate); } catch {}
+      async function startMic() {
+        micSrc = inCtx.createMediaStreamSource(stream);
+        const sink = inCtx.createGain(); sink.gain.value = 0;
+        try {   // AudioWorklet（每 ~32ms 送一包）
+          const code = `class P extends AudioWorkletProcessor{constructor(){super();this.b=[];this.n=0}process(i){const c=i[0]&&i[0][0];if(c){this.b.push(new Float32Array(c));this.n+=c.length;if(this.n>=512){const o=new Float32Array(this.n);let k=0;for(const x of this.b){o.set(x,k);k+=x.length}this.port.postMessage(o,[o.buffer]);this.b=[];this.n=0}}return true}}registerProcessor('dh-mic',P)`;
+          const url = URL.createObjectURL(new Blob([code], { type: 'application/javascript' }));
+          await inCtx.audioWorklet.addModule(url);
+          micNode = new AudioWorkletNode(inCtx, 'dh-mic');
+          micNode.port.onmessage = e => sendPcm(e.data, inCtx.sampleRate);
+        } catch (e) {
+          micNode = inCtx.createScriptProcessor(512, 1, 1);
+          micNode.onaudioprocess = ev => sendPcm(ev.inputBuffer.getChannelData(0), inCtx.sampleRate);
+        }
+        micSrc.connect(micNode); micNode.connect(sink); sink.connect(inCtx.destination);
       }
-      function playPcm(u8) {
-        ensureOut();
+      // —— 播放 + 由 PCM 直接算嘴型（每 20ms 一格，排在實際播放時間上）——
+      function visFor(rms, zcr) {
+        if (rms < 0.015) return '';
+        if (rms < 0.035) return 'slight';
+        if (zcr > 0.22) return 'ee';
+        if (zcr < 0.06 && rms > 0.07) return rms > 0.14 ? 'oh' : 'u';
+        return rms > 0.11 ? 'wide' : 'mid';
+      }
+      function playPCM(u8, rate) {
+        rx++;
+        if (!playCtx) return;
+        if (Date.now() < userTalkingUntil) return;
+        if (waitingAudio || dhVid.clip !== 'idle') { waitingAudio = false; try { dhVid.cancelAction(); } catch {} }
+        rate = rate || 24000;
         const n = Math.floor(u8.byteLength / 2); if (!n) return;
-        const dv = new DataView(u8.buffer, u8.byteOffset, n * 2); const buf = outCtx.createBuffer(1, n, 24000); const ch = buf.getChannelData(0);
+        const dv = new DataView(u8.buffer, u8.byteOffset, n * 2);
+        const buf = playCtx.createBuffer(1, n, rate), ch = buf.getChannelData(0);
         for (let i = 0; i < n; i++) ch[i] = dv.getInt16(i * 2, true) / 32768;
-        const s = outCtx.createBufferSource(); s.buffer = buf; s.connect(outGain);
-        const t = Math.max(outCtx.currentTime + 0.03, playHead); s.start(t); playHead = t + buf.duration;
-        sources.push(s); s.onended = () => { sources = sources.filter(x => x !== s); };
+        if (playCtx.state !== 'running') playCtx.resume().catch(() => {});
+        const s = playCtx.createBufferSource(); s.buffer = buf; s.connect(outGain);
+        const t0 = Math.max(playCtx.currentTime + 0.02, nextPlay); s.start(t0); nextPlay = t0 + buf.duration;
+        sources.push(s); s.onended = () => { sources = sources.filter(x => x !== s); played++; };
+        const step = Math.round(rate * 0.02), list = [];
+        for (let i = 0; i < n; i += step) {
+          let sum = 0, z = 0, m = Math.min(n, i + step);
+          for (let j = i; j < m; j++) { sum += ch[j] * ch[j]; if (j > i && (ch[j] >= 0) !== (ch[j - 1] >= 0)) z++; }
+          list.push([t0 + i / rate, visFor(Math.sqrt(sum / (m - i)), z / (m - i))]);
+        }
+        try { dhLip.schedule(playCtx, list); } catch {}
         if (!isSpeaking) setSpeaking(true);
-        clearTimeout(drainT); drainT = setTimeout(() => { if (!sources.length) setSpeaking(false); }, (playHead - outCtx.currentTime) * 1000 + 150);
+        clearTimeout(drainT); drainT = setTimeout(() => { if (!sources.length) setSpeaking(false); }, (nextPlay - playCtx.currentTime) * 1000 + 120);
       }
-      function interrupt() {   // barge-in：使用者插話，立刻停掉 AI 聲音
-        sources.forEach(s => { try { s.stop(); } catch {} }); sources = []; playHead = 0; clearTimeout(drainT); setSpeaking(false);
+      function playB64(b, mime) { const m = /rate=(\d+)/.exec(String(mime || '')); try { const bin = atob(b), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); playPCM(u, m ? +m[1] : 24000); } catch (e) { lastErr = 'decode'; } }
+      function bargeIn() {
+        sources.forEach(x => { try { x.stop(); } catch {} }); sources = []; nextPlay = 0; userTalkingUntil = Date.now() + 700;
+        clearTimeout(drainT); try { dhLip.clearSchedule(); } catch {} setSpeaking(false);
       }
       function upsert(role, text) {
-        if (role === 'user') { if (userIdx < 0 || userIdx !== chatLog.length - 1 || chatLog[userIdx]?.role !== 'user') { chatLog.push({ role: 'user', text: '' }); userIdx = chatLog.length - 1; } chatLog[userIdx].text = text; }
-        else { if (aiIdx < 0 || aiIdx !== chatLog.length - 1 || chatLog[aiIdx]?.role !== 'assistant') { chatLog.push({ role: 'assistant', text: '' }); aiIdx = chatLog.length - 1; } chatLog[aiIdx].text = text; }
-        lastSpoken = chatLog.length - 1;   // 不要再用 TTS 念一次
-        clearTimeout(upsert._t); upsert._t = setTimeout(() => { try { renderChat(); } catch {} }, 250);
+        if (role === 'user') { if (userIdx < 0 || chatLog[userIdx]?.role !== 'user' || userIdx !== chatLog.length - 1) { chatLog.push({ role: 'user', text: '' }); userIdx = chatLog.length - 1; } chatLog[userIdx].text = text; }
+        else { if (aiIdx < 0 || chatLog[aiIdx]?.role !== 'assistant' || aiIdx !== chatLog.length - 1) { chatLog.push({ role: 'assistant', text: '' }); aiIdx = chatLog.length - 1; } chatLog[aiIdx].text = text; }
+        lastSpoken = chatLog.length - 1;
+        clearTimeout(upsert._t); upsert._t = setTimeout(() => { try { renderChat(); } catch {} }, 300);
+      }
+      function takeAudio(d) {
+        if (d.audio && d.audio.data) { playB64(d.audio.data, d.audio.mimeType); return; }
+        if (d.data && d.mimeType && String(d.mimeType).indexOf('audio') === 0) { playB64(d.data, d.mimeType); return; }
+        const parts = (d.serverContent && d.serverContent.modelTurn && d.serverContent.modelTurn.parts) || (d.modelTurn && d.modelTurn.parts) || [];
+        parts.forEach(p => { const id = p && p.inlineData; if (id && id.data && String(id.mimeType || '').indexOf('audio') === 0) playB64(id.data, id.mimeType); });
       }
       function onMsg(raw) {
-        if (raw instanceof ArrayBuffer) { playPcm(new Uint8Array(raw)); return; }
-        let m; try { m = JSON.parse(raw); } catch { return; }
-        if (m.error) { const em = String(m.error.message || m.error); if (/AUTH/i.test(em)) { toast('請先登入 AIVAULT 帳號才能使用即時視訊'); wantOpen = false; } else toast('視訊連線錯誤：' + em); return; }
-        if (m.setupComplete || m.type === 'live_open') { retry = 0; try { dhVid.stopWaiting(); } catch {} }
-        const c = m.serverContent || {};
-        ((c.modelTurn && c.modelTurn.parts) || []).forEach(p => { const d = p.inlineData; if (d && d.data && /audio/.test(d.mimeType || '')) playPcm(unb64(d.data)); });
-        const inn = (c.inputTranscription && c.inputTranscription.text) || (m.type === 'inputTranscription' ? m.text : '');
+        if (raw instanceof ArrayBuffer) { playPCM(new Uint8Array(raw), 24000); return; }
+        if (typeof Blob !== 'undefined' && raw instanceof Blob) { raw.arrayBuffer().then(b => playPCM(new Uint8Array(b), 24000)); return; }
+        let d; try { d = JSON.parse(raw); } catch { return; }
+        const sc = d.serverContent || d;
+        if (d.type === 'interrupted' || sc.interrupted) bargeIn();
+        takeAudio(d);
+        if (d.type === 'live_open' || d.setupComplete) { wsState = 'Gemini 已連線'; retry = 0; try { dhVid.stopWaiting(); dhVid.cancelAction(); } catch {} }
+        const inn = (sc.inputTranscription && sc.inputTranscription.text) || (d.type === 'inputTranscription' ? d.text : '');
         if (inn) { inBuf += inn; upsert('user', inBuf); }
-        const out = (c.outputTranscription && c.outputTranscription.text) || (m.type === 'outputTranscription' ? m.text : '');
+        const out = (sc.outputTranscription && sc.outputTranscription.text) || (d.type === 'outputTranscription' ? d.text : '');
         if (out) { if (inBuf) { inBuf = ''; userIdx = -1; } outBuf += out; upsert('assistant', outBuf); }
-        if (c.interrupted || m.type === 'interrupted') interrupt();
-        if (c.turnComplete || m.turnComplete || m.type === 'turnComplete') { outBuf = ''; aiIdx = -1; inBuf = ''; userIdx = -1; }
+        if (sc.turnComplete || d.turnComplete || d.type === 'turnComplete') { outBuf = ''; aiIdx = -1; inBuf = ''; userIdx = -1; }
+        if (d.type === 'error' || d.error) {
+          const m = d.message || (d.error && d.error.message) || JSON.stringify(d.error || d); lastErr = String(m).slice(0, 60);
+          if (/AUTH_REQUIRED|INVALID_AUTH/.test(m)) { wanted = false; toast('請先登入 AIVAULT 再使用即時語音'); }
+          if (/TOPIC_ID_REQUIRED/.test(m)) { try { localStorage.removeItem('aivault-dh-live-topic-id'); } catch {} }
+        }
       }
-      async function token() { try { const { data } = await sb.auth.getSession(); return data?.session?.access_token || ''; } catch { return ''; } }
-      async function connect() {
-        const h = current || {};
-        const q = new URLSearchParams();
-        q.set('voice', dhLiveVoice()); q.set('agent_id', 'digital-human'); q.set('client', 'aivault-digital-human');
-        q.set('video', '1'); q.set('lip_sync', '1'); q.set('language', 'zh-TW');
-        if (h.id) q.set('digital_human_id', h.id);
-        const tok = await token(); if (tok) q.set('access_token', tok);
-        try { dhVid.startWaiting(retry ? '重新連線中…' : '連接中…', 'net'); } catch {}
-        ws = new WebSocket(RELAY + '?' + q.toString()); ws.binaryType = 'arraybuffer';
-        ws.onopen = () => {
-          const persona = `（系統設定，請勿念出）你是數字人「${h.name || 'AIVAULT'}」。角色：${h.persona_role || '陪伴'}；語氣：${h.persona_tone || '溫和'}。全程使用台灣繁體中文口語、自然簡短，像視訊聊天；你看得到使用者鏡頭畫面，可以自然提到看到的東西。現在先用一句話打招呼。`;
-          try { ws.send(JSON.stringify({ type: 'text', text: persona })); } catch {}
-          setTimeout(() => { try { dhVid.stopWaiting(); } catch {} }, 1500);
-          if (retry) { try { dhVid.flash('happy', 3000); } catch {} }
-          retry = 0;
-        };
-        ws.onmessage = e => onMsg(e.data);
-        ws.onclose = () => {
-          ws = null;
-          if (active && wantOpen && retry < 5) { retry++; try { dhVid.startWaiting('重新連線中…', 'net'); } catch {} setTimeout(() => { if (active && wantOpen) connect(); }, Math.min(8000, 1000 * 2 ** retry)); }
-          else if (active) { toast('即時視訊已中斷'); stop(); }
-        };
-        ws.onerror = () => {};
+      function connect() {
+        return new Promise((resolve, reject) => {
+          const q = new URLSearchParams();
+          q.set('voice', dhLiveVoice()); q.set('agent_id', 'technical-dark-star'); q.set('topic_id', topicId());
+          const conv = localStorage.getItem('technical_dark_star_conversation_id') || ''; if (conv) q.set('conversation_id', conv);
+          const tok = token(); if (tok) q.set('access_token', tok); else lastErr = '未登入';
+          wsState = retry ? '重新連線中…' : '連線中…';
+          try { dhVid.startWaiting(retry ? '重新連線中…' : '連接中…', 'net'); } catch {}
+          waitingAudio = true;
+          const sock = new WebSocket(RELAY + '?' + q.toString()); sock.binaryType = 'arraybuffer'; ws = sock;
+          const t = setTimeout(() => { try { sock.close(); } catch {} reject(new Error('連線逾時')); }, 8000);
+          sock.onopen = () => { clearTimeout(t); wsState = '已連線'; resolve(); };
+          sock.onerror = () => { clearTimeout(t); lastErr = 'WS error'; reject(new Error('WebSocket error')); };
+          sock.onmessage = e => onMsg(e.data);
+          sock.onclose = ev => {
+            clearTimeout(t); if (ws === sock) ws = null; wsState = '斷線 ' + ev.code;
+            if (active && wanted && retry < 6) { retry++; try { dhVid.startWaiting('重新連線中…', 'net'); } catch {}
+              setTimeout(() => { if (active && wanted) connect().catch(() => {}); }, Math.min(15000, 800 * 2 ** retry)); }
+            else if (active) { toast('即時語音已中斷' + (lastErr ? '：' + lastErr : '')); stop(); }
+          };
+        });
+      }
+      function startFrames() {
+        clearInterval(frameT);
+        if (!camOn) return;
+        canvas = canvas || document.createElement('canvas');
+        frameT = setInterval(() => {
+          if (!ws || ws.readyState !== 1 || !pip || pip.readyState < 2 || !pip.videoWidth) return;
+          const w = Math.min(640, pip.videoWidth), h = Math.round(pip.videoHeight * w / pip.videoWidth); canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(pip, 0, 0, w, h);
+          try { ws.send(JSON.stringify({ type: 'video', data: canvas.toDataURL('image/jpeg', 0.72).split(',')[1], mimeType: 'image/jpeg' })); } catch {}
+        }, 1000);
+      }
+      async function setCam(on) {
+        camOn = !!on; window.__dhLiveCam = camOn;
+        if (!active) { renderChat(); return; }
+        if (camOn) {
+          try {
+            const vs = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } });
+            vs.getVideoTracks().forEach(tr => stream.addTrack(tr));
+            pip = document.createElement('video'); pip.muted = true; pip.playsInline = true; pip.setAttribute('playsinline', ''); pip.autoplay = true;
+            pip.srcObject = new MediaStream(stream.getVideoTracks());
+            pip.style.cssText = 'position:absolute;left:8px;bottom:8px;width:28%;aspect-ratio:3/4;object-fit:cover;border-radius:10px;border:2px solid rgba(255,255,255,.6);transform:scaleX(-1);z-index:3;background:#000;';
+            dhVid.el.appendChild(pip); pip.play().catch(() => {});
+            startFrames();
+          } catch (e) { camOn = false; window.__dhLiveCam = false; toast('無法開啟鏡頭'); }
+        } else {
+          clearInterval(frameT); try { stream.getVideoTracks().forEach(tr => { tr.stop(); stream.removeTrack(tr); }); } catch {}
+          try { pip && pip.remove(); } catch {} pip = null;
+        }
+        renderChat();
       }
       async function start() {
         if (active) return;
-        if (!navigator.mediaDevices?.getUserMedia) return toast('此瀏覽器不支援鏡頭/麥克風');
+        unlock();                                   // 同步、在點擊手勢內
+        active = true; wanted = true; retry = 0; micSent = rx = played = 0; lastErr = ''; window.__dhLiveActive = true;
+        stopTalk(); renderChat(); dbg();
         try {
-          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
-            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
-        } catch (e) { return toast('無法開啟鏡頭/麥克風：' + (e.message || e.name)); }
-        stopTalk(); active = true; window.__dhLiveActive = true; wantOpen = true; retry = 0; ensureOut(); try { outCtx.resume(); } catch {}
-        // 自拍小畫面
-        pip = document.createElement('video'); pip.muted = true; pip.playsInline = true; pip.setAttribute('playsinline', ''); pip.autoplay = true; pip.srcObject = stream;
-        pip.style.cssText = 'position:absolute;left:8px;bottom:8px;width:28%;aspect-ratio:3/4;object-fit:cover;border-radius:10px;border:2px solid rgba(255,255,255,.6);transform:scaleX(-1);z-index:3;background:#000;';
-        try { dhVid.el.appendChild(pip); pip.play().catch(() => {}); } catch {}
-        // 麥克風 → PCM16 16kHz
-        actx = new (window.AudioContext || window.webkitAudioContext)();
-        src = actx.createMediaStreamSource(stream); proc = actx.createScriptProcessor(4096, 1, 1);
-        const mute = actx.createGain(); mute.gain.value = 0;
-        proc.onaudioprocess = e => { if (ws && ws.readyState === 1) { try { ws.send(JSON.stringify({ type: 'audio', data: b64(toPCM16(e.inputBuffer.getChannelData(0), actx.sampleRate)), mimeType: 'audio/pcm;rate=16000' })); } catch {} } };
-        src.connect(proc); proc.connect(mute); mute.connect(actx.destination);
-        // 約每秒一張 JPEG
-        canvas = document.createElement('canvas');
-        frameT = setInterval(() => {
-          if (!ws || ws.readyState !== 1 || !pip || !pip.videoWidth) return;
-          const w = 384, hh = Math.round(pip.videoHeight * w / pip.videoWidth); canvas.width = w; canvas.height = hh;
-          canvas.getContext('2d').drawImage(pip, 0, 0, w, hh);
-          try { ws.send(JSON.stringify({ type: 'video', data: canvas.toDataURL('image/jpeg', 0.6).split(',')[1], mimeType: 'image/jpeg' })); } catch {}
-        }, 1000);
-        await connect();
-        renderChat();
+          if (!navigator.mediaDevices?.getUserMedia) throw new Error('此瀏覽器不支援麥克風');
+          stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+          await connect();
+          await startMic();                         // 麥克風持續開著，免按
+          if (camOn) { camOn = false; await setCam(true); }
+        } catch (e) { lastErr = String(e.message || e).slice(0, 60); toast('無法開始即時語音：' + lastErr); stop(); }
       }
       function stop() {
-        wantOpen = false; active = false; window.__dhLiveActive = false;
-        try { ws && ws.readyState <= 1 && ws.send(JSON.stringify({ type: 'close' })); } catch {}
+        wanted = false; active = false; window.__dhLiveActive = false;
         try { ws && ws.close(); } catch {} ws = null;
-        clearInterval(frameT); interrupt();
-        try { proc && proc.disconnect(); src && src.disconnect(); actx && actx.close(); } catch {} proc = src = actx = null;
+        clearInterval(frameT); bargeIn();
+        try { micSrc && micSrc.disconnect(); micNode && micNode.disconnect(); } catch {} micSrc = micNode = null;
+        try { inCtx && inCtx.close(); } catch {} inCtx = null;
+        try { playCtx && playCtx.close(); } catch {} playCtx = null;
+        try { outEl && outEl.remove(); } catch {} outEl = null; outMode = 'none';
         try { stream && stream.getTracks().forEach(t => t.stop()); } catch {} stream = null;
         try { pip && pip.remove(); } catch {} pip = null;
         try { dhVid.stopWaiting(); } catch {}
-        renderChat();
+        wsState = '未連線'; dbg(); renderChat();
       }
-      return { start, stop, get active() { return active; } };
+      return { start, stop, toggleCam: () => setCam(!camOn), get active() { return active; } };
     })();
 
     function emotionLabel(e) {
@@ -1962,12 +2073,14 @@
         <p class="muted" style="margin-bottom:8px;">沒有固定台詞。你問什麼，AI 就答什麼，並用語音唸出來。</p>
         <div class="row" style="margin-bottom:8px;">
           <button class="pill ghost" type="button" id="btnRecVideo">${recordingVideo ? '錄製中…' : '錄製這句成影片'}</button>
-          <button class="pill ${window.__dhLiveActive ? 'danger' : ''}" type="button" id="btnLive">${window.__dhLiveActive ? '⏹ 結束視訊' : '📹 即時視訊'}</button>
+        </div>
+        <div class="row" style="margin-bottom:8px;gap:8px;">
+          <button class="pill ${window.__dhLiveActive ? 'danger' : ''}" type="button" id="btnLive" style="flex:2;font-size:17px;padding:14px 10px;">${window.__dhLiveActive ? '⏹ 結束' : '▶ 開始即時語音'}</button>
+          <button class="pill ghost" type="button" id="btnLiveCam" style="flex:1;">${window.__dhLiveCam ? '📷 鏡頭開' : '📷 鏡頭關'}</button>
         </div>
         <div class="row" style="margin-bottom:8px;gap:6px;align-items:center;flex-wrap:wrap;">
           <span class="muted" style="font-size:12px;">手機語音</span>
           <select id="selTtsVoice" style="flex:1;min-width:140px;max-width:230px;"></select>
-          <button class="pill ghost" type="button" id="btnTtsPreview">試聽</button>
           <span class="muted" style="font-size:12px;">視訊聲音</span>
           <select id="selLiveVoice" style="flex:1;min-width:120px;max-width:200px;">${DH_LIVE_VOICES.map(([v, l]) => `<option value="${v}" ${dhLiveVoice()===v?'selected':''}>${l}</option>`).join('')}</select>
         </div>
@@ -1995,12 +2108,9 @@
       document.getElementById('btnVoiceStudio').onclick = () => { location.href = 'aivault-voice-studio.html'; };
       document.getElementById('btnRecVideo').onclick = recordChatVideo;
       document.getElementById('btnLive').onclick = () => { dhLive.active ? dhLive.stop() : dhLive.start(); };
+      document.getElementById('btnLiveCam').onclick = () => dhLive.toggleCam();
       dhFillTtsSelect();
       document.getElementById('selTtsVoice').onchange = e => { try { localStorage.setItem('dh_tts_voice', e.target.value); } catch {} };
-      document.getElementById('btnTtsPreview').onclick = () => {
-        try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance('你好，我是' + ((current && current.name) || '你的數字人') + '，很高興跟你聊天。');
-          const v = pickTalkVoice('zh-TW'); if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'zh-TW'; speechSynthesis.speak(u); } catch {}
-      };
       document.getElementById('selLiveVoice').onchange = e => { try { localStorage.setItem('dh_live_voice', e.target.value); } catch {} if (dhLive.active) toast('下次開啟視訊時套用'); };
       document.getElementById('btnDlClip')?.addEventListener('click', downloadChatClip);
       const last = chatLog[chatLog.length - 1];
