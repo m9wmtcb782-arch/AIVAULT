@@ -144,7 +144,7 @@
     .dh-mouth.on { animation: talk .28s infinite; }
     .dh-head.real { width:220px; height:280px; border-radius:20px; background:#0f172a; }
     .dh-head.real .face-svg, .dh-head.real .dh-mouth, .dh-head.real > img:not(.dh-real) { display:none; }
-    .dh-head .dh-real { display:none; position:absolute; inset:0; width:100%; height:100%; object-fit:cover; border-radius:inherit; transform-origin:50% 70%; }
+    .dh-head .dh-real { display:none; position:absolute; left:-210px; top:-30px; width:auto; height:672px; max-width:none; transform-origin:50% 70%; }
     .dh-head.real .dh-real { display:block; }
     .face-stage {
       position: relative; overflow: hidden; border-radius: 16px;
@@ -1159,10 +1159,10 @@
       document.querySelectorAll('.face-stage').forEach(el => el.classList.toggle('talking', isSpeaking));
       document.querySelectorAll('.dh-head.real').forEach(el => {
         el.classList.toggle('talking', isSpeaking);
-        const img = el.querySelector('.dh-real');
-        if (img) img.setAttribute('src', realFaceSrc(currentEmotion, isSpeaking));
+
       });
       if (isSpeaking) startMouth(); else stopMouth();
+      paintFace();
     }
     function stopTalk() {
       setSpeaking(false);
@@ -1415,23 +1415,33 @@
 
     // 真人表情包（digital-human-real/）：載入失敗才退回原本的 orb
     const REAL_FACE_DIR = 'digital-human-real/';
+    // 狀態：情緒(happy 有專屬臉) + 嘴型 n(0-3) + 眨眼階段(0 開/1 半/2 閉)
+    let mouthN = 0, blinkStage = 0;
     function realFaceSrc(emotion, talking) {
-      if (talking) return REAL_FACE_DIR + 'mouth0.jpg';
-      const m = { happy:'happy', angry:'angry', think:'question', wow:'question', sad:'affection' }[emotion];
-      return REAL_FACE_DIR + (m || 'base') + '.jpg';
+      const happy = emotion === 'happy';
+      let f;
+      if (blinkStage) f = (happy ? 'happy_' : '') + (blinkStage === 2 ? 'blink' : 'blink_half');
+      else if (talking) f = happy ? (mouthN ? 'happy_mouth' + mouthN : 'happy') : 'mouth' + mouthN;
+      else f = { happy:'happy', angry:'angry', think:'question', wow:'question', sad:'affection' }[emotion] || 'base';
+      return REAL_FACE_DIR + f + '.jpg';
     }
-    // 說話嘴型：mouth0 閉 / mouth1 微開 / mouth2 開(啊) / mouth3 圓(喔)，不規則循環，字詞間閉嘴
-    ['mouth0','mouth1','mouth2','mouth3'].forEach(n => { const i = new Image(); i.src = REAL_FACE_DIR + n + '.jpg'; });
+    function paintFace() {
+      document.querySelectorAll('.dh-head.real .dh-real').forEach(img => {
+        const src = realFaceSrc(currentEmotion, isSpeaking || (typeof singing !== 'undefined' && singing));
+        if (img.getAttribute('src') !== src) img.setAttribute('src', src);
+      });
+    }
+    ['base','mouth0','mouth1','mouth2','mouth3','blink','blink_half','happy','happy_mouth1','happy_mouth2','happy_mouth3','happy_blink','happy_blink_half','angry','question','affection']
+      .forEach(n => { const i = new Image(); i.src = REAL_FACE_DIR + n + '.jpg'; });
+    // 說話嘴型：不規則循環，字詞間閉嘴；語音 boundary 事件會觸發張嘴
     let mouthTimer = null, mouthKickAt = 0, syll = 0;
-    function setMouth(n) {
-      document.querySelectorAll('.dh-head.real.talking .dh-real').forEach(img => img.setAttribute('src', REAL_FACE_DIR + 'mouth' + n + '.jpg'));
-    }
+    function setMouth(n) { mouthN = n; paintFace(); }
     function pickOpen() {
       const r = Math.random();
       return r < 0.30 ? 1 : r < 0.72 ? 2 : 3;
     }
     function mouthStep() {
-      if (!isSpeaking) { mouthTimer = null; return; }
+      if (!isSpeaking) { mouthTimer = null; mouthN = 0; return; }
       let n, ms;
       const kicked = Date.now() - mouthKickAt < 160;
       if (kicked) { n = pickOpen(); ms = 90 + Math.random() * 50; syll = 0; }
@@ -1442,16 +1452,22 @@
     }
     window.__dhMouthKick = () => { mouthKickAt = Date.now(); if (isSpeaking) { clearTimeout(mouthTimer); mouthStep(); } };
     function startMouth() { if (!mouthTimer) mouthStep(); }
-    function stopMouth() { clearTimeout(mouthTimer); mouthTimer = null; }
+    function stopMouth() { clearTimeout(mouthTimer); mouthTimer = null; mouthN = 0; paintFace(); }
 
-    setInterval(() => {
-      document.querySelectorAll('.dh-head.real:not(.talking) .dh-real').forEach(img => {
-        const prev = img.getAttribute('src');
-        if (!prev || prev.indexOf('blink') >= 0) return;
-        img.setAttribute('src', REAL_FACE_DIR + 'blink.jpg');
-        setTimeout(() => { if (img.getAttribute('src').indexOf('blink') >= 0) img.setAttribute('src', prev); }, 180);
-      });
-    }, 4000);
+    // 眨眼：開→半→閉→半→開（每步 40-60ms），隨機 2.5-6 秒，偶爾連眨兩次；說話中也會眨
+    function blinkOnce(done) {
+      const seq = [1, 2, 1, 0];
+      let i = 0;
+      (function step() {
+        blinkStage = seq[i++]; paintFace();
+        if (i < seq.length) setTimeout(step, 40 + Math.random() * 20); else if (done) done();
+      })();
+    }
+    (function scheduleBlink() {
+      setTimeout(() => {
+        blinkOnce(() => { if (Math.random() < 0.2) setTimeout(() => blinkOnce(scheduleBlink), 120); else scheduleBlink(); });
+      }, 2500 + Math.random() * 3500);
+    })();
 
     function emotionLabel(e) {
       return { happy:'樂', angry:'怒', sad:'哀', wow:'驚', think:'思', calm:'平' }[e] || '平';
