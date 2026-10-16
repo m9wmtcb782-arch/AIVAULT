@@ -165,6 +165,7 @@
     var it = (sc.inputTranscription && sc.inputTranscription.text) || (m.type === "inputTranscription" && m.text) || "";
     var ot = (sc.outputTranscription && sc.outputTranscription.text) || (m.type === "outputTranscription" && m.text) || "";
     if (it) { turn.inTxt += it; showTxt("user", turn.inTxt.trim()); }
+    if (ot && w.AIVAULTEtiquette && w.AIVAULTEtiquette.silent && w.AIVAULTEtiquette.silent("dark")) ot = ""; // 被靜音（未點名／自動招呼）時不顯示
     if (ot) { turn.outTxt += ot; showTxt("assistant", turn.outTxt.trim()); }
     if (sc.turnComplete || m.turnComplete || m.type === "turnComplete" || sc.interrupted || m.type === "interrupted") finishTurn();
   }
