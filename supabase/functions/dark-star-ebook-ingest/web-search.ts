@@ -1,4 +1,4 @@
-// ?feature=web-search：免費網路搜尋（Bing RSS → DuckDuckGo HTML 備援），只回標題／網址／摘要，不呼叫付費 AI。
+// ?feature=web-search：免費網路搜尋（DuckDuckGo HTML → Bing RSS 備援），只回標題／網址／摘要，不呼叫付費 AI。
 import { parseResults } from "../dark-star-photo-solve/legal-research.ts";
 const H = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS", "Content-Type": "application/json" };
 const out = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: H });
@@ -12,7 +12,8 @@ function relevant(q: string, t: string) {
   const keys: string[] = [];
   for (const w of q.toLowerCase().split(/[\s，。、？！?!,.]+/)) { if (/[\u3400-\u9fff]/.test(w)) { for (let i = 0; i + 2 <= w.length; i++) keys.push(w.slice(i, i + 2)); } else if (w.length >= 3) keys.push(w); }
   if (!keys.length) return true; t = t.toLowerCase();
-  return keys.some((k) => t.includes(k));
+  const hit = keys.filter((k) => t.includes(k)).length;
+  return hit >= Math.max(1, Math.ceil(keys.length / 2));
 }
 export async function webSearch(r: Request) {
   if (r.method === "OPTIONS") return new Response("ok", { headers: H });
@@ -21,7 +22,7 @@ export async function webSearch(r: Request) {
     const q = String(b.q || "").trim().slice(0, 200);
     if (q.length < 2) return out({ error: "q required" }, 400);
     let rows: { title: string; url: string; snippet: string }[] = [], engine = "";
-    for (const [name, url] of [["bing", "https://www.bing.com/search?format=rss&mkt=zh-TW&setlang=zh-Hant&cc=TW&q=" + encodeURIComponent(q)], ["duckduckgo", "https://html.duckduckgo.com/html/?kl=tw-tzh&q=" + encodeURIComponent(q)]]) {
+    for (const [name, url] of [["duckduckgo", "https://html.duckduckgo.com/html/?kl=tw-tzh&q=" + encodeURIComponent(q)], ["bing", "https://www.bing.com/search?format=rss&mkt=zh-TW&setlang=zh-Hant&cc=TW&q=" + encodeURIComponent(q)]]) {
       try { rows = parseResults(await get(url)).filter((x) => /^https?:\/\//.test(x.url) && relevant(q, x.title + " " + x.snippet)); if (rows.length) { engine = name; break; } } catch { /* next */ }
     }
     const seen = new Set<string>();
