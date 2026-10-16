@@ -58,11 +58,11 @@ export async function llm(system: string, user: string, opts: { maxTokens?: numb
         method: "POST", headers: { "x-goog-api-key": GKEY(), "Content-Type": "application/json" }, signal: AbortSignal.timeout(110000),
         body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: [{ role: "user", parts: [{ text: user }] }], generationConfig: { responseMimeType: "application/json", temperature: 0.9, maxOutputTokens: opts.maxTokens || 8192 } }),
       });
-      if (!r.ok) { last = m + ":" + r.status + ":" + (await r.text()).slice(0, 120).replace(/\s+/g, " "); continue; }
+      if (!r.ok) { last += " " + m + ":" + r.status + ":" + (await r.text()).slice(0, 100).replace(/\s+/g, " "); continue; }
       const j = await r.json(); const t = (j.candidates?.[0]?.content?.parts || []).map((p: any) => p.text || "").join("");
-      const mm = t.match(/\{[\s\S]*\}/); if (!mm) { last = m + ":nojson"; continue; }
-      const v = JSON.parse(mm[0]); v.__model = m; return v;
-    } catch (e) { last = m + ":" + String((e as any)?.message || e).slice(0, 60); }
+      const mm = t.match(/\{[\s\S]*\}/); if (!mm) { last += " " + m + ":nojson(" + (j.candidates?.[0]?.finishReason || "") + "," + t.length + ")"; continue; }
+      try { const v = JSON.parse(mm[0]); v.__model = m; return v; } catch { last += " " + m + ":badjson(" + (j.candidates?.[0]?.finishReason || "") + "," + t.length + ")"; continue; }
+    } catch (e) { last += " " + m + ":" + String((e as any)?.message || e).slice(0, 60); }
   }
   try { // 最後退回 ai-gateway（多金鑰／多供應商）
     const r = await fetch(URL0 + "/functions/v1/ai-gateway", { method: "POST", headers: { ...SRH, "Content-Type": "application/json" }, signal: AbortSignal.timeout(110000), body: JSON.stringify({ provider: "gemini", messages: [{ role: "system", content: system }, { role: "user", content: user }] }) });
@@ -121,7 +121,7 @@ async function compileStep(job: any) {
     for (const c of v.characters || []) { if (!c?.name) continue; const o = job.bible.characters[c.name] || { name: c.name, mentions: 0 }; o.mentions++; o.gender = c.gender || o.gender; o.age = c.age || o.age; o.traits = [o.traits, c.traits].filter(Boolean).join("；").slice(-400); o.speech = c.speech || o.speech; job.bible.characters[c.name] = o; }
     job.bible.events.push(...(v.events || []).slice(0, 8)); job.bible.scenes.push(...(v.scenes || []).slice(0, 4));
     job.bible.lines.push(...(v.lines_to_protagonist || []).slice(0, 6)); if (v.protagonist) job.bible.protagonist_votes[v.protagonist] = (job.bible.protagonist_votes[v.protagonist] || 0) + 1;
-    job.next_page = to + 1; job.log.push(`解析第 ${job.next_page - (to - job.next_page + 1)}–${to} 頁（${v.__model}）`);
+    job.log.push(`解析第 ${job.next_page}–${to} 頁（${v.__model}）`); job.next_page = to + 1;
     if (job.next_page > job.total_pages) job.stage = "compose";
     return;
   }
@@ -170,7 +170,7 @@ async function ttsCached(text: string, voice: string, style: string) {
 
 /* ---------- 執行期導演 ---------- */
 const DIRECT_SYS = (pkg: any) => "你是因序小說的執行期導演，統籌說書人與各角色 AI，並兼任世界狀態管理與防誘導監督。繁體中文口語。\n" + RULES(pkg.original_ending || "") +
-  "\n【理解讀者】先真正理解主角（讀者）剛剛說的話的意圖。不論多出乎意料，都要讓故事依照他的選擇分歧發展，絕對不要因為沒聽懂就照原劇情或原著主角的台詞走。若回答模糊到無法判斷意圖（例如只有「嗯」「不知道」或辨識亂碼），設 understood=false，並由剛才提問的角色用不同說法追問一次以確認（開放式，不給選項）。" +
+  "\n【理解讀者】先真正理解主角（讀者）剛剛說的話的意圖。不論多出乎意料，都要讓故事依照他的選擇分歧發展，絕對不要因為沒聽懂就照原劇情或原著主角的台詞走。若回答模糊到無法判斷意圖（例如只有「嗯」「不知道」或辨識亂碼），設 understood=false，並由剛才提問的角色用不同說法追問一次以確認（開放式，追問句裡也不可列舉選項）。" +
   "\n【自由生成】依角色性格、世界狀態與全書大綱（僅作背景，不是必經路線）自由生成接下來的場景：先讓角色對主角的回答做出真實反應，再由說書人推進，3–8 句，每句 60 字內，結尾通常由某角色向主角提出一個開放式問題。不要替主角說話。" +
   "\n只輸出 JSON：{\"understood\":true,\"interpretation\":\"你理解的主角意圖\",\"clarify\":\"若 understood=false：追問句\",\"lines\":[{\"speaker\":\"narrator 或角色 id\",\"text\":\"\",\"sfx\":\"可空：waves|rain|wind|fire|footsteps|door|bell|thunder|crowd|birds\"}],\"mood\":\"calm|tense|sad|warm|mystery|storm|night|battle\",\"prompt\":{\"speaker\":\"角色 id\",\"text\":\"開放式問題\"},\"world\":{\"facts\":[\"新增的不可逆事實\"],\"act\":1},\"ending\":false}" +
   "\n當主角的選擇已讓故事自然走到一個結局（約 6–10 個回合後），設 ending=true、prompt=null，lines 寫收尾。";
@@ -223,4 +223,4 @@ export async function yinxu(r: Request) {
     return out({ error: "unknown action" }, 400);
   } catch (e) { return out({ error: String((e as any)?.message || e).slice(0, 300) }, 500); }
 }
-function slim(j: any) { const { bible, package: p, ...rest } = j; return { ...rest, characters_found: Object.keys(bible?.characters || {}).length, book_id: p?.book_id || null, audio_total: p?.nodes?.length || 0, log: j.log.slice(-30) }; }
+function slim(j: any) { const { bible, package: p, text_pages, ...rest } = j; return { ...rest, characters_found: Object.keys(bible?.characters || {}).length, book_id: p?.book_id || null, audio_total: p?.nodes?.length || 0, log: j.log.slice(-30) }; }
