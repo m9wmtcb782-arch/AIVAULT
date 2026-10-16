@@ -146,6 +146,13 @@
     .dh-head.real .face-svg, .dh-head.real .dh-mouth, .dh-head.real > img:not(.dh-real) { display:none; }
     .dh-head .dh-real { display:none; position:absolute; left:-210px; top:-30px; width:auto; height:672px; max-width:none; transform-origin:50% 70%; }
     .dh-head.real .dh-real { display:block; }
+    .dh-head.vid { width:min(100%,360px); height:auto; aspect-ratio:480/432; }
+    .dh-head.vid > *:not(.dh-vid) { visibility:hidden; }
+    .dh-vid { position:absolute; inset:0; }
+    .dh-vid video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity .25s linear; }
+    .dh-vid video.on { opacity:1; }
+    .dh-vid .dh-cup { position:absolute; right:8px; bottom:8px; width:36px; height:36px; border-radius:50%; border:1px solid rgba(255,255,255,.3);
+      background:rgba(15,23,42,.7); color:#fff; font-size:18px; display:grid; place-items:center; cursor:pointer; z-index:2; }
     .face-stage {
       position: relative; overflow: hidden; border-radius: 16px;
       border: 1px solid var(--border); background: #020617; margin-bottom: 10px;
@@ -1162,6 +1169,7 @@
 
       });
       if (isSpeaking) startMouth(); else stopMouth();
+      try { dhVid.update(); } catch {}
       paintFace();
     }
     function stopTalk() {
@@ -1469,6 +1477,52 @@
       }, 2500 + Math.random() * 3500);
     })();
 
+
+    // ===== 影片頭像：transition 一次 → idle 循環；說話 talk；開心 happy；☕ drink；兩個 video 交叉淡入；失敗退回照片 =====
+    const dhVid = (() => {
+      const DIR = REAL_FACE_DIR + 'video/';
+      const el = document.createElement('div'); el.className = 'dh-vid';
+      const vs = [0, 1].map(() => { const v = document.createElement('video'); v.muted = true; v.defaultMuted = true; v.playsInline = true;
+        v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('webkit-playsinline', ''); v.preload = 'auto'; el.appendChild(v); return v; });
+      const cup = document.createElement('button'); cup.type = 'button'; cup.className = 'dh-cup'; cup.textContent = '☕'; cup.title = '喝一口';
+      cup.onclick = (e) => { e.stopPropagation(); drink(); }; el.appendChild(cup);
+      let failed = false, cur = -1, clip = '', phase = 'intro', drinking = false;
+      ['transition','idle','talk','happy','drink'].forEach(n => { const l = document.createElement('link'); l.rel = 'preload'; l.as = 'video'; l.href = DIR + n + '.mp4'; document.head.appendChild(l); });
+      function fail() { if (failed) return; failed = true; el.remove(); document.querySelectorAll('.dh-head.vid').forEach(h => h.classList.remove('vid')); }
+      function want() {
+        if (phase === 'intro') return 'transition';
+        if (drinking) return 'drink';
+        const happy = currentEmotion === 'happy';
+        if (isSpeaking || (typeof singing !== 'undefined' && singing)) return happy ? 'happy' : 'talk';
+        return happy ? 'happy' : 'idle';
+      }
+      function play(name) {
+        if (failed || name === clip) return;
+        clip = name;
+        const nxt = vs[cur === 0 ? 1 : 0], prev = vs[cur] || null;
+        nxt.loop = !(name === 'transition' || name === 'drink');
+        nxt.onended = () => { if (name === 'transition') phase = 'main'; if (name === 'drink') drinking = false; update(); };
+        nxt.onerror = fail;
+        nxt.src = DIR + name + '.mp4'; nxt.poster = DIR + name + '.jpg';
+        try { nxt.currentTime = 0; } catch {}
+        const go = () => { nxt.classList.add('on'); if (prev) setTimeout(() => { prev.classList.remove('on'); prev.pause(); }, 260); };
+        nxt.onplaying = () => { nxt.onplaying = null; go(); };
+        const p = nxt.play(); if (p && p.catch) p.catch(() => { /* 自動播放被擋：顯示 poster */ go(); });
+        cur = vs.indexOf(nxt);
+      }
+      function update() { if (!failed) play(want()); }
+      function drink() { if (failed || phase === 'intro' || isSpeaking) return; drinking = true; update(); }
+      setInterval(() => { if (!isSpeaking && !drinking && phase === 'main' && clip === 'idle' && document.contains(el) && Math.random() < 0.25) drink(); }, 45000);
+      function attach() {
+        if (failed) return;
+        const head = document.querySelector('.dh-head'); if (!head) return;
+        head.classList.add('vid');
+        if (el.parentNode !== head) { head.appendChild(el); vs.forEach(v => { if (v.classList.contains('on')) v.play().catch(() => {}); }); }
+        update();
+      }
+      return { attach, update, drink };
+    })();
+
     function emotionLabel(e) {
       return { happy:'樂', angry:'怒', sad:'哀', wow:'驚', think:'思', calm:'平' }[e] || '平';
     }
@@ -1528,6 +1582,7 @@
       document.getElementById('btnSend').onclick = sendChat;
       document.getElementById('chatIn').onkeydown = e => { if (e.key === 'Enter') sendChat(); };
       document.getElementById('btnMic').onclick = startListen;
+      try { dhVid.attach(); } catch {}
       document.getElementById('btnVoiceDevice').onclick = () => { voiceMode='device'; sessionStorage.setItem('dh_voice_mode','device'); toast('已切換手機語音'); renderChat(); };
       document.getElementById('btnVoiceMine').onclick = () => { voiceMode='mine'; sessionStorage.setItem('dh_voice_mode','mine'); toast(selectedVoiceItem()?'已切換我的聲音':'先去錄音'); renderChat(); };
       document.getElementById('btnVoiceStudio').onclick = () => { location.href = 'aivault-voice-studio.html'; };
