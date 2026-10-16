@@ -78,13 +78,24 @@
     saveCatalog(rows.slice(0, 80));
   }
 
+  // 已登入就帶使用者 token（私人書只給登入會員看）；token 過期或沒登入就用公開金鑰
+  function userToken() {
+    try {
+      const j = JSON.parse(localStorage.getItem("sb-clcddygkaaqqtsbswgdf-auth-token") || "null");
+      const t = j && String(j.access_token || (j.currentSession && j.currentSession.access_token) || "");
+      if (!t) return "";
+      const p = JSON.parse(atob(t.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+      return p && p.exp && p.exp * 1000 > Date.now() + 30000 ? t : "";
+    } catch (e) { return ""; }
+  }
+
   async function ingest(payload) {
     const res = await fetch(INGEST, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         apikey: ANON_KEY,
-        Authorization: "Bearer " + ANON_KEY
+        Authorization: "Bearer " + (userToken() || ANON_KEY)
       },
       body: JSON.stringify(payload)
     });
@@ -768,6 +779,7 @@
     saveCategories: saveCategories,
     pageContent: pageContent,
     fetchRemoteCatalog: fetchRemoteCatalog,
+    userToken: userToken,
     fetchRemoteBook: fetchRemoteBook,
     fetchRemoteToc: fetchRemoteToc,
     fetchRemoteContext: fetchRemoteContext,

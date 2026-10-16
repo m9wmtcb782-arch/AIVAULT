@@ -158,6 +158,7 @@
     local.forEach(function (b) { map.set(b.id, Object.assign({ source: "local" }, b)); });
     remoteRows.forEach(function (r) {
       if (!r.ebook_id || E.isShelfRemoved(r.ebook_id)) return;
+      if (r.metadata && r.metadata.private && !(E.userToken && E.userToken())) return; // 私人書：沒登入不顯示
       map.set(r.ebook_id, {
         id: r.ebook_id,
         ebook_id: r.ebook_id,
