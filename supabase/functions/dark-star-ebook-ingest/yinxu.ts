@@ -162,8 +162,9 @@ async function compileStep(job: any) {
       '{"nodes":[{"type":"narrator|character|prompt","speaker":"narrator 或角色 id","text":"","original_answer":"僅 prompt：原著主角怎麼回答","sfx":"可空"}]}' + "\n12–18 個節點，至少 2 個 prompt，最後一個節點必須是 prompt。之後的劇情由執行期導演依讀者回答自由生成。";
     const v = await llm(sys, `書名：${pkg.title}\n主角：${pkg.protagonist.name}（讀者扮演，不可替他說話）\n角色 id：${ids}\n大綱：${JSON.stringify(pkg.outline.slice(0, 3))}\n開頭原文摘要：${job.bible.summaries.slice(0, 2).join("\n")}\n原文中對主角說的話（樣本）：${JSON.stringify(job.bible.lines.slice(0, 12))}`, { maxTokens: 8000 });
     const ok = new Set(pkg.characters.map((c: any) => c.id));
-    pkg.nodes = (v.nodes || []).filter((n: any) => n && n.text && ok.has(n.speaker) && (n.type !== "prompt" || n.speaker !== "narrator"));
-    if (pkg.nodes.length < 4) throw new Error("SCRIPT_TOO_SHORT");
+    pkg.nodes = (v.nodes || []).filter((n: any) => n && n.text && ok.has(n.speaker)).map((n: any) => ({ ...n, type: n.speaker === "narrator" ? "narrator" : (n.type === "prompt" || /[？?]\s*$/.test(n.text)) ? "prompt" : "character" }));
+    const lastQ = pkg.nodes.map((n: any) => n.type).lastIndexOf("prompt"); if (lastQ >= 0) pkg.nodes = pkg.nodes.slice(0, lastQ + 1);
+    if (pkg.nodes.length < 4 || lastQ < 0) throw new Error("SCRIPT_TOO_SHORT");
     job.stage = "publish"; job.log.push(`旁白腳本與問答完成：${pkg.nodes.length} 節點（${v.__model}）`); return;
   }
   if (job.stage === "publish") { await savePackage(job.package); job.stage = "audio"; job.audio_pos = 0; job.log.push("已上架因序小說書架"); return; }
@@ -199,12 +200,13 @@ async function ttsCached(text: string, voice: string, style: string) {
 const DIRECT_SYS = (pkg: any) => "你是因序小說的執行期導演，統籌說書人與各角色 AI，並兼任世界狀態管理與防誘導監督。繁體中文口語。\n" + RULES(pkg.original_ending || "") +
   "\n【理解讀者】先真正理解主角（讀者）剛剛說的話的意圖。不論多出乎意料，都要讓故事依照他的選擇分歧發展，絕對不要因為沒聽懂就照原劇情或原著主角的台詞走。若回答模糊到無法判斷意圖（例如只有「嗯」「不知道」或辨識亂碼），設 understood=false，並由剛才提問的角色用不同說法追問一次以確認（開放式，追問句裡也不可列舉選項）。" +
   "\n【自由生成】依角色性格、世界狀態與全書大綱（僅作背景，不是必經路線）自由生成接下來的場景：先讓角色對主角的回答做出真實反應，再由說書人推進，3–8 句，每句 60 字內，結尾通常由某角色向主角提出一個開放式問題。不要替主角說話。" +
-  "\n只輸出 JSON：{\"understood\":true,\"interpretation\":\"你理解的主角意圖\",\"clarify\":\"若 understood=false：追問句\",\"lines\":[{\"speaker\":\"narrator 或角色 id\",\"text\":\"\",\"sfx\":\"可空：waves|rain|wind|fire|footsteps|door|bell|thunder|crowd|birds\"}],\"mood\":\"calm|tense|sad|warm|mystery|storm|night|battle\",\"prompt\":{\"speaker\":\"角色 id\",\"text\":\"開放式問題\"},\"world\":{\"facts\":[\"新增的不可逆事實\"],\"act\":1},\"ending\":false}" +
+  "\n只輸出 JSON：{\"understood\":true,\"auto_answer\":\"僅 by=auto 時\",\"interpretation\":\"你理解的主角意圖\",\"clarify\":\"若 understood=false：追問句\",\"lines\":[{\"speaker\":\"narrator 或角色 id\",\"text\":\"\",\"sfx\":\"可空：waves|rain|wind|fire|footsteps|door|bell|thunder|crowd|birds\"}],\"mood\":\"calm|tense|sad|warm|mystery|storm|night|battle\",\"prompt\":{\"speaker\":\"角色 id\",\"text\":\"開放式問題\"},\"world\":{\"facts\":[\"新增的不可逆事實\"],\"act\":1},\"ending\":false}" +
+  "\n【主角 AI 代答】若標示讀者沉默（by=auto）且沒有回答內容，先在 auto_answer 欄位寫出主角依其性格與處境會說的一句話（不要照搬原著），再依這句話推進劇情。" +
   "\n當主角的選擇已讓故事自然走到一個結局（約 6–10 個回合後），設 ending=true、prompt=null，lines 寫收尾。";
 async function direct(b: any) {
   const pkg = b.book || {}; const st = b.state || {};
   const cast = (pkg.characters || []).map((c: any) => `${c.id}=${c.name}（${c.personality || ""}；${c.speech_style || ""}）`).join("\n");
-  const user = `書名：${pkg.title}\n主角（讀者扮演，不可替他說話）：${pkg.protagonist?.name || "主角"}\n角色：\n${cast}\n\n全書大綱（背景知識）：${JSON.stringify(pkg.outline || []).slice(0, 12000)}\n\n世界狀態（不可逆事實）：${JSON.stringify(st.facts || [])}\n目前幕：${st.act || 1}　回合：${st.turn || 0}\n已做的決定：${JSON.stringify((st.decisions || []).map((d: any) => ({ q: d.question, a: d.answer, by: d.by })))}\n\n最近發生：\n${String(st.recent || "").slice(-6000)}\n\n剛剛 ${b.asker || "角色"} 問主角：「${b.question || ""}」\n主角回答：「${b.answer || ""}」${b.by === "auto" ? "（讀者沉默，由主角 AI 代答）" : ""}${b.clarified ? "（這是追問後的回答，請直接依此推進，不要再追問）" : ""}`;
+  const user = `書名：${pkg.title}\n主角（讀者扮演，不可替他說話）：${pkg.protagonist?.name || "主角"}\n角色：\n${cast}\n\n全書大綱（背景知識）：${JSON.stringify(pkg.outline || []).slice(0, 12000)}\n\n世界狀態（不可逆事實）：${JSON.stringify(st.facts || [])}\n目前幕：${st.act || 1}　回合：${st.turn || 0}\n已做的決定：${JSON.stringify((st.decisions || []).map((d: any) => ({ q: d.question, a: d.answer, by: d.by })))}\n\n最近發生：\n${String(st.recent || "").slice(-6000)}\n\n剛剛 ${b.asker || "角色"} 問主角：「${b.question || ""}」\n主角回答：「${b.answer || ""}」${b.by === "auto" ? (b.answer ? "（讀者沉默，由主角 AI 代答）" : "（讀者沉默，請先在 auto_answer 寫出主角 AI 的回答）") : ""}${b.clarified ? "（這是追問後的回答，請直接依此推進，不要再追問）" : ""}`;
   return await llm(DIRECT_SYS(pkg), user, { maxTokens: 6000, fast: b.fast !== false });
 }
 
@@ -239,6 +241,8 @@ export async function yinxu(r: Request) {
       const keys = Object.values(pkg.audio || {}) as string[]; const s = await sign(keys); pkg.audio_urls = Object.fromEntries(Object.entries(pkg.audio || {}).map(([k, v]) => [k, s[v as string]]));
       return out({ ok: true, book: pkg });
     }
+    if (a === "delete_book" && u.owner) { const id = String(b.book_id || "").replace(/[^\w-]/g, ""); const idx = (await getJSON("index.json")) || { books: [] }; idx.books = idx.books.filter((x: any) => x.book_id !== id); await put("index.json", JSON.stringify(idx)); return out({ ok: true }); }
+    if (a === "compile_jobs") return out({ ok: true });
     if (a === "save_timeline") { const pkg = b.book; if (!pkg?.book_id || !pkg?.parent_id) return out({ error: "book" }, 400); pkg.book_id = String(pkg.book_id).replace(/[^\w-]/g, "").slice(0, 80); pkg.owner_id = u.id; pkg.audio = {}; await savePackage(pkg); return out({ ok: true }); }
     if (a === "direct") return out({ ok: true, ...(await direct(b)) });
     if (a === "novelize") return out({ ok: true, ...(await llm("你是小說家（遊玩記錄轉新小說 AI）。把互動紀錄整理成完整繁體中文短篇小說（600–1200 字，第三人稱），忠於紀錄中已發生的事，不要改回原結局。只輸出 JSON：{\"title\":\"新標題\",\"story\":\"...\",\"new_ending\":\"新結局一句話\"}", String(b.transcript || "").slice(-20000), { maxTokens: 6000, fast: true })) });

@@ -54,6 +54,16 @@ try:
             for o in bk.get("outline",[])[:8]: print("  ACT",o.get("act"),o.get("title"),o.get("mood"))
             for n in bk.get("nodes",[])[:20]: print("  NODE",n.get("type"),n.get("speaker"),n.get("text","")[:70])
             print("  audio urls",sum(1 for v in (bk.get("audio_urls") or {}).values() if v))
+    if STEP=="warm":
+        book=json.load(open("yinxu-demo-book.json")); C={c["id"]:c for c in book["characters"]}; t_end=time.time()+int(os.environ.get("MAXSTEPS","25"))*60; ok=0
+        for i,n in enumerate(book["nodes"]):
+            c=C.get(n["speaker"],C["narrator"])
+            while time.time()<t_end:
+                s,b,dt=y({"action":"tts","text":n["text"],"voice":c["tts_voice"],"style":c["tts_style"]})
+                if s==200: ok+=1; print("WARM",i,c["tts_voice"],dt,"s ok"); break
+                if s==429 and isinstance(b,dict) and b.get("quota")!="daily": print("WARM",i,"429 rate, wait",b.get("retry_after")); time.sleep(min(70,int(b.get("retry_after") or 60))+2); continue
+                print("WARM",i,"stop",s,str(b)[:200]); t_end=0; break
+        print("WARM done",ok,"/",len(book["nodes"]))
     if STEP=="audio":
         for i in range(int(os.environ.get("MAXSTEPS","10"))):
             s,b,dt=y({"action":"compile_step","job_id":ARG}); j=b.get("job",{}); print("AUDIO",i,s,dt,j.get("stage"),j.get("audio_pos"),"/",j.get("audio_total"),"|",j.get("log",[""])[-1])

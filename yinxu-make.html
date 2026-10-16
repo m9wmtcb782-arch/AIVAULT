@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07090d"><title>因序小說製作｜AIVAULT</title>
+<link rel="stylesheet" href="yinxu.css?v=20261016-yx3">
+</head><body>
+<header class="top"><a class="ib" href="yinxu-shelf.html?v=20261016-yx3">‹ 書架</a><div class="brand">🛠 因序小說製作</div><div style="flex:1"></div></header>
+<main class="wrap">
+  <p class="muted">由 🌟 暗星 統籌：解析角色／情節／時間線／對話／場景 → 角色分配（唯一 AI 人格＋聲線）→ 說書旁白 → 對話轉開放式提問 → 配樂音效規劃 → 結局封裝（不可誘導）→ 上架 → 預生成固定台詞語音。長篇分段處理，可隨時離開、回來續跑。</p>
+  <div id="resume"></div>
+  <h3>從電子書庫選一本</h3>
+  <div id="books" class="muted">載入中…</div>
+  <details style="margin-top:14px"><summary class="muted">或貼上全文（原創／已授權作品）</summary>
+    <input id="pTitle" placeholder="書名" style="width:100%;min-height:44px;margin:8px 0;border-radius:12px;background:#0b0f16;color:#e5e7eb;border:1px solid #1f2937;padding:0 12px;font-size:16px">
+    <textarea id="pText" rows="8" style="width:100%;border-radius:12px;background:#0b0f16;color:#e5e7eb;border:1px solid #1f2937;padding:10px;font-size:15px"></textarea>
+    <button class="btn primary" id="pGo">開始編譯</button></details>
+  <section id="job" style="display:none;margin-top:16px">
+    <h3 id="jTitle"></h3><div class="prog"><i id="jBar"></i></div><p class="muted" id="jStage"></p>
+    <div class="row" style="margin:8px 0"><button class="btn" id="jPause">⏸ 暫停</button><a class="btn" id="jOpen" style="display:none">▶ 試聽</a></div>
+    <div class="log" id="jLog"></div>
+  </section>
+</main>
+<script src="yinxu-config.js?v=20261016-yx3"></script>
+<script src="yinxu-api.js?v=20261016-yx3"></script>
+<script>
+(function () {
+  var $ = function (i) { return document.getElementById(i); }, JOBS = 'yinxu.make.jobs', running = false, stop = false;
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  if (!YinxuAPI.loggedIn()) { location.replace(YinxuAPI.loginUrl()); return; }
+  function jobs() { try { return JSON.parse(localStorage.getItem(JOBS) || '[]'); } catch (_) { return []; } }
+  function remember(j) { var a = jobs().filter(function (x) { return x.id !== j.job_id; }); a.unshift({ id: j.job_id, title: j.title, stage: j.stage }); localStorage.setItem(JOBS, JSON.stringify(a.slice(0, 10))); }
+  var STAGES = { parse: '① 解析小說（角色、情節、時間線、對話、場景）', compose: '② 暗星：角色分配＋聲線、配樂音效規劃、結局封裝', script: '③ 說書旁白＋對話轉開放式提問', publish: '④ 上架因序小說書架', audio: '⑤ 預生成固定台詞語音（受 Gemini 額度限制）', done: '✅ 完成' };
+  function show(j) {
+    $('job').style.display = ''; $('jTitle').textContent = '《' + j.title + '》';
+    var p = j.stage === 'parse' ? 0.6 * (j.next_page - 1) / Math.max(1, j.total_pages) : { compose: 0.65, script: 0.75, publish: 0.85, audio: 0.85 + 0.15 * (j.audio_pos || 0) / Math.max(1, j.audio_total), done: 1 }[j.stage] || 0;
+    $('jBar').style.width = Math.round(p * 100) + '%';
+    $('jStage').innerHTML = esc(STAGES[j.stage] || j.stage) + (j.stage === 'parse' ? '　第 ' + (j.next_page - 1) + ' / ' + j.total_pages + ' 頁，已找到 ' + j.characters_found + ' 個角色' : '') + (j.stage === 'audio' ? '　' + (j.audio_pos || 0) + ' / ' + j.audio_total + ' 句' : '');
+    $('jLog').textContent = (j.log || []).join('\n'); $('jLog').scrollTop = 1e9;
+    if (j.book_id) { $('jOpen').style.display = ''; $('jOpen').href = 'yinxu-play.html?book=' + encodeURIComponent(j.book_id); }
+  }
+  async function drive(id) {
+    if (running) return; running = true; stop = false; var fails = 0;
+    while (!stop) {
+      var d; try { d = await YinxuAPI.call('compile_step', { job_id: id }); } catch (e) { fails++; $('jStage').textContent = '連線失敗：' + e.message + '（' + fails + '）'; if (fails > 3) break; await new Promise(function (r) { setTimeout(r, 4000); }); continue; }
+      var j = d.job; remember(j); show(j);
+      if (j.stage === 'done') break;
+      if (j.error) { fails++; if (fails > 3) { $('jStage').innerHTML += '<br>多次失敗，已暫停。可稍後按「繼續」從這一步續跑。'; break; } await new Promise(function (r) { setTimeout(r, 5000); }); continue; }
+      fails = 0;
+      if (j.retry_after) { for (var s = j.retry_after; s > 0 && !stop; s--) { $('jStage').textContent = STAGES.audio + '　語音額度冷卻中，' + s + ' 秒後自動續跑（可離開，之後回來按繼續）'; await new Promise(function (r) { setTimeout(r, 1000); }); } }
+    }
+    running = false; $('jPause').textContent = '▶ 繼續';
+  }
+  $('jPause').onclick = function () { if (running) { stop = true; } else { $('jPause').textContent = '⏸ 暫停'; drive($('job').dataset.id); } };
+  async function start(body) {
+    try { var d = await YinxuAPI.call('compile_start', body); $('job').dataset.id = d.job.job_id; remember(d.job); show(d.job); $('jPause').textContent = '⏸ 暫停'; drive(d.job.job_id); }
+    catch (e) { alert(e.status === 403 ? '只有擁有者可以製作因序小說' : '無法開始：' + e.message); }
+  }
+  $('pGo').onclick = function () { var t = $('pText').value.trim(); if (t.length < 200) return alert('全文太短'); start({ text: t, title: $('pTitle').value.trim() || '未命名', chunk_pages: 30 }); };
+  var rs = jobs().filter(function (j) { return j.stage !== 'done'; });
+  if (rs.length) $('resume').innerHTML = '<h3>未完成的編譯</h3>' + rs.map(function (j) { return '<button class="btn" data-job="' + esc(j.id) + '">↻ 續跑《' + esc(j.title) + '》（' + esc(j.stage) + '）</button>'; }).join(' ');
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-job]'); if (b) { $('job').dataset.id = b.dataset.job; $('jPause').textContent = '⏸ 暫停'; drive(b.dataset.job); }
+    var k = e.target.closest('[data-ebook]'); if (k && confirm('用暗星編譯《' + k.dataset.title + '》成因序小說？長篇會花較久並消耗 AI 額度。')) start({ ebook_id: k.dataset.ebook, chunk_pages: 30 });
+  });
+  YinxuAPI.call('ebooks').then(function (d) {
+    $('books').innerHTML = (d.books || []).filter(function (b) { return b.total_pages > 0; }).map(function (b) { return '<div class="book"><div class="info"><b>' + esc(b.title) + '</b><small>' + esc(b.author || '') + ' · ' + b.total_pages + ' 頁 · ' + (b.total_characters || 0).toLocaleString() + ' 字</small><button class="btn primary sm" data-ebook="' + esc(b.id) + '" data-title="' + esc(b.title) + '">🌟 交給暗星編譯</button></div></div>'; }).join('') || '電子書庫是空的。';
+  }).catch(function (e) { $('books').textContent = e.status === 403 ? '只有擁有者可以使用因序小說製作。' : '載入失敗：' + e.message; });
+})();
+</script>
+</body></html>
