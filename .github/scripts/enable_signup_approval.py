@@ -54,7 +54,10 @@ if STEP in ("all", "test"):
     print("owner list", s, "pending includes test", any(p.get("id") == tid for p in (b or {}).get("pending", [])) if isinstance(b, dict) else b)
     s, b = http(fn, {"action": "list"}, {"apikey": ANON, "Authorization": "Bearer " + ANON}, "POST"); print("anon list (expect 403)", s)
     # 3) 刪除試用帳號
-    if tid: s, _ = http(BASE + "/auth/v1/admin/users/" + tid, None, H, "DELETE"); print("test user deleted", s)
+    for u in users():
+        if (u.get("email") or "").startswith("aivault-approval-test-"):
+            if u["id"] == tid: print("test user in db: banned_until", u.get("banned_until"), "approved", (u.get("app_metadata") or {}).get("approved"))
+            s, _ = http(BASE + "/auth/v1/admin/users/" + u["id"], None, H, "DELETE"); print("test user deleted", s)
     # 其他功能仍在
     for f in ["photo-solve", "bot-pr"]:
         s, b = http(BASE + "/functions/v1/dark-star-ebook-ingest?feature=" + f, {}, {"apikey": ANON, "Authorization": "Bearer " + ANON}, "POST"); print("feature", f, "status", s)
