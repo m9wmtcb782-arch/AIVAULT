@@ -1538,12 +1538,12 @@
     // ===== 影片頭像：每個片段一個 <video>，切換只換透明度（快、不重新載入）；失敗退回照片 =====
     const dhVid = (() => {
       const DIR = REAL_FACE_DIR + 'video/';
-      const CLIPS = ['transition','idle','talk','happy','question','angry','affection','drink'];
-      const ONCE = { transition:1, drink:1, question:1, angry:1, affection:1, happy:0 };
+      const CLIPS = ['transition','idle','talk','happy','question','angry','affection','drink','petcat'];
+      const ONCE = { transition:1, drink:1, petcat:1, question:1, angry:1, affection:1, happy:0 };
       const MOOD = { happy:'happy', think:'question', wow:'question', angry:'angry', sad:'affection', affection:'affection' };
       const el = document.createElement('div'); el.className = 'dh-vid';
       const V = {};
-      let failed = false, clip = '', phase = 'intro', drinking = false, moodOnce = '', lastEmotion = 'calm';
+      let failed = false, clip = '', phase = 'intro', drinking = false, petting = false, moodOnce = '', lastEmotion = 'calm';
       function fail() { if (failed) return; failed = true; el.remove(); document.querySelectorAll('.dh-head.vid').forEach(h => h.classList.remove('vid')); }
       CLIPS.forEach(n => {
         const v = document.createElement('video');
@@ -1555,6 +1555,7 @@
         v.onended = () => {
           if (n === 'transition') phase = 'main';
           if (n === 'drink') drinking = false;
+          if (n === 'petcat') { petting = false; v.muted = true; }
           if (n === moodOnce) moodOnce = '';
           update();
         };
@@ -1563,6 +1564,8 @@
       V.happy.loop = true;
       const cup = document.createElement('button'); cup.type = 'button'; cup.className = 'dh-cup'; cup.textContent = '☕'; cup.title = '喝一口';
       cup.onclick = (e) => { e.stopPropagation(); drink(); }; el.appendChild(cup);
+      const cat = document.createElement('button'); cat.type = 'button'; cat.className = 'dh-cup'; cat.style.right = '50px'; cat.textContent = '🐱'; cat.title = '摸摸貓';
+      cat.onclick = (e) => { e.stopPropagation(); petCat(true); }; el.appendChild(cat);
       function want() {
         if (phase === 'intro') return 'transition';
         if (currentEmotion !== lastEmotion) {
@@ -1574,6 +1577,7 @@
         if (dhVoice.voiced) return happy ? 'happy' : 'talk';     // 只有真的在發聲才動嘴
         if (isSpeaking) return 'idle';                            // 句間停頓：閉嘴
         if (drinking) return 'drink';
+        if (petting) return 'petcat';
         if (moodOnce) return moodOnce;
         return happy ? 'happy' : 'idle';
       }
@@ -1607,7 +1611,14 @@
       }
       dhVoice.onChange(() => update(true));
       setInterval(() => { if (clip === 'talk' || clip === 'happy') show(clip, 120); }, 250);
-      function drink() { if (failed || phase === 'intro' || isSpeaking) return; drinking = true; update(); }
+      function drink() { if (failed || phase === 'intro' || isSpeaking || petting) return; drinking = true; update(); }
+      function petCat(withSound) {
+        if (failed || phase === 'intro' || isSpeaking || drinking) return;
+        const v = V.petcat; v.muted = !withSound; if (withSound) { v.removeAttribute('muted'); v.volume = 1; }
+        petting = true; update();
+        if (withSound) v.play().catch(() => { v.muted = true; v.play().catch(() => {}); });
+      }
+      setInterval(() => { if (!isSpeaking && !drinking && !petting && phase === 'main' && clip === 'idle' && document.contains(el) && Math.random() < 0.2) petCat(false); }, 60000);
       setInterval(() => { if (!isSpeaking && !drinking && phase === 'main' && clip === 'idle' && document.contains(el) && Math.random() < 0.25) drink(); }, 45000);
       function attach() {
         if (failed) return;
@@ -1616,7 +1627,7 @@
         if (el.parentNode !== head) { head.appendChild(el); if (V[clip]) V[clip].play().catch(() => {}); }
         update();
       }
-      return { attach, update, drink };
+      return { attach, update, drink, petCat };
     })();
 
     function emotionLabel(e) {
