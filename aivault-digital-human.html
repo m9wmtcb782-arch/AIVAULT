@@ -203,9 +203,9 @@
     <button class="pill ghost" id="btnHome" type="button">Home</button>
     <div class="grow">
       <h1 id="hdrTitle">AIVAULT Digital Human</h1>
-      <p id="hdrSub">建立、管理與使用你的 AI 數字人。</p>
+      <p id="hdrSub">建立、管理與使用你的 AI 數位人。</p>
     </div>
-    <button class="pill" id="btnPrimary" type="button">＋ 建立數字人</button>
+    <button class="pill" id="btnPrimary" type="button">＋ 建立數位人</button>
   </header>
 
   <main class="wrap" id="app"></main>
@@ -245,9 +245,9 @@
     // ===== 數字人外觀設定（資料驅動）：digital-human-real/avatars.json，?avatar=id 選擇，預設第一個（暗星）=====
     const AVATAR = await (async () => {
       const want = new URLSearchParams(location.search).get('avatar');
-      try { const j = await (await fetch('digital-human-real/avatars.json', { cache: 'no-cache' })).json(); const L = (j && j.avatars) || []; return L.find(a => a.id === want) || L[0] || null; }
+      try { const j = await (await fetch('digital-human-real/avatars.json?v=202610161623&t=' + Date.now(), { cache: 'no-store' })).json(); const L = (j && j.avatars) || []; return L.find(a => a.id === want) || L[0] || null; }
       catch { return null; }
-    })() || { id: 'darkstar', name: '暗星', title: '暗星數字人', tagline: '你的 AI 夥伴，會聽、會看、會聊天', lang: 'zh-Hant', liveVoice: 'Aoede', brain: { provider: 'groq', model: 'openai/gpt-oss-120b' } };
+    })() || { id: 'darkstar', name: '暗星', title: 'Technical Dark Star 暗星', tagline: '你的 AI 夥伴，會聽、會看、會聊天', lang: 'zh-Hant', liveVoice: 'Aoede', brain: { provider: 'groq', model: 'openai/gpt-oss-120b' } };
     window.__dhAvatar = AVATAR;
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: { persistSession: true, autoRefreshToken: true, storage: window.localStorage }
@@ -271,8 +271,8 @@
     let chatClip = null;
     let recordingVideo = false;
     const SCRIPT_PRESETS = [
-      { t: '打招呼', s: '你好，我是你的數字人，今天過得怎麼樣？' },
-      { t: '自我介紹', s: '我是你專屬的 AI 數字人。我可以陪你聊天、回答問題，也可以唱歌給你聽。' },
+      { t: '打招呼', s: '你好，我是你的數位人，今天過得怎麼樣？' },
+      { t: '自我介紹', s: '我是你專屬的 AI 數位人。我可以陪你聊天、回答問題，也可以唱歌給你聽。' },
       { t: '安慰', s: '沒關係，慢慢來。我在這裡陪你，你想說什麼都可以。' },
       { t: '鼓勵', s: '你已經做得很好了。先休息一下，我們再一起想下一步。' },
       { t: '道晚安', s: '今天也辛苦了。好好睡覺，明天再繼續。晚安。' },
@@ -546,11 +546,11 @@
         current = existing[0];
         return existing[0].id;
       }
-      if (!draft.name?.trim()) throw new Error('請先填寫數字人名稱');
+      if (!draft.name?.trim()) throw new Error('請先填寫數位人名稱');
       const created = unwrapOne(await callFn('digital-human-asset', {
         action: 'create_human',
         name: draft.name.trim(),
-        description: draft.description || 'AIVAULT 數字人',
+        description: draft.description || 'AIVAULT 數位人',
         brain_provider: draft.brain_provider,
         brain_model: draft.brain_model,
         personality: {
@@ -561,7 +561,7 @@
         settings: { video_enabled: true, voice_enabled: true }
       }));
       const id = created?.id;
-      if (!id) throw new Error('無法建立數字人，缺少 id');
+      if (!id) throw new Error('無法建立數位人，缺少 id');
       rememberHumanId(id);
       current = { ...(current || {}), ...created, id };
       return id;
@@ -787,7 +787,7 @@
       const hid = id || humans[0]?.id || '';
       return `
         <div class="card" style="margin-bottom:12px;">
-          <h3 style="margin:0 0 8px;">數字人首頁</h3>
+          <h3 style="margin:0 0 8px;">數位人首頁</h3>
           <div class="row">
             <button class="pill" type="button" onclick="location.href='aivault-home.html'">工作中心</button>
             <button class="pill ghost" type="button" onclick="location.href='aivault-3d-stage.html'">3D 舞台</button>
@@ -803,15 +803,15 @@
     }
 
     function renderList() {
-      setHeader('AIVAULT 數字人首頁', `已上傳 ${humans.length} 位`, '＋ 建立數字人', () => go('/create'));
+      setHeader('AIVAULT 數位人首頁', `已上傳 ${humans.length} 位`, '＋ 建立數位人', () => go('/create'));
       if (!humans.length) {
         document.getElementById('app').innerHTML = `
           <div class="hero">
             <div class="empty">
-              <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px;">還沒有建立數字人</div>
+              <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px;">還沒有建立數位人</div>
               <p class="muted">自訂外觀、聲音與 AI 大腦，讓不同 Provider 成為智慧核心。</p>
               <div class="row" style="margin-top:16px;">
-                <button class="pill" id="btnFirst">建立我的第一個數字人</button>
+                <button class="pill" id="btnFirst">建立我的第一個數位人</button>
               </div>
             </div>
           </div>`;
@@ -841,23 +841,23 @@
           </div>
         </article>
       `).join('');
-      document.getElementById('app').insertAdjacentHTML('afterbegin', `<p class="muted">管理：目前 ${humans.length} 位數字人。刪除會連同該筆圖片與聲音。</p>`);
+      document.getElementById('app').insertAdjacentHTML('afterbegin', `<p class="muted">管理：目前 ${humans.length} 位數位人。刪除會連同該筆圖片與聲音。</p>`);
     }
 
     function renderCreate() {
       const step = Number(sessionStorage.getItem('dh_step') || '1');
-      setHeader('建立數字人', `步驟 ${step} / 4 · 已有 ${humans.length} 位`, step === 4 ? '建立數字人' : '下一步', onCreatePrimary);
+      setHeader('建立數位人', `步驟 ${step} / 4 · 已有 ${humans.length} 位`, step === 4 ? '建立數位人' : '下一步', onCreatePrimary);
       const stepHtml = [1,2,3,4].map(n => `<span class="${n===step?'on':''}">${n===1?'基本資料':n===2?'外觀':n===3?'聲音':'AI 大腦'}</span>`).join('');
       let body = '';
       if (step === 1) {
         body = `
-          <label>數字人名稱</label>
+          <label>數位人名稱</label>
           <input id="fName" value="${esc(draft.name)}" placeholder="例如：AIVAULT AI" />
           <label>描述</label>
-          <textarea id="fDesc" placeholder="這位數字人的用途與風格">${esc(draft.description)}</textarea>`;
+          <textarea id="fDesc" placeholder="這位數位人的用途與風格">${esc(draft.description)}</textarea>`;
       } else if (step === 2) {
         body = `
-          <h3>選擇你的數字人外觀</h3>
+          <h3>選擇你的數位人外觀</h3>
           <div class="row" style="margin:12px 0;">
             <button class="pill" id="btnUpImg" type="button">＋ 上傳圖片</button>
             <input id="fileImg" class="hidden" type="file" accept="image/png,image/jpeg,image/jpg,image/webp" />
@@ -872,7 +872,7 @@
           <div class="grid two" id="imgGrid"></div>`;
       } else if (step === 3) {
         body = `
-          <h3>選擇你的數字人聲音</h3>
+          <h3>選擇你的數位人聲音</h3>
           <div class="row" style="margin:12px 0;">
             <button class="pill" id="btnUpVoice" type="button">＋ 上傳聲音</button>
             <input id="fileVoice" class="hidden" type="file" accept="audio/mpeg,audio/wav,audio/mp4,audio/ogg,audio/webm,.mp3,.wav,.m4a,.ogg,.webm" />
@@ -1064,9 +1064,9 @@
     async function onCreatePrimary() {
       const step = Number(sessionStorage.getItem('dh_step') || '1');
       if (step === 1) {
-        if (!draft.name.trim()) return toast('請輸入數字人名稱');
+        if (!draft.name.trim()) return toast('請輸入數位人名稱');
         try {
-          toast('建立數字人檔案…');
+          toast('建立數位人檔案…');
           await ensureHumanId();
         } catch (err) { return toast(err.message); }
         sessionStorage.setItem('dh_step', '2'); persistDraft();
@@ -1130,7 +1130,7 @@
           <button class="pill" data-go="/${id}/chat">開始 AI 對話</button>
           <button class="pill ghost" data-go-voice="1">聲音克隆室</button>
           <button class="pill ghost" data-go-stage="${id}">進入 3D 舞台</button>
-          <button class="pill ghost" data-go-warroom="${id}">開始數字人會議</button>
+          <button class="pill ghost" data-go-warroom="${id}">開始數位人會議</button>
           <button class="pill ghost" data-go="/${id}/video">產生影片</button>
           <button class="pill ghost" data-go="/${id}/settings">管理設定</button>
         </div>`;
@@ -1141,10 +1141,10 @@
       const img = assets.image.find(x => String(x.id) === String(h.selected_image_id))
         || assets.image.find(x => x.is_selected)
         || assets.image[0];
-      setHeader('數字人', statusLabel(h), '管理設定', () => go(`/${h.id}/settings`));
+      setHeader('數位人', statusLabel(h), '管理設定', () => go(`/${h.id}/settings`));
       document.getElementById('app').innerHTML = `
         <div class="hero">
-          ${imageUrl(img||h) ? `<img class="preview" alt="" src="${esc(imageUrl(img||h))}" data-path="${esc((img||{}).storage_path||'')}" onerror="window.__resignImg&&window.__resignImg(this)"/><div class="preview-ph" style="display:none">照片已上傳，預覽連結失效<br><button class="pill" style="margin-top:12px;" data-go="/${esc(h.id)}/images">重新選擇圖片</button></div>` : `<div class="preview-ph">尚未設定數字人外觀<br><button class="pill" style="margin-top:12px;" data-go="/${esc(h.id)}/images">選擇圖片</button></div>`}
+          ${imageUrl(img||h) ? `<img class="preview" alt="" src="${esc(imageUrl(img||h))}" data-path="${esc((img||{}).storage_path||'')}" onerror="window.__resignImg&&window.__resignImg(this)"/><div class="preview-ph" style="display:none">照片已上傳，預覽連結失效<br><button class="pill" style="margin-top:12px;" data-go="/${esc(h.id)}/images">重新選擇圖片</button></div>` : `<div class="preview-ph">尚未設定數位人外觀<br><button class="pill" style="margin-top:12px;" data-go="/${esc(h.id)}/images">選擇圖片</button></div>`}
           <div class="row" style="margin-top:12px;">
             <span class="chip on">${esc(statusLabel(h))}</span>
             <span class="chip">${esc(h.brain_provider || h.provider || '—')}</span>
@@ -2195,7 +2195,7 @@
         ${chatClip?.url ? `<video controls playsinline src="${esc(chatClip.url)}" style="width:100%;margin-bottom:10px;border-radius:12px;background:#000;"></video>
           <button class="pill" type="button" id="btnDlClip">下載影片</button>` : ''}
         <div class="chat-box">
-          <div class="msgs" id="msgs">${chatLog.map(m => `<div class="bubble ${m.role==='user'?'me':'bot'}">${esc(m.text)}${m.src ? `<div style="margin-top:4px;font-size:11px;opacity:.7;">${esc(m.src)}</div>` : ''}</div>`).join('') || '<div class="muted">按麥克風開始說話，數字人會用聲音回答。</div>'}</div>
+          <div class="msgs" id="msgs">${chatLog.map(m => `<div class="bubble ${m.role==='user'?'me':'bot'}">${esc(m.text)}${m.src ? `<div style="margin-top:4px;font-size:11px;opacity:.7;">${esc(m.src)}</div>` : ''}</div>`).join('') || '<div class="muted">按麥克風開始說話，數位人會用聲音回答。</div>'}</div>
         </div>
         <div class="composer-dock">
           <div class="composer" style="background:var(--card);border:1px solid var(--border);border-radius:18px;">
@@ -2283,7 +2283,7 @@
     async function recordChatVideo() {
       if (recordingVideo) return toast('正在錄製，請稍候');
       const h = current || {};
-      if (!h.id) return toast('找不到數字人');
+      if (!h.id) return toast('找不到數位人');
       if (!h.selected_image_id && !assets.image[0]) return toast('請先選擇一張照片再錄影片');
       const line = clipLine();
       if (!line) return toast('請先語音聊天，或在文案框輸入她要說的話');
@@ -2460,9 +2460,9 @@
       setHeader('AI Video', '', null);
       document.getElementById('app').innerHTML = `
         <div class="card">
-          <h3>你想讓數字人做什麼？</h3>
+          <h3>你想讓數位人做什麼？</h3>
           <label>提示詞</label>
-          <textarea id="vPrompt" placeholder="例如：我的數字人在台北街頭介紹 AIVAULT，使用自然的語氣向使用者說明平台功能。"></textarea>
+          <textarea id="vPrompt" placeholder="例如：我的數位人在台北街頭介紹 AIVAULT，使用自然的語氣向使用者說明平台功能。"></textarea>
           <label>時長</label>
           <select id="vDur"><option>5</option><option selected>10</option><option>15</option><option>30</option></select>
           <label>比例</label>
@@ -2635,7 +2635,7 @@
         </div>
         <div class="card danger-zone">
           <h3>危險操作</h3>
-          <button class="pill danger" id="btnDelHuman">刪除數字人</button>
+          <button class="pill danger" id="btnDelHuman">刪除數位人</button>
         </div>`;
       document.getElementById('fProvider').onchange = (e) => {
         draft.brain_provider = e.target.value;
@@ -2648,7 +2648,7 @@
         toast('已選擇 Model：' + draft.brain_model);
       };
       document.getElementById('btnDelHuman').onclick = async () => {
-        if (!confirm('確定刪除這個數字人？此操作需二次確認。')) return;
+        if (!confirm('確定刪除這個數位人？此操作需二次確認。')) return;
         if (!confirm('再次確認：刪除後無法從這個畫面復原。')) return;
         try {
           await saveHuman({ action: 'delete', id: h.id });
@@ -2750,7 +2750,7 @@
       if (pv) { await pickVoice(pv.getAttribute('data-pick-voice')); return; }
       const dh = e.target.closest('[data-del-human]');
       if (dh) {
-        if (!confirm('確定刪除這位數字人？圖片與聲音會一併刪。')) return;
+        if (!confirm('確定刪除這位數位人？圖片與聲音會一併刪。')) return;
         try { await deleteHuman(dh.getAttribute('data-del-human')); toast('已刪除'); go('/manage'); }
         catch (err) { toast(err.message); }
         return;
@@ -2803,7 +2803,7 @@
       app.querySelectorAll('p.muted').forEach(p => { if (/沒有固定台詞/.test(p.textContent)) p.remove(); });
       const av = app.querySelector('.dh-avatar');
       if (av && !app.querySelector('.sc-hero')) {
-        av.insertAdjacentHTML('beforebegin', `<section class="sc-hero"><div class="sc-badge">AIVAULT · AI 數字人</div><h2 class="sc-title">${esc(A.title || A.name)}</h2><p class="sc-tag">「${esc(A.tagline || '')}」</p></section>`);
+        av.insertAdjacentHTML('beforebegin', `<section class="sc-hero"><div class="sc-badge">AIVAULT · AI 數位人</div><h2 class="sc-title">${esc(A.title || A.name)}</h2><p class="sc-tag">「${esc(A.tagline || '')}」</p></section>`);
         av.insertAdjacentHTML('afterend', `<div class="sc-feats">
           <div class="sc-f"><b>🎙️</b><span>即時語音對話</span></div>
           <div class="sc-f"><b>📹</b><span>視訊看得到你</span></div>
@@ -2811,7 +2811,7 @@
           <div class="sc-f"><b>😊</b><span>表情與動作指令</span></div></div>`);
       }
       const live = document.getElementById('btnLive'); if (live) live.classList.add('sc-live');
-      if (!app.querySelector('.sc-manage')) app.insertAdjacentHTML('beforeend', `<div class="sc-manage"><a href="#/manage">⚙ 管理數字人</a></div>`);
+      if (!app.querySelector('.sc-manage')) app.insertAdjacentHTML('beforeend', `<div class="sc-manage"><a href="#/manage">⚙ 管理數位人</a></div>`);
       const m = document.getElementById('msgs'); if (m && !chatLog.length) m.innerHTML = `<div class="muted">按「▶ 開始即時語音」直接跟${esc(A.name)}聊天，或在下方打字。試試說「笑一笑」「喝口水」「摸摸貓」。</div>`;
     }
     async function render() {
