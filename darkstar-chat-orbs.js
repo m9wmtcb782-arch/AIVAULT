@@ -5,6 +5,7 @@
   var s = d.createElement("style");
   s.textContent = ".topbar .brand>.brand-mark{display:none!important}" +
     ".message:not(.user) .message-avatar.ds-orb-av{background:none!important;animation:none!important;box-shadow:none!important;border:0!important;overflow:visible;font-size:0!important;color:transparent!important}" +
+    ".drawer-brand .brand-mark.ds-orb-av{background:none!important;animation:none!important;box-shadow:none!important;text-shadow:none!important;font-size:0!important;overflow:visible}" +
     ".welcome-mark.ds-orb-av{background:none!important;animation:none!important;box-shadow:none!important;font-size:0!important}";
   d.head.appendChild(s);
   function orbify(av, size) {
@@ -18,6 +19,7 @@
       if (t === "✦" || t === "" && !av.children.length) orbify(av, 34); // 其他功能自訂的頭像（📚📸🌑）保持不變
     });
     d.querySelectorAll(".welcome-mark").forEach(function (m) { orbify(m, 72); });
+    d.querySelectorAll(".drawer-brand .brand-mark").forEach(function (m) { orbify(m, 28); });
   }
   var q = 0; function later() { if (!q) q = requestAnimationFrame(function () { q = 0; scan(); }); }
   function init() { scan(); new MutationObserver(later).observe(d.body, { childList: true, subtree: true }); }
