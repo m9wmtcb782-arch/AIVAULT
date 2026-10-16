@@ -19,6 +19,9 @@
     full: function (who) { return P[who === "dawn" ? "dawn" : "dark"] + COMMON; },
     short: function (who) { return SHORT[who === "dawn" ? "dawn" : "dark"] + SHORT_COMMON; }
   };
+  // 2026-10-16：使用者回報「無法交談」→ 即時語音的背景設定注入先停用（不再對 Live 連線送任何訊息）。
+  // 要重新啟用測試：localStorage.dsPersonaLive = "1"
+  try { if (localStorage.getItem("dsPersonaLive") !== "1") return; } catch (e) { return; }
   try { if (localStorage.getItem("dsPersonaOff") === "1") return; } catch (e) {}
   // ---- 即時語音：連線成功後送一次背景設定 ----
   var NOTE = "【背景設定，請記住，不要出聲回覆這則訊息，等開創者說話再回答】";
