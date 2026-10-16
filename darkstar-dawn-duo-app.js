@@ -239,7 +239,13 @@
   function hist(lines) { return lines.slice(-14).map(function (l) { return (l.who === "user" ? "使用者：" : l.who === "dark" ? "暗星：" : "曙光：") + l.text; }).join("\n"); }
   async function botLine(id, who, sys, lines) {
     say(who, "…"); face(who, "thinking");
-    var raw = await aiRaw(sys, "對話紀錄：\n" + hist(lines) + "\n請回你的下一句。"); if (id !== runId) return false;
+    var ref = "";
+    if (who === "dawn" && w.AIVAULTDawnSearch && w.AIVAULTDawnSearch.refFor) { // 曙光查資料（書架／網路），失敗就照常回答
+      var lu = null; for (var li = lines.length - 1; li >= 0; li--) if (lines[li].who === "user") { lu = lines[li]; break; }
+      if (lu) { try { ref = await Promise.race([w.AIVAULTDawnSearch.refFor(lu.text), new Promise(function (r) { setTimeout(function () { r(""); }, 6000); })]); } catch (e) { ref = ""; } }
+      if (id !== runId) return false;
+    }
+    var raw = await aiRaw(sys, "對話紀錄：\n" + hist(lines) + (ref ? "\n" + ref : "") + "\n請回你的下一句。"); if (id !== runId) return false;
     var O = w.DarkStarOrb, x = O && O.exprFromTag ? O.exprFromTag(raw) : null;
     var text = (O && O.stripTags ? O.stripTags(raw) : raw.replace(/\[表情[:：][^\]]*\]/g, "")).trim(); if (!text) return true;
     if (!x && O && O.moodOf) x = O.moodOf(text);
