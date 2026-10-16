@@ -242,7 +242,7 @@
     var foot = d.querySelector("#aivault-darkstar-avatar .dsfoot"); if (!foot || btn) return;
     var row = d.createElement("div"); row.className = "dsfoot"; row.id = "dsDuoRow"; row.style.paddingTop = "0"; foot.parentNode.insertBefore(row, foot.nextSibling);
     btn3 = d.createElement("button"); btn3.id = "dsTrioTalk"; btn3.type = "button"; btn3.className = "dsbtn primary"; row.appendChild(btn3);
-    btn3.addEventListener("click", function (e) { e.stopPropagation(); startTrio(); });
+    btn3.addEventListener("click", function (e) { e.stopPropagation(); if (running && mode === "trio") return stop(); location.href = "darkstar-dawn-duo.html"; }); // 一起聊改到專用頁面（不依賴數字人面板）
     btn = d.createElement("button"); btn.id = "dsDuoTalk"; btn.type = "button"; btn.className = "dsbtn"; row.appendChild(btn);
     btn.addEventListener("click", function (e) { e.stopPropagation(); start(); });
     askRow = d.createElement("div"); askRow.id = "dsTrioAsk"; askRow.hidden = true; askRow.style.cssText = "display:flex;gap:6px;margin:0 8px 8px";
