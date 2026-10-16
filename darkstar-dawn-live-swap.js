@@ -64,12 +64,12 @@
   }
   function setFront(on) {
     if (on === front) return; front = on; html.classList.toggle("ds-dawn-front", on);
-    ensureCam().hidden = !on;
+    ensureCam().hidden = true; // 曙光相機暫停（需 video=1，會讓身分錯成暗星）
     if (!on) { stopCam(); var o = dawnOrb(); if (o) o.setTalking(0); }
   }
   function dawnOrb() { var D = w.AIVAULTDawnAvatar; return D && D.orb && D.orb(); }
   function tick() {
-    patchUrl();
+    // patchUrl() 已停用：video=1 讓 relay 走暗星視訊流程，曙光被當成暗星（2026-10-16）
     var on = dawnLive() && !darkLive();
     setFront(on);
     if (on) {
