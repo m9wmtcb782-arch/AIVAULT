@@ -1,0 +1,15 @@
+name: Publish private pages (manual)
+on:
+  workflow_dispatch:
+    inputs:
+      src_ref: { description: "git ref containing page sources", required: true, default: "d641049" }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SRC_REF: ${{ inputs.src_ref }}
+        run: python3 .github/scripts/publish_private_pages.py
