@@ -24,6 +24,8 @@ try:
     s,t=http(BASE+"/auth/v1/token?grant_type=password",{"email":email,"password":pw},{"apikey":ANON}); JWT=t["access_token"]; print("::add-mask::"+JWT)
     def y(body,timeout=150):
         t0=time.time(); s,b=http(BASE+"/functions/v1/dark-star-ebook-ingest?feature=yinxu",body,{"apikey":ANON,"Authorization":"Bearer "+JWT},"POST",timeout); return s,b,round(time.time()-t0,1)
+    if STEP=="diag":
+        s,b,dt=y({"action":"diag"}); print("DIAG",s,b)
     if STEP in("direct","all"):
         book=json.load(open("yinxu-demo-book.json"))
         for ans in ["我其實是來找我爸留下的東西，他以前在這裡當過燈守。","嗯"]:
@@ -35,7 +37,10 @@ try:
             if isinstance(b,dict) and b.get("url"):
                 st2,_=(lambda r:(r.status,None))(urllib.request.urlopen(b["url"])); print(" fetch audio",st2)
     if STEP=="compile":
-        s,b,dt=y({"action":"compile_start","ebook_id":ARG,"chunk_pages":int(os.environ.get("CHUNK","40"))}); print("START",s,json.dumps(b,ensure_ascii=False)[:400]); jid=b["job"]["job_id"]
+        body={"action":"compile_start","chunk_pages":int(os.environ.get("CHUNK","40"))}
+        if ARG.endswith(".txt"): body.update(text=open(ARG).read(),title=os.path.basename(ARG)[:-4])
+        else: body["ebook_id"]=ARG
+        s,b,dt=y(body); print("START",s,json.dumps(b,ensure_ascii=False)[:400]); jid=b["job"]["job_id"]
         for i in range(int(os.environ.get("MAXSTEPS","30"))):
             s,b,dt=y({"action":"compile_step","job_id":jid}); j=b.get("job",{}) if isinstance(b,dict) else {}
             print("STEP",i,s,dt,"s",j.get("stage"),j.get("next_page"),"/",j.get("total_pages"),"chars",j.get("characters_found"),"book",j.get("book_id"),"err",j.get("error"),"|",(j.get("log") or [""])[-1])

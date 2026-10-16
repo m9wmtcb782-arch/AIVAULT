@@ -4,7 +4,9 @@ import { ttsGemini, GeminiQuotaError } from "../aivault-tts/gemini.ts";
 const H = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS", "Content-Type": "application/json" };
 const out = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: H });
 const URL0 = Deno.env.get("SUPABASE_URL") || "", SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-const GKEY = () => Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY") || "";
+const KEYS = () => ["GEMINI_API_KEY", ...Array.from({ length: 9 }, (_, i) => "GEMINI_API_KEY_" + (i + 1)), "GOOGLE_API_KEY"].map((n) => Deno.env.get(n) || "").filter((v, i, a) => v && a.indexOf(v) === i);
+let keyIdx = 0;
+const GKEY = () => { const k = KEYS(); return k.length ? k[keyIdx % k.length] : ""; };
 const BUCKET = "yinxu";
 const SRH = { apikey: SR, Authorization: "Bearer " + SR };
 
@@ -50,18 +52,23 @@ async function models(): Promise<string[]> {
 }
 export async function llm(system: string, user: string, opts: { maxTokens?: number; fast?: boolean } = {}): Promise<any> {
   const ms = await models(); const order = opts.fast ? [...ms].reverse() : ms; let last = "";
-  for (const m of order) {
+  for (let ki = 0; ki < Math.max(1, KEYS().length); ki++, keyIdx++) for (const m of order) {
     try {
       const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
         method: "POST", headers: { "x-goog-api-key": GKEY(), "Content-Type": "application/json" }, signal: AbortSignal.timeout(110000),
         body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: [{ role: "user", parts: [{ text: user }] }], generationConfig: { responseMimeType: "application/json", temperature: 0.9, maxOutputTokens: opts.maxTokens || 8192 } }),
       });
-      if (!r.ok) { last = m + ":" + r.status; continue; }
+      if (!r.ok) { last = m + ":" + r.status + ":" + (await r.text()).slice(0, 120).replace(/\s+/g, " "); continue; }
       const j = await r.json(); const t = (j.candidates?.[0]?.content?.parts || []).map((p: any) => p.text || "").join("");
       const mm = t.match(/\{[\s\S]*\}/); if (!mm) { last = m + ":nojson"; continue; }
       const v = JSON.parse(mm[0]); v.__model = m; return v;
     } catch (e) { last = m + ":" + String((e as any)?.message || e).slice(0, 60); }
   }
+  try { // 最後退回 ai-gateway（多金鑰／多供應商）
+    const r = await fetch(URL0 + "/functions/v1/ai-gateway", { method: "POST", headers: { ...SRH, "Content-Type": "application/json" }, signal: AbortSignal.timeout(110000), body: JSON.stringify({ provider: "gemini", messages: [{ role: "system", content: system }, { role: "user", content: user }] }) });
+    const d = await r.json(); const t = String(d.content || d.text || ""); const mm = t.match(/\{[\s\S]*\}/);
+    if (mm) { const v = JSON.parse(mm[0]); v.__model = "gateway:" + (d.model || "?"); return v; } last += " | gateway:nojson";
+  } catch (e) { last += " | gateway:" + String((e as any)?.message || e).slice(0, 60); }
   throw new Error("LLM_FAILED " + last);
 }
 
@@ -97,6 +104,7 @@ async function me(r: Request) {
 }
 
 /* ---------- 編譯（分段、可續跑） ---------- */
+function textPages(t: string) { const a: string[] = []; let buf = ""; for (const p of t.replace(/\r\n/g, "\n").split(/\n{2,}/)) { if ((buf + p).length > 900 && buf) { a.push(buf); buf = ""; } buf += (buf ? "\n\n" : "") + p; } if (buf) a.push(buf); return a; }
 const PARSE_SYS = "你是因序小說編譯管線中的「小說解析 AI」，由暗星統籌。從給定小說片段提取資訊，繁體中文，只輸出 JSON：" +
   '{"summary":"本段劇情摘要（150字內）","characters":[{"name":"","gender":"male|female|unknown","age":"child|adult|old","traits":"性格線索","speech":"說話風格"}],"events":["關鍵事件"],"scenes":[{"place":"","mood":"calm|tense|sad|warm|mystery|storm|night|battle"}],"lines_to_protagonist":[{"speaker":"","line":"原文中對主角說的話"}],"protagonist":"推測的主角姓名"}';
 async function pagesText(ebook: string, from: number, to: number) {
@@ -106,7 +114,7 @@ async function pagesText(ebook: string, from: number, to: number) {
 async function compileStep(job: any) {
   if (job.stage === "parse") {
     const to = Math.min(job.total_pages, job.next_page + job.chunk_pages - 1);
-    const text = (await pagesText(job.ebook_id, job.next_page, to)).slice(0, 60000);
+    const text = (job.text_pages ? job.text_pages.slice(job.next_page - 1, to).join("\n") : await pagesText(job.ebook_id, job.next_page, to)).slice(0, 60000);
     const known = Object.keys(job.bible.characters).slice(0, 60).join("、");
     const v = await llm(PARSE_SYS, `書名：${job.title}\n已知角色：${known || "（無）"}\n前情：${job.bible.summaries.slice(-3).join(" / ") || "（開頭）"}\n\n片段（第 ${job.next_page}–${to} 頁）：\n${text}`, { maxTokens: 4096, fast: true });
     job.bible.summaries.push(`[p${job.next_page}-${to}] ${v.summary || ""}`);
@@ -182,10 +190,12 @@ export async function yinxu(r: Request) {
     if (["ebooks", "compile_start", "compile_step", "compile_jobs"].includes(a) && !u.owner) return out({ error: "owner only" }, 403);
     if (a === "ebooks") { const r2 = await fetch(`${URL0}/rest/v1/dark_star_ebooks?select=id,title,author,total_pages,total_characters,created_at&order=created_at.desc&limit=200`, { headers: SRH }); return out({ ok: true, books: await r2.json() }); }
     if (a === "compile_start") {
-      const id = String(b.ebook_id || ""); if (!/^[0-9a-f-]{36}$/i.test(id)) return out({ error: "ebook_id" }, 400);
-      const e = await (await fetch(`${URL0}/rest/v1/dark_star_ebooks?select=id,title,total_pages&id=eq.${id}`, { headers: SRH })).json();
+      let id = String(b.ebook_id || ""), tp: string[] | null = null;
+      if (b.text) { tp = textPages(String(b.text).slice(0, 3000000)); id = "00000000-0000-0000-0000-" + (await sha(String(b.text))).slice(0, 12); }
+      else if (!/^[0-9a-f-]{36}$/i.test(id)) return out({ error: "ebook_id" }, 400);
+      const e = tp ? [{ id, title: String(b.title || "未命名"), total_pages: tp.length }] : await (await fetch(`${URL0}/rest/v1/dark_star_ebooks?select=id,title,total_pages&id=eq.${id}`, { headers: SRH })).json();
       if (!e?.[0]) return out({ error: "BOOK_NOT_FOUND" }, 404);
-      const job = { job_id: crypto.randomUUID(), ebook_id: id, title: e[0].title, total_pages: Number(e[0].total_pages) || 1, chunk_pages: Math.min(80, Math.max(5, Number(b.chunk_pages) || 40)), next_page: 1, stage: "parse", created_at: new Date().toISOString(), log: ["暗星：開始編譯《" + e[0].title + "》"], bible: { characters: {}, summaries: [], events: [], scenes: [], lines: [], protagonist_votes: {} } };
+      const job = { job_id: crypto.randomUUID(), ebook_id: id, title: e[0].title, total_pages: Number(e[0].total_pages) || 1, chunk_pages: Math.min(80, Math.max(5, Number(b.chunk_pages) || 40)), next_page: 1, stage: "parse", created_at: new Date().toISOString(), log: ["暗星：開始編譯《" + e[0].title + "》（" + (Number(e[0].total_pages) || 1) + " 頁）"], text_pages: tp, bible: { characters: {}, summaries: [], events: [], scenes: [], lines: [], protagonist_votes: {} } };
       await put(`jobs/${job.job_id}.json`, JSON.stringify(job)); return out({ ok: true, job: slim(job) });
     }
     if (a === "compile_step") {
@@ -195,6 +205,7 @@ export async function yinxu(r: Request) {
       try { await compileStep(job); job.error = null; } catch (e) { job.error = String((e as any)?.message || e).slice(0, 200); job.log.push("錯誤：" + job.error + "（可重試，會從這一步續跑）"); }
       job.updated_at = new Date().toISOString(); await put(`jobs/${job.job_id}.json`, JSON.stringify(job)); return out({ ok: true, job: slim(job) });
     }
+    if (a === "diag" && u.owner) { modelList = null; return out({ ok: true, keys: KEYS().length, models: await models() }); }
     if (a === "list") { const idx = (await getJSON("index.json")) || { books: [] }; return out({ ok: true, books: idx.books, owner: u.owner }); }
     if (a === "get") {
       const pkg = await getJSON(`books/${String(b.book_id || "").replace(/[^\w-]/g, "")}.json`); if (!pkg) return out({ error: "BOOK_NOT_FOUND" }, 404);
