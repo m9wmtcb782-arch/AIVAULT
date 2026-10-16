@@ -50,8 +50,8 @@ async function models(): Promise<string[]> {
   if (!modelList.length) modelList = have.filter((m) => /^gemini-[0-9.]+-(pro|flash)$/.test(m)).sort().reverse().slice(0, 3);
   return modelList;
 }
-export async function llm(system: string, user: string, opts: { maxTokens?: number; fast?: boolean } = {}): Promise<any> {
-  const ms = await models(); const order = opts.fast ? [...ms].reverse() : ms; let last = "";
+export async function llm(system: string, user: string, opts: { maxTokens?: number; fast?: boolean; skipGemini?: boolean } = {}): Promise<any> {
+  const ms = opts.skipGemini ? [] : await models(); const order = opts.fast ? [...ms].reverse() : ms; let last = "";
   for (let ki = 0; ki < Math.max(1, KEYS().length); ki++, keyIdx++) for (const m of order) {
     try {
       const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {

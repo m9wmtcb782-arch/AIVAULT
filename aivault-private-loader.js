@@ -5,6 +5,9 @@
   var ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE';
   var KEY = 'sb-clcddygkaaqqtsbswgdf-auth-token';
   var slug = document.currentScript && document.currentScript.getAttribute('data-slug');
+  var pages = ((document.currentScript && document.currentScript.getAttribute('data-pages')) || '').split(',');
+  var want = new URLSearchParams(location.search).get('page');
+  if (want && pages.indexOf(want) >= 0) slug = want;
   function toLogin(why) {
     try { console.warn('AIVAULT private page:', why); } catch (_) {}
     location.replace('aivault-login.html?next=' + encodeURIComponent(location.pathname.split('/').pop() + location.search));
