@@ -62,8 +62,29 @@
     if (camStream) { camStream.getTracks().forEach(function (t) { t.stop(); }); camStream = null; }
     if (cam) { cam.querySelector("video").srcObject = null; cam.classList.add("camoff"); }
   }
+  // 面板文字：交換期間顯示曙光的標題／連線狀態／說話狀態，換回時還原
+  var saved = null;
+  function q(id) { return d.getElementById(id); }
+  function titleEl() { return d.querySelector("#aivault-darkstar-avatar .dsah > span"); }
+  function labels(on, playing) {
+    var t = titleEl(), tx = q("dstxt"), dot = q("dsdot"), stl = q("dsstate");
+    if (on) {
+      if (!saved) saved = { t: t && t.textContent, tx: tx && tx.textContent, dot: dot && dot.classList.contains("on"), st: stl && stl.textContent };
+      if (t && t.textContent !== "☀️ 曙光數字人") t.textContent = "☀️ 曙光數字人";
+      if (tx && tx.textContent !== "已連結") tx.textContent = "已連結";
+      if (dot) dot.classList.add("on");
+      var want = playing ? "🗣️ 曙光正在說話" : "👂 曙光正在聆聽";
+      if (stl && stl.textContent !== want) stl.textContent = want;
+    } else if (saved) {
+      if (t) t.textContent = saved.t || "🌟 暗星數字人";
+      if (tx) tx.textContent = saved.tx || "未連結";
+      if (dot) dot.classList.toggle("on", !!saved.dot);
+      if (stl) stl.textContent = (saved.st && !/曙光/.test(saved.st)) ? saved.st : "等待暗星說話";
+      saved = null;
+    }
+  }
   function setFront(on) {
-    if (on === front) return; front = on; html.classList.toggle("ds-dawn-front", on);
+    if (on === front) return; front = on; html.classList.toggle("ds-dawn-front", on); if (!on) labels(false);
     ensureCam().hidden = true; // 曙光相機暫停（需 video=1，會讓身分錯成暗星）
     if (!on) { stopCam(); var o = dawnOrb(); if (o) o.setTalking(0); }
   }
@@ -75,6 +96,7 @@
     if (on) {
       var A = api(), s = A && A.session, playing = !!(s && s.sources && s.sources.length), o = dawnOrb();
       if (o) o.setTalking(playing ? 0.3 + 0.5 * Math.abs(Math.sin(Date.now() / 90)) : 0);
+      labels(true, playing);
     }
   }
   function init() { css(); setInterval(tick, 120); }
