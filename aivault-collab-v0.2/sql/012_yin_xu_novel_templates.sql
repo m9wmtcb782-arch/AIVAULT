@@ -1,5 +1,5 @@
--- 因序小說角色模板與調度種子
--- 套進 agent_registry，核心角色 + 模板，不常駐1000個
+-- 因序小說角色模板與調度種子（擴充版）
+-- 套進 agent_registry，核心角色 + 更多性格模板
 -- Apply on TEST project only.
 
 INSERT INTO agent_registry (
@@ -10,12 +10,21 @@ VALUES
   ('yin-xu-coordinator', '因序編譯協調', 'Coordinator', '角色分配 / 對話轉問答 / 時間線管理 / 防誘導', 'compile,assign,timeline,anti-railroad,schedule', 'WAITING', 'not_connected', '#3b82f6'),
   ('yin-xu-audio', '因序音效', 'Audio', 'BGM / 特性音樂 / SFX 觸發', 'audio,bgm,sfx,trigger', 'WAITING', 'not_connected', '#22c55e'),
   ('yin-xu-protagonist', '因序主角AI', 'Protagonist', '逾時自動回答 / 不可重來 / 依劇情決定', 'auto-answer,timeout,irreversible,decide', 'WAITING', 'not_connected', '#8b5cf6'),
+  ('yin-xu-timeline', '因序時間線', 'Timeline', '已發生事件記錄 / 不可逆 / 角色出場控制', 'timeline,state,irreversible,entry', 'WAITING', 'not_connected', '#06b6d4'),
+  ('yin-xu-supervisor', '因序防誘導監督', 'Supervisor', '檢查角色回應是否誘導回原時間線', 'supervise,anti-railroad,check', 'WAITING', 'not_connected', '#ef4444'),
+  -- 基礎聲音模板
   ('yin-xu-char-male', '角色模板-男', 'Character', '男性角色扮演 / 知道原結局但不誘導', 'roleplay,male,voice,anti-railroad', 'WAITING', 'not_connected', '#64748b'),
   ('yin-xu-char-female', '角色模板-女', 'Character', '女性角色扮演 / 知道原結局但不誘導', 'roleplay,female,voice,anti-railroad', 'WAITING', 'not_connected', '#ec4899'),
   ('yin-xu-char-old', '角色模板-老', 'Character', '老年角色扮演 / 知道原結局但不誘導', 'roleplay,old,voice,anti-railroad', 'WAITING', 'not_connected', '#f59e0b'),
   ('yin-xu-char-child', '角色模板-幼', 'Character', '幼年角色扮演 / 知道原結局但不誘導', 'roleplay,child,voice,anti-railroad', 'WAITING', 'not_connected', '#84cc16'),
-  ('yin-xu-timeline', '因序時間線', 'Timeline', '已發生事件記錄 / 不可逆 / 角色出場控制', 'timeline,state,irreversible,entry', 'WAITING', 'not_connected', '#06b6d4'),
-  ('yin-xu-supervisor', '因序防誘導監督', 'Supervisor', '檢查角色回應是否誘導回原時間線', 'supervise,anti-railroad,check', 'WAITING', 'not_connected', '#ef4444')
+  -- 擴充性格模板
+  ('yin-xu-char-passerby', '角色模板-路人', 'Character', '路人角色 / 短暫互動 / 不主導劇情', 'roleplay,passerby,neutral,anti-railroad', 'WAITING', 'not_connected', '#94a3b8'),
+  ('yin-xu-char-friend', '角色模板-朋友', 'Character', '友善支持型 / 可提供資訊但不誘導', 'roleplay,friend,supportive,anti-railroad', 'WAITING', 'not_connected', '#22c55e'),
+  ('yin-xu-char-villain', '角色模板-反派', 'Character', '對立角色 / 有自己的目標 / 不強制走原結局', 'roleplay,villain,opposition,anti-railroad', 'WAITING', 'not_connected', '#dc2626'),
+  ('yin-xu-char-mystery', '角色模板-神秘人', 'Character', '資訊有限 / 說話含糊 / 不揭示結局', 'roleplay,mystery,vague,anti-railroad', 'WAITING', 'not_connected', '#6366f1'),
+  ('yin-xu-char-teacher', '角色模板-導師', 'Character', '給予建議但不強迫選擇 / 依性格回應', 'roleplay,teacher,advice,anti-railroad', 'WAITING', 'not_connected', '#0ea5e9'),
+  ('yin-xu-char-merchant', '角色模板-商人', 'Character', '交易導向 / 利益優先 / 不誘導主線', 'roleplay,merchant,trade,anti-railroad', 'WAITING', 'not_connected', '#eab308'),
+  ('yin-xu-char-guard', '角色模板-守衛', 'Character', '守門或攔截型 / 依規則行動', 'roleplay,guard,rule-based,anti-railroad', 'WAITING', 'not_connected', '#78716c')
 ON CONFLICT (agent_id) DO UPDATE
 SET
   display_name = EXCLUDED.display_name,
@@ -25,7 +34,7 @@ SET
   color = EXCLUDED.color,
   updated_at = now();
 
--- 因序小說主任務種子
+-- 因序小說主任務種子（維持）
 INSERT INTO agent_tasks (
   task_id, parent_task_id, title, name, description, owner_id, status, priority,
   current_gate, progress, progress_note, contract_id, created_by
@@ -40,7 +49,7 @@ INSERT INTO agent_tasks (
   'HIGH',
   'g1_architecture',
   'WAITING FOR EXECUTION',
-  '模板已種入。等待實際編譯任務。',
+  '模板已擴充。等待實際編譯任務。',
   'yin-xu.novel.compile.v0.1',
   'owner'
 )
@@ -52,11 +61,22 @@ INSERT INTO agent_task_members (task_id, agent_id) VALUES
   ('yin-xu-compile', 'yin-xu-audio'),
   ('yin-xu-compile', 'yin-xu-protagonist'),
   ('yin-xu-compile', 'yin-xu-timeline'),
-  ('yin-xu-compile', 'yin-xu-supervisor')
+  ('yin-xu-compile', 'yin-xu-supervisor'),
+  ('yin-xu-compile', 'yin-xu-char-male'),
+  ('yin-xu-compile', 'yin-xu-char-female'),
+  ('yin-xu-compile', 'yin-xu-char-old'),
+  ('yin-xu-compile', 'yin-xu-char-child'),
+  ('yin-xu-compile', 'yin-xu-char-passerby'),
+  ('yin-xu-compile', 'yin-xu-char-friend'),
+  ('yin-xu-compile', 'yin-xu-char-villain'),
+  ('yin-xu-compile', 'yin-xu-char-mystery'),
+  ('yin-xu-compile', 'yin-xu-char-teacher'),
+  ('yin-xu-compile', 'yin-xu-char-merchant'),
+  ('yin-xu-compile', 'yin-xu-char-guard')
 ON CONFLICT (task_id, agent_id) DO NOTHING;
 
 INSERT INTO agent_task_gates (task_id, gate_key, state, note) VALUES
-  ('yin-xu-compile', 'g1_architecture', 'WAITING', '角色模板與調度規格已寫入'),
+  ('yin-xu-compile', 'g1_architecture', 'WAITING', '角色模板已擴充'),
   ('yin-xu-compile', 'g2_implementation', 'NOT_STARTED', '等待實際小說解析與編譯'),
   ('yin-xu-compile', 'g3_verification', 'NOT_STARTED', '語音互動與逾時邏輯驗證'),
   ('yin-xu-compile', 'g4_production', 'NOT_STARTED', '上架到因序小說書架')
