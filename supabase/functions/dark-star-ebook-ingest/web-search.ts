@@ -31,7 +31,7 @@ export async function webSearch(r: Request) {
     ];
     const got = await Promise.allSettled(srcs.map(([, f]) => f()));
     const diag: Record<string, string> = {};
-    got.forEach((g, i) => { diag[srcs[i][0]] = g.status === "fulfilled" ? "n=" + g.value.length : String((g as any).reason?.message || g.reason).slice(0, 80); if (g.status !== "fulfilled") return; const ok = g.value.filter((x) => /^https?:\/\//.test(x.url) && (srcs[i][0] === "wikipedia" || relevant(q, x.title + " " + x.snippet))); if (ok.length) { engines.push(srcs[i][0]); rows.push(...ok); } });
+    got.forEach((g, i) => { diag[srcs[i][0]] = g.status === "fulfilled" ? "n=" + g.value.length : String((g as any).reason?.message || g.reason).slice(0, 80); if (g.status !== "fulfilled") return; const ok = g.value.filter((x) => /^https?:\/\//.test(x.url) && relevant(q, x.title + " " + x.snippet)); if (ok.length) { engines.push(srcs[i][0]); rows.push(...ok); } });
     const engine = engines.join(",");
     const seen = new Set<string>();
     rows = rows.filter((x) => !seen.has(x.url) && seen.add(x.url)).slice(0, Math.min(8, Number(b.n) || 5)).map((x) => ({ title: x.title.slice(0, 160), url: x.url, snippet: x.snippet.slice(0, 400) }));
