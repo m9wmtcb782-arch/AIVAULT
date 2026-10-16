@@ -146,7 +146,7 @@
     .dh-head.real .face-svg, .dh-head.real .dh-mouth, .dh-head.real > img:not(.dh-real) { display:none; }
     .dh-head .dh-real { display:none; position:absolute; left:-210px; top:-30px; width:auto; height:672px; max-width:none; transform-origin:50% 70%; }
     .dh-head.real .dh-real { display:block; }
-    .dh-head.vid { width:min(100%,360px); height:auto; aspect-ratio:480/432; }
+    .dh-head.vid { width:min(100%,360px); height:auto; aspect-ratio:480/432; background:#020617 url(digital-human-real/video/idle.jpg) center/cover no-repeat; }
     .dh-head.vid > *:not(.dh-vid) { visibility:hidden; }
     .dh-vid { position:absolute; inset:0; }
     .dh-vid video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity .25s linear; }
@@ -1605,7 +1605,12 @@
         v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('webkit-playsinline', '');
         v.poster = DIR + n + '.jpg'; v.src = DIR + n + '.mp4';
         v.loop = !ONCE[n];
-        v.onerror = () => { if (n === 'transition' || n === 'idle' || n === 'talk') fail(); };
+        let errs = 0;
+        v.onerror = () => {   // 只有 idle 連續失敗才退回照片；其他片段失敗就略過
+          if (n === 'transition') { phase = 'main'; update(); return; }
+          if (n !== 'idle') { if (clip === n) { drinking = petting = false; filler = ''; moodOnce = ''; update(); } return; }
+          if (++errs >= 2) fail(); else setTimeout(() => { try { v.load(); } catch {} }, 800);
+        };
         v.onended = () => {
           if (n === 'transition') phase = 'main';
           if (n === 'drink') drinking = false;
@@ -1640,6 +1645,7 @@
       }
       function show(name, fadeMs) {
         if (failed) return;
+        if (name === 'transition' && !show._tg) show._tg = setTimeout(() => { if (phase === 'intro') { phase = 'main'; update(); } }, 7000);   // iOS 若沒播完也不會卡在第一格
         const v = V[name];
         if (name !== clip) {
           if (ONCE[name] && name !== clip) { try { v.currentTime = 0; } catch {} }
@@ -1940,6 +1946,12 @@
         const sc = d.serverContent || d;
         if (d.type === 'interrupted' || sc.interrupted) bargeIn();
         takeAudio(d);
+        try {   // 記住後端回傳的 conversation/topic（比照 technical-dark-star.html applyLiveSessionIds）
+          const cid = d.conversation_id || d.conversationId || (d.session && d.session.conversation_id) || (d.live_open && d.live_open.conversation_id) || (d.memory && d.memory.conversation_id);
+          const tp = d.topic_id || d.topicId || (d.live_open && d.live_open.topic_id);
+          if (typeof cid === 'string' && cid.trim()) localStorage.setItem('aivault-dh-live-conversation-id', cid.trim());
+          if (typeof tp === 'string' && tp.trim()) localStorage.setItem('aivault-dh-live-topic-id', tp.trim());
+        } catch {}
         if (d.type === 'live_open' || d.setupComplete) { wsState = 'Gemini 已連線'; retry = 0; try { dhVid.stopWaiting(); dhVid.cancelAction(); } catch {} }
         const inn = (sc.inputTranscription && sc.inputTranscription.text) || (d.type === 'inputTranscription' ? d.text : '');
         if (inn) { inBuf += inn; upsert('user', inBuf); }
@@ -1949,14 +1961,15 @@
         if (d.type === 'error' || d.error) {
           const m = d.message || (d.error && d.error.message) || JSON.stringify(d.error || d); lastErr = String(m).slice(0, 60);
           if (/AUTH_REQUIRED|INVALID_AUTH/.test(m)) { wanted = false; toast('請先登入 AIVAULT 再使用即時語音'); }
-          if (/TOPIC_ID_REQUIRED/.test(m)) { try { localStorage.removeItem('aivault-dh-live-topic-id'); } catch {} }
+          if (/TOPIC_ID_REQUIRED|IDENTITY_MISMATCH/.test(m)) { try { localStorage.removeItem('aivault-dh-live-topic-id'); localStorage.removeItem('aivault-dh-live-conversation-id'); } catch {} }
         }
       }
       function connect() {
         return new Promise((resolve, reject) => {
           const q = new URLSearchParams();
           q.set('voice', dhLiveVoice()); q.set('agent_id', 'technical-dark-star'); q.set('topic_id', topicId());
-          const conv = localStorage.getItem('technical_dark_star_conversation_id') || ''; if (conv) q.set('conversation_id', conv);
+          // 專用的 topic/conversation 配對（不可借用暗星頁的 conversation_id，否則 CONVERSATION_IDENTITY_MISMATCH）
+          let conv = ''; try { conv = localStorage.getItem('aivault-dh-live-conversation-id') || ''; } catch {} if (conv) q.set('conversation_id', conv);
           const tok = token(); if (tok) q.set('access_token', tok); else lastErr = '未登入';
           wsState = retry ? '重新連線中…' : '連線中…';
           try { dhVid.startWaiting(retry ? '重新連線中…' : '連接中…', 'net'); } catch {}
@@ -1967,7 +1980,7 @@
           sock.onerror = () => { clearTimeout(t); lastErr = 'WS error'; reject(new Error('WebSocket error')); };
           sock.onmessage = e => onMsg(e.data);
           sock.onclose = ev => {
-            clearTimeout(t); if (ws === sock) ws = null; wsState = '斷線 ' + ev.code;
+            clearTimeout(t); if (ws === sock) ws = null; wsState = '斷線 ' + ev.code + (ev.reason ? ' ' + String(ev.reason).slice(0, 40) : '');
             if (active && wanted && retry < 6) { retry++; try { dhVid.startWaiting('重新連線中…', 'net'); } catch {}
               setTimeout(() => { if (active && wanted) connect().catch(() => {}); }, Math.min(15000, 800 * 2 ** retry)); }
             else if (active) { toast('即時語音已中斷' + (lastErr ? '：' + lastErr : '')); stop(); }
