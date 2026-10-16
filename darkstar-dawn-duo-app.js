@@ -90,7 +90,39 @@
     (function f() { if (o) o.setTalking(0.25 + 0.55 * Math.abs(Math.sin(Date.now() / 85))); talkRaf = requestAnimationFrame(f); })();
   }
   var logEl = null, lastLog = "";
-  function logLine(who, text) { if (!logEl || !text || text === "…" || /等 Gemini 聲音配額|聊天中斷|對話中斷/.test(text)) return; var key = who + text.replace("（備用聲音）", ""); if (key === lastLog) return; lastLog = key; var r = d.createElement("div"); r.className = "ln " + who; r.textContent = (who === "dark" ? "🌙 暗星：" : who === "dawn" ? "☀️ 曙光：" : "🙂 你：") + text; logEl.appendChild(r); logEl.scrollTop = logEl.scrollHeight; }
+  var curLines = null, toastT = 0;
+  function toast(msg, undo) {
+    var t = d.getElementById("duoToast"); if (!t) return;
+    t.innerHTML = ""; t.appendChild(d.createTextNode(msg));
+    if (undo) { var b = d.createElement("button"); b.type = "button"; b.textContent = "復原"; b.onclick = function () { undo(); t.hidden = true; }; t.appendChild(b); }
+    t.hidden = false; clearTimeout(toastT); toastT = setTimeout(function () { t.hidden = true; }, undo ? 4500 : 1500);
+  }
+  function copyText(text) {
+    var done = function () { toast("已複製"); };
+    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text) ? done() : toast("複製失敗，請長按文字"); }); return; }
+    fallbackCopy(text) ? done() : toast("複製失敗，請長按文字");
+  }
+  function fallbackCopy(text) { try { var ta = d.createElement("textarea"); ta.value = text; ta.setAttribute("readonly", ""); ta.style.cssText = "position:fixed;top:-1000px;opacity:0"; d.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length); var ok = d.execCommand("copy"); ta.remove(); return ok; } catch (e) { return false; } }
+  var ICON_COPY = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
+  var ICON_DEL = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>';
+  function removeRow(r) {
+    var parent = r.parentNode, next = r.nextSibling, ln = r.__line, idx = -1, arr = curLines;
+    if (ln && arr) { idx = arr.indexOf(ln); if (idx >= 0) arr.splice(idx, 1); } // 同時從對話記憶移除
+    r.remove();
+    toast("已刪除", function () { parent.insertBefore(r, next); if (ln && arr && idx >= 0) arr.splice(Math.min(idx, arr.length), 0, ln); });
+  }
+  function logLine(who, text) {
+    if (!logEl || !text || text === "…" || /等 Gemini 聲音配額|聊天中斷|對話中斷/.test(text)) return;
+    var clean = text.replace("（備用聲音）", ""), key = who + clean; if (key === lastLog) return; lastLog = key;
+    var r = d.createElement("div"); r.className = "ln " + who;
+    var tx = d.createElement("div"); tx.className = "tx"; tx.textContent = (who === "dark" ? "🌙 暗星：" : who === "dawn" ? "☀️ 曙光：" : "🙂 你：") + text;
+    var act = d.createElement("div"); act.className = "act";
+    var bc = d.createElement("button"); bc.type = "button"; bc.title = "複製"; bc.setAttribute("aria-label", "複製"); bc.innerHTML = ICON_COPY; bc.onclick = function (e) { e.stopPropagation(); copyText(clean); };
+    var bd = d.createElement("button"); bd.type = "button"; bd.title = "刪除"; bd.setAttribute("aria-label", "刪除"); bd.innerHTML = ICON_DEL; bd.onclick = function (e) { e.stopPropagation(); removeRow(r); };
+    act.appendChild(bc); act.appendChild(bd); r.appendChild(tx); r.appendChild(act);
+    if (curLines) for (var i = curLines.length - 1; i >= 0; i--) { var L = curLines[i]; if ((L.who === who) && String(L.text) === clean) { r.__line = L; break; } }
+    logEl.appendChild(r); logEl.scrollTop = logEl.scrollHeight;
+  }
   function say(who, text) { if (who) logLine(who, text); if (sub) { sub.hidden = !text; sub.textContent = text ? (who === "dark" ? "🌙 暗星：" : "☀️ 曙光：") + text : ""; } }
   function paint() { if (btn) { btn.textContent = running && mode === "duo" ? "⏹ 停止" : "🌙☀️ 互聊"; btn.disabled = running && mode !== "duo"; } if (btn3) btn3.textContent = running && mode === "trio" ? "⏹ 停止聊天" : "🌙☀️ 一起聊"; if (btn3) btn3.disabled = running && mode !== "trio"; if (askRow) askRow.hidden = !(running && mode === "trio"); }
   function playUrl(url, id) {
@@ -126,7 +158,7 @@
     player.play().catch(function () {}); unlockCtx();
     var topic = (w.prompt("想讓暗星和曙光聊什麼？（留空＝隨機主題）", "") || "").trim() || TOPICS[Math.floor(Math.random() * TOPICS.length)];
     var id = ++runId; running = true; mode = "duo"; paint();
-    var lines = [], O = w.DarkStarOrb;
+    var lines = [], O = w.DarkStarOrb; curLines = lines;
     try {
       for (var i = 0; i < TURNS && id === runId; i++) {
         var who = i % 2 ? "dawn" : "dark";
@@ -222,7 +254,7 @@
     player.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
     player.play().catch(function () {}); unlockCtx();
     var id = ++runId; running = true; mode = "trio"; paint();
-    var lines = [], miss = 0;
+    var lines = [], miss = 0; curLines = lines;
     await new Promise(function (r) { setTimeout(r, 300); }); // 等解鎖用的無聲片段播完再開麥克風
     try {
       while (id === runId) {
@@ -249,6 +281,7 @@
     askIn.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); sendTyped(); } });
     d.getElementById("dsTrioMic").addEventListener("click", function () { setCont(!contMic); });
     if (!tok()) { var n = d.getElementById("loginNote"); if (n) n.hidden = false; }
+    var ca = d.getElementById("duoClear"); if (ca) ca.addEventListener("click", function () { var rows = [].slice.call(logEl.children); if (!rows.length) return; var saved = curLines ? curLines.slice() : null; rows.forEach(function (x) { x.remove(); }); if (curLines) curLines.length = 0; lastLog = ""; toast("已清除全部", function () { rows.forEach(function (x) { logEl.appendChild(x); }); if (curLines && saved) [].push.apply(curLines, saved); }); });
     paint();
     if (/[?&]start=1/.test(location.search) && sub) { sub.hidden = false; sub.textContent = "按「🌙☀️ 一起聊」開始（iPhone 需要點一下才能出聲）"; }
   }
