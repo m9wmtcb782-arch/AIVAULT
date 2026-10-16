@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07090d"><title>因序小說書架｜AIVAULT</title>
+<link rel="stylesheet" href="yinxu.css?v=20261016-yx1">
+</head><body>
+<header class="top"><a class="ib" href="dark-star-ebook.html">‹ 書架</a><div class="brand">✦ 因序小說</div><div style="flex:1"></div></header>
+<main class="wrap">
+  <p class="muted">語音互動小說：說書人與角色會開口，問到你時麥克風自動打開，直接說出你的回答。時間線不可倒退，每次遊玩都會長出新的一部。</p>
+  <div id="shelf"></div>
+</main>
+<script src="yinxu-data.js?v=20261016-yx1"></script>
+<script src="yinxu-store.js?v=20261016-yx1"></script>
+<script>
+(function () {
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function card(b, depth) {
+    var kids = YinxuStore.children(b.book_id);
+    var h = '<div class="book' + (depth ? ' child' : '') + '" style="margin-left:' + (depth * 18) + 'px">' +
+      '<div class="cover">' + (depth ? '第' + (b.part || depth + 1) + '部' : '📖') + '</div><div class="info"><b>' + esc(b.title) + '</b>' +
+      '<small>' + (depth ? '新時間線 · ' + esc(b.created_at ? new Date(b.created_at).toLocaleString('zh-TW', { hour12: false }).slice(0, -3) : '') : '原作 · ' + b.characters.length + ' 個聲音') + '</small>' +
+      '<div class="row"><a class="btn primary" href="yinxu-play.html?v=20261016-yx1&book=' + encodeURIComponent(b.book_id) + '">▶ 開始</a>' +
+      (b.story_text ? '<button class="btn" data-read="' + esc(b.book_id) + '">📜 讀紀錄</button>' : '') +
+      (depth ? '<button class="btn ghost" data-del="' + esc(b.book_id) + '">刪除</button>' : '') + '</div></div></div>';
+    kids.forEach(function (k) { h += card(k, depth + 1); });
+    return h;
+  }
+  function render() {
+    var el = document.getElementById('shelf');
+    el.innerHTML = (window.YINXU_DEMO_BOOKS || []).map(function (b) { return card(b, 0); }).join('') || '<p class="muted">尚無因序小說。</p>';
+  }
+  document.addEventListener('click', function (e) {
+    var r = e.target.closest('[data-read]'), d = e.target.closest('[data-del]');
+    if (r) { var b = YinxuStore.get(r.dataset.read); alert(b.title + '\n\n' + b.story_text); }
+    if (d && confirm('刪除這條時間線？')) { YinxuStore.remove(d.dataset.del); render(); }
+  });
+  render();
+})();
+</script>
+</body></html>
