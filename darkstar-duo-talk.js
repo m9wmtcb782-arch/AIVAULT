@@ -28,22 +28,32 @@
     if (!r.ok || typeof out !== "string") throw new Error(j.error || ("HTTP " + r.status));
     return out.replace(/^(暗星|曙光)\s*[:：]\s*/, "").trim();
   }
+  var prov = {}, lastProv = "", actx = null;
+  // iOS：用手勢內解鎖的 AudioContext 解碼播放（不受 <audio> 自動播放限制）
+  function unlockCtx() { try { var B = w.AudioContext || w.webkitAudioContext; if (!B) return; if (!actx || actx.state === "closed") actx = new B(); if (actx.state !== "running") actx.resume().catch(function () {}); var sb = actx.createBuffer(1, 1, 22050), so = actx.createBufferSource(); so.buffer = sb; so.connect(actx.destination); so.start(0); } catch (e) {} try { if (navigator.audioSession && !contMic) navigator.audioSession.type = "playback"; } catch (e) {} }
+  var curSrc = null;
   var ttsStats = { ok: 0, retryOk: 0, google: 0, textOnly: 0 };
   async function tts1(provider, voice, text) {
     var r = await fetch(BASE + "/functions/v1/aivault-tts", { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + ANON },
       body: JSON.stringify({ action: "tts", provider: provider, text: text, voice_id: voice, language: "zh-TW", save: false }) });
     var j = await r.json().catch(function () { return {}; }), x = j.result;
-    if (!r.ok || !x || !x.audio_base64) throw new Error(j.message || j.error || ("TTS HTTP " + r.status));
+    if (!r.ok || !x || !x.audio_base64) { var er = new Error(j.message || j.error || ("TTS HTTP " + r.status)); er.retryAfter = Number(j.retry_after_seconds || 0); throw er; }
     var bytes = Uint8Array.from(atob(x.audio_base64), function (c) { return c.charCodeAt(0); });
-    return URL.createObjectURL(new Blob([bytes], { type: x.mime || "audio/wav" }));
+    var u = URL.createObjectURL(new Blob([bytes], { type: x.mime || "audio/wav" })); prov[u] = x.provider || provider; lastProv = prov[u]; return u;
   }
   // Gemini TTS 有每分鐘配額（429 GEMINI_TTS_QUOTA_RATE）→ 稍等重試一次 → 改用 Google TTS → 仍失敗就只顯示文字（對話不中斷）
   async function tts(who, text) {
     var voice = who === "dark" ? (localStorage.getItem("darkStarVoice") || "Kore") : (localStorage.getItem("dawnLightVoice") || "Aoede");
-    var waits = [0, 2000, 4000, 7000]; // 429 配額：逐步等待後重試同一個 Gemini 聲音，盡量不改用 Google 聲音
-    for (var k = 0; k < waits.length; k++) {
-      if (waits[k]) await new Promise(function (r) { setTimeout(r, waits[k]); });
-      try { var u = await tts1("gemini", voice, text); ttsStats[k ? "retryOk" : "ok"]++; return u; } catch (e) { console.warn("[DuoTalk] gemini tts", k, e.message); }
+    // Gemini TTS 每分鐘配額很低（429 GEMINI_TTS_QUOTA_RATE，retry_after≈60 秒）：
+    // 先快速重試一次；仍受限就依伺服器指示等待（最多 60 秒，畫面倒數），再試一次；都不行才用備用聲音
+    try { var u0 = await tts1("gemini", voice, text); ttsStats.ok++; return u0; } catch (e) { var ra = e.retryAfter || 0; console.warn("[DuoTalk] gemini tts", e.message); }
+    await new Promise(function (r) { setTimeout(r, 2500); });
+    try { var u1 = await tts1("gemini", voice, text); ttsStats.retryOk++; return u1; } catch (e) { ra = e.retryAfter || ra; }
+    if (ra > 0 && running) {
+      var left = Math.min(60, ra), myId = runId;
+      while (left > 0 && myId === runId) { if (sub) { sub.hidden = false; sub.textContent = (who === "dark" ? "🌙 暗星" : "☀️ 曙光") + " 等 Gemini 聲音配額… " + left + " 秒"; } await new Promise(function (r) { setTimeout(r, 1000); }); left--; }
+      if (myId !== runId) return null;
+      try { var u2 = await tts1("gemini", voice, text); ttsStats.retryOk++; return u2; } catch (e) {}
     }
     ttsStats.google++;
     try { return await tts1("google", who === "dark" ? "cmn-TW-Wavenet-C" : "cmn-TW-Wavenet-A", text); } catch (e) { console.warn("[DuoTalk] google tts", e.message); }
@@ -88,12 +98,23 @@
     return new Promise(function (res) {
       if (id !== runId) return res();
       if (!url) return setTimeout(res, Math.min(6000, 1200 + String(sub && sub.textContent || "").length * 180)); // 沒有語音：顯示文字一段時間
-      player.onended = player.onerror = function () { res(); };
-      player.src = url; player.play().catch(function () { res(); });
+      if (prov[url] && prov[url] !== "gemini" && sub && !/備用聲音/.test(sub.textContent)) sub.textContent += "（備用聲音）";
+      var viaEl = function () { player.onended = player.onerror = function () { res(); }; player.src = url; player.play().catch(function () { res(); }); };
+      if (!actx) return viaEl();
+      if (actx.state !== "running") actx.resume().catch(function () {});
+      fetch(url).then(function (r) { return r.arrayBuffer(); }).then(function (ab) {
+        return new Promise(function (ok, bad) { actx.decodeAudioData(ab, ok, bad); });
+      }).then(function (buf) {
+        if (id !== runId) return res();
+        var src = actx.createBufferSource(); src.buffer = buf; src.connect(actx.destination); curSrc = src;
+        src.onended = function () { if (curSrc === src) curSrc = null; res(); };
+        src.start(0);
+      }).catch(function (e) { console.warn("[DuoTalk] ctx play", e); viaEl(); });
     });
   }
   function stop() {
     runId++; running = false; if (contMic) setCont(false); stopListen(); if (listenDone) { var f = listenDone; listenDone = null; f(""); }
+    try { if (curSrc) { curSrc.onended = null; curSrc.stop(); curSrc = null; } } catch (e) {}
     try { if (player) { player.pause(); player.removeAttribute("src"); player.load(); } } catch (e) {}
     mouth(null, false); say(null, ""); paint();
   }
@@ -103,7 +124,7 @@
     // 在點擊手勢內解鎖 <audio>（iOS）
     player = player || new Audio(); player.playsInline = true;
     player.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
-    player.play().catch(function () {});
+    player.play().catch(function () {}); unlockCtx();
     var topic = (w.prompt("想讓暗星和曙光聊什麼？（留空＝隨機主題）", "") || "").trim() || TOPICS[Math.floor(Math.random() * TOPICS.length)];
     var id = ++runId; running = true; mode = "duo"; paint();
     var lines = [], O = w.DarkStarOrb;
@@ -145,7 +166,7 @@
     b.title = contMic ? "連續聆聽中（再按一次關閉）" : "開啟連續語音";
   }
   function setCont(on) {
-    contMic = on; restartFails = 0;
+    contMic = on; restartFails = 0; unlockCtx();
     if (on) { startRec(); if (listenDone && sub) sub.textContent = "🎤 聆聽中…請說話（也可以打字）"; }
     else { stopListen(); if (listenDone && sub) sub.textContent = "⌨️ 換你了：在下方輸入後按送出（按 🎤 可改用語音）"; }
     micPaint(listenDone ? "listening" : "");
@@ -200,7 +221,7 @@
     if (liveBusy()) { alert("請先結束「暗星即時／曙光即時／即時視訊」再開始一起聊（避免聲音互相干擾）。"); return; }
     player = player || new Audio(); player.playsInline = true;
     player.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
-    player.play().catch(function () {});
+    player.play().catch(function () {}); unlockCtx();
     var id = ++runId; running = true; mode = "trio"; paint();
     var lines = [], miss = 0;
     await new Promise(function (r) { setTimeout(r, 300); }); // 等解鎖用的無聲片段播完再開麥克風
@@ -242,5 +263,5 @@
   }
   if (d.readyState === "complete") init(); else w.addEventListener("load", init);
   setTimeout(init, 2500);
-  w.AIVAULTDuoTalk = { start: start, startTrio: startTrio, stop: stop, mode: function () { return mode; }, ttsStats: function () { return ttsStats; }, running: function () { return running; } };
+  w.AIVAULTDuoTalk = { start: start, startTrio: startTrio, stop: stop, mode: function () { return mode; }, ttsStats: function () { return ttsStats; }, lastProvider: function () { return lastProv; }, running: function () { return running; } };
 })(window, document);
