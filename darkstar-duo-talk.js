@@ -28,14 +28,22 @@
     if (!r.ok || typeof out !== "string") throw new Error(j.error || ("HTTP " + r.status));
     return out.replace(/^(暗星|曙光)\s*[:：]\s*/, "").trim();
   }
-  async function tts(who, text) {
-    var voice = who === "dark" ? (localStorage.getItem("darkStarVoice") || "Kore") : (localStorage.getItem("dawnLightVoice") || "Aoede");
+  async function tts1(provider, voice, text) {
     var r = await fetch(BASE + "/functions/v1/aivault-tts", { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + ANON },
-      body: JSON.stringify({ action: "tts", provider: "gemini", text: text, voice_id: voice, language: "zh-TW", save: false }) });
+      body: JSON.stringify({ action: "tts", provider: provider, text: text, voice_id: voice, language: "zh-TW", save: false }) });
     var j = await r.json().catch(function () { return {}; }), x = j.result;
     if (!r.ok || !x || !x.audio_base64) throw new Error(j.message || j.error || ("TTS HTTP " + r.status));
     var bytes = Uint8Array.from(atob(x.audio_base64), function (c) { return c.charCodeAt(0); });
     return URL.createObjectURL(new Blob([bytes], { type: x.mime || "audio/wav" }));
+  }
+  // Gemini TTS 有每分鐘配額（429 GEMINI_TTS_QUOTA_RATE）→ 稍等重試一次 → 改用 Google TTS → 仍失敗就只顯示文字（對話不中斷）
+  async function tts(who, text) {
+    var voice = who === "dark" ? (localStorage.getItem("darkStarVoice") || "Kore") : (localStorage.getItem("dawnLightVoice") || "Aoede");
+    try { return await tts1("gemini", voice, text); } catch (e) { console.warn("[DuoTalk] gemini tts", e.message); }
+    await new Promise(function (r) { setTimeout(r, 1500); });
+    try { return await tts1("gemini", voice, text); } catch (e) {}
+    try { return await tts1("google", who === "dark" ? "cmn-TW-Wavenet-C" : "cmn-TW-Wavenet-A", text); } catch (e) { console.warn("[DuoTalk] google tts", e.message); }
+    return null;
   }
   async function aiRaw(system, user) {
     var t = tok() || ANON;
@@ -75,6 +83,7 @@
   function playUrl(url, id) {
     return new Promise(function (res) {
       if (id !== runId) return res();
+      if (!url) return setTimeout(res, Math.min(6000, 1200 + String(sub && sub.textContent || "").length * 180)); // 沒有語音：顯示文字一段時間
       player.onended = player.onerror = function () { res(); };
       player.src = url; player.play().catch(function () { res(); });
     });
@@ -116,9 +125,9 @@
   function listen(id) { // 回傳使用者一句話（語音或打字）；空字串＝沒聽到
     return new Promise(function (res) {
       var done = false; function fin(t) { if (done) return; done = true; clearTimeout(to); stopListen(); listenDone = null; res(String(t || "").trim()); }
-      listenDone = fin; var to = setTimeout(function () { fin(""); }, 20000);
-      say(null, ""); if (sub) { sub.hidden = false; sub.textContent = "🎤 換你說話（或在下方打字）…"; }
-      startRec(fin);
+      listenDone = fin; var to = 0; // 預設打字：不自動開麥克風、不逾時；要用語音請按 🎤
+      say(null, ""); if (sub) { sub.hidden = false; sub.textContent = "⌨️ 換你了：在下方輸入後按送出（按 🎤 可改用語音）"; }
+      setTimeout(function () { try { if (askIn && w.innerWidth > 700) askIn.focus(); } catch (e) {} }, 50);
     });
   }
   function startRec(fin) {
