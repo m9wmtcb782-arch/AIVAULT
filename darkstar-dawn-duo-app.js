@@ -119,7 +119,12 @@
     var act = d.createElement("div"); act.className = "act";
     var bc = d.createElement("button"); bc.type = "button"; bc.title = "複製"; bc.setAttribute("aria-label", "複製"); bc.innerHTML = ICON_COPY; bc.onclick = function (e) { e.stopPropagation(); copyText(clean); };
     var bd = d.createElement("button"); bd.type = "button"; bd.title = "刪除"; bd.setAttribute("aria-label", "刪除"); bd.innerHTML = ICON_DEL; bd.onclick = function (e) { e.stopPropagation(); removeRow(r); };
-    act.appendChild(bc); act.appendChild(bd); r.appendChild(tx); r.appendChild(act);
+    act.appendChild(bc); act.appendChild(bd);
+    if (who === "dark" || who === "dawn") { // 每則泡泡旁的動態頭像（表情跟著這句話）
+      var av = d.createElement("span"); av.className = "av"; r.appendChild(av);
+      try { var O2 = w.DarkStarOrb, ob = O2.mount(av, { size: 34, theme: who === "dawn" ? "dawn" : undefined }); var mx = O2.moodOf && O2.moodOf(clean); if (mx) ob.setExpression(mx, 6000); } catch (e) {}
+    }
+    var main = d.createElement("div"); main.className = "mn"; main.appendChild(tx); main.appendChild(act); r.appendChild(main);
     if (curLines) for (var i = curLines.length - 1; i >= 0; i--) { var L = curLines[i]; if ((L.who === who) && String(L.text) === clean) { r.__line = L; break; } }
     logEl.appendChild(r); logEl.scrollTop = logEl.scrollHeight;
   }

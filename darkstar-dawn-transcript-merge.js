@@ -3,6 +3,7 @@
    不碰曙光的音訊／socket。回滾：git revert 本檔 commit；停用：localStorage.dsDawnMergeOff = "1"。 */
 (function (w, d) {
   "use strict";
+  (function () { var st = d.createElement("style"); st.textContent = ".message-avatar.ds-dawn-av{background:none!important;animation:none!important;box-shadow:none!important;border:0!important;overflow:visible;font-size:0!important;flex:none}"; d.head.appendChild(st); })();
   if (w.__dsDawnMerge) return; w.__dsDawnMerge = 1;
   try { if (localStorage.getItem("dsDawnMergeOff") === "1") return; } catch (e) {}
   var RE = /^(曙光|你)：/;
@@ -27,11 +28,16 @@
     if (pi && pi.who === me.who && prev.__dsDawnT && now - prev.__dsDawnT < 4000) {
       pi.body.textContent += me.body.textContent.replace(RE, "");
       prev.__dsDawnT = now; row.remove();
+      try { var O = w.DarkStarOrb, mx = prev.__dsDawnOrb && O && O.moodOf && O.moodOf(pi.body.textContent); if (mx) prev.__dsDawnOrb.setExpression(mx, 5000); } catch (e) {}
       var host = prev.parentNode; if (host) host.scrollTop = host.scrollHeight;
       var ms = d.getElementById("messages"); if (ms) ms.scrollTop = ms.scrollHeight;
       return;
     }
     row.__dsDawnT = now;
+    if (me.who === "曙光" && !row.querySelector(".message-avatar")) { // 曙光即時的泡泡：動態曙光太陽頭像（不是黑球）
+      try { var av = d.createElement("div"); av.className = "message-avatar ds-orb-av ds-dawn-av"; var sp = d.createElement("span"); av.appendChild(sp); row.insertBefore(av, row.firstChild);
+        var ob = w.DarkStarOrb && w.DarkStarOrb.mount(sp, { size: 34, theme: "dawn" }); row.__dsDawnOrb = ob; } catch (e) {}
+    }
   }
   function init() {
     var host = d.getElementById("messagesInner") || d.getElementById("messages"); if (!host) return;
