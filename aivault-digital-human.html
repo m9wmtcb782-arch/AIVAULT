@@ -146,7 +146,7 @@
     .dh-head.real .face-svg, .dh-head.real .dh-mouth, .dh-head.real > img:not(.dh-real) { display:none; }
     .dh-head .dh-real { display:none; position:absolute; left:-210px; top:-30px; width:auto; height:672px; max-width:none; transform-origin:50% 70%; }
     .dh-head.real .dh-real { display:block; }
-    .dh-head.vid { width:min(100%,360px); height:auto; aspect-ratio:480/432; background:#020617 url(digital-human-real/video/idle.jpg) center/cover no-repeat; }
+    .dh-head.vid { width:min(100%,360px); height:auto; aspect-ratio:480/432; background:#020617 var(--dh-poster, url(digital-human-real/video/idle.jpg)) center/cover no-repeat; }
     .dh-head.vid > *:not(.dh-vid) { visibility:hidden; }
     .dh-vid { position:absolute; inset:0; }
     .dh-vid video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity .25s linear; }
@@ -183,6 +183,18 @@
     @keyframes talk { 0%,100% { transform: scaleY(.35); } 50% { transform: scaleY(1); } }
     .eye { transform-origin: center; animation: blink 3.4s infinite; }
     .mouth.talking { transform-origin: center; animation: talk .28s infinite; }
+    body.showcase .dh-avatar { margin-top: 4px; }
+    body.showcase .dh-head.vid { width: 100%; max-width: 420px; border-radius: 22px; box-shadow: 0 10px 40px rgba(99,102,241,.25), 0 0 0 1px rgba(148,163,184,.15); }
+    .sc-hero { text-align: center; padding: 6px 4px 10px; }
+    .sc-badge { display: inline-block; font-size: 11px; letter-spacing: .08em; padding: 3px 10px; border-radius: 999px; background: rgba(99,102,241,.15); color: #a5b4fc; border: 1px solid rgba(129,140,248,.3); }
+    .sc-title { margin: 8px 0 2px; font-size: 28px; font-weight: 800; background: linear-gradient(90deg,#e0e7ff,#a5b4fc 50%,#f0abfc); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .sc-tag { margin: 0; color: #cbd5e1; font-size: 15px; }
+    .sc-feats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 12px 0; }
+    .sc-f { background: rgba(15,23,42,.7); border: 1px solid rgba(148,163,184,.18); border-radius: 14px; padding: 8px 4px; text-align: center; font-size: 11px; color: #cbd5e1; line-height: 1.3; }
+    .sc-f b { display: block; font-size: 20px; margin-bottom: 2px; }
+    .sc-live { background: linear-gradient(90deg,#6366f1,#a855f7) !important; color: #fff !important; box-shadow: 0 6px 20px rgba(139,92,246,.4); }
+    .sc-manage { text-align: center; margin: 18px 0 110px; font-size: 13px; }
+    .sc-manage a { color: #94a3b8; text-decoration: none; border: 1px solid rgba(148,163,184,.25); padding: 6px 14px; border-radius: 999px; }
   </style>
 </head>
 <body>
@@ -230,6 +242,13 @@
     ];
 
     const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+    // ===== 數字人外觀設定（資料驅動）：digital-human-real/avatars.json，?avatar=id 選擇，預設第一個（暗星）=====
+    const AVATAR = await (async () => {
+      const want = new URLSearchParams(location.search).get('avatar');
+      try { const j = await (await fetch('digital-human-real/avatars.json', { cache: 'no-cache' })).json(); const L = (j && j.avatars) || []; return L.find(a => a.id === want) || L[0] || null; }
+      catch { return null; }
+    })() || { id: 'darkstar', name: '暗星', title: '暗星數字人', tagline: '你的 AI 夥伴，會聽、會看、會讀書', lang: 'zh-Hant', liveVoice: 'Aoede', brain: { provider: 'groq', model: 'openai/gpt-oss-120b' } };
+    window.__dhAvatar = AVATAR;
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: { persistSession: true, autoRefreshToken: true, storage: window.localStorage }
     });
@@ -309,11 +328,10 @@
     function route() {
       const hash = (location.hash || '#/').replace(/^#/, '');
       const parts = hash.split('/').filter(Boolean);
-      if (parts[0] !== 'digital-human' && parts[0] !== 'dh') {
-        if (!parts.length) return { name: 'list' };
-      }
+      if (!parts.length) return { name: 'showcase' };
+      if (parts[0] === 'manage') return { name: 'list' };
       const segs = parts[0] === 'digital-human' || parts[0] === 'dh' ? parts.slice(1) : parts;
-      if (!segs.length) return { name: 'list' };
+      if (!segs.length) return { name: 'showcase' };
       if (segs[0] === 'create') return { name: 'create', step: Number(new URLSearchParams(location.search).get('step') || 1) };
       const id = segs[0];
       const sub = segs[1] || 'dash';
@@ -1190,7 +1208,7 @@
     }
     // Gemini Live 預設女聲（prebuilt voices）
     const DH_LIVE_VOICES = [['Aoede','Aoede · 輕快'],['Kore','Kore · 堅定'],['Leda','Leda · 年輕'],['Zephyr','Zephyr · 明亮'],['Callirrhoe','Callirrhoe · 隨和'],['Despina','Despina · 柔順'],['Autonoe','Autonoe · 明亮'],['Erinome','Erinome · 清晰'],['Laomedeia','Laomedeia · 開朗'],['Achernar','Achernar · 柔和'],['Gacrux','Gacrux · 成熟'],['Pulcherrima','Pulcherrima · 直率'],['Vindemiatrix','Vindemiatrix · 溫柔'],['Sulafat','Sulafat · 溫暖']];
-    function dhLiveVoice() { try { return localStorage.getItem('dh_live_voice') || 'Aoede'; } catch { return 'Aoede'; } }
+    function dhLiveVoice() { try { return localStorage.getItem('dh_live_voice') || AVATAR.liveVoice || 'Aoede'; } catch { return AVATAR.liveVoice || 'Aoede'; } }
 
     function pickTalkVoice(langHint) {
       const voices = window.speechSynthesis?.getVoices?.() || [];
@@ -1591,10 +1609,10 @@
 
     // ===== 影片頭像：每個片段一個 <video>，切換只換透明度（快、不重新載入）；失敗退回照片 =====
     const dhVid = (() => {
-      const DIR = REAL_FACE_DIR + 'video/';
-      const CLIPS = ['transition','idle','talk','happy','question','angry','affection','drink','petcat','hair','screen','stretch','think','catplay'];
+      const DIR = AVATAR.clipDir || (REAL_FACE_DIR + 'video/');
+      const CLIPS = AVATAR.clips ? Object.keys(AVATAR.clips) : ['transition','idle','talk','happy','question','angry','affection','drink','petcat','hair','screen','stretch','think','catplay'];
       const ONCE = { transition:1, drink:1, petcat:1, hair:1, screen:1, stretch:1, think:1, catplay:1, question:1, angry:1, affection:1, happy:0 };
-      const MOOD = { happy:'happy', think:'question', wow:'question', angry:'angry', sad:'affection', affection:'affection' };
+      const MOOD = AVATAR.moods || { happy:'happy', think:'question', wow:'question', angry:'angry', sad:'affection', affection:'affection' };
       const el = document.createElement('div'); el.className = 'dh-vid';
       const V = {};
       let failed = false, clip = '', phase = 'intro', drinking = false, petting = false, filler = '', lastFiller = '', waitKind = '', waiting = false, forced = '', forcedUntil = 0, fillerN = 0, moodOnce = '', lastEmotion = 'calm';
@@ -1603,7 +1621,7 @@
         const v = document.createElement('video');
         v.muted = true; v.defaultMuted = true; v.playsInline = true; v.preload = 'auto';
         v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('webkit-playsinline', '');
-        v.poster = DIR + n + '.jpg'; v.src = DIR + n + '.mp4';
+        { const c = AVATAR.clips && AVATAR.clips[n]; v.poster = DIR + ((c && c.poster) || n + '.jpg'); v.src = DIR + ((c && c.src) || n + '.mp4'); }
         v.loop = !ONCE[n];
         let errs = 0;
         v.onerror = () => {   // 只有 idle 連續失敗才退回照片；其他片段失敗就略過
@@ -1709,7 +1727,7 @@
         if (!waiting || failed || phase !== 'main' || isSpeaking || clip !== 'idle' || drinking || petting || filler) return;
         // 洗牌袋：7 個片段全部輪過一次才重複，跨袋也不連續重複；等 AI 回覆時若袋中還有 think 就優先
         if (!bag.length) {
-          bag = ['drink','petcat','hair','screen','stretch','think','catplay'];
+          bag = (AVATAR.fillers || ['drink','petcat','hair','screen','stretch','think','catplay']).filter(n => V[n]);
           for (let i = bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [bag[i], bag[j]] = [bag[j], bag[i]]; }
           if (bag[0] === lastFiller) bag.push(bag.shift());
         }
@@ -1782,14 +1800,15 @@
 
     // ===== 即時嘴型：在 idle 影片上疊一塊羽化嘴部貼圖（取自 talk 影片），依聲音特徵選嘴型 =====
     const dhLip = (() => {
-      const IDLE_OFF = [[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,1],[0,1],[0,1],[0,1],[-1,1],[-1,1],[-1,1],[-1,1],[-1,1],[-1,1],[-1,1],[-1,1],[-1,1],[-1,1],[-1,1],[-1,1],[-1,2],[-1,2],[-1,3],[-1,3],[-1,3],[-1,3],[-1,2],[-1,2],[-2,1],[-2,1],[-2,1],[-2,1],[-2,1],[-1,1],[-1,2],[-1,2],[-1,2],[-1,1],[-1,1],[-1,0],[-1,-1],[-1,-1],[-1,-1],[-1,-1],[-1,-1],[-1,-1],[-1,-1],[0,-2],[0,-2],[0,-2],[0,-2],[0,-2],[0,-2],[0,-1],[0,-1],[0,-1],[0,-1],[0,-1],[1,-1],[1,-1],[1,-1],[1,-1],[1,0],[1,0],[1,0],[1,0],[1,0],[1,0],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,2],[1,2],[1,2],[2,3],[2,3],[1,3],[1,3],[1,3],[1,2],[1,2],[1,2],[1,2],[0,2],[0,1],[0,1],[0,1],[0,1],[0,1],[0,1],[0,1],[0,1],[0,1],[0,1],[0,1],[0,1],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]];            // idle 每一格的頭部位移（px，480x432 座標）
-      const X0 = 218, Y0 = 96, PW = 74, PH = 56, VW = 480, VH = 432, FPS = 24;
-      const VIS = ['slight','mid','ee','wide','oh','u'];
+      const LP = AVATAR.lip || {};
+      const IDLE_OFF = LP.idleOffsets || [[0,0]];
+      const X0 = LP.x0 ?? 218, Y0 = LP.y0 ?? 96, PW = LP.w ?? 74, PH = LP.h ?? 56, VW = LP.videoW ?? 480, VH = LP.videoH ?? 432, FPS = LP.fps ?? 24;
+      const VIS = LP.shapes || ['slight','mid','ee','wide','oh','u'];
       const box = document.createElement('div'); box.className = 'dh-lip';
       box.style.cssText = `position:absolute;width:${PW/VW*100}%;height:${PH/VH*100}%;pointer-events:none;z-index:1;`;
       const IM = {};
-      VIS.forEach(k => { const i = document.createElement('img'); i.src = REAL_FACE_DIR + 'lip/mouth_' + k + '.png'; i.alt = '';
-        i.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;opacity:0;transform:scale(0.94,0.82);transform-origin:50% 38%;'; box.appendChild(i); IM[k] = i; });
+      VIS.forEach(k => { const i = document.createElement('img'); i.src = (LP.dir || REAL_FACE_DIR + 'lip/') + (LP.prefix ?? 'mouth_') + k + '.png'; i.alt = '';
+        i.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;opacity:0;transform:scale(' + ((LP.scale || [0.94,0.82]).join(',')) + ');transform-origin:' + (LP.origin || '50% 38%') + ';'; box.appendChild(i); IM[k] = i; });
       let cur = '', holdUntil = 0, seq = [], seqT = 0;
       function setVis(k) {
         if (k === cur) return;
@@ -2198,6 +2217,7 @@
       document.getElementById('selTtsVoice').onchange = e => { try { localStorage.setItem('dh_tts_voice', e.target.value); } catch {} };
       document.getElementById('selLiveVoice').onchange = e => { try { localStorage.setItem('dh_live_voice', e.target.value); } catch {} if (dhLive.active) toast('下次開啟視訊時套用'); };
       document.getElementById('btnDlClip')?.addEventListener('click', downloadChatClip);
+      if (current && current.id === 'showcase') decorateShowcase();
       const last = chatLog[chatLog.length - 1];
       if (last && last.role === 'assistant' && chatLog.length - 1 !== lastSpoken) {
         lastSpoken = chatLog.length - 1;
@@ -2376,7 +2396,7 @@
       let systemPrompt = singing
         ? `你是數字人「${h.name || 'AIVAULT'}」，現在要唱歌給使用者聽。請使用${lang}。第一行只寫 [表情:樂]。
 從第二行開始只輸出歌詞，每行一句，4到8句，像隨口哼給朋友聽。不要解釋、不要標題、不要寫「歌詞如下」。`
-        : `你是家人身邊的陪伴 AI「${h.name || 'AIVAULT'}」。用${lang}口語對話。
+        : `${h.__avatar && h.__avatar.persona ? h.__avatar.persona + '\n' : ''}你是家人身邊的陪伴 AI「${h.name || 'AIVAULT'}」。用${lang}口語對話。
 規則：
 - 第一行只寫 [表情:喜] 或 [表情:怒] 或 [表情:哀] 或 [表情:樂] 或 [表情:驚] 或 [表情:思] 或 [表情:平]
 - 其後 1 到 3 句，像當面講話
@@ -2629,7 +2649,7 @@
         try {
           await saveHuman({ action: 'delete', id: h.id });
           toast('已刪除');
-          go('/');
+          go('/manage');
         } catch (err) { toast(err.message); }
       };
     }
@@ -2686,10 +2706,8 @@
     document.getElementById('btnHome').onclick = () => { location.href = 'aivault-home.html'; };
     document.getElementById('btnBack').onclick = () => {
       const r = route();
-      if (r.name === 'list') {
-        location.href = 'aivault-home.html';
-        return;
-      }
+      if (r.name === 'showcase') { location.href = 'aivault-home.html'; return; }
+      if (r.name === 'list') { go('/'); return; }
       if (r.name === 'create') {
         persistDraft();
         const step = Number(sessionStorage.getItem('dh_step') || '1');
@@ -2699,9 +2717,9 @@
           renderCreate();
           return;
         }
-        go('/'); return;
+        go('/manage'); return;
       }
-      if (r.name === 'dash') { go('/'); return; }
+      if (r.name === 'dash') { go('/manage'); return; }
       go('/' + r.id);
     };
 
@@ -2729,7 +2747,7 @@
       const dh = e.target.closest('[data-del-human]');
       if (dh) {
         if (!confirm('確定刪除這位數字人？圖片與聲音會一併刪。')) return;
-        try { await deleteHuman(dh.getAttribute('data-del-human')); toast('已刪除'); go('/'); }
+        try { await deleteHuman(dh.getAttribute('data-del-human')); toast('已刪除'); go('/manage'); }
         catch (err) { toast(err.message); }
         return;
       }
@@ -2756,9 +2774,46 @@
       }
     });
 
+    // ===== 展示首頁：直接就是暗星數字人（不需選紀錄）=====
+    let showcaseBrain = null;
+    async function renderShowcase() {
+      const A = AVATAR;
+      if (!showcaseBrain) {   // 有啟用中的數字人紀錄就沿用它的模型設定，否則用 avatars.json 預設
+        showcaseBrain = { provider: (A.brain && A.brain.provider) || 'groq', model: (A.brain && A.brain.model) || 'openai/gpt-oss-120b' };
+        try { const list = await Promise.race([listHumans(), new Promise(r => setTimeout(() => r([]), 4000))]); const h0 = (list || []).find(x => x.status === 'active') || (list || [])[0]; if (h0 && h0.brain_provider) showcaseBrain = { provider: h0.brain_provider, model: h0.brain_model || showcaseBrain.model }; } catch {}
+      }
+      current = { id: 'showcase', name: A.name, persona_lang: A.lang || 'zh-Hant', persona_role: '陪伴', persona_tone: '溫柔', brain_provider: showcaseBrain.provider, brain_model: showcaseBrain.model, __avatar: A };
+      assets = { image: [], voice: [], video: [] };
+      if (A.poster) document.documentElement.style.setProperty('--dh-poster', `url(${A.poster})`);
+      document.title = (A.title || A.name) + '｜AIVAULT';
+      renderChat();
+      decorateShowcase();
+    }
+    function decorateShowcase() {
+      const A = AVATAR, app = document.getElementById('app');
+      document.body.classList.add('showcase');
+      setHeader(A.title || A.name, A.tagline || '', null);
+      app.querySelector('.face-stage')?.remove();
+      app.querySelector('.dh-avatar > .muted')?.remove();
+      document.getElementById('btnRecVideo')?.closest('.row')?.remove();
+      app.querySelectorAll('p.muted').forEach(p => { if (/沒有固定台詞/.test(p.textContent)) p.remove(); });
+      const av = app.querySelector('.dh-avatar');
+      if (av && !app.querySelector('.sc-hero')) {
+        av.insertAdjacentHTML('beforebegin', `<section class="sc-hero"><div class="sc-badge">AIVAULT · AI 數字人</div><h2 class="sc-title">${esc(A.title || A.name)}</h2><p class="sc-tag">「${esc(A.tagline || '')}」</p></section>`);
+        av.insertAdjacentHTML('afterend', `<div class="sc-feats">
+          <div class="sc-f"><b>🎙️</b><span>即時語音對話</span></div>
+          <div class="sc-f"><b>📹</b><span>視訊看得到你</span></div>
+          <div class="sc-f"><b>📚</b><span>讀 AIVAULT 書架</span></div>
+          <div class="sc-f"><b>😊</b><span>表情與動作指令</span></div></div>`);
+      }
+      const live = document.getElementById('btnLive'); if (live) live.classList.add('sc-live');
+      if (!app.querySelector('.sc-manage')) app.insertAdjacentHTML('beforeend', `<div class="sc-manage"><a href="#/manage">⚙ 管理數字人</a></div>`);
+      const m = document.getElementById('msgs'); if (m && !chatLog.length) m.innerHTML = `<div class="muted">按「▶ 開始即時語音」直接跟${esc(A.name)}聊天，或在下方打字。試試說「笑一笑」「喝口水」「摸摸貓」。</div>`;
+    }
     async function render() {
-      document.body.classList.remove('chat-on');
+      document.body.classList.remove('chat-on', 'showcase');
       const r = route();
+      if (r.name === 'showcase') return renderShowcase();
       if (r.name === 'list') {
         humans = await listHumans();
         const hid = draft.human_id || localStorage.getItem('dh_human_id');
