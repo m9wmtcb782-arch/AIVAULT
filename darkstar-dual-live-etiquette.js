@@ -65,7 +65,7 @@
     var na = a && !b ? "dawn" : b && !a ? "dark" : null;
     if (na !== user.addr) {
       user.addr = na;
-      if (na && addrOn) silence(other(na));
+      // 不在句中途停掉已排程的聲音（會結巴）；點名只影響下一段回答
     }
     checkArg(t);
   }
@@ -131,8 +131,9 @@
   }
   var ID = { dawn: "【身分提醒】你是曙光（Dawn Light，視覺創作 AI），不是暗星。下面標「暗星：」的是另一位 AI 暗星說的話，不是你；標「曙光：」的才是你自己說過的話。\n",
     dark: "【身分提醒】你是暗星（研究與工程 AI），不是曙光。下面標「曙光：」的是另一位 AI 曙光說的話，不是你；標「暗星：」的才是你自己說過的話。\n" };
-  function sendNoteTo(k, msg) {
-    msg = ID[k] + msg;
+  var NOINTRO = { dawn: "不要在回答開頭自我介紹或說「我是曙光」，直接回答；只有被問你是誰時才說。\n", dark: "不要在回答開頭自我介紹或說「我是暗星」，直接回答；只有被問你是誰時才說。\n" };
+  function sendNoteTo(k, msg, withId) {
+    if (withId) msg = ID[k] + NOINTRO[k] + msg; // 身分提醒只在連線時的留言板摘要送一次
     try {
       if (k === "dark") { if (w.AIVAULTDarkStarLive) w.AIVAULTDarkStarLive.sendRawText(msg); }
       else if (w.DawnLightLiveVoice) w.DawnLightLiveVoice.sendRaw(JSON.stringify({ type: "text", text: msg }));
@@ -153,45 +154,55 @@
     var msg = "【留言板】你剛重新連線，以下是最近的對話紀錄（含另一位 AI 和開創者說的話）：\n" + body +
       "\n請先看留言板，不要打招呼；若開創者有未回答的問題就直接回答，否則安靜等待。" + (pending && !mine ? "（另一位 AI 已在回答這個問題，你不要重複回答，安靜等待。）" : "");
     s.mode = mine ? "normal" : "quiet";
-    sendNoteTo(k, msg);
+    sendNoteTo(k, msg, true);
   }
   function bfTick() {
     ["dark", "dawn"].forEach(function (k) { var s = S[k]; if (s.mode === "greet" && !s.greetSeen && Date.now() - s.freshAt > GREET_WAIT) sendNote(k); });
   }
   function userActive() { ["dark", "dawn"].forEach(function (k) { if (S[k].mode === "quiet") S[k].mode = "normal"; }); }
-  function silentNow(k) { return S[k].mode === "greet" || S[k].mode === "quiet" || muted(k); }
-  function deliverItem(k, it) {
-    if (silentNow(k)) { var r = strip(it.raw, it.info); onText(k, { msg: it.info.msg ? JSON.parse(r || "{}") : null }); if (r) it.deliver(r); return; }
+  function silentNow(k) { return S[k].utt === "mute" || (!S[k].utt && (S[k].mode === "greet" || S[k].mode === "quiet")); }
+  // ---- 以「一段回答」為單位決定：播放／靜音／等待。決定後整段照順序連續交給引擎，句中途不再擋、不丟、不延遲 ----
+  function deliverAs(k, it, play) {
+    if (!play) { var r = strip(it.raw, it.info); onText(k, { msg: it.info.msg ? JSON.parse(r || "{}") : null }); if (r) it.deliver(r); return; }
     noteAudio(k, it.info.audio); onText(k, it.info); it.deliver(it.raw);
   }
   function gateText(k, info) { if (S[k].mode === "greet" && info.msg) { var t = txt(info.msg); if (t.modelish || info.audio) S[k].greetSeen = true; if (t.done && S[k].greetSeen) setTimeout(function () { sendNote(k); }, 300); } }
   function noteAudio(k, bytes) { if (!bytes) return; var s = S[k], now = Date.now(); s.end = Math.max(s.end, now) + bytes / BYTES_PER_SEC * 1000; }
-  function canGo(k) {
-    if (!bothLive() || silentNow(k)) return true;
-    if (Date.now() < S[k].holdUntil) return false; // 等點名判斷
-    return !busy(other(k)) || arguing();
+  function decide(k) {
+    var s = S[k], now = Date.now(), age = now - s.uttAt;
+    if (s.mode === "greet") return "mute";
+    if (s.mode === "quiet") { if (now - user.at < 4000) { s.mode = "normal"; } else return age < HOLD ? "wait" : "mute"; }
+    if (!bothLive()) return "play";
+    if (muted(k)) return "mute";
+    if (addrOn && !user.addr && now - user.at < 4000 && age < HOLD) return "wait"; // 等點名判斷（只在句首）
+    if (!arguing() && ((S[other(k)].utt === "play" && now - (S[other(k)].lastAt || 0) < 1500) || busy(other(k)))) return age < 30000 ? "wait" : "play"; // 對方在說 → 整段等
+    return "play";
+  }
+  function isModel(it) { var t = it.info.msg ? txt(it.info.msg) : null; return !!(it.info.bin || it.info.audio || (t && t.modelish)); }
+  function isEnd(it) { var m = it.info.msg; if (!m) return false; var c = m.serverContent || {}; return !!(c.turnComplete || m.turnComplete || m.type === "turnComplete" || c.interrupted || m.type === "interrupted"); }
+  // 依序處理佇列；遇到需要等待的新段落就停
+  function pump(k) {
+    var s = S[k];
+    while (s.q.length) {
+      var it = s.q[0];
+      if (!s.utt && isModel(it)) { if (!s.uttAt) s.uttAt = Date.now(); s.utt = decide(k); }
+      if (s.utt === "wait") { var d2 = decide(k); if (d2 === "wait") return; s.utt = d2; }
+      s.q.shift(); s.lastAt = Date.now();
+      try { deliverAs(k, it, s.utt !== "mute"); } catch (e) { console.warn("[Etiquette]", e); }
+      if (isEnd(it)) { s.utt = null; s.uttAt = 0; }
+    }
   }
   // 交給引擎前的閘門
   function gate(k, raw, deliver) {
     var info = parse(raw);
     var t = info.msg ? txt(info.msg) : { inn: "", modelish: info.bin };
-    if (t.inn && String(t.inn).indexOf("留言板") < 0) { userActive(); }
+    if (t.inn && String(t.inn).indexOf("留言板") < 0) { userActive(); if (bothLive()) onUserText(k, t.inn); }
     if (info.bin && S[k].mode === "greet") S[k].greetSeen = true;
     gateText(k, info);
-    if (!bothLive()) { if (silentNow(k)) { var r0 = strip(raw, info); onText(k, { msg: info.msg ? JSON.parse(r0 || "{}") : null }); if (r0) deliver(r0); return; } onText(k, info); return deliver(raw); }
-    if (t.inn) onUserText(k, t.inn);
-    // 新一輪回答剛開始、使用者剛說完話 → 稍等一下讓點名判斷完成
-    if ((info.audio || t.modelish) && !S[k].inTurn) { S[k].inTurn = true; if (addrOn && Date.now() - user.at < 4000 && !user.addr) S[k].holdUntil = Date.now() + HOLD; }
-    var it = { raw: raw, info: info, deliver: deliver };
-    if (S[k].q.length || !canGo(k)) { S[k].q.push(it); return; }
-    deliverItem(k, it);
+    S[k].q.push({ raw: raw, info: info, deliver: deliver });
+    pump(k);
   }
-  function flush() {
-    ["dark", "dawn"].forEach(function (k) {
-      var s = S[k];
-      while (s.q.length && canGo(k)) { var it = s.q.shift(); try { deliverItem(k, it); } catch (e) { console.warn("[Etiquette]", e); } }
-    });
-  }
+  function flush() { pump("dark"); pump("dawn"); }
   // 防回音：對方正在說話時，不把這邊的麥克風音訊送上去（吵架時照送）
   function isMic(data) { return typeof data === "string" && data.indexOf('"type":"audio"') >= 0; }
   function wrapSend(k, sock) {
@@ -207,17 +218,17 @@
     if (sk === hookedSock) return;
     var fn = sk.onmessage; if (typeof fn !== "function" || fn.__dsGate) return;
     var g = function (ev) { gate("dark", ev && ev.data, function (raw) { fn({ data: raw }); }); }; g.__dsGate = 1;
-    sk.onmessage = g; hookedSock = sk; S.dark.q = []; S.dark.end = 0; S.dark.out = ""; S.dark.inTurn = false; startFresh("dark");
+    sk.onmessage = g; hookedSock = sk; S.dark.q = []; S.dark.end = 0; S.dark.out = ""; S.dark.inTurn = false; S.dark.utt = null; S.dark.uttAt = 0; startFresh("dark");
   }
   function hookDawn() {
     var A = w.DawnLightLiveVoice, s = A && A.session; if (!s) return;
-    if (s.ws && s.ws !== lastDawnWs) { lastDawnWs = s.ws; startFresh("dawn"); }
+    if (s.ws && s.ws !== lastDawnWs) { lastDawnWs = s.ws; S.dawn.utt = null; S.dawn.uttAt = 0; startFresh("dawn"); }
     if (s.ws) wrapSend("dawn", s.ws);
     if (hookedDawn) return;
     var orig = s.onMessage.bind(s); hookedDawn = true;
     s.onMessage = function (raw) { gate("dawn", raw, orig); };
   }
-  setInterval(function () { hookDark(); hookDawn(); bfTick(); flush(); }, 100);
+  setInterval(function () { hookDark(); hookDawn(); bfTick(); flush(); }, 40);
   w.AIVAULTEtiquette = { silent: function (k) { try { return silentNow(k); } catch (e) { return false; } }, state: function () { return { darkBusy: busy("dark"), dawnBusy: busy("dawn"), qDark: S.dark.q.length, qDawn: S.dawn.q.length, arguing: arguing(), botChain: botChain, both: bothLive(), addressed: user.addr, heard: user.text, modeDark: S.dark.mode || "normal", modeDawn: S.dawn.mode || "normal" }; },
     _test: { onUserText: onUserText, gate: gate, flush: flush, S: S, user: user } };
 })(window, document);
