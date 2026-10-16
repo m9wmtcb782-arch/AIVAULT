@@ -93,7 +93,7 @@
     })();
   }
   function say(who, text) { if (sub) { sub.hidden = !text; sub.textContent = text ? (who === "dark" ? "🌙 暗星：" : "☀️ 曙光：") + text : ""; } }
-  function paint() { if (btn) { btn.textContent = running && mode === "duo" ? "⏹ 停止" : "🌙☀️ 互聊"; btn.disabled = running && mode !== "duo"; } if (btn3) btn3.textContent = running && mode === "trio" ? "⏹ 停止聊天" : "🌙☀️ 一起聊"; if (btn3) btn3.disabled = running && mode !== "trio"; if (askRow) askRow.hidden = !(running && mode === "trio"); d.documentElement.classList.toggle("ds-trio-on", running && mode === "trio"); }
+  function paint() { if (btn) { btn.textContent = running && mode === "duo" ? "⏹ 停止" : "🌙☀️ 互聊"; btn.disabled = false; } if (btn3) btn3.textContent = running && mode === "trio" ? "⏹ 停止聊天" : "🌙☀️ 一起聊"; if (btn3) btn3.disabled = false; if (askRow) askRow.hidden = !(running && mode === "trio"); d.documentElement.classList.toggle("ds-trio-on", running && mode === "trio"); }
   function playUrl(url, id) {
     return new Promise(function (res) {
       if (id !== runId) return res();
@@ -119,7 +119,7 @@
     mouth(null, false); say(null, ""); paint();
   }
   async function start() {
-    if (running) return stop();
+    if (running) { if (mode === "duo") return stop(); stop(); }   // 一起聊進行中按互聊：先停掉再切換（之前按鈕被停用＝按了沒反應）
     if (liveBusy()) { alert("請先結束「暗星即時／曙光即時／即時視訊」再開始兩人對話（避免聲音互相干擾）。"); return; }
     // 在點擊手勢內解鎖 <audio>（iOS）
     player = player || new Audio(); player.playsInline = true;
@@ -217,7 +217,7 @@
     return id === runId;
   }
   async function startTrio() {
-    if (running) return stop();
+    if (running) { if (mode === "trio") return stop(); stop(); }
     if (liveBusy()) { alert("請先結束「暗星即時／曙光即時／即時視訊」再開始一起聊（避免聲音互相干擾）。"); return; }
     player = player || new Audio(); player.playsInline = true;
     player.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
