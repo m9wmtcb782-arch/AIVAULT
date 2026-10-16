@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>因序小說 · 語音測試版</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif; margin: 0; padding: 16px; background: #0f0f1a; color: #eee; min-height: 100vh; }
+  h1 { text-align: center; color: #e94560; font-size: 22px; margin-bottom: 4px; }
+  .subtitle { text-align: center; color: #888; font-size: 13px; margin-bottom: 16px; }
+  .scene { background: #1a1a2e; border-radius: 12px; padding: 16px; margin: 12px 0; min-height: 100px; }
+  .speaker { font-weight: bold; color: #e94560; margin-bottom: 8px; font-size: 15px; }
+  .text { line-height: 1.6; font-size: 16px; }
+  .status { text-align: center; color: #f59e0b; font-size: 14px; margin: 10px 0; min-height: 20px; }
+  .controls { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  button { flex: 1; min-width: 120px; padding: 14px; font-size: 16px; border: none; border-radius: 10px; background: #e94560; color: #fff; font-weight: bold; }
+  button.secondary { background: #16213e; }
+  button:active { opacity: 0.8; }
+  .log { margin-top: 16px; font-size: 13px; color: #666; max-height: 120px; overflow-y: auto; }
+  .log-entry { margin: 3px 0; }
+  .mic-indicator { text-align: center; font-size: 28px; margin: 8px 0; }
+  select { width: 100%; padding: 10px; background: #16213e; color: #fff; border: none; border-radius: 8px; margin: 8px 0; }
+</style>
+</head>
+<body>
+<h1>因序小說 · 語音測試</h1>
+<div class="subtitle">只有問主角時才開麥 · 不回答重問一次 · 再沒回答由主角決定 · 不可重來</div>
+
+<label>旁白聲音：</label>
+<select id="narratorSelect"></select>
+
+<div class="scene">
+  <div class="speaker" id="speaker">旁白</div>
+  <div class="text" id="sceneText">準備開始…</div>
+</div>
+
+<div class="mic-indicator" id="micIndicator"></div>
+<div class="status" id="status"></div>
+
+<div class="controls">
+  <button id="pauseBtn" onclick="togglePause()">暫停</button>
+  <button class="secondary" onclick="toggleBGM()">背景音樂</button>
+  <button class="secondary" onclick="location.href='aivault-home.html'">回首頁</button>
+</div>
+
+<div class="log" id="log"></div>
+
+<script>
+const story = [
+  { type: 'narrator', text: '夜深了，你獨自走在巷子裡。前方突然出現一個穿黑衣的人。' },
+  { type: 'character', name: '黑衣人', voice: 'male', text: '你是誰？為什麼跟著我？' },
+  { type: 'prompt', question: '你是誰？為什麼跟著我？', originalAnswer: '我只是路過，沒有跟著你。' },
+  { type: 'narrator', text: '黑衣人盯著你看了幾秒，然後轉身走入黑暗。' },
+  { type: 'character', name: '路人', voice: 'female', text: '剛才那個人好像在找什麼，你有看到嗎？' },
+  { type: 'prompt', question: '剛才那個人好像在找什麼，你有看到嗎？', originalAnswer: '我什麼都沒看到。' },
+  { type: 'character', name: '老人', voice: 'old', text: '年輕人，這條巷子晚上不太平，快回家吧。' },
+  { type: 'prompt', question: '年輕人，這條巷子晚上不太平，快回家吧。', originalAnswer: '謝謝提醒，我這就走。' },
+  { type: 'narrator', text: '你點點頭，加快腳步離開。故事到此，時間線已鎖定，無法重來。' }
+];
+
+let nodeIndex = 0;
+let isPaused = false;
+let recognition = null;
+let currentTimeout = null;
+let hasAnswered = false;
+let isListening = false;
+let voices = [];
+let bgmPlaying = false;
+let audioCtx = null;
+
+function loadVoices() {
+  voices = speechSynthesis.getVoices();
+  const sel = document.getElementById('narratorSelect');
+  sel.innerHTML = '';
+  const zh = voices.filter(v => v.lang.includes('zh') || v.lang.includes('TW') || v.lang.includes('CN'));
+  const list = zh.length ? zh : voices;
+  list.forEach(v => {
+    const o = document.createElement('option');
+    o.value = v.name;
+    o.textContent = v.name + ' (' + v.lang + ')';
+    sel.appendChild(o);
+  });
+}
+speechSynthesis.onvoiceschanged = loadVoices;
+loadVoices();
+
+function getVoice(type) {
+  const zh = voices.filter(v => v.lang.includes('zh'));
+  if (!zh.length) return voices[0];
+  if (type === 'female') return zh.find(v => /女|female|girl|woman/i.test(v.name)) || zh[0];
+  if (type === 'old') return zh.find(v => /老|old/i.test(v.name)) || zh[Math.floor(zh.length * 0.7)] || zh[0];
+  if (type === 'child') return zh.find(v => /童|child|kid/i.test(v.name)) || zh[0];
+  return zh.find(v => /男|male|man/i.test(v.name)) || zh[1] || zh[0];
+}
+
+function log(msg) {
+  const div = document.getElementById('log');
+  const e = document.createElement('div');
+  e.className = 'log-entry';
+  e.textContent = new Date().toLocaleTimeString() + ' ' + msg;
+  div.prepend(e);
+}
+
+function setStatus(msg) { document.getElementById('status').textContent = msg; }
+function setMic(on) { document.getElementById('micIndicator').textContent = on ? '🎤 正在聽…' : ''; }
+
+function speak(text, voiceType, onEnd) {
+  if (isPaused) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'zh-TW';
+  u.rate = voiceType === 'old' ? 0.85 : voiceType === 'child' ? 1.15 : 0.95;
+  u.pitch = voiceType === 'female' ? 1.3 : voiceType === 'old' ? 0.7 : voiceType === 'child' ? 1.5 : 0.9;
+  const sel = document.getElementById('narratorSelect');
+  let v = voices.find(x => x.name === sel.value);
+  if (voiceType && voiceType !== 'narrator') v = getVoice(voiceType);
+  if (v) u.voice = v;
+  u.onend = () => { if (onEnd && !isPaused) onEnd(); };
+  speechSynthesis.speak(u);
+}
+
+function stopListening() {
+  isListening = false;
+  setMic(false);
+  if (recognition) try { recognition.stop(); } catch(e) {}
+  if (currentTimeout) clearTimeout(currentTimeout);
+}
+
+function startListening(isRetry, onResult, onTimeout) {
+  if (isPaused) return;
+  stopListening();
+  hasAnswered = false;
+  isListening = true;
+  setMic(true);
+  setStatus(isRetry ? '再問一次，請回答…' : '請用麥克風回答…');
+
+  const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!Rec) { setStatus('不支援語音辨識'); setTimeout(onTimeout, 1500); return; }
+
+  recognition = new Rec();
+  recognition.lang = 'zh-TW';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  recognition.onresult = (e) => {
+    if (hasAnswered) return;
+    hasAnswered = true;
+    const text = e.results[0][0].transcript.trim();
+    stopListening();
+    log('你說：' + text);
+    setStatus('收到回答');
+    onResult(text);
+  };
+  recognition.onerror = () => {};
+  recognition.onend = () => { if (!hasAnswered && isListening) { stopListening(); onTimeout(); } };
+
+  try { recognition.start(); } catch(e) { onTimeout(); }
+
+  currentTimeout = setTimeout(() => { if (!hasAnswered) { stopListening(); onTimeout(); } }, 6000);
+}
+
+function togglePause() {
+  isPaused = !isPaused;
+  const btn = document.getElementById('pauseBtn');
+  if (isPaused) {
+    btn.textContent = '繼續';
+    speechSynthesis.pause();
+    stopListening();
+    setStatus('已暫停');
+    log('暫停');
+  } else {
+    btn.textContent = '暫停';
+    speechSynthesis.resume();
+    setStatus('');
+    log('繼續');
+  }
+}
+
+function toggleBGM() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (bgmPlaying) {
+    if (window.bgmOsc) window.bgmOsc.stop();
+    bgmPlaying = false;
+    log('背景音樂關閉');
+  } else {
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 98;
+    g.gain.value = 0.025;
+    osc.connect(g); g.connect(audioCtx.destination);
+    osc.start();
+    window.bgmOsc = osc;
+    bgmPlaying = true;
+    log('背景音樂開啟');
+  }
+}
+
+function playNode() {
+  if (isPaused || nodeIndex >= story.length) {
+    if (nodeIndex >= story.length) {
+      document.getElementById('speaker').textContent = '結束';
+      document.getElementById('sceneText').textContent = '本段結束。時間線已鎖定，無法往前重來。';
+      setStatus('');
+    }
+    return;
+  }
+  const node = story[nodeIndex];
+  const speakerEl = document.getElementById('speaker');
+  const textEl = document.getElementById('sceneText');
+
+  if (node.type === 'narrator') {
+    speakerEl.textContent = '旁白';
+    textEl.textContent = node.text;
+    speak(node.text, 'narrator', () => { nodeIndex++; setTimeout(playNode, 500); });
+  } else if (node.type === 'character') {
+    speakerEl.textContent = node.name;
+    textEl.textContent = node.text;
+    speak(node.text, node.voice, () => { nodeIndex++; setTimeout(playNode, 400); });
+  } else if (node.type === 'prompt') {
+    speakerEl.textContent = '（問主角）';
+    textEl.textContent = node.question;
+    speak(node.question, 'male', () => {
+      startListening(false,
+        (ans) => {
+          textEl.textContent = '你回答：「' + ans + '」';
+          speak('你說：' + ans, 'narrator', () => { nodeIndex++; setTimeout(playNode, 600); });
+        },
+        () => {
+          log('未回答，重問一次');
+          setStatus('沒有聽到回答，再問一次');
+          speak(node.question, 'male', () => {
+            startListening(true,
+              (ans) => {
+                textEl.textContent = '你回答：「' + ans + '」';
+                speak('你說：' + ans, 'narrator', () => { nodeIndex++; setTimeout(playNode, 600); });
+              },
+              () => {
+                log('仍未回答，由主角決定');
+                setStatus('由劇情主角回答');
+                const ans = node.originalAnswer;
+                textEl.textContent = '主角說：「' + ans + '」';
+                speak('主角說：' + ans, 'male', () => { nodeIndex++; setTimeout(playNode, 600); });
+              }
+            );
+          });
+        }
+      );
+    });
+  }
+}
+
+setTimeout(() => { if (nodeIndex === 0) playNode(); }, 1200);
+log('語音測試版啟動。旁白可選聲音，角色有男女老配音，只有問主角時開麥。');
+</script>
+</body>
+</html>
