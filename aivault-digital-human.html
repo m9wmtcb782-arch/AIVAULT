@@ -201,7 +201,7 @@
 
   <script type="module">
     const SUPABASE_URL = 'https://clcddygkaaqqtsbswgdf.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE';
+    const SUPABASE_ANON_KEY = window.__dhAnon = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE';
     const FN = (name) => `${SUPABASE_URL}/functions/v1/${name}`;
 
     const FALLBACK_PROVIDERS = [
@@ -1888,7 +1888,13 @@
       let ws = null, stream = null, inCtx = null, micNode = null, micSrc = null, frameT = 0, pip = null, canvas = null;
       let playCtx = null, outGain = null, outDest = null, outEl = null, outMode = 'none', nextPlay = 0, sources = [], drainT = 0, userTalkingUntil = 0;
       let active = false, wanted = false, retry = 0, camOn = false, inBuf = '', outBuf = '', userIdx = -1, aiIdx = -1;
-      let cmdFired = new Set();
+      let cmdFired = new Set(), knowT = 0, knowLast = '', liveChip = '', liveChipUsed = false;
+      async function liveKnow(q) {   // 使用者一句話講完：查書架→網路，把資料用文字送進即時對話（同暗星書架問答的 {type:'text'} 格式）
+        q = String(q || '').trim(); if (!q || q === knowLast || !window.DHKnow || !DHKnow.isQuestion(q)) return; knowLast = q;
+        let k = null; try { k = await DHKnow.lookup(q); } catch {}
+        if (!k || !k.prompt || !ws || ws.readyState !== 1) return;
+        try { ws.send(JSON.stringify({ type: 'text', text: `使用者剛才的問題：「${q}」\n${k.prompt}\n若你剛才已開始回答，請以這些資料修正或補充。` })); liveChip = k.chip; liveChipUsed = false; lastErr = ''; } catch {}
+      }
       let wsState = '未連線', micSent = 0, rx = 0, played = 0, lastErr = '', dbgEl = null, waitingAudio = false;
       window.__dhLiveCam = false;
       function token() {   // 同其他 live 頁：Supabase session（localStorage sb-…-auth-token）
@@ -2018,10 +2024,10 @@
         } catch {}
         if (d.type === 'live_open' || d.setupComplete) { gotSetup = true; wsState = 'Gemini 已連線'; retry = 0; try { dhVid.stopWaiting(); dhVid.cancelAction(); } catch {} }
         const inn = (sc.inputTranscription && sc.inputTranscription.text) || (d.type === 'inputTranscription' ? d.text : '');
-        if (inn) { inBuf += inn; upsert('user', inBuf); try { dhCommand(inBuf, cmdFired); } catch {} }
+        if (inn) { inBuf += inn; upsert('user', inBuf); try { dhCommand(inBuf, cmdFired); } catch {} clearTimeout(knowT); const q = inBuf; knowT = setTimeout(() => liveKnow(q), 700); }
         const out = (sc.outputTranscription && sc.outputTranscription.text) || (d.type === 'outputTranscription' ? d.text : '');
-        if (out) { if (inBuf) { inBuf = ''; userIdx = -1; } outBuf += out; upsert('assistant', outBuf); if (/[（(]\s*(微笑|笑)/.test(outBuf) && !cmdFired.has('outsmile')) { cmdFired.add('outsmile'); try { dhVid.cmd('happy'); } catch {} } }
-        if (sc.turnComplete || d.turnComplete || d.type === 'turnComplete') { cmdFired = new Set(); outBuf = ''; aiIdx = -1; inBuf = ''; userIdx = -1; }
+        if (out) { if (inBuf) { inBuf = ''; userIdx = -1; } outBuf += out; upsert('assistant', outBuf); if (liveChip && chatLog[aiIdx]) chatLog[aiIdx].src = liveChip; if (/[（(]\s*(微笑|笑)/.test(outBuf) && !cmdFired.has('outsmile')) { cmdFired.add('outsmile'); try { dhVid.cmd('happy'); } catch {} } }
+        if (sc.turnComplete || d.turnComplete || d.type === 'turnComplete') { cmdFired = new Set(); if (liveChipUsed) liveChip = ''; liveChipUsed = !!liveChip; outBuf = ''; aiIdx = -1; inBuf = ''; userIdx = -1; }
         if (d.type === 'error' || d.error) {
           const m = d.message || (d.error && d.error.message) || JSON.stringify(d.error || d); lastErr = String(m).slice(0, 60);
           if (/AUTH_REQUIRED|INVALID_AUTH/.test(m)) { wanted = false; toast('請先登入 AIVAULT 再使用即時語音'); }
@@ -2166,7 +2172,7 @@
         ${chatClip?.url ? `<video controls playsinline src="${esc(chatClip.url)}" style="width:100%;margin-bottom:10px;border-radius:12px;background:#000;"></video>
           <button class="pill" type="button" id="btnDlClip">下載影片</button>` : ''}
         <div class="chat-box">
-          <div class="msgs" id="msgs">${chatLog.map(m => `<div class="bubble ${m.role==='user'?'me':'bot'}">${esc(m.text)}</div>`).join('') || '<div class="muted">按麥克風開始說話，數字人會用聲音回答。</div>'}</div>
+          <div class="msgs" id="msgs">${chatLog.map(m => `<div class="bubble ${m.role==='user'?'me':'bot'}">${esc(m.text)}${m.src ? `<div style="margin-top:4px;font-size:11px;opacity:.7;">${esc(m.src)}</div>` : ''}</div>`).join('') || '<div class="muted">按麥克風開始說話，數字人會用聲音回答。</div>'}</div>
         </div>
         <div class="composer-dock">
           <div class="composer" style="background:var(--card);border:1px solid var(--border);border-radius:18px;">
@@ -2367,7 +2373,7 @@
       renderChat();
       const h = current || {};
       const lang = h.persona_lang === 'en' ? 'English' : h.persona_lang === 'zh-Hans' ? '简体中文' : '繁體中文';
-      const systemPrompt = singing
+      let systemPrompt = singing
         ? `你是數字人「${h.name || 'AIVAULT'}」，現在要唱歌給使用者聽。請使用${lang}。第一行只寫 [表情:樂]。
 從第二行開始只輸出歌詞，每行一句，4到8句，像隨口哼給朋友聽。不要解釋、不要標題、不要寫「歌詞如下」。`
         : `你是家人身邊的陪伴 AI「${h.name || 'AIVAULT'}」。用${lang}口語對話。
@@ -2387,6 +2393,9 @@
         clearTimeout(sendChat._fillT);
         sendChat._fillT = setTimeout(() => { try { if (window.__dhReplyPending) dhVid.startWaiting(navigator.onLine === false ? '重新連線中…' : '連接中…', navigator.onLine === false ? 'net' : 'reply'); } catch {} }, 1200);
         await thinkBrain(text, singing ? 'CREATIVE' : 'CONVERSATION');
+        let know = { prompt: '', chip: '' };
+        if (!singing && window.DHKnow) { try { know = await DHKnow.lookup(text); } catch {} }
+        if (know.prompt) systemPrompt += `\n\n${know.prompt}\n（引用資料時可以說到 5 句，仍保持口語、不條列。）`;
         const body = {
           provider: h.brain_provider || h.provider || 'groq',
           model: h.brain_model || h.model || 'openai/gpt-oss-120b',
@@ -2412,7 +2421,7 @@
         const emo = singing ? 'happy' : await readEmotion(content);
         await dhReplyGate();
         currentEmotion = emo;
-        chatLog.push({ role: 'assistant', text: content });
+        chatLog.push({ role: 'assistant', text: content, src: know.chip || '' });
       } catch (err) {
         await dhReplyGate();
         currentEmotion = 'sad';
@@ -2784,5 +2793,8 @@
     if (!location.hash) location.hash = '#/';
     else await render();
   </script>
+<script src="darkstar-book-qa.js"></script>
+<script src="digital-human-real/dh-knowledge.js" charset="utf-8"></script>
+<script>try { DHKnow.init({ url: "https://clcddygkaaqqtsbswgdf.supabase.co", anon: window.__dhAnon || "" }); } catch (e) {}</script>
 </body>
 </html>
