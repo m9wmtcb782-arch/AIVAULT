@@ -1567,7 +1567,7 @@
       const MOOD = { happy:'happy', think:'question', wow:'question', angry:'angry', sad:'affection', affection:'affection' };
       const el = document.createElement('div'); el.className = 'dh-vid';
       const V = {};
-      let failed = false, clip = '', phase = 'intro', drinking = false, petting = false, moodOnce = '', lastEmotion = 'calm';
+      let failed = false, clip = '', phase = 'intro', drinking = false, petting = false, waiting = false, forced = '', forcedUntil = 0, fillerN = 0, moodOnce = '', lastEmotion = 'calm';
       function fail() { if (failed) return; failed = true; el.remove(); document.querySelectorAll('.dh-head.vid').forEach(h => h.classList.remove('vid')); }
       CLIPS.forEach(n => {
         const v = document.createElement('video');
@@ -1601,6 +1601,8 @@
         if (isSpeaking || dhVoice.voiced) return 'idle';          // 說話時用 idle + 即時嘴型疊圖
         if (drinking) return 'drink';
         if (petting) return 'petcat';
+        if (forced && Date.now() < forcedUntil) return forced;
+        if (window.__dhReplyPending) return 'idle';               // 等回覆時不播情緒片段（改由 filler 處理）
         if (moodOnce) return moodOnce;
         return happy ? 'happy' : 'idle';
       }
@@ -1643,6 +1645,35 @@
       }
       setInterval(() => { if (!isSpeaking && !drinking && !petting && phase === 'main' && clip === 'idle' && document.contains(el) && Math.random() < 0.2) petCat(false); }, 60000);
       setInterval(() => { if (!isSpeaking && !drinking && phase === 'main' && clip === 'idle' && document.contains(el) && Math.random() < 0.25) drink(); }, 45000);
+      const status = document.createElement('div');
+      status.style.cssText = 'position:absolute;left:8px;top:8px;z-index:2;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700;background:rgba(15,23,42,.75);color:#e2e8f0;display:none;';
+      el.appendChild(status);
+      function setStatus(t) { status.textContent = t || ''; status.style.display = t ? '' : 'none'; }
+      const ACTION = { transition:1, drink:1, petcat:1, question:1, angry:1, affection:1 };
+      function remainingMs() {
+        if (failed || !ACTION[clip]) return 0;
+        const v = V[clip]; const d = (v.duration || 8) - (v.currentTime || 0);
+        return Math.max(0, d * 1000 / (v.playbackRate || 1));
+      }
+      // 等目前的動作片段播完回到 idle（上限：剩餘時間+0.5s，最多 9s）
+      function waitIdle() {
+        return new Promise(res => {
+          const cap = Math.min(9000, remainingMs() + 500), t0 = Date.now();
+          (function chk() {
+            if (failed || !ACTION[clip] || Date.now() - t0 > cap) return res();
+            setTimeout(chk, 80);
+          })();
+        });
+      }
+      // 等待中的填充動作：drink / petcat（靜音）輪流
+      function fillerTick() {
+        if (!waiting || failed || phase !== 'main' || isSpeaking || clip !== 'idle' || drinking || petting) return;
+        if ((fillerN++) % 2 === 0) drink(); else petCat(false);
+      }
+      setInterval(fillerTick, 1500);
+      function startWaiting(label) { waiting = true; setStatus(label); }
+      function stopWaiting() { waiting = false; setStatus(''); }
+      function flash(name, ms) { forced = name; forcedUntil = Date.now() + ms; update(); setTimeout(() => { if (forced === name) { forced = ''; update(); } }, ms + 50); }
       function attach() {
         if (failed) return;
         const head = document.querySelector('.dh-head'); if (!head) return;
@@ -1650,7 +1681,7 @@
         if (el.parentNode !== head) { head.appendChild(el); if (V[clip]) V[clip].play().catch(() => {}); }
         update();
       }
-      return { attach, update, drink, petCat, get clip() { return clip; }, video: n => V[n], el, get failed() { return failed; } };
+      return { attach, update, drink, petCat, waitIdle, startWaiting, stopWaiting, setStatus, flash, get clip() { return clip; }, video: n => V[n], el, get failed() { return failed; } };
     })();
 
 
@@ -1928,6 +1959,26 @@
       r.start();
     }
 
+
+    // ===== 對話與動作片段串接 =====
+    function dhWaitOnline(maxMs) {
+      if (navigator.onLine !== false) return Promise.resolve();
+      return new Promise(res => { const t = setTimeout(res, maxMs); window.addEventListener('online', () => { clearTimeout(t); res(); }, { once: true }); });
+    }
+    // 回覆好了：停掉填充排程，等正在播的動作片段結束（最多 9 秒）再顯示文字＋出聲
+    async function dhReplyGate() {
+      clearTimeout(sendChat._fillT);
+      try { dhVid.stopWaiting(); await dhVid.waitIdle(); } catch {}
+    }
+    window.addEventListener('offline', () => { try { dhVid.startWaiting('重新連線中…'); } catch {} });
+    window.addEventListener('online', () => {
+      try {
+        if (window.__dhReplyPending) dhVid.startWaiting('連接中…'); else dhVid.stopWaiting();
+        dhVid.setStatus('已重新連線'); setTimeout(() => { try { dhVid.setStatus(window.__dhReplyPending ? '連接中…' : ''); } catch {} }, 1500);
+        if (!isSpeaking) dhVid.flash('happy', 3500);
+      } catch {}
+    });
+
     async function sendChat() {
       const input = document.getElementById('chatIn');
       const text = input.value.trim();
@@ -1955,22 +2006,43 @@
           role: m.role === 'assistant' ? 'assistant' : 'user',
           content: m.text
         }));
+        window.__dhReplyPending = true;
+        // 等超過 1.2 秒才開始播填充動作
+        clearTimeout(sendChat._fillT);
+        sendChat._fillT = setTimeout(() => { try { if (window.__dhReplyPending) dhVid.startWaiting(navigator.onLine === false ? '重新連線中…' : '連接中…'); } catch {} }, 1200);
         await thinkBrain(text, singing ? 'CREATIVE' : 'CONVERSATION');
-        const data = await callFn('ai-gateway', {
+        const body = {
           provider: h.brain_provider || h.provider || 'groq',
           model: h.brain_model || h.model || 'openai/gpt-oss-120b',
           agent: h.name || 'Digital Human',
           systemPrompt,
           messages: [{ role: 'system', content: systemPrompt }, ...history]
-        });
+        };
+        let data, lastErr;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try { data = await callFn('ai-gateway', body); break; }
+          catch (e) {
+            lastErr = e;
+            const netErr = e instanceof TypeError || navigator.onLine === false || /network|failed to fetch|load failed/i.test(String(e && e.message));
+            if (!netErr || attempt === 2) throw e;
+            try { dhVid.startWaiting('重新連線中…'); } catch {}
+            await dhWaitOnline(15000);
+            await new Promise(r => setTimeout(r, 1200));
+          }
+        }
+        if (!data) throw lastErr || new Error('no data');
         const raw = data.content || data.response || data.text || data.message || data.choices?.[0]?.message?.content || '（無內容）';
         const content = stripEmotionTag(raw);
-        currentEmotion = singing ? 'happy' : await readEmotion(content);
+        const emo = singing ? 'happy' : await readEmotion(content);
+        await dhReplyGate();
+        currentEmotion = emo;
         chatLog.push({ role: 'assistant', text: content });
       } catch (err) {
+        await dhReplyGate();
         currentEmotion = 'sad';
         chatLog.push({ role: 'assistant', text: 'AI Gateway 錯誤：' + err.message });
       }
+      window.__dhReplyPending = false;
       renderChat();
     }
 
