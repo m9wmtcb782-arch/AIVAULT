@@ -1161,6 +1161,7 @@
 
     function setSpeaking(on) {
       isSpeaking = !!on;
+      if (!isSpeaking) { try { window.__dhVoice && window.__dhVoice.stopAll(); } catch {} }
       document.querySelectorAll('.dh-mouth').forEach(el => el.classList.toggle('on', isSpeaking));
       document.querySelectorAll('.mouth').forEach(el => el.classList.toggle('talking', isSpeaking));
       document.querySelectorAll('.face-stage').forEach(el => el.classList.toggle('talking', isSpeaking));
@@ -1200,6 +1201,7 @@
       if (!url) { toast('還沒有我的聲音，請先去聲音克隆室錄音'); return false; }
       try { mineAudio?.pause(); } catch {}
       mineAudio = new Audio(url);
+      try { window.__dhVoice && window.__dhVoice.watchAudio(mineAudio); } catch {}
       mineAudio.play().catch(() => toast('我的聲音檔暫時無法播放，可改切「手機語音」'));
       setSpeaking(true);
       mineAudio.onended = () => { mineAudio = null; setSpeaking(false); };
@@ -1209,7 +1211,7 @@
     function speakBrowser(text, langHint) {
       if (!('speechSynthesis' in window)) return;
       const u = new SpeechSynthesisUtterance(String(text).replace(/[#*_`]/g, ''));
-      try { u.onboundary = () => window.__dhMouthKick && window.__dhMouthKick(); } catch {}
+      try { u.onboundary = () => { window.__dhVoice && window.__dhVoice.boundary(); window.__dhMouthKick && window.__dhMouthKick(); }; u.onstart = () => window.__dhVoice && window.__dhVoice.startTTS(); } catch {}
       u.lang = (langHint === 'en') ? 'en-US' : (langHint === 'zh-Hans' ? 'zh-CN' : 'zh-TW');
       u.rate = 1.02;
       u.pitch = 1.06;
@@ -1239,6 +1241,7 @@
         const url = pack.audio_url;
         if (url) {
           mineAudio = new Audio(url);
+          try { window.__dhVoice && window.__dhVoice.watchAudio(mineAudio); } catch {}
           setSpeaking(true);
           mineAudio.onended = () => setSpeaking(false);
           mineAudio.play().catch(() => speakBrowser(text, langHint));
@@ -1246,6 +1249,7 @@
         }
         if (pack.audio_base64) {
           mineAudio = new Audio('data:' + (pack.mime || 'audio/mpeg') + ';base64,' + pack.audio_base64);
+          try { window.__dhVoice && window.__dhVoice.watchAudio(mineAudio); } catch {}
           setSpeaking(true);
           mineAudio.onended = () => setSpeaking(false);
           mineAudio.play().catch(() => speakBrowser(text, langHint));
@@ -1296,7 +1300,7 @@
       const voice = pickTalkVoice(lang);
       queue.forEach((line, idx) => {
         const u = new SpeechSynthesisUtterance(line);
-        try { u.onboundary = () => window.__dhMouthKick && window.__dhMouthKick(); } catch {}
+        try { u.onboundary = () => { window.__dhVoice && window.__dhVoice.boundary(); window.__dhMouthKick && window.__dhMouthKick(); }; u.onstart = () => window.__dhVoice && window.__dhVoice.startTTS(); } catch {}
         u.lang = lang;
         u.rate = 0.78;
         u.pitch = 1.35 + (idx % 3) * 0.08;
@@ -1478,46 +1482,138 @@
     })();
 
 
-    // ===== 影片頭像：transition 一次 → idle 循環；說話 talk；開心 happy；☕ drink；兩個 video 交叉淡入；失敗退回照片 =====
+    // ===== 發聲偵測：只有聲音真的在響時才 voiced=true（TTS onstart/boundary；音檔 playing + AnalyserNode 音量）=====
+    const dhVoice = (() => {
+      let voiced = false, ttsActive = false, gotBoundary = false, lastBoundary = 0, level = 0;
+      let ctx = null, rafId = 0, audioGate = false;
+      const listeners = [];
+      function emit(v) { if (v === voiced) return; voiced = v; listeners.forEach(f => { try { f(v); } catch {} }); }
+      function startTTS() { ttsActive = true; gotBoundary = false; lastBoundary = Date.now(); emit(true); }
+      function boundary() { if (!ttsActive) startTTS(); gotBoundary = true; lastBoundary = Date.now(); emit(true); }
+      function stopAll() { ttsActive = false; audioGate = false; cancelAnimationFrame(rafId); level = 0; emit(false); }
+      // TTS：收過 boundary 之後，超過 350ms 沒有新 boundary 視為停頓 → 閉嘴
+      setInterval(() => {
+        if (!ttsActive) return;
+        if (gotBoundary) emit(Date.now() - lastBoundary < 350);
+      }, 60);
+      function canAnalyse(url) {
+        try { if (/^(blob:|data:)/.test(url)) return true; return new URL(url, location.href).origin === location.origin; } catch { return false; }
+      }
+      function watchAudio(audio) {
+        if (!audio) return;
+        ttsActive = false; audioGate = false;
+        let analyser = null;
+        try {
+          if (canAnalyse(audio.src)) {
+            ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+            if (ctx.state !== 'running') { try { ctx.resume(); } catch {} }
+            if (ctx.state === 'running') {   // 只有在 context 已在跑時才接管，避免 iOS 把聲音變靜音
+              const src = ctx.createMediaElementSource(audio);
+              analyser = ctx.createAnalyser(); analyser.fftSize = 512;
+              src.connect(analyser); analyser.connect(ctx.destination);
+            }
+          }
+        } catch { analyser = null; }
+        audio.addEventListener('playing', () => {
+          if (!analyser) { emit(true); return; }
+          audioGate = true;
+          const buf = new Uint8Array(analyser.fftSize); let quietSince = 0;
+          (function loop() {
+            if (!audioGate) return;
+            analyser.getByteTimeDomainData(buf);
+            let sum = 0; for (let i = 0; i < buf.length; i++) { const d = (buf[i] - 128) / 128; sum += d * d; }
+            const rms = Math.sqrt(sum / buf.length);
+            level = level * 0.7 + rms * 0.3;
+            if (rms > 0.02) { quietSince = 0; emit(true); }
+            else { if (!quietSince) quietSince = Date.now(); if (Date.now() - quietSince > 120) emit(false); }
+            rafId = requestAnimationFrame(loop);
+          })();
+        });
+        ['pause', 'ended', 'error'].forEach(ev => audio.addEventListener(ev, () => { audioGate = false; cancelAnimationFrame(rafId); level = 0; emit(false); }));
+      }
+      return { startTTS, boundary, stopAll, watchAudio, get voiced() { return voiced; }, get level() { return level; }, onChange: f => listeners.push(f) };
+    })();
+    window.__dhVoice = dhVoice;
+
+    // ===== 影片頭像：每個片段一個 <video>，切換只換透明度（快、不重新載入）；失敗退回照片 =====
     const dhVid = (() => {
       const DIR = REAL_FACE_DIR + 'video/';
+      const CLIPS = ['transition','idle','talk','happy','question','angry','affection','drink'];
+      const ONCE = { transition:1, drink:1, question:1, angry:1, affection:1, happy:0 };
+      const MOOD = { happy:'happy', think:'question', wow:'question', angry:'angry', sad:'affection', affection:'affection' };
       const el = document.createElement('div'); el.className = 'dh-vid';
-      const vs = [0, 1].map(() => { const v = document.createElement('video'); v.muted = true; v.defaultMuted = true; v.playsInline = true;
-        v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('webkit-playsinline', ''); v.preload = 'auto'; el.appendChild(v); return v; });
+      const V = {};
+      let failed = false, clip = '', phase = 'intro', drinking = false, moodOnce = '', lastEmotion = 'calm';
+      function fail() { if (failed) return; failed = true; el.remove(); document.querySelectorAll('.dh-head.vid').forEach(h => h.classList.remove('vid')); }
+      CLIPS.forEach(n => {
+        const v = document.createElement('video');
+        v.muted = true; v.defaultMuted = true; v.playsInline = true; v.preload = 'auto';
+        v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('webkit-playsinline', '');
+        v.poster = DIR + n + '.jpg'; v.src = DIR + n + '.mp4';
+        v.loop = !ONCE[n];
+        v.onerror = () => { if (n === 'transition' || n === 'idle' || n === 'talk') fail(); };
+        v.onended = () => {
+          if (n === 'transition') phase = 'main';
+          if (n === 'drink') drinking = false;
+          if (n === moodOnce) moodOnce = '';
+          update();
+        };
+        el.appendChild(v); V[n] = v;
+      });
+      V.happy.loop = true;
       const cup = document.createElement('button'); cup.type = 'button'; cup.className = 'dh-cup'; cup.textContent = '☕'; cup.title = '喝一口';
       cup.onclick = (e) => { e.stopPropagation(); drink(); }; el.appendChild(cup);
-      let failed = false, cur = -1, clip = '', phase = 'intro', drinking = false;
-      ['transition','idle','talk','happy','drink'].forEach(n => { const l = document.createElement('link'); l.rel = 'preload'; l.as = 'video'; l.href = DIR + n + '.mp4'; document.head.appendChild(l); });
-      function fail() { if (failed) return; failed = true; el.remove(); document.querySelectorAll('.dh-head.vid').forEach(h => h.classList.remove('vid')); }
       function want() {
         if (phase === 'intro') return 'transition';
-        if (drinking) return 'drink';
+        if (currentEmotion !== lastEmotion) {
+          lastEmotion = currentEmotion;
+          const m = MOOD[currentEmotion];
+          moodOnce = (m && m !== 'happy') ? m : '';
+        }
         const happy = currentEmotion === 'happy';
-        if (isSpeaking || (typeof singing !== 'undefined' && singing)) return happy ? 'happy' : 'talk';
+        if (dhVoice.voiced) return happy ? 'happy' : 'talk';     // 只有真的在發聲才動嘴
+        if (isSpeaking) return 'idle';                            // 句間停頓：閉嘴
+        if (drinking) return 'drink';
+        if (moodOnce) return moodOnce;
         return happy ? 'happy' : 'idle';
       }
-      function play(name) {
-        if (failed || name === clip) return;
-        clip = name;
-        const nxt = vs[cur === 0 ? 1 : 0], prev = vs[cur] || null;
-        nxt.loop = !(name === 'transition' || name === 'drink');
-        nxt.onended = () => { if (name === 'transition') phase = 'main'; if (name === 'drink') drinking = false; update(); };
-        nxt.onerror = fail;
-        nxt.src = DIR + name + '.mp4'; nxt.poster = DIR + name + '.jpg';
-        try { nxt.currentTime = 0; } catch {}
-        const go = () => { nxt.classList.add('on'); if (prev) setTimeout(() => { prev.classList.remove('on'); prev.pause(); }, 260); };
-        nxt.onplaying = () => { nxt.onplaying = null; go(); };
-        const p = nxt.play(); if (p && p.catch) p.catch(() => { /* 自動播放被擋：顯示 poster */ go(); });
-        cur = vs.indexOf(nxt);
+      function show(name, fadeMs) {
+        if (failed) return;
+        const v = V[name];
+        if (name !== clip) {
+          if (ONCE[name] && name !== clip) { try { v.currentTime = 0; } catch {} }
+          const prev = V[clip];
+          clip = name;
+          Object.values(V).forEach(x => x.style.transitionDuration = fadeMs + 'ms');
+          const reveal = () => {
+            v.classList.add('on');
+            Object.entries(V).forEach(([k, x]) => { if (k !== name && x.classList.contains('on')) { x.classList.remove('on'); setTimeout(() => { if (clip !== k) x.pause(); }, fadeMs + 20); } });
+          };
+          const p = v.play();
+          if (v.readyState >= 2) reveal(); else { v.addEventListener('playing', reveal, { once: true }); setTimeout(reveal, 400); }
+          if (p && p.catch) p.catch(() => reveal());
+        } else if (v.paused) { v.play().catch(() => {}); }
+        // 說話時依音量微調速度
+        if (name === 'talk' || name === 'happy') {
+          const lv = dhVoice.level;
+          v.playbackRate = lv > 0 ? Math.max(0.85, Math.min(1.2, 0.9 + lv * 2)) : 1;
+        }
       }
-      function update() { if (!failed) play(want()); }
+      function update(fast) {
+        if (failed) return;
+        const n = want();
+        const toIdleFromTalk = (clip === 'talk' || clip === 'happy') && n === 'idle';
+        show(n, (fast || toIdleFromTalk || n === 'talk') ? 120 : 250);
+      }
+      dhVoice.onChange(() => update(true));
+      setInterval(() => { if (clip === 'talk' || clip === 'happy') show(clip, 120); }, 250);
       function drink() { if (failed || phase === 'intro' || isSpeaking) return; drinking = true; update(); }
       setInterval(() => { if (!isSpeaking && !drinking && phase === 'main' && clip === 'idle' && document.contains(el) && Math.random() < 0.25) drink(); }, 45000);
       function attach() {
         if (failed) return;
         const head = document.querySelector('.dh-head'); if (!head) return;
         head.classList.add('vid');
-        if (el.parentNode !== head) { head.appendChild(el); vs.forEach(v => { if (v.classList.contains('on')) v.play().catch(() => {}); }); }
+        if (el.parentNode !== head) { head.appendChild(el); if (V[clip]) V[clip].play().catch(() => {}); }
         update();
       }
       return { attach, update, drink };
