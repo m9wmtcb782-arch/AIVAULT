@@ -1,6 +1,6 @@
 <!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>註冊核准｜AIVAULT</title>
-<style>body{font-family:-apple-system,system-ui,sans-serif;margin:0;background:#f6f6f8;color:#111}header{padding:14px 16px;background:#fff;border-bottom:1px solid #eee;display:flex;gap:12px;align-items:center}h1{font-size:17px;margin:0;flex:1}main{padding:14px;max-width:640px;margin:auto}.card{background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.05)}.row{display:flex;gap:8px;margin-top:8px}button{border:0;border-radius:10px;padding:8px 14px;font-size:15px}.ok{background:#111;color:#fff}.no{background:#eee}.muted{color:#777;font-size:13px}</style></head>
+<style>body{font-family:-apple-system,system-ui,sans-serif;margin:0;background:#f6f6f8;color:#111}header{padding:14px 16px;background:#fff;border-bottom:1px solid #eee;display:flex;gap:12px;align-items:center}h1{font-size:17px;margin:0;flex:1}main{padding:14px;max-width:640px;margin:auto}.card{background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.05)}.row{display:flex;gap:8px;margin-top:8px}button{border:0;border-radius:10px;padding:8px 14px;font-size:15px}.ok{background:#111;color:#fff}.no{background:#eee}.muted{color:#777;font-size:13px}.tick{float:right;display:flex;align-items:center;gap:6px;font-size:14px;color:#111}.tick input{width:24px;height:24px;accent-color:#16a34a}.danger{background:#fee2e2;color:#b91c1c}</style></head>
 <body><header><a href="aivault-admin.html">‹ 返回</a><h1>新註冊待核准</h1><button id="reload" class="no">重新整理</button></header>
 <main id="list"><p class="muted">載入中…</p></main>
 <script>
@@ -15,11 +15,11 @@
     try{var j=await call({action:"list"});var p=j.pending||[];
       if(!p.length){L.innerHTML='<p class="muted">目前沒有待核准的註冊。</p>';return;}
       L.innerHTML="";p.forEach(function(u){var c=document.createElement("div");c.className="card";
-        c.innerHTML="<b></b><div class=muted></div><div class=row><button class=ok>核准</button><button class=no>拒絕並刪除</button></div>";
+        c.innerHTML="<label class=tick><input type=checkbox><span>打勾核准</span></label><b></b><div class=muted></div><div class=row><button class=danger>拒絕並刪除</button></div>";
         c.querySelector("b").textContent=u.email;c.querySelector(".muted").textContent="註冊："+t(u.created_at)+"　Email 驗證："+(u.email_confirmed_at?"✅ "+t(u.email_confirmed_at):"❌ 尚未驗證");
-        var bs=c.querySelectorAll("button");
-        bs[0].onclick=async function(){if(!u.email_confirmed_at&&!confirm("此帳號尚未完成 Email 驗證，仍要核准？"))return;await call({action:"approve",id:u.id});load();};
-        bs[1].onclick=async function(){if(!confirm("確定拒絕並刪除 "+u.email+"？"))return;await call({action:"reject",id:u.id});load();};
+        var cb=c.querySelector("input"),bs=c.querySelectorAll("button");
+        cb.onchange=async function(){if(!cb.checked)return;if(!u.email_confirmed_at&&!confirm("此帳號尚未完成 Email 驗證，仍要核准？")){cb.checked=false;return;}cb.disabled=true;c.querySelector(".tick span").textContent="核准中…";try{await call({action:"approve",id:u.id});c.querySelector(".tick span").textContent="✅ 已核准";setTimeout(load,800);}catch(e){cb.checked=false;cb.disabled=false;c.querySelector(".tick span").textContent="打勾核准";alert("核准失敗："+e.message);}};
+        bs[0].onclick=async function(){if(!confirm("確定拒絕並刪除 "+u.email+"？"))return;await call({action:"reject",id:u.id});load();};
         L.appendChild(c);});
     }catch(e){L.innerHTML='<p class="muted"></p>';L.firstChild.textContent=/owner only/.test(e.message)?"只有擁有者帳號可以使用此頁，請先用擁有者帳號登入。":"錯誤："+e.message;}
   }
