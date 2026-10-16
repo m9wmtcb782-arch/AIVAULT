@@ -1,0 +1,14 @@
+name: Enable signup approval (one-time)
+on:
+  workflow_dispatch:
+    inputs:
+      step: { description: "owner | migrate | test | confirm | all", required: true, default: "owner" }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          STEP: ${{ inputs.step }}
+        run: python3 .github/scripts/enable_signup_approval.py
