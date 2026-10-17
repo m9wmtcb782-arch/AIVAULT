@@ -322,12 +322,12 @@ const live=(()=>{const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v
  async function askQ(q){if(!(await ensure()))return null;qaPend=true;const ctx=deckContext().slice(0,3000);
   send('（聽眾在導讀後提問。請以暗星的身分，用繁體中文口語回答 2 到 4 句，友善、支持，絕不反駁或質疑老師的內容。導讀內容如下）\n'+ctx+'\n\n聽眾問題：'+q);oneShot('explain');const a=await waitTurn(200);qaPend=false;return a||'';}
  function halt(){if(turnWait||sources.length)dropping=!!turnWait;stopAudio();micStop();if(turnWait){const w=turnWait;turnWait=null;w(outBuf);outBuf='';}}
- async function toggleMic(){if(micOn){micStop();return;}unlock();try{try{inCtx=new AC({sampleRate:16000});}catch(e){inCtx=new AC();}try{inCtx.resume();}catch(e){}
+ async function toggleMic(){if(micOn){micStop();return;}unlock();try{inCtx=new AC();try{inCtx.resume();}catch(e){}
    shared=!!(camStream&&camStream.getAudioTracks().some(t=>t.readyState==='live'));stream=shared?new MediaStream(camStream.getAudioTracks()):await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});if(paused||!qaMode){micStop();return;}
    if(!(await ensure()))return micStop();try{inCtx.resume();}catch(e){}const src=inCtx.createMediaStreamSource(stream);micNode=inCtx.createScriptProcessor(2048,1,1);
    micNode.onaudioprocess=ev=>{if(!micOn||paused||!ws||ws.readyState!==1)return;let f=ev.inputBuffer.getChannelData(0);const r=inCtx.sampleRate/16000;if(r!==1){const n=Math.floor(f.length/r),o=new Float32Array(n);for(let i=0;i<n;i++)o[i]=f[Math.floor(i*r)];f=o;}
     const pcm=new Int16Array(f.length);for(let i=0;i<f.length;i++)pcm[i]=Math.max(-1,Math.min(1,f[i]))*32767;const u=new Uint8Array(pcm.buffer);let s2='';for(let i=0;i<u.length;i+=0x8000)s2+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));try{ws.send(JSON.stringify({type:'audio',data:btoa(s2),mimeType:'audio/pcm;rate=16000'}));}catch(e){}};
-   const sink=inCtx.createGain();sink.gain.value=0;src.connect(micNode);micNode.connect(sink);sink.connect(inCtx.destination);micOn=true;$('micBtn').classList.add('rec');status('🎙 正在聽你的問題（再按一次停止）');}catch(e){micStop();status('無法開啟麥克風');}}
+   const sink=inCtx.createGain();sink.gain.value=0;src.connect(micNode);micNode.connect(sink);sink.connect(inCtx.destination);micOn=true;$('micBtn').classList.add('rec');status('🎙 正在聽你的問題（再按一次停止）');}catch(e){micStop();const n=(e&&e.name)||'';status(n==='NotAllowedError'?'麥克風權限被拒絕：請到 iPhone 設定 › Safari › 麥克風 改為允許，再重新整理':'無法開啟麥克風（'+(n||e)+'），可先打字提問');}}
  function micStop(){micOn=false;try{micNode&&micNode.disconnect();}catch(e){}micNode=null;try{if(!shared)stream&&stream.getTracks().forEach(t=>t.stop());}catch(e){}stream=null;shared=false;try{inCtx&&inCtx.close();}catch(e){}inCtx=null;$('micBtn').classList.remove('rec');}
  function close(){micStop();stopAudio();const w=ws;ws=null;gotSetup=false;try{w&&w.close();}catch(e){}}
  return{unlock,ensure,ready:()=>voiceMode==='live',speakBlock,sayLine,askQ,halt,toggleMic,close};})();
