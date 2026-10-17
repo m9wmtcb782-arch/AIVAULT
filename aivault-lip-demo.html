@@ -1,0 +1,86 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AIVAULT 唇動偵測＋說完了沒（手機端實驗）</title>
+<style>body{font-family:-apple-system,system-ui,sans-serif;background:#0b0f1a;color:#e8ecf5;margin:0;padding:14px;max-width:680px}
+h1{font-size:19px}h2{font-size:16px;margin-top:22px}button,select{font-size:16px;padding:10px 14px;border-radius:10px;border:0;background:#3b82f6;color:#fff;margin:3px}
+button.g{background:#334155}.bar{height:18px;background:#1e2638;border-radius:9px;overflow:hidden;margin:4px 0}.bar i{display:block;height:100%;width:0;background:#22c55e}
+.s{color:#94a3b8;font-size:13px;line-height:1.6}#st{font-size:24px;margin:10px 0}video{width:160px;border-radius:10px;transform:scaleX(-1)}canvas{width:160px;border-radius:10px;background:#111;transform:scaleX(-1)}
+table{font-size:13px;border-collapse:collapse}td{padding:2px 8px;border-bottom:1px solid #222}</style></head><body>
+<div id="off" style="display:none">此實驗頁已關閉（localStorage.lipDemoOff=1）。</div>
+<div id="app">
+<h1>👄 唇動偵測＋🎙️ 說完了沒（實驗）</h1>
+<p class="s">相機和麥克風畫面都只在你的手機裡處理，<b>不會上傳</b>。嘴型用 Google MediaPipe Face Landmarker（在瀏覽器執行）抓嘴唇點位；聲音用 AIVAULT 自己訓練的 EOT v1 小模型。只有「聲音判斷說完了」而且「嘴巴也停了」才算說完。</p>
+<button id="go">開始（相機＋麥克風）</button>
+<div><video id="v" playsinline muted></video> <canvas id="cv" width="160" height="120"></canvas></div>
+<div id="st">—</div>
+<div>嘴巴張開程度 <span id="mo">0</span></div><div class="bar"><i id="mb" style="background:#f59e0b"></i></div>
+<div>嘴在動（0.6 秒內變化量）<span id="mv">0</span>　→ <b id="ms">—</b></div><div class="bar"><i id="vb2" style="background:#a855f7"></i></div>
+<div>聲音：說完機率 <span id="pv">0</span></div><div class="bar"><i id="pb"></i></div>
+<p class="s">這台裝置實測：臉部點位 <b id="fps">—</b> FPS（每幀 <b id="lms">—</b> ms）；聲音模型 <b id="lat">—</b> ms／次。<br>唇動門檻 <input id="th" type="range" min="0.005" max="0.08" step="0.005" value="0.025"> <span id="thv">0.025</span></p>
+<p class="s">限制：唇動是用規則（嘴巴開合的變化量）判斷，不是訓練出來的模型，目前沒有準確率數字；側臉、戴口罩、光線暗時會不準。</p>
+
+<h2>🔤 固定指令詞讀唇實驗（只用你自己的錄製）</h2>
+<p class="s">目前找不到授權允許我們使用的中文讀唇資料集，所以沒有任何預先訓練好的準確率。這裡讓你自己錄：選一個指令詞，按「錄 1.5 秒」並<b>不出聲或出聲地</b>念出來。每個詞至少錄 5 次後，按「計算準確率」：系統會用「留一法」（每次拿一筆當考題、其他當範例，用 DTW 最近鄰比對嘴唇點位序列）算出你自己資料上的真實準確率。資料只存在這支手機（localStorage），可匯出 JSON。</p>
+<select id="word"></select><button id="rec">錄 1.5 秒</button><button class="g" id="eval">計算準確率</button><button class="g" id="tryit">辨識一次</button>
+<div class="s" id="rs">尚未錄製</div><table id="cnt"></table>
+<button class="g" id="exp">匯出 JSON</button><button class="g" id="clr">清除我的錄製</button>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js"></script>
+<script type="module">
+if(localStorage.getItem('lipDemoOff')==='1'){document.getElementById('app').style.display='none';document.getElementById('off').style.display='block';throw 0;}
+import {FaceLandmarker,FilesetResolver} from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs';
+const $=id=>document.getElementById(id);
+const WORDS=['暗星','開始','停止','下一頁','上一頁','好'];WORDS.forEach(w=>$('word').add(new Option(w,w)));
+// 嘴唇點位（MediaPipe 468 點拓撲）：外唇＋內唇子集
+const LIPS=[61,146,91,181,84,17,314,405,321,375,291,409,270,269,267,0,37,39,40,185,78,95,88,178,87,14,317,402,318,324,308,415,310,311,312,13,82,81,80,191];
+let fl,ort_s,buf=new Float32Array(16000),hist=[],seq=null,lmT=[],frames=0,t0=performance.now();
+$('th').oninput=()=>$('thv').textContent=$('th').value;
+const DB_KEY='aivaultLipSamples';const load=()=>JSON.parse(localStorage.getItem(DB_KEY)||'[]');const save=a=>localStorage.setItem(DB_KEY,JSON.stringify(a));
+function counts(){const a=load(),c={};a.forEach(x=>c[x.w]=(c[x.w]||0)+1);$('cnt').innerHTML=WORDS.map(w=>`<tr><td>${w}</td><td>${c[w]||0} 筆</td></tr>`).join('');}counts();
+function feat(lm){ // 以嘴角距離正規化、以嘴中心為原點
+  const L=lm[61],R=lm[291],w=Math.hypot(R.x-L.x,R.y-L.y)||1e-6,cx=(L.x+R.x)/2,cy=(L.y+R.y)/2;
+  return LIPS.flatMap(i=>[(lm[i].x-cx)/w,(lm[i].y-cy)/w]);}
+async function init(){
+  const fs=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+  fl=await FaceLandmarker.createFromOptions(fs,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',delegate:'CPU'},runningMode:'VIDEO',numFaces:1});
+  ort.env.wasm.numThreads=1;ort.env.wasm.wasmPaths='https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/';
+  ort_s=await ort.InferenceSession.create('models/eot/aivault-eot-v1-int8.onnx?v=eot1',{executionProviders:['wasm']});}
+const ready=init();window.__lipReady=ready;
+$('go').onclick=async()=>{$('go').disabled=true;$('st').textContent='載入模型中…';await ready;
+  const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:320,height:240},audio:{echoCancellation:true,autoGainControl:false}});
+  const v=$('v');v.srcObject=st;await v.play();
+  const ac=new (window.AudioContext||window.webkitAudioContext)();await ac.resume();const src=ac.createMediaStreamSource(st),sp=ac.createScriptProcessor(4096,1,1),ratio=ac.sampleRate/16000;let carry=0;
+  sp.onaudioprocess=e=>{const x=e.inputBuffer.getChannelData(0),o=[];for(let t=carry;t<x.length;t+=ratio)o.push(x[Math.floor(t)]);carry=carry+o.length*ratio-x.length;buf.copyWithin(0,o.length);buf.set(o,16000-o.length);};
+  src.connect(sp);sp.connect(ac.destination);
+  const cx=$('cv').getContext('2d');let lastT=-1,pEnd=0,busy=false;
+  setInterval(async()=>{if(busy)return;busy=true;const a=performance.now();const r=await ort_s.run({audio:new ort.Tensor('float32',buf.slice(),[1,16000])});const ms=performance.now()-a;pEnd=r.p_end.data[0];$('pv').textContent=pEnd.toFixed(2);$('pb').style.width=pEnd*100+'%';$('lat').textContent=ms.toFixed(1);busy=false;},100);
+  const loop=()=>{const now=performance.now();if(v.currentTime!==lastT){lastT=v.currentTime;const a=performance.now();const res=fl.detectForVideo(v,now);const d=performance.now()-a;lmT.push(d);if(lmT.length>30)lmT.shift();frames++;
+    if(now-t0>1000){$('fps').textContent=(frames*1000/(now-t0)).toFixed(1);frames=0;t0=now;$('lms').textContent=(lmT.reduce((x,y)=>x+y,0)/lmT.length).toFixed(1);}
+    cx.clearRect(0,0,160,120);const lm=res.faceLandmarks&&res.faceLandmarks[0];
+    if(lm){const L=lm[61],R=lm[291],w=Math.hypot(R.x-L.x,R.y-L.y)||1e-6,open=Math.hypot(lm[13].x-lm[14].x,lm[13].y-lm[14].y)/w;
+      hist.push([now,open]);while(hist.length&&now-hist[0][0]>600)hist.shift();
+      let mn=1,mx=0;hist.forEach(h=>{mn=Math.min(mn,h[1]);mx=Math.max(mx,h[1]);});
+      let dv=0;for(let i=1;i<hist.length;i++)dv+=Math.abs(hist[i][1]-hist[i-1][1]);const mvv=Math.max(mx-mn,dv/3);
+      const talking=mvv>Number($('th').value);
+      $('mo').textContent=open.toFixed(2);$('mb').style.width=Math.min(100,open*200)+'%';$('mv').textContent=mvv.toFixed(3);$('vb2').style.width=Math.min(100,mvv*1000)+'%';$('ms').textContent=talking?'嘴在動':'嘴停了';
+      cx.fillStyle='#f59e0b';LIPS.forEach(i=>cx.fillRect(lm[i].x*160-1,lm[i].y*120-1,2,2));
+      if(seq)seq.push(feat(lm));
+      let e=0;for(let i=14000;i<16000;i++)e+=buf[i]*buf[i];const quiet=Math.sqrt(e/2000)<0.01;
+      $('st').textContent=talking?'🗣️ 正在說（嘴在動）':!quiet?'🔊 有聲音但嘴沒動（可能是別人或背景）':pEnd>0.5?'✅ 說完了（聲音＋嘴巴都停）':'⏸️ 停頓中，等你說下去';
+    }else{$('st').textContent='找不到臉（請正對鏡頭）';}}
+    requestAnimationFrame(loop);};loop();};
+function dtw(a,b){const n=a.length,m=b.length,D=new Float32Array((n+1)*(m+1)).fill(1e9);D[0]=0;
+  for(let i=1;i<=n;i++)for(let j=1;j<=m;j++){let c=0;const x=a[i-1],y=b[j-1];for(let k=0;k<x.length;k++){const d=x[k]-y[k];c+=d*d;}D[i*(m+1)+j]=Math.sqrt(c)+Math.min(D[(i-1)*(m+1)+j],D[i*(m+1)+j-1],D[(i-1)*(m+1)+j-1]);}
+  return D[n*(m+1)+m]/(n+m);}
+function norm(s){const m=s[0].map((_,k)=>s.reduce((t,f)=>t+f[k],0)/s.length);return s.map(f=>f.map((x,k)=>x-m[k]));} // 去掉個人嘴型靜態差異，只看動作
+function classify(s,pool){let best=null,bd=1e9;for(const p of pool){const d=dtw(norm(s),norm(p.s));if(d<bd){bd=d;best=p.w;}}return best;}
+async function record(){if(!fl){$('rs').textContent='請先按「開始」';return null;}seq=[];$('rs').textContent='錄製中…念出指令';await new Promise(r=>setTimeout(r,1500));const s=seq;seq=null;
+  if(s.length<8){$('rs').textContent=`只抓到 ${s.length} 幀（臉沒對準？），這筆不存`;return null;}const st=[];for(let i=0;i<s.length;i+=Math.max(1,Math.floor(s.length/20)))st.push(s[i].map(x=>+x.toFixed(4)));return st;}
+$('rec').onclick=async()=>{const s=await record();if(!s)return;const a=load();a.push({w:$('word').value,s,t:new Date().toISOString()});save(a);counts();$('rs').textContent=`已存「${$('word').value}」（${s.length} 幀）`;};
+$('tryit').onclick=async()=>{const a=load();if(a.length<2){$('rs').textContent='先錄一些範例';return;}const s=await record();if(s)$('rs').textContent='辨識結果：'+classify(s,a);};
+$('eval').onclick=()=>{const a=load(),c={};a.forEach(x=>c[x.w]=(c[x.w]||0)+1);const ws=Object.keys(c).filter(w=>c[w]>=5);
+  if(ws.length<2){$('rs').textContent='至少要 2 個詞、每個詞 5 筆以上才算得出準確率（目前不足，所以沒有數字）';return;}
+  const pool=a.filter(x=>ws.includes(x.w));let ok=0;pool.forEach((x,i)=>{if(classify(x.s,pool.filter((_,j)=>j!==i))===x.w)ok++;});
+  $('rs').textContent=`留一法準確率（你自己的 ${pool.length} 筆、${ws.length} 個詞）：${(ok/pool.length*100).toFixed(1)}%（亂猜約 ${(100/ws.length).toFixed(0)}%）。這只代表你本人、這支手機、這些詞。`;};
+$('exp').onclick=()=>{const b=new Blob([JSON.stringify({format:'aivault-lip-v1',landmarks:LIPS,samples:load()})],{type:'application/json'});const u=URL.createObjectURL(b),l=document.createElement('a');l.href=u;l.download='aivault-lip-samples.json';l.click();};
+$('clr').onclick=()=>{if(confirm('確定清除這支手機上的所有讀唇錄製？')){save([]);counts();}};
+</script></body></html>

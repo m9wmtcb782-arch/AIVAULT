@@ -26,6 +26,9 @@ export const PLAN: T[] = [
   { k: "mm-p3-llm", d: "llm", slot: 1, owner: false, title: "📱P3 研究：手機端中文小文字模型可行性", ask: "評估在 iPhone Safari（WebGPU/wasm）跑開放小型語言模型的可行性：候選模型與授權（不確定標待查證）、量化後大小、記憶體上限、每秒 token 的預估方法；以及蒸餾單一任務小模型的方案。" },
   { k: "mm-p3-img", d: "img", slot: 0, owner: false, title: "📱P3 研究：手機端圖像小模型與量化經驗", ask: "研究手機端可跑的圖像小模型（分類、去背、超解析等）與量化經驗，哪些對 AIVAULT 有用、檔案大小與延遲預估。" },
   { k: "mm-lit", d: "av", slot: 5, owner: false, title: "📱 文獻筆記：語句結束偵測（turn-taking）方法整理", ask: "整理語句結束／換人說話偵測的主要方法類型（靜音門檻、聲學韻律、文字語意、多模態），各自優缺點與手機端適用性。只寫你有把握的，論文名稱不確定就不要寫。" },
+  { k: "lip-data", d: "av", slot: 3, owner: false, title: "👄P4 研究：中文讀唇資料集與授權（CMLR、LRW-1000 等）", ask: "整理中文讀唇資料集（如 CMLR、LRW-1000/CAS-VSR-W1k 等）：規模、取得方式、授權條款（是否需簽約、是否禁止商用、能否用於 AIVAULT），不確定一律標待查證；結論：目前能否合法使用。" },
+  { k: "lip-model", d: "av", slot: 4, owner: false, title: "👄P4 研究：讀唇模型類型與手機端可行性", ask: "整理讀唇（visual speech recognition）模型類型：點位序列分類、3D-CNN+時序模型、視聽融合；哪些能在 iPhone Safari 執行、固定指令詞（少量詞彙）最小可行做法、需要多少錄製樣本。" },
+  { k: "lip-vad", d: "code", slot: 2, owner: false, title: "👄P1b 檢查：唇動偵測＋聲音融合規則審閱", ask: "審閱這個做法：MediaPipe Face Landmarker 取嘴唇點位，以嘴開合（點13/14 距離÷嘴角61/291 距離）0.6 秒內的變化量判斷嘴在動，聲音 EOT v1 判斷說完且嘴停才算說完。指出失效情境（側臉、口罩、光線、他人說話）與改良（自適應門檻、小模型）。" },
 ];
 async function topAgents(d: string) {
   const dg = await rest(`aivault_pool_agent_degree?district=eq.${d}&tier=not.is.null&select=agent_id,tier,level&order=tier.desc,level.desc,updated_at.asc&limit=12`);
