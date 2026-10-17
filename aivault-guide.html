@@ -260,7 +260,7 @@ let voiceMode=localStorage.getItem('aivault-guide-voice-mode')||'tts';
 const LIVE_VOICES=[['Aoede','Aoede · 輕快'],['Kore','Kore · 堅定'],['Leda','Leda · 年輕'],['Zephyr','Zephyr · 明亮'],['Callirrhoe','Callirrhoe · 隨和'],['Despina','Despina · 柔順'],['Autonoe','Autonoe · 明亮'],['Erinome','Erinome · 清晰'],['Laomedeia','Laomedeia · 開朗'],['Achernar','Achernar · 柔和'],['Gacrux','Gacrux · 成熟'],['Pulcherrima','Pulcherrima · 直率'],['Vindemiatrix','Vindemiatrix · 溫柔'],['Sulafat','Sulafat · 溫暖']];
 $('liveVoiceSel').innerHTML=LIVE_VOICES.map(v=>`<option value="${v[0]}">${v[1]}</option>`).join('');$('liveVoiceSel').value=localStorage.getItem('aivault-guide-live-voice')||'Aoede';
 $('liveVoiceSel').onchange=e=>{localStorage.setItem('aivault-guide-live-voice',e.target.value);live.close();};
-function setMode(m,notice){voiceMode=m;localStorage.setItem('aivault-guide-voice-mode',m);$('modeSel').value=m;$('modeBtn').textContent=m==='live'?'⚡ 即時語音':'🔊 手機語音';$('liveVoiceRow').style.display=m==='live'?'':'none';syncMic();if(m!=='live')live.close();if(notice)status(notice);}
+function setMode(m,notice){voiceMode=m;localStorage.setItem('aivault-guide-voice-mode',m);$('modeSel').value=m;$('modeBtn').textContent=m==='live'?'⚡ 即時語音':'🔊 手機語音';syncMic();if(m!=='live')live.close();if(notice)status(notice);}
 $('modeSel').onchange=e=>{if(e.target.value==='live')live.unlock();setMode(e.target.value);};
 $('modeBtn').onclick=()=>{const m=voiceMode==='live'?'tts':'live';if(m==='live')live.unlock();else primeTTS();setMode(m,m==='live'?'已切換為即時語音':'已切換為手機語音');};
 const live=(()=>{const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-voice-v2',AC=window.AudioContext||window.webkitAudioContext,MY='aivault-guide';
