@@ -150,6 +150,7 @@ function renderMap(){const el=$('mapList');if(!el)return;el.innerHTML=slides.map
 async function shiftScript(d){const t=await kv('scriptText');if(!t)return;settings.scriptOffset=(scriptInfo.offset||0)+d;saveSet();script=mapScript(t,slides.length);renderMap();}
 function showSlide(){$('slide').src=slides[page]||'';$('pageNo').textContent=(page+1)+' / '+slides.length;}
 function status(t){$('status').textContent=t;}
+function statusLogin(t){$('status').innerHTML=t.replace(/</g,'&lt;')+' <a href="aivault-login.html?next='+encodeURIComponent(location.pathname.split('/').pop())+'" style="color:#7dd3fc">前往登入</a>';}
 function fromSections(sec,n){return Array.from({length:n},(_,i)=>splitSent(sec[i]||''));}
 async function loadScript(){scriptInfo={numbered:false,count:0};await loadScript0();renderMap();}
 async function loadScript0(){const sec=await kv('sections');if(sec)script=fromSections(sec,slides.length);else{const t=await kv('scriptText');script=t?mapScript(t,slides.length):(slides===DEMO_SLIDES?DEMO_SCRIPT:slides.map(()=>[]));}}
@@ -320,11 +321,18 @@ function setMode(m,notice){voiceMode=m;try{live.reset();}catch(e){}localStorage.
 $('modeSel').onchange=e=>{live.unlock();primeTTS();setMode(e.target.value);};
 $('modeBtn').onclick=()=>{const m=voiceMode==='live'?'tts':'live';live.unlock();primeTTS();setMode(m,m==='live'?'已切換為即時語音':'已切換為手機語音');};
 const live=(()=>{const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-voice-v2',AC=window.AudioContext||window.webkitAudioContext,MY='aivault-guide';
- let downUntil=0,everConnected=false,ws=null,gotSetup=false,customFails=0,retry=0,playCtx=null,outGain=null,outEl=null,nextPlay=0,sources=[],dropping=false,outBuf='',turnWait=null,connecting=null,buffering=false;
+ let lastWhy='',downUntil=0,everConnected=false,ws=null,gotSetup=false,customFails=0,retry=0,playCtx=null,outGain=null,outEl=null,nextPlay=0,sources=[],dropping=false,outBuf='',turnWait=null,connecting=null,buffering=false;
  let inCtx=null,stream=null,micNode=null,micOn=false,qaPend=null,shared=false,frameT=0,cv=null;
  function startFrames(){clearInterval(frameT);frameT=setInterval(()=>{const v=$('pip');if(!camOn||paused||!ws||ws.readyState!==1||!gotSetup||v.readyState<2||!v.videoWidth)return;cv=cv||document.createElement('canvas');const w=320,h=Math.round(v.videoHeight*w/v.videoWidth);cv.width=w;cv.height=h;cv.getContext('2d').drawImage(v,0,0,w,h);try{ws.send(JSON.stringify({type:'video',data:cv.toDataURL('image/jpeg',0.6).split(',')[1],mimeType:'image/jpeg'}));}catch(e){}},1000);}
  startFrames();
- function token(){try{const j=JSON.parse(localStorage.getItem('sb-clcddygkaaqqtsbswgdf-auth-token')||'null');return String((j&&(j.access_token||(j.currentSession&&j.currentSession.access_token)))||'').trim();}catch(e){return'';}}
+ const AUTHK='sb-clcddygkaaqqtsbswgdf-auth-token';
+ function readSess(){try{const j=JSON.parse(localStorage.getItem(AUTHK)||'null');return j&&typeof j==='object'?j:null;}catch(e){return null;}}
+ // 同 technical-dark-star-live-session.js：過期（或強制）時用 refresh_token 換新 access_token，寫回同一個 key
+ async function token(force){const j=readSess();if(!j)return'';const cs=j.currentSession||{};let tk=String(j.access_token||cs.access_token||'').trim();const rt=String(j.refresh_token||cs.refresh_token||'').trim(),exp=Number(j.expires_at||cs.expires_at||0);
+  if(!rt||!(force||!tk||(exp>0&&exp*1000-Date.now()<60000)))return tk;
+  try{const r=await fetch(SB+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{'Content-Type':'application/json',apikey:ANON},body:JSON.stringify({refresh_token:rt})});if(!r.ok)return force?'':tk;const f=await r.json();if(!f||!f.access_token)return tk;
+   localStorage.setItem(AUTHK,JSON.stringify({...j,...f,access_token:f.access_token,refresh_token:f.refresh_token||rt}));return String(f.access_token).trim();}catch(e){return tk;}}
+ let authFail='',forceRefresh=false;
  function agentId(){try{const v=localStorage.getItem('aivault-guide-live-agent'),t=+localStorage.getItem('aivault-guide-live-agent-at')||0;if(v&&v!==MY&&Date.now()-t>6*3600e3){localStorage.removeItem('aivault-guide-live-agent');return MY;}return v||MY;}catch(e){return MY;}}
  const nsKey=b=>b+(agentId()===MY?'-v2':'');
  function topicId(){const k=nsKey('aivault-guide-live-topic-id'),pre=agentId()===MY?'aivault-guide-':'technical-dark-star-';let v=localStorage.getItem(k);if(!v){v=pre+(crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random().toString(36).slice(2));localStorage.setItem(k,v);}return v;}
@@ -348,22 +356,25 @@ const live=(()=>{const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v
   const out=(sc.outputTranscription&&sc.outputTranscription.text)||(d.type==='outputTranscription'?d.text:'');
   if(out&&!dropping){outBuf+=out;const ss=splitSent(outBuf);if(ss.length&&!qaPend)$('sub').textContent=ss[ss.length-1].slice(-40);if(qaPend)$('sub').textContent=outBuf.slice(-40);}
   if(sc.turnComplete||d.turnComplete||d.type==='turnComplete'){const said=outBuf;outBuf='';if(dropping){dropping=false;return;}if(turnWait){const w=turnWait;turnWait=null;w(said);}else if(micOn&&said){qaLog('a',said);}}
-  if(d.type==='error'||d.error){const m=String(d.message||(d.error&&d.error.message)||'');if(/AUTH_REQUIRED|INVALID_AUTH/.test(m)){failAll('即時語音需要先登入 AIVAULT，這段先用手機語音');}
+  if(d.type==='error'||d.error){const m=String(d.message||(d.error&&d.error.message)||'');if(/AUTH_REQUIRED|INVALID_AUTH/.test(m)){authFail=m;}
    if(/TOPIC_ID_REQUIRED|IDENTITY_MISMATCH/.test(m)){localStorage.removeItem(nsKey('aivault-guide-live-topic-id'));localStorage.removeItem(nsKey('aivault-guide-live-conversation-id'));}}}
  function bufferOn(t,walk){status(t);if(walk&&!buffering){buffering=true;playClip('walk',true);}}
  function bufferOff(){if(buffering){buffering=false;playClip('idle',true);}}
  function failAll(msg){close();downUntil=Date.now()+45000;status(msg);if(turnWait){const w=turnWait;turnWait=null;w({closed:true,said:''});}}   // 不改使用者的模式設定
- function openOnce(){return new Promise((res,rej)=>{const q=new URLSearchParams();q.set('voice',$('liveVoiceSel').value||'Aoede');q.set('agent_id',agentId());q.set('client','aivault-guide');q.set('topic_id',topicId());
-  const conv=localStorage.getItem(nsKey('aivault-guide-live-conversation-id'));if(conv)q.set('conversation_id',conv);const tok=token();if(!tok){rej(new Error('NOAUTH'));return;}q.set('access_token',tok);
+ async function openOnce(){const tok=await token(forceRefresh);forceRefresh=false;authFail='';return new Promise((res,rej)=>{const q=new URLSearchParams();q.set('voice',$('liveVoiceSel').value||'Aoede');q.set('agent_id',agentId());q.set('client','aivault-guide');q.set('topic_id',topicId());
+  const conv=localStorage.getItem(nsKey('aivault-guide-live-conversation-id'));if(conv)q.set('conversation_id',conv);if(!tok){rej(new Error('NOAUTH'));return;}q.set('access_token',tok);
   gotSetup=false;const sock=new WebSocket(RELAY+'?'+q);sock.binaryType='arraybuffer';ws=sock;let t=setTimeout(()=>{try{sock.close();}catch(e){}rej(new Error('timeout'));},10000);
   sock.onmessage=e=>{onMsg(e.data);if(gotSetup&&t){clearTimeout(t);t=0;res();}};sock.onerror=()=>{};
   sock.onopen=()=>{setTimeout(()=>{if(t&&ws===sock&&sock.readyState===1){clearTimeout(t);t=0;gotSetup=true;res();}},2500);};
-  sock.onclose=()=>{if(ws===sock)ws=null;if(t){clearTimeout(t);t=0;if(agentId()===MY&&++customFails>=2){localStorage.setItem('aivault-guide-live-agent','technical-dark-star');localStorage.setItem('aivault-guide-live-agent-at',String(Date.now()));}rej(new Error('closed'));}
+  sock.onclose=ev=>{if(ws===sock)ws=null;if(t){clearTimeout(t);t=0;if(authFail){rej(new Error(authFail));return;}if(agentId()===MY&&++customFails>=2&&!/AUTH/.test(String(ev&&ev.reason))){localStorage.setItem('aivault-guide-live-agent','technical-dark-star');localStorage.setItem('aivault-guide-live-agent-at',String(Date.now()));}rej(new Error('closed'));}
    else{dropping=false;stopAudio();if(turnWait){const w=turnWait;turnWait=null;w({closed:true,said:outBuf});outBuf='';}}};});}
  function ensure(){if(ws&&ws.readyState===1&&gotSetup)return Promise.resolve(true);if(Date.now()<downUntil)return Promise.resolve(false);if(connecting)return connecting;
-  connecting=(async()=>{for(retry=0;retry<4;retry++){if(voiceMode!=='live')return false;bufferOn(retry||everConnected?'重新連線中…':'連線中…',(retry>0||everConnected)&&!stopped&&!paused);
-    try{await openOnce();bufferOff();if(!everConnected)status('即時語音已連線');everConnected=true;return true;}catch(e){if(e.message==='NOAUTH'){bufferOff();failAll('即時語音需要先登入 AIVAULT，這段先用手機語音');return false;}await new Promise(r=>setTimeout(r,800*2**retry));}}
-   bufferOff();downUntil=Date.now()+45000;status('即時語音暫時連不上，這段先用手機語音，稍後自動再試');return false;})().finally(()=>{connecting=null;});return connecting;}
+  connecting=(async()=>{let triedRefresh=false;for(retry=0;retry<4;retry++){if(voiceMode!=='live')return false;bufferOn(retry||everConnected?'重新連線中…':'連線中…',(retry>0||everConnected)&&!stopped&&!paused);
+    try{await openOnce();bufferOff();if(!everConnected)status('即時語音已連線');everConnected=true;return true;}catch(e){
+     if(e.message==='INVALID_AUTH'&&!triedRefresh){triedRefresh=true;forceRefresh=true;retry--;continue;}   // 登入過期：換新 token 再試一次
+     if(e.message==='NOAUTH'||/AUTH/.test(e.message)){bufferOff();close();downUntil=Date.now()+45000;statusLogin(e.message==='INVALID_AUTH'?'登入已過期，即時語音需要重新登入 AIVAULT，這段先用手機語音。':'即時語音需要先登入 AIVAULT，這段先用手機語音。');if(turnWait){const w=turnWait;turnWait=null;w({closed:true,said:''});}return false;}
+     lastWhy=e.message;await new Promise(r=>setTimeout(r,800*2**retry));}}
+   bufferOff();downUntil=Date.now()+45000;status('即時語音暫時連不上（'+(lastWhy==='timeout'?'連線逾時':lastWhy==='closed'?'伺服器關閉連線':lastWhy)+'），這段先用手機語音，稍後自動再試');return false;})().finally(()=>{connecting=null;});return connecting;}
  function send(txt){dropping=false;try{ws.send(JSON.stringify({type:'text',text:txt}));return true;}catch(e){return false;}}
  function waitTurn(chars){return new Promise(res=>{turnWait=async said=>{if(said!==null){while(playCtx&&nextPlay>playCtx.currentTime+0.05&&!paused)await new Promise(r=>setTimeout(r,100));}res(said);};
   const lim=Date.now()+chars*450+20000;(function chk(){if(!turnWait)return;if(Date.now()>lim&&!paused){const w=turnWait;turnWait=null;w('');return;}setTimeout(chk,500);})();});}
