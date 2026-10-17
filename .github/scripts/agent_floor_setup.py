@@ -16,6 +16,12 @@ if "migrate" in STEPS:
     sql(open("supabase/migrations/20261017093000_aivault_pool_approved_outputs.sql").read())
     sql(open("supabase/migrations/20261017100000_aivault_novel_books.sql").read())
     print("zones", sql("select zone,count(*) from public.aivault_pool_agents group by zone order by zone"))
+if "grants" in STEPS:  # service_role 權限修正（📯 召集 403）
+    sql(open("supabase/migrations/20261017201000_aivault_service_role_grants.sql").read())
+    print("grants", sql("select table_name, string_agg(privilege_type,',') p from information_schema.role_table_grants where grantee='service_role' and table_name like 'aivault_floor%' group by 1"))
+if "names" in STEPS:  # ts3：自選暱稱伺服器端驗證
+    sql(open("supabase/migrations/20261017200000_aivault_town_names.sql").read())
+    print("safe_name test", sql("select public.aivault_safe_name('小明') a, public.aivault_safe_name('暗星本人') b, public.aivault_safe_name('fuck') c, public.aivault_safe_name('1234567890123') d"))
 if "publish" in STEPS:
     html=subprocess.check_output(["gpg","--batch","--quiet","--pinentry-mode","loopback","--passphrase",os.environ["PAGES_KEY"],"-d","private/agent-floor.html.gpg"]).decode()
     if os.path.exists(".github/scripts/town_social.js") and os.environ.get("TOWN_SOCIAL_OFF")!="1":  # ts1：真人社交層（關閉：localStorage.townSocialOff=1，或刪掉此檔再 publish）
