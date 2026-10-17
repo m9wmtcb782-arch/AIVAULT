@@ -33,6 +33,7 @@ async function topAgents(d: string) {
 }
 async function who(r: Request) {
   const tok = (r.headers.get("authorization") || "").replace(/^Bearer\s+/i, ""); if (SR && tok === SR) return { id: null, cron: true };
+  try { const pl = JSON.parse(atob(tok.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))); if (pl.role === "service_role") { const ck = await fetch(URL0 + "/rest/v1/aivault_pool_agents?select=id&limit=1", { headers: { apikey: tok, Authorization: "Bearer " + tok } }); return ck.ok ? { id: null, cron: true } : null; } } catch { /* */ }
   const u = await fetch(URL0 + "/auth/v1/user", { headers: { apikey: SR, Authorization: "Bearer " + tok } }).then((x) => x.ok ? x.json() : null).catch(() => null);
   const role = u?.app_metadata?.role; return u?.id && (role === "owner" || role === "admin") ? { id: u.id as string } : null;
 }
