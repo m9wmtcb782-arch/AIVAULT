@@ -95,9 +95,10 @@ function playClip(name,loop){return new Promise(res=>{const nv=vids[1-cur],ov=vi
 async function oneShot(n){if(paused)return;await playClip(n,false);if(!paused&&(!stopped||qaMode))playClip(speaking?'talk':'idle',true);}
 // ---- lip ----
 fetch(G+'lip/guide_lip.json').then(r=>r.json()).then(j=>{lip=j;['closed','half','open','round'].forEach(k=>{const i=new Image();i.src=G+'lip/mouth_'+k+'.png';mouthImgs[k]=i;});});
-let speaking=false,vis='closed',visT=0;const SEQ=['half','open','half','closed','round','half','open','closed'];
+const LIP_ON=/[?&]lip=1/.test(location.search);let speaking=false,vis='closed',visT=0;const SEQ=['half','open','half','closed','round','half','open','closed'];
 function lipLoop(t){requestAnimationFrame(lipLoop);const m=$('mouth'),v=vids[cur];
- if(!lip||!speaking||curClip!=='talk'||v.readyState<2){m.style.display='none';return;}
+ // 離線合成檢查（guide-lip-check）顯示頭部轉動時會出現雙嘴，guide_talk 本身已有自然嘴動 → 預設關閉疊加；?lip=1 只在正臉、非淡入淡出時試用
+ if(!LIP_ON||!lip||!speaking||curClip!=='talk'||v.readyState<2||!v.classList.contains('on')||vids[1-cur].classList.contains('on')){m.style.display='none';return;}
  if(t-visT>140){visT=t;vis=SEQ[(Math.random()*SEQ.length)|0];m.src=mouthImgs[vis].src;}
  const [W,H]=lip.videoSize,[pw,ph]=lip.patchSize,fi=Math.min(lip.frameOffsets.length-1,Math.floor(v.currentTime*lip.fps)),o=lip.frameOffsets[fi]||[0,0];
  const cx=lip.mouthCenter[0]+o[0],cy=lip.mouthCenter[1]+o[1];
