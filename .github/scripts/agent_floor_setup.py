@@ -18,6 +18,7 @@ if "migrate" in STEPS:
     print("zones", sql("select zone,count(*) from public.aivault_pool_agents group by zone order by zone"))
 if "grants" in STEPS:  # service_role 權限修正（📯 召集 403）
     sql(open("supabase/migrations/20261017201000_aivault_service_role_grants.sql").read())
+    print("sr-test", sql("begin; set local role service_role; insert into public.aivault_floor_state(k,v) values ('__grant_test','{}') on conflict (k) do update set v=excluded.v; select count(*) n from public.aivault_floor_state; delete from public.aivault_floor_state where k='__grant_test'; select (select count(*) from public.aivault_pool_agents) agents, (select count(*) from public.aivault_pool_agent_tasks) tasks; commit;"))
     print("grants", sql("select table_name, string_agg(privilege_type,',') p from information_schema.role_table_grants where grantee='service_role' and table_name like 'aivault_floor%' group by 1"))
 if "names" in STEPS:  # ts3：自選暱稱伺服器端驗證
     sql(open("supabase/migrations/20261017200000_aivault_town_names.sql").read())
