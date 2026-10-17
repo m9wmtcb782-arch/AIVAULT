@@ -16,6 +16,13 @@ if "migrate" in STEPS:
     sql(open("supabase/migrations/20261017093000_aivault_pool_approved_outputs.sql").read())
     sql(open("supabase/migrations/20261017100000_aivault_novel_books.sql").read())
     print("zones", sql("select zone,count(*) from public.aivault_pool_agents group by zone order by zone"))
+if "revstats" in STEPS:  # 唯讀：待審佇列組成（公開日誌只印數量與任務標題前 30 字，不印成果內容）
+    q="from public.aivault_pool_agent_tasks where source='floor' and review_status='pending'"
+    print("REV total", sql("select count(*) n "+q))
+    print("REV by kind", sql("select kind, coalesce(plan->'novel'->>'stage','-') stage, count(*) n, min(updated_at) first, max(updated_at) last "+q+" group by 1,2 order by 3 desc"))
+    print("REV by zone", sql("select zone, count(*) n "+q+" group by 1 order by 2 desc"))
+    print("REV prefixes", sql("select left(regexp_replace(order_text,'[0-9]+','#','g'),14) p, count(*) n "+q+" group by 1 order by 2 desc limit 15"))
+    print("REV examples", sql("select kind, left(order_text,30) title, char_length(coalesce(result,'')) len, updated_at "+q+" order by random() limit 6"))
 if "grants" in STEPS:  # service_role 權限修正（📯 召集 403）
     sql(open("supabase/migrations/20261017201000_aivault_service_role_grants.sql").read())
     print("sr-test", sql("begin; set local role service_role; insert into public.aivault_floor_state(k,v) values ('__grant_test','{}') on conflict (k) do update set v=excluded.v; select count(*) n from public.aivault_floor_state; delete from public.aivault_floor_state where k='__grant_test'; select (select count(*) from public.aivault_pool_agents) agents, (select count(*) from public.aivault_pool_agent_tasks) tasks; commit;"))
