@@ -66,6 +66,19 @@ async function videoSession(agent: any, v: [string, string, string], topic: stri
     return { agent: agent.id, kind: "learn", topic, video: true, pages: [{ url: row.url, src: c.src + "-transcript", chars: tr.length, lang }], usage: { total: Number(call.usage?.total) || 0 } };
   }
   return null; }
+// sd1：自研課程——付費能力（Kling 影片／fal 圖與 3D／ElevenLabs 語音）不開，改學背後原理，目標日後做自己的免費開源版。關閉：LEARN_SELFDEV_OFF=1
+export const SELFDEV: [string, string, string][] = [
+  ["影片生成：擴散模型與時序一致性", "video diffusion model temporal consistency open source", "open-sora video generation"],
+  ["影片生成：開源模型 Wan / HunyuanVideo / CogVideoX", "open video generation model Wan HunyuanVideo CogVideoX", "cogvideox"],
+  ["圖像生成：潛在擴散與 Flow Matching", "latent diffusion flow matching text-to-image", "stable diffusion flux"],
+  ["圖像生成：LoRA 微調與 ControlNet", "LoRA fine-tuning ControlNet image generation", "controlnet lora"],
+  ["語音合成 TTS：開源模型與聲碼器", "open source text-to-speech vocoder VITS", "piper tts coqui"],
+  ["聲音複製：說話人嵌入與倫理同意", "zero-shot voice cloning speaker embedding consent", "openvoice f5-tts"],
+  ["3D 生成：NeRF 與 3D Gaussian Splatting", "image to 3D gaussian splatting NeRF", "gaussian splatting"],
+  ["3D 生成：單圖轉網格 TripoSR / Hunyuan3D", "single image to 3D mesh TripoSR", "triposr"],
+  ["視覺理解：開源 VLM 與圖文對齊", "open vision language model CLIP LLaVA Qwen-VL", "llava qwen-vl"],
+  ["行動裝置推論：量化與蒸餾", "on-device inference quantization distillation diffusion mobile", "mlc llm gguf"],
+];
 let FORCE_VIDEO = false;
 async function session(agent: any, ov?: [string, string, string], pre = "即時語音：") {
   const d = districtOf(agent.domain); const mine = await rest(`aivault_pool_agent_learning?agent_id=eq.${agent.id}&select=topic,url&limit=2000`); const seen = new Set(mine.map((x: any) => x.url));
@@ -112,9 +125,10 @@ export async function learnRound(b: any, learnOne: (ag: any) => Promise<any>) {
   for (let i = 0; pick.length < n && i < 50; i++) { const p = pools[i % 4]; const a = p.shift(); if (a) pick.push(a); }
   const results: any[] = []; let skipped = busy.size;
   for (const ag of pick) { if (!(await lock(ag.id))) { skipped++; continue; } const d = districtOf(ag.domain);
-    try { const voice = !b.force_ebook && (FORCE_VIDEO || Math.random() < (VW[d] || .4)); let pt: string[] = []; if (!voice && Deno.env.get("PLAN_OFF") !== "1") pt = await approvedTopics(d).catch(() => []);
+    try { const voice = !b.force_ebook && !b.force_selfdev && (FORCE_VIDEO || Math.random() < (VW[d] || .4)); let pt: string[] = []; if (!voice && Deno.env.get("PLAN_OFF") !== "1") pt = await approvedTopics(d).catch(() => []);
       let eb: any = null; if (!voice && Deno.env.get("LEARN_EBOOK_OFF") !== "1" && (b.force_ebook || Math.random() < .25)) eb = await ebookSession(ag);
       if (eb) results.push({ district: d, voice, ebook: true, ...eb });
+      else if (!voice && Deno.env.get("LEARN_SELFDEV_OFF") !== "1" && (b.force_selfdev || Math.random() < .2)) { const mine = await rest(`aivault_pool_agent_learning?agent_id=eq.${ag.id}&topic=like.自研*&select=topic&limit=500`); const c: Record<string, number> = {}; mine.forEach((x: any) => c[x.topic] = (c[x.topic] || 0) + 1); const t = [...SELFDEV].sort((a, z) => (c["自研：" + a[0]] || 0) - (c["自研：" + z[0]] || 0) || Math.random() - .5)[0]; results.push({ district: d, voice, selfdev: true, ...(await session(ag, t, "自研：")) }); }
       else if (pt.length) { const tp = pt[Math.floor(Math.random() * pt.length)]; results.push({ district: d, voice, plan: true, ...(await session(ag, [tp, tp, tp], "計畫：")) }); }
       else results.push({ district: d, voice, ...(voice ? await session(ag) : await learnOne(ag)) }); }
     catch (e) { const msg = String((e as any)?.message || e); results.push({ agent: ag.id, error: msg.slice(0, 200) }); if (/429|LLM_FAILED/.test(msg)) { await unlock(ag.id); return { ok: true, rate_limited: true, used, budget, skipped_locked: skipped, results }; } }

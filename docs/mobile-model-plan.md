@@ -49,3 +49,20 @@
 - 城裡：這些任務是 `source=floor`，會出現在對應 AI 的工作狀態。
 - 設計文件與路線圖會進「🟡 待審」作品（標題以「四大模組升級設計」或「手機小型 AI 模型」開頭）。
 - 模型數字：`models/eot/metrics.json`。
+
+## 自研路線（付費能力不開，改學原理）— 2026-10-17
+
+使用者決定：Kling 影片、fal 圖片／3D、ElevenLabs 語音都**不開**給協作池 AI。改成讓 AI 在 10 分鐘學習迴圈（`learn10.ts` 的 `SELFDEV` 課程，紀錄主題前綴「自研：」）研究這些能力背後的原理，以後做我們自己的免費／開源版本。
+
+| 路線 | 研究重點 | 可參考的開源基礎 |
+|---|---|---|
+| 影片生成 | 影片擴散、時序一致性 | Wan、HunyuanVideo、CogVideoX、Open-Sora |
+| 圖像生成 | 潛在擴散、Flow Matching、LoRA、ControlNet | Stable Diffusion、FLUX（看授權） |
+| 語音合成／聲音複製 | 聲碼器、說話人嵌入，只複製本人同意的聲音 | Piper、Coqui/VITS、F5-TTS、OpenVoice |
+| 3D | NeRF、Gaussian Splatting、單張圖轉網格 | TripoSR、Hunyuan3D |
+| 視覺理解 | VLM、圖文對齊 | CLIP、LLaVA、Qwen-VL |
+| 手機端 | 量化、蒸餾 | GGUF、MLC |
+
+- 用量：跟一般學習共用 `LEARN10_DAILY_TOKENS`。非語音的學習有約 20% 會抽到這個課程，每次先排讀過最少的主題。
+- 關閉：`LEARN_SELFDEV_OFF=1`。測試：`agent-learn.yml` 帶 `force_selfdev=1`。
+- 學習筆記只是研究紀錄，還不是可以用的功能。真的要做成功能，要另外提計畫、經過審核。
