@@ -347,31 +347,5 @@ $('camBtn').onclick=camToggle;$('fsCam').onclick=camToggle;
 
 // ===== 高跟鞋腳步聲：依 guide_walk 落地時間（walk_steps.json）同步 =====
 // iOS：聲音在 JS 內直接合成（不用 fetch/decode），經 MediaStreamDestination → 隱藏 <audio> 播放，避免被靜音鍵/未解鎖擋掉
-const heel=(()=>{const AC=window.AudioContext||window.webkitAudioContext;let ctx=null,out=null,el=null,bufs=[],steps=[0.875,1.667,2.375,2.708,3.083,3.667,4.542,5.042,5.75,6.083,6.542,7.042,7.417],lastT=-1,fired=new Set();
- window.__heelLog=[];
- fetch(G+'walk_steps.json').then(r=>r.json()).then(j=>{if(j.steps&&j.steps.length)steps=j.steps;}).catch(()=>{});
- function synth(f1,f2,dec,seed){const sr=ctx.sampleRate,n=Math.floor(sr*0.3),b=ctx.createBuffer(1,n,sr),d=b.getChannelData(0);let x=seed,pk=0;const rnd=()=>{x=(x*16807)%2147483647;return x/2147483647*2-1;};
-  for(let i=0;i<n;i++){const t=i/sr;d[i]=rnd()*Math.exp(-t/0.0015)*0.9+(Math.sin(2*Math.PI*f1*t)*0.6+Math.sin(2*Math.PI*f2*t)*0.35+Math.sin(2*Math.PI*900*t)*0.25)*Math.exp(-t/dec);}
-  for(let i=1;i<n;i++){const k=Math.floor(sr*0.023);if(i>k)d[i]+=d[i-k]*0.18;}   // 簡單房間反射
-  for(let i=0;i<n;i++)pk=Math.max(pk,Math.abs(d[i]));for(let i=0;i<n;i++)d[i]=d[i]/pk*0.9;return b;}
- function unlock(){try{try{if(navigator.audioSession&&navigator.audioSession.type!=='play-and-record')navigator.audioSession.type='playback';}catch(e){}
-  if(!ctx){ctx=new AC();out=ctx.createGain();
-   if(ctx.createMediaStreamDestination&&/iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent)&&'ontouchend'in document){const dst=ctx.createMediaStreamDestination();out.connect(dst);el=document.createElement('audio');el.setAttribute('playsinline','');el.autoplay=true;el.style.display='none';document.body.appendChild(el);el.srcObject=dst.stream;}
-   else out.connect(ctx.destination);
-   bufs=[synth(2900,4100,0.018,7),synth(2500,3600,0.022,11),synth(3300,4600,0.015,13)];}
-  ctx.resume&&ctx.resume();if(el){const p=el.play();p&&p.catch&&p.catch(()=>{try{out.disconnect();}catch(e){}out.connect(ctx.destination);el=null;});}
-  const b=ctx.createBuffer(1,1,22050),n=ctx.createBufferSource();n.buffer=b;n.connect(out);n.start(0);}catch(e){console.warn('heel unlock',e);}}
- function click(at,st){if(!ctx||!bufs.length)return;if(ctx.state!=='running'){try{ctx.resume();}catch(e){}}const s=ctx.createBufferSource(),g=ctx.createGain();s.buffer=bufs[(Math.random()*bufs.length)|0];
-  s.playbackRate.value=0.94+Math.random()*0.12;g.gain.value=(speaking?0.4:0.8)*(0.85+Math.random()*0.3);s.connect(g);g.connect(out);s.start(Math.max(ctx.currentTime,at));
-  window.__heelLog.push({step:st,video:+vids[cur].currentTime.toFixed(3),ctx:ctx.state});}
- function tick(){const v=vids[cur];
-  if(curClip!=='walk'||paused||v.paused||v.readyState<2){lastT=-1;fired.clear();return;}
-  const t=v.currentTime,rate=v.playbackRate||1,LA=0.06;
-  if(lastT>=0&&t<lastT-0.5)fired.clear();lastT=t;
-  for(const st of steps){if(fired.has(st))continue;const dt=(st-t)/rate;if(dt<=LA&&dt>-0.05){fired.add(st);click(ctx?ctx.currentTime+Math.max(0,dt):0,st);}}}
- setInterval(tick,16);   // 不依賴 rAF（背景/全螢幕切換時 rAF 可能暫停）
- return{unlock};})();
-if(/[?&]heeltest=1/.test(location.search)){const b=document.createElement('button');b.textContent='👠 測試走路腳步聲';b.className='icon-btn';b.style.cssText='display:block;margin:10px auto';
- b.onclick=()=>{heel.unlock();live.unlock&&live.unlock();window.__heelLog=[];playClip('walk',true);status('播放走路＋腳步聲測試（按暫停停止）');};
- document.querySelector('main').prepend(b);if(/[?&]auto=1/.test(location.search))setTimeout(()=>b.click(),300);}
+const heel={unlock(){}};   // 高跟鞋聲已移除
 </script></body></html>
