@@ -1,0 +1,56 @@
+# 協作池學歷制度：建表、上傳 Grok Bot 題庫（加密檔解開後只寫進資料庫，不印出）、排定考試、跑學習／考試循環。
+import json, os, subprocess, time, datetime, urllib.request, urllib.error
+REF="clcddygkaaqqtsbswgdf"; BASE="https://%s.supabase.co"%REF; TOKEN=os.environ["TOKEN"]; STEPS=os.environ.get("STEP","cycle").split(","); N=int(os.environ.get("N","4") or 4)
+def http(url,data=None,headers=None,method=None,timeout=300):
+    r=urllib.request.Request(url,data=json.dumps(data).encode() if data is not None else None,headers=dict({"Content-Type":"application/json","User-Agent":"degree"},**(headers or {})),method=method)
+    try:
+        with urllib.request.urlopen(r,timeout=timeout) as f: b=f.read(); return f.status,(json.loads(b) if b else None)
+    except urllib.error.HTTPError as e:
+        b=e.read()
+        try: return e.code,json.loads(b)
+        except Exception: return e.code,b[:300].decode("utf-8","replace")
+def sql(q):
+    s,b=http("https://api.supabase.com/v1/projects/%s/database/query"%REF,{"query":q},{"Authorization":"Bearer "+TOKEN},"POST"); assert s<300,(s,str(b)[:300]); return b
+def lit(s,tag="$q$"): assert tag not in s; return tag+s+tag
+D={"llm":"大型語言模型","img":"圖像生成模型","av":"影片與語音模型","code":"程式與代理人工具"}
+if "migrate" in STEPS:
+    sql(open("supabase/migrations/20261017190000_aivault_pool_degrees.sql").read())
+    bank=json.loads(subprocess.check_output(["gpg","--batch","--quiet","--pinentry-mode","loopback","--passphrase",os.environ["PAGES_KEY"],"-d","private/exam-bank.json.gpg"]).decode())
+    for d,lab in D.items():
+        qs=[q for q in bank if q["d"]==d]
+        sql("insert into public.aivault_pool_exams(id,district,kind,title,questions) values ('bank-%s','%s','placement',%s,%s::jsonb) on conflict (id) do update set questions=excluded.questions"%(d,d,lit("Grok Bot 題庫・"+lab),lit(json.dumps(qs,ensure_ascii=False))))
+        sql("insert into public.aivault_pool_exams(id,district,kind,title,questions) values ('placement-%s','%s','placement',%s,'[]'::jsonb) on conflict (id) do nothing"%(d,d,lit("學歷鑑定考・"+lab)))
+        sql("insert into public.aivault_pool_exams(id,district,kind,title,opens_at,questions) values ('promotion-2026-10-20-%s','%s','promotion',%s,'2026-10-20T10:00:00+08:00','[]'::jsonb) on conflict (id) do nothing"%(d,d,lit("第一次正式升級考・"+lab)))
+    print("exams", sql("select kind,count(*),sum(jsonb_array_length(questions)) q from public.aivault_pool_exams group by kind"))
+if "cycle" in STEPS or "weekly" in STEPS:  # 週考：從 2026-10-27 起每週二 10:00（台北）開考，考期 6 天
+    tw=datetime.datetime.utcnow()+datetime.timedelta(hours=8); start=datetime.date(2026,10,27)
+    if tw.date()>=start:
+        day=start+datetime.timedelta(days=7*((tw.date()-start).days//7))
+        for d,lab in D.items():
+            sql("insert into public.aivault_pool_exams(id,district,kind,title,opens_at,closes_at,questions) values ('weekly-%s-%s','%s','weekly',%s,'%sT10:00:00+08:00','%sT10:00:00+08:00','[]'::jsonb) on conflict (id) do nothing"%(day,d,d,lit("週考 %s・%s"%(day,lab)),day,day+datetime.timedelta(days=6)))
+_,keys=http("https://api.supabase.com/v1/projects/%s/api-keys?reveal=true"%REF,headers={"Authorization":"Bearer "+TOKEN})
+SR=next(k["api_key"] for k in keys if k.get("name")=="service_role"); print("::add-mask::"+SR)
+def y(body): return http(BASE+"/functions/v1/dark-star-ebook-ingest?feature=degree",body,{"apikey":SR,"Authorization":"Bearer "+SR},"POST")
+if "cycle" in STEPS:
+    end=time.time()+60*float(os.environ.get("MINUTES","1") or 1); k=0; tok=0; mode=os.environ.get("MODE","") or None
+    while True:
+        k+=1; s,b=y({"action":"cycle","n":N,**({"mode":mode} if mode else {})}); ok=isinstance(b,dict)
+        rs=(b.get("results") or []) if ok else []
+        for r in rs: tok+=((r.get("usage") or {}).get("total") or 0)
+        print("CYCLE",k,s,"rl",b.get("rate_limited") if ok else b,[(r.get("kind"),r.get("agent"),r.get("tier"),r.get("level"),r.get("score"),r.get("max"),r.get("topic"),(r.get("usage") or {}).get("total"),(r.get("error") or "")[:90],bool(r.get("url"))) for r in rs])
+        if s!=200 or not ok or time.time()>end: break
+        if b.get("rate_limited"):
+            errs=" ".join(str(r.get("error")) for r in rs); print("STOP: Groq limit", errs[:300]); break
+        time.sleep(10)
+    print("TOKENS_THIS_RUN",tok)
+    if os.environ.get("PEER","1")=="1": s,b=y({"action":"peer_review","n":2}); print("PEER",s,json.dumps(b,ensure_ascii=False)[:200])
+if "cycle" in STEPS or "stats" in STEPS:
+    print("DEGREES",sql("select district,tier,count(*) from public.aivault_pool_agent_degree group by 1,2 order by 1,2"))
+    print("UNPLACED",sql("select count(*) from public.aivault_pool_agents a where not exists (select 1 from public.aivault_pool_agent_degree d where d.agent_id=a.id)"))
+    print("LEARNING",sql("select count(*) total, count(*) filter (where http_status=200) ok, count(distinct agent_id) agents, count(distinct url) urls from public.aivault_pool_agent_learning"))
+    print("EXAMS",sql("select exam_id,count(*),round(avg(score/max_score)*100,1) avg_pct,sum((usage->>'total')::int) tokens from public.aivault_pool_exam_answers group by 1 order by 1"))
+if "dump" in STEPS:  # 樣本（加密 artifact，公開日誌不印內容）
+    out={"learning":sql("select l.id,l.agent_id,a.name,l.district,l.topic,l.query,l.url,l.title,l.http_status,l.bytes,l.sha256,l.notes,l.model,l.usage,l.fetched_at from public.aivault_pool_agent_learning l join public.aivault_pool_agents a on a.id=l.agent_id order by l.created_at desc limit 40"),
+         "answers":sql("select x.exam_id,x.agent_id,a.name,x.qids,x.answers,x.correct,x.score,x.max_score,x.tier,x.level,x.notes_used,x.grader_notes,x.model,x.usage,x.created_at from public.aivault_pool_exam_answers x join public.aivault_pool_agents a on a.id=x.agent_id order by x.created_at desc limit 40")}
+    open("/tmp/d.json","w").write(json.dumps(out,ensure_ascii=False,default=str))
+    subprocess.check_call(["gpg","--batch","--yes","--quiet","--pinentry-mode","loopback","--passphrase",os.environ["PAGES_KEY"],"-c","-o","degree-dump.json.gpg","/tmp/d.json"]); print("dump ok")

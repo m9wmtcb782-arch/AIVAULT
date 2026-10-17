@@ -1,0 +1,31 @@
+name: AI pool degrees (learning + exams)
+on:
+  schedule:
+    - cron: "22,52 * * * *"
+  workflow_dispatch:
+    inputs:
+      step: { description: "migrate,cycle,stats,dump,weekly", required: true, default: "cycle" }
+      n: { description: "jobs per call (max 12)", required: false, default: "4" }
+      minutes: { description: "keep cycling for N minutes", required: false, default: "1" }
+      mode: { description: "'' | learn | exam", required: false, default: "" }
+concurrency: { group: agent-degree, cancel-in-progress: false }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PAGES_KEY: ${{ secrets.AIVAULT_PRIVATE_PAGES_KEY }}
+          STEP: ${{ inputs.step || 'cycle' }}
+          N: ${{ inputs.n || '4' }}
+          MINUTES: ${{ inputs.minutes || '18' }}
+          MODE: ${{ inputs.mode || '' }}
+          OFF: ${{ vars.AGENT_DEGREE_OFF }}
+        run: |
+          if [ "$OFF" = "1" ]; then echo "disabled by repo variable AGENT_DEGREE_OFF=1"; exit 0; fi
+          python3 .github/scripts/degree_setup.py
+      - if: always() && contains(inputs.step, 'dump')
+        uses: actions/upload-artifact@v4
+        with: { name: degree-dump, path: degree-dump.json.gpg, retention-days: 3, if-no-files-found: ignore }
