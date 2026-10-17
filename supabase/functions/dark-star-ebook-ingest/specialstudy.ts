@@ -40,6 +40,8 @@ export async function specialRound(b: any) {
 export async function specialDegreePublic() {
   const dg = await rest("aivault_special_degree?select=agent_id,district,tier,level,last_exam_at,history");
   const lr = await rest("aivault_special_learning?select=agent_id,topic,url,fetched_at&order=fetched_at.desc&limit=20");
-  return { ok: true, degree: dg.map((x: any) => ({ ...x, name: SPECIALS[x.agent_id]?.name, history: (x.history || []).slice(-5) })), learning: lr };
+  let roster: any = null; try { const cnt = async (q: string) => { const r = await fetch(URL0 + "/rest/v1/" + q, { headers: { ...SRH, Prefer: "count=exact", Range: "0-0" } }); return Number((r.headers.get("content-range") || "/0").split("/")[1]) || 0; };
+    roster = { working: await cnt("aivault_pool_agents?select=id"), special: await cnt("aivault_pool_special?select=id"), inactive: await cnt("agent_registry?roster_status=eq.registered-inactive&select=agent_id"), duplicates: await cnt("agent_registry?roster_status=in.(alias,simulated-duplicate)&select=agent_id") }; } catch (_) {}
+  return { ok: true, roster, degree: dg.map((x: any) => ({ ...x, name: SPECIALS[x.agent_id]?.name, history: (x.history || []).slice(-5) })), learning: lr };
 }
 void mapScore;
