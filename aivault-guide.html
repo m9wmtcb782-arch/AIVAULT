@@ -98,8 +98,9 @@ body.fs.ctlhide #fsCtl{opacity:0;pointer-events:none}
 const G='digital-human-real/guide/',$=id=>document.getElementById(id);
 const CLIPS={idle:'guide_idle',intro:'guide_intro',point:'guide_point',walk:'guide_walk',explain:'guide_explain',ask:'guide_ask',bow:'guide_bow',talk:'guide_talk'};
 const vids=[$('v0'),$('v1')];let cur=0,curClip=null,lip=null,mouthImgs={};
-function playClip(name,loop){return new Promise(res=>{const nv=vids[1-cur],ov=vids[cur];nv.loop=!!loop;nv.src=G+CLIPS[name]+'.mp4';nv.poster=G+CLIPS[name]+'.jpg';
- const go=()=>{nv.play().catch(()=>{});nv.classList.add('on');ov.classList.remove('on');setTimeout(()=>ov.pause(),400);cur=1-cur;curClip=name;$('slide').classList.toggle('dim',name==='walk');};
+let clipGen=0;
+function playClip(name,loop){const my=++clipGen;return new Promise(res=>{const nv=vids[1-cur],ov=vids[cur];nv.loop=!!loop;nv.onended=null;nv.oncanplay=null;nv.src=G+CLIPS[name]+'.mp4';nv.poster=G+CLIPS[name]+'.jpg';
+ const go=()=>{if(my!==clipGen){res();return;}nv.play().catch(()=>{});nv.classList.add('on');ov.classList.remove('on');setTimeout(()=>{if(!ov.classList.contains('on'))ov.pause();},400);cur=1-cur;curClip=name;$('slide').classList.toggle('dim',name==='walk');};
  nv.oncanplay=()=>{nv.oncanplay=null;go()};nv.onerror=()=>res();nv.onended=()=>res();nv.load();if(loop)setTimeout(res,50);});}
 async function oneShot(n){if(paused)return;await playClip(n,false);if(!paused&&(!stopped||qaMode))playClip(speaking?'talk':'idle',true);}
 // ---- lip ----
@@ -195,7 +196,7 @@ async function speakSentence(s,i){if(stopped)return;await waitPause();
  await sayP(s);await waitPause();}
 async function run(){if(voiceMode==='live')await live.ensure();stopped=false;queued=null;jump=null;$('skipBtn').style.display='none';paused=false;$('ask').style.display='none';
  await playClip('intro',false);if(stopped)return;playClip('talk',true);await sayP('大家好，我是 Technical Dark Star 暗星，接下來由我為你導讀。');
- for(;page<slides.length&&!stopped;){showSlide();inSlide=true;const ss=script[page]||[];if(page>0&&page%2===0&&!stopped){await playClip('walk',false);playClip('idle',true);}
+ for(;page<slides.length&&!stopped;){showSlide();inSlide=true;const ss=script[page]||[];if((page===0||page%2===0)&&!stopped&&!paused){await playClip('walk',false);if(!paused)playClip('idle',true);}
   if(voiceMode==='live'&&live.ready()){if(ss.length)await live.speakBlock(ss);}else for(let i=0;i<ss.length&&!stopped&&jump===null;i++)await speakSentence(ss[i],i);
   if(stopped)break;if(jump!==null){page=jump;jump=null;continue;}
   playClip('idle',true);if(!ss.length)$('sub').textContent='（這一頁沒有講稿）';
@@ -344,17 +345,33 @@ function camToggle(e){if(e)e.stopPropagation();if(camOn){camStop();return;}live.
  .catch(err=>{camStop();status('無法開啟鏡頭／麥克風：'+(err.name==='NotAllowedError'?'請到設定允許權限':err.message));});}
 $('camBtn').onclick=camToggle;$('fsCam').onclick=camToggle;
 
-// ===== 高跟鞋腳步聲：依 guide_walk 的落地時間（walk_steps.json）同步 =====
-const heel=(()=>{const AC=window.AudioContext||window.webkitAudioContext;let ctx=null,bufs=[],steps=[],lastT=-1,lastSrc=null,fired=new Set();
- fetch(G+'walk_steps.json').then(r=>r.json()).then(j=>{steps=j.steps||[];}).catch(()=>{});
- function unlock(){try{if(!ctx){ctx=new AC();[1,2,3].forEach(i=>fetch(G+'sfx/heel'+i+'.mp3').then(r=>r.arrayBuffer()).then(b=>new Promise((ok,no)=>ctx.decodeAudioData(b,ok,no))).then(d=>bufs.push(d)).catch(()=>{}));}
-  ctx.resume();const b=ctx.createBuffer(1,1,22050),n=ctx.createBufferSource();n.buffer=b;n.connect(ctx.destination);n.start(0);}catch(e){}}
- function click(at){if(!ctx||!bufs.length||ctx.state!=='running')return;const s=ctx.createBufferSource(),g=ctx.createGain();s.buffer=bufs[(Math.random()*bufs.length)|0];
-  s.playbackRate.value=0.94+Math.random()*0.12;g.gain.value=(speaking?0.16:0.32)*(0.85+Math.random()*0.3);s.connect(g);g.connect(ctx.destination);s.start(Math.max(ctx.currentTime,at));}
- function tick(){requestAnimationFrame(tick);const v=vids[cur];
-  if(curClip!=='walk'||paused||!ctx||v.paused||v.readyState<2||!v.classList.contains('on')){lastT=-1;fired.clear();return;}
+// ===== 高跟鞋腳步聲：依 guide_walk 落地時間（walk_steps.json）同步 =====
+// iOS：聲音在 JS 內直接合成（不用 fetch/decode），經 MediaStreamDestination → 隱藏 <audio> 播放，避免被靜音鍵/未解鎖擋掉
+const heel=(()=>{const AC=window.AudioContext||window.webkitAudioContext;let ctx=null,out=null,el=null,bufs=[],steps=[0.875,1.667,2.375,2.708,3.083,3.667,4.542,5.042,5.75,6.083,6.542,7.042,7.417],lastT=-1,fired=new Set();
+ window.__heelLog=[];
+ fetch(G+'walk_steps.json').then(r=>r.json()).then(j=>{if(j.steps&&j.steps.length)steps=j.steps;}).catch(()=>{});
+ function synth(f1,f2,dec,seed){const sr=ctx.sampleRate,n=Math.floor(sr*0.3),b=ctx.createBuffer(1,n,sr),d=b.getChannelData(0);let x=seed,pk=0;const rnd=()=>{x=(x*16807)%2147483647;return x/2147483647*2-1;};
+  for(let i=0;i<n;i++){const t=i/sr;d[i]=rnd()*Math.exp(-t/0.0015)*0.9+(Math.sin(2*Math.PI*f1*t)*0.6+Math.sin(2*Math.PI*f2*t)*0.35+Math.sin(2*Math.PI*900*t)*0.25)*Math.exp(-t/dec);}
+  for(let i=1;i<n;i++){const k=Math.floor(sr*0.023);if(i>k)d[i]+=d[i-k]*0.18;}   // 簡單房間反射
+  for(let i=0;i<n;i++)pk=Math.max(pk,Math.abs(d[i]));for(let i=0;i<n;i++)d[i]=d[i]/pk*0.9;return b;}
+ function unlock(){try{try{if(navigator.audioSession&&navigator.audioSession.type!=='play-and-record')navigator.audioSession.type='playback';}catch(e){}
+  if(!ctx){ctx=new AC();out=ctx.createGain();
+   if(ctx.createMediaStreamDestination&&/iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent)&&'ontouchend'in document){const dst=ctx.createMediaStreamDestination();out.connect(dst);el=document.createElement('audio');el.setAttribute('playsinline','');el.autoplay=true;el.style.display='none';document.body.appendChild(el);el.srcObject=dst.stream;}
+   else out.connect(ctx.destination);
+   bufs=[synth(2900,4100,0.018,7),synth(2500,3600,0.022,11),synth(3300,4600,0.015,13)];}
+  ctx.resume&&ctx.resume();if(el){const p=el.play();p&&p.catch&&p.catch(()=>{try{out.disconnect();}catch(e){}out.connect(ctx.destination);el=null;});}
+  const b=ctx.createBuffer(1,1,22050),n=ctx.createBufferSource();n.buffer=b;n.connect(out);n.start(0);}catch(e){console.warn('heel unlock',e);}}
+ function click(at,st){if(!ctx||!bufs.length)return;if(ctx.state!=='running'){try{ctx.resume();}catch(e){}}const s=ctx.createBufferSource(),g=ctx.createGain();s.buffer=bufs[(Math.random()*bufs.length)|0];
+  s.playbackRate.value=0.94+Math.random()*0.12;g.gain.value=(speaking?0.4:0.8)*(0.85+Math.random()*0.3);s.connect(g);g.connect(out);s.start(Math.max(ctx.currentTime,at));
+  window.__heelLog.push({step:st,video:+vids[cur].currentTime.toFixed(3),ctx:ctx.state});}
+ function tick(){const v=vids[cur];
+  if(curClip!=='walk'||paused||v.paused||v.readyState<2){lastT=-1;fired.clear();return;}
   const t=v.currentTime,rate=v.playbackRate||1,LA=0.06;
-  if(lastT>=0&&t<lastT-0.5)fired.clear();   // 迴圈重新開始
-  lastT=t;for(const st of steps){if(fired.has(st))continue;const dt=(st-t)/rate;if(dt<=LA&&dt>-0.03){fired.add(st);click(ctx.currentTime+Math.max(0,dt));}}}
- requestAnimationFrame(tick);return{unlock};})();
+  if(lastT>=0&&t<lastT-0.5)fired.clear();lastT=t;
+  for(const st of steps){if(fired.has(st))continue;const dt=(st-t)/rate;if(dt<=LA&&dt>-0.05){fired.add(st);click(ctx?ctx.currentTime+Math.max(0,dt):0,st);}}}
+ setInterval(tick,16);   // 不依賴 rAF（背景/全螢幕切換時 rAF 可能暫停）
+ return{unlock};})();
+if(/[?&]heeltest=1/.test(location.search)){const b=document.createElement('button');b.textContent='👠 測試走路腳步聲';b.className='icon-btn';b.style.cssText='display:block;margin:10px auto';
+ b.onclick=()=>{heel.unlock();live.unlock&&live.unlock();window.__heelLog=[];playClip('walk',true);status('播放走路＋腳步聲測試（按暫停停止）');};
+ document.querySelector('main').prepend(b);if(/[?&]auto=1/.test(location.search))setTimeout(()=>b.click(),300);}
 </script></body></html>
