@@ -177,7 +177,7 @@ $('voiceSel').onchange=e=>{settings.voice=(voices[e.target.value]||{}).name;save
 $('rate').value=settings.rate||1;$('rateVal').textContent=(+$('rate').value).toFixed(1);$('rate').oninput=e=>{settings.rate=+e.target.value;$('rateVal').textContent=settings.rate.toFixed(1);saveSet();};
 $('auto').checked=settings.auto!==false;$('auto').onchange=e=>{settings.auto=e.target.checked;saveSet();};
 const utterRefs=[];let ttsPrimed=false;
-function primeTTS(){if(!('speechSynthesis'in window))return;try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;u.lang='zh-TW';utterRefs.push(u);speechSynthesis.speak(u);speechSynthesis.resume();ttsPrimed=true;}catch(e){}}
+function primeTTS(){try{heel.unlock();}catch(e){}if(!('speechSynthesis'in window))return;try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;u.lang='zh-TW';utterRefs.push(u);speechSynthesis.speak(u);speechSynthesis.resume();ttsPrimed=true;}catch(e){}}
 function say(text){if(voiceMode==='live'&&live.ready())return live.sayLine(text);return new Promise(async res=>{if('speechSynthesis'in window&&(speechSynthesis.speaking||speechSynthesis.pending)){speechSynthesis.cancel();await new Promise(r=>setTimeout(r,150));}$('sub').textContent=text;if(!('speechSynthesis'in window)){const g=pauseGen;setTimeout(()=>res(pauseGen!==g),text.length*220);return;}
  const u=new SpeechSynthesisUtterance(text),v=voices[$('voiceSel').value];if(v)u.voice=v;u.lang=v?v.lang:'zh-TW';u.rate=+$('rate').value||1;
  let done=false;const gen=pauseGen;const fin=()=>{if(done)return;done=true;speaking=false;res(pauseGen!==gen);};
@@ -273,7 +273,7 @@ const live=(()=>{const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v
  function agentId(){try{const v=localStorage.getItem('aivault-guide-live-agent'),t=+localStorage.getItem('aivault-guide-live-agent-at')||0;if(v&&v!==MY&&Date.now()-t>6*3600e3){localStorage.removeItem('aivault-guide-live-agent');return MY;}return v||MY;}catch(e){return MY;}}
  const nsKey=b=>b+(agentId()===MY?'-v2':'');
  function topicId(){const k=nsKey('aivault-guide-live-topic-id'),pre=agentId()===MY?'aivault-guide-':'technical-dark-star-';let v=localStorage.getItem(k);if(!v){v=pre+(crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random().toString(36).slice(2));localStorage.setItem(k,v);}return v;}
- function unlock(){try{if(navigator.audioSession)navigator.audioSession.type='playback';}catch(e){}
+ function unlock(){try{if(navigator.audioSession)navigator.audioSession.type='playback';}catch(e){}try{heel.unlock();}catch(e){}
   if(!playCtx||playCtx.state==='closed'){playCtx=new AC();outGain=playCtx.createGain();
    if(playCtx.createMediaStreamDestination){const d=playCtx.createMediaStreamDestination();outGain.connect(d);outEl=document.createElement('audio');outEl.setAttribute('playsinline','');outEl.autoplay=true;outEl.style.display='none';document.body.appendChild(outEl);outEl.srcObject=d.stream;outEl.play().catch(()=>{try{outGain.disconnect();}catch(e){}outGain.connect(playCtx.destination);});}
    else outGain.connect(playCtx.destination);}
@@ -343,4 +343,18 @@ function camToggle(e){if(e)e.stopPropagation();if(camOn){camStop();return;}live.
   st.getAudioTracks().forEach(t=>t.enabled=true);const v=$('pip');v.srcObject=new MediaStream(st.getVideoTracks());v.play().catch(()=>{});camUI();status(voiceMode==='live'?'暗星看得到你了（即時語音）':'鏡頭已開啟；手機語音模式不會傳送畫面');})
  .catch(err=>{camStop();status('無法開啟鏡頭／麥克風：'+(err.name==='NotAllowedError'?'請到設定允許權限':err.message));});}
 $('camBtn').onclick=camToggle;$('fsCam').onclick=camToggle;
+
+// ===== 高跟鞋腳步聲：依 guide_walk 的落地時間（walk_steps.json）同步 =====
+const heel=(()=>{const AC=window.AudioContext||window.webkitAudioContext;let ctx=null,bufs=[],steps=[],lastT=-1,lastSrc=null,fired=new Set();
+ fetch(G+'walk_steps.json').then(r=>r.json()).then(j=>{steps=j.steps||[];}).catch(()=>{});
+ function unlock(){try{if(!ctx){ctx=new AC();[1,2,3].forEach(i=>fetch(G+'sfx/heel'+i+'.mp3').then(r=>r.arrayBuffer()).then(b=>new Promise((ok,no)=>ctx.decodeAudioData(b,ok,no))).then(d=>bufs.push(d)).catch(()=>{}));}
+  ctx.resume();const b=ctx.createBuffer(1,1,22050),n=ctx.createBufferSource();n.buffer=b;n.connect(ctx.destination);n.start(0);}catch(e){}}
+ function click(at){if(!ctx||!bufs.length||ctx.state!=='running')return;const s=ctx.createBufferSource(),g=ctx.createGain();s.buffer=bufs[(Math.random()*bufs.length)|0];
+  s.playbackRate.value=0.94+Math.random()*0.12;g.gain.value=(speaking?0.16:0.32)*(0.85+Math.random()*0.3);s.connect(g);g.connect(ctx.destination);s.start(Math.max(ctx.currentTime,at));}
+ function tick(){requestAnimationFrame(tick);const v=vids[cur];
+  if(curClip!=='walk'||paused||!ctx||v.paused||v.readyState<2||!v.classList.contains('on')){lastT=-1;fired.clear();return;}
+  const t=v.currentTime,rate=v.playbackRate||1,LA=0.06;
+  if(lastT>=0&&t<lastT-0.5)fired.clear();   // 迴圈重新開始
+  lastT=t;for(const st of steps){if(fired.has(st))continue;const dt=(st-t)/rate;if(dt<=LA&&dt>-0.03){fired.add(st);click(ctx.currentTime+Math.max(0,dt));}}}
+ requestAnimationFrame(tick);return{unlock};})();
 </script></body></html>
