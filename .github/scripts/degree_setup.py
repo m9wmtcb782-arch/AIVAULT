@@ -43,7 +43,11 @@ if "cycle" in STEPS:
         print("CYCLE",k,s,"rl",b.get("rate_limited") if ok else b,[(r.get("kind"),r.get("agent"),r.get("tier"),r.get("level"),r.get("score"),r.get("max"),r.get("topic"),(r.get("usage") or {}).get("total"),(r.get("error") or "")[:90],bool(r.get("url"))) for r in rs])
         if s!=200 or not ok or time.time()>end: break
         if b.get("rate_limited"):
-            errs=" ".join(str(r.get("error")) for r in rs); print("STOP: Groq limit", errs[:300]); break
+            errs=" ".join(str(r.get("error")) for r in rs); rl_n=globals().get("rl_n",0)+1; globals()["rl_n"]=rl_n
+            kind="per-day" if "per day" in errs else "per-minute" if "per minute" in errs else "unknown"
+            if mode=="place" and rl_n<4 and kind!="per-day": print("WAIT: Groq limit",kind,"retry",rl_n); time.sleep(65); continue
+            print("STOP: Groq limit",kind, errs[:300]); break
+        globals()["rl_n"]=0
         if mode=="place" and ok and b.get("left")==0: print("ALL PLACED"); break
         time.sleep(45 if b.get("partial_429") else 5)
     print("TOKENS_THIS_RUN",tok)
