@@ -2018,7 +2018,8 @@
         for (let i = 0; i < n; i++) ch[i] = dv.getInt16(i * 2, true) / 32768;
         if (playCtx.state !== 'running') playCtx.resume().catch(() => {});
         const s = playCtx.createBufferSource(); s.buffer = buf; s.connect(outGain);
-        const t0 = nextPlay > playCtx.currentTime + 0.01 ? nextPlay : playCtx.currentTime + 0.12;   // 斷流後先墊 120ms 緩衝，之後無縫接續 s.start(t0); nextPlay = t0 + buf.duration;
+        const t0 = nextPlay > playCtx.currentTime + 0.01 ? nextPlay : playCtx.currentTime + 0.12;   // 斷流後先墊 120ms 緩衝，之後無縫接續
+        s.start(t0); nextPlay = t0 + buf.duration;
         sources.push(s); s.onended = () => { sources = sources.filter(x => x !== s); played++; };
         const step = Math.round(rate * 0.02), list = [];
         for (let i = 0; i < n; i += step) {
