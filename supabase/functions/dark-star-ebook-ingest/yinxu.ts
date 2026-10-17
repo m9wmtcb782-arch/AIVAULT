@@ -241,7 +241,15 @@ export async function yinxu(r: Request) {
       const keys = Object.values(pkg.audio || {}) as string[]; const s = await sign(keys); pkg.audio_urls = Object.fromEntries(Object.entries(pkg.audio || {}).map(([k, v]) => [k, s[v as string]]));
       return out({ ok: true, book: pkg });
     }
-    if (a === "delete_book" && u.owner) { const id = String(b.book_id || "").replace(/[^\w-]/g, ""); const idx = (await getJSON("index.json")) || { books: [] }; idx.books = idx.books.filter((x: any) => x.book_id !== id); await put("index.json", JSON.stringify(idx)); return out({ ok: true }); }
+    if (a === "delete_book") {
+      if (!u.owner) return out({ error: "OWNER_ONLY", message: "只有擁有者或管理者可以刪除因序小說" }, 403);
+      const id = String(b.book_id || "").replace(/[^\w-]/g, ""); if (!id) return out({ error: "book_id" }, 400);
+      const idx = (await getJSON("index.json")) || { books: [] }; const gone = new Set<string>([id]);
+      for (let grew = true; grew;) { grew = false; for (const x of idx.books) if (x.parent_id && gone.has(x.parent_id) && !gone.has(x.book_id)) { gone.add(x.book_id); grew = true; } }
+      idx.books = idx.books.filter((x: any) => !gone.has(x.book_id)); await put("index.json", JSON.stringify(idx));
+      await fetch(`${URL0}/storage/v1/object/${BUCKET}`, { method: "DELETE", headers: { ...SRH, "Content-Type": "application/json" }, body: JSON.stringify({ prefixes: [...gone].map((g) => `books/${g}.json`) }) }).catch(() => null);
+      return out({ ok: true, deleted: [...gone] });
+    }
     if (a === "compile_jobs") return out({ ok: true });
     if (a === "save_timeline") { const pkg = b.book; if (!pkg?.book_id || !pkg?.parent_id) return out({ error: "book" }, 400); pkg.book_id = String(pkg.book_id).replace(/[^\w-]/g, "").slice(0, 80); pkg.owner_id = u.id; pkg.audio = {}; await savePackage(pkg); return out({ ok: true }); }
     if (a === "direct") return out({ ok: true, ...(await direct(b)) });

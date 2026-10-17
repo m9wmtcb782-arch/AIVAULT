@@ -2,35 +2,37 @@
 <html lang="zh-Hant"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#07090d"><title>因序小說｜AIVAULT</title>
-<link rel="stylesheet" href="yinxu.css?v=20261016-yx3">
+<link rel="stylesheet" href="yinxu.css?v=20261017-yx4">
 </head><body>
 <header class="top"><a class="ib" href="aivault-home.html">‹ 首頁</a><div class="brand">✦ 因序小說</div><div style="flex:1"></div>
-  <a class="btn" id="makeBtn" href="yinxu-make.html?v=20261016-yx3" style="display:none">🛠 因序小說製作</a></header>
+  <a class="btn" id="makeBtn" href="yinxu-make.html?v=20261017-yx4" style="display:none">🛠 因序小說製作</a></header>
 <main class="wrap">
   <p class="muted" id="hint"></p>
   <div id="shelf"></div>
 </main>
 <div class="overlay" id="reader" style="display:none"><b id="rTitle"></b><p class="muted" id="rText" style="max-height:60vh;overflow:auto;text-align:left;white-space:pre-wrap"></p><button class="btn primary" onclick="this.parentNode.style.display='none'">關閉</button></div>
-<script src="yinxu-config.js?v=20261016-yx3"></script>
-<script src="yinxu-data.js?v=20261016-yx3"></script>
-<script src="yinxu-store.js?v=20261016-yx3"></script>
-<script src="yinxu-api.js?v=20261016-yx3"></script>
+<script src="yinxu-config.js?v=20261017-yx4"></script>
+<script src="yinxu-data.js?v=20261017-yx4"></script>
+<script src="yinxu-store.js?v=20261017-yx4"></script>
+<script src="yinxu-api.js?v=20261017-yx4"></script>
 <script>
 (function () {
-  var V = '20261016-yx3';
+  var V = '20261017-yx4';
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   var PAL = [['#1e3a8a', '#0f172a'], ['#7c2d12', '#1c1917'], ['#14532d', '#0b1410'], ['#581c87', '#1e1b4b'], ['#831843', '#1f0a14'], ['#0e7490', '#082f49']];
   function hash(s) { var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h); }
   function cover(b, small) { var c = b.cover || {}, p = PAL[hash(b.book_id) % PAL.length];
     return '<div class="cv' + (small ? ' sm' : '') + '" style="background:linear-gradient(160deg,' + (c.from || p[0]) + ',' + (c.to || p[1]) + ')"><span class="em">' + esc(c.emoji || '📖') + '</span><span class="ct">' + esc(String(b.title).replace(/｜.*$/, '')) + '</span>' + (b.part > 1 ? '<span class="pt">第' + b.part + '部</span>' : '') + '</div>'; }
   var server = [], owner = false;
+  function isDemo(id) { return (window.YINXU_DEMO_BOOKS || []).some(function (b) { return b.book_id === id; }); }
+  function tree(id) { var a = [id]; kids(id).forEach(function (k) { a = a.concat(tree(k.book_id)); }); return a; }
+  function titleOf(id) { var b = YinxuStore.get(id) || server.filter(function (x) { return x.book_id === id; })[0]; return b ? b.title : id; }
   function kids(id) { var seen = {}, out = []; YinxuStore.children(id).concat(server.filter(function (b) { return b.parent_id === id; })).forEach(function (b) { if (!seen[b.book_id]) { seen[b.book_id] = 1; out.push(b); } }); return out; }
   function item(b, depth) {
     var h = '<div class="shelf-item" style="margin-left:' + depth * 16 + 'px"><a class="tile" href="yinxu-play.html?v=' + V + '&book=' + encodeURIComponent(b.book_id) + '">' + cover(b, depth > 0) +
       '<div class="tmeta"><b>' + esc(b.title) + '</b><small>' + esc(b.opening || '') + '</small><span class="go">▶ 聆聽</span></div></a>' +
       (b.story_text ? '<button class="btn ghost sm" data-read="' + esc(b.book_id) + '">📜 文字版</button>' : '') +
-      (b.parent_id && YinxuStore.get(b.book_id) ? '<button class="btn ghost sm" data-del="' + esc(b.book_id) + '">刪除</button>' : '') +
-      (owner && /^yx-/.test(b.book_id) && !b.parent_id ? '<button class="btn ghost sm" data-sdel="' + esc(b.book_id) + '">下架</button>' : '') + '</div>';
+      (owner && !isDemo(b.book_id) ? '<button class="btn ghost sm del" data-del="' + esc(b.book_id) + '" aria-label="刪除">🗑 刪除</button>' : '') + '</div>';
     kids(b.book_id).forEach(function (k) { h += item(k, depth + 1); }); return h;
   }
   function render() {
@@ -38,10 +40,17 @@
     document.getElementById('shelf').innerHTML = roots.map(function (b) { return item(b, 0); }).join('') || '<p class="muted">書架上還沒有因序小說。</p>';
   }
   document.addEventListener('click', function (e) {
-    var r = e.target.closest('[data-read]'), d = e.target.closest('[data-del]'), sd = e.target.closest('[data-sdel]');
+    var r = e.target.closest('[data-read]'), d = e.target.closest('[data-del]');
     if (r) { var b = YinxuStore.get(r.dataset.read); document.getElementById('rTitle').textContent = b.title; document.getElementById('rText').textContent = b.story_text; document.getElementById('reader').style.display = 'flex'; }
-    if (d && confirm('刪除這條時間線（只刪本機）？')) { YinxuStore.remove(d.dataset.del); render(); }
-    if (sd && confirm('從書架下架？')) YinxuAPI.call('delete_book', { book_id: sd.dataset.sdel }).then(load);
+    if (d && owner) {
+      var id = d.dataset.del, all = tree(id), n = all.length - 1;
+      if (!confirm('確定刪除《' + titleOf(id) + '》' + (n ? '和它下方的 ' + n + ' 條時間線' : '') + '？\n伺服器和這支手機上的副本都會刪除，無法復原。')) return;
+      d.disabled = true; d.textContent = '刪除中…';
+      var local = function () { all.forEach(function (x) { YinxuStore.remove(x); localStorage.removeItem('yinxu.run2.' + x); }); };
+      var onServer = server.some(function (x) { return x.book_id === id; }) || /^yx-/.test(id);
+      (onServer ? YinxuAPI.call('delete_book', { book_id: id }) : Promise.resolve()).then(function () { local(); server = server.filter(function (x) { return all.indexOf(x.book_id) < 0; }); render(); })
+        .catch(function (er) { d.disabled = false; d.textContent = '🗑 刪除'; alert('刪除失敗：' + (er.status === 403 ? '只有擁有者可以刪除' : er.message)); });
+    }
   });
   function load() {
     render();
