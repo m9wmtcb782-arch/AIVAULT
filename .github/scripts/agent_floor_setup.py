@@ -27,6 +27,10 @@ if "publish" in STEPS:
     sql("update public.aivault_private_pages set html=regexp_replace(html,'(<a class=\"btn primary\" href=\"aivault-agent-collaboration.html\?page=agent-floor\"[^>]*>[^<]*</a>)','\\1'||$e$%s$e$),updated_at=now() where slug='agent-collaboration' and position('agent-floor-embed' in html)=0"%emb)
     print("collab embed", sql("select position('agent-floor-embed' in html)>0 as embedded from public.aivault_private_pages where slug='agent-collaboration'"))
     print("collab link", sql("select position('page=agent-floor' in html)>0 as linked from public.aivault_private_pages where slug='agent-collaboration'"))
+if "stats" in STEPS:  # 唯讀：目前真實任務數
+    print("STATS", sql("select status, coalesce(review_status,'-') rv, count(*) from public.aivault_pool_agent_tasks group by 1,2 order by 1,2"))
+    print("TODAY_DONE", sql("select count(*) from public.aivault_pool_agent_tasks where status='done' and kind<>'spawn' and updated_at >= date_trunc('day', now() at time zone 'Asia/Taipei') at time zone 'Asia/Taipei'"))
+    print("AGENTS", sql("select count(*) total, count(*) filter (where spawned) spawned from public.aivault_pool_agents"), "MEM", sql("select count(*) from public.aivault_pool_agent_memory"))
 if any(s in STEPS for s in ("seed","cycle","test")):
     _,keys=http("https://api.supabase.com/v1/projects/%s/api-keys?reveal=true"%REF,headers={"Authorization":"Bearer "+TOKEN})
     SR=next(k["api_key"] for k in keys if k.get("name")=="service_role"); print("::add-mask::"+SR)
