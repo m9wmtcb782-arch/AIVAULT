@@ -94,6 +94,7 @@ body.fs.ctlhide #fsCtl{opacity:0;pointer-events:none}
  <div class="row" id="liveVoiceRow"><label>即時語音聲音</label><select id="liveVoiceSel"></select></div>
  <div class="row"><label>手機語音聲音</label><select id="voiceSel"></select></div>
  <div class="row"><label>語速 <span id="rateVal">1.0</span></label><input type="range" id="rate" min="0.6" max="1.6" step="0.1" value="1"></div>
+ <div class="row"><label><input type="checkbox" id="heelChk" checked> 高跟鞋聲（暗星走路時）</label></div>
  <div class="row"><label><input type="checkbox" id="auto" checked> 自動配合簡報播放（講完自動翻頁）</label></div>
  <div class="row"><button class="icon-btn" id="resetBtn">恢復內建示範</button> <button class="icon-btn" id="closeBtn">關閉</button></div>
 </div></div>
@@ -400,7 +401,24 @@ $('camBtn').onclick=camToggle;$('fsCam').onclick=camToggle;
 
 // ===== 高跟鞋腳步聲：依 guide_walk 落地時間（walk_steps.json）同步 =====
 // iOS：聲音在 JS 內直接合成（不用 fetch/decode），經 MediaStreamDestination → 隱藏 <audio> 播放，避免被靜音鍵/未解鎖擋掉
-const heel={unlock(){}};   // 高跟鞋聲已移除
+// ===== 高跟鞋聲：真實腳步取樣（guide/sfx/heel1-6.mp3），依 guide_walk 落地時間（walk_steps.json）同步 =====
+const heel=(()=>{const AC=window.AudioContext||window.webkitAudioContext;let ctx=null,out=null,el=null,bufs=[],steps=[],lastT=-1,fired=new Set(),loading=false;
+ window.__heelLog=[];const enabled=()=>settings.heel!==false;
+ fetch(G+'walk_steps.json').then(r=>r.json()).then(j=>{steps=j.steps||[];}).catch(()=>{});
+ function load(){if(loading)return;loading=true;for(let i=1;i<=6;i++)fetch(G+'sfx/heel'+i+'.mp3').then(r=>r.arrayBuffer()).then(b=>{ctx.decodeAudioData(b,d=>bufs.push(d),()=>{});}).catch(()=>{});}
+ function unlock(){try{if(!ctx){ctx=new AC();out=ctx.createGain();
+   if(ctx.createMediaStreamDestination&&'ontouchend'in document&&/iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent)){const d=ctx.createMediaStreamDestination();out.connect(d);el=document.createElement('audio');el.setAttribute('playsinline','');el.autoplay=true;el.style.display='none';document.body.appendChild(el);el.srcObject=d.stream;}
+   else out.connect(ctx.destination);load();}
+  ctx.resume&&ctx.resume();if(el){const p=el.play();p&&p.catch&&p.catch(()=>{try{out.disconnect();}catch(e){}out.connect(ctx.destination);el=null;});}
+  const b=ctx.createBuffer(1,1,22050),n=ctx.createBufferSource();n.buffer=b;n.connect(out);n.start(0);}catch(e){}}
+ function click(at,st){if(!ctx||!bufs.length)return;if(ctx.state!=='running'){try{ctx.resume();}catch(e){}}const s=ctx.createBufferSource(),g=ctx.createGain();s.buffer=bufs[(Math.random()*bufs.length)|0];
+  s.playbackRate.value=0.95+Math.random()*0.1;g.gain.value=(speaking?0.45:0.85)*(0.85+Math.random()*0.3);s.connect(g);g.connect(out);s.start(Math.max(ctx.currentTime,at-0.012));
+  window.__heelLog.push({step:st,video:+vids[cur].currentTime.toFixed(3)});}
+ function tick(){const v=vids[cur];if(!enabled()||curClip!=='walk'||paused||v.paused||v.readyState<2){lastT=-1;fired.clear();return;}
+  const t=v.currentTime,rate=v.playbackRate||1;if(lastT>=0&&t<lastT-0.5)fired.clear();lastT=t;
+  for(const st of steps){if(fired.has(st))continue;const dt=(st-t)/rate;if(dt<=0.06&&dt>-0.05){fired.add(st);click(ctx?ctx.currentTime+Math.max(0,dt):0,st);}}}
+ setInterval(tick,16);return{unlock};})();
+$('heelChk').checked=settings.heel!==false;$('heelChk').onchange=e=>{settings.heel=e.target.checked;saveSet();if(e.target.checked)heel.unlock();};
 
 // ===== 對嘴 lip2：離線臉部偵測軌跡（guide/lip2/guide_lip2.json），只在正臉、不歪頭、說話時疊上暗星自己的嘴型；?lip=0 關閉 =====
 const lip2=(()=>{const ON=!/[?&]lip=0/.test(location.search),cv=$('lipCv'),cx=cv.getContext('2d');let J=null,S={},alpha=0,vis='closed',visT=0,pulseT=0,lastTs=0;
