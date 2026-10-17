@@ -46,6 +46,7 @@ body.fs.ctlhide #fsCtl{opacity:0;pointer-events:none}
 .camBtn.on{background:rgba(168,85,247,.35);border-color:#a855f7;color:#fff}body.fs #fsCtl .camBtn{width:34px;height:34px;padding:0}
 #pip{display:none;position:absolute;right:2%;bottom:16%;width:16%;aspect-ratio:3/4;object-fit:cover;border-radius:8px;border:2px solid rgba(255,255,255,.6);transform:scaleX(-1);z-index:7;background:#000}body.camon #pip{display:block}
 .map-row{display:flex;gap:8px;align-items:center;margin:6px 0;font-size:12px;color:#cbd5e1}.map-row img{width:64px;height:36px;object-fit:cover;border-radius:4px;flex-shrink:0;border:1px solid var(--line)}.map-row b{color:#7dd3fc}#mapList{max-height:260px;overflow:auto}
+#lipCv{position:absolute;inset:0;width:100%;height:100%;z-index:4;pointer-events:none}
 #status{text-align:center;font-size:13px;color:#94a3b8;padding:0 14px}
 #ask{display:none;max-width:700px;margin:10px auto;padding:0 14px}#ask textarea{width:100%;border-radius:10px;background:var(--panel);color:var(--tx);border:1px solid var(--line);padding:8px}
 #panel,#editor{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:50;align-items:flex-end;justify-content:center}
@@ -59,7 +60,7 @@ body.fs.ctlhide #fsCtl{opacity:0;pointer-events:none}
 <header><a href="aivault-home.html">‹ 首頁</a><h1>Technical Dark Star 暗星 · 導讀</h1><span><button class="icon-btn" id="fsBtn">⛶ 全螢幕</button> <button class="icon-btn" id="setBtn">⚙ 設定</button></span></header>
 <div id="fsWrap"><div id="stage">
  <video id="v0" muted playsinline preload="auto"></video><video id="v1" muted playsinline preload="auto"></video>
- <img id="slide" alt=""><img id="mouth" alt=""><div id="pageNo"></div><div id="sub">按「開始導讀」，暗星會為你講解簡報。</div>
+ <img id="slide" alt=""><img id="mouth" alt=""><canvas id="lipCv"></canvas><div id="pageNo"></div><div id="sub">按「開始導讀」，暗星會為你講解簡報。</div>
  <video id="pip" muted playsinline autoplay></video><div id="pauseVeil">已暫停，按繼續恢復</div>
 </div><div id="fsCtl"><button id="fsCam" class="camBtn" aria-label="鏡頭"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9a3 3 0 0 1 3-3h1.5l1.4-2h6.2l1.4 2H18a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"/><circle cx="12" cy="13" r="3.5"/></svg></button><button id="fsPause">⏸ 暫停</button><button id="fsExit">✕ 離開全螢幕</button></div></div>
 <main>
@@ -108,7 +109,8 @@ function playClip(name,loop){const my=++clipGen;return new Promise(res=>{const n
 async function oneShot(n){if(paused)return;await playClip(n,false);if(!paused&&(!stopped||qaMode))playClip(speaking?'talk':'idle',true);}
 // ---- lip ----
 fetch(G+'lip/guide_lip.json').then(r=>r.json()).then(j=>{lip=j;['closed','half','open','round'].forEach(k=>{const i=new Image();i.src=G+'lip/mouth_'+k+'.png';mouthImgs[k]=i;});});
-const LIP_ON=/[?&]lip=1/.test(location.search);let speaking=false,vis='closed',visT=0;const SEQ=['half','open','half','closed','round','half','open','closed'];
+const LIP_ON=false; // 舊版 lip/ 疊加停用，改用下方 lip2（臉部偵測、只在正臉時）
+let speaking=false,vis='closed',visT=0;const SEQ=['half','open','half','closed','round','half','open','closed'];
 function lipLoop(t){requestAnimationFrame(lipLoop);const m=$('mouth'),v=vids[cur];
  // 離線合成檢查（guide-lip-check）顯示頭部轉動時會出現雙嘴，guide_talk 本身已有自然嘴動 → 預設關閉疊加；?lip=1 只在正臉、非淡入淡出時試用
  if(!LIP_ON||!lip||!speaking||curClip!=='talk'||v.readyState<2||!v.classList.contains('on')||vids[1-cur].classList.contains('on')){m.style.display='none';return;}
@@ -233,7 +235,7 @@ function say(text){if(voiceMode==='live'&&live.ready())return live.sayLine(text)
  const u=new SpeechSynthesisUtterance(text),v=voices[$('voiceSel').value];if(v)u.voice=v;u.lang=v?v.lang:'zh-TW';u.rate=+$('rate').value||1;
  let done=false;const gen=pauseGen;const fin=()=>{if(done)return;done=true;speaking=false;res(pauseGen!==gen);};
  u.onstart=()=>{speaking=true;if(curClip!=='talk'&&curClip!=='point'&&curClip!=='explain')playClip('talk',true);};
- u.onboundary=e=>{if(e.charIndex>0){const rest=text.slice(e.charIndex);$('sub').textContent=text.length>40?rest.slice(0,40):text;}};
+ u.onboundary=e=>{try{lip2.pulse();}catch(_){}if(e.charIndex>0){const rest=text.slice(e.charIndex);$('sub').textContent=text.length>40?rest.slice(0,40):text;}};
  u.onend=fin;u.onerror=fin;utterRefs.push(u);if(utterRefs.length>20)utterRefs.splice(0,10);speechSynthesis.speak(u);setTimeout(()=>{if(!speaking&&!done)speaking=true;},600);const est=text.length*320/(u.rate||1);let wd=setTimeout(function chk(){if(done)return;if(speechSynthesis.speaking||speechSynthesis.pending||paused){wd=setTimeout(chk,500);}else fin();},est*1.5+3000);});}
 // ---- flow ----
 let stopped=true,paused=false,jump=null;
@@ -399,4 +401,23 @@ $('camBtn').onclick=camToggle;$('fsCam').onclick=camToggle;
 // ===== 高跟鞋腳步聲：依 guide_walk 落地時間（walk_steps.json）同步 =====
 // iOS：聲音在 JS 內直接合成（不用 fetch/decode），經 MediaStreamDestination → 隱藏 <audio> 播放，避免被靜音鍵/未解鎖擋掉
 const heel={unlock(){}};   // 高跟鞋聲已移除
+
+// ===== 對嘴 lip2：離線臉部偵測軌跡（guide/lip2/guide_lip2.json），只在正臉、不歪頭、說話時疊上暗星自己的嘴型；?lip=0 關閉 =====
+const lip2=(()=>{const ON=!/[?&]lip=0/.test(location.search),cv=$('lipCv'),cx=cv.getContext('2d');let J=null,S={},alpha=0,vis='closed',visT=0,pulseT=0,lastTs=0;
+ if(ON)fetch(G+'lip2/guide_lip2.json').then(r=>r.json()).then(j=>{J=j;for(const[k,f]of Object.entries(j.sprite.files)){const im=new Image();im.src=G+'lip2/'+f;S[k]=im;}}).catch(()=>{});
+ const NAME={idle:'idle',intro:'intro',point:'point',walk:'walk',explain:'explain',ask:'ask',bow:'bow',talk:'talk'};
+ function pulse(){pulseT=performance.now();}
+ function pick(now){if(now-visT<110)return vis;visT=now;const recent=now-pulseT<260,r=Math.random();
+  vis=recent?(r<0.55?'open':r<0.9?'half':'closed'):(r<0.35?'half':r<0.6?'open':'closed');return vis;}
+ function frame(now){requestAnimationFrame(frame);const dt=Math.min(100,now-(lastTs||now));lastTs=now;
+  const W=cv.clientWidth,H=cv.clientHeight;if(!W)return;const dpr=Math.min(2,window.devicePixelRatio||1);if(cv.width!==Math.round(W*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);}
+  const v=vids[cur],tr=J&&J.clips[NAME[curClip]];let want=false,f=null;
+  if(ON&&J&&tr&&speaking&&!paused&&v.readyState>=2&&v.classList.contains('on')&&!vids[1-cur].classList.contains('on')){const i=Math.min(tr.f.length-1,Math.floor(v.currentTime*tr.fps));f=tr.f[i];want=!!(f&&f[0]);}
+  alpha+=(want?1:-1)*dt/120;alpha=Math.max(0,Math.min(1,alpha));cx.clearRect(0,0,cv.width,cv.height);
+  if(alpha<=0||!f)return;const img=S[pick(now)];if(!img||!img.complete||!img.naturalWidth)return;
+  // object-fit:cover 對應：影片像素 → 畫布像素
+  const vw=v.videoWidth||854,vh=v.videoHeight||480,sc=Math.max(cv.width/vw,cv.height/vh),ox=(cv.width-vw*sc)/2,oy=(cv.height-vh*sc)/2;
+  const[,mx,my,mw,ang]=f,k=mw/J.sprite.mouthWidth/J.sprite.scale*sc;
+  cx.save();cx.globalAlpha=alpha;cx.translate(ox+mx*sc,oy+my*sc);cx.rotate(ang*Math.PI/180);cx.scale(k,k);cx.drawImage(img,-img.naturalWidth/2,-img.naturalHeight/2);cx.restore();}
+ requestAnimationFrame(frame);return{pulse};})();
 </script></body></html>
