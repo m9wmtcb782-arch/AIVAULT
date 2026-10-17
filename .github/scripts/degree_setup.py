@@ -65,6 +65,11 @@ if "labmig" in STEPS: sql(open("supabase/migrations/20261017233000_aivault_lab.s
 import time as _t0
 if "spdaily" in STEPS or ("cycle" in STEPS and os.environ.get("GITHUB_EVENT_NAME")=="schedule" and _t0.gmtime().tm_hour==15 and _t0.gmtime().tm_min>=30):  # sd2：暗星／曙光每日報告摘要（只印計數與主題，不印筆記）
     s,b=y({"action":"special_daily"}); print("SPDAILY",s,{k:v.get("summary") for k,v in (b.get("per") or {}).items()} if isinstance(b,dict) else b)
+if "vcorder" in STEPS:  # vc1：使用者 02:34 指定的長期命令（影音區）
+    t="影音區學習優先：研究有聲書平台與即時語音為什麼聽起來自然，特別是中文聲音複製 TTS（CosyVoice、GPT-SoVITS、F5-TTS、Fish Speech、MaskGCT、Spark-TTS）：韻律、零樣本複製、codec／flow-matching、串流延遲。只用真實來源（論文、GitHub README）。學以致用：實驗工廠作品要做小而免費、可測試的步驟（例如停頓／韻律預測、國語 TTS 文字正規化）。不得呼叫任何付費 TTS API。"
+    ex=sql("select id from public.aivault_standing_orders where text=%s and revoked_at is null"%lit(t))
+    if not ex: sql("insert into public.aivault_standing_orders(text,districts,flagged) values (%s,'{av}',false)"%lit(t))
+    print("VCORDER",sql("select id,districts,active,flagged from public.aivault_standing_orders where revoked_at is null order by id"))
 if "smtest" in STEPS:  # sm1 測試：真的召集暗星（只印狀態、模型、任務）
     s,b=y({"action":"summon","id":"darkstar","op":"call","via":"test"}); print("SUMMON",s,{k:b.get(k) for k in ["ok","error","task","model","until"]} if isinstance(b,dict) else str(b)[:200])
 if "rosterdump" in STEPS:  # rm1 備份：加密 artifact（公開日誌只印筆數）

@@ -7,6 +7,8 @@ const SRH = { apikey: SR, Authorization: "Bearer " + SR, "Content-Type": "applic
 async function rest(path: string, init: RequestInit = {}) { const r = await fetch(URL0 + "/rest/v1/" + path, { ...init, headers: { ...SRH, Prefer: "return=representation", ...(init.headers || {}) } }); const t = await r.text(); if (!r.ok) throw new Error("DB " + r.status + " " + t.slice(0, 200)); return t ? JSON.parse(t) : null; }
 const MAX_ITER = () => Math.max(1, Math.min(5, Number(Deno.env.get("LAB_MAX_ITER")) || 3));
 export const BRIEFS = [
+  { kind: "資料處理", title: "中文 TTS 文字正規化", spec: "函式 normalize(text) 把中文句子裡的阿拉伯數字、日期（2026/10/18 → 二〇二六年十月十八日）、百分比（35% → 百分之三十五）、金額（NT$120 → 新台幣一百二十元）、時間（14:05 → 十四點零五分）轉成國語讀法，其他文字不變；整數規則：0–9999 用「零一二…千百十」（10 → 十、105 → 一百零五）。" },
+  { kind: "小工具", title: "中文停頓／韻律預測器", spec: "函式 pauses(text) 依標點預測停頓並回傳陣列 [{index, ms}]：句號／問號／驚嘆號 500ms、分號 350ms、逗號／頓號 200ms、冒號 250ms；連續標點只算最大的一個；結尾標點也要列出；index 是標點在字串中的位置。函式 split(text, maxLen) 把文字在標點處切成每段不超過 maxLen 字的片段（給串流 TTS 用），不能切斷在字中間，除非單句超過 maxLen。" },
   { kind: "小工具", title: "台灣身分證字號檢查器", spec: "函式 checkTwId(id) 回傳 {valid:boolean, reason:string}，依官方檢查碼規則驗證（第一碼英文字母、第二碼 1/2/8/9、共 10 碼）。demo：輸入框即時顯示是否有效。" },
   { kind: "小遊戲", title: "井字遊戲勝負判定", spec: "函式 winner(board) ，board 是長度 9 的陣列（'X'、'O' 或 null），回傳 'X'、'O'、'draw'（滿盤無人勝）或 null（未結束）。demo：可以點格子玩的 3×3 井字遊戲。" },
   { kind: "資料處理", title: "CSV 解析與欄位統計", spec: "函式 parseCsv(text) 回傳二維陣列，支援雙引號包住的欄位、欄位內逗號與 \"\" 跳脫；函式 columnStats(rows, colIndex) 回傳 {count, sum, mean, min, max}（只計算可轉成數字的值）。demo：貼上 CSV 顯示表格與第 2 欄統計。" },
