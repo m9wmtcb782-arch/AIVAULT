@@ -421,9 +421,9 @@ const heel=(()=>{const AC=window.AudioContext||window.webkitAudioContext;let ctx
  setInterval(tick,16);return{unlock};})();
 $('heelChk').checked=settings.heel!==false;$('heelChk').onchange=e=>{settings.heel=e.target.checked;saveSet();if(e.target.checked)heel.unlock();};
 
-// ===== 對嘴 lip2：離線臉部偵測軌跡（guide/lip2/guide_lip2.json），只在正臉、不歪頭、說話時疊上暗星自己的嘴型；?lip=0 關閉 =====
+// ===== 對嘴（lip3 半臉替換；舊 lip2 嘴型檔保留未用）：離線臉部偵測軌跡（guide/lip2/guide_lip2.json），只在正臉、不歪頭、說話時疊上暗星自己的嘴型；?lip=0 關閉 =====
 const lip2=(()=>{const ON=!/[?&]lip=0/.test(location.search),cv=$('lipCv'),cx=cv.getContext('2d');let J=null,S={},alpha=0,vis='closed',visT=0,pulseT=0,lastTs=0;
- if(ON)fetch(G+'lip2/guide_lip2.json').then(r=>r.json()).then(j=>{J=j;for(const[k,f]of Object.entries(j.sprite.files)){const im=new Image();im.src=G+'lip2/'+f;S[k]=im;}}).catch(()=>{});
+ if(ON)fetch(G+'lip3/guide_lip3.json').then(r=>r.json()).then(j=>{J=j;for(const[k,f]of Object.entries(j.sprite.files)){const im=new Image();im.src=G+'lip3/'+f;S[k]=im;}}).catch(()=>{});
  const NAME={idle:'idle',intro:'intro',point:'point',walk:'walk',explain:'explain',ask:'ask',bow:'bow',talk:'talk'};
  function pulse(){pulseT=performance.now();}
  function pick(now){if(now-visT<110)return vis;visT=now;const recent=now-pulseT<260,r=Math.random();
@@ -436,7 +436,8 @@ const lip2=(()=>{const ON=!/[?&]lip=0/.test(location.search),cv=$('lipCv'),cx=cv
   if(alpha<=0||!f)return;const img=S[pick(now)];if(!img||!img.complete||!img.naturalWidth)return;
   // object-fit:cover 對應：影片像素 → 畫布像素
   const vw=v.videoWidth||854,vh=v.videoHeight||480,sc=Math.max(cv.width/vw,cv.height/vh),ox=(cv.width-vw*sc)/2,oy=(cv.height-vh*sc)/2;
-  const[,mx,my,mw,ang]=f,k=mw/J.sprite.mouthWidth/J.sprite.scale*sc;
-  cx.save();cx.globalAlpha=alpha;cx.translate(ox+mx*sc,oy+my*sc);cx.rotate(ang*Math.PI/180);cx.scale(k,k);cx.drawImage(img,-img.naturalWidth/2,-img.naturalHeight/2);cx.restore();}
+  // lip3：整個下半臉（鼻樑到下巴）用真實畫面替換，依兩眼中心/眼距/歪頭角度定位，鼻子不變形
+  const[,ex,ey,ed,ro]=f,k=ed/(J.sprite.eyeDist*J.sprite.scale)*sc,[OX,OY]=J.sprite.origin;
+  cx.save();cx.globalAlpha=alpha;cx.translate(ox+ex*sc,oy+ey*sc);cx.rotate(ro*Math.PI/180);cx.scale(k,k);cx.drawImage(img,-OX,-OY);cx.restore();}
  requestAnimationFrame(frame);return{pulse};})();
 </script></body></html>
