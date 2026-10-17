@@ -38,6 +38,9 @@ if "publish" in STEPS:
     if os.path.exists(".github/scripts/town_torch.js") and os.environ.get("TOWN_TORCH_OFF")!="1":  # tc1：夜晚火把（關閉：localStorage.torchOff=1）
         js=open(".github/scripts/town_torch.js").read(); end="\n})();\n</script></body></html>"; assert html.count(end)==1 and "tc1：" not in html
         html=html.replace(end,"\n"+js+end); print("tc1 torch layer applied")
+    if os.path.exists(".github/scripts/town_review.js") and os.environ.get("TOWN_REVIEW_OFF")!="1":  # rv1：批次審核（關閉：localStorage.reviewBulkOff=1）
+        js=open(".github/scripts/town_review.js").read(); end="\n})();\n</script></body></html>"; assert html.count(end)==1 and "rv1：" not in html
+        html=html.replace(end,"\n"+js+end); print("rv1 review layer applied")
     tag="$aivpp$"; assert tag not in html
     sql("insert into public.aivault_private_pages(slug,html,updated_at) values ('agent-floor',%s%s%s,now()) on conflict (slug) do update set html=excluded.html, updated_at=now()"%(tag,html,tag)); print("published agent-floor",len(html))
     link='<a class="btn primary" href="aivault-agent-collaboration.html?page=agent-floor" style="display:inline-block;text-decoration:none;margin-left:6px">🏢 1000 人工作區</a>'

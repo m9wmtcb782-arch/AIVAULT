@@ -244,7 +244,7 @@ export async function floor(r: Request) {
       return out({ ok: true, states: st, review: counts.review || 0, counts, zones, done_today, mem, spawns, server_time: new Date().toISOString() });
     }
     if (a === "reviews") {
-      const ts = await rest("aivault_pool_agent_tasks?source=eq.floor&review_status=eq.pending&select=id,agent_id,zone,kind,order_text,result,updated_at&order=updated_at.desc&limit=50");
+      const ts = await rest("aivault_pool_agent_tasks?source=eq.floor&review_status=eq.pending&select=id,agent_id,zone,kind,order_text,result,plan,updated_at&order=updated_at.desc&limit=" + Math.min(300, Math.max(1, Number(b.limit) || 50)));
       const ids = [...new Set(ts.map((t: any) => t.agent_id))].join(",");
       const ns = ids ? await rest(`aivault_pool_agents?id=in.(${ids})&select=id,name`) : [];
       ts.forEach((t: any) => { t.agent_name = ns.find((n: any) => n.id === t.agent_id)?.name; t.zone_label = zl(t.zone); });
