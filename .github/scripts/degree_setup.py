@@ -63,7 +63,7 @@ if "planredo" in STEPS:
 if "learnround" in STEPS:  # ln10：每 10 分鐘四區學習（只印數量、主題、網址來源類型，不印筆記內容）
     if os.environ.get("PLAN","1")=="1":
         sp,bp=y({"action":"daily_plan"}); print("PLAN",sp,json.dumps(bp,ensure_ascii=False)[:900] if isinstance(bp,dict) else str(bp)[:200])
-    s,b=y({"action":"learn_round","n":N,**({"force_video":True} if os.environ.get("FORCE_VIDEO")=="1" else {})}); ok=isinstance(b,dict)
+    s,b=y({"action":"learn_round","n":N,**({"force_video":True} if os.environ.get("FORCE_VIDEO")=="1" else {}),**({"force_ebook":True} if os.environ.get("FORCE_EBOOK")=="1" else {})}); ok=isinstance(b,dict)
     print("LEARN10",s,{k:b.get(k) for k in ("used","budget","budget_hit","rate_limited","skipped_locked","off")} if ok else str(b)[:300])
     for r in ((b.get("results") or []) if ok else []): print("  ",r.get("district"),r.get("agent"),r.get("topic"),[p.get("src") for p in (r.get("pages") or [])] or bool(r.get("url")),(r.get("usage") or {}).get("total"),(r.get("error") or "")[:100])
     if os.environ.get("TRIAGE","1")=="1":  # tr1：練習稿 AI 初審（每輪最多 2 組）

@@ -86,6 +86,21 @@ async function session(agent: any, ov?: [string, string, string], pre = "即時�
     rows.push({ url: row.url, src: c.src }); prev = notes.slice(0, 500); }
   return { agent: agent.id, kind: "learn", topic, pages: rows, usage: { total: usage }, error: rows.length ? undefined : "沒有抓到可用網頁" };
 }
+
+// eb1：讀 AIVAULT 書架上的公開電子書（和暗星讀書同一份資料 dark_star_ebook_pages；私人書不讀）。每次讀 3 頁，接著上次讀到的地方。關閉：LEARN_EBOOK_OFF=1
+async function ebookSession(agent: any) {
+  const d = districtOf(agent.domain); const books = (await rest("dark_star_ebooks?select=id,title,total_pages,metadata&order=created_at.desc&limit=100")).filter((x: any) => Number(x.total_pages) > 3 && !(x.metadata && (x.metadata.private === true || x.metadata.private === "true")) && !/Probe|使用說明/.test(x.title || ""));
+  if (!books.length) return null; const bk = books[Math.floor(Math.random() * books.length)];
+  const prev = await rest(`aivault_pool_agent_learning?agent_id=eq.${agent.id}&url=like.ebook:${bk.id}*&select=url&order=created_at.desc&limit=1`); const lastEnd = prev[0] ? Number((String(prev[0].url).match(/-(\d+)$/) || [])[1]) || 0 : 0;
+  const start = lastEnd >= bk.total_pages ? 1 : lastEnd + 1, end = Math.min(bk.total_pages, start + 2);
+  const pages = await rest(`dark_star_ebook_pages?ebook_id=eq.${bk.id}&page_number=gte.${start}&page_number=lte.${end}&select=page_number,content&order=page_number`); const text = pages.map((p: any) => `［第 ${p.page_number} 頁］${String(p.content || "").replace(/\[\[pimg:[^\]]*\]\]/g, "")}`).join("\n").slice(0, 7000);
+  if (text.length < 300) return null;
+  const call = await callModel(`${agent.persona || ""}\n你是 AIVAULT ${DIST[d]} 的 AI，正在讀 AIVAULT 書架上的電子書《${bk.title}》第 ${start}–${end} 頁（和暗星讀的是同一份書）。只能根據這幾頁內容寫，沒寫的不要編。`, `${text}\n\n只輸出 JSON：{"notes":"200–350 字繁體中文讀書筆記：本段重點、定義、條文或數字"}`, 1200);
+  const notes = String(call.v?.notes || "").trim(); if (!notes) return null; const url = `ebook:${bk.id}#p${start}-${end}`;
+  await rest("aivault_pool_agent_learning", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ agent_id: agent.id, district: d, topic: "讀書：" + String(bk.title).slice(0, 40), query: bk.title, url, title: ("📖 讀電子書｜《" + bk.title + "》第 " + start + "–" + end + " 頁").slice(0, 200), http_status: 200, bytes: text.length, sha256: await sha(text), excerpt: text.slice(0, 600), notes: notes.slice(0, 1000), model: call.model, usage: call.usage, fetched_at: new Date().toISOString(), source_type: "ebook" }) });
+  await rest("aivault_pool_agent_memory", { method: "POST", body: JSON.stringify({ agent_id: agent.id, kind: "learning", content: `讀《${bk.title}》第 ${start}–${end} 頁：${notes.slice(0, 300)}` }) });
+  return { agent: agent.id, kind: "learn", topic: "讀書：" + bk.title, pages: [{ src: "ebook", url }], usage: { total: Number(call.usage?.total) || 0 } };
+}
 export async function learnRound(b: any, learnOne: (ag: any) => Promise<any>) {
   FORCE_VIDEO = !!b.force_video;
   if (Deno.env.get("LEARN10_OFF") === "1") return { ok: true, off: true, results: [] };
@@ -97,8 +112,10 @@ export async function learnRound(b: any, learnOne: (ag: any) => Promise<any>) {
   for (let i = 0; pick.length < n && i < 50; i++) { const p = pools[i % 4]; const a = p.shift(); if (a) pick.push(a); }
   const results: any[] = []; let skipped = busy.size;
   for (const ag of pick) { if (!(await lock(ag.id))) { skipped++; continue; } const d = districtOf(ag.domain);
-    try { const voice = FORCE_VIDEO || Math.random() < (VW[d] || .4); let pt: string[] = []; if (!voice && Deno.env.get("PLAN_OFF") !== "1") pt = await approvedTopics(d).catch(() => []);
-      if (pt.length) { const tp = pt[Math.floor(Math.random() * pt.length)]; results.push({ district: d, voice, plan: true, ...(await session(ag, [tp, tp, tp], "計畫：")) }); }
+    try { const voice = !b.force_ebook && (FORCE_VIDEO || Math.random() < (VW[d] || .4)); let pt: string[] = []; if (!voice && Deno.env.get("PLAN_OFF") !== "1") pt = await approvedTopics(d).catch(() => []);
+      let eb: any = null; if (!voice && Deno.env.get("LEARN_EBOOK_OFF") !== "1" && (b.force_ebook || Math.random() < .25)) eb = await ebookSession(ag);
+      if (eb) results.push({ district: d, voice, ebook: true, ...eb });
+      else if (pt.length) { const tp = pt[Math.floor(Math.random() * pt.length)]; results.push({ district: d, voice, plan: true, ...(await session(ag, [tp, tp, tp], "計畫：")) }); }
       else results.push({ district: d, voice, ...(voice ? await session(ag) : await learnOne(ag)) }); }
     catch (e) { const msg = String((e as any)?.message || e); results.push({ agent: ag.id, error: msg.slice(0, 200) }); if (/429|LLM_FAILED/.test(msg)) { await unlock(ag.id); return { ok: true, rate_limited: true, used, budget, skipped_locked: skipped, results }; } }
     await unlock(ag.id);
