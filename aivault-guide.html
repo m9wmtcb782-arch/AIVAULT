@@ -8,7 +8,7 @@
 header{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;gap:6px;height:40px}
 header a{color:#93c5fd;text-decoration:none;font-size:14px}h1{font-size:13px;margin:0;flex:1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 header .icon-btn{padding:4px 10px;font-size:13px}.icon-btn{background:rgba(30,58,138,.5);border:1px solid var(--line);color:var(--tx);border-radius:999px;padding:7px 12px;font-size:14px}
-#stage{position:relative;width:100%;max-width:1100px;margin:0 auto;aspect-ratio:16/9;overflow:hidden;background:#000 url(digital-human-real/guide/guide_master.jpg) center/cover;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+#stage{position:relative;width:100%;max-width:1100px;margin:0 auto;aspect-ratio:16/9;overflow:hidden;background:#000 url(digital-human-real/guide/guide_idle.jpg) center/cover;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 #stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .35s}#stage video.on{opacity:1}
 #slide{position:absolute;left:45%;top:6%;width:44%;height:57%;object-fit:contain;background:#081633;border:1px solid rgba(125,211,252,.35);box-shadow:0 0 18px rgba(56,189,248,.25);transition:opacity .4s;z-index:3}
 #slide.dim{opacity:.15}
@@ -59,7 +59,7 @@ body.fs.ctlhide #fsCtl{opacity:0;pointer-events:none}
 </style></head><body>
 <header><a href="aivault-home.html">‹ 首頁</a><h1>Technical Dark Star 暗星 · 導讀</h1><span><button class="icon-btn" id="fsBtn">⛶ 全螢幕</button> <button class="icon-btn" id="setBtn">⚙ 設定</button></span></header>
 <div id="fsWrap"><div id="stage">
- <video id="v0" muted playsinline preload="auto"></video><video id="v1" muted playsinline preload="auto"></video>
+ <video id="v0" class="on" muted playsinline preload="auto" poster="digital-human-real/guide/guide_idle.jpg"></video><video id="v1" muted playsinline preload="auto"></video>
  <img id="slide" alt=""><img id="mouth" alt=""><canvas id="lipCv"></canvas><div id="pageNo"></div><div id="sub">按「開始導讀」，暗星會為你講解簡報。</div>
  <video id="pip" muted playsinline autoplay></video><div id="pauseVeil">已暫停，按繼續恢復</div>
 </div><div id="fsCtl"><button id="fsCam" class="camBtn" aria-label="鏡頭"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9a3 3 0 0 1 3-3h1.5l1.4-2h6.2l1.4 2H18a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"/><circle cx="12" cy="13" r="3.5"/></svg></button><button id="fsPause">⏸ 暫停</button><button id="fsExit">✕ 離開全螢幕</button></div></div>
@@ -309,17 +309,18 @@ $('skipBtn').onclick=()=>{if(queued===null)return;jump=queued;queued=null;$('ski
 $('prevBtn').onclick=()=>go(-1);$('nextBtn').onclick=()=>go(1);
 $('setBtn').onclick=()=>$('panel').style.display='flex';$('closeBtn').onclick=()=>$('panel').style.display='none';$('panel').onclick=e=>{if(e.target.id==='panel')$('panel').style.display='none';};
 playClip('idle',true);showSlide();
+['intro','talk','walk'].forEach(n=>{const l=document.createElement('link');l.rel='preload';l.as='video';l.href=G+CLIPS[n]+'.mp4';document.head.appendChild(l);});
 
 // ===== 即時語音（複製自數位人頁的 relay 協定；導讀專用 agent 與 key）=====
 let voiceMode=localStorage.getItem('aivault-guide-voice-mode')||'tts';
 const LIVE_VOICES=[['Aoede','Aoede · 輕快'],['Kore','Kore · 堅定'],['Leda','Leda · 年輕'],['Zephyr','Zephyr · 明亮'],['Callirrhoe','Callirrhoe · 隨和'],['Despina','Despina · 柔順'],['Autonoe','Autonoe · 明亮'],['Erinome','Erinome · 清晰'],['Laomedeia','Laomedeia · 開朗'],['Achernar','Achernar · 柔和'],['Gacrux','Gacrux · 成熟'],['Pulcherrima','Pulcherrima · 直率'],['Vindemiatrix','Vindemiatrix · 溫柔'],['Sulafat','Sulafat · 溫暖']];
 $('liveVoiceSel').innerHTML=LIVE_VOICES.map(v=>`<option value="${v[0]}">${v[1]}</option>`).join('');$('liveVoiceSel').value=localStorage.getItem('aivault-guide-live-voice')||'Aoede';
 $('liveVoiceSel').onchange=e=>{localStorage.setItem('aivault-guide-live-voice',e.target.value);live.close();};
-function setMode(m,notice){voiceMode=m;localStorage.setItem('aivault-guide-voice-mode',m);$('modeSel').value=m;$('modeBtn').textContent=m==='live'?'⚡ 即時語音':'🔊 手機語音';syncMic();if(m!=='live')live.close();if(notice)status(notice);}
-$('modeSel').onchange=e=>{if(e.target.value==='live')live.unlock();setMode(e.target.value);};
-$('modeBtn').onclick=()=>{const m=voiceMode==='live'?'tts':'live';if(m==='live')live.unlock();else primeTTS();setMode(m,m==='live'?'已切換為即時語音':'已切換為手機語音');};
+function setMode(m,notice){voiceMode=m;try{live.reset();}catch(e){}localStorage.setItem('aivault-guide-voice-mode',m);$('modeSel').value=m;$('modeBtn').textContent=m==='live'?'⚡ 即時語音':'🔊 手機語音';syncMic();if(m!=='live')live.close();if(notice)status(notice);}
+$('modeSel').onchange=e=>{live.unlock();primeTTS();setMode(e.target.value);};
+$('modeBtn').onclick=()=>{const m=voiceMode==='live'?'tts':'live';live.unlock();primeTTS();setMode(m,m==='live'?'已切換為即時語音':'已切換為手機語音');};
 const live=(()=>{const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-voice-v2',AC=window.AudioContext||window.webkitAudioContext,MY='aivault-guide';
- let ws=null,gotSetup=false,customFails=0,retry=0,playCtx=null,outGain=null,outEl=null,nextPlay=0,sources=[],dropping=false,outBuf='',turnWait=null,connecting=null,buffering=false;
+ let downUntil=0,everConnected=false,ws=null,gotSetup=false,customFails=0,retry=0,playCtx=null,outGain=null,outEl=null,nextPlay=0,sources=[],dropping=false,outBuf='',turnWait=null,connecting=null,buffering=false;
  let inCtx=null,stream=null,micNode=null,micOn=false,qaPend=null,shared=false,frameT=0,cv=null;
  function startFrames(){clearInterval(frameT);frameT=setInterval(()=>{const v=$('pip');if(!camOn||paused||!ws||ws.readyState!==1||!gotSetup||v.readyState<2||!v.videoWidth)return;cv=cv||document.createElement('canvas');const w=320,h=Math.round(v.videoHeight*w/v.videoWidth);cv.width=w;cv.height=h;cv.getContext('2d').drawImage(v,0,0,w,h);try{ws.send(JSON.stringify({type:'video',data:cv.toDataURL('image/jpeg',0.6).split(',')[1],mimeType:'image/jpeg'}));}catch(e){}},1000);}
  startFrames();
@@ -347,35 +348,35 @@ const live=(()=>{const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v
   const out=(sc.outputTranscription&&sc.outputTranscription.text)||(d.type==='outputTranscription'?d.text:'');
   if(out&&!dropping){outBuf+=out;const ss=splitSent(outBuf);if(ss.length&&!qaPend)$('sub').textContent=ss[ss.length-1].slice(-40);if(qaPend)$('sub').textContent=outBuf.slice(-40);}
   if(sc.turnComplete||d.turnComplete||d.type==='turnComplete'){const said=outBuf;outBuf='';if(dropping){dropping=false;return;}if(turnWait){const w=turnWait;turnWait=null;w(said);}else if(micOn&&said){qaLog('a',said);}}
-  if(d.type==='error'||d.error){const m=String(d.message||(d.error&&d.error.message)||'');if(/AUTH_REQUIRED|INVALID_AUTH/.test(m)){failAll('即時語音需要先登入 AIVAULT，已改用手機語音');}
+  if(d.type==='error'||d.error){const m=String(d.message||(d.error&&d.error.message)||'');if(/AUTH_REQUIRED|INVALID_AUTH/.test(m)){failAll('即時語音需要先登入 AIVAULT，這段先用手機語音');}
    if(/TOPIC_ID_REQUIRED|IDENTITY_MISMATCH/.test(m)){localStorage.removeItem(nsKey('aivault-guide-live-topic-id'));localStorage.removeItem(nsKey('aivault-guide-live-conversation-id'));}}}
- function bufferOn(t){status(t);if(!buffering){buffering=true;playClip('walk',true);}}
- function bufferOff(){if(buffering){buffering=false;playClip(paused?'idle':'talk',true);}}
- function failAll(msg){close();setMode('tts',msg);if(turnWait){const w=turnWait;turnWait=null;w(null);}}
+ function bufferOn(t,walk){status(t);if(walk&&!buffering){buffering=true;playClip('walk',true);}}
+ function bufferOff(){if(buffering){buffering=false;playClip('idle',true);}}
+ function failAll(msg){close();downUntil=Date.now()+45000;status(msg);if(turnWait){const w=turnWait;turnWait=null;w({closed:true,said:''});}}   // 不改使用者的模式設定
  function openOnce(){return new Promise((res,rej)=>{const q=new URLSearchParams();q.set('voice',$('liveVoiceSel').value||'Aoede');q.set('agent_id',agentId());q.set('client','aivault-guide');q.set('topic_id',topicId());
   const conv=localStorage.getItem(nsKey('aivault-guide-live-conversation-id'));if(conv)q.set('conversation_id',conv);const tok=token();if(!tok){rej(new Error('NOAUTH'));return;}q.set('access_token',tok);
   gotSetup=false;const sock=new WebSocket(RELAY+'?'+q);sock.binaryType='arraybuffer';ws=sock;let t=setTimeout(()=>{try{sock.close();}catch(e){}rej(new Error('timeout'));},10000);
   sock.onmessage=e=>{onMsg(e.data);if(gotSetup&&t){clearTimeout(t);t=0;res();}};sock.onerror=()=>{};
   sock.onopen=()=>{setTimeout(()=>{if(t&&ws===sock&&sock.readyState===1){clearTimeout(t);t=0;gotSetup=true;res();}},2500);};
   sock.onclose=()=>{if(ws===sock)ws=null;if(t){clearTimeout(t);t=0;if(agentId()===MY&&++customFails>=2){localStorage.setItem('aivault-guide-live-agent','technical-dark-star');localStorage.setItem('aivault-guide-live-agent-at',String(Date.now()));}rej(new Error('closed'));}
-   else if(turnWait&&voiceMode==='live'){ensure();}};});}
- function ensure(){if(ws&&ws.readyState===1&&gotSetup)return Promise.resolve(true);if(connecting)return connecting;
-  connecting=(async()=>{for(retry=0;retry<4;retry++){if(voiceMode!=='live')return false;bufferOn(retry?'重新連線中…暗星先走一走':'連線中…');
-    try{await openOnce();bufferOff();status('即時語音已連線');return true;}catch(e){if(e.message==='NOAUTH'){bufferOff();failAll('即時語音需要先登入 AIVAULT，已改用手機語音');return false;}await new Promise(r=>setTimeout(r,800*2**retry));}}
-   bufferOff();failAll('即時語音連不上，已自動改用手機語音');return false;})().finally(()=>{connecting=null;});return connecting;}
- function send(txt){try{ws.send(JSON.stringify({type:'text',text:txt}));return true;}catch(e){return false;}}
+   else{dropping=false;stopAudio();if(turnWait){const w=turnWait;turnWait=null;w({closed:true,said:outBuf});outBuf='';}}};});}
+ function ensure(){if(ws&&ws.readyState===1&&gotSetup)return Promise.resolve(true);if(Date.now()<downUntil)return Promise.resolve(false);if(connecting)return connecting;
+  connecting=(async()=>{for(retry=0;retry<4;retry++){if(voiceMode!=='live')return false;bufferOn(retry||everConnected?'重新連線中…':'連線中…',(retry>0||everConnected)&&!stopped&&!paused);
+    try{await openOnce();bufferOff();if(!everConnected)status('即時語音已連線');everConnected=true;return true;}catch(e){if(e.message==='NOAUTH'){bufferOff();failAll('即時語音需要先登入 AIVAULT，這段先用手機語音');return false;}await new Promise(r=>setTimeout(r,800*2**retry));}}
+   bufferOff();downUntil=Date.now()+45000;status('即時語音暫時連不上，這段先用手機語音，稍後自動再試');return false;})().finally(()=>{connecting=null;});return connecting;}
+ function send(txt){dropping=false;try{ws.send(JSON.stringify({type:'text',text:txt}));return true;}catch(e){return false;}}
  function waitTurn(chars){return new Promise(res=>{turnWait=async said=>{if(said!==null){while(playCtx&&nextPlay>playCtx.currentTime+0.05&&!paused)await new Promise(r=>setTimeout(r,100));}res(said);};
   const lim=Date.now()+chars*450+20000;(function chk(){if(!turnWait)return;if(Date.now()>lim&&!paused){const w=turnWait;turnWait=null;w('');return;}setTimeout(chk,500);})();});}
  // 唸一段（整頁講稿）；暫停時丟棄音訊，繼續後從沒唸完的那句重送
  async function speakBlock(sents){let idx=0;while(idx<sents.length){await waitPause();if(stopped&&!qaMode)return;if(!(await ensure())){for(;idx<sents.length&&!paused;idx++)await sayP(sents[idx]);if(idx>=sents.length)return;continue;}
    const rest=sents.slice(idx),txt=rest.join('');$('sub').textContent=rest[0];const g=pauseGen;
    if(!send('（導讀講稿，請用自然的中文口語把下面這段完整唸出來，不要加入反對、質疑或額外評論，唸完就停）\n'+txt)){ws=null;continue;}
-   const said=await waitTurn(txt.length);if(pauseGen===g&&!paused)return;
+   let said=await waitTurn(txt.length);const closed=said&&typeof said==='object';if(closed)said=said.said;if(pauseGen===g&&!paused&&!closed)return;
    // 被暫停：依已轉寫字數估算唸到第幾句
    let n=(said||'').replace(/[\s，。！？、,.!?]/g,'').length,acc=0;for(const s0 of rest){acc+=s0.replace(/[\s，。！？、,.!?]/g,'').length;if(acc<=n)idx++;else break;}}}
  async function sayLine(t){await speakBlock([t]);return false;}
  async function askQ(q){if(!(await ensure()))return null;qaPend=true;const ctx=deckContext().slice(0,3000);
-  send('（聽眾在導讀後提問。請以暗星的身分，用繁體中文口語回答 2 到 4 句，友善、支持，絕不反駁或質疑老師的內容。導讀內容如下）\n'+ctx+'\n\n聽眾問題：'+q);oneShot('explain');const a=await waitTurn(200);qaPend=false;return a||'';}
+  send('（聽眾在導讀後提問。請以暗星的身分，用繁體中文口語回答 2 到 4 句，友善、支持，絕不反駁或質疑老師的內容。導讀內容如下）\n'+ctx+'\n\n聽眾問題：'+q);oneShot('explain');let a=await waitTurn(200);if(a&&typeof a==='object')a=a.said;qaPend=false;return a||'';}
  function halt(){if(turnWait||sources.length)dropping=!!turnWait;stopAudio();micStop();if(turnWait){const w=turnWait;turnWait=null;w(outBuf);outBuf='';}}
  async function toggleMic(){if(micOn){micStop();return;}unlock();try{inCtx=new AC();try{inCtx.resume();}catch(e){}
    shared=!!(camStream&&camStream.getAudioTracks().some(t=>t.readyState==='live'));stream=shared?new MediaStream(camStream.getAudioTracks()):await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});if(paused||!qaMode){micStop();return;}
@@ -385,7 +386,7 @@ const live=(()=>{const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v
    const sink=inCtx.createGain();sink.gain.value=0;src.connect(micNode);micNode.connect(sink);sink.connect(inCtx.destination);micOn=true;$('micBtn').classList.add('rec');status('正在聽你的問題（再按一次停止）');}catch(e){micStop();const n=(e&&e.name)||'';status(n==='NotAllowedError'?'麥克風權限被拒絕：請到 iPhone 設定 › Safari › 麥克風 改為允許，再重新整理':'無法開啟麥克風（'+(n||e)+'），可先打字提問');}}
  function micStop(){micOn=false;try{micNode&&micNode.disconnect();}catch(e){}micNode=null;try{if(!shared)stream&&stream.getTracks().forEach(t=>t.stop());}catch(e){}stream=null;shared=false;try{inCtx&&inCtx.close();}catch(e){}inCtx=null;$('micBtn').classList.remove('rec');}
  function close(){micStop();stopAudio();const w=ws;ws=null;gotSetup=false;try{w&&w.close();}catch(e){}}
- return{unlock,ensure,ready:()=>voiceMode==='live',speakBlock,sayLine,askQ,halt,toggleMic,close};})();
+ return{reset(){downUntil=0;},unlock,ensure,ready:()=>voiceMode==='live'&&Date.now()>downUntil,speakBlock,sayLine,askQ,halt,toggleMic,close};})();
 setMode(voiceMode);
 $('mapL').onclick=()=>shiftScript(-1);$('mapR').onclick=()=>shiftScript(1);
 // ===== 鏡頭＋麥克風（在點擊當下請求權限，iOS 才會跳出詢問）=====
