@@ -6,11 +6,12 @@ on:
     inputs:
       step: { description: "migrate,publish,seed,cycle,test", required: true, default: "cycle" }
       n: { description: "tasks per cycle (max 6)", required: false, default: "3" }
+      minutes: { description: "keep cycling for N minutes", required: false, default: "1" }
 concurrency: { group: agent-floor, cancel-in-progress: false }
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - env:
@@ -18,6 +19,7 @@ jobs:
           PAGES_KEY: ${{ secrets.AIVAULT_PRIVATE_PAGES_KEY }}
           STEP: ${{ inputs.step || 'cycle' }}
           N: ${{ inputs.n || '3' }}
+          MINUTES: ${{ inputs.minutes || '25' }}
           OFF: ${{ vars.AGENT_FLOOR_OFF }}
         run: |
           if [ "$OFF" = "1" ]; then echo "disabled by repo variable AGENT_FLOOR_OFF=1"; exit 0; fi

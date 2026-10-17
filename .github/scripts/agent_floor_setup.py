@@ -30,9 +30,16 @@ if any(s in STEPS for s in ("seed","cycle","test")):
         ANON=next(k["api_key"] for k in keys if k.get("name")=="anon")
         s,_=http(BASE+"/functions/v1/dark-star-ebook-ingest?feature=floor",{"action":"floor"},{"apikey":ANON,"Authorization":"Bearer "+ANON},"POST"); print("anon ->",s)
     if "seed" in STEPS: s,b=y({"action":"seed"}); print("SEED",s,json.dumps(b,ensure_ascii=False)[:300])
-    if "cycle" in STEPS: s,b=y({"action":"cycle","n":N}); print("CYCLE",s,json.dumps(b,ensure_ascii=False)[:800])
+    if "cycle" in STEPS:
+        import time; end=time.time()+60*float(os.environ.get("MINUTES","1") or 1); k=0
+        while True:  # 穩定佇列：依序一輪一輪做，遇到 Groq 限流就提早結束（免費層約 30 次/分，這裡遠低於上限）
+            k+=1; s,b=y({"action":"cycle","n":N}); ok=isinstance(b,dict)
+            print("CYCLE",k,s,"done",b.get("done") if ok else b,"rate_limited",b.get("rate_limited") if ok else "", [(r.get("agent"),r.get("zone"),r.get("model"),(r.get("usage") or {}).get("total"),r.get("error")) for r in (b.get("results") or [])] if ok else "")
+            if not ok or b.get("rate_limited") or time.time()>end: break
+            time.sleep(5)
     if "test" in STEPS:
         s,b=y({"action":"floor"}); print("FLOOR",s,{k:b.get(k) for k in ("review","counts")} if isinstance(b,dict) else b)
+        s,b=y({"action":"novels"}); print("NOVELS",json.dumps(b,ensure_ascii=False)[:800])
         s,b=y({"action":"reviews"})
         print("REVIEWS",len(b.get("tasks") or []))
         s,b=y({"action":"ledger","limit":12})
