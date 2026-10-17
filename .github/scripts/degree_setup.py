@@ -57,6 +57,16 @@ if "whois" in STEPS:  # 唯讀：暗星／曙光是否在協作池
 if "watchfix" in STEPS:  # 誠實修正：第一次看影片測試截圖辨識全部失敗（Groq 無視覺模型權限），標題改成「只有聲音」
     print("WATCHFIX",sql("update public.aivault_pool_agent_learning set title=replace(title,'🎬 看影片（聲音＋截圖）｜','🎬 看影片（只有聲音，截圖辨識不可用）｜') where source_type='video_watch' and coalesce(jsonb_array_length(usage->'frames_described'),0)=0 or (source_type='video_watch' and (usage->>'vision_tokens')::int=0) returning id, title"))
 if "specialmig" in STEPS: sql(open("supabase/migrations/20261017210000_aivault_pool_special.sql").read()); print("SPECIAL",sql("select id,name,activity,last_at from public.aivault_pool_special"))
+if "spmig" in STEPS: sql(open("supabase/migrations/20261017220000_aivault_special_study.sql").read()); print("SPMIG ok")
+import time as _t
+_g=_t.gmtime()
+if os.environ.get("SP_SCHED","1")!="0" and os.environ.get("GITHUB_EVENT_NAME")=="schedule":  # sp1 排程：學習每 2 小時一次、考試每 6 小時一次（省 Gemini 免費額度，暗星本人聊天也要用）
+    if "learnround" in STEPS and _g.tm_hour%2==0 and _g.tm_min<10: STEPS=list(STEPS)+["splearn"]
+    if "cycle" in STEPS and _g.tm_hour%6==0 and _g.tm_min<30: STEPS=list(STEPS)+["spexam"]
+for _m in ["placement","exam","learn"]:
+    if "sp"+_m in STEPS:  # sp1：暗星／曙光（只印分數、學階、模型、網址，不印筆記）
+        s,b=y({"action":"special_round","mode":_m}); print("SP",_m.upper(),s)
+        for x in (b.get("res") or []) if isinstance(b,dict) else []: print("  ",x.get("id"),x.get("kind"),x.get("score"),"/",x.get("max"),"tier",x.get("tier"),x.get("level"),x.get("url"),x.get("models"),x.get("error"))
 if "planredo" in STEPS:
     s,b=y({"action":"daily_plan","redo":True}); print("PLANREDO",s,json.dumps(b,ensure_ascii=False)[:1500] if isinstance(b,dict) else str(b)[:300])
     print("SPECIAL",sql("select id,activity,last_at from public.aivault_pool_special"))
