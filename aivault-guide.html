@@ -45,6 +45,7 @@ body.fs.ctlhide #fsCtl{opacity:0;pointer-events:none}
 .camBtn{width:38px;height:38px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:rgba(148,163,184,.14);border:1px solid rgba(148,163,184,.25);color:#e2e8f0;padding:0}
 .camBtn.on{background:rgba(168,85,247,.35);border-color:#a855f7;color:#fff}body.fs #fsCtl .camBtn{width:34px;height:34px;padding:0}
 #pip{display:none;position:absolute;right:2%;bottom:16%;width:16%;aspect-ratio:3/4;object-fit:cover;border-radius:8px;border:2px solid rgba(255,255,255,.6);transform:scaleX(-1);z-index:7;background:#000}body.camon #pip{display:block}
+.map-row{display:flex;gap:8px;align-items:center;margin:6px 0;font-size:12px;color:#cbd5e1}.map-row img{width:64px;height:36px;object-fit:cover;border-radius:4px;flex-shrink:0;border:1px solid var(--line)}.map-row b{color:#7dd3fc}#mapList{max-height:260px;overflow:auto}
 #status{text-align:center;font-size:13px;color:#94a3b8;padding:0 14px}
 #ask{display:none;max-width:700px;margin:10px auto;padding:0 14px}#ask textarea{width:100%;border-radius:10px;background:var(--panel);color:var(--tx);border:1px solid var(--line);padding:8px}
 #panel,#editor{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:50;align-items:flex-end;justify-content:center}
@@ -74,6 +75,9 @@ body.fs.ctlhide #fsCtl{opacity:0;pointer-events:none}
  <label class="tile"><b>📄</b>上傳口語講稿<br><small>Word／PDF／PPTX／TXT</small><input type="file" id="scriptFile" accept=".docx,.pdf,.pptx,.ppt,.txt,.md,text/plain"></label>
  <div class="tile" id="editBtn"><b>✍️</b>新增口語表達<br><small>逐頁直接輸入</small></div>
 </div>
+<div class="card"><div class="badge">講稿對應預覽</div> <span class="hint" id="mapInfo"></span>
+ <div id="mapShift" style="display:none;gap:8px;justify-content:center;margin:8px 0"><button class="icon-btn" id="mapL">◀ 講稿往前一頁</button><button class="icon-btn" id="mapR">講稿往後一頁 ▶</button></div>
+ <div id="mapList"></div></div>
 <div class="hint" id="upMsg" style="text-align:center;margin-top:8px"></div>
 <div id="ask" class="card"><div class="badge">問暗星</div>
  <div id="qaLog"></div>
@@ -91,7 +95,6 @@ body.fs.ctlhide #fsCtl{opacity:0;pointer-events:none}
  <div class="row"><label>語速 <span id="rateVal">1.0</span></label><input type="range" id="rate" min="0.6" max="1.6" step="0.1" value="1"></div>
  <div class="row"><label><input type="checkbox" id="auto" checked> 自動配合簡報播放（講完自動翻頁）</label></div>
  <div class="row"><button class="icon-btn" id="resetBtn">恢復內建示範</button> <button class="icon-btn" id="closeBtn">關閉</button></div>
- <div class="hint" id="upMsg"></div>
 </div></div>
 <script>
 // TODO: 之後可把上傳的簡報＋講稿存到書架（目前只存在本機 IndexedDB，不碰現有書架）
@@ -129,13 +132,24 @@ async function kv(k,v){const db=await idb;if(!db)return;return new Promise(r=>{c
 const settings=JSON.parse(localStorage.getItem('aivault-guide-settings')||'{}');
 function saveSet(){localStorage.setItem('aivault-guide-settings',JSON.stringify(settings));}
 function splitSent(t){return (t.match(/[^。！？!?\n]+[。！？!?]?/g)||[]).map(s=>s.trim()).filter(Boolean);}
-function mapScript(text,n){let parts=text.split(/^\s*(?:#{1,3}\s*第\s*\d+\s*頁.*|---+)\s*$/m).map(s=>s.trim()).filter(Boolean);
- if(parts.length<2){const s=splitSent(text),per=Math.ceil(s.length/Math.max(1,n));return Array.from({length:n},(_,i)=>s.slice(i*per,(i+1)*per));}
- return Array.from({length:n},(_,i)=>splitSent(parts[i]||''));}
+// 講稿對應：有「## 第N頁」就照頁碼放；沒有頁碼且段數比投影片少 → 預設從最後一頁往前對齊（可在預覽調整起始頁）；缺的頁保持空白（不念投影片文字）
+let scriptInfo={numbered:false,count:0};
+function mapScript(text,n){const re=/^\s*#{1,3}\s*第\s*(\d+)\s*頁.*$|^\s*---+\s*$/gm;const out=Array.from({length:n},()=>[]);let m,last=0,curNo=null,parts=[],numbered=false;
+ while((m=re.exec(text))){const body=text.slice(last,m.index).trim();if(body)parts.push({no:curNo,body});curNo=m[1]?+m[1]:null;if(m[1])numbered=true;last=re.lastIndex;}
+ const tail=text.slice(last).trim();if(tail)parts.push({no:curNo,body:tail});
+ if(numbered){parts.forEach(p=>{if(p.no&&p.no<=n)out[p.no-1]=splitSent(p.body);});scriptInfo={numbered:true,count:parts.length};return out;}
+ if(parts.length<2){const ss=splitSent(text),per=Math.ceil(ss.length/Math.max(1,n));scriptInfo={numbered:false,count:1,even:true};return Array.from({length:n},(_,i)=>ss.slice(i*per,(i+1)*per));}
+ let off=settings.scriptOffset;if(typeof off!=='number')off=Math.max(0,n-parts.length);off=Math.max(-parts.length+1,Math.min(n-1,off));
+ parts.forEach((p,k)=>{const i=k+off;if(i>=0&&i<n)out[i]=splitSent(p.body);});scriptInfo={numbered:false,count:parts.length,offset:off};return out;}
+function renderMap(){const el=$('mapList');if(!el)return;el.innerHTML=slides.map((src,i)=>{const t=(script[i]||[]).join('');return`<div class="map-row"><img src="${src}"><div><b>第 ${i+1} 頁</b> <span>${t?t.slice(0,46).replace(/</g,'&lt;')+(t.length>46?'…':''):'<i>（無講稿，靜默帶過）</i>'}</span></div></div>`;}).join('');
+ const canShift=!scriptInfo.numbered&&scriptInfo.count>1&&!scriptInfo.even;$('mapShift').style.display=canShift?'flex':'none';
+ $('mapInfo').textContent=scriptInfo.numbered?'講稿依「第N頁」頁碼對應':(canShift?`講稿 ${scriptInfo.count} 段，從第 ${scriptInfo.offset+1} 頁開始`:'');}
+async function shiftScript(d){const t=await kv('scriptText');if(!t)return;settings.scriptOffset=(scriptInfo.offset||0)+d;saveSet();script=mapScript(t,slides.length);renderMap();}
 function showSlide(){$('slide').src=slides[page]||'';$('pageNo').textContent=(page+1)+' / '+slides.length;}
 function status(t){$('status').textContent=t;}
 function fromSections(sec,n){return Array.from({length:n},(_,i)=>splitSent(sec[i]||''));}
-async function loadScript(){const sec=await kv('sections');if(sec)script=fromSections(sec,slides.length);else{const t=await kv('scriptText');script=t?mapScript(t,slides.length):(slides===DEMO_SLIDES?DEMO_SCRIPT:slides.map(()=>[]));}}
+async function loadScript(){scriptInfo={numbered:false,count:0};await loadScript0();renderMap();}
+async function loadScript0(){const sec=await kv('sections');if(sec)script=fromSections(sec,slides.length);else{const t=await kv('scriptText');script=t?mapScript(t,slides.length):(slides===DEMO_SLIDES?DEMO_SCRIPT:slides.map(()=>[]));}}
 (async()=>{const s=await kv('slides');if(s&&s.length){slides=s;status('已載入你上傳的簡報（'+s.length+' 頁）');}await loadScript();showSlide();})();
 // ---- uploads ----
 function loadScriptTag(src){return new Promise((r,j)=>{const s=document.createElement('script');s.src=src;s.onload=r;s.onerror=j;document.head.appendChild(s);});}
@@ -143,33 +157,69 @@ const fileURL=f=>new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.re
 async function pdfToImgs(f){await pdfLib();
  const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise,out=[];for(let i=1;i<=pdf.numPages;i++){const p=await pdf.getPage(i),vp=p.getViewport({scale:1}),sc=1280/vp.width,v2=p.getViewport({scale:sc}),c=document.createElement('canvas');c.width=v2.width;c.height=v2.height;await p.render({canvasContext:c.getContext('2d'),viewport:v2}).promise;out.push(c.toDataURL('image/jpeg',.85));$('upMsg').textContent='轉換中… '+i+'/'+pdf.numPages;}return out;}
 async function jszip(){if(!window.JSZip)await loadScriptTag('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');}
-async function pptxToImgs(f){await jszip();const z=await JSZip.loadAsync(f),names=Object.keys(z.files).filter(n=>/^ppt\/slides\/slide\d+\.xml$/.test(n)).sort((a,b)=>parseInt(a.match(/\d+/))-parseInt(b.match(/\d+/))),out=[],texts=[];
- for(const n of names){const xml=await z.file(n).async('string'),txt=[...xml.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map(m=>m[1]);texts.push(txt.join(' '));
-  const relF=z.file(n.replace('slides/','slides/_rels/')+'.rels');let img=null;if(relF){const rel=await relF.async('string');const m=[...rel.matchAll(/Target="\.\.\/media\/([^"]+\.(?:png|jpe?g|gif))"/gi)][0];if(m){const b=await z.file('ppt/media/'+m[1]).async('base64');img='data:image/'+(/png/i.test(m[1])?'png':'jpeg')+';base64,'+b;}}
-  const c=document.createElement('canvas');c.width=1280;c.height=720;const x=c.getContext('2d');x.fillStyle='#0b1d4a';x.fillRect(0,0,1280,720);
-  if(img){const im=new Image();im.src=img;await im.decode().catch(()=>{});const s=Math.min(1280/im.width,(txt.length?480:720)/im.height)||1;x.drawImage(im,(1280-im.width*s)/2,txt.length?220:(720-im.height*s)/2,im.width*s,im.height*s);}
-  x.fillStyle='#e2e8f0';let y=80;txt.slice(0,img?3:9).forEach((t,i)=>{x.font=(i?'34px':'bold 52px')+' sans-serif';x.fillText(t.slice(0,34),60,y);y+=i?52:72;});out.push(c.toDataURL('image/jpeg',.85));}
- return out;}
+// ---- PPTX：依 presentation.xml 的投影片順序；背景（slide→layout→master）、文字框與圖片照實際位置繪製 ----
+const PNS={p:'http://schemas.openxmlformats.org/presentationml/2006/main',a:'http://schemas.openxmlformats.org/drawingml/2006/main',r:'http://schemas.openxmlformats.org/officeDocument/2006/relationships'};
+const pxml=s=>new DOMParser().parseFromString(s,'application/xml');
+const kids=(el,ns,name)=>el?[...el.children].filter(c=>c.namespaceURI===PNS[ns]&&c.localName===name):[];
+const kid=(el,ns,name)=>kids(el,ns,name)[0]||null;
+const desc=(el,ns,name)=>el?el.getElementsByTagNameNS(PNS[ns],name)[0]||null:null;
+function relPath(base,target){if(target.startsWith('/'))return target.slice(1);const parts=base.split('/');parts.pop();for(const t of target.split('/')){if(t==='..')parts.pop();else if(t!=='.')parts.push(t);}return parts.join('/');}
+async function pRels(z,path){const i=path.lastIndexOf('/'),rp=path.slice(0,i)+'/_rels/'+path.slice(i+1)+'.rels',f=z.file(rp),m={};if(!f)return m;const d=pxml(await f.async('string'));for(const r of d.getElementsByTagName('Relationship'))m[r.getAttribute('Id')]={target:relPath(path,r.getAttribute('Target')),type:r.getAttribute('Type')||''};return m;}
+async function pptxOrder(z){const pres='ppt/presentation.xml',d=pxml(await z.file(pres).async('string')),rels=await pRels(z,pres);const sz=desc(d,'p','sldSz');
+ const ids=[...d.getElementsByTagNameNS(PNS.p,'sldId')].map(e=>e.getAttributeNS(PNS.r,'id')||e.getAttribute('r:id'));let list=ids.map(id=>rels[id]&&rels[id].target).filter(t=>t&&z.file(t));
+ if(!list.length)list=Object.keys(z.files).filter(n=>/^ppt\/slides\/slide\d+\.xml$/.test(n)).sort((a,b)=>parseInt(a.match(/(\d+)\.xml/)[1])-parseInt(b.match(/(\d+)\.xml/)[1]));
+ return{list,cx:sz?+sz.getAttribute('cx'):12192000,cy:sz?+sz.getAttribute('cy'):6858000};}
+function pColor(el){if(!el)return null;const s=desc(el,'a','srgbClr');if(s)return'#'+s.getAttribute('val');const sc=desc(el,'a','schemeClr');if(sc){const v=sc.getAttribute('val');return({bg1:'#ffffff',lt1:'#ffffff',tx1:'#000000',dk1:'#000000',bg2:'#e7e6e6',tx2:'#44546a',accent1:'#4472c4',accent2:'#ed7d31'})[v]||null;}return null;}
+async function pImg(z,path){const f=z.file(path);if(!f)return null;const ext=(path.split('.').pop()||'').toLowerCase();if(!/png|jpe?g|gif|bmp|webp/.test(ext))return null;const b=await f.async('base64');const im=new Image();im.src='data:image/'+(ext==='jpg'?'jpeg':ext)+';base64,'+b;try{await im.decode();}catch(e){return null;}return im;}
+async function pBg(z,path,rels){const d=pxml(await z.file(path).async('string')),bg=desc(d,'p','bg');if(bg){const bp=desc(bg,'p','bgPr');if(bp){const blip=desc(bp,'a','blip');if(blip){const r=rels[blip.getAttributeNS(PNS.r,'embed')];const im=r&&await pImg(z,r.target);if(im)return{img:im};}const c=pColor(kid(bp,'a','solidFill'));if(c)return{color:c};}}return null;}
+async function pptxRender(z,path,cx,cy){const W=1280,H=Math.round(W*cy/cx),S=W/cx,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.fillStyle='#ffffff';x.fillRect(0,0,W,H);
+ const rels=await pRels(z,path);let bg=await pBg(z,path,rels);const lay=Object.values(rels).find(r=>/slideLayout/.test(r.type));const chain=[];
+ if(lay){chain.push(lay.target);const lr=await pRels(z,lay.target);const ms=Object.values(lr).find(r=>/slideMaster/.test(r.type));if(ms)chain.push(ms.target);}
+ for(const p of chain){if(bg)break;if(z.file(p))bg=await pBg(z,p,await pRels(z,p));}
+ if(bg&&bg.color){x.fillStyle=bg.color;x.fillRect(0,0,W,H);}if(bg&&bg.img)x.drawImage(bg.img,0,0,W,H);
+ const d=pxml(await z.file(path).async('string')),tree=desc(d,'p','spTree');
+ async function draw(el){for(const ch of el.children){const n=ch.localName;if(n==='grpSp'){await draw(ch);continue;}
+  const xf=desc(ch,'a','xfrm'),off=xf&&kid(xf,'a','off'),ext=xf&&kid(xf,'a','ext');if(!off||!ext)continue;
+  const bx=+off.getAttribute('x')*S,by=+off.getAttribute('y')*S,bw=+ext.getAttribute('cx')*S,bh=+ext.getAttribute('cy')*S;
+  if(n==='pic'){const blip=desc(ch,'a','blip'),r=blip&&rels[blip.getAttributeNS(PNS.r,'embed')],im=r&&await pImg(z,r.target);if(im)x.drawImage(im,bx,by,bw,bh);continue;}
+  if(n!=='sp')continue;const spPr=kid(ch,'p','spPr'),fill=spPr&&pColor(kid(spPr,'a','solidFill'));if(fill){x.fillStyle=fill;x.fillRect(bx,by,bw,bh);}
+  const tb=kid(ch,'p','txBody');if(!tb)continue;const body=kid(tb,'a','bodyPr'),anchor=(body&&body.getAttribute('anchor'))||'t',pad=7*S*12700/9.5;
+  const lines=[];for(const p of kids(tb,'a','p')){const pPr=kid(p,'a','pPr'),algn=(pPr&&pPr.getAttribute('algn'))||'l';let txt='',sz=1800,col='#000000',b=false;
+   for(const r of kids(p,'a','r')){const rp=kid(r,'a','rPr');if(rp){if(rp.getAttribute('sz'))sz=+rp.getAttribute('sz');if(rp.getAttribute('b')==='1')b=true;col=pColor(kid(rp,'a','solidFill'))||col;}txt+=(kid(r,'a','t')||{}).textContent||'';}
+   const fpx=Math.max(8,sz/100*12700*S);x.font=(b?'bold ':'')+fpx+'px "PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif';
+   const maxW=Math.max(10,bw-pad*2);let cur='';const wrap=[];for(const chh of txt){if(x.measureText(cur+chh).width>maxW&&cur){wrap.push(cur);cur=chh;}else cur+=chh;}wrap.push(cur);
+   wrap.forEach(t=>lines.push({t,fpx,font:x.font,col,algn}));}
+  const totH=lines.reduce((a,l)=>a+l.fpx*1.25,0);let y=anchor==='ctr'?by+(bh-totH)/2:anchor==='b'?by+bh-totH-pad:by+pad;
+  x.save();x.beginPath();x.rect(bx,by-2,bw,Math.max(bh,totH)+4);x.clip();x.textBaseline='top';
+  for(const l of lines){x.font=l.font;x.fillStyle=l.col;const w=x.measureText(l.t).width;const tx=l.algn==='ctr'?bx+(bw-w)/2:l.algn==='r'?bx+bw-pad-w:bx+pad;x.fillText(l.t,tx,y+l.fpx*0.1);y+=l.fpx*1.25;}x.restore();}}
+ if(tree)await draw(tree);return c.toDataURL('image/jpeg',.88);}
+let pptxNotesPending=null;
+async function pptxToImgs(f){await jszip();const z=await JSZip.loadAsync(f),o=await pptxOrder(z),out=[];for(let i=0;i<o.list.length;i++){$('upMsg').textContent='轉換 PPTX… '+(i+1)+'/'+o.list.length;out.push(await pptxRender(z,o.list[i],o.cx,o.cy));}
+ try{const n=await pptxNotes(z);if(n.some(Boolean))pptxNotesPending=n;}catch(e){}return out;}
+async function pptxNotes(z){const o=await pptxOrder(z),out=[];for(const path of o.list){const rels=await pRels(z,path),nr=Object.values(rels).find(r=>/notesSlide/.test(r.type));let notes='';
+  if(nr&&z.file(nr.target)){const d=pxml(await z.file(nr.target).async('string'));for(const sp of d.getElementsByTagNameNS(PNS.p,'sp')){const ph=desc(sp,'p','ph');if(ph&&ph.getAttribute('type')!=='body')continue;
+    const t=kids(kid(sp,'p','txBody'),'a','p').map(p=>[...p.getElementsByTagNameNS(PNS.a,'t')].map(e=>e.textContent).join('')).join('\n').trim();if(t)notes+=(notes?'\n':'')+t;}}
+  // 沒有備忘稿就留空：暗星絕不照念投影片上的文字
+  out.push(notes);}return out;}
 $('slideFile').onchange=async e=>{const fs=[...e.target.files];if(!fs.length)return;$('upMsg').textContent='處理中…';try{let out=[];
- for(const f of fs){if(/\.ppt$/i.test(f.name))throw new Error('舊版 .ppt 無法讀取，請另存成 PPTX 或 PDF');if(/\.pdf$/i.test(f.name))out=out.concat(await pdfToImgs(f));else if(/\.pptx$/i.test(f.name)){out=out.concat(await pptxToImgs(f));$('upMsg').textContent='PPTX 已盡量擷取圖片與文字；若版面不對，請匯出 PDF 再上傳。';}else if(f.type.startsWith('image/'))out.push(await fileURL(f));}
- if(!out.length)throw new Error('沒有可用的頁面');slides=out;page=0;await kv('slides',out);await loadScript();showSlide();status('已載入簡報 '+out.length+' 頁');if(!/PPTX/.test($('upMsg').textContent))$('upMsg').textContent='簡報已儲存（'+out.length+' 頁）';}catch(err){$('upMsg').textContent='上傳失敗：'+err.message;}};
+ for(const f of fs){if(/\.ppt$/i.test(f.name))throw new Error('舊版 .ppt 無法讀取，請另存成 PPTX 或 PDF');if(/\.pdf$/i.test(f.name))out=out.concat(await pdfToImgs(f));else if(/\.pptx$/i.test(f.name)){out=out.concat(await pptxToImgs(f));$('upMsg').textContent='PPTX 已轉換，並以備忘稿作為暗星講稿（不念投影片文字）；版面若有差異，請改傳 PDF。';}else if(f.type.startsWith('image/'))out.push(await fileURL(f));}
+ if(!out.length)throw new Error('沒有可用的頁面');slides=out;page=0;await kv('slides',out);if(pptxNotesPending&&pptxNotesPending.length===out.length){await kv('sections',pptxNotesPending);await kv('scriptText',null);}pptxNotesPending=null;await loadScript();showSlide();status('已載入簡報 '+out.length+' 頁');if(!/PPTX/.test($('upMsg').textContent))$('upMsg').textContent='簡報已儲存（'+out.length+' 頁）';}catch(err){$('upMsg').textContent='上傳失敗：'+err.message;}};
 async function pdfLib(){if(!window.pdfjsLib){await loadScriptTag('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js');pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';}}
 const xmlText=x=>[...x.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map(m=>m[1]).join(' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();
 async function scriptSections(f){
  if(/\.ppt$/i.test(f.name))throw new Error('舊版 .ppt 無法讀取，請另存成 PPTX 或 PDF');
  if(/\.pdf$/i.test(f.name)){await pdfLib();const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise,out=[];for(let i=1;i<=pdf.numPages;i++){const c=await (await pdf.getPage(i)).getTextContent();out.push(c.items.map(t=>t.str).join('').trim());}return out;}
- if(/\.pptx$/i.test(f.name)){await jszip();const z=await JSZip.loadAsync(f),names=Object.keys(z.files).filter(n=>/^ppt\/slides\/slide\d+\.xml$/.test(n)).sort((a,b)=>parseInt(a.match(/\d+/))-parseInt(b.match(/\d+/))),out=[];
-  for(const n of names){let notes='';const rel=z.file(n.replace('slides/','slides/_rels/')+'.rels');if(rel){const m=(await rel.async('string')).match(/Target="\.\.\/notesSlides\/([^"]+)"/);if(m&&z.file('ppt/notesSlides/'+m[1]))notes=xmlText(await z.file('ppt/notesSlides/'+m[1]).async('string')).replace(/^\d+$/,'').replace(/\s\d+$/,'');}
-   out.push(notes||xmlText(await z.file(n).async('string')));}return out;}
+ if(/\.pptx$/i.test(f.name)){await jszip();return await pptxNotes(await JSZip.loadAsync(f));}
  let t;if(/\.docx$/i.test(f.name)){await jszip();const z=await JSZip.loadAsync(f);const x=await z.file('word/document.xml').async('string');t=x.split(/<\/w:p>/).map(p=>[...p.matchAll(/<w:t[^>]*>([^<]*)<\/w:t>/g)].map(m=>m[1]).join('')).join('\n');}else t=await f.text();
- return toSec(mapScript(t,slides.length));}
-$('scriptFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;$('upMsg').textContent='讀取講稿中…';try{const sec=await scriptSections(f);await kv('sections',sec);script=fromSections(sec,slides.length);
- $('upMsg').textContent='講稿已儲存：'+sec.length+' 段，共 '+script.flat().length+' 句'+(sec.length!==slides.length?'（簡報有 '+slides.length+' 頁，多的段落不會唸）':'');status('講稿已載入');}catch(err){$('upMsg').textContent='講稿讀取失敗：'+err.message;}e.target.value='';};
+ delete settings.scriptOffset;saveSet();return{text:t};}
+$('scriptFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;$('upMsg').textContent='讀取講稿中…';try{const r=await scriptSections(f);
+ if(Array.isArray(r)){await kv('sections',r);await kv('scriptText',null);}else{await kv('scriptText',r.text);await kv('sections',null);}await loadScript();
+ const empty=script.map((x,i)=>x.length?0:i+1).filter(Boolean);$('upMsg').textContent='講稿已儲存，共 '+script.flat().length+' 句'+(empty.length?'；無講稿的頁：'+empty.join('、')+'（會靜默帶過）':'');status('講稿已載入');}catch(err){$('upMsg').textContent='講稿讀取失敗：'+err.message;}e.target.value='';};
 $('editBtn').onclick=()=>{$('edList').innerHTML=slides.map((src,i)=>`<div class="ed-row"><img src="${src}"><textarea data-i="${i}" placeholder="第 ${i+1} 頁要講的話…"></textarea></div>`).join('');
  $('edList').querySelectorAll('textarea').forEach(t=>t.value=(script[t.dataset.i]||[]).join(''));$('editor').style.display='flex';};
 $('edClose').onclick=()=>$('editor').style.display='none';
-$('edSave').onclick=async()=>{const sec=[...$('edList').querySelectorAll('textarea')].map(t=>t.value.trim());await kv('sections',sec);script=fromSections(sec,slides.length);$('editor').style.display='none';$('upMsg').textContent='口語表達已儲存（'+script.flat().length+' 句）';};
-$('resetBtn').onclick=async()=>{await kv('slides',null);await kv('scriptText',null);await kv('sections',null);slides=DEMO_SLIDES;script=DEMO_SCRIPT;page=0;showSlide();status('目前使用內建示範簡報');$('upMsg').textContent='已恢復示範';};
+$('edSave').onclick=async()=>{const sec=[...$('edList').querySelectorAll('textarea')].map(t=>t.value.trim());await kv('sections',sec);script=fromSections(sec,slides.length);renderMap();$('editor').style.display='none';$('upMsg').textContent='口語表達已儲存（'+script.flat().length+' 句）';};
+$('resetBtn').onclick=async()=>{await kv('slides',null);await kv('scriptText',null);await kv('sections',null);slides=DEMO_SLIDES;script=DEMO_SCRIPT;page=0;scriptInfo={numbered:false,count:0};showSlide();renderMap();status('目前使用內建示範簡報');$('upMsg').textContent='已恢復示範';};
 // ---- voice ----
 let voices=[];function loadVoices(){voices=speechSynthesis.getVoices().filter(v=>/^zh|cmn/i.test(v.lang));const sel=$('voiceSel');sel.innerHTML=voices.map((v,i)=>`<option value="${i}">${v.name}（${v.lang}）</option>`).join('')||'<option>系統預設</option>';
  let i=voices.findIndex(v=>v.name===settings.voice);if(i<0)i=Math.max(0,voices.findIndex(v=>/TW|Hant/i.test(v.lang)));sel.value=i;}
@@ -334,6 +384,7 @@ const live=(()=>{const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v
  function close(){micStop();stopAudio();const w=ws;ws=null;gotSetup=false;try{w&&w.close();}catch(e){}}
  return{unlock,ensure,ready:()=>voiceMode==='live',speakBlock,sayLine,askQ,halt,toggleMic,close};})();
 setMode(voiceMode);
+$('mapL').onclick=()=>shiftScript(-1);$('mapR').onclick=()=>shiftScript(1);
 // ===== 鏡頭＋麥克風（在點擊當下請求權限，iOS 才會跳出詢問）=====
 let camStream=null,camOn=false;
 function camUI(){document.body.classList.toggle('camon',camOn);['camBtn','fsCam'].forEach(id=>$(id).classList.toggle('on',camOn));$('camLbl').textContent=camOn?'鏡頭／麥克風已開啟（導讀時麥克風靜音）':'開啟鏡頭／麥克風';}
