@@ -18,7 +18,7 @@
     return b;
   }
   function persist() { localStorage.setItem(RUN_KEY, JSON.stringify(st)); }
-  function freshState() { return { idx: 0, phase: 'script', queue: [], prompt: null, decisions: [], transcript: [], facts: [], act: 1, turn: 0, ending: false, mood: 'calm', started_at: new Date().toISOString() }; }
+  function freshState() { return { idx: 0, phase: 'script', queue: [], prompt: null, decisions: [], transcript: [], facts: [], causes: [], act: 1, turn: 0, ending: false, mood: 'calm', started_at: new Date().toISOString() }; }
 
   /* ---------- 畫面 ---------- */
   function nameOf(id) { return id === 'narrator' ? '說書人' : id === '__me' ? '你（' + chars.__me.name + '）' : (chars[id] || {}).name || id; }
@@ -94,13 +94,13 @@
   }
 
   /* ---------- 導演 ---------- */
-  function slimBook() { return { title: book.title, protagonist: book.protagonist, original_ending: book.original_ending, characters: book.characters.map(function (c) { return { id: c.id, name: c.name, personality: c.personality, speech_style: c.speech_style, voice_type: c.voice_type }; }), outline: book.outline && book.outline.length ? book.outline : book.nodes.map(function (n) { return n.speaker + '：' + n.text; }).join('\n').slice(0, 6000) }; }
+  function slimBook() { return { title: book.title, protagonist: book.protagonist, original_ending: book.original_ending, characters: book.characters.map(function (c) { return { id: c.id, name: c.name, personality: c.personality, speech_style: c.speech_style, voice_type: c.voice_type, agent: c.agent ? { id: c.agent.id, name: c.agent.name, trait: c.agent.trait } : undefined }; }), outline: book.outline && book.outline.length ? book.outline : book.nodes.map(function (n) { return n.speaker + '：' + n.text; }).join('\n').slice(0, 6000) }; }
   function recent() { return st.transcript.slice(-30).map(function (l) { return nameOf(l.speaker) + '：' + l.text; }).join('\n'); }
   async function direct(q, ans, by, clarified) {
     for (var tries = 0; ; tries++) {
       try {
         status('🌟 暗星導演正在理解你的回答…');
-        var r = await API.call('direct', { book: slimBook(), state: { facts: st.facts, act: st.act, turn: st.turn, decisions: st.decisions, recent: recent() }, asker: q.speaker, question: q.text, answer: ans, by: by, clarified: clarified });
+        var r = await API.call('direct', { book: slimBook(), state: { causes: st.causes || [], facts: st.facts, act: st.act, turn: st.turn, decisions: st.decisions, recent: recent() }, asker: q.speaker, question: q.text, answer: ans, by: by, clarified: clarified });
         status(''); return r;
       } catch (e) {
         if (e.status === 401) { status('需要登入才能使用 AI 導演。<a href="' + API.loginUrl() + '">登入</a>'); await new Promise(function () {}); }
@@ -126,10 +126,25 @@
     }
     st.decisions.push({ question: q.text, answer: ans, by: by, interpretation: r.interpretation || '', at: new Date().toISOString() });
     (r.world && r.world.facts || []).forEach(function (f) { if (f && st.facts.indexOf(f) < 0) st.facts.push(String(f).slice(0, 120)); });
+    applyCauses(r);
     if (r.world && r.world.act) st.act = r.world.act; st.turn++; if (r.mood) st.mood = r.mood;
     st.queue = cleanLines(r.lines); st.prompt = !r.ending && st.turn < MAX_TURNS && r.prompt && r.prompt.text && chars[r.prompt.speaker] ? { speaker: r.prompt.speaker, text: String(r.prompt.text).slice(0, 200) } : null;
     st.ending = !st.prompt; persist();
   }
+  /* ---------- 因果 ---------- */
+  function applyCauses(r) {
+    st.causes = st.causes || []; var fresh = 0;
+    (r.paid_off || []).forEach(function (id) { st.causes.forEach(function (c) { if (c.id === id) c.paid = true; }); });
+    (r.new_causes || []).slice(0, 2).forEach(function (c) { var t = String((c && c.text) || c || '').slice(0, 60); if (!t) return;
+      st.causes.push({ id: 'c' + (st.causes.length + 1), text: t, weight: Math.min(3, Math.max(1, +(c && c.weight) || 1)), turn: st.turn + 1, paid: false }); fresh++; });
+    if (r.ending && r.recap) st.recap = (r.recap || []).slice(0, 8);
+    renderCause(fresh);
+  }
+  function renderCause(fresh) {
+    var b = $('causeBtn'); if (!b) return; var n = (st.causes || []).length; b.style.display = n ? '' : 'none'; b.textContent = '因 ' + n;
+    if (fresh) { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); }
+  }
+  function causeList() { return (st.causes || []).map(function (c) { return '<li>' + (c.paid ? '✅' : '🌱') + ' ' + esc(c.text) + ' <small>（第' + c.turn + '回）</small></li>'; }).join('') || '<li>還沒有種下任何因</li>'; }
   async function playQueue() {
     while (st.queue.length) {
       var l = st.queue[0]; if (l.mood) st.mood = l.mood; A.setMood(st.mood); if (l.sfx) A.sfx(l.sfx);
@@ -172,11 +187,15 @@
       created_at: new Date().toISOString(), story_text: story,
       nodes: st.transcript.filter(function (l) { return !l.repeat; }).reduce(function (a, l, i, arr) { if (l.speaker === '__me') return a; var nx = arr[i + 1];
         a.push(l.cls === 'ask' && nx && nx.speaker === '__me' ? { type: 'prompt', speaker: l.speaker, text: l.text, original_answer: nx.text } : { type: l.speaker === 'narrator' ? 'narrator' : 'character', speaker: l.speaker, text: l.text }); return a; }, []),
-      timeline_state: { current_node: 0, decisions: st.decisions, facts: st.facts, irreversible: true } };
+      crew: book.crew, timeline_state: { current_node: 0, decisions: st.decisions, facts: st.facts, causes: st.causes, recap: st.recap, irreversible: true } };
     YinxuStore.save(nb);
     if (API.loggedIn() && !MOCK) API.call('save_timeline', { book: nb }).catch(function () {});
     localStorage.removeItem(RUN_KEY); A.sfx('bell'); status('');
     $('end').style.display = 'flex'; $('endTitle').textContent = nb.title; $('endStory').textContent = story;
+    var rc = st.recap || [], cmap = {}; (st.causes || []).forEach(function (c) { cmap[c.id] = c.text; });
+    $('endRecap').innerHTML = (st.causes || []).length ? '<b>因 → 果</b><ul>' + (rc.length ? rc.map(function (x) { return '<li>🌱 ' + esc(cmap[x.cause] || x.cause) + '<br>→ ' + esc(x.effect || '') + '</li>'; }).join('') : causeList()) + '</ul>' : '';
+    var ag = book.characters.map(function (c) { return c.agent && c.agent.id; }).filter(Boolean);
+    if (ag.length && API.loggedIn() && !MOCK) API.call('remember_play', { title: book.title, agent_ids: ag, summary: newEnd || story.slice(0, 200) }).catch(function () {});
   }
 
   /* ---------- 控制 ---------- */
@@ -194,6 +213,8 @@
     $('bookTitle').textContent = book.title; $('introTitle').textContent = book.title; $('introText').textContent = book.opening || '';
     var cv = book.cover || {}; $('introCover').style.background = 'linear-gradient(160deg,' + (cv.from || '#312e81') + ',' + (cv.to || '#0f172a') + ')'; $('introCover').textContent = cv.emoji || '📖';
     if (!API.loggedIn()) { $('loginHint').style.display = ''; $('loginHint').querySelector('a').href = API.loginUrl(); }
+    if (book.crew && book.crew.length) $('introCrew').innerHTML = '<b>🌟 暗星指派的 AI 團隊</b><br>' + book.crew.map(function (x) { return esc((x.agent.avatar || '') + ' ' + x.agent.name + '｜' + x.role + (x.character ? '・' + x.character : '')); }).join('<br>');
+    $('causeBtn').onclick = function () { var o = $('causes'); o.querySelector('ul').innerHTML = causeList(); o.style.display = 'flex'; }; renderCause(0);
     if (st.transcript.length) { st.transcript.forEach(addLine); $('startBtn').textContent = '▶ 從中斷處繼續（時間線不可重來）'; }
     $('pauseBtn').onclick = function () { setPaused(!paused); };
     $('bgmBtn').onclick = function () { A.setMusic(!A.musicOn()); syncBgm(); }; syncBgm();
@@ -205,6 +226,6 @@
       run().catch(function (e) { status('發生錯誤：' + esc(e.message || e)); console.error(e); });
     };
   }
-  window.__yinxu = { state: function () { return st; } };
+  window.__yinxu = { state: function () { return st; }, applyCauses: function (r) { applyCauses(r); } };
   init();
 })();

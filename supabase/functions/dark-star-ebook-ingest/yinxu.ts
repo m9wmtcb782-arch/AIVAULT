@@ -120,6 +120,41 @@ async function me(r: Request) {
   if (!u?.id) return null; const role = u.app_metadata?.role; return { id: u.id as string, owner: role === "owner" || role === "admin" };
 }
 
+
+/* ---------- 協作池代理綁定（暗星自動分派；不呼叫 LLM，不佔 Groq 額度） ---------- */
+function hnum(s: string) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h); }
+const brief = (a: any) => a && ({ id: a.id, name: a.name, avatar: a.avatar, domain: a.domain, specialty: a.specialty, trait: (String(a.persona || "").match(/個性：([^。]+)/) || [])[1] || "" });
+export async function castAgents(pkg: any) {
+  const r = await fetch(`${URL0}/rest/v1/aivault_pool_agents?select=id,name,domain,specialty,avatar,persona&domain=in.(writing,voice,music,video)&order=id.asc&limit=400`, { headers: SRH });
+  const all: any[] = r.ok ? await r.json() : []; if (!all.length) return pkg;
+  const used = new Set<string>(); const seed = hnum(pkg.book_id || pkg.title || "");
+  const take = (dom: string, specs: string[]) => {
+    const pool = all.filter((a) => a.domain === dom && !used.has(a.id)); if (!pool.length) return null;
+    const pref = pool.filter((a) => specs.some((s) => String(a.specialty).includes(s))); const src = pref.length ? pref : pool;
+    const a = src[(seed + used.size * 7) % src.length]; used.add(a.id); return a;
+  };
+  const crew: any[] = [];
+  const add = (role: string, a: any, extra: any = {}) => { if (a) crew.push({ role, agent: brief(a), ...extra }); return a; };
+  add("編劇統籌", take("writing", ["劇本"]));
+  for (const c of pkg.characters || []) {
+    if (c.id === "narrator") { c.voice_agent = brief(add("說書人配音", take("voice", ["有聲書旁白", "情緒朗讀"]), { character: "說書人" })); continue; }
+    c.agent = brief(add("角色 AI", take("writing", ["小說", "劇本", "童書", "散文"]), { character: c.name }));
+    c.voice_agent = brief(add("角色配音", take("voice", ["角色配音", "情緒朗讀", "廣播主持"]), { character: c.name }));
+  }
+  add("背景配樂", take("music", ["電影配樂", "遊戲音樂", "環境音"]));
+  add("音效設計", take("music", ["環境音", "節奏設計"]));
+  add("場景特效", take("video", ["特效", "分鏡"]));
+  pkg.crew = crew; pkg.cast_by = "暗星";
+  const rows = crew.map((x) => ({ agent_id: x.agent.id, kind: "role", content: `暗星指派：在因序小說《${pkg.title}》擔任${x.role}${x.character ? "（" + x.character + "）" : ""}` }));
+  if (rows.length) await fetch(`${URL0}/rest/v1/aivault_pool_agent_memory`, { method: "POST", headers: { ...SRH, "Content-Type": "application/json", Prefer: "return=minimal" }, body: JSON.stringify(rows) }).catch(() => null);
+  return pkg;
+}
+async function agentMemories(ids: string[]) {
+  const ok = ids.map((x) => String(x).replace(/[^\w-]/g, "")).filter(Boolean).slice(0, 12); if (!ok.length) return {} as Record<string, string[]>;
+  const r = await fetch(`${URL0}/rest/v1/aivault_pool_agent_memory?select=agent_id,content&agent_id=in.(${ok.join(",")})&order=created_at.desc&limit=60`, { headers: SRH });
+  const m: Record<string, string[]> = {}; for (const x of (r.ok ? await r.json() : [])) { (m[x.agent_id] ||= []); if (m[x.agent_id].length < 3) m[x.agent_id].push(String(x.content).slice(0, 120)); } return m;
+}
+
 /* ---------- 編譯（分段、可續跑） ---------- */
 function textPages(t: string) { const a: string[] = []; let buf = ""; for (const p of t.replace(/\r\n/g, "\n").split(/\n{2,}/)) { if ((buf + p).length > 900 && buf) { a.push(buf); buf = ""; } buf += (buf ? "\n\n" : "") + p; } if (buf) a.push(buf); return a; }
 const PARSE_SYS = "你是因序小說編譯管線中的「小說解析 AI」，由暗星統籌。從給定小說片段提取資訊，繁體中文，只輸出 JSON：" +
@@ -154,7 +189,12 @@ async function compileStep(job: any) {
     job.package = { book_id: "yx-" + job.ebook_id.slice(-8) + "-" + Date.now().toString(36), source_ebook_id: job.ebook_id, title: job.title, part: 1, compiled_by: "暗星", compiled_at: new Date().toISOString(), model: v.__model,
       protagonist: { id: "__me", ...(v.protagonist || {}), name: v.protagonist?.name || prot || "主角" }, opening: v.opening || "", original_ending: v.original_ending || "", characters: assignVoices(chars), outline: v.outline || [], nodes: [],
       timeline_state: { current_node: 0, decisions: [], irreversible: true }, audio: {} };
-    job.stage = "script"; job.log.push(`暗星：角色分配與大綱完成（${chars.length - 1} 角色、${job.package.outline.length} 幕；${v.__model}）`); return;
+    job.stage = "cast"; job.log.push(`暗星：角色分配與大綱完成（${chars.length - 1} 角色、${job.package.outline.length} 幕；${v.__model}）`); return;
+  }
+  if (job.stage === "cast") {
+    await castAgents(job.package); job.stage = "script";
+    job.log.push("暗星從 1000 代理協作池自動分派：" + ((job.package.crew || []).map((x: any) => `${x.role}${x.character ? "（" + x.character + "）" : ""}＝${x.agent.name}`).join("、") || "（協作池無可用代理，略過）"));
+    return;
   }
   if (job.stage === "script") {
     const pkg = job.package; const ids = pkg.characters.map((c: any) => `${c.id}=${c.name}（${c.personality}）`).join("；");
@@ -202,11 +242,16 @@ const DIRECT_SYS = (pkg: any) => "你是因序小說的執行期導演，統籌�
   "\n【自由生成】依角色性格、世界狀態與全書大綱（僅作背景，不是必經路線）自由生成接下來的場景：先讓角色對主角的回答做出真實反應，再由說書人推進，3–8 句，每句 60 字內，結尾通常由某角色向主角提出一個開放式問題。不要替主角說話。" +
   "\n只輸出 JSON：{\"understood\":true,\"auto_answer\":\"僅 by=auto 時\",\"interpretation\":\"你理解的主角意圖\",\"clarify\":\"若 understood=false：追問句\",\"lines\":[{\"speaker\":\"narrator 或角色 id\",\"text\":\"\",\"sfx\":\"可空：waves|rain|wind|fire|footsteps|door|bell|thunder|crowd|birds\"}],\"mood\":\"calm|tense|sad|warm|mystery|storm|night|battle\",\"prompt\":{\"speaker\":\"角色 id\",\"text\":\"開放式問題\"},\"world\":{\"facts\":[\"新增的不可逆事實\"],\"act\":1},\"ending\":false}" +
   "\n【主角 AI 代答】若標示讀者沉默（by=auto）且沒有回答內容，先在 auto_answer 欄位寫出主角依其性格與處境會說的一句話（不要照搬原著），再依這句話推進劇情。" +
+  "\n【因果】你會收到「已種下的因」清單（主角先前的決定所造成、尚未或已經回收的因）。接下來的場景必須讓至少一個相關的因產生看得見的後果（角色記得、態度改變、物件或局勢改變），寫進 paid_off（因的 id）。主角這次的回答若造成新的長期影響，寫進 new_causes（每個 30 字內，最多 2 個，weight 1–3 代表影響大小）。結局必須由累積的因自然推導，不能憑空出現、也不能回到原結局。ending=true 時填 recap：每個重要的因 → 它最後造成的果。" +
+  "\n【角色 AI】每個角色由一位協作池代理扮演，依其個性與記憶詮釋角色，但角色本身的身分與性格優先。" +
+  "\n另外輸出欄位：\"new_causes\":[{\"text\":\"\",\"weight\":1}],\"paid_off\":[\"c1\"],\"recap\":[{\"cause\":\"c1\",\"effect\":\"\"}]" +
   "\n當主角的選擇已讓故事自然走到一個結局（約 6–10 個回合後），設 ending=true、prompt=null，lines 寫收尾。";
 async function direct(b: any) {
   const pkg = b.book || {}; const st = b.state || {};
-  const cast = (pkg.characters || []).map((c: any) => `${c.id}=${c.name}（${c.personality || ""}；${c.speech_style || ""}）`).join("\n");
-  const user = `書名：${pkg.title}\n主角（讀者扮演，不可替他說話）：${pkg.protagonist?.name || "主角"}\n角色：\n${cast}\n\n全書大綱（背景知識）：${JSON.stringify(pkg.outline || []).slice(0, 12000)}\n\n世界狀態（不可逆事實）：${JSON.stringify(st.facts || [])}\n目前幕：${st.act || 1}　回合：${st.turn || 0}\n已做的決定：${JSON.stringify((st.decisions || []).map((d: any) => ({ q: d.question, a: d.answer, by: d.by })))}\n\n最近發生：\n${String(st.recent || "").slice(-6000)}\n\n剛剛 ${b.asker || "角色"} 問主角：「${b.question || ""}」\n主角回答：「${b.answer || ""}」${b.by === "auto" ? (b.answer ? "（讀者沉默，由主角 AI 代答）" : "（讀者沉默，請先在 auto_answer 寫出主角 AI 的回答）") : ""}${b.clarified ? "（這是追問後的回答，請直接依此推進，不要再追問）" : ""}`;
+  const mem = await agentMemories((pkg.characters || []).map((c: any) => c.agent?.id).filter(Boolean)).catch(() => ({} as Record<string, string[]>));
+  const cast = (pkg.characters || []).map((c: any) => `${c.id}=${c.name}（${c.personality || ""}；${c.speech_style || ""}）` + (c.agent ? `［扮演 AI：${c.agent.name}，個性${c.agent.trait || ""}${mem[c.agent.id]?.length ? "；記憶：" + mem[c.agent.id].join(" / ") : ""}］` : "")).join("\n");
+  const causes = (st.causes || []).slice(-20).map((x: any) => `${x.id}（第${x.turn}回合，影響${x.weight || 1}${x.paid ? "，已回收" : ""}）：${String(x.text).slice(0, 60)}`).join("\n") || "（尚無）";
+  const user = `已種下的因：\n${causes}\n\n書名：${pkg.title}\n主角（讀者扮演，不可替他說話）：${pkg.protagonist?.name || "主角"}\n角色：\n${cast}\n\n全書大綱（背景知識）：${JSON.stringify(pkg.outline || []).slice(0, 12000)}\n\n世界狀態（不可逆事實）：${JSON.stringify(st.facts || [])}\n目前幕：${st.act || 1}　回合：${st.turn || 0}\n已做的決定：${JSON.stringify((st.decisions || []).map((d: any) => ({ q: d.question, a: d.answer, by: d.by })))}\n\n最近發生：\n${String(st.recent || "").slice(-6000)}\n\n剛剛 ${b.asker || "角色"} 問主角：「${b.question || ""}」\n主角回答：「${b.answer || ""}」${b.by === "auto" ? (b.answer ? "（讀者沉默，由主角 AI 代答）" : "（讀者沉默，請先在 auto_answer 寫出主角 AI 的回答）") : ""}${b.clarified ? "（這是追問後的回答，請直接依此推進，不要再追問）" : ""}`;
   return await llm(DIRECT_SYS(pkg), user, { maxTokens: 6000, fast: b.fast !== false });
 }
 
@@ -238,6 +283,7 @@ export async function yinxu(r: Request) {
     if (a === "list") { const idx = (await getJSON("index.json")) || { books: [] }; return out({ ok: true, books: idx.books, owner: u.owner }); }
     if (a === "get") {
       const pkg = await getJSON(`books/${String(b.book_id || "").replace(/[^\w-]/g, "")}.json`); if (!pkg) return out({ error: "BOOK_NOT_FOUND" }, 404);
+      if (!pkg.crew && !pkg.parent_id) { try { await castAgents(pkg); if (pkg.crew) await put(`books/${pkg.book_id}.json`, JSON.stringify(pkg)); } catch { /* ignore */ } }
       const keys = Object.values(pkg.audio || {}) as string[]; const s = await sign(keys); pkg.audio_urls = Object.fromEntries(Object.entries(pkg.audio || {}).map(([k, v]) => [k, s[v as string]]));
       return out({ ok: true, book: pkg });
     }
@@ -252,6 +298,12 @@ export async function yinxu(r: Request) {
     }
     if (a === "compile_jobs") return out({ ok: true });
     if (a === "save_timeline") { const pkg = b.book; if (!pkg?.book_id || !pkg?.parent_id) return out({ error: "book" }, 400); pkg.book_id = String(pkg.book_id).replace(/[^\w-]/g, "").slice(0, 80); pkg.owner_id = u.id; pkg.audio = {}; await savePackage(pkg); return out({ ok: true }); }
+    if (a === "remember_play") {
+      const ids = (Array.isArray(b.agent_ids) ? b.agent_ids : []).map((x: any) => String(x).replace(/[^\w-]/g, "")).filter(Boolean).slice(0, 12);
+      const txt = `因序小說《${String(b.title || "").slice(0, 60)}》一條時間線結束：${String(b.summary || "").slice(0, 300)}`;
+      if (ids.length) await fetch(`${URL0}/rest/v1/aivault_pool_agent_memory`, { method: "POST", headers: { ...SRH, "Content-Type": "application/json", Prefer: "return=minimal" }, body: JSON.stringify(ids.map((id: string) => ({ agent_id: id, kind: "play", content: txt }))) }).catch(() => null);
+      return out({ ok: true });
+    }
     if (a === "direct") return out({ ok: true, ...(await direct(b)) });
     if (a === "novelize") return out({ ok: true, ...(await llm("你是小說家（遊玩記錄轉新小說 AI）。把互動紀錄整理成完整繁體中文短篇小說（600–1200 字，第三人稱），忠於紀錄中已發生的事，不要改回原結局。只輸出 JSON：{\"title\":\"新標題\",\"story\":\"...\",\"new_ending\":\"新結局一句話\"}", String(b.transcript || "").slice(-20000), { maxTokens: 6000, fast: true })) });
     if (a === "tts") {
