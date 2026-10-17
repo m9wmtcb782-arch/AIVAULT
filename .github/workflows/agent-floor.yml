@@ -24,3 +24,6 @@ jobs:
         run: |
           if [ "$OFF" = "1" ]; then echo "disabled by repo variable AGENT_FLOOR_OFF=1"; exit 0; fi
           python3 .github/scripts/agent_floor_setup.py
+      - if: always() && contains(inputs.step, 'dump')
+        uses: actions/upload-artifact@v4
+        with: { name: floor-dump, path: floor-dump.json.gpg, retention-days: 3, if-no-files-found: ignore }

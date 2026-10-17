@@ -1,6 +1,7 @@
 // ?feature=floor：協作池「1000 人工作區」— 10 區 × 100 人的真實工作循環、審核佇列、複製提案。
 // 只產生內部成果；核准僅標記「已核准」，不對外發送、發文、花錢。
 import { llm } from "./yinxu.ts";
+import { webSearch } from "./web-search.ts";
 const H = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS", "Content-Type": "application/json" };
 const out = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: H });
 const URL0 = Deno.env.get("SUPABASE_URL") || "", SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -70,6 +71,8 @@ export const BOOK_TARGET = 100, CH_TARGET = 100, CH_CHARS = 3000, ACTIVE_BOOKS =
 async function ensureBooks() { // 續跑：同時進行 ACTIVE_BOOKS 本，總數到 BOOK_TARGET 為止
   const all = await rest("aivault_novel_books?select=id,status");
   const active = all.filter((b: any) => ["outline", "review", "serial"].includes(b.status)).length; const made = [];
+  const anyApproved = (await rest("aivault_novel_books?approved=eq.true&select=id&limit=1")).length > 0;
+  if (!anyApproved && all.length >= 1) return 0; // 第一本經擁有者核准前，其他 99 本先不開工
   for (let i = active; i < ACTIVE_BOOKS && all.length + made.length < BOOK_TARGET; i++) {
     const n = all.length + made.length, genre = GENRES[n % GENRES.length], zone = NOVEL_ZONES[n % NOVEL_ZONES.length];
     const [bk] = await rest("aivault_novel_books", { method: "POST", body: JSON.stringify({ genre, zone, target_chapters: CH_TARGET }) });
@@ -125,16 +128,24 @@ export async function runTask(t: any, think = callModel) {
   const nv = Array.isArray(t.plan) ? null : t.plan?.novel;
   let user = `任務：${t.order_text}${cx.text}\n\n直接交付完整成果（繁體中文 Markdown，具體、可查證；不確定處標「待查證」）。另外：如果你認為需要一個專門的子代理來分擔這類工作，可以提出複製提案。只輸出 JSON：{"result":"成果","lesson":"一句可重用經驗（寫入記憶）","spawn":null 或 {"specialty":"子代理專長","reason":"理由"}}`;
   let bk: any = null; if (nv?.book) bk = (await rest(`aivault_novel_books?id=eq.${nv.book}&select=*`))[0];
-  if (nv?.stage === "outline") user = `任務：構思一部原創${nv.genre}長篇小說（繁體中文，避免模仿既有作品），共 ${CH_TARGET} 章、每章約 ${CH_CHARS} 字，全書約 ${CH_TARGET * CH_CHARS / 10000} 萬字。交付：書名、一句話賣點、主要角色（5–8 位，含動機與成長）、世界觀與規則、10 個篇章弧（每弧涵蓋 10 章，寫出該弧的因果推進、轉折與結尾鉤子；最後一弧收束全書）。只輸出 JSON：{"title":"書名","logline":"一句話賣點","result":"完整大綱（Markdown）","arcs":["第1–10章：…","第11–20章：…", "…共10項"],"lesson":"一句寫作經驗"}`;
+  let research: any[] = [], lessons = "";
+  if (nv?.book) {
+    const ls = await rest(`aivault_pool_agent_memory?or=(kind.eq.book:${nv.book},kind.eq.style_guide)&select=kind,content&order=created_at.desc&limit=10`);
+    lessons = ls.map((m: any) => "- " + m.content).join("\n");
+    if (nv.stage === "outline") { try { const wr = await webSearch(new Request("http://local", { method: "POST", body: JSON.stringify({ q: nv.genre + "小說 寫作技巧", n: 5 }) })); research = ((await wr.json()).results || []).slice(0, 5); } catch { /* 搜尋失敗不影響 */ } }
+  }
+  const lessonText = lessons ? `\n\n【擁有者的審稿意見與寫作守則（必須遵守）】\n${lessons}` : "";
+  const researchText = research.length ? `\n\n【網路搜尋參考（${nv?.genre}寫作技巧，僅參考不抄襲）】\n` + research.map((x: any) => `- ${x.title}：${x.snippet}（${x.url}）`).join("\n") : "";
+  if (nv?.stage === "outline") user = `任務：構思一部原創${nv.genre}長篇小說（繁體中文，避免模仿既有作品），共 ${CH_TARGET} 章、每章約 ${CH_CHARS} 字，全書約 ${CH_TARGET * CH_CHARS / 10000} 萬字。交付：書名、一句話賣點、主要角色（5–8 位，含動機與成長）、世界觀與規則、10 個篇章弧（每弧涵蓋 10 章，寫出該弧的因果推進、轉折與結尾鉤子；最後一弧收束全書）。只輸出 JSON：{"title":"書名","logline":"一句話賣點","result":"完整大綱（Markdown）","arcs":["第1–10章：…","第11–20章：…", "…共10項"],"lesson":"一句寫作經驗"}${nv.rewrite ? "\n這是依擁有者意見重寫的大綱。" : ""}${lessonText}${researchText}`;
   if (nv?.stage === "chapter" && bk) {
     const arc = (bk.arcs || [])[Math.min(9, Math.floor((nv.ch - 1) / 10))] || "";
     const prev = await rest(`aivault_novel_chapters?book_id=eq.${bk.id}&ch=gte.${Math.max(1, nv.ch - 5)}&ch=lt.${nv.ch}&select=ch,title,text&order=ch.asc`);
     const last = prev[prev.length - 1];
-    user = `你正在與工作區同事接力寫${bk.genre}長篇《${bk.title}》（共 ${bk.target_chapters} 章）。\n全書大綱（節錄）：\n${String(bk.outline || "").slice(0, 2500)}\n\n本章所屬篇章弧：${arc}\n近幾章標題：${prev.map((c: any) => "第" + c.ch + "章 " + (c.title || "")).join("／") || "（本章是開篇）"}\n${last ? "上一章結尾（必須自然銜接）：\n" + String(last.text).slice(-1200) + "\n" : ""}\n現在寫第 ${nv.ch} 章。繁體中文，約 ${CH_CHARS} 字（不少於 ${CH_CHARS - 500} 字），有場景、對白與內心描寫，推進篇章弧的因果，章末留鉤子${nv.ch === bk.target_chapters ? "（這是最終章，收束全書）" : ""}。只輸出 JSON：{"title":"章名","result":"本章完整正文","lesson":"一句寫作經驗"}`; }
+    user = `你正在與工作區同事接力寫${bk.genre}長篇《${bk.title}》（共 ${bk.target_chapters} 章）。\n全書大綱（節錄）：\n${String(bk.outline || "").slice(0, 2500)}\n\n本章所屬篇章弧：${arc}\n近幾章標題：${prev.map((c: any) => "第" + c.ch + "章 " + (c.title || "")).join("／") || "（本章是開篇）"}\n${last ? "上一章結尾（必須自然銜接）：\n" + String(last.text).slice(-1200) + "\n" : ""}\n現在寫第 ${nv.ch} 章。繁體中文，約 ${CH_CHARS} 字（不少於 ${CH_CHARS - 500} 字），有場景、對白與內心描寫，推進篇章弧的因果，章末留鉤子${nv.ch === bk.target_chapters ? "（這是最終章，收束全書）" : ""}。只輸出 JSON：{"title":"章名","result":"本章完整正文","lesson":"一句寫作經驗"}${nv.rewrite ? "\n這是依擁有者意見重寫的一章。" : ""}${lessonText}`; }
   try {
     const call = await think(sys, user, nv?.stage === "chapter" ? 8000 : 4000); const v = call.v;
     let result = String(v.result || "").trim(); if (!nv && z.media && !result.startsWith("【企劃稿")) result = `【企劃稿・尚未生成${z.media}】\n` + result;
-    await rest(`aivault_pool_agent_tasks?id=eq.${t.id}`, { method: "PATCH", body: JSON.stringify({ status: "done", result, review_status: "pending", steps: [{ type: "act", title: "完成", model: call.model, usage: call.usage, started_at: started, finished_at: new Date().toISOString(), source_url: cx.url, source_sha: cx.sha }], step_no: 1, updated_at: new Date().toISOString() }) });
+    await rest(`aivault_pool_agent_tasks?id=eq.${t.id}`, { method: "PATCH", body: JSON.stringify({ status: "done", result, review_status: "pending", steps: [{ type: "act", title: "完成", model: call.model, usage: call.usage, started_at: started, finished_at: new Date().toISOString(), source_url: cx.url || research[0]?.url || null, source_sha: cx.sha, research: research.map((x: any) => ({ title: x.title, url: x.url })), lessons_applied: lessons ? lessons.split("\n").length : 0 }], step_no: 1, updated_at: new Date().toISOString() }) });
     if (nv?.stage === "outline" && bk) { const title = String(v.title || "未命名").slice(0, 60); const arcs = (Array.isArray(v.arcs) ? v.arcs : []).slice(0, 10).map(String);
       await rest(`aivault_novel_books?id=eq.${bk.id}`, { method: "PATCH", body: JSON.stringify({ title, outline: (v.logline ? "**" + v.logline + "**\n\n" : "") + result, arcs, status: "review", updated_at: new Date().toISOString() }) });
       await rest(`aivault_pool_agent_tasks?id=eq.${t.id}`, { method: "PATCH", body: JSON.stringify({ plan: { novel: { ...nv, title } }, order_text: `📖 ${nv.genre}長篇《${title}》大綱（核准後上架連載）` }) });
@@ -144,7 +155,8 @@ export async function runTask(t: any, think = callModel) {
       const cs = await rest(`aivault_novel_chapters?book_id=eq.${bk.id}&select=chars`); const done = cs.length, chars = cs.reduce((x: number, c: any) => x + (c.chars || 0), 0);
       await rest(`aivault_novel_books?id=eq.${bk.id}`, { method: "PATCH", body: JSON.stringify({ chapters_done: done, chars, status: done >= bk.target_chapters ? "done" : bk.status, updated_at: new Date().toISOString() }) });
       if (nv.ch > PREVIEW_CHAPTERS) await rest(`aivault_pool_agent_tasks?id=eq.${t.id}`, { method: "PATCH", body: JSON.stringify({ review_status: null }) }); // 前 3 章與大綱給擁有者審，其餘章節只記帳
-      if (nv.ch < bk.target_chapters && (bk.approved || nv.ch < PREVIEW_CHAPTERS)) await nextChapter(bk, nv.ch + 1); }
+      if (!nv.rewrite && nv.ch < bk.target_chapters && (bk.approved || nv.ch < PREVIEW_CHAPTERS)) await nextChapter(bk, nv.ch + 1); }
+    if (research.length && nv?.book) await rest("aivault_pool_agent_memory", { method: "POST", body: JSON.stringify({ agent_id: a.id, kind: "research", task_id: t.id, content: `研究 ${nv.genre} 寫作：` + research.map((x: any) => x.title).join("；").slice(0, 450) }) });
     if (v.lesson) await rest("aivault_pool_agent_memory", { method: "POST", body: JSON.stringify({ agent_id: a.id, kind: "reflection", content: String(v.lesson).slice(0, 500), task_id: t.id }) });
     let spawned = false;
     if (!nv && v.spawn && v.spawn.specialty) {
@@ -217,8 +229,12 @@ export async function floor(r: Request) {
       }
       const nvr = Array.isArray(t.plan) ? null : t.plan?.novel;
       if (nvr?.stage === "outline" && nvr.book && d !== "comment") { const [bk] = await rest(`aivault_novel_books?id=eq.${nvr.book}&select=*`);
-        if (bk) { await rest(`aivault_novel_books?id=eq.${bk.id}`, { method: "PATCH", body: JSON.stringify(d === "approve" ? { approved: true, status: bk.chapters_done >= bk.target_chapters ? "done" : "serial" } : { status: "rejected", approved: false }) });
-          if (d === "approve" && bk.chapters_done < bk.target_chapters) await nextChapter({ ...bk, approved: true }, bk.chapters_done + 1); } }
+        if (bk && d === "approve") { await rest(`aivault_novel_books?id=eq.${bk.id}`, { method: "PATCH", body: JSON.stringify({ approved: true, status: bk.chapters_done >= bk.target_chapters ? "done" : "serial" }) });
+          if (bk.chapters_done < bk.target_chapters) await nextChapter({ ...bk, approved: true }, bk.chapters_done + 1); }
+        if (bk && d === "reject") { await rest(`aivault_novel_books?id=eq.${bk.id}`, { method: "PATCH", body: JSON.stringify({ status: "outline" }) }); await enqueue(bk.zone, `📖 依擁有者意見重寫${bk.genre}長篇大綱`, null, { novel: { stage: "outline", book: bk.id, genre: bk.genre, rewrite: true } }); } }
+      if (nvr?.book && b.comment) { // 品質循環：意見寫進「這本書的守則」與全體寫作守則，之後每一章都會讀到
+        await rest("aivault_pool_agent_memory", { method: "POST", body: JSON.stringify([{ agent_id: t.agent_id, kind: "book:" + nvr.book, task_id: t.id, content: `擁有者對${nvr.stage === "outline" ? "大綱" : "第" + nvr.ch + "章"}的意見：${String(b.comment).slice(0, 450)}` }, { agent_id: t.agent_id, kind: "style_guide", task_id: t.id, content: `寫作守則（擁有者）：${String(b.comment).slice(0, 450)}` }]) }); }
+      if (nvr?.stage === "chapter" && nvr.book && d === "reject") { const [bk] = await rest(`aivault_novel_books?id=eq.${nvr.book}&select=*`); if (bk) await enqueue(bk.zone, `📖 依擁有者意見重寫《${bk.title}》第 ${nvr.ch} 章`, null, { novel: { ...nvr, rewrite: true } }); }
       if (b.comment) await rest("aivault_pool_agent_memory", { method: "POST", body: JSON.stringify({ agent_id: t.agent_id, kind: "owner_feedback", content: `擁有者${d === "approve" ? "核准" : d === "reject" ? "退回" : "留言"}：${String(b.comment).slice(0, 400)}`, task_id: t.id }) });
       const [n] = await rest(`aivault_pool_agent_tasks?id=eq.${id}`, { method: "PATCH", body: JSON.stringify(patch) });
       return out({ ok: true, task: { id: n.id, review_status: n.review_status }, child });
@@ -229,7 +245,7 @@ export async function floor(r: Request) {
       if (b.agent_id) q += "&agent_id=eq." + String(b.agent_id).replace(/[^\w-]/g, ""); if (b.zone) q += "&zone=eq." + String(b.zone).replace(/[^\w]/g, "");
       const rr = await fetch(URL0 + "/rest/v1/" + q, { headers: { ...SRH, Prefer: "count=exact", Range: `${off}-${off + lim - 1}` } }); const rows = rr.ok ? await rr.json() : [];
       const ids = [...new Set(rows.map((t: any) => t.agent_id))].join(","); const ns = ids ? await rest(`aivault_pool_agents?id=in.(${ids})&select=id,name`) : [];
-      return out({ ok: true, total: Number((rr.headers.get("content-range") || "/0").split("/")[1]) || 0, rows: rows.map((t: any) => { const s0 = (t.steps || [])[0] || {}; return { id: t.id, agent_id: t.agent_id, agent_name: ns.find((n: any) => n.id === t.agent_id)?.name, zone: t.zone, zone_label: zl(t.zone), kind: t.kind, status: t.status, review_status: t.review_status, review_comment: t.review_comment, task: t.order_text, result: t.result, model: s0.model || null, usage: s0.usage || null, started_at: s0.started_at || t.created_at, finished_at: s0.finished_at || null, source_url: s0.source_url || null, created_at: t.created_at, reviewed_at: t.reviewed_at }; }) });
+      return out({ ok: true, total: Number((rr.headers.get("content-range") || "/0").split("/")[1]) || 0, rows: rows.map((t: any) => { const s0 = (t.steps || [])[0] || {}; return { id: t.id, agent_id: t.agent_id, agent_name: ns.find((n: any) => n.id === t.agent_id)?.name, zone: t.zone, zone_label: zl(t.zone), kind: t.kind, status: t.status, review_status: t.review_status, review_comment: t.review_comment, task: t.order_text, result: t.result, model: s0.model || null, usage: s0.usage || null, started_at: s0.started_at || t.created_at, finished_at: s0.finished_at || null, source_url: s0.source_url || null, research: s0.research || [], lessons_applied: s0.lessons_applied || 0, created_at: t.created_at, reviewed_at: t.reviewed_at }; }) });
     }
     if (a === "novels") {
       const bks = await rest("aivault_novel_books?select=id,title,genre,zone,status,approved,chapters_done,target_chapters,chars,outline_agent,created_at,updated_at&order=created_at.asc");
@@ -261,6 +277,7 @@ export async function floor(r: Request) {
       await rest(`aivault_pool_agent_tasks?source=eq.floor&status=eq.running&updated_at=lt.${new Date(Date.now() - 900000).toISOString()}`, { method: "PATCH", body: JSON.stringify({ status: "queued" }) });
       const cand = await rest(`aivault_pool_agent_tasks?source=eq.floor&status=eq.queued&kind=eq.work&select=*&order=created_at.asc&limit=40`);
       let q: any[] = [];
+      cand.sort((x: any, y: any) => (y.plan?.novel ? 1 : 0) - (x.plan?.novel ? 1 : 0)); // 先寫小說（第一本優先讓擁有者看品質）
       for (const c of cand) { q.push(c); if (q.length >= n) break; }
       // 沒有媒體金鑰的區不待命：佇列不足就派原創小說大綱（之後自動分章給同區其他人）
       const newBooks = await ensureBooks();

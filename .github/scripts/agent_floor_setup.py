@@ -51,3 +51,17 @@ if any(s in STEPS for s in ("seed","cycle","test")):
         print("REVIEWS",len(b.get("tasks") or []))
         s,b=y({"action":"ledger","limit":12})
         for t in (b.get("rows") or []): print("\n=== ",t.get("agent_id"),t.get("agent_name"),t.get("zone_label"),t.get("kind"),t.get("status"),t.get("review_status"),t.get("model"),t.get("usage"),t.get("finished_at"),t.get("source_url"),"|",t["task"][:70],"\n",str(t.get("result",""))[:900])
+
+if "dump" in STEPS:  # 第一本小說全文 → 用私有頁金鑰加密成 artifact（公開 repo 的日誌不印內容）
+    bk=sql("select id,title,genre,status,approved,outline,arcs,outline_agent,chapters_done,chars from public.aivault_novel_books order by created_at limit 1")
+    out={"book":bk[0] if bk else None,"chapters":[],"tasks":[]}
+    if bk:
+        bid=bk[0]["id"]
+        out["chapters"]=sql("select c.ch,c.title,c.chars,c.agent_id,a.name agent_name,c.model,c.usage,c.created_at,c.text from public.aivault_novel_chapters c left join public.aivault_pool_agents a on a.id=c.agent_id where book_id='%s' order by ch"%bid)
+        out["tasks"]=sql("select t.id,t.agent_id,a.name,t.order_text,t.status,t.review_status,t.steps,t.created_at,t.updated_at from public.aivault_pool_agent_tasks t left join public.aivault_pool_agents a on a.id=t.agent_id where t.plan->'novel'->>'book'='%s' order by t.created_at"%bid)
+        out["memory"]=sql("select agent_id,kind,content,created_at from public.aivault_pool_agent_memory where task_id in (select id from public.aivault_pool_agent_tasks where plan->'novel'->>'book'='%s') order by created_at"%bid)
+    out["ledger_recent"]=sql("select t.agent_id,a.name,t.zone,t.kind,t.status,t.review_status,left(t.order_text,80) task,t.steps->0->>'model' model,t.steps->0->'usage' usage,t.steps->0->>'finished_at' fin,t.steps->0->>'source_url' src,left(t.result,600) result from public.aivault_pool_agent_tasks t left join public.aivault_pool_agents a on a.id=t.agent_id where t.source='floor' order by t.updated_at desc limit 40")
+    out["usage_today"]=sql("select * from public.aivault_pool_agent_usage order by day desc limit 5")
+    open("/tmp/dump.json","w").write(json.dumps(out,ensure_ascii=False,default=str))
+    subprocess.check_call(["gpg","--batch","--yes","--quiet","--pinentry-mode","loopback","--passphrase",os.environ["PAGES_KEY"],"-c","-o","floor-dump.json.gpg","/tmp/dump.json"])
+    print("dump ok", out["book"] and out["book"].get("status"), len(out["chapters"]), "chapters")
