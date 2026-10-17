@@ -9,4 +9,7 @@
  // lb1：🧪 實驗工廠入口（實驗進行時，寫程式的 AI 有一筆真實 running 任務，會走進程式與代理區工坊）。關閉：localStorage.labOff='1'
  function labChip(){if(!$('cHum')){setTimeout(labChip,800);return}try{if(localStorage.getItem('labOff')==='1')return}catch(_){}var b=document.createElement('a');b.className='chip';b.id='cLab';b.textContent='🧪 實驗工廠';b.href='aivault-lab.html';b.style.textDecoration='none';b.style.color='inherit';$('cHum').parentNode.appendChild(b)}
  setTimeout(labChip,1300);
+ // lb2：點 AI（擁有者看得到 id 時）顯示 📚 學了 → 🧪 做了 → ✅ 通過（真實計數）
+ setTimeout(function(){var sh=$('sheet');if(!sh)return;var busy=0;new MutationObserver(function(){if(busy||!sh.classList.contains('on')||$('labLine'))return;var m=sh.innerHTML.slice(0,600).match(/>(ag-\d{4})</);if(!m)return;busy=1;var p=document.createElement('p');p.id='labLine';p.className='muted';p.textContent='🧪 載入作品紀錄…';sh.appendChild(p);busy=0;
+  api('degree','agent_lab',{id:m[1]}).then(function(d){p.innerHTML='📚 學了 <b>'+(d.learned||0)+'</b> 筆 → 🧪 做了 <b>'+(d.built||0)+'</b> 件 → ✅ 通過 <b>'+(d.passed||0)+'</b> 件 <a href="aivault-lab.html">實驗工廠</a><br>碩士需 2 件通過、博士需 5 件；沒有通過作品不能升級。'}).catch(function(){p.textContent=''})}).observe(sh,{childList:true})},2600);
  window.__plans={show:showPlans}})();

@@ -8,7 +8,7 @@ import { triage, pendingGroups } from "./triage.ts";
 import { watch } from "./watch.ts";
 import { dailyPlans, getPlans } from "./plans.ts";
 import { special } from "./special.ts";
-import { labStart, labReport, labPublic } from "./lab.ts";
+import { labStart, labReport, labPublic, agentLabStats } from "./lab.ts";
 import { specialRound, specialDegreePublic, summon, summonState } from "./specialstudy.ts";
 const H = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS", "Content-Type": "application/json" };
 const out = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: H });
@@ -67,11 +67,14 @@ export async function sitExam(agent: any, exam: any, qs: any[], think = callMode
   const used = notes.filter((n: any) => tps.includes(n.topic)).map((n: any) => n.id);
   return { score, max, correct, given, used, model: call.model, usage: call.usage, qids: qs.map((q) => q.id) };
 }
+// lb2：實作門檻。碩士（第 5 階）需 ≥2 件實驗工廠通過的作品，博士（第 6 階）需 ≥5 件；正式／週考升級需至少 1 件通過作品（只讀書沒有作品不能升）。關閉：函式 env LAB_GATE_OFF=1
+export async function labPassed(id: string) { if (SPECIAL_IDS.includes(id)) return 0; const r = await fetch(URL0 + `/rest/v1/aivault_lab_experiments?lead_id=eq.${id}&status=eq.passed&select=id`, { headers: { ...SRH, Prefer: "count=exact", Range: "0-0" } }); return Number((r.headers.get("content-range") || "/0").split("/")[1]) || 0; }
+function labCap(m: any, built: number) { if (Deno.env.get("LAB_GATE_OFF") === "1") return { m, note: "" }; const max = built >= 5 ? 6 : built >= 2 ? 5 : 4; if (m.tier <= max) return { m, note: "" }; return { m: { tier: max, level: 10, capped: true }, note: `；實驗工廠通過作品 ${built} 件（碩士需 2、博士需 5），暫列 ${TIERS[max - 1]}` }; }
 export async function placeOne(agent: any, think = callModel) {
   const d = districtOf(agent.domain); const exId = "placement-" + d; const B = await bank(d); if (!B.length) throw new Error("bank missing " + d);
   const qs: any[] = []; for (let lv = 1; lv <= 6; lv++) qs.push(...shuffle(B.filter((q) => q.lv === lv)).slice(0, 2));
-  const r = await sitExam(agent, { id: exId }, qs, think); const learned = await learnedCount(agent.id); const m = mapScore(r.score / r.max, learned);
-  await rest(`${TB(agent,"exam")}?on_conflict=exam_id,agent_id`, { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ exam_id: exId, agent_id: agent.id, qids: r.qids, answers: r.given, correct: r.correct, score: r.score, max_score: r.max, tier: m.tier, level: m.level, notes_used: r.used, grader: "auto-key", grader_notes: `學習紀錄 ${learned} 筆${m.capped ? "；分數達更高學階但學習紀錄不足，暫列 " + TIERS[m.tier - 1] : ""}`, model: r.model, usage: r.usage }) });
+  const r = await sitExam(agent, { id: exId }, qs, think); const learned = await learnedCount(agent.id); const built = await labPassed(agent.id); const lc = labCap(mapScore(r.score / r.max, learned), built); const m = lc.m;
+  await rest(`${TB(agent,"exam")}?on_conflict=exam_id,agent_id`, { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ exam_id: exId, agent_id: agent.id, qids: r.qids, answers: r.given, correct: r.correct, score: r.score, max_score: r.max, tier: m.tier, level: m.level, notes_used: r.used, grader: "auto-key", grader_notes: `學習紀錄 ${learned} 筆${m.capped && !lc.note ? "；分數達更高學階但學習紀錄不足，暫列 " + TIERS[m.tier - 1] : ""}${lc.note}`, model: r.model, usage: r.usage }) });
   const hist = [{ exam: exId, at: new Date().toISOString(), score: r.score, max: r.max, tier: m.tier, level: m.level }];
   await rest(`${TB(agent,"degree")}?on_conflict=agent_id`, { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ agent_id: agent.id, district: d, tier: m.tier, level: m.level, placed_at: new Date().toISOString(), last_exam_at: new Date().toISOString(), history: hist, updated_at: new Date().toISOString() }) });
   return { agent: agent.id, kind: "placement", score: r.score, max: r.max, tier: m.tier, level: m.level, capped: m.capped, usage: r.usage };
@@ -83,8 +86,9 @@ export async function examOne(agent: any, exam: any, think = callModel) {
   const qs: any[] = []; for (let lv = 1; lv <= 6; lv++) { const pool = shuffle(B.filter((q) => q.lv === lv)); qs.push(...[...pool.filter((q) => !seen.has(q.id)), ...pool.filter((q) => seen.has(q.id))].slice(0, exam.kind === "weekly" ? 1 : 2)); }
   qs.push(...freshQs(d));
   const r = await sitExam(agent, exam, qs, think); const week = new Date(Date.now() - 7 * 864e5).toISOString();
-  const learnedAll = await learnedCount(agent.id), learnedWeek = await learnedCount(agent.id, week); let m = mapScore(r.score / r.max, learnedAll);
-  const old = deg?.tier ? (deg.tier - 1) * 10 + deg.level : 0, nw = (m.tier - 1) * 10 + m.level; let note = `本週學習 ${learnedWeek} 筆／累計 ${learnedAll} 筆`;
+  const learnedAll = await learnedCount(agent.id), learnedWeek = await learnedCount(agent.id, week); let m = mapScore(r.score / r.max, learnedAll); const built = await labPassed(agent.id); const lc = labCap(m, built); m = lc.m;
+  const old = deg?.tier ? (deg.tier - 1) * 10 + deg.level : 0, nw = (m.tier - 1) * 10 + m.level; let note = `本週學習 ${learnedWeek} 筆／累計 ${learnedAll} 筆／通過作品 ${built} 件` + lc.note;
+  if (nw > old && built === 0 && Deno.env.get("LAB_GATE_OFF") !== "1" && deg?.tier) { m = { tier: deg.tier, level: deg.level, capped: true }; note += "；還沒有實驗工廠通過的作品，不得升級"; }
   if (nw > old && learnedWeek === 0) { m = { tier: deg.tier, level: deg.level, capped: true }; note += "；本週沒有學習紀錄，不得升級"; }
   if (exam.kind === "weekly" && old && nw > old + 3) { const k = old + 3; m = { tier: Math.ceil(k / 10), level: k - (Math.ceil(k / 10) - 1) * 10, capped: true }; note += "；週考每次最多升 3 級"; }
   await rest(`${TB(agent,"exam")}?on_conflict=exam_id,agent_id`, { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ exam_id: exam.id, agent_id: agent.id, qids: r.qids, answers: r.given, correct: r.correct, score: r.score, max_score: r.max, tier: m.tier, level: m.level, notes_used: r.used, grader: "auto-key", grader_notes: note, model: r.model, usage: r.usage }) });
@@ -191,6 +195,7 @@ export async function degree(r: Request) {
     if (a === "special_round") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(await specialRound(b)); } // sp1
     if (a === "lab_start" || a === "lab_report") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(a === "lab_start" ? await labStart(b) : await labReport(b)); } // lb1 實驗工廠
     if (a === "lab_public") return out(await labPublic(b));
+    if (a === "agent_lab") { const id = String(b.id || ""); if (!/^ag-\d{4}$/.test(id)) return out({ error: "bad id" }, 400); return out({ ok: true, learned: await learnedCount(id), ...(await agentLabStats(id)) }); } // lb2：學了→做了→通過
     if (a === "summon") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(await summon(b, u0.id, String(b.via || "town"))); } // sm1
     if (a === "summon_state") return out({ ok: true, now: new Date().toISOString(), s: await summonState() });
     if (a === "special_public") return out(await specialDegreePublic()); // sp1：暗星／曙光學階（公開唯讀，無作答內容）

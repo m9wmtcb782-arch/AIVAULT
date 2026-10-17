@@ -23,11 +23,19 @@ async function pickAgents() {
 }
 async function persona(id: string) { const [a] = await rest(`aivault_pool_agents?id=eq.${id}&select=id,name,persona`); return a || { id, name: id, persona: "" }; }
 const tok = (u: any) => Number(u?.total) || 0;
+// lb2：學了就要做。同一代理同一主題累積 LAB_LEARN_N（預設 3）筆未連結的學習紀錄，就輪到它在實驗工廠做一件可執行、可測試的作品；
+// 非程式區也一樣做成可測試的 JS（例如規則檢查器、計算器、題庫資料驗證），由同區另一位 AI 只看規格寫測試。學習紀錄會連到這次實驗（lab_id）。
+async function dueLearning() {
+  const N = Number(Deno.env.get("LAB_LEARN_N")) || 3; const rows = await rest("aivault_pool_agent_learning?lab_id=is.null&http_status=eq.200&select=id,agent_id,district,topic,notes,url&order=created_at.desc&limit=3000");
+  const g: Record<string, any[]> = {}; rows.forEach((r: any) => { const k = r.agent_id + "|" + r.topic; (g[k] = g[k] || []).push(r); });
+  const due = Object.values(g).filter((x) => x.length >= N).sort((a, b) => b.length - a.length); return due[0] ? due[0].slice(0, N) : null;
+}
 export async function labStart(b: any) {
   if (Deno.env.get("LAB_OFF") === "1") return { ok: false, off: true };
   const cap = Number(Deno.env.get("LAB_DAILY")) || 4; const day = new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10);
   const today = await rest(`aivault_lab_experiments?day=eq.${day}&select=id`); if (today.length >= cap && !b.force) return { ok: false, cap_hit: true, cap };
   const used = new Set((await rest("aivault_lab_experiments?status=eq.passed&select=title")).map((x: any) => x.title));
+  if (b.brief == null && Deno.env.get("LAB_LEARN_OFF") !== "1") { const due = await dueLearning(); if (due) return await learnedArtifact(due, day); }
   const br = (b.brief != null ? BRIEFS[Number(b.brief) % BRIEFS.length] : null) || BRIEFS.filter((x) => !used.has(x.title))[0] || BRIEFS[Math.floor(Math.random() * BRIEFS.length)];
   const ag = await pickAgents(); if (!ag.lead || !ag.tester) return { ok: false, error: "no agents" };
   const L = await persona(ag.lead), T = await persona(ag.tester);
@@ -40,6 +48,24 @@ export async function labStart(b: any) {
   const it = [{ n: 1, by: ag.lead, model: c.model, tokens: tok(c.usage), test_by: ag.tester, test_model: t.model, test_tokens: tok(t.usage), at: new Date().toISOString() }];
   const [row] = await rest("aivault_lab_experiments", { method: "POST", body: JSON.stringify({ day, kind: br.kind, title: br.title, spec: br.spec, api, lead_id: ag.lead, tester_id: ag.tester, ranks: ag.ranks, product_js: product, demo_html: demo, test_js: test, iterations: it, status: "running", task_id: task?.id, tokens: tok(c.usage) + tok(t.usage) }) });
   return { ok: true, id: row.id, iter: 1, files: { "product.js": product, "test.js": test } };
+}
+async function learnedArtifact(due: any[], day: string) {
+  const lead = due[0].agent_id, d = due[0].district, topic = due[0].topic; const L = await persona(lead);
+  const peers = await rest(`aivault_pool_agent_degree?district=eq.${d}&agent_id=neq.${lead}&select=agent_id&limit=50`); const tester = peers.length ? peers[Math.floor(Math.random() * peers.length)].agent_id : (await rest(`aivault_pool_agents?id=neq.${lead}&select=id&limit=1`))[0].id; const T = await persona(tester);
+  const notes = due.map((x: any, i: number) => `${i + 1}. ${String(x.notes || "").slice(0, 500)}（${x.url}）`).join("\n");
+  const c = await callModel(`${L.persona || ""}\n你是 AIVAULT 的 ${L.name}，你剛學完「${topic}」。現在要在 AI 實驗工廠把學到的東西做成一件可以執行、可以自動測試的小作品（不是心得）。如果主題不是程式（例如法律、醫學、寫作、影像），就做成能驗證的工具：規則檢查器、計算器、分類器、結構化資料與驗證函式等。${PROD_RULES}`, `你的學習筆記：\n${notes}\n\n只輸出 JSON：{"title":"作品名（20 字內）","kind":"小工具|小遊戲|網頁元件|資料處理","spec":"可驗證的需求：函式名稱、輸入輸出、規則（3–6 句，要寫明確可測的行為）","api":"每個函式簽名與行為","product_js":"完整程式","demo_html":"完整 HTML"}`, 6500);
+  const v = c.v || {}; if (!v.product_js || !v.spec) return { ok: false, error: "lead returned no artifact", model: c.model };
+  const t = await callModel(`${T.persona || ""}\n你是 AIVAULT 的 ${T.name}，負責寫自動測試。你看不到程式，只能依需求與 API 寫測試。`, `作品：${v.title}\n需求：${v.spec}\nAPI：${v.api}\n\n請寫 Node.js 測試檔 test.js：用 const { test } = require("node:test"); const assert = require("node:assert/strict"); const P = require("./product.js"); 寫 5–8 個測試，只測需求明確寫到的行為。只輸出 JSON：{"test_js":"完整測試檔"}`, 3000);
+  if (!t.v?.test_js) return { ok: false, error: "tester returned no tests", model: t.model };
+  const [task] = await rest("aivault_pool_agent_tasks", { method: "POST", body: JSON.stringify({ agent_id: lead, zone: d === "code" ? "code" : d === "img" ? "image" : d === "av" ? "video" : "research", source: "floor", kind: "lab", status: "running", max_steps: MAX_ITER(), order_text: `🧪 學以致用：${String(v.title).slice(0, 40)}` }) });
+  const it = [{ n: 1, by: lead, model: c.model, tokens: tok(c.usage), test_by: tester, test_model: t.model, test_tokens: tok(t.usage), at: new Date().toISOString() }];
+  const [row] = await rest("aivault_lab_experiments", { method: "POST", body: JSON.stringify({ day, kind: String(v.kind || "小工具").slice(0, 10), title: String(v.title).slice(0, 60), spec: String(v.spec).slice(0, 1500), api: String(v.api || "").slice(0, 1500), lead_id: lead, tester_id: tester, product_js: String(v.product_js), demo_html: String(v.demo_html || ""), test_js: String(t.v.test_js), iterations: it, status: "running", task_id: task?.id, tokens: tok(c.usage) + tok(t.usage), source_topic: topic, learning_ids: due.map((x: any) => x.id) }) });
+  await rest(`aivault_pool_agent_learning?id=in.(${due.map((x: any) => x.id).join(",")})`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ lab_id: row.id }) });
+  return { ok: true, id: row.id, iter: 1, from_learning: topic, files: { "product.js": String(v.product_js), "test.js": String(t.v.test_js) } };
+}
+export async function agentLabStats(id: string) {
+  const rows = await rest(`aivault_lab_experiments?lead_id=eq.${id}&select=id,title,status,source_topic&order=created_at.desc&limit=20`);
+  return { built: rows.length, passed: rows.filter((x: any) => x.status === "passed").length, items: rows.slice(0, 5) };
 }
 export async function labReport(b: any) {
   const [e] = await rest(`aivault_lab_experiments?id=eq.${b.id}&select=*`); if (!e || e.status !== "running") return { ok: false, error: "not running" };
@@ -63,7 +89,7 @@ export async function labReport(b: any) {
   return { ok: true, id: e.id, iter: its.length, files: { "product.js": product, "test.js": e.test_js } };
 }
 export async function labPublic(b: any) {
-  const sel = "id,day,kind,title,spec,api,lead_id,tester_id,ranks,status,tokens,created_at,finished_at,iterations" + (b.id ? ",product_js,test_js,demo_html" : "");
+  const sel = "id,day,kind,title,spec,api,source_topic,learning_ids,lead_id,tester_id,ranks,status,tokens,created_at,finished_at,iterations" + (b.id ? ",product_js,test_js,demo_html" : "");
   const rows = await rest(`aivault_lab_experiments?select=${sel}${b.id ? "&id=eq." + Number(b.id) : ""}&order=created_at.desc&limit=30`);
   const ids = [...new Set(rows.flatMap((r: any) => [r.lead_id, r.tester_id]))]; const ns = ids.length ? await rest(`aivault_pool_agents?id=in.(${ids.join(",")})&select=id,name`) : [];
   rows.forEach((r: any) => { r.lead_name = ns.find((n: any) => n.id === r.lead_id)?.name; r.tester_name = ns.find((n: any) => n.id === r.tester_id)?.name; });
