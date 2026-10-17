@@ -54,9 +54,11 @@ export async function callModel(system0: string, user: string, maxTokens = 4000)
   const os = await ordersFor(system0).catch(() => []); const system = system0 + orderBlock(os); // so1：長期命令
   const res = await callModelRaw(system, user, maxTokens); await logOrders(os, system0, res.v, res.model); return res;
 }
+let RR = Math.floor(Math.random() * 10);
 async function callModelRaw(system: string, user: string, maxTokens = 4000): Promise<{ v: any; model: string; usage: any }> {
   let last = "";
-  for (const k of envs("GROQ_API_KEY")) {
+  const KS = envs("GROQ_API_KEY"); const off = KS.length ? (RR++ % KS.length) : 0; // pd1：輪流從不同金鑰開始，平均分攤免費額度
+  for (const k of [...KS.slice(off), ...KS.slice(0, off)]) {
     try {
       const r = await fetch("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { Authorization: "Bearer " + k, "Content-Type": "application/json" }, signal: AbortSignal.timeout(110000),
         body: JSON.stringify({ model: "openai/gpt-oss-120b", messages: [{ role: "system", content: system }, { role: "user", content: user }], response_format: { type: "json_object" }, max_tokens: maxTokens, reasoning_effort: "low", temperature: 0.7 }) });

@@ -176,11 +176,20 @@ export async function degree(r: Request) {
       return out({ ok: true, label, convened: pick.length, tasks, supervised }); }
     if (a === "cycle") { // 排程：學習＋考試交錯，遇到 Groq 限流就停
       const n = Math.min(12, Math.max(1, Number(b.n) || 4)); const results: any[] = []; const now = new Date().toISOString();
+      const UNPL = 1000 - (await rest("aivault_pool_agent_degree?select=agent_id&limit=1400")).length;
+      if (b.mode === "place") { // pd1：平行鑑定（每位代理仍各自一份考卷、各自閉卷作答；一次呼叫就是一整份 12 題考卷）
+        const placed = new Set((await rest("aivault_pool_agent_degree?select=agent_id&limit=1400")).map((x: any) => x.agent_id)); const all = await rest("aivault_pool_agents?select=id,domain,persona&order=id.asc&limit=1400");
+        const left = all.filter((x: any) => !placed.has(x.id)).sort(() => Math.random() - .5).slice(0, Math.min(8, n));
+        const rs = await Promise.allSettled(left.map((ag: any) => placeOne(ag))); let rl = false;
+        rs.forEach((x) => { if (x.status === "fulfilled") results.push(x.value); else { const m = String((x.reason as any)?.message || x.reason); results.push({ error: m.slice(0, 200) }); if (/429|LLM_FAILED/.test(m)) rl = true; } });
+        PUB = null; return out({ ok: true, rate_limited: rl && !results.some((x: any) => x.kind === "placement"), partial_429: rl, left: left.length ? UNPL - results.filter((x: any) => x.kind === "placement").length : 0, results });
+      }
       const open = await rest(`aivault_pool_exams?kind=in.(promotion,weekly)&opens_at=lte.${now}&or=(closes_at.is.null,closes_at.gt.${now})&select=id,district,kind&order=opens_at.asc`);
       for (let i = 0; i < n; i++) { let job: any = null;
         try {
-          const learnTurn = b.mode === "learn" || (b.mode !== "exam" && i % 2 === 1);
-          if (!learnTurn) { for (const e of open) { const took = await rest(`aivault_pool_exam_answers?exam_id=eq.${e.id}&select=agent_id&limit=1400`); const ids = took.map((x: any) => x.agent_id);
+          // pd1：還有未鑑定代理時，鑑定優先（每 4 個工作只有 1 個學習）；mode=place 只做鑑定。關閉：PLACE_PRIORITY_OFF=1
+          const pri = UNPL > 0 && Deno.env.get("PLACE_PRIORITY_OFF") !== "1"; const learnTurn = b.mode === "learn" || (b.mode !== "exam" && b.mode !== "place" && (pri ? i % 4 === 3 : i % 2 === 1));
+          if (!learnTurn) { for (const e of (b.mode === "place" ? [] : open)) { const took = await rest(`aivault_pool_exam_answers?exam_id=eq.${e.id}&select=agent_id&limit=1400`); const ids = took.map((x: any) => x.agent_id);
               const c = await rest(`aivault_pool_agent_degree?district=eq.${e.district}&tier=not.is.null${ids.length ? "&agent_id=not.in.(" + ids.join(",") + ")" : ""}&select=agent_id&order=updated_at.asc&limit=1`);
               if (c[0]) { const [ag] = await rest(`aivault_pool_agents?id=eq.${c[0].agent_id}&select=id,domain,persona`); job = await examOne(ag, e); break; } }
             if (!job) { const placed = await rest("aivault_pool_agent_degree?select=agent_id&limit=1400"); const ps = new Set(placed.map((x: any) => x.agent_id));

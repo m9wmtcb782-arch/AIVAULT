@@ -28,7 +28,7 @@ export const VOICE: [string, string, string][] = [
   ["回音消除與降噪 AEC", "acoustic echo cancellation noise suppression real-time voice", "echo cancellation webrtc"],
   ["語音延遲預算與量測", "voice agent latency budget time to first audio measurement", "voice agent latency"],
 ];
-const VW: Record<string, number> = { av: .8, code: .75, llm: .5, img: .35 };
+const VW: Record<string, number> = { av: .4, code: .35, llm: .25, img: .2 }; // pd1：降低即時語音比重，讓四大領域模型課程變多
 async function hdrFetch(u: string, accept = "text/html,*/*") { return fetch(u, { headers: { "User-Agent": "Mozilla/5.0 (compatible; AIVAULT-learner/1.1)", Accept: accept, "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8" }, redirect: "follow", signal: AbortSignal.timeout(10000) }); }
 async function arxiv(q: string) { try { const t = await (await hdrFetch("https://export.arxiv.org/api/query?max_results=4&sortBy=relevance&search_query=all:" + encodeURIComponent(q), "application/atom+xml")).text();
   return [...t.matchAll(/<entry>[\s\S]*?<id>([^<]+)<\/id>[\s\S]*?<title>([\s\S]*?)<\/title>/g)].map((m) => ({ url: m[1].trim().replace("http://", "https://"), title: m[2].replace(/\s+/g, " ").trim(), src: "arxiv" })); } catch { return []; } }
@@ -79,6 +79,13 @@ export const SELFDEV: [string, string, string][] = [
   ["視覺理解：開源 VLM 與圖文對齊", "open vision language model CLIP LLaVA Qwen-VL", "llava qwen-vl"],
   ["行動裝置推論：量化與蒸餾", "on-device inference quantization distillation diffusion mobile", "mlc llm gguf"],
 ];
+// pd1：四大領域模型課程（架構、訓練、開源實作），權重提高；一樣受「學 3 筆就要做作品」規則約束。關閉：LEARN_DOMAIN_OFF=1
+export const DOMAIN: Record<string, [string, string, string][]> = {
+  llm: [["LLM 架構：Transformer、注意力與 KV cache", "transformer attention KV cache architecture explained", "nanogpt"], ["LLM 訓練：預訓練、SFT 與 RLHF/DPO", "LLM pretraining SFT DPO RLHF pipeline", "trl dpo"], ["開源 LLM 實作：Llama/Qwen 推論與量化", "llama qwen open source inference quantization", "llama.cpp"], ["MoE 與長上下文", "mixture of experts long context LLM", "mixtral moe"]],
+  img: [["圖像模型架構：U-Net、DiT 與 VAE", "diffusion transformer DiT U-Net VAE architecture", "diffusers dit"], ["圖像模型訓練：擴散訓練與 LoRA", "diffusion model training LoRA fine-tune", "kohya lora"], ["開源圖像模型實作：SDXL / FLUX 推論", "SDXL FLUX open source inference pipeline", "diffusers flux"]],
+  av: [["語音模型架構：Whisper 與 neural codec", "whisper architecture neural audio codec", "whisper"], ["TTS 訓練：VITS / F5-TTS", "VITS F5-TTS training text to speech", "f5-tts"], ["影片模型架構與開源實作：Wan / CogVideoX", "video diffusion architecture Wan CogVideoX open source", "cogvideox"]],
+  code: [["程式模型架構與訓練：Code LLM、FIM", "code LLM fill in the middle training", "starcoder"], ["代理框架：工具呼叫、規劃與記憶", "LLM agent tool calling planning memory framework", "langgraph"], ["開源程式代理實作：SWE-agent / OpenHands", "SWE-agent OpenHands open source coding agent", "openhands"]],
+};
 let FORCE_VIDEO = false;
 async function session(agent: any, ov?: [string, string, string], pre = "即時語音：") {
   const d = districtOf(agent.domain); const mine = await rest(`aivault_pool_agent_learning?agent_id=eq.${agent.id}&select=topic,url&limit=2000`); const seen = new Set(mine.map((x: any) => x.url));
@@ -125,9 +132,10 @@ export async function learnRound(b: any, learnOne: (ag: any) => Promise<any>) {
   for (let i = 0; pick.length < n && i < 50; i++) { const p = pools[i % 4]; const a = p.shift(); if (a) pick.push(a); }
   const results: any[] = []; let skipped = busy.size;
   for (const ag of pick) { if (!(await lock(ag.id))) { skipped++; continue; } const d = districtOf(ag.domain);
-    try { const voice = !b.force_ebook && !b.force_selfdev && (FORCE_VIDEO || Math.random() < (VW[d] || .4)); let pt: string[] = []; if (!voice && Deno.env.get("PLAN_OFF") !== "1") pt = await approvedTopics(d).catch(() => []);
+    try { const voice = !b.force_ebook && !b.force_selfdev && !b.force_domain && (FORCE_VIDEO || Math.random() < (VW[d] || .4)); let pt: string[] = []; if (!voice && Deno.env.get("PLAN_OFF") !== "1") pt = await approvedTopics(d).catch(() => []);
       let eb: any = null; if (!voice && Deno.env.get("LEARN_EBOOK_OFF") !== "1" && (b.force_ebook || Math.random() < .25)) eb = await ebookSession(ag);
       if (eb) results.push({ district: d, voice, ebook: true, ...eb });
+      else if (!voice && Deno.env.get("LEARN_DOMAIN_OFF") !== "1" && DOMAIN[d] && (b.force_domain || Math.random() < .5)) { const L = DOMAIN[d]; const t = L[Math.floor(Math.random() * L.length)]; results.push({ district: d, voice, domain: true, ...(await session(ag, t, "模型：")) }); }
       else if (!voice && Deno.env.get("LEARN_SELFDEV_OFF") !== "1" && (b.force_selfdev || Math.random() < .2)) { const mine = await rest(`aivault_pool_agent_learning?agent_id=eq.${ag.id}&topic=like.自研*&select=topic&limit=500`); const c: Record<string, number> = {}; mine.forEach((x: any) => c[x.topic] = (c[x.topic] || 0) + 1); const t = [...SELFDEV].sort((a, z) => (c["自研：" + a[0]] || 0) - (c["自研：" + z[0]] || 0) || Math.random() - .5)[0]; results.push({ district: d, voice, selfdev: true, ...(await session(ag, t, "自研：")) }); }
       else if (pt.length) { const tp = pt[Math.floor(Math.random() * pt.length)]; results.push({ district: d, voice, plan: true, ...(await session(ag, [tp, tp, tp], "計畫：")) }); }
       else results.push({ district: d, voice, ...(voice ? await session(ag) : await learnOne(ag)) }); }

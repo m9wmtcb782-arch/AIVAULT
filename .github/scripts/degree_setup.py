@@ -33,6 +33,9 @@ SR=next(k["api_key"] for k in keys if k.get("name")=="service_role"); print("::a
 def y(body): return http(BASE+"/functions/v1/dark-star-ebook-ingest?feature=degree",body,{"apikey":SR,"Authorization":"Bearer "+SR},"POST")
 if "cycle" in STEPS:
     end=time.time()+60*float(os.environ.get("MINUTES","1") or 1); k=0; tok=0; mode=os.environ.get("MODE","") or None
+    if not mode and os.environ.get("PLACE_AUTO","1")=="1":  # pd1：還有未鑑定就自動只做鑑定（每次排程接著做，直到全部完成）
+        un=sql("select count(*) c from public.aivault_pool_agents a where not exists (select 1 from public.aivault_pool_agent_degree d where d.agent_id=a.id)")[0]["c"]
+        if int(un)>0: mode="place"; print("PLACE_AUTO unplaced",un)
     while True:
         k+=1; s,b=y({"action":"cycle","n":N,**({"mode":mode} if mode else {})}); ok=isinstance(b,dict)
         rs=(b.get("results") or []) if ok else []
@@ -41,7 +44,8 @@ if "cycle" in STEPS:
         if s!=200 or not ok or time.time()>end: break
         if b.get("rate_limited"):
             errs=" ".join(str(r.get("error")) for r in rs); print("STOP: Groq limit", errs[:300]); break
-        time.sleep(10)
+        if mode=="place" and ok and b.get("left")==0: print("ALL PLACED"); break
+        time.sleep(45 if b.get("partial_429") else 5)
     print("TOKENS_THIS_RUN",tok)
     if os.environ.get("PEER","1")=="1": s,b=y({"action":"peer_review","n":2}); print("PEER",s,json.dumps(b,ensure_ascii=False)[:200])
 if "videomig" in STEPS: sql(open("supabase/migrations/20261017203000_aivault_learning_source.sql").read()); print("videomig ok")
