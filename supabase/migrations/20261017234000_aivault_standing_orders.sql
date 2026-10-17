@@ -1,0 +1,6 @@
+-- so1：長期命令。復原：drop table public.aivault_standing_order_log; drop table public.aivault_standing_orders;
+create table if not exists public.aivault_standing_orders (id bigserial primary key, text text not null, districts text[] not null default '{}', agents text[] not null default '{}', active boolean not null default true, flagged boolean not null default false, approved_at timestamptz, revoked_at timestamptz, created_by uuid, created_at timestamptz not null default now(), updated_at timestamptz not null default now());
+create table if not exists public.aivault_standing_order_log (id bigserial primary key, order_id bigint references public.aivault_standing_orders(id) on delete cascade, context text, compliance text, model text, evidence text, created_at timestamptz not null default now());
+create index if not exists aivault_standing_order_log_o on public.aivault_standing_order_log(order_id, id desc);
+do $$ declare t text; begin foreach t in array array['aivault_standing_orders','aivault_standing_order_log'] loop execute format('alter table public.%I enable row level security', t); execute format('revoke all on public.%I from anon, authenticated', t); execute format('grant all on public.%I to service_role', t); end loop; end $$;
+grant usage on all sequences in schema public to service_role;

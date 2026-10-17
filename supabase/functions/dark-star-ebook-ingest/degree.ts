@@ -8,6 +8,7 @@ import { triage, pendingGroups } from "./triage.ts";
 import { watch } from "./watch.ts";
 import { dailyPlans, getPlans } from "./plans.ts";
 import { special } from "./special.ts";
+import { orders } from "./orders.ts";
 import { labStart, labReport, labPublic, agentLabStats } from "./lab.ts";
 import { specialRound, specialDegreePublic, summon, summonState } from "./specialstudy.ts";
 const H = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS", "Content-Type": "application/json" };
@@ -197,6 +198,7 @@ export async function degree(r: Request) {
     if (a === "triage") { const u1 = await who(r); if (!u1) return out({ error: "owner only" }, 403); return out(await triage(b)); } // tr1：練習稿 AI 初審
     if (a === "triage_stats") { const u2 = await who(r); if (!u2) return out({ error: "owner only" }, 403); const g = await pendingGroups(); return out({ ok: true, groups: g.length, items: g.reduce((s, x) => s + x.length, 0), top: g.slice(0, 8).map((x) => [String(x[0].order_text).slice(0, 30), x.length]) }); }
     if (a === "special_round") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(await specialRound(b)); } // sp1
+    if (/^order(s_list|_log|_save|_approve|_revoke)$/.test(a)) { const uo = await who(r); if (!uo || uo.cron) return out({ error: "owner only" }, 403); return out(await orders(a, b, uo.id)); } // so1 長期命令
     if (a === "lab_start" || a === "lab_report") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(a === "lab_start" ? await labStart(b) : await labReport(b)); } // lb1 實驗工廠
     if (a === "summon") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(await summon(b, u0.id, String(b.via || "town"))); } // sm1
     if (a === "learn_round") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(await learnRound(b, (ag: any) => learnOne(ag))); } // ln10：每 10 分鐘四區學習（含學習鎖、每日 token 上限）

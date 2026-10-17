@@ -1,6 +1,7 @@
 // ?feature=floor：協作池「1000 人工作區」— 10 區 × 100 人的真實工作循環、審核佇列、複製提案。
 // 只產生內部成果；核准僅標記「已核准」，不對外發送、發文、花錢。
 import { llm } from "./yinxu.ts";
+import { ordersFor, orderBlock, logOrders } from "./orders.ts";
 import { webSearch } from "./web-search.ts";
 const H = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS", "Content-Type": "application/json" };
 const out = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: H });
@@ -49,7 +50,11 @@ export const ZONES: Z[] = [
 ];
 const envs = (b: string) => [b, ...Array.from({ length: 9 }, (_, i) => b + "_" + (i + 1))].map((n) => Deno.env.get(n) || "").filter((v, i, a) => v && a.indexOf(v) === i);
 // 真實模型呼叫：回傳 JSON、模型名稱與 token 用量（Groq 免費層 gpt-oss-120b；失敗才退回共用 llm，該情況用量記為 null）
-export async function callModel(system: string, user: string, maxTokens = 4000): Promise<{ v: any; model: string; usage: any }> {
+export async function callModel(system0: string, user: string, maxTokens = 4000): Promise<{ v: any; model: string; usage: any }> {
+  const os = await ordersFor(system0).catch(() => []); const system = system0 + orderBlock(os); // so1：長期命令
+  const res = await callModelRaw(system, user, maxTokens); await logOrders(os, system0, res.v, res.model); return res;
+}
+async function callModelRaw(system: string, user: string, maxTokens = 4000): Promise<{ v: any; model: string; usage: any }> {
   let last = "";
   for (const k of envs("GROQ_API_KEY")) {
     try {

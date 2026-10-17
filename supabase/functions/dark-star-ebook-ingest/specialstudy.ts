@@ -2,6 +2,7 @@
 // 呼叫成功才寫入紀錄並標成它們的；失敗就什麼都不寫。偵測到付費供應商就停止。關閉：函式 env SPECIAL_STUDY_OFF=1
 import { learnOne, placeOne, examOne, mapScore } from "./degree.ts";
 import { markSpecial } from "./special.ts";
+import { ordersFor, orderBlock, logOrders } from "./orders.ts";
 const URL0 = Deno.env.get("SUPABASE_URL") || "", SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const SRH = { apikey: SR, Authorization: "Bearer " + SR, "Content-Type": "application/json" };
 async function rest(path: string, init: RequestInit = {}) { const r = await fetch(URL0 + "/rest/v1/" + path, { ...init, headers: { ...SRH, Prefer: "return=representation", ...(init.headers || {}) } }); const t = await r.text(); if (!r.ok) throw new Error("DB " + r.status + " " + t.slice(0, 200)); return t ? JSON.parse(t) : null; }
@@ -11,14 +12,15 @@ export const SPECIALS: Record<string, any> = {
 };
 const PAID = /openai|anthropic|claude|gpt-4|gpt-5|o\d-|kling|fal|elevenlabs|runway|replicate|pro\b/i;
 function gwThink(sp: any, log: string[]) {
-  return async (system: string, user: string, _max = 2500) => {
+  return async (system0: string, user: string, _max = 2500) => {
+    const os = await ordersFor(system0 + sp.name).catch(() => []); const system = system0 + orderBlock(os); // so1
     const r = await fetch(URL0 + "/functions/v1/ai-gateway", { method: "POST", headers: SRH, signal: AbortSignal.timeout(110000),
       body: JSON.stringify({ agent_id: sp.gw, engine: sp.gw, stream: false, messages: [{ role: "user", content: system + "\n\n" + user + "\n\n（請只回 JSON，不要其他文字）" }] }) });
     const j = await r.json().catch(() => ({})); const model = `${j.provider || "?"}:${j.model || "?"}`; log.push(model);
     if (!r.ok || j.success === false) throw new Error(`${sp.name} 呼叫失敗 HTTP ${r.status} ${String(j.error || "").slice(0, 120)}`);
     if (PAID.test(model)) throw new Error(`PAID_MODEL ${model}：停止，未寫入`);
     const t = String(j.content || j.text || ""); const m = t.match(/\{[\s\S]*\}/); if (!m) throw new Error(`${sp.name} 沒有回傳 JSON（${model}）`);
-    return { v: JSON.parse(m[0]), model: "ai-gateway/" + sp.gw + "→" + model, usage: j.usage || null };
+    const v = JSON.parse(m[0]); await logOrders(os, system0 + "（" + sp.name + "）", v, model); return { v, model: "ai-gateway/" + sp.gw + "→" + model, usage: j.usage || null };
   };
 }
 export async function specialRound(b: any) {
