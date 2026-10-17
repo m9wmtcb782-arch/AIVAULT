@@ -27,6 +27,26 @@ if "publish" in STEPS:
     sql("update public.aivault_private_pages set html=regexp_replace(html,'(<a class=\"btn primary\" href=\"aivault-agent-collaboration.html\?page=agent-floor\"[^>]*>[^<]*</a>)','\\1'||$e$%s$e$),updated_at=now() where slug='agent-collaboration' and position('agent-floor-embed' in html)=0"%emb)
     print("collab embed", sql("select position('agent-floor-embed' in html)>0 as embedded from public.aivault_private_pages where slug='agent-collaboration'"))
     print("collab link", sql("select position('page=agent-floor' in html)>0 as linked from public.aivault_private_pages where slug='agent-collaboration'"))
+if "town" in STEPS:  # af5：公開協作城、世界頻道、發號施令、真人在線
+    sql(open("supabase/migrations/20261017120000_aivault_town_public.sql").read())
+    print("town tables", sql("select count(*) filter (where table_name='aivault_world_chat') wc, count(*) filter (where table_name='aivault_floor_commands') fc, count(*) filter (where table_name='aivault_presence') pr from information_schema.tables where table_schema='public'"))
+if "collab2" in STEPS:  # 協作池頁：工作區嵌入改到 header 下方（不蓋住按鈕）、舊協作 AI 面板收進 ⚙️ 設定
+    sql(r"""update public.aivault_private_pages set html=regexp_replace(html,'<div id="agent-floor-embed"></div><script>.*?</script>','','g'),updated_at=now() where slug='agent-collaboration' and position('agent-floor-embed' in html)>0 and position('agent-floor-embed2' in html)=0""")
+    emb=open(".github/scripts/collab_af5_embed.html").read().strip(); tag="$af5$"; assert tag not in emb
+    sql("update public.aivault_private_pages set html=regexp_replace(html,'</header>','</header>'||%s%s%s),updated_at=now() where slug='agent-collaboration' and position('agent-floor-embed2' in html)=0"%(tag,emb,tag))
+    js=open(".github/scripts/collab_af5_settings.html").read().strip()
+    sql("update public.aivault_private_pages set html=html||%s%s%s,updated_at=now() where slug='agent-collaboration' and position('collab-settings-js' in html)=0"%(tag,js,tag))
+    print("collab2", sql("select position('agent-floor-embed2' in html)>0 emb, position('collab-settings-js' in html)>0 settings, (length(html)-length(replace(html,'agent-floor-embed\"','')))/18 old_embeds from public.aivault_private_pages where slug='agent-collaboration'"))
+if "towncheck" in STEPS:  # 未登入（anon）只能讀到 agent-floor 動畫頁；其他私有頁、名冊、任務都讀不到
+    _,keys=http("https://api.supabase.com/v1/projects/%s/api-keys?reveal=true"%REF,headers={"Authorization":"Bearer "+TOKEN})
+    AN=next(k["api_key"] for k in keys if k.get("name")=="anon"); H={"apikey":AN,"Authorization":"Bearer "+AN}
+    for path in ["aivault_private_pages?select=slug","aivault_pool_agents?select=id,name&limit=1","aivault_pool_agent_tasks?select=id,order_text&limit=1","aivault_pool_agent_memory?select=id&limit=1","aivault_world_chat?select=id,display_name,body&limit=1","aivault_floor_commands?select=id,body&limit=1","aivault_floor_commands?select=created_by&limit=1","aivault_presence?select=display_name,avatar&limit=1","aivault_presence?select=user_id&limit=1","aivault_floor_state?select=k&limit=1"]:
+        s,b=http(BASE+"/rest/v1/"+path,headers=H); print("ANON",path,s,(b if path.startswith("aivault_private_pages") else (len(b) if isinstance(b,list) else str(b)[:80])))
+    s,b=http(BASE+"/rest/v1/aivault_world_chat",{"body":"x"},H,"POST"); print("ANON insert chat",s)
+    s,b=http(BASE+"/functions/v1/dark-star-ebook-ingest?feature=floor",{"action":"town"},H,"POST"); print("ANON town",s,sorted(b.keys()) if isinstance(b,dict) else b, "agents",len(b.get("agents") or []) if isinstance(b,dict) else "", "sample state",(b.get("states") or [None])[0] if isinstance(b,dict) else "")
+    for act in ["floor","reviews","ledger","command","owner_ping"]:
+        s,b=http(BASE+"/functions/v1/dark-star-ebook-ingest?feature=floor",{"action":act,"text":"x"},H,"POST"); print("ANON",act,s)
+    s,b=http(BASE+"/functions/v1/dark-star-ebook-ingest?feature=agents",{"action":"list"},H,"POST"); print("ANON agents list",s)
 if "stats" in STEPS:  # 唯讀：目前真實任務數
     print("STATS", sql("select status, coalesce(review_status,'-') rv, count(*) from public.aivault_pool_agent_tasks group by 1,2 order by 1,2"))
     print("TODAY_DONE", sql("select count(*) from public.aivault_pool_agent_tasks where status='done' and kind<>'spawn' and updated_at >= date_trunc('day', now() at time zone 'Asia/Taipei') at time zone 'Asia/Taipei'"))
