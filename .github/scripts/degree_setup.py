@@ -62,6 +62,13 @@ if "regdup" in STEPS:  # 只讀：重複檢查（只印 id、數量、欄位名�
         print("COLS",t,[x["column_name"] for x in sql("select column_name from information_schema.columns where table_schema='public' and table_name='%s' order by ordinal_position"%t)])
     print("NUMDUP",sql("select (regexp_replace(agent_id,'\\D','','g'))::int n, array_agg(agent_id order by agent_id) ids from public.agent_registry where agent_id like 'Worker-%' group by 1 having count(*)>1 order by 1"))
     print("NUMRANGE",sql("select min((regexp_replace(agent_id,'\\D','','g'))::int), max((regexp_replace(agent_id,'\\D','','g'))::int), count(distinct (regexp_replace(agent_id,'\\D','','g'))::int) from public.agent_registry where agent_id like 'Worker-%'"))
+    print("SIM",sql("select agent_id,display_name,role,status,is_simulated,created_at,last_activity_at from public.agent_registry where agent_id ~ '^(Worker-00[123]|Worker-sim-)' or agent_id !~ '^Worker-' order by 1"))
+    print("ISSIM",sql("select is_simulated,status,count(*) from public.agent_registry group by 1,2 order by 3 desc"))
+    print("NAMEMATCH",sql("select count(*) from public.agent_registry r join public.aivault_pool_agents p on p.name=r.display_name"))
+    print("NUMMATCH",sql("select count(*) from public.agent_registry r join public.aivault_pool_agents p on p.id='ag-'||lpad(regexp_replace(r.agent_id,'\\D','','g'),4,'0') where r.agent_id ~ '^Worker-\\d+$'"))
+    print("DNDUP",sql("select count(*) from (select display_name from public.agent_registry group by 1 having count(*)>1) x"))
+    print("POOLRANGE",sql("select min(id),max(id),count(*) from public.aivault_pool_agents"))
+    print("SAMPLE",sql("select r.agent_id,r.display_name,p.id,p.name from public.agent_registry r left join public.aivault_pool_agents p on p.id='ag-'||lpad(regexp_replace(r.agent_id,'\\D','','g'),4,'0') where r.agent_id in ('Worker-004','Worker-0500','Worker-1000')"))
     print("LENS",sql("select length(agent_id) l,count(*) from public.agent_registry where agent_id like 'Worker-%' group by 1"))
 if "aicount" in STEPS:  # 只印表名與筆數（不印內容）
     ts=sql("select table_name from information_schema.tables where table_schema='public' and table_type='BASE TABLE' and (table_name ~ '(agent|clone|avatar|guard|special|persona|bot)') order by 1")
