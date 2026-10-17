@@ -143,6 +143,12 @@ export async function degree(r: Request) {
     if (a === "lab_public") return out(await labPublic(b));
     if (a === "agent_lab") { const id = String(b.id || ""); if (!/^ag-\d{4}$/.test(id)) return out({ error: "bad id" }, 400); return out({ ok: true, learned: await learnedCount(id), ...(await agentLabStats(id)) }); } // lb2：學了→做了→通過
     if (a === "summon_state") return out({ ok: true, now: new Date().toISOString(), s: await summonState() });
+    if (a === "learning_now") { // cr1：此刻真的在上網學習的代理（學習鎖還沒到期，或 10 分鐘內有學習紀錄）；只回 id、區、主題
+      const now = Date.now(); const locks = await rest("aivault_floor_state?k=like.learnlock:*&select=k,v&limit=2000"); const live = new Map<string, any>();
+      locks.forEach((x: any) => { if (Date.parse(x.v?.until) > now && Date.parse(x.v?.until) - now < 30 * 60e3) live.set(x.k.slice(10), { src: "lock" }); });
+      const rec = await rest(`aivault_pool_agent_learning?created_at=gte.${new Date(now - 10 * 60e3).toISOString()}&select=agent_id,district,topic,created_at&order=created_at.desc&limit=300`);
+      rec.forEach((x: any) => { const o = live.get(x.agent_id) || {}; if (!o.topic) live.set(x.agent_id, { ...o, src: o.src || "record", d: x.district, topic: String(x.topic || "").slice(0, 24), at: x.created_at }); });
+      return out({ ok: true, now: new Date().toISOString(), rows: [...live.entries()].map(([id, o]) => [id, o.d || null, o.topic || null, o.src]) }); }
     if (a === "special_daily") return out(await specialDaily(b)); // sd2
     if (a === "special_public") return out(await specialDegreePublic()); // sp1：暗星／曙光學階（公開唯讀，無作答內容）
     const u = await who(r); if (!u) return out({ error: "owner only" }, 403);

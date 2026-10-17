@@ -62,7 +62,7 @@ async function callModelRaw(system: string, user: string, maxTokens = 4000): Pro
     try {
       const r = await fetch("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { Authorization: "Bearer " + k, "Content-Type": "application/json" }, signal: AbortSignal.timeout(110000),
         body: JSON.stringify({ model: "openai/gpt-oss-120b", messages: [{ role: "system", content: system }, { role: "user", content: user }], response_format: { type: "json_object" }, max_tokens: maxTokens, reasoning_effort: "low", temperature: 0.7 }) });
-      if (!r.ok) { last += " groq:" + r.status + (r.status === 429 ? ":" + (await r.text()).slice(0, 160).replace(/\s+/g, " ") : ""); continue; }
+      if (!r.ok) { last += " groq:" + r.status + (r.status === 429 ? ":" + (await r.text()).slice(0, 300).replace(/\s+/g, " ") : ""); continue; }
       const j = await r.json(); const t = String(j.choices?.[0]?.message?.content || ""); const m = t.match(/\{[\s\S]*\}/); if (!m) { last += " groq:nojson"; continue; }
       const u = j.usage || {}; return { v: JSON.parse(m[0]), model: "groq:" + (j.model || "openai/gpt-oss-120b"), usage: { prompt: u.prompt_tokens, completion: u.completion_tokens, total: u.total_tokens, request_id: j.id || r.headers.get("x-request-id") } };
     } catch (e) { last += " groq:" + String((e as any)?.message || e).slice(0, 60); }
