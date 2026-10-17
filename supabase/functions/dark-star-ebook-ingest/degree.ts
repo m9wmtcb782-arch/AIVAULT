@@ -139,6 +139,10 @@ export async function degree(r: Request) {
       const as = (await rest("aivault_floor_state?k=eq.assembly&select=v").catch(() => []))[0]?.v; const assembly = as && Date.parse(as.until) > Date.now() ? as : null;
       PUB = { t: Date.now(), d: { ok: true, tiers: TIERS, districts: DIST, list, dist, untested, total: ag.length, assembly: assembly ? { ids: assembly.ids, label: assembly.label, until: assembly.until } : null, next_exam: "2026-10-20T10:00:00+08:00" } }; return out(PUB.d);
     }
+    if (a === "lab_public") return out(await labPublic(b));
+    if (a === "agent_lab") { const id = String(b.id || ""); if (!/^ag-\d{4}$/.test(id)) return out({ error: "bad id" }, 400); return out({ ok: true, learned: await learnedCount(id), ...(await agentLabStats(id)) }); } // lb2：學了→做了→通過
+    if (a === "summon_state") return out({ ok: true, now: new Date().toISOString(), s: await summonState() });
+    if (a === "special_public") return out(await specialDegreePublic()); // sp1：暗星／曙光學階（公開唯讀，無作答內容）
     const u = await who(r); if (!u) return out({ error: "owner only" }, 403);
     if (a === "agent") { const id = String(b.id || "").replace(/[^\w-]/g, "");
       const [g] = await rest(`aivault_pool_agent_degree?agent_id=eq.${id}&select=*`); const ex = await rest(`aivault_pool_exam_answers?agent_id=eq.${id}&select=id,exam_id,score,max_score,tier,level,grader_notes,model,usage,created_at,notes_used&order=created_at.desc&limit=8`);
@@ -194,11 +198,7 @@ export async function degree(r: Request) {
     if (a === "triage_stats") { const u2 = await who(r); if (!u2) return out({ error: "owner only" }, 403); const g = await pendingGroups(); return out({ ok: true, groups: g.length, items: g.reduce((s, x) => s + x.length, 0), top: g.slice(0, 8).map((x) => [String(x[0].order_text).slice(0, 30), x.length]) }); }
     if (a === "special_round") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(await specialRound(b)); } // sp1
     if (a === "lab_start" || a === "lab_report") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(a === "lab_start" ? await labStart(b) : await labReport(b)); } // lb1 實驗工廠
-    if (a === "lab_public") return out(await labPublic(b));
-    if (a === "agent_lab") { const id = String(b.id || ""); if (!/^ag-\d{4}$/.test(id)) return out({ error: "bad id" }, 400); return out({ ok: true, learned: await learnedCount(id), ...(await agentLabStats(id)) }); } // lb2：學了→做了→通過
     if (a === "summon") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(await summon(b, u0.id, String(b.via || "town"))); } // sm1
-    if (a === "summon_state") return out({ ok: true, now: new Date().toISOString(), s: await summonState() });
-    if (a === "special_public") return out(await specialDegreePublic()); // sp1：暗星／曙光學階（公開唯讀，無作答內容）
     if (a === "learn_round") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(await learnRound(b, (ag: any) => learnOne(ag))); } // ln10：每 10 分鐘四區學習（含學習鎖、每日 token 上限）
     if (a === "peer_review") { // 博士 10 級初審（擁有者仍做最終核准）
       const docs = await rest("aivault_pool_agent_degree?tier=eq.6&level=eq.10&select=agent_id&limit=20"); if (!docs.length) return out({ ok: true, reviewed: 0, note: "目前沒有博士 10 級的 AI" });
