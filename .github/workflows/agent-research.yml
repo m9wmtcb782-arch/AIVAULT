@@ -1,0 +1,26 @@
+name: AI pool mobile-model research + four-module upgrade designs (rs1)
+on:
+  schedule:
+    - cron: "19,49 * * * *"
+  workflow_dispatch:
+    inputs:
+      minutes: { required: false, default: "6" }
+      dump: { required: false, default: "0" }
+concurrency: { group: agent-research, cancel-in-progress: false }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          MINUTES: ${{ inputs.minutes || '6' }}
+          DUMP: ${{ inputs.dump || '0' }}
+          OFF: ${{ vars.AGENT_RESEARCH_OFF }}
+        run: |
+          if [ "$OFF" = "1" ]; then echo "disabled by repo variable AGENT_RESEARCH_OFF=1"; exit 0; fi
+          python3 .github/scripts/research_run.py
+      - if: ${{ inputs.dump == '1' }}
+        uses: actions/upload-artifact@v4
+        with: { name: research-dump, path: research-dump.json.gpg, retention-days: 3 }

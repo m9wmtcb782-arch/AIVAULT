@@ -1,0 +1,45 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AIVAULT 自有小模型：說完了沒？（手機端）</title>
+<style>body{font-family:-apple-system,system-ui,sans-serif;background:#0b0f1a;color:#e8ecf5;margin:0;padding:18px;max-width:640px}
+h1{font-size:20px}button{font-size:18px;padding:12px 18px;border-radius:12px;border:0;background:#3b82f6;color:#fff}
+.bar{height:22px;background:#1e2638;border-radius:11px;overflow:hidden;margin:6px 0}.bar i{display:block;height:100%;background:#22c55e;width:0}
+#st{font-size:28px;margin:14px 0}.s{color:#94a3b8;font-size:13px;line-height:1.6}table{font-size:13px;border-collapse:collapse}td{padding:2px 8px;border-bottom:1px solid #222}</style></head><body>
+<h1>🎙️ AIVAULT EOT v1：偵測「說完了沒」</h1>
+<div id="off" style="display:none">此展示已關閉（localStorage.eotDemoOff=1）。</div>
+<div id="app">
+<p class="s">這是在 AIVAULT 自己的主機上訓練的小型神經網路（約 5.9 萬參數，檔案 0.8 MB），完全在你的手機瀏覽器裡執行，聲音不會上傳。它每 0.1 秒看最近 1 秒的聲音，判斷你是「暫時停頓」還是「這句話說完了」。</p>
+<button id="go">開始（需要麥克風）</button>
+<div id="st">—</div>
+<div>說完機率 <span id="pv">0</span></div><div class="bar"><i id="pb"></i></div>
+<div>音量</div><div class="bar"><i id="vb" style="background:#3b82f6"></i></div>
+<p class="s">推論時間（這台裝置實測）：<b id="lat">—</b> ms／次</p>
+<p class="s" id="info">載入模型中…</p>
+<h3 style="font-size:15px">真實評估（保留測試集）</h3><table id="mt"></table>
+<p class="s">限制：訓練資料是 Google FLEURS 普通話朗讀句（CC-BY 4.0），不是台灣口語對話；保留集準確率約 80%，在「句中停頓 vs 句尾」這組難題上約 71%。這是第一版研究原型，還不能直接取代正式語音功能。</p>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js"></script>
+<script>
+(async()=>{
+if(localStorage.getItem('eotDemoOff')==='1'){document.getElementById('app').style.display='none';document.getElementById('off').style.display='block';return;}
+const $=id=>document.getElementById(id);
+fetch('models/eot/metrics.json?v=eot1').then(r=>r.json()).then(m=>{const q=m.int8;$('mt').innerHTML=[['評估樣本',q.overall.n],['整體準確率',(q.overall.acc*100).toFixed(1)+'%'],['F1（說完）',q.overall.f1],['難題準確率（停頓 vs 句尾）',(q.hard.acc*100).toFixed(1)+'%'],['模型檔',(q.bytes/1024).toFixed(0)+' KB (int8)']].map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')}).catch(()=>{});
+ort.env.wasm.numThreads=1; ort.env.wasm.wasmPaths='https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/';
+let sess;try{sess=await ort.InferenceSession.create('models/eot/aivault-eot-v1-int8.onnx?v=eot1',{executionProviders:['wasm']});$('info').textContent='模型已載入（int8，在本機執行）';}catch(e){$('info').textContent='模型載入失敗：'+e;return;}
+const buf=new Float32Array(16000);let lat=[];
+$('go').onclick=async()=>{
+ $('go').disabled=true;
+ const st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:false,autoGainControl:false}});
+ const ac=new (window.AudioContext||window.webkitAudioContext)();await ac.resume();
+ const src=ac.createMediaStreamSource(st),sp=ac.createScriptProcessor(4096,1,1),ratio=ac.sampleRate/16000;let carry=0;
+ sp.onaudioprocess=e=>{const x=e.inputBuffer.getChannelData(0);const out=[];for(let t=carry;t<x.length;t+=ratio)out.push(x[Math.floor(t)]);carry=(carry+out.length*ratio)-x.length;
+  buf.copyWithin(0,out.length);buf.set(out,16000-out.length);let v=0;for(const s of out)v+=s*s;$('vb').style.width=Math.min(100,Math.sqrt(v/out.length)*400)+'%';};
+ src.connect(sp);sp.connect(ac.destination);
+ let busy=false;setInterval(async()=>{if(busy)return;busy=true;const t0=performance.now();
+  const r=await sess.run({audio:new ort.Tensor('float32',buf.slice(),[1,16000])});const ms=performance.now()-t0;lat.push(ms);if(lat.length>50)lat.shift();
+  const p=r.p_end.data[0];$('pv').textContent=p.toFixed(2);$('pb').style.width=(p*100)+'%';
+  const s=[...lat].sort((a,b)=>a-b);$('lat').textContent=s[s.length>>1].toFixed(1);
+  let e=0;for(let i=14000;i<16000;i++)e+=buf[i]*buf[i];const quiet=Math.sqrt(e/2000)<0.01;
+  $('st').textContent=quiet?(p>0.5?'✅ 說完了（換我回答）':'⏸️ 停頓中，等你說下去'):'🗣️ 正在說話';busy=false;},100);
+};
+})();
+</script></body></html>
