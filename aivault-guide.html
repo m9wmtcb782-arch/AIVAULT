@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Technical Dark Star 暗星 · 導讀</title>
+<style>
+:root{--bg:#050b1f;--panel:#0d1b3d;--line:rgba(96,165,250,.35);--acc:#38bdf8;--tx:#e2e8f0}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#0c2550,var(--bg) 60%);color:var(--tx);font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;min-height:100vh}
+header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;gap:8px}
+header a{color:#93c5fd;text-decoration:none;font-size:14px}h1{font-size:14px;margin:0;flex:1;text-align:center}
+.icon-btn{background:rgba(30,58,138,.5);border:1px solid var(--line);color:var(--tx);border-radius:999px;padding:7px 12px;font-size:14px}
+#stage{position:relative;width:100%;max-width:1100px;margin:0 auto;aspect-ratio:16/9;overflow:hidden;background:#000 url(digital-human-real/guide/guide_master.jpg) center/cover;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+#stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .35s}#stage video.on{opacity:1}
+#slide{position:absolute;left:45%;top:6%;width:44%;height:57%;object-fit:contain;background:#081633;border:1px solid rgba(125,211,252,.35);box-shadow:0 0 18px rgba(56,189,248,.25);transition:opacity .4s;z-index:3}
+#slide.dim{opacity:.15}
+#mouth{position:absolute;z-index:4;pointer-events:none;display:none;
+ -webkit-mask-image:radial-gradient(ellipse at center,#000 45%,transparent 72%);mask-image:radial-gradient(ellipse at center,#000 45%,transparent 72%)}
+#sub{position:absolute;left:4%;right:4%;bottom:3%;z-index:5;background:rgba(3,10,30,.78);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:clamp(12px,2.6vw,20px);line-height:1.4;text-align:center;min-height:1.6em}
+#pageNo{position:absolute;right:11%;top:64%;z-index:5;font-size:clamp(10px,1.8vw,14px);color:#bae6fd}
+.ctrl{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding:14px}
+.ctrl button{background:linear-gradient(135deg,#0ea5e9,#6366f1);border:0;color:#fff;border-radius:999px;padding:10px 16px;font-size:15px;font-weight:700}
+.ctrl button.sec{background:rgba(30,58,138,.6);border:1px solid var(--line)}
+#status{text-align:center;font-size:13px;color:#94a3b8;padding:0 14px}
+#ask{display:none;max-width:700px;margin:10px auto;padding:0 14px}#ask textarea{width:100%;border-radius:10px;background:var(--panel);color:var(--tx);border:1px solid var(--line);padding:8px}
+#panel{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:50;align-items:flex-end;justify-content:center}
+#panel .box{background:var(--panel);width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));border:1px solid var(--line);max-height:88vh;overflow:auto}
+#panel h2{font-size:16px;margin:0 0 10px}.row{margin:12px 0}.row label{display:block;font-size:14px;margin-bottom:6px;color:#bae6fd}
+.row select,.row input[type=range]{width:100%}.row select{background:#081633;color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:8px}
+.up{display:block;text-align:center;padding:10px;border:1px dashed var(--acc);border-radius:10px;color:var(--acc);font-weight:700}.up input{display:none}
+.hint{font-size:12px;color:#94a3b8;margin-top:4px}
+</style></head><body>
+<header><a href="aivault-home.html">‹ 首頁</a><h1>Technical Dark Star 暗星 · 導讀</h1><button class="icon-btn" id="setBtn">⚙ 設定</button></header>
+<div id="stage">
+ <video id="v0" muted playsinline preload="auto"></video><video id="v1" muted playsinline preload="auto"></video>
+ <img id="slide" alt=""><img id="mouth" alt=""><div id="pageNo"></div><div id="sub">按「開始導讀」，暗星會為你講解簡報。</div>
+</div>
+<div class="ctrl"><button id="startBtn">▶ 開始導讀</button><button class="sec" id="pauseBtn">⏸ 暫停</button><button class="sec" id="prevBtn">上一頁</button><button class="sec" id="nextBtn">下一頁</button></div>
+<div id="status">目前使用內建示範簡報</div>
+<div id="ask"><textarea id="askBox" rows="2" placeholder="問暗星（之後開放）" disabled></textarea></div>
+<div id="panel"><div class="box">
+ <h2>⚙ 導讀設定</h2>
+ <div class="row"><label class="up">上傳簡報（PDF／圖片／PPTX）<input type="file" id="slideFile" accept=".pdf,.pptx,image/*" multiple></label><div class="hint">PDF 與圖片最穩定；PPTX 只能擷取投影片內的圖片與文字，版面可能不同，建議先從 PowerPoint／Keynote 匯出成 PDF。</div></div>
+ <div class="row"><label class="up">上傳暗星講稿（TXT／MD／DOCX）<input type="file" id="scriptFile" accept=".txt,.md,.docx,text/plain"></label><div class="hint">用「## 第1頁」或單獨一行「---」分頁；沒有分頁時會平均分配到每一頁。</div></div>
+ <div class="row"><label>聲音</label><select id="voiceSel"></select></div>
+ <div class="row"><label>語速 <span id="rateVal">1.0</span></label><input type="range" id="rate" min="0.6" max="1.6" step="0.1" value="1"></div>
+ <div class="row"><label><input type="checkbox" id="auto" checked> 自動配合簡報播放（講完自動翻頁）</label></div>
+ <div class="row"><button class="icon-btn" id="resetBtn">恢復內建示範</button> <button class="icon-btn" id="closeBtn">關閉</button></div>
+ <div class="hint" id="upMsg"></div>
+</div></div>
+<script>
+// TODO: 之後可把上傳的簡報＋講稿存到書架（目前只存在本機 IndexedDB，不碰現有書架）
+const G='digital-human-real/guide/',$=id=>document.getElementById(id);
+const CLIPS={idle:'guide_idle',intro:'guide_intro',point:'guide_point',walk:'guide_walk',explain:'guide_explain',ask:'guide_ask',bow:'guide_bow',talk:'guide_talk'};
+const vids=[$('v0'),$('v1')];let cur=0,curClip=null,lip=null,mouthImgs={};
+function playClip(name,loop){return new Promise(res=>{const nv=vids[1-cur],ov=vids[cur];nv.loop=!!loop;nv.src=G+CLIPS[name]+'.mp4';nv.poster=G+CLIPS[name]+'.jpg';
+ const go=()=>{nv.play().catch(()=>{});nv.classList.add('on');ov.classList.remove('on');setTimeout(()=>ov.pause(),400);cur=1-cur;curClip=name;$('slide').classList.toggle('dim',name==='walk');};
+ nv.oncanplay=()=>{nv.oncanplay=null;go()};nv.onerror=()=>res();nv.onended=()=>res();nv.load();if(loop)setTimeout(res,50);});}
+async function oneShot(n){await playClip(n,false);if(!stopped)playClip(speaking?'talk':'idle',true);}
+// ---- lip ----
+fetch(G+'lip/guide_lip.json').then(r=>r.json()).then(j=>{lip=j;['closed','half','open','round'].forEach(k=>{const i=new Image();i.src=G+'lip/mouth_'+k+'.png';mouthImgs[k]=i;});});
+let speaking=false,vis='closed',visT=0;const SEQ=['half','open','half','closed','round','half','open','closed'];
+function lipLoop(t){requestAnimationFrame(lipLoop);const m=$('mouth'),v=vids[cur];
+ if(!lip||!speaking||curClip!=='talk'||v.readyState<2){m.style.display='none';return;}
+ if(t-visT>140){visT=t;vis=SEQ[(Math.random()*SEQ.length)|0];m.src=mouthImgs[vis].src;}
+ const [W,H]=lip.videoSize,[pw,ph]=lip.patchSize,fi=Math.min(lip.frameOffsets.length-1,Math.floor(v.currentTime*lip.fps)),o=lip.frameOffsets[fi]||[0,0];
+ const cx=lip.mouthCenter[0]+o[0],cy=lip.mouthCenter[1]+o[1];
+ Object.assign(m.style,{display:'block',left:((cx-pw/2)/W*100)+'%',top:((cy-ph/2)/H*100)+'%',width:(pw/W*100)+'%',height:(ph/H*100)+'%'});}
+requestAnimationFrame(lipLoop);
+// ---- data ----
+function demoSlides(){const d=[['AIVAULT 電子書導讀','暗星帶你讀懂一本書'],['重點一：知識的複利','每天 1% 的進步 → 一年 37 倍'],['重點二：圖表解讀','左低右高：先慢後快的成長曲線']];
+ return d.map((t,i)=>{const c=document.createElement('canvas');c.width=1280;c.height=720;const x=c.getContext('2d');const g=x.createLinearGradient(0,0,1280,720);g.addColorStop(0,'#0b1d4a');g.addColorStop(1,'#1e1b4b');x.fillStyle=g;x.fillRect(0,0,1280,720);
+  x.fillStyle='#7dd3fc';x.font='bold 64px sans-serif';x.fillText(t[0],80,160);x.fillStyle='#e2e8f0';x.font='40px sans-serif';x.fillText(t[1],80,250);
+  if(i==2){x.strokeStyle='#38bdf8';x.lineWidth=8;x.beginPath();for(let k=0;k<=100;k++){const px=120+k*10,py=640-Math.pow(1.045,k)*4;k?x.lineTo(px,py):x.moveTo(px,py);}x.stroke();x.strokeStyle='#64748b';x.lineWidth=3;x.strokeRect(120,320,1000,320);}
+  if(i==1){[1,2,3,4,5].forEach(k=>{x.fillStyle='#6366f1';x.fillRect(120+k*170,640-k*k*12,110,k*k*12);});}
+  return c.toDataURL('image/jpeg',.85);});}
+const DEMO_SCRIPT=[['大家好，我是暗星，今天由我為你導讀這本書。','我們會用三頁簡報，快速抓住重點。'],['第一個重點是知識的複利。','請看這裡的長條圖，每天進步一點點，累積起來就非常驚人。','就像存錢一樣，利息也會再生利息。'],['接著看這張圖表。','曲線一開始很平，後來突然往上衝。','這代表堅持的人，會在後段看到爆發性的成果。']];
+let slides=demoSlides(),script=DEMO_SCRIPT,page=0;
+// IndexedDB
+const idb=new Promise(r=>{const q=indexedDB.open('aivault_guide_v1',1);q.onupgradeneeded=()=>q.result.createObjectStore('kv');q.onsuccess=()=>r(q.result);q.onerror=()=>r(null);});
+async function kv(k,v){const db=await idb;if(!db)return;return new Promise(r=>{const t=db.transaction('kv',v===undefined?'readonly':'readwrite').objectStore('kv');const q=v===undefined?t.get(k):(v===null?t.delete(k):t.put(v,k));q.onsuccess=()=>r(q.result);q.onerror=()=>r();});}
+const settings=JSON.parse(localStorage.getItem('aivault-guide-settings')||'{}');
+function saveSet(){localStorage.setItem('aivault-guide-settings',JSON.stringify(settings));}
+function splitSent(t){return (t.match(/[^。！？!?\n]+[。！？!?]?/g)||[]).map(s=>s.trim()).filter(Boolean);}
+function mapScript(text,n){let parts=text.split(/^\s*(?:#{1,3}\s*第\s*\d+\s*頁.*|---+)\s*$/m).map(s=>s.trim()).filter(Boolean);
+ if(parts.length<2){const s=splitSent(text),per=Math.ceil(s.length/Math.max(1,n));return Array.from({length:n},(_,i)=>s.slice(i*per,(i+1)*per));}
+ return Array.from({length:n},(_,i)=>splitSent(parts[i]||''));}
+function showSlide(){$('slide').src=slides[page]||'';$('pageNo').textContent=(page+1)+' / '+slides.length;}
+function status(t){$('status').textContent=t;}
+(async()=>{const s=await kv('slides'),t=await kv('scriptText');if(s&&s.length){slides=s;script=t?mapScript(t,s.length):s.map(()=>[]);status('已載入你上傳的簡報（'+s.length+' 頁）');}else if(t){script=mapScript(t,slides.length);}showSlide();})();
+// ---- uploads ----
+function loadScriptTag(src){return new Promise((r,j)=>{const s=document.createElement('script');s.src=src;s.onload=r;s.onerror=j;document.head.appendChild(s);});}
+const fileURL=f=>new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(f);});
+async function pdfToImgs(f){await loadScriptTag('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js');pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+ const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise,out=[];for(let i=1;i<=pdf.numPages;i++){const p=await pdf.getPage(i),vp=p.getViewport({scale:1}),sc=1280/vp.width,v2=p.getViewport({scale:sc}),c=document.createElement('canvas');c.width=v2.width;c.height=v2.height;await p.render({canvasContext:c.getContext('2d'),viewport:v2}).promise;out.push(c.toDataURL('image/jpeg',.85));$('upMsg').textContent='轉換中… '+i+'/'+pdf.numPages;}return out;}
+async function jszip(){if(!window.JSZip)await loadScriptTag('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');}
+async function pptxToImgs(f){await jszip();const z=await JSZip.loadAsync(f),names=Object.keys(z.files).filter(n=>/^ppt\/slides\/slide\d+\.xml$/.test(n)).sort((a,b)=>parseInt(a.match(/\d+/))-parseInt(b.match(/\d+/))),out=[],texts=[];
+ for(const n of names){const xml=await z.file(n).async('string'),txt=[...xml.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map(m=>m[1]);texts.push(txt.join(' '));
+  const relF=z.file(n.replace('slides/','slides/_rels/')+'.rels');let img=null;if(relF){const rel=await relF.async('string');const m=[...rel.matchAll(/Target="\.\.\/media\/([^"]+\.(?:png|jpe?g|gif))"/gi)][0];if(m){const b=await z.file('ppt/media/'+m[1]).async('base64');img='data:image/'+(/png/i.test(m[1])?'png':'jpeg')+';base64,'+b;}}
+  const c=document.createElement('canvas');c.width=1280;c.height=720;const x=c.getContext('2d');x.fillStyle='#0b1d4a';x.fillRect(0,0,1280,720);
+  if(img){const im=new Image();im.src=img;await im.decode().catch(()=>{});const s=Math.min(1280/im.width,(txt.length?480:720)/im.height)||1;x.drawImage(im,(1280-im.width*s)/2,txt.length?220:(720-im.height*s)/2,im.width*s,im.height*s);}
+  x.fillStyle='#e2e8f0';let y=80;txt.slice(0,img?3:9).forEach((t,i)=>{x.font=(i?'34px':'bold 52px')+' sans-serif';x.fillText(t.slice(0,34),60,y);y+=i?52:72;});out.push(c.toDataURL('image/jpeg',.85));}
+ return out;}
+$('slideFile').onchange=async e=>{const fs=[...e.target.files];if(!fs.length)return;$('upMsg').textContent='處理中…';try{let out=[];
+ for(const f of fs){if(/\.pdf$/i.test(f.name))out=out.concat(await pdfToImgs(f));else if(/\.pptx$/i.test(f.name)){out=out.concat(await pptxToImgs(f));$('upMsg').textContent='PPTX 已盡量擷取圖片與文字；若版面不對，請匯出 PDF 再上傳。';}else if(f.type.startsWith('image/'))out.push(await fileURL(f));}
+ if(!out.length)throw new Error('沒有可用的頁面');slides=out;page=0;await kv('slides',out);const t=await kv('scriptText');script=t?mapScript(t,out.length):out.map(()=>[]);showSlide();status('已載入簡報 '+out.length+' 頁'+(t?'':'，請再上傳講稿'));if(!/PPTX/.test($('upMsg').textContent))$('upMsg').textContent='簡報已儲存（'+out.length+' 頁）';}catch(err){$('upMsg').textContent='上傳失敗：'+err.message;}};
+$('scriptFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{let t;if(/\.docx$/i.test(f.name)){await jszip();const z=await JSZip.loadAsync(f);const x=await z.file('word/document.xml').async('string');t=x.split(/<\/w:p>/).map(p=>[...p.matchAll(/<w:t[^>]*>([^<]*)<\/w:t>/g)].map(m=>m[1]).join('')).join('\n');}else t=await f.text();
+ await kv('scriptText',t);script=mapScript(t,slides.length);$('upMsg').textContent='講稿已儲存，共 '+script.flat().length+' 句';status('講稿已載入');}catch(err){$('upMsg').textContent='講稿讀取失敗：'+err.message;}};
+$('resetBtn').onclick=async()=>{await kv('slides',null);await kv('scriptText',null);slides=demoSlides();script=DEMO_SCRIPT;page=0;showSlide();status('目前使用內建示範簡報');$('upMsg').textContent='已恢復示範';};
+// ---- voice ----
+let voices=[];function loadVoices(){voices=speechSynthesis.getVoices().filter(v=>/^zh|cmn/i.test(v.lang));const sel=$('voiceSel');sel.innerHTML=voices.map((v,i)=>`<option value="${i}">${v.name}（${v.lang}）</option>`).join('')||'<option>系統預設</option>';
+ let i=voices.findIndex(v=>v.name===settings.voice);if(i<0)i=Math.max(0,voices.findIndex(v=>/TW|Hant/i.test(v.lang)));sel.value=i;}
+if('speechSynthesis'in window){loadVoices();speechSynthesis.onvoiceschanged=loadVoices;}
+$('voiceSel').onchange=e=>{settings.voice=(voices[e.target.value]||{}).name;saveSet();};
+$('rate').value=settings.rate||1;$('rateVal').textContent=(+$('rate').value).toFixed(1);$('rate').oninput=e=>{settings.rate=+e.target.value;$('rateVal').textContent=settings.rate.toFixed(1);saveSet();};
+$('auto').checked=settings.auto!==false;$('auto').onchange=e=>{settings.auto=e.target.checked;saveSet();};
+function say(text){return new Promise(res=>{$('sub').textContent=text;if(!('speechSynthesis'in window)){setTimeout(res,text.length*220);return;}
+ const u=new SpeechSynthesisUtterance(text),v=voices[$('voiceSel').value];if(v)u.voice=v;u.lang=v?v.lang:'zh-TW';u.rate=+$('rate').value||1;
+ let done=false;const fin=()=>{if(done)return;done=true;speaking=false;res();};
+ u.onstart=()=>{speaking=true;if(curClip!=='talk'&&curClip!=='point'&&curClip!=='explain')playClip('talk',true);};
+ u.onboundary=e=>{if(e.charIndex>0){const rest=text.slice(e.charIndex);$('sub').textContent=text.length>40?rest.slice(0,40):text;}};
+ u.onend=fin;u.onerror=fin;speechSynthesis.speak(u);setTimeout(()=>{if(!speaking&&!done)speaking=true;},600);setTimeout(fin,text.length*600/(u.rate)+4000);});}
+// ---- flow ----
+let stopped=true,paused=false,jump=null;
+const waitPause=()=>new Promise(r=>{const t=()=>paused&&!stopped?setTimeout(t,200):r();t();});
+async function speakSentence(s,i){if(stopped)return;
+ if(/圖|表|這裡|看/.test(s)){oneShot('point');}else if(i%3===2){oneShot('explain');}
+ await say(s);await waitPause();}
+async function run(){stopped=false;paused=false;$('ask').style.display='none';
+ await playClip('intro',false);if(stopped)return;playClip('talk',true);await say('大家好，我是 Technical Dark Star 暗星，接下來由我為你導讀。');
+ for(;page<slides.length&&!stopped;){showSlide();const ss=script[page]||[];if(page>0&&page%2===0&&!stopped){await playClip('walk',false);playClip('idle',true);}
+  for(let i=0;i<ss.length&&!stopped&&jump===null;i++)await speakSentence(ss[i],i);
+  if(stopped)break;if(jump!==null){page=jump;jump=null;continue;}
+  playClip('idle',true);if(!ss.length)$('sub').textContent='（這一頁沒有講稿）';
+  if(!$('auto').checked){status('按「下一頁」繼續');await new Promise(r=>{nextWait=r;});nextWait=null;if(stopped)break;if(jump!==null){page=jump;jump=null;continue;}}
+  page++;}
+ if(stopped)return;page=Math.max(0,slides.length-1);
+ playClip('ask',false).then(()=>!stopped&&playClip('idle',true));await say('今天的導讀就到這裡，大家有什麼問題嗎？');$('ask').style.display='block';
+ await new Promise(r=>setTimeout(r,2500));if(stopped)return;await say('謝謝大家的聆聽，我們下次見。');await playClip('bow',false);if(!stopped)playClip('idle',true);
+ stopped=true;$('startBtn').textContent='▶ 重新導讀';status('導讀結束');}
+let nextWait=null;
+function stopSpeech(){try{speechSynthesis.cancel();}catch(e){}speaking=false;}
+$('startBtn').onclick=()=>{stopSpeech();const wasRunning=!stopped;stopped=true;setTimeout(()=>{if(!wasRunning&&$('startBtn').textContent.includes('重新'))page=0;$('startBtn').textContent='▶ 開始導讀';status('導讀中…');run();},wasRunning?300:0);};
+$('pauseBtn').onclick=()=>{if(stopped)return;paused=!paused;if(paused){speechSynthesis.pause();$('pauseBtn').textContent='▶ 繼續';speaking=false;}else{speechSynthesis.resume();$('pauseBtn').textContent='⏸ 暫停';}};
+function go(d){const np=Math.min(slides.length-1,Math.max(0,page+d));if(stopped){page=np;showSlide();return;}jump=np;stopSpeech();if(nextWait)nextWait();}
+$('prevBtn').onclick=()=>go(-1);$('nextBtn').onclick=()=>go(1);
+$('setBtn').onclick=()=>$('panel').style.display='flex';$('closeBtn').onclick=()=>$('panel').style.display='none';$('panel').onclick=e=>{if(e.target.id==='panel')$('panel').style.display='none';};
+playClip('idle',true);showSlide();
+</script></body></html>
