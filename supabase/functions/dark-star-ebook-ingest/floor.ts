@@ -48,29 +48,49 @@ export const ZONES: Z[] = [
 ];
 const envs = (b: string) => [b, ...Array.from({ length: 9 }, (_, i) => b + "_" + (i + 1))].map((n) => Deno.env.get(n) || "").filter((v, i, a) => v && a.indexOf(v) === i);
 // 真實模型呼叫：回傳 JSON、模型名稱與 token 用量（Groq 免費層 gpt-oss-120b；失敗才退回共用 llm，該情況用量記為 null）
-export async function callModel(system: string, user: string): Promise<{ v: any; model: string; usage: any }> {
+export async function callModel(system: string, user: string, maxTokens = 4000): Promise<{ v: any; model: string; usage: any }> {
   let last = "";
   for (const k of envs("GROQ_API_KEY")) {
     try {
       const r = await fetch("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { Authorization: "Bearer " + k, "Content-Type": "application/json" }, signal: AbortSignal.timeout(110000),
-        body: JSON.stringify({ model: "openai/gpt-oss-120b", messages: [{ role: "system", content: system }, { role: "user", content: user }], response_format: { type: "json_object" }, max_tokens: 4000, temperature: 0.6 }) });
-      if (!r.ok) { last += " groq:" + r.status; continue; }
+        body: JSON.stringify({ model: "openai/gpt-oss-120b", messages: [{ role: "system", content: system }, { role: "user", content: user }], response_format: { type: "json_object" }, max_tokens: maxTokens, reasoning_effort: "low", temperature: 0.7 }) });
+      if (!r.ok) { last += " groq:" + r.status + (r.status === 429 ? ":" + (await r.text()).slice(0, 160).replace(/\s+/g, " ") : ""); continue; }
       const j = await r.json(); const t = String(j.choices?.[0]?.message?.content || ""); const m = t.match(/\{[\s\S]*\}/); if (!m) { last += " groq:nojson"; continue; }
       const u = j.usage || {}; return { v: JSON.parse(m[0]), model: "groq:" + (j.model || "openai/gpt-oss-120b"), usage: { prompt: u.prompt_tokens, completion: u.completion_tokens, total: u.total_tokens, request_id: j.id || r.headers.get("x-request-id") } };
     } catch (e) { last += " groq:" + String((e as any)?.message || e).slice(0, 60); }
   }
+  if (/groq:429/.test(last)) throw new Error("LLM_FAILED 429 " + last);
   const v = await llm(system, user, { maxTokens: 3500, skipGemini: true }); return { v, model: String(v.__model || "llm"), usage: null };
 }
 let SHA = "";
 async function repoSha() { if (SHA) return SHA; try { const r = await fetch("https://api.github.com/repos/m9wmtcb782-arch/AIVAULT/commits/main", { headers: { "User-Agent": "aivault-floor", Accept: "application/vnd.github+json" } }); if (r.ok) SHA = (await r.json()).sha || ""; } catch { /* ignore */ } return SHA || "main"; }
-export const GENRES = ["科幻", "武俠", "推理", "愛情", "恐怖", "奇幻", "歷史", "都市", "懸疑", "仙俠", "賽博龐克", "校園", "冒險", "末日", "職場", "童話"];
-export const NOVEL_ZONES = ["image", "video", "voice", "d3"]; // 尚無媒體金鑰的區：改寫小說，不待命
-export const CHAPTERS = 3;
+export const GENRES = ["穿越", "修仙", "科幻", "武俠", "推理", "愛情", "恐怖", "奇幻", "歷史", "都市", "懸疑", "仙俠", "賽博龐克", "校園", "冒險", "末日", "職場", "童話", "宮鬥", "軍事"];
+export const NOVEL_ZONES = ["image", "video", "voice", "d3", "market", "research", "law", "medicine", "code", "guard"]; // 每本書固定一區，章節由該區不同的人接力
+export const BOOK_TARGET = 100, CH_TARGET = 100, CH_CHARS = 3000, ACTIVE_BOOKS = 8, PREVIEW_CHAPTERS = 3;
+async function ensureBooks() { // 續跑：同時進行 ACTIVE_BOOKS 本，總數到 BOOK_TARGET 為止
+  const all = await rest("aivault_novel_books?select=id,status");
+  const active = all.filter((b: any) => ["outline", "review", "serial"].includes(b.status)).length; const made = [];
+  for (let i = active; i < ACTIVE_BOOKS && all.length + made.length < BOOK_TARGET; i++) {
+    const n = all.length + made.length, genre = GENRES[n % GENRES.length], zone = NOVEL_ZONES[n % NOVEL_ZONES.length];
+    const [bk] = await rest("aivault_novel_books", { method: "POST", body: JSON.stringify({ genre, zone, target_chapters: CH_TARGET }) });
+    const t = await enqueue(zone, `📖 構思原創${genre}長篇（${CH_TARGET} 章）大綱`, null, { novel: { stage: "outline", book: bk.id, genre } });
+    if (t) await rest(`aivault_novel_books?id=eq.${bk.id}`, { method: "PATCH", body: JSON.stringify({ outline_task: t.id, outline_agent: t.agent_id }) }); made.push(bk.id);
+  }
+  return made.length;
+}
+async function nextChapter(bk: any, ch: number) {
+  const ex = await rest(`aivault_pool_agent_tasks?source=eq.floor&status=in.(queued,running)&plan->novel->>book=eq.${bk.id}&select=id&limit=1`); if (ex.length) return;
+  await enqueue(bk.zone, `📖 ${bk.genre}《${bk.title}》第 ${ch} 章`, null, { novel: { stage: "chapter", book: bk.id, genre: bk.genre, title: bk.title, ch, total: bk.target_chapters } });
+}
 const zl = (k: string) => ZONES.find((z) => z.key === k)?.label || k;
 
 async function who(r: Request) {
   const tok = (r.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
   if (SR && tok === SR) return { id: null as string | null, cron: true };
+  try { // 排程：Action 用專案 service_role 金鑰（可能與函式內環境變數格式不同）→ 解析角色並向資料庫實際驗證
+    const pl = JSON.parse(atob(tok.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    if (pl.role === "service_role") { const ck = await fetch(URL0 + "/rest/v1/aivault_pool_agents?select=id&limit=1", { headers: { apikey: tok, Authorization: "Bearer " + tok } }); if (ck.ok) return { id: null as string | null, cron: true }; return null; }
+  } catch { /* not a jwt */ }
   if (!tok || tok.split(".").length !== 3) return null;
   const u = await fetch(URL0 + "/auth/v1/user", { headers: { apikey: SR, Authorization: "Bearer " + tok } }).then((x) => x.ok ? x.json() : null).catch(() => null);
   const role = u?.app_metadata?.role; return u?.id && (role === "owner" || role === "admin") ? { id: u.id as string, cron: false } : null;
@@ -104,16 +124,27 @@ export async function runTask(t: any, think = callModel) {
   const cx = await ctxText(tpl?.ctx);
   const nv = Array.isArray(t.plan) ? null : t.plan?.novel;
   let user = `任務：${t.order_text}${cx.text}\n\n直接交付完整成果（繁體中文 Markdown，具體、可查證；不確定處標「待查證」）。另外：如果你認為需要一個專門的子代理來分擔這類工作，可以提出複製提案。只輸出 JSON：{"result":"成果","lesson":"一句可重用經驗（寫入記憶）","spawn":null 或 {"specialty":"子代理專長","reason":"理由"}}`;
-  if (nv?.stage === "outline") user = `任務：構思一部原創${nv.genre}小說（繁體中文，避免模仿既有作品）。交付：書名、一句話賣點、主要角色（3–5 位，含動機）、世界觀、${CHAPTERS} 章的章節大綱（每章 80–150 字，有因果推進與結局）。只輸出 JSON：{"title":"書名","result":"完整大綱（Markdown）","chapters":["第1章標題：大綱", "..."],"lesson":"一句寫作經驗"}`;
-  if (nv?.stage === "chapter") { const [pj] = await rest(`aivault_pool_agent_tasks?id=eq.${nv.project}&select=result`); const prev = nv.ch > 1 ? (await rest(`aivault_pool_agent_tasks?source=eq.floor&plan->novel->>project=eq.${nv.project}&plan->novel->>ch=eq.${nv.ch - 1}&select=result&limit=1`))[0]?.result || "" : "";
-    user = `你正在合寫${nv.genre}小說《${nv.title}》。全書大綱：\n${String(pj?.result || "").slice(0, 4000)}\n\n${prev ? "上一章結尾（銜接用）：\n" + String(prev).slice(-1500) + "\n\n" : ""}現在寫第 ${nv.ch}/${nv.total} 章：「${nv.brief}」。繁體中文，1500–2500 字，有對白與場景描寫，符合大綱因果。只輸出 JSON：{"result":"本章完整正文（第一行是章名）","lesson":"一句寫作經驗"}`; }
+  let bk: any = null; if (nv?.book) bk = (await rest(`aivault_novel_books?id=eq.${nv.book}&select=*`))[0];
+  if (nv?.stage === "outline") user = `任務：構思一部原創${nv.genre}長篇小說（繁體中文，避免模仿既有作品），共 ${CH_TARGET} 章、每章約 ${CH_CHARS} 字，全書約 ${CH_TARGET * CH_CHARS / 10000} 萬字。交付：書名、一句話賣點、主要角色（5–8 位，含動機與成長）、世界觀與規則、10 個篇章弧（每弧涵蓋 10 章，寫出該弧的因果推進、轉折與結尾鉤子；最後一弧收束全書）。只輸出 JSON：{"title":"書名","logline":"一句話賣點","result":"完整大綱（Markdown）","arcs":["第1–10章：…","第11–20章：…", "…共10項"],"lesson":"一句寫作經驗"}`;
+  if (nv?.stage === "chapter" && bk) {
+    const arc = (bk.arcs || [])[Math.min(9, Math.floor((nv.ch - 1) / 10))] || "";
+    const prev = await rest(`aivault_novel_chapters?book_id=eq.${bk.id}&ch=gte.${Math.max(1, nv.ch - 5)}&ch=lt.${nv.ch}&select=ch,title,text&order=ch.asc`);
+    const last = prev[prev.length - 1];
+    user = `你正在與工作區同事接力寫${bk.genre}長篇《${bk.title}》（共 ${bk.target_chapters} 章）。\n全書大綱（節錄）：\n${String(bk.outline || "").slice(0, 2500)}\n\n本章所屬篇章弧：${arc}\n近幾章標題：${prev.map((c: any) => "第" + c.ch + "章 " + (c.title || "")).join("／") || "（本章是開篇）"}\n${last ? "上一章結尾（必須自然銜接）：\n" + String(last.text).slice(-1200) + "\n" : ""}\n現在寫第 ${nv.ch} 章。繁體中文，約 ${CH_CHARS} 字（不少於 ${CH_CHARS - 500} 字），有場景、對白與內心描寫，推進篇章弧的因果，章末留鉤子${nv.ch === bk.target_chapters ? "（這是最終章，收束全書）" : ""}。只輸出 JSON：{"title":"章名","result":"本章完整正文","lesson":"一句寫作經驗"}`; }
   try {
-    const call = await think(sys, user); const v = call.v;
+    const call = await think(sys, user, nv?.stage === "chapter" ? 8000 : 4000); const v = call.v;
     let result = String(v.result || "").trim(); if (!nv && z.media && !result.startsWith("【企劃稿")) result = `【企劃稿・尚未生成${z.media}】\n` + result;
     await rest(`aivault_pool_agent_tasks?id=eq.${t.id}`, { method: "PATCH", body: JSON.stringify({ status: "done", result, review_status: "pending", steps: [{ type: "act", title: "完成", model: call.model, usage: call.usage, started_at: started, finished_at: new Date().toISOString(), source_url: cx.url, source_sha: cx.sha }], step_no: 1, updated_at: new Date().toISOString() }) });
-    if (nv?.stage === "outline") { const title = String(v.title || "未命名").slice(0, 60); const chs = (Array.isArray(v.chapters) ? v.chapters : []).slice(0, CHAPTERS).map(String); while (chs.length < CHAPTERS) chs.push("第" + (chs.length + 1) + "章");
-      await rest(`aivault_pool_agent_tasks?id=eq.${t.id}`, { method: "PATCH", body: JSON.stringify({ plan: { novel: { ...nv, title } }, order_text: `📖 ${nv.genre}小說《${title}》大綱` }) });
-      for (let i = 0; i < chs.length; i++) await enqueue(z.key, `📖 ${nv.genre}小說《${title}》第 ${i + 1} 章`, null, { novel: { stage: "chapter", project: t.id, genre: nv.genre, title, ch: i + 1, total: chs.length, brief: chs[i].slice(0, 300) } }); }
+    if (nv?.stage === "outline" && bk) { const title = String(v.title || "未命名").slice(0, 60); const arcs = (Array.isArray(v.arcs) ? v.arcs : []).slice(0, 10).map(String);
+      await rest(`aivault_novel_books?id=eq.${bk.id}`, { method: "PATCH", body: JSON.stringify({ title, outline: (v.logline ? "**" + v.logline + "**\n\n" : "") + result, arcs, status: "review", updated_at: new Date().toISOString() }) });
+      await rest(`aivault_pool_agent_tasks?id=eq.${t.id}`, { method: "PATCH", body: JSON.stringify({ plan: { novel: { ...nv, title } }, order_text: `📖 ${nv.genre}長篇《${title}》大綱（核准後上架連載）` }) });
+      await nextChapter({ ...bk, title }, 1); }
+    if (nv?.stage === "chapter" && bk) {
+      await rest("aivault_novel_chapters?on_conflict=book_id,ch", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ book_id: bk.id, ch: nv.ch, title: String(v.title || "").slice(0, 80), text: result, chars: result.length, agent_id: a.id, task_id: t.id, model: call.model, usage: call.usage }) });
+      const cs = await rest(`aivault_novel_chapters?book_id=eq.${bk.id}&select=chars`); const done = cs.length, chars = cs.reduce((x: number, c: any) => x + (c.chars || 0), 0);
+      await rest(`aivault_novel_books?id=eq.${bk.id}`, { method: "PATCH", body: JSON.stringify({ chapters_done: done, chars, status: done >= bk.target_chapters ? "done" : bk.status, updated_at: new Date().toISOString() }) });
+      if (nv.ch > PREVIEW_CHAPTERS) await rest(`aivault_pool_agent_tasks?id=eq.${t.id}`, { method: "PATCH", body: JSON.stringify({ review_status: null }) }); // 前 3 章與大綱給擁有者審，其餘章節只記帳
+      if (nv.ch < bk.target_chapters && (bk.approved || nv.ch < PREVIEW_CHAPTERS)) await nextChapter(bk, nv.ch + 1); }
     if (v.lesson) await rest("aivault_pool_agent_memory", { method: "POST", body: JSON.stringify({ agent_id: a.id, kind: "reflection", content: String(v.lesson).slice(0, 500), task_id: t.id }) });
     let spawned = false;
     if (!nv && v.spawn && v.spawn.specialty) {
@@ -135,8 +166,24 @@ export async function runTask(t: any, think = callModel) {
 export async function floor(r: Request) {
   if (r.method === "OPTIONS") return new Response("ok", { headers: H });
   try {
-    const u = await who(r); if (!u) return out({ error: "owner only" }, 403);
     const b = await r.json().catch(() => ({})); const a = String(b.action || "");
+    if (a === "shelf" || a === "shelf_chapter") { // 書架：任何已登入會員可讀「擁有者已核准」的書（連載中／完結）
+      const tok = (r.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+      const uu = tok === SR || (await who(r))?.cron ? { id: "sr" } : await fetch(URL0 + "/auth/v1/user", { headers: { apikey: SR, Authorization: "Bearer " + tok } }).then((x) => x.ok ? x.json() : null).catch(() => null);
+      if (!uu?.id) return out({ error: "login required" }, 401);
+      if (a === "shelf") {
+        const bks = await rest("aivault_novel_books?approved=eq.true&select=id,title,genre,outline,status,chapters_done,target_chapters,chars,updated_at&order=updated_at.desc");
+        const chs = bks.length ? await rest(`aivault_novel_chapters?book_id=in.(${bks.map((x: any) => x.id).join(",")})&select=book_id,ch,title,chars,agent_id&order=ch.asc`) : [];
+        bks.forEach((x: any) => { x.chapters = chs.filter((c: any) => c.book_id === x.id).map((c: any) => [c.ch, c.title, c.chars, c.agent_id]); });
+        return out({ ok: true, books: bks, genres: GENRES });
+      }
+      const id = String(b.book_id || "").replace(/[^0-9a-f-]/g, ""), ch = Math.max(1, Number(b.ch) || 1);
+      const [bk] = await rest(`aivault_novel_books?id=eq.${id}&approved=eq.true&select=id,title`); if (!bk) return out({ error: "not found" }, 404);
+      const [c] = await rest(`aivault_novel_chapters?book_id=eq.${id}&ch=eq.${ch}&select=ch,title,text,chars,agent_id,model,created_at`);
+      const nm = c?.agent_id ? (await rest(`aivault_pool_agents?id=eq.${c.agent_id}&select=name`))[0]?.name : null;
+      return out({ ok: true, book: bk, chapter: c ? { ...c, agent_name: nm } : null });
+    }
+    const u = await who(r); if (!u) return out({ error: "owner only" }, 403);
     if (a === "floor") {
       const ts = await rest("aivault_pool_agent_tasks?source=eq.floor&select=id,agent_id,zone,kind,status,review_status,order_text,updated_at&order=updated_at.desc&limit=1000");
       const st: any[] = []; const seen = new Set<string>(); const counts: Record<string, number> = {}; const zones: Record<string, any> = {};
@@ -168,6 +215,10 @@ export async function floor(r: Request) {
         const nid = "sp-" + String(c.length + 1).padStart(4, "0");
         [child] = await rest("aivault_pool_agents", { method: "POST", body: JSON.stringify({ id: nid, name: p.name + "·分身" + (c.length + 1), domain: p.domain, specialty: spec, avatar: p.avatar, zone: p.zone, persona: p.persona + `\n你是 ${p.name} 經擁有者核准複製出的子代理，專長：${spec}。`, model_route: p.model_route, spawned: true, parent_agent_id: p.id }) });
       }
+      const nvr = Array.isArray(t.plan) ? null : t.plan?.novel;
+      if (nvr?.stage === "outline" && nvr.book && d !== "comment") { const [bk] = await rest(`aivault_novel_books?id=eq.${nvr.book}&select=*`);
+        if (bk) { await rest(`aivault_novel_books?id=eq.${bk.id}`, { method: "PATCH", body: JSON.stringify(d === "approve" ? { approved: true, status: bk.chapters_done >= bk.target_chapters ? "done" : "serial" } : { status: "rejected", approved: false }) });
+          if (d === "approve" && bk.chapters_done < bk.target_chapters) await nextChapter({ ...bk, approved: true }, bk.chapters_done + 1); } }
       if (b.comment) await rest("aivault_pool_agent_memory", { method: "POST", body: JSON.stringify({ agent_id: t.agent_id, kind: "owner_feedback", content: `擁有者${d === "approve" ? "核准" : d === "reject" ? "退回" : "留言"}：${String(b.comment).slice(0, 400)}`, task_id: t.id }) });
       const [n] = await rest(`aivault_pool_agent_tasks?id=eq.${id}`, { method: "PATCH", body: JSON.stringify(patch) });
       return out({ ok: true, task: { id: n.id, review_status: n.review_status }, child });
@@ -181,12 +232,12 @@ export async function floor(r: Request) {
       return out({ ok: true, total: Number((rr.headers.get("content-range") || "/0").split("/")[1]) || 0, rows: rows.map((t: any) => { const s0 = (t.steps || [])[0] || {}; return { id: t.id, agent_id: t.agent_id, agent_name: ns.find((n: any) => n.id === t.agent_id)?.name, zone: t.zone, zone_label: zl(t.zone), kind: t.kind, status: t.status, review_status: t.review_status, review_comment: t.review_comment, task: t.order_text, result: t.result, model: s0.model || null, usage: s0.usage || null, started_at: s0.started_at || t.created_at, finished_at: s0.finished_at || null, source_url: s0.source_url || null, created_at: t.created_at, reviewed_at: t.reviewed_at }; }) });
     }
     if (a === "novels") {
-      const os = await rest("aivault_pool_agent_tasks?source=eq.floor&plan->novel->>stage=eq.outline&status=eq.done&select=id,agent_id,plan,result,review_status,updated_at&order=updated_at.desc&limit=30");
-      const res = [];
-      for (const o of os) { const ch = await rest(`aivault_pool_agent_tasks?source=eq.floor&plan->novel->>project=eq.${o.id}&select=id,agent_id,plan,status,review_status,result&order=created_at.asc`);
-        const all = [o, ...ch]; const approved = all.every((x: any) => x.review_status === "approved") && ch.length > 0 && ch.every((x: any) => x.status === "done");
-        res.push({ id: o.id, title: o.plan?.novel?.title, genre: o.plan?.novel?.genre, outline_by: o.agent_id, chapters: ch.map((c: any) => ({ id: c.id, ch: c.plan?.novel?.ch, by: c.agent_id, status: c.status, review: c.review_status })), approved, text: b.full && approved ? ch.map((c: any) => c.result).join("\n\n") : undefined }); }
-      return out({ ok: true, novels: res });
+      const bks = await rest("aivault_novel_books?select=id,title,genre,zone,status,approved,chapters_done,target_chapters,chars,outline_agent,created_at,updated_at&order=created_at.asc");
+      const tot = bks.reduce((x: number, b: any) => x + (b.chars || 0), 0);
+      const since = new Date(Date.now() - 86400000).toISOString(); const day = await rest(`aivault_novel_chapters?created_at=gte.${since}&select=chars,usage`);
+      const dayTok = day.reduce((x: number, c: any) => x + (c.usage?.total || 0), 0), dayChars = day.reduce((x: number, c: any) => x + (c.chars || 0), 0);
+      const goal = BOOK_TARGET * CH_TARGET * CH_CHARS;
+      return out({ ok: true, books: bks, total_chars: tot, goal_chars: goal, last24h: { chapters: day.length, chars: dayChars, tokens: dayTok }, eta_days: dayChars ? Math.round((goal - tot) / dayChars) : null });
     }
     if (a === "approved") { // 供其他 AIVAULT 工具取用（也可直接讀 view aivault_pool_approved_outputs）
       let q = "aivault_pool_approved_outputs?select=*&order=reviewed_at.desc&limit=" + Math.min(100, Number(b.limit) || 30); if (b.zone) q += "&zone=eq." + String(b.zone).replace(/[^\w]/g, "");
@@ -210,9 +261,9 @@ export async function floor(r: Request) {
       await rest(`aivault_pool_agent_tasks?source=eq.floor&status=eq.running&updated_at=lt.${new Date(Date.now() - 900000).toISOString()}`, { method: "PATCH", body: JSON.stringify({ status: "queued" }) });
       const cand = await rest(`aivault_pool_agent_tasks?source=eq.floor&status=eq.queued&kind=eq.work&select=*&order=created_at.asc&limit=40`);
       let q: any[] = [];
-      for (const c of cand) { const nv = c.plan?.novel; if (nv?.stage === "chapter" && nv.ch > 1) { const pr = await rest(`aivault_pool_agent_tasks?source=eq.floor&plan->novel->>project=eq.${nv.project}&plan->novel->>ch=eq.${nv.ch - 1}&select=status&limit=1`); if (pr[0] && pr[0].status !== "done") continue; } q.push(c); if (q.length >= n) break; }
+      for (const c of cand) { q.push(c); if (q.length >= n) break; }
       // 沒有媒體金鑰的區不待命：佇列不足就派原創小說大綱（之後自動分章給同區其他人）
-      const nq = cand.length; if (nq < 12) for (let i = 0; i < 2; i++) { const zk = NOVEL_ZONES[(Math.floor(Date.now() / 60000) + i) % NOVEL_ZONES.length]; const gr = GENRES[Math.floor(Math.random() * GENRES.length)]; await enqueue(zk, `📖 構思原創${gr}小說大綱`, null, { novel: { stage: "outline", genre: gr } }); }
+      const newBooks = await ensureBooks();
       if (!q.length) { // 佇列空：從各區範本輪流補一件（真實任務，不是假動作）
         const z = ZONES[Math.floor(Date.now() / 1800000) % ZONES.length]; const tp = z.tasks[Math.floor(Date.now() / 18000000) % z.tasks.length];
         const t = await enqueue(z.key, tp.t + "（第 " + new Date().toISOString().slice(0, 10) + " 輪，請參考你的記憶改進上次的成果）", null); if (t) q = [t];
@@ -220,7 +271,7 @@ export async function floor(r: Request) {
       const results = [];
       for (const t of q) { const r0 = await runTask(t); results.push(r0); if (!r0.ok && /429|rate/i.test(String(r0.error))) break; } // 依序執行；遇到 Groq 限流就停
       const rl = results.some((x: any) => !x.ok && /429|LLM_FAILED/.test(String(x.error)));
-      return out({ ok: true, done: results.filter((x) => x.ok).length, rate_limited: rl, results });
+      return out({ ok: true, done: results.filter((x) => x.ok).length, rate_limited: rl, new_books: newBooks, results });
     }
     return out({ error: "unknown action" }, 400);
   } catch (e) { return out({ error: String((e as any)?.message || e).slice(0, 300) }, 500); }

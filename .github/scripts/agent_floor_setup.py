@@ -14,6 +14,7 @@ def sql(q):
 if "migrate" in STEPS:
     sql(open("supabase/migrations/20261017090000_aivault_agent_floor.sql").read())
     sql(open("supabase/migrations/20261017093000_aivault_pool_approved_outputs.sql").read())
+    sql(open("supabase/migrations/20261017100000_aivault_novel_books.sql").read())
     print("zones", sql("select zone,count(*) from public.aivault_pool_agents group by zone order by zone"))
 if "publish" in STEPS:
     html=subprocess.check_output(["gpg","--batch","--quiet","--pinentry-mode","loopback","--passphrase",os.environ["PAGES_KEY"],"-d","private/agent-floor.html.gpg"]).decode()
@@ -35,11 +36,17 @@ if any(s in STEPS for s in ("seed","cycle","test")):
         while True:  # 穩定佇列：依序一輪一輪做，遇到 Groq 限流就提早結束（免費層約 30 次/分，這裡遠低於上限）
             k+=1; s,b=y({"action":"cycle","n":N}); ok=isinstance(b,dict)
             print("CYCLE",k,s,"done",b.get("done") if ok else b,"rate_limited",b.get("rate_limited") if ok else "", [(r.get("agent"),r.get("zone"),r.get("model"),(r.get("usage") or {}).get("total"),r.get("error")) for r in (b.get("results") or [])] if ok else "")
-            if not ok or b.get("rate_limited") or time.time()>end: break
-            time.sleep(5)
+            if s!=200 or not ok or time.time()>end: break
+            if b.get("rate_limited"):
+                errs=" ".join(str(r.get("error")) for r in b.get("results") or [])
+                rl=locals().get("rl",0)+1
+                if "per day" in errs or "TPD" in errs or rl>=3: print("STOP: Groq limit", errs[:300]); break
+                time.sleep(65); continue
+            rl=0; time.sleep(8)
     if "test" in STEPS:
         s,b=y({"action":"floor"}); print("FLOOR",s,{k:b.get(k) for k in ("review","counts")} if isinstance(b,dict) else b)
-        s,b=y({"action":"novels"}); print("NOVELS",json.dumps(b,ensure_ascii=False)[:800])
+        s,b=y({"action":"novels"}); print("NOVELS",{k:b.get(k) for k in ("total_chars","goal_chars","last24h","eta_days")} if isinstance(b,dict) else b)
+        for x in (b.get("books") or [])[:12] if isinstance(b,dict) else []: print("  BOOK",x.get("genre"),x.get("title"),x.get("status"),x.get("chapters_done"),x.get("chars"),x.get("zone"))
         s,b=y({"action":"reviews"})
         print("REVIEWS",len(b.get("tasks") or []))
         s,b=y({"action":"ledger","limit":12})
