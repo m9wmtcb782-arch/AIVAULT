@@ -44,12 +44,15 @@ if "cycle" in STEPS:
         time.sleep(10)
     print("TOKENS_THIS_RUN",tok)
     if os.environ.get("PEER","1")=="1": s,b=y({"action":"peer_review","n":2}); print("PEER",s,json.dumps(b,ensure_ascii=False)[:200])
+if "videomig" in STEPS: sql(open("supabase/migrations/20261017203000_aivault_learning_source.sql").read()); print("videomig ok")
+if "videosample" in STEPS:
+    for r in sql("select agent_id, topic, url, title, caption_lang, transcript_chars, sha256, fetched_at, left(notes,160) n from public.aivault_pool_agent_learning where source_type='video_subtitles' order by created_at desc limit 5"): print("VID",json.dumps(r,ensure_ascii=False,default=str))
 if "voicesample" in STEPS:  # 唯讀：即時語音學習樣本（網址、標題、筆記前 160 字）＋審核狀態統計
     for r in sql("select agent_id, topic, url, title, left(notes,160) n, (usage->>'total') tok from public.aivault_pool_agent_learning where topic like '即時語音：%' order by created_at desc limit 6"): print("VS",json.dumps(r,ensure_ascii=False))
     print("RS",sql("select review_status, count(*) from public.aivault_pool_agent_tasks where source='floor' group by 1 order by 2 desc"))
     print("RA",sql("select date_trunc('minute',reviewed_at) m, review_status, count(*) from public.aivault_pool_agent_tasks where source='floor' and reviewed_at > now()-interval '3 hours' group by 1,2 order by 1 desc limit 10"))
 if "learnround" in STEPS:  # ln10：每 10 分鐘四區學習（只印數量、主題、網址來源類型，不印筆記內容）
-    s,b=y({"action":"learn_round","n":N}); ok=isinstance(b,dict)
+    s,b=y({"action":"learn_round","n":N,**({"force_video":True} if os.environ.get("FORCE_VIDEO")=="1" else {})}); ok=isinstance(b,dict)
     print("LEARN10",s,{k:b.get(k) for k in ("used","budget","budget_hit","rate_limited","skipped_locked","off")} if ok else str(b)[:300])
     for r in ((b.get("results") or []) if ok else []): print("  ",r.get("district"),r.get("agent"),r.get("topic"),[p.get("src") for p in (r.get("pages") or [])] or bool(r.get("url")),(r.get("usage") or {}).get("total"),(r.get("error") or "")[:100])
     if os.environ.get("TRIAGE","1")=="1":  # tr1：練習稿 AI 初審（每輪最多 2 組）

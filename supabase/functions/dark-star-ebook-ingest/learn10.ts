@@ -45,10 +45,32 @@ async function lock(id: string) { const k = "learnlock:" + id; const [x] = await
 async function unlock(id: string) { await rest(`aivault_floor_state?k=eq.${encodeURIComponent("learnlock:" + id)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } }).catch(() => {}); }
 export async function tokensToday() { const d0 = new Date(Date.now() + 8 * 3600e3); d0.setUTCHours(0, 0, 0, 0); const since = new Date(d0.getTime() - 8 * 3600e3).toISOString();
   const rows = await rest(`aivault_pool_agent_learning?created_at=gte.${since}&select=usage&limit=5000`); return rows.reduce((s: number, x: any) => s + (Number(x.usage?.total) || 0), 0); }
+
+// vd1：看影片＝讀「公開逐字稿」。AI 不能看影片；YouTube 字幕在伺服器端沒有合規的免費取得方式（官方 captions API 需影片擁有者授權、timedtext 需瀏覽器 PO token），
+// 所以只讀「主辦方公開發布逐字稿」的演講影片頁：InfoQ presentations（附 Transcript）、TED talks（/transcript）。抓不到就退回一般網頁學習。關閉：LEARN_VIDEO_OFF=1
+async function videoCands(q: string) { const out: any[] = [];
+  for (const sq of [`site:infoq.com/presentations ${q}`, `site:ted.com/talks ${q}`]) { for (const c of await general(sq)) { let u = String(c.url || ""); if (/ted\.com\/talks\/[^/?#]+/.test(u)) u = u.replace(/(ted\.com\/talks\/[^/?#]+).*/, "$1/transcript"); if (/infoq\.com\/presentations\/[^/?#]+|ted\.com\/talks\/[^/]+\/transcript/.test(u)) out.push({ url: u, title: c.title, src: /ted\.com/.test(u) ? "ted" : "infoq" }); } }
+  return out; }
+async function videoSession(agent: any, v: [string, string, string], topic: string, seen: Set<any>) {
+  const d = districtOf(agent.domain); const cands = (await videoCands(v[1])).filter((c) => !seen.has(c.url));
+  for (const c of cands.slice(0, 4)) { let r: Response; try { r = await hdrFetch(c.url); } catch { continue; } if (!r.ok) continue; const raw = (await r.text()).slice(0, 900000); const text = strip(raw);
+    const i = text.search(/Transcript|逐字稿/i); if (i < 0) continue; const tr = text.slice(i, i + 60000); if (tr.length < 3000) continue;
+    const lang = (raw.match(/<html[^>]*lang="([^"]+)"/i) || [])[1] || "en"; const excerpt = tr.slice(0, 5000); const fetched_at = new Date().toISOString();
+    const call = await callModel(`${agent.persona || ""}\n你是 AIVAULT ${DIST[d]} 的 AI。你不能看影片，現在讀的是這部演講影片「主辦方公開的逐字稿」，為「口語化即時語音模組」學習「${v[0]}」。只能根據逐字稿內容寫，沒講到的不要編。`,
+      `影片頁：${r.url || c.url}\n標題：${c.title}\n逐字稿節錄：\n${excerpt}\n\n只輸出 JSON：{"notes":"250–450 字繁體中文實作筆記：講者提到的架構、數字（延遲 ms 等）、工具與做法、可套用到 AIVAULT 暗星即時語音之處","relevant":true 或 false}`, 1400);
+    const notes = String(call.v?.notes || "").trim(); if (!notes) continue;
+    const row = { agent_id: agent.id, district: d, topic, query: v[1], url: r.url || c.url, title: ("🎬 讀字幕｜" + String(c.title || "")).slice(0, 200), http_status: r.status, bytes: tr.length, sha256: await sha(tr), excerpt: excerpt.slice(0, 600), notes: (call.v?.relevant === false ? "［自評：此影片與主題關聯低］" : "") + notes.slice(0, 1200), model: call.model, usage: call.usage, fetched_at, source_type: "video_subtitles", caption_lang: lang, transcript_chars: tr.length };
+    await rest("aivault_pool_agent_learning", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(row) });
+    await rest("aivault_pool_agent_memory", { method: "POST", body: JSON.stringify({ agent_id: agent.id, kind: "learning", content: `讀影片逐字稿學習「${topic}」：${notes.slice(0, 300)}（${row.url}）` }) });
+    return { agent: agent.id, kind: "learn", topic, video: true, pages: [{ url: row.url, src: c.src + "-transcript", chars: tr.length, lang }], usage: { total: Number(call.usage?.total) || 0 } };
+  }
+  return null; }
+let FORCE_VIDEO = false;
 async function session(agent: any) {
   const d = districtOf(agent.domain); const mine = await rest(`aivault_pool_agent_learning?agent_id=eq.${agent.id}&select=topic,url&limit=2000`); const seen = new Set(mine.map((x: any) => x.url));
   const cnt: Record<string, number> = {}; mine.forEach((x: any) => cnt[x.topic] = (cnt[x.topic] || 0) + 1);
   const v = [...VOICE].sort((a, b) => (cnt["即時語音：" + a[0]] || 0) - (cnt["即時語音：" + b[0]] || 0) || Math.random() - .5)[0]; const topic = "即時語音：" + v[0];
+  if (Deno.env.get("LEARN_VIDEO_OFF") !== "1" && (FORCE_VIDEO || Math.random() < (districtOf(agent.domain) === "av" ? .45 : .25))) { const vr = await videoSession(agent, v, topic, seen); if (vr) return vr; }
   const [ax, gh, wb] = await Promise.all([arxiv(v[1]), github(v[2]), general(v[1])]);
   const cands: any[] = []; for (let i = 0; i < 4; i++) [gh[i], ax[i], wb[i]].forEach((c) => { if (c && !seen.has(c.url) && !/news\.google|wikipedia\.org/.test(c.url)) cands.push(c); });
   wb.filter((c: any) => /wikipedia/.test(c.url) && !seen.has(c.url)).forEach((c: any) => cands.push(c)); // 維基百科放最後
@@ -64,6 +86,7 @@ async function session(agent: any) {
   return { agent: agent.id, kind: "learn", topic, pages: rows, usage: { total: usage }, error: rows.length ? undefined : "沒有抓到可用網頁" };
 }
 export async function learnRound(b: any, learnOne: (ag: any) => Promise<any>) {
+  FORCE_VIDEO = !!b.force_video;
   if (Deno.env.get("LEARN10_OFF") === "1") return { ok: true, off: true, results: [] };
   const budget = Number(Deno.env.get("LEARN10_DAILY_TOKENS") || 120000), used = await tokensToday(); if (used >= budget) return { ok: true, budget_hit: true, used, budget, results: [] };
   const n = Math.min(8, Math.max(1, Number(b.n) || 4)); const all = await rest("aivault_pool_agents?select=id,domain,persona&order=id.asc&limit=1400");
@@ -73,7 +96,7 @@ export async function learnRound(b: any, learnOne: (ag: any) => Promise<any>) {
   for (let i = 0; pick.length < n && i < 50; i++) { const p = pools[i % 4]; const a = p.shift(); if (a) pick.push(a); }
   const results: any[] = []; let skipped = busy.size;
   for (const ag of pick) { if (!(await lock(ag.id))) { skipped++; continue; } const d = districtOf(ag.domain);
-    try { const voice = Math.random() < (VW[d] || .4); results.push({ district: d, voice, ...(voice ? await session(ag) : await learnOne(ag)) }); }
+    try { const voice = FORCE_VIDEO || Math.random() < (VW[d] || .4); results.push({ district: d, voice, ...(voice ? await session(ag) : await learnOne(ag)) }); }
     catch (e) { const msg = String((e as any)?.message || e); results.push({ agent: ag.id, error: msg.slice(0, 200) }); if (/429|LLM_FAILED/.test(msg)) { await unlock(ag.id); return { ok: true, rate_limited: true, used, budget, skipped_locked: skipped, results }; } }
     await unlock(ag.id);
     if (used + results.reduce((s, r) => s + (Number(r.usage?.total) || 0), 0) >= budget) return { ok: true, budget_hit: true, used, budget, skipped_locked: skipped, results }; }
