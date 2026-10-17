@@ -21,6 +21,9 @@ if "publish" in STEPS:
     if os.path.exists(".github/scripts/town_social.js") and os.environ.get("TOWN_SOCIAL_OFF")!="1":  # ts1：真人社交層（關閉：localStorage.townSocialOff=1，或刪掉此檔再 publish）
         js=open(".github/scripts/town_social.js").read(); end="\n})();\n</script></body></html>"; assert html.count(end)==1 and "ts1：" not in html
         html=html.replace("chatTimer=setInterval(refresh,15000)","chatTimer=setInterval(refresh,window.__townSocial?4000:15000)").replace(end,"\n"+js+end); print("ts1 social layer applied")
+    if os.path.exists(".github/scripts/town_torch.js") and os.environ.get("TOWN_TORCH_OFF")!="1":  # tc1：夜晚火把（關閉：localStorage.torchOff=1）
+        js=open(".github/scripts/town_torch.js").read(); end="\n})();\n</script></body></html>"; assert html.count(end)==1 and "tc1：" not in html
+        html=html.replace(end,"\n"+js+end); print("tc1 torch layer applied")
     tag="$aivpp$"; assert tag not in html
     sql("insert into public.aivault_private_pages(slug,html,updated_at) values ('agent-floor',%s%s%s,now()) on conflict (slug) do update set html=excluded.html, updated_at=now()"%(tag,html,tag)); print("published agent-floor",len(html))
     link='<a class="btn primary" href="aivault-agent-collaboration.html?page=agent-floor" style="display:inline-block;text-decoration:none;margin-left:6px">🏢 1000 人工作區</a>'
