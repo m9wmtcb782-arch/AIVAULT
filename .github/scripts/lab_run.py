@@ -26,7 +26,7 @@ for i in range(N):
     body={"action":"lab_start"}
     if BRIEF!="": body["brief"]=int(BRIEF)+i
     if os.environ.get("FORCE")=="1": body["force"]=True
-    s=call(body); print("START",{k:s.get(k) for k in ["ok","id","iter","error","cap_hit","off"]})
+    s=call(body); print("START",{k:s.get(k) for k in ["ok","id","iter","from_learning","error","cap_hit","off"]})
     while s.get("ok") and s.get("files"):
         code,out,t=run(s["files"]); ok=code==0 and t["tests"]>0 and t["fail"]==0
         print("RUN id=%s iter=%s exit=%s tests=%s pass=%s fail=%s -> %s"%(s.get("id"),s.get("iter"),code,t["tests"],t["pass"],t["fail"],"PASS" if ok else "FAIL"))
