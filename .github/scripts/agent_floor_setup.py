@@ -44,6 +44,9 @@ if "publish" in STEPS:
     if os.path.exists(".github/scripts/town_plans.js") and os.environ.get("TOWN_PLANS_OFF")!="1":  # pl1：每日計畫＋暗星／曙光
         js=open(".github/scripts/town_plans.js").read(); end="\n})();\n</script></body></html>"; assert html.count(end)==1 and "pl1：" not in html
         html=html.replace(end,"\n"+js+end); print("pl1 plans layer applied")
+    if os.path.exists(".github/scripts/town_orbs.js") and os.environ.get("TOWN_ORBS_OFF")!="1":  # ai2：真暗星／曙光（有真實活動才出現）
+        js=open(".github/scripts/town_orbs.js").read(); end="\n})();\n</script></body></html>"; assert html.count(end)==1 and "ai2：" not in html
+        html=html.replace(end,"\n"+js+end); print("ai2 orbs layer applied")
     tag="$aivpp$"; assert tag not in html
     sql("insert into public.aivault_private_pages(slug,html,updated_at) values ('agent-floor',%s%s%s,now()) on conflict (slug) do update set html=excluded.html, updated_at=now()"%(tag,html,tag)); print("published agent-floor",len(html))
     link='<a class="btn primary" href="aivault-agent-collaboration.html?page=agent-floor" style="display:inline-block;text-decoration:none;margin-left:6px">🏢 1000 人工作區</a>'
