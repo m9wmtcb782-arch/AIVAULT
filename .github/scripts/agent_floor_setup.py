@@ -13,6 +13,7 @@ def sql(q):
     s,b=http("https://api.supabase.com/v1/projects/%s/database/query"%REF,{"query":q},{"Authorization":"Bearer "+TOKEN},"POST"); assert s<300,(s,str(b)[:300]); return b
 if "migrate" in STEPS:
     sql(open("supabase/migrations/20261017090000_aivault_agent_floor.sql").read())
+    sql(open("supabase/migrations/20261017093000_aivault_pool_approved_outputs.sql").read())
     print("zones", sql("select zone,count(*) from public.aivault_pool_agents group by zone order by zone"))
 if "publish" in STEPS:
     html=subprocess.check_output(["gpg","--batch","--quiet","--pinentry-mode","loopback","--passphrase",os.environ["PAGES_KEY"],"-d","private/agent-floor.html.gpg"]).decode()
@@ -33,4 +34,6 @@ if any(s in STEPS for s in ("seed","cycle","test")):
     if "test" in STEPS:
         s,b=y({"action":"floor"}); print("FLOOR",s,{k:b.get(k) for k in ("review","counts")} if isinstance(b,dict) else b)
         s,b=y({"action":"reviews"})
-        for t in (b.get("tasks") or [])[:12]: print("\n=== ",t.get("agent_name"),t.get("zone_label"),t.get("kind"),"|",t["order_text"][:80],"\n",str(t.get("result",""))[:900])
+        print("REVIEWS",len(b.get("tasks") or []))
+        s,b=y({"action":"ledger","limit":12})
+        for t in (b.get("rows") or []): print("\n=== ",t.get("agent_id"),t.get("agent_name"),t.get("zone_label"),t.get("kind"),t.get("status"),t.get("review_status"),t.get("model"),t.get("usage"),t.get("finished_at"),t.get("source_url"),"|",t["task"][:70],"\n",str(t.get("result",""))[:900])

@@ -46,6 +46,23 @@ export const ZONES: Z[] = [
     { t: "資安檢查：審查註冊審核 Edge Function 的授權邏輯，找出可能的繞過或提權風險並給修正建議。", ctx: "supabase/functions/dark-star-ebook-ingest/signup-approval.ts" },
     { t: "網站維護：審查登入頁的程式，找出可用性、無障礙與安全（XSS、開放重導）問題並給修改建議。", ctx: "aivault-login.html" }] },
 ];
+const envs = (b: string) => [b, ...Array.from({ length: 9 }, (_, i) => b + "_" + (i + 1))].map((n) => Deno.env.get(n) || "").filter((v, i, a) => v && a.indexOf(v) === i);
+// 真實模型呼叫：回傳 JSON、模型名稱與 token 用量（Groq 免費層 gpt-oss-120b；失敗才退回共用 llm，該情況用量記為 null）
+export async function callModel(system: string, user: string): Promise<{ v: any; model: string; usage: any }> {
+  let last = "";
+  for (const k of envs("GROQ_API_KEY")) {
+    try {
+      const r = await fetch("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { Authorization: "Bearer " + k, "Content-Type": "application/json" }, signal: AbortSignal.timeout(110000),
+        body: JSON.stringify({ model: "openai/gpt-oss-120b", messages: [{ role: "system", content: system }, { role: "user", content: user }], response_format: { type: "json_object" }, max_tokens: 4000, temperature: 0.6 }) });
+      if (!r.ok) { last += " groq:" + r.status; continue; }
+      const j = await r.json(); const t = String(j.choices?.[0]?.message?.content || ""); const m = t.match(/\{[\s\S]*\}/); if (!m) { last += " groq:nojson"; continue; }
+      const u = j.usage || {}; return { v: JSON.parse(m[0]), model: "groq:" + (j.model || "openai/gpt-oss-120b"), usage: { prompt: u.prompt_tokens, completion: u.completion_tokens, total: u.total_tokens, request_id: j.id || r.headers.get("x-request-id") } };
+    } catch (e) { last += " groq:" + String((e as any)?.message || e).slice(0, 60); }
+  }
+  const v = await llm(system, user, { maxTokens: 3500, skipGemini: true }); return { v, model: String(v.__model || "llm"), usage: null };
+}
+let SHA = "";
+async function repoSha() { if (SHA) return SHA; try { const r = await fetch("https://api.github.com/repos/m9wmtcb782-arch/AIVAULT/commits/main", { headers: { "User-Agent": "aivault-floor", Accept: "application/vnd.github+json" } }); if (r.ok) SHA = (await r.json()).sha || ""; } catch { /* ignore */ } return SHA || "main"; }
 const zl = (k: string) => ZONES.find((z) => z.key === k)?.label || k;
 
 async function who(r: Request) {
@@ -66,10 +83,13 @@ async function enqueue(zone: string, text: string, by: string | null) {
   return t;
 }
 async function ctxText(path?: string) {
-  if (!path) return "";
-  try { const r = await fetch(REPO_RAW + path, { signal: AbortSignal.timeout(15000) }); if (!r.ok) return ""; const t = await r.text(); return `\n\n【AIVAULT repo 檔案：${path}（前 9000 字）】\n` + t.slice(0, 9000); } catch { return ""; }
+  if (!path) return { text: "", url: null as string | null, sha: null as string | null };
+  const sha = await repoSha();
+  try { const r = await fetch(REPO_RAW.replace("/main/", "/" + sha + "/") + path, { signal: AbortSignal.timeout(15000) }); if (!r.ok) return { text: "", url: null, sha: null }; const t = await r.text();
+    return { text: `\n\n【AIVAULT repo 檔案：${path} @ ${sha.slice(0, 7)}（前 9000 字）】\n` + t.slice(0, 9000), url: `https://github.com/m9wmtcb782-arch/AIVAULT/blob/${sha}/${path}`, sha }; } catch { return { text: "", url: null, sha: null }; }
 }
-export async function runTask(t: any, think = llm) {
+export async function runTask(t: any, think = callModel) {
+  const started = new Date().toISOString();
   const [a] = await rest(`aivault_pool_agents?id=eq.${t.agent_id}&select=*`);
   const z = ZONES.find((x) => x.key === (t.zone || a.zone)) || ZONES[0];
   await rest(`aivault_pool_agents?id=eq.${a.id}`, { method: "PATCH", body: JSON.stringify({ status: "running", updated_at: new Date().toISOString() }) });
@@ -78,11 +98,12 @@ export async function runTask(t: any, think = llm) {
   const tpl = z.tasks.find((x) => x.t === t.order_text);
   const media = z.media ? `\n你所在的${z.label}區尚未串接${z.media}生成 API，所以只交付「企劃／腳本／提示詞」，成果第一行必須寫「【企劃稿・尚未生成${z.media}】」。` : "";
   const sys = a.persona + `\n你目前派駐在 AIVAULT 1000 人工作區的「${z.label}」區。成果只交給擁有者審核，絕不聲稱已對外發送、發布或購買。` + media + "\n你的記憶：\n" + (mem.map((m: any) => "- " + m.content).join("\n") || "（尚無）");
-  const user = `任務：${t.order_text}${await ctxText(tpl?.ctx)}\n\n直接交付完整成果（繁體中文 Markdown，具體、可查證；不確定處標「待查證」）。另外：如果你認為需要一個專門的子代理來分擔這類工作，可以提出複製提案。只輸出 JSON：{"result":"成果","lesson":"一句可重用經驗（寫入記憶）","spawn":null 或 {"specialty":"子代理專長","reason":"理由"}}`;
+  const cx = await ctxText(tpl?.ctx);
+  const user = `任務：${t.order_text}${cx.text}\n\n直接交付完整成果（繁體中文 Markdown，具體、可查證；不確定處標「待查證」）。另外：如果你認為需要一個專門的子代理來分擔這類工作，可以提出複製提案。只輸出 JSON：{"result":"成果","lesson":"一句可重用經驗（寫入記憶）","spawn":null 或 {"specialty":"子代理專長","reason":"理由"}}`;
   try {
-    const v = await think(sys, user, { maxTokens: 3500, skipGemini: true });
+    const call = await think(sys, user); const v = call.v;
     let result = String(v.result || "").trim(); if (z.media && !result.startsWith("【企劃稿")) result = `【企劃稿・尚未生成${z.media}】\n` + result;
-    await rest(`aivault_pool_agent_tasks?id=eq.${t.id}`, { method: "PATCH", body: JSON.stringify({ status: "done", result, review_status: "pending", steps: [{ type: "act", title: "完成", model: v.__model }], step_no: 1, updated_at: new Date().toISOString() }) });
+    await rest(`aivault_pool_agent_tasks?id=eq.${t.id}`, { method: "PATCH", body: JSON.stringify({ status: "done", result, review_status: "pending", steps: [{ type: "act", title: "完成", model: call.model, usage: call.usage, started_at: started, finished_at: new Date().toISOString(), source_url: cx.url, source_sha: cx.sha }], step_no: 1, updated_at: new Date().toISOString() }) });
     if (v.lesson) await rest("aivault_pool_agent_memory", { method: "POST", body: JSON.stringify({ agent_id: a.id, kind: "reflection", content: String(v.lesson).slice(0, 500), task_id: t.id }) });
     let spawned = false;
     if (v.spawn && v.spawn.specialty) {
@@ -92,7 +113,7 @@ export async function runTask(t: any, think = llm) {
     }
     const s = a.stats || {}; s.tasks = (s.tasks || 0) + 1; s.ok = (s.ok || 0) + 1; s.last_at = new Date().toISOString();
     await rest(`aivault_pool_agents?id=eq.${a.id}`, { method: "PATCH", body: JSON.stringify({ status: "idle", stats: s, updated_at: new Date().toISOString() }) });
-    return { id: t.id, agent: a.name, zone: z.key, ok: true, model: v.__model, spawned, preview: result.slice(0, 160) };
+    return { id: t.id, agent: a.name, zone: z.key, ok: true, model: call.model, usage: call.usage, source_url: cx.url, spawned, preview: result.slice(0, 160) };
   } catch (e) {
     await rest(`aivault_pool_agent_tasks?id=eq.${t.id}`, { method: "PATCH", body: JSON.stringify({ status: "failed", result: "失敗：" + String((e as any)?.message || e).slice(0, 300), updated_at: new Date().toISOString() }) });
     await rest(`aivault_pool_agents?id=eq.${a.id}`, { method: "PATCH", body: JSON.stringify({ status: "idle" }) });
@@ -106,11 +127,14 @@ export async function floor(r: Request) {
     const u = await who(r); if (!u) return out({ error: "owner only" }, 403);
     const b = await r.json().catch(() => ({})); const a = String(b.action || "");
     if (a === "floor") {
-      const ts = await rest("aivault_pool_agent_tasks?source=eq.floor&select=agent_id,status,review_status&order=created_at.desc&limit=1000");
-      const st: Record<string, string> = {};
-      for (const t of ts) { if (!t.agent_id || st[t.agent_id]) continue; st[t.agent_id] = t.status === "running" ? "running" : t.status === "queued" ? "queued" : t.review_status === "pending" ? "review" : t.review_status === "approved" ? "approved" : ""; }
-      const counts: Record<string, number> = {}; for (const t of ts) { const k = t.review_status || t.status; counts[k] = (counts[k] || 0) + 1; }
-      return out({ ok: true, states: Object.entries(st).filter((x) => x[1]), review: ts.filter((t: any) => t.review_status === "pending").length, counts });
+      const ts = await rest("aivault_pool_agent_tasks?source=eq.floor&select=id,agent_id,zone,kind,status,review_status,order_text,updated_at&order=updated_at.desc&limit=1000");
+      const st: any[] = []; const seen = new Set<string>(); const counts: Record<string, number> = {}; const zones: Record<string, any> = {};
+      for (const t of ts) {
+        const k = t.status === "running" ? "running" : t.status === "queued" ? "queued" : t.status === "failed" ? "failed" : t.review_status === "pending" ? "review" : t.review_status === "approved" ? "approved" : t.review_status === "rejected" ? "rejected" : "done";
+        counts[k] = (counts[k] || 0) + 1; const z = zones[t.zone] = zones[t.zone] || {}; z[k] = (z[k] || 0) + 1;
+        if (t.agent_id && !seen.has(t.agent_id)) { seen.add(t.agent_id); st.push([t.agent_id, k, String(t.order_text).replace(/^🧬\s*/, "").slice(0, 28), t.kind, t.id, t.updated_at]); }
+      }
+      return out({ ok: true, states: st, review: counts.review || 0, counts, zones, server_time: new Date().toISOString() });
     }
     if (a === "reviews") {
       const ts = await rest("aivault_pool_agent_tasks?source=eq.floor&review_status=eq.pending&select=id,agent_id,zone,kind,order_text,result,updated_at&order=updated_at.desc&limit=50");
@@ -136,6 +160,18 @@ export async function floor(r: Request) {
       if (b.comment) await rest("aivault_pool_agent_memory", { method: "POST", body: JSON.stringify({ agent_id: t.agent_id, kind: "owner_feedback", content: `擁有者${d === "approve" ? "核准" : d === "reject" ? "退回" : "留言"}：${String(b.comment).slice(0, 400)}`, task_id: t.id }) });
       const [n] = await rest(`aivault_pool_agent_tasks?id=eq.${id}`, { method: "PATCH", body: JSON.stringify(patch) });
       return out({ ok: true, task: { id: n.id, review_status: n.review_status }, child });
+    }
+    if (a === "ledger") {
+      const off = Math.max(0, Number(b.offset) || 0), lim = Math.min(100, Number(b.limit) || 40);
+      let q = "aivault_pool_agent_tasks?source=eq.floor&select=id,agent_id,zone,kind,status,review_status,review_comment,order_text,result,steps,created_at,updated_at,reviewed_at&order=updated_at.desc";
+      if (b.agent_id) q += "&agent_id=eq." + String(b.agent_id).replace(/[^\w-]/g, ""); if (b.zone) q += "&zone=eq." + String(b.zone).replace(/[^\w]/g, "");
+      const rr = await fetch(URL0 + "/rest/v1/" + q, { headers: { ...SRH, Prefer: "count=exact", Range: `${off}-${off + lim - 1}` } }); const rows = rr.ok ? await rr.json() : [];
+      const ids = [...new Set(rows.map((t: any) => t.agent_id))].join(","); const ns = ids ? await rest(`aivault_pool_agents?id=in.(${ids})&select=id,name`) : [];
+      return out({ ok: true, total: Number((rr.headers.get("content-range") || "/0").split("/")[1]) || 0, rows: rows.map((t: any) => { const s0 = (t.steps || [])[0] || {}; return { id: t.id, agent_id: t.agent_id, agent_name: ns.find((n: any) => n.id === t.agent_id)?.name, zone: t.zone, zone_label: zl(t.zone), kind: t.kind, status: t.status, review_status: t.review_status, review_comment: t.review_comment, task: t.order_text, result: t.result, model: s0.model || null, usage: s0.usage || null, started_at: s0.started_at || t.created_at, finished_at: s0.finished_at || null, source_url: s0.source_url || null, created_at: t.created_at, reviewed_at: t.reviewed_at }; }) });
+    }
+    if (a === "approved") { // 供其他 AIVAULT 工具取用（也可直接讀 view aivault_pool_approved_outputs）
+      let q = "aivault_pool_approved_outputs?select=*&order=reviewed_at.desc&limit=" + Math.min(100, Number(b.limit) || 30); if (b.zone) q += "&zone=eq." + String(b.zone).replace(/[^\w]/g, "");
+      return out({ ok: true, outputs: await rest(q) });
     }
     if (a === "enqueue") {
       const z = ZONES.find((x) => x.key === b.zone); const text = String(b.text || "").trim().slice(0, 2000);
