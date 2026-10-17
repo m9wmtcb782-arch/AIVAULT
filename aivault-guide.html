@@ -41,6 +41,10 @@ body.fs #stage{width:min(100vw,177.78vh);height:auto;max-width:none;border:0;mar
 body.fs #fsCtl{display:flex;gap:8px;position:fixed;right:12px;top:calc(10px + env(safe-area-inset-top));z-index:70;transition:opacity .4s}
 body.fs #fsCtl button{background:rgba(3,10,30,.7);color:#fff;border:1px solid var(--line);border-radius:999px;padding:7px 12px;font-size:13px}
 body.fs.ctlhide #fsCtl{opacity:0;pointer-events:none}
+.camrow{display:flex;align-items:center;justify-content:center;gap:8px;margin:8px 0 2px}.camlbl{font-size:12px;color:#94a3b8}
+.camBtn{width:38px;height:38px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:rgba(148,163,184,.14);border:1px solid rgba(148,163,184,.25);color:#e2e8f0;padding:0}
+.camBtn.on{background:rgba(168,85,247,.35);border-color:#a855f7;color:#fff}body.fs #fsCtl .camBtn{width:34px;height:34px;padding:0}
+#pip{display:none;position:absolute;right:2%;bottom:16%;width:16%;aspect-ratio:3/4;object-fit:cover;border-radius:8px;border:2px solid rgba(255,255,255,.6);transform:scaleX(-1);z-index:7;background:#000}body.camon #pip{display:block}
 #status{text-align:center;font-size:13px;color:#94a3b8;padding:0 14px}
 #ask{display:none;max-width:700px;margin:10px auto;padding:0 14px}#ask textarea{width:100%;border-radius:10px;background:var(--panel);color:var(--tx);border:1px solid var(--line);padding:8px}
 #panel,#editor{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:50;align-items:flex-end;justify-content:center}
@@ -54,11 +58,12 @@ body.fs.ctlhide #fsCtl{opacity:0;pointer-events:none}
 <div id="fsWrap"><div id="stage">
  <video id="v0" muted playsinline preload="auto"></video><video id="v1" muted playsinline preload="auto"></video>
  <img id="slide" alt=""><img id="mouth" alt=""><div id="pageNo"></div><div id="sub">按「開始導讀」，暗星會為你講解簡報。</div>
- <div id="pauseVeil">已暫停，按繼續恢復</div>
-</div><div id="fsCtl"><button id="fsPause">⏸ 暫停</button><button id="fsExit">✕ 離開全螢幕</button></div></div>
+ <video id="pip" muted playsinline autoplay></video><div id="pauseVeil">已暫停，按繼續恢復</div>
+</div><div id="fsCtl"><button id="fsCam" class="camBtn" aria-label="鏡頭"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9a3 3 0 0 1 3-3h1.5l1.4-2h6.2l1.4 2H18a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"/><circle cx="12" cy="13" r="3.5"/></svg></button><button id="fsPause">⏸ 暫停</button><button id="fsExit">✕ 離開全螢幕</button></div></div>
 <main>
 <div class="card">
  <div class="badge">AIVAULT · 數位人導讀</div>
+ <div class="camrow"><button class="camBtn" id="camBtn" type="button" aria-label="開啟鏡頭與麥克風"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9a3 3 0 0 1 3-3h1.5l1.4-2h6.2l1.4 2H18a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"/><circle cx="12" cy="13" r="3.5"/></svg></button><span class="camlbl" id="camLbl">開啟鏡頭／麥克風</span></div>
  <div class="ctrl"><button id="startBtn">▶ 開始導讀</button><button class="sec" id="pauseBtn">⏸ 暫停</button><button class="sec" id="prevBtn">上一頁</button><button class="sec" id="nextBtn">下一頁</button><button id="skipBtn">⏭ 跳過，立即換頁</button></div>
  <div style="text-align:center;margin:6px 0"><button class="icon-btn" id="modeBtn">🔊 手機語音</button></div>
  <div id="status">目前使用內建示範簡報</div>
@@ -260,7 +265,9 @@ $('modeSel').onchange=e=>{if(e.target.value==='live')live.unlock();setMode(e.tar
 $('modeBtn').onclick=()=>{const m=voiceMode==='live'?'tts':'live';if(m==='live')live.unlock();else primeTTS();setMode(m,m==='live'?'已切換為即時語音':'已切換為手機語音');};
 const live=(()=>{const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-voice-v2',AC=window.AudioContext||window.webkitAudioContext,MY='aivault-guide';
  let ws=null,gotSetup=false,customFails=0,retry=0,playCtx=null,outGain=null,outEl=null,nextPlay=0,sources=[],dropping=false,outBuf='',turnWait=null,connecting=null,buffering=false;
- let inCtx=null,stream=null,micNode=null,micOn=false,qaPend=null;
+ let inCtx=null,stream=null,micNode=null,micOn=false,qaPend=null,shared=false,frameT=0,cv=null;
+ function startFrames(){clearInterval(frameT);frameT=setInterval(()=>{const v=$('pip');if(!camOn||paused||!ws||ws.readyState!==1||!gotSetup||v.readyState<2||!v.videoWidth)return;cv=cv||document.createElement('canvas');const w=320,h=Math.round(v.videoHeight*w/v.videoWidth);cv.width=w;cv.height=h;cv.getContext('2d').drawImage(v,0,0,w,h);try{ws.send(JSON.stringify({type:'video',data:cv.toDataURL('image/jpeg',0.6).split(',')[1],mimeType:'image/jpeg'}));}catch(e){}},1000);}
+ startFrames();
  function token(){try{const j=JSON.parse(localStorage.getItem('sb-clcddygkaaqqtsbswgdf-auth-token')||'null');return String((j&&(j.access_token||(j.currentSession&&j.currentSession.access_token)))||'').trim();}catch(e){return'';}}
  function agentId(){try{const v=localStorage.getItem('aivault-guide-live-agent'),t=+localStorage.getItem('aivault-guide-live-agent-at')||0;if(v&&v!==MY&&Date.now()-t>6*3600e3){localStorage.removeItem('aivault-guide-live-agent');return MY;}return v||MY;}catch(e){return MY;}}
  const nsKey=b=>b+(agentId()===MY?'-v2':'');
@@ -315,13 +322,24 @@ const live=(()=>{const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v
  async function askQ(q){if(!(await ensure()))return null;qaPend=true;const ctx=deckContext().slice(0,3000);
   send('（聽眾在導讀後提問。請以暗星的身分，用繁體中文口語回答 2 到 4 句，友善、支持，絕不反駁或質疑老師的內容。導讀內容如下）\n'+ctx+'\n\n聽眾問題：'+q);oneShot('explain');const a=await waitTurn(200);qaPend=false;return a||'';}
  function halt(){if(turnWait||sources.length)dropping=!!turnWait;stopAudio();micStop();if(turnWait){const w=turnWait;turnWait=null;w(outBuf);outBuf='';}}
- async function toggleMic(){if(micOn){micStop();return;}unlock();try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});if(paused||!qaMode){micStop();return;}
-   if(!(await ensure()))return micStop();try{inCtx=new AC({sampleRate:16000});}catch(e){inCtx=new AC();}const src=inCtx.createMediaStreamSource(stream);micNode=inCtx.createScriptProcessor(2048,1,1);
+ async function toggleMic(){if(micOn){micStop();return;}unlock();try{try{inCtx=new AC({sampleRate:16000});}catch(e){inCtx=new AC();}try{inCtx.resume();}catch(e){}
+   shared=!!(camStream&&camStream.getAudioTracks().some(t=>t.readyState==='live'));stream=shared?new MediaStream(camStream.getAudioTracks()):await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});if(paused||!qaMode){micStop();return;}
+   if(!(await ensure()))return micStop();try{inCtx.resume();}catch(e){}const src=inCtx.createMediaStreamSource(stream);micNode=inCtx.createScriptProcessor(2048,1,1);
    micNode.onaudioprocess=ev=>{if(!micOn||paused||!ws||ws.readyState!==1)return;let f=ev.inputBuffer.getChannelData(0);const r=inCtx.sampleRate/16000;if(r!==1){const n=Math.floor(f.length/r),o=new Float32Array(n);for(let i=0;i<n;i++)o[i]=f[Math.floor(i*r)];f=o;}
     const pcm=new Int16Array(f.length);for(let i=0;i<f.length;i++)pcm[i]=Math.max(-1,Math.min(1,f[i]))*32767;const u=new Uint8Array(pcm.buffer);let s2='';for(let i=0;i<u.length;i+=0x8000)s2+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));try{ws.send(JSON.stringify({type:'audio',data:btoa(s2),mimeType:'audio/pcm;rate=16000'}));}catch(e){}};
    const sink=inCtx.createGain();sink.gain.value=0;src.connect(micNode);micNode.connect(sink);sink.connect(inCtx.destination);micOn=true;$('micBtn').classList.add('rec');status('🎙 正在聽你的問題（再按一次停止）');}catch(e){micStop();status('無法開啟麥克風');}}
- function micStop(){micOn=false;try{micNode&&micNode.disconnect();}catch(e){}micNode=null;try{stream&&stream.getTracks().forEach(t=>t.stop());}catch(e){}stream=null;try{inCtx&&inCtx.close();}catch(e){}inCtx=null;$('micBtn').classList.remove('rec');}
+ function micStop(){micOn=false;try{micNode&&micNode.disconnect();}catch(e){}micNode=null;try{if(!shared)stream&&stream.getTracks().forEach(t=>t.stop());}catch(e){}stream=null;shared=false;try{inCtx&&inCtx.close();}catch(e){}inCtx=null;$('micBtn').classList.remove('rec');}
  function close(){micStop();stopAudio();const w=ws;ws=null;gotSetup=false;try{w&&w.close();}catch(e){}}
  return{unlock,ensure,ready:()=>voiceMode==='live',speakBlock,sayLine,askQ,halt,toggleMic,close};})();
 setMode(voiceMode);
+// ===== 鏡頭＋麥克風（在點擊當下請求權限，iOS 才會跳出詢問）=====
+let camStream=null,camOn=false;
+function camUI(){document.body.classList.toggle('camon',camOn);['camBtn','fsCam'].forEach(id=>$(id).classList.toggle('on',camOn));$('camLbl').textContent=camOn?'鏡頭／麥克風已開啟（導讀時麥克風靜音）':'開啟鏡頭／麥克風';}
+function camStop(){camOn=false;try{camStream&&camStream.getTracks().forEach(t=>t.stop());}catch(e){}camStream=null;$('pip').srcObject=null;camUI();}
+function camToggle(e){if(e)e.stopPropagation();if(camOn){camStop();return;}live.unlock();
+ if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){status('此瀏覽器不支援鏡頭');return;}
+ navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:{echoCancellation:true,noiseSuppression:true}}).then(st=>{camStream=st;camOn=true;
+  st.getAudioTracks().forEach(t=>t.enabled=true);const v=$('pip');v.srcObject=new MediaStream(st.getVideoTracks());v.play().catch(()=>{});camUI();status(voiceMode==='live'?'暗星看得到你了（即時語音）':'鏡頭已開啟；手機語音模式不會傳送畫面');})
+ .catch(err=>{camStop();status('無法開啟鏡頭／麥克風：'+(err.name==='NotAllowedError'?'請到設定允許權限':err.message));});}
+$('camBtn').onclick=camToggle;$('fsCam').onclick=camToggle;
 </script></body></html>
