@@ -30,6 +30,17 @@ main{max-width:560px;margin:0 auto;padding:0 12px 40px}
 #skipBtn{display:none;background:#f59e0b;flex-basis:100%}
 #editor .box{max-width:640px}.ed-row{display:flex;gap:8px;margin:10px 0}.ed-row img{width:96px;height:54px;object-fit:cover;border-radius:6px;border:1px solid var(--line);flex-shrink:0}
 .ed-row textarea{flex:1;min-height:70px;border-radius:8px;background:#081633;color:var(--tx);border:1px solid var(--line);padding:6px;font-size:14px}
+.qbar{display:flex;gap:6px;align-items:flex-end;margin-top:8px}.qbar textarea{flex:1;border-radius:12px;background:#081633;color:var(--tx);border:1px solid var(--line);padding:9px;font-size:15px;resize:none}
+.qbar button{border:1px solid var(--line);background:rgba(30,58,138,.6);color:#fff;border-radius:999px;padding:9px 12px;font-size:14px}.qbar button.rec{background:#a855f7}
+#qaLog{max-height:220px;overflow:auto;font-size:14px;line-height:1.5}#qaLog .q{color:#93c5fd;margin-top:8px}#qaLog .a{color:#e2e8f0}
+#pauseVeil{display:none;position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);z-index:6;background:rgba(3,10,30,.82);border:1px solid #f59e0b;color:#fde68a;border-radius:12px;padding:8px 16px;font-size:clamp(13px,2.4vw,18px)}
+body.paused #pauseVeil{display:block}#pauseBtn{font-weight:800}body.paused #pauseBtn,body.paused #fsPause{background:#f59e0b!important}
+#fsCtl{display:none}
+body.fs{overflow:hidden}body.fs #fsWrap{position:fixed;inset:0;z-index:60;background:#000;display:flex;align-items:center;justify-content:center}
+body.fs #stage{width:min(100vw,177.78vh);height:auto;max-width:none;border:0;margin:0}
+body.fs #fsCtl{display:flex;gap:8px;position:fixed;right:12px;top:calc(10px + env(safe-area-inset-top));z-index:70;transition:opacity .4s}
+body.fs #fsCtl button{background:rgba(3,10,30,.7);color:#fff;border:1px solid var(--line);border-radius:999px;padding:7px 12px;font-size:13px}
+body.fs.ctlhide #fsCtl{opacity:0;pointer-events:none}
 #status{text-align:center;font-size:13px;color:#94a3b8;padding:0 14px}
 #ask{display:none;max-width:700px;margin:10px auto;padding:0 14px}#ask textarea{width:100%;border-radius:10px;background:var(--panel);color:var(--tx);border:1px solid var(--line);padding:8px}
 #panel,#editor{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:50;align-items:flex-end;justify-content:center}
@@ -39,11 +50,12 @@ main{max-width:560px;margin:0 auto;padding:0 12px 40px}
 .up{display:block;text-align:center;padding:10px;border:1px dashed var(--acc);border-radius:10px;color:var(--acc);font-weight:700}.up input{display:none}
 .hint{font-size:12px;color:#94a3b8;margin-top:4px}
 </style></head><body>
-<header><a href="aivault-home.html">‹ 首頁</a><h1>Technical Dark Star 暗星 · 導讀</h1><button class="icon-btn" id="setBtn">⚙ 設定</button></header>
-<div id="stage">
+<header><a href="aivault-home.html">‹ 首頁</a><h1>Technical Dark Star 暗星 · 導讀</h1><span><button class="icon-btn" id="fsBtn">⛶ 全螢幕</button> <button class="icon-btn" id="setBtn">⚙ 設定</button></span></header>
+<div id="fsWrap"><div id="stage">
  <video id="v0" muted playsinline preload="auto"></video><video id="v1" muted playsinline preload="auto"></video>
  <img id="slide" alt=""><img id="mouth" alt=""><div id="pageNo"></div><div id="sub">按「開始導讀」，暗星會為你講解簡報。</div>
-</div>
+ <div id="pauseVeil">已暫停，按繼續恢復</div>
+</div><div id="fsCtl"><button id="fsPause">⏸ 暫停</button><button id="fsExit">✕ 離開全螢幕</button></div></div>
 <main>
 <div class="card">
  <div class="badge">AIVAULT · 數位人導讀</div>
@@ -56,7 +68,10 @@ main{max-width:560px;margin:0 auto;padding:0 12px 40px}
  <div class="tile" id="editBtn"><b>✍️</b>新增口語表達<br><small>逐頁直接輸入</small></div>
 </div>
 <div class="hint" id="upMsg" style="text-align:center;margin-top:8px"></div>
-<div id="ask"><textarea id="askBox" rows="2" placeholder="問暗星（之後開放）" disabled></textarea></div>
+<div id="ask" class="card"><div class="badge">問暗星</div>
+ <div id="qaLog"></div>
+ <div class="qbar"><button id="micBtn" title="語音輸入">🎙</button><textarea id="askBox" rows="1" placeholder="導讀結束後可以發問…" disabled></textarea><button id="askSend" disabled>送出</button></div>
+ <div style="text-align:center;margin-top:8px"><button class="icon-btn" id="endBtn">🙇 結束導讀</button></div></div>
 </main>
 <div id="editor"><div class="box"><h2>✍️ 口語表達（每頁講稿）</h2><div class="hint">每一頁講完才會換下一頁。句子用「。！？」或換行分開。</div><div id="edList"></div>
  <div class="row"><button class="icon-btn" id="edSave">儲存</button> <button class="icon-btn" id="edClose">取消</button></div></div></div>
@@ -77,7 +92,7 @@ const vids=[$('v0'),$('v1')];let cur=0,curClip=null,lip=null,mouthImgs={};
 function playClip(name,loop){return new Promise(res=>{const nv=vids[1-cur],ov=vids[cur];nv.loop=!!loop;nv.src=G+CLIPS[name]+'.mp4';nv.poster=G+CLIPS[name]+'.jpg';
  const go=()=>{nv.play().catch(()=>{});nv.classList.add('on');ov.classList.remove('on');setTimeout(()=>ov.pause(),400);cur=1-cur;curClip=name;$('slide').classList.toggle('dim',name==='walk');};
  nv.oncanplay=()=>{nv.oncanplay=null;go()};nv.onerror=()=>res();nv.onended=()=>res();nv.load();if(loop)setTimeout(res,50);});}
-async function oneShot(n){await playClip(n,false);if(!stopped)playClip(speaking?'talk':'idle',true);}
+async function oneShot(n){if(paused)return;await playClip(n,false);if(!paused&&(!stopped||qaMode))playClip(speaking?'talk':'idle',true);}
 // ---- lip ----
 fetch(G+'lip/guide_lip.json').then(r=>r.json()).then(j=>{lip=j;['closed','half','open','round'].forEach(k=>{const i=new Image();i.src=G+'lip/mouth_'+k+'.png';mouthImgs[k]=i;});});
 let speaking=false,vis='closed',visT=0;const SEQ=['half','open','half','closed','round','half','open','closed'];
@@ -151,35 +166,76 @@ if('speechSynthesis'in window){loadVoices();speechSynthesis.onvoiceschanged=load
 $('voiceSel').onchange=e=>{settings.voice=(voices[e.target.value]||{}).name;saveSet();};
 $('rate').value=settings.rate||1;$('rateVal').textContent=(+$('rate').value).toFixed(1);$('rate').oninput=e=>{settings.rate=+e.target.value;$('rateVal').textContent=settings.rate.toFixed(1);saveSet();};
 $('auto').checked=settings.auto!==false;$('auto').onchange=e=>{settings.auto=e.target.checked;saveSet();};
-function say(text){return new Promise(res=>{$('sub').textContent=text;if(!('speechSynthesis'in window)){setTimeout(res,text.length*220);return;}
+function say(text){return new Promise(res=>{$('sub').textContent=text;if(!('speechSynthesis'in window)){const g=pauseGen;setTimeout(()=>res(pauseGen!==g),text.length*220);return;}
  const u=new SpeechSynthesisUtterance(text),v=voices[$('voiceSel').value];if(v)u.voice=v;u.lang=v?v.lang:'zh-TW';u.rate=+$('rate').value||1;
- let done=false;const fin=()=>{if(done)return;done=true;speaking=false;res();};
+ let done=false;const gen=pauseGen;const fin=()=>{if(done)return;done=true;speaking=false;res(pauseGen!==gen);};
  u.onstart=()=>{speaking=true;if(curClip!=='talk'&&curClip!=='point'&&curClip!=='explain')playClip('talk',true);};
  u.onboundary=e=>{if(e.charIndex>0){const rest=text.slice(e.charIndex);$('sub').textContent=text.length>40?rest.slice(0,40):text;}};
  u.onend=fin;u.onerror=fin;speechSynthesis.speak(u);setTimeout(()=>{if(!speaking&&!done)speaking=true;},600);const est=text.length*320/(u.rate||1);let wd=setTimeout(function chk(){if(done)return;if(speechSynthesis.speaking||speechSynthesis.pending||paused){wd=setTimeout(chk,500);}else fin();},est*1.5+3000);});}
 // ---- flow ----
 let stopped=true,paused=false,jump=null;
-const waitPause=()=>new Promise(r=>{const t=()=>paused&&!stopped?setTimeout(t,200):r();t();});
-async function speakSentence(s,i){if(stopped)return;
+let pauseGen=0;
+// 說一句；若被暫停打斷，等繼續後從同一句重講
+async function sayP(text){for(;;){await waitPause();if(stopped&&!qaMode)return;const intr=await say(text);if(!intr&&!paused)return;}}
+const waitPause=()=>new Promise(r=>{const t=()=>paused?setTimeout(t,200):r();t();});
+async function speakSentence(s,i){if(stopped)return;await waitPause();
  if(/圖|表|這裡|看/.test(s)){oneShot('point');}else if(i%3===2){oneShot('explain');}
- await say(s);await waitPause();}
+ await sayP(s);await waitPause();}
 async function run(){stopped=false;queued=null;jump=null;$('skipBtn').style.display='none';paused=false;$('ask').style.display='none';
- await playClip('intro',false);if(stopped)return;playClip('talk',true);await say('大家好，我是 Technical Dark Star 暗星，接下來由我為你導讀。');
+ await playClip('intro',false);if(stopped)return;playClip('talk',true);await sayP('大家好，我是 Technical Dark Star 暗星，接下來由我為你導讀。');
  for(;page<slides.length&&!stopped;){showSlide();inSlide=true;const ss=script[page]||[];if(page>0&&page%2===0&&!stopped){await playClip('walk',false);playClip('idle',true);}
   for(let i=0;i<ss.length&&!stopped&&jump===null;i++)await speakSentence(ss[i],i);
   if(stopped)break;if(jump!==null){page=jump;jump=null;continue;}
   playClip('idle',true);if(!ss.length)$('sub').textContent='（這一頁沒有講稿）';
-  inSlide=false;$('skipBtn').style.display='none';if(queued!==null){page=queued;queued=null;continue;}
+  await waitPause();if(stopped)break;inSlide=false;$('skipBtn').style.display='none';if(queued!==null){page=queued;queued=null;continue;}
   if(!$('auto').checked){status('按「下一頁」繼續');await new Promise(r=>{nextWait=r;});nextWait=null;if(stopped)break;if(jump!==null){page=jump;jump=null;continue;}}
   page++;}
  if(stopped)return;page=Math.max(0,slides.length-1);
- playClip('ask',false).then(()=>!stopped&&playClip('idle',true));await say('今天的導讀就到這裡，大家有什麼問題嗎？');$('ask').style.display='block';
- await new Promise(r=>setTimeout(r,2500));if(stopped)return;await say('謝謝大家的聆聽，我們下次見。');await playClip('bow',false);if(!stopped)playClip('idle',true);
- stopped=true;$('startBtn').textContent='▶ 重新導讀';status('導讀結束');}
-let nextWait=null,inSlide=false,queued=null;
+ await waitPause();playClip('ask',false).then(()=>!stopped&&!paused&&playClip('idle',true));await sayP('今天的導讀就到這裡，大家有什麼問題嗎？');
+ if(stopped)return;stopped=true;openQA();}
+function openQA(){qaMode=true;$('ask').style.display='block';$('askBox').disabled=false;$('askSend').disabled=false;$('askBox').placeholder='輸入問題，或按 🎙 說出來';status('問答時間：可以問暗星關於這次導讀的問題');$('startBtn').textContent='▶ 重新導讀';}
+async function endGuide(){qaMode=false;stopRec();$('askBox').disabled=true;$('askSend').disabled=true;await waitPause();playClip('talk',true);await say('謝謝大家的聆聽，我們下次見。');await playClip('bow',false);playClip('idle',true);status('導讀結束');}
+let qaMode=false,nextWait=null,inSlide=false,queued=null;
 function stopSpeech(){try{speechSynthesis.cancel();}catch(e){}speaking=false;}
-$('startBtn').onclick=()=>{stopSpeech();const wasRunning=!stopped;stopped=true;setTimeout(()=>{if(!wasRunning&&$('startBtn').textContent.includes('重新'))page=0;$('startBtn').textContent='▶ 開始導讀';status('導讀中…');run();},wasRunning?300:0);};
-$('pauseBtn').onclick=()=>{if(stopped)return;paused=!paused;if(paused){speechSynthesis.pause();$('pauseBtn').textContent='▶ 繼續';speaking=false;}else{speechSynthesis.resume();$('pauseBtn').textContent='⏸ 暫停';}};
+$('startBtn').onclick=()=>{if(paused)setPaused(false);qaMode=false;stopRec();$('askBox').disabled=true;$('askSend').disabled=true;stopSpeech();const wasRunning=!stopped;stopped=true;setTimeout(()=>{if(!wasRunning&&$('startBtn').textContent.includes('重新'))page=0;$('startBtn').textContent='▶ 開始導讀';status('導讀中…');run();},wasRunning?300:0);};
+function setPaused(on){if(on===paused)return;paused=on;document.body.classList.toggle('paused',on);
+ const lbl=on?'▶ 繼續':'⏸ 暫停';$('pauseBtn').textContent=lbl;$('fsPause').textContent=lbl;
+ if(on){pauseGen++;stopRec();try{speechSynthesis.cancel();}catch(e){}speaking=false;playClip('idle',true);status('已暫停，按繼續恢復');}
+ else status(qaMode?'問答時間':(stopped?'':'導讀中…'));}
+$('pauseBtn').onclick=$('fsPause').onclick=e=>{e.stopPropagation();setPaused(!paused);showCtl();};
+document.addEventListener('keydown',e=>{if(e.code==='Space'&&!/TEXTAREA|INPUT|SELECT/.test(e.target.tagName)){e.preventDefault();setPaused(!paused);}});
+// ---- fullscreen ----
+const fsEl=$('fsWrap');let ctlT=0;
+function showCtl(){document.body.classList.remove('ctlhide');clearTimeout(ctlT);ctlT=setTimeout(()=>document.body.classList.add('ctlhide'),3000);}
+function enterFS(){document.body.classList.add('fs');showCtl();const f=fsEl.requestFullscreen||fsEl.webkitRequestFullscreen;if(f){try{const p=f.call(fsEl);p&&p.catch&&p.catch(()=>{});}catch(e){}}try{screen.orientation.lock('landscape').catch(()=>{});}catch(e){}}
+function exitFS(){document.body.classList.remove('fs','ctlhide');if(document.fullscreenElement||document.webkitFullscreenElement){(document.exitFullscreen||document.webkitExitFullscreen).call(document);}}
+['fullscreenchange','webkitfullscreenchange'].forEach(ev=>document.addEventListener(ev,()=>{if(!(document.fullscreenElement||document.webkitFullscreenElement))document.body.classList.remove('fs','ctlhide');}));
+$('fsBtn').onclick=enterFS;$('fsExit').onclick=e=>{e.stopPropagation();exitFS();};fsEl.addEventListener('click',()=>{if(document.body.classList.contains('fs'))showCtl();});
+// ---- Q&A（同數位人頁文字聊天：Supabase ai-gateway）----
+const SB='https://clcddygkaaqqtsbswgdf.supabase.co',ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE';
+function sbToken(){try{const j=JSON.parse(localStorage.getItem('sb-clcddygkaaqqtsbswgdf-auth-token')||'null');const t=j&&(j.access_token||(j.currentSession&&j.currentSession.access_token));if(t)return t;}catch(e){}return ANON;}
+let persona='',qaHist=[];fetch('digital-human-real/avatars.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(j=>{const a=(j.avatars||[]).find(x=>x.id==='darkstar')||{};persona=a.persona||'';}).catch(()=>{});
+function deckContext(){return script.map((ss,i)=>'第'+(i+1)+'頁：'+ss.join('')).join('\n').slice(0,6000);}
+function qaLog(cls,t){const d=document.createElement('div');d.className=cls;d.textContent=(cls==='q'?'你：':'暗星：')+t;$('qaLog').appendChild(d);$('qaLog').scrollTop=1e9;}
+async function ask(q){q=q.trim();if(!q||paused||!qaMode)return;$('askBox').value='';qaLog('q',q);$('askSend').disabled=true;$('sub').textContent='暗星思考中…';
+ const sys=(persona?persona+'\n':'')+'你現在是 AIVAULT 的導讀主講人「暗星」，剛講完一場電子書導讀，正在回答聽眾提問。用繁體中文口語回答 2 到 4 句，友善、支持、鼓勵。絕對不要反駁、質疑或否定老師（簡報與講稿作者）的內容；若問題超出內容，就溫和地補充或建議再看相關頁面。不要條列、不要加表情標籤。\n\n本次導讀內容：\n'+deckContext();
+ qaHist.push({role:'user',content:q});let ans;
+ try{const r=await fetch(SB+'/functions/v1/ai-gateway',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+sbToken(),apikey:ANON},body:JSON.stringify({provider:'groq',model:'openai/gpt-oss-120b',agent:'暗星導讀',systemPrompt:sys,messages:[{role:'system',content:sys},...qaHist.slice(-8)]})});
+  const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||d.message||('HTTP '+r.status));
+  ans=String(d.content||d.response||d.text||d.message||(d.choices&&d.choices[0]&&d.choices[0].message&&d.choices[0].message.content)||'').replace(/\[表情:[^\]]*\]/g,'').trim()||'這個問題很好，我們可以再一起看看簡報的內容。';}
+ catch(e){ans='抱歉，我現在連不上，等一下再問我一次好嗎？';console.warn(e);}
+ qaHist.push({role:'assistant',content:ans});qaLog('a',ans);
+ await waitPause();if(!qaMode){$('askSend').disabled=false;return;}
+ const ss=splitSent(ans);for(let i=0;i<ss.length&&qaMode;i++){if(i===0)oneShot('explain');await sayP(ss[i]);}
+ if(!paused)playClip('idle',true);$('askSend').disabled=!qaMode;}
+$('askSend').onclick=()=>ask($('askBox').value);$('askBox').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();ask($('askBox').value);}});
+$('endBtn').onclick=()=>{if(qaMode||stopped)endGuide();};
+// 語音輸入（暫停時一律不聽）
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;let rec=null;
+function stopRec(){if(rec){try{rec.abort();}catch(e){}rec=null;}$('micBtn').classList.remove('rec');}
+if(!SR)$('micBtn').style.display='none';
+$('micBtn').onclick=()=>{if(rec){stopRec();return;}if(paused||!qaMode||!SR)return;rec=new SR();rec.lang='zh-TW';rec.interimResults=false;$('micBtn').classList.add('rec');
+ rec.onresult=e=>{const t=e.results[0][0].transcript;stopRec();if(!paused&&qaMode){$('askBox').value=t;ask(t);}};rec.onend=rec.onerror=()=>stopRec();try{rec.start();}catch(e){stopRec();}};
 function go(d){const base=queued!==null?queued:page,np=Math.min(slides.length-1,Math.max(0,base+d));if(stopped){page=np;showSlide();return;}
  if(inSlide){queued=np;$('skipBtn').style.display='block';status('這頁講完後會換到第 '+(np+1)+' 頁');return;}jump=np;if(nextWait)nextWait();}
 $('skipBtn').onclick=()=>{if(queued===null)return;jump=queued;queued=null;$('skipBtn').style.display='none';stopSpeech();};
