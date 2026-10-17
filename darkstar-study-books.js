@@ -12,7 +12,9 @@
   async function loadServerIds(force) {
     if (serverIds && !force) return serverIds;
     if (serverIdsLoading) return serverIdsLoading;
-    serverIdsLoading = fetch(INGEST, { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + ANON }, body: JSON.stringify({ action: "list", limit: 100 }) })
+    /* 修正：私人書（例如《行政法入门》）只對登入者列出；以前用匿名金鑰查清單，私人書永遠「未同步」而無法 ⭐。關閉：localStorage.studyAuthListOff='1' */
+    serverIdsLoading = (function () { try { if (localStorage.getItem("studyAuthListOff") === "1") return Promise.resolve(""); } catch (e) {} return Promise.resolve(typeof token === "function" ? token(false) : "").catch(function () { return ""; }); })()
+      .then(function (t) { return fetch(INGEST, { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + (t || ANON) }, body: JSON.stringify({ action: "list", limit: 100 }) }); })
       .then(function (r) { return r.json(); })
       .then(function (j) {
         var m = {};
