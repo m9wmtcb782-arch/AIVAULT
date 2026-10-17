@@ -63,8 +63,11 @@ if "aicount" in STEPS:  # 只印表名與筆數（不印內容）
         n=t["table_name"]; print("COUNT",n,sql('select count(*) c from public."%s"'%n)[0]["c"])
     print("POOLDOM",sql("select domain,count(*) c from public.aivault_pool_agents group by 1 order by 2 desc limit 40"))
     print("POOLGUARD",sql("select count(*) c from public.aivault_pool_agents where domain ~* 'guard|security|衛士|defen'"))
-    try: print("REGNAMES",sql("select agent_id from public.agent_registry order by 1 limit 60"))
+    try: print("REGW",sql("select count(*) c from public.agent_registry where agent_id like 'Worker-%'"));print("REGNAMES",sql("select agent_id from public.agent_registry where agent_id not like 'Worker-%' order by 1"))
     except Exception as e: print("REG err",str(e)[:100])
+    for t in ["aivault_ai_avatars","aivault_agent_cognitive_models","aivault_agent_social_rankings"]:
+        try: c=[x["column_name"] for x in sql("select column_name from information_schema.columns where table_schema='public' and table_name='%s'"%t)]; k="agent_id" if "agent_id" in c else c[0]; print("NONW",t,sql("select %s from public.%s where %s::text not like 'Worker-%%' and %s::text !~ '^ag-' order by 1 limit 20"%(k,t,k,k)))
+        except Exception as e: print("NONW err",t,str(e)[:100])
 if "spmig" in STEPS: sql(open("supabase/migrations/20261017220000_aivault_special_study.sql").read()); print("SPMIG ok")
 import time as _t
 _g=_t.gmtime()
