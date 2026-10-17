@@ -26,14 +26,14 @@ export async function specialRound(b: any) {
   const ids = (Array.isArray(b.ids) ? b.ids : Object.keys(SPECIALS)).filter((x: string) => SPECIALS[x]); const mode = String(b.mode || "learn"); const res: any[] = [];
   for (const id of ids) { const sp = SPECIALS[id]; const log: string[] = []; const think = gwThink(sp, log);
     try {
-      if (mode === "learn") { const r = await learnOne(sp, think); res.push({ id, ...r, models: log }); if (r.url) await markSpecial(id, "讀書"); }
-      else { const [deg] = await rest(`aivault_special_degree?agent_id=eq.${id}&select=tier`);
+      if (mode === "learn") { await markSpecial(id, "學習中").catch(() => {}); const r = await learnOne(sp, think); res.push({ id, ...r, models: log }); if (r.url) await markSpecial(id, "讀書"); }
+      else { await markSpecial(id, "考試中").catch(() => {}); const [deg] = await rest(`aivault_special_degree?agent_id=eq.${id}&select=tier`);
         if (!deg?.tier || mode === "placement") { res.push({ id, ...(await placeOne(sp, think)), models: log }); }
         if (mode === "exam") { const now = new Date().toISOString(); const d = sp.domain === "llm" ? "llm" : "img";
           const open = await rest(`aivault_pool_exams?kind=in.(promotion,weekly)&district=eq.${d}&opens_at=lte.${now}&or=(closes_at.is.null,closes_at.gt.${now})&select=id,district,kind&order=opens_at.asc`);
           const done = new Set((await rest(`aivault_special_exam_answers?agent_id=eq.${id}&select=exam_id`)).map((x: any) => x.exam_id));
           for (const ex of open.filter((e: any) => !done.has(e.id)).slice(0, 1)) res.push({ id, ...(await examOne(sp, ex, think)), models: log }); }
-        await markSpecial(id, "審核計畫").catch(() => {}); }
+        const last = res.filter((x: any) => x.id === id && x.max).pop(); if (last) await markSpecial(id, last.score / last.max >= .6 ? "考試通過" : "考完").catch(() => {}); }
     } catch (e) { res.push({ id, error: String((e as any)?.message || e).slice(0, 200), models: log }); } }
   return { ok: true, mode, res };
 }
