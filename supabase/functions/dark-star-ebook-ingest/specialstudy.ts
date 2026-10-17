@@ -66,3 +66,17 @@ export async function summon(b: any, by: string | null, via = "town") {
   return { ok: true, ...v };
 }
 export async function summonState() { const r = await rest("aivault_floor_state?k=like.summon:*&select=k,v"); const o: any = {}; r.forEach((x: any) => o[x.k.slice(7)] = x.v); return o; }
+
+// sd2：暗星／曙光每日學習報告（全部來自資料庫真實紀錄；沒有紀錄就顯示沒有）。day＝台北日期
+export async function specialDaily(b: any) {
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(String(b.day || "")) ? String(b.day) : new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10);
+  const from = new Date(Date.parse(day + "T00:00:00+08:00")).toISOString(), to = new Date(Date.parse(day + "T00:00:00+08:00") + 864e5).toISOString();
+  const learn = await rest(`aivault_special_learning?fetched_at=gte.${from}&fetched_at=lt.${to}&select=id,agent_id,topic,url,title,notes,model,fetched_at&order=fetched_at.asc`);
+  const exams = await rest(`aivault_special_exam_answers?created_at=gte.${from}&created_at=lt.${to}&select=agent_id,exam_id,score,max_score,tier,level,notes_used,grader_notes,model,created_at&order=created_at.asc`);
+  const sm = await rest(`aivault_floor_state?k=like.summon:*&select=k,v`).catch(() => []);
+  const per: any = {}; for (const id of Object.keys(SPECIALS)) { const L = learn.filter((x: any) => x.agent_id === id), E = exams.filter((x: any) => x.agent_id === id);
+    per[id] = { name: SPECIALS[id].name, learned: L.map((x: any) => ({ topic: x.topic, url: x.url, title: x.title, summary: String(x.notes || "").slice(0, 400), model: x.model, at: x.fetched_at, used_in_exam: E.some((e: any) => (e.notes_used || []).includes(x.id)) })), exams: E.map((e: any) => ({ exam: e.exam_id, score: e.score, max: e.max_score, tier: e.tier, level: e.level, notes_used: (e.notes_used || []).length, note: e.grader_notes, model: e.model, at: e.created_at })),
+      summon: (sm.find((x: any) => x.k === "summon:" + id)?.v?.at || "").slice(0, 10) === day ? sm.find((x: any) => x.k === "summon:" + id).v : null };
+    const p = per[id]; p.summary = `${p.name}：${day} 學了 ${p.learned.length} 筆${p.learned.length ? "（" + p.learned.map((x: any) => x.topic).slice(0, 4).join("、") + "）" : ""}、考了 ${p.exams.length} 次${p.exams.length ? "（" + p.exams.map((e: any) => `${e.exam} ${e.score}/${e.max}`).join("、") + "）" : ""}${p.summon ? "、被召集到協作池" : ""}。`; }
+  return { ok: true, day, per };
+}

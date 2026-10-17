@@ -10,7 +10,7 @@ import { dailyPlans, getPlans } from "./plans.ts";
 import { special } from "./special.ts";
 import { orders } from "./orders.ts";
 import { labStart, labReport, labPublic, agentLabStats } from "./lab.ts";
-import { specialRound, specialDegreePublic, summon, summonState } from "./specialstudy.ts";
+import { specialRound, specialDegreePublic, summon, summonState, specialDaily } from "./specialstudy.ts";
 const H = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS", "Content-Type": "application/json" };
 const out = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: H });
 const URL0 = Deno.env.get("SUPABASE_URL") || "", SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -143,6 +143,7 @@ export async function degree(r: Request) {
     if (a === "lab_public") return out(await labPublic(b));
     if (a === "agent_lab") { const id = String(b.id || ""); if (!/^ag-\d{4}$/.test(id)) return out({ error: "bad id" }, 400); return out({ ok: true, learned: await learnedCount(id), ...(await agentLabStats(id)) }); } // lb2：學了→做了→通過
     if (a === "summon_state") return out({ ok: true, now: new Date().toISOString(), s: await summonState() });
+    if (a === "special_daily") return out(await specialDaily(b)); // sd2
     if (a === "special_public") return out(await specialDegreePublic()); // sp1：暗星／曙光學階（公開唯讀，無作答內容）
     const u = await who(r); if (!u) return out({ error: "owner only" }, 403);
     if (a === "agent") { const id = String(b.id || "").replace(/[^\w-]/g, "");

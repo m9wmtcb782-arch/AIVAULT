@@ -124,14 +124,15 @@ async function ebookSession(agent: any) {
 export async function learnRound(b: any, learnOne: (ag: any) => Promise<any>) {
   FORCE_VIDEO = !!b.force_video;
   if (Deno.env.get("LEARN10_OFF") === "1") return { ok: true, off: true, results: [] };
-  const budget = Number(Deno.env.get("LEARN10_DAILY_TOKENS") || 120000), used = await tokensToday(); if (used >= budget) return { ok: true, budget_hit: true, used, budget, results: [] };
-  const n = Math.min(8, Math.max(1, Number(b.n) || 4)); const all = await rest("aivault_pool_agents?select=id,domain,persona&order=id.asc&limit=1400");
+  const budget = Number(Deno.env.get("LEARN10_DAILY_TOKENS") || 400000), used = await tokensToday(); if (used >= budget) return { ok: true, budget_hit: true, used, budget, results: [] };
+  const n = Math.min(16, Math.max(1, Number(b.n) || 8)); const PAR = Math.max(1, Math.min(6, Number(Deno.env.get("LEARN10_PAR")) || 4)); const all = await rest("aivault_pool_agents?select=id,domain,persona&order=id.asc&limit=1400");
   const locks = await rest("aivault_floor_state?k=like.learnlock:*&select=k,v&limit=2000"); const busy = new Set(locks.filter((x: any) => Date.parse(x.v?.until) > Date.now()).map((x: any) => x.k.slice(10)));
   const ln = await rest(`aivault_pool_agent_learning?created_at=gte.${new Date(Date.now() - 7 * 864e5).toISOString()}&select=agent_id&limit=5000`); const c: Record<string, number> = {}; ln.forEach((x: any) => c[x.agent_id] = (c[x.agent_id] || 0) + 1);
   const ds = ["av", "code", "llm", "img"]; const pick: any[] = []; const pools = ds.map((d) => all.filter((a: any) => districtOf(a.domain) === d && !busy.has(a.id)).sort((x: any, y: any) => (c[x.id] || 0) - (c[y.id] || 0) || Math.random() - .5));
   for (let i = 0; pick.length < n && i < 50; i++) { const p = pools[i % 4]; const a = p.shift(); if (a) pick.push(a); }
   const results: any[] = []; let skipped = busy.size;
-  for (const ag of pick) { if (!(await lock(ag.id))) { skipped++; continue; } const d = districtOf(ag.domain);
+  // pd2：一次 4 位代理平行學習（各自獨立；遇到限流或預算上限就停）
+  const one = async (ag: any): Promise<any> => { if (!(await lock(ag.id))) { skipped++; return null; } const d = districtOf(ag.domain);
     try { const voice = !b.force_ebook && !b.force_selfdev && !b.force_domain && (FORCE_VIDEO || Math.random() < (VW[d] || .4)); let pt: string[] = []; if (!voice && Deno.env.get("PLAN_OFF") !== "1") pt = await approvedTopics(d).catch(() => []);
       let eb: any = null; if (!voice && Deno.env.get("LEARN_EBOOK_OFF") !== "1" && (b.force_ebook || Math.random() < .25)) eb = await ebookSession(ag);
       if (eb) results.push({ district: d, voice, ebook: true, ...eb });
@@ -141,6 +142,7 @@ export async function learnRound(b: any, learnOne: (ag: any) => Promise<any>) {
       else results.push({ district: d, voice, ...(voice ? await session(ag) : await learnOne(ag)) }); }
     catch (e) { const msg = String((e as any)?.message || e); results.push({ agent: ag.id, error: msg.slice(0, 200) }); if (/429|LLM_FAILED/.test(msg)) { await unlock(ag.id); return { ok: true, rate_limited: true, used, budget, skipped_locked: skipped, results }; } }
     await unlock(ag.id);
-    if (used + results.reduce((s, r) => s + (Number(r.usage?.total) || 0), 0) >= budget) return { ok: true, budget_hit: true, used, budget, skipped_locked: skipped, results }; }
+    if (used + results.reduce((s, r) => s + (Number(r.usage?.total) || 0), 0) >= budget) return { ok: true, budget_hit: true, used, budget, skipped_locked: skipped, results }; return null; };
+  for (let k = 0; k < pick.length; k += PAR) { const rs = await Promise.all(pick.slice(k, k + PAR).map(one)); const stop = rs.find((x) => x); if (stop) return stop; }
   return { ok: true, used, budget, skipped_locked: skipped, results };
 }
