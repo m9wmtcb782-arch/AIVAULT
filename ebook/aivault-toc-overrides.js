@@ -5,6 +5,127 @@
   var E = window.AIVAULTEbook;
   if (!E || typeof E.fetchRemoteToc !== "function") return;
   var OVERRIDES = {
+    "c8743d50-bad5-4ec8-b675-5e64fe7985a9": [
+ {
+  "ordinal": 0,
+  "level": "chapter",
+  "title": "总序",
+  "page_number": 5,
+  "print_page": 1
+ },
+ {
+  "ordinal": 1,
+  "level": "chapter",
+  "title": "第二版序",
+  "page_number": 8,
+  "print_page": 1
+ },
+ {
+  "ordinal": 2,
+  "level": "chapter",
+  "title": "前言",
+  "page_number": 9,
+  "print_page": 1
+ },
+ {
+  "ordinal": 3,
+  "level": "chapter",
+  "title": "目录",
+  "page_number": 12,
+  "print_page": 1
+ },
+ {
+  "ordinal": 4,
+  "level": "chapter",
+  "title": "一、初识行政法",
+  "page_number": 16,
+  "print_page": 1
+ },
+ {
+  "ordinal": 5,
+  "level": "chapter",
+  "title": "二、有效记忆行政法知识",
+  "page_number": 37,
+  "print_page": 22
+ },
+ {
+  "ordinal": 6,
+  "level": "chapter",
+  "title": "三、依法行政原则",
+  "page_number": 44,
+  "print_page": 29
+ },
+ {
+  "ordinal": 7,
+  "level": "chapter",
+  "title": "四、行政主体",
+  "page_number": 61,
+  "print_page": 46
+ },
+ {
+  "ordinal": 8,
+  "level": "chapter",
+  "title": "五、行政行为",
+  "page_number": 76,
+  "print_page": 61
+ },
+ {
+  "ordinal": 9,
+  "level": "chapter",
+  "title": "六、政府信息公开",
+  "page_number": 116,
+  "print_page": 101
+ },
+ {
+  "ordinal": 10,
+  "level": "chapter",
+  "title": "七、行政救济（Ⅰ）：行政复议",
+  "page_number": 126,
+  "print_page": 111
+ },
+ {
+  "ordinal": 11,
+  "level": "chapter",
+  "title": "八、行政救济（Ⅱ）：行政诉讼",
+  "page_number": 144,
+  "print_page": 129
+ },
+ {
+  "ordinal": 12,
+  "level": "chapter",
+  "title": "九、行政救济（Ⅲ）：行政赔偿",
+  "page_number": 179,
+  "print_page": 164
+ },
+ {
+  "ordinal": 13,
+  "level": "chapter",
+  "title": "十、行政法的学习进阶",
+  "page_number": 187,
+  "print_page": 172
+ },
+ {
+  "ordinal": 14,
+  "level": "chapter",
+  "title": "十一、如何写好行政法论文",
+  "page_number": 193,
+  "print_page": 178
+ },
+ {
+  "ordinal": 15,
+  "level": "chapter",
+  "title": "主要参考文献",
+  "page_number": 210,
+  "print_page": 195
+ },
+ {
+  "ordinal": 16,
+  "level": "chapter",
+  "title": "行政法精读书目",
+  "page_number": 218,
+  "print_page": 203
+ }
+],
     "9a3a2a12-66c6-4864-9ee3-753c1b1a329a": [
      {
       "ordinal": 0,

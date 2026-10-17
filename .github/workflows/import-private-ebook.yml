@@ -1,0 +1,17 @@
+name: Import private ebook (manual)
+on:
+  workflow_dispatch:
+    inputs:
+      src: { description: "encrypted payload path", required: true, default: "private/ebooks/c8743d50.json.gpg" }
+      template: { description: "template ebook id (same visibility)", required: true, default: "c22c6a4a-4339-4143-a1e9-e48a430ce823" }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          KEY: ${{ secrets.AIVAULT_PRIVATE_PAGES_KEY }}
+          SRC: ${{ inputs.src }}
+          TEMPLATE: ${{ inputs.template }}
+        run: python3 .github/scripts/import_private_ebook.py
