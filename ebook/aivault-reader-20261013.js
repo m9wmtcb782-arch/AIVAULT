@@ -363,6 +363,17 @@
     });
   }
 
+  // [[pimg:N]] 私人頁面圖：只用登入會員的 token 從私有 storage 讀取（沒登入看不到）
+  const _pimgCache = {};
+  function privImgs(el) {
+    el.querySelectorAll("img[data-pimg]").forEach(function (im) {
+      const p = im.getAttribute("data-pimg"), tk = E.userToken && E.userToken();
+      if (!p || !tk) { im.alt = "（登入會員才能看到圖片）"; return; }
+      (_pimgCache[p] = _pimgCache[p] || fetch("https://clcddygkaaqqtsbswgdf.supabase.co/storage/v1/object/authenticated/ebook-private/" + p, { headers: { apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE", Authorization: "Bearer " + tk } }).then(function (r) { if (!r.ok) throw r.status; return r.blob(); }).then(function (b) { return URL.createObjectURL(b); }).catch(function (e) { delete _pimgCache[p]; throw e; }))
+        .then(function (u) { im.src = u; }).catch(function () { im.alt = "（圖片載入失敗）"; });
+    });
+  }
+
   function paintPaper(el, page, n) {
     if (!page) {
       el.innerHTML = "<h3>【教材原文】</h3><p>此頁無內容。</p>";
@@ -378,7 +389,7 @@
     } else {
       // [[img:N]] 標記 → 書籍專屬圖檔（只影響含標記的頁面）
       const imgBase = "ebooks/" + encodeURIComponent(String(state.remoteId || state.bookId || "")) + "/img/";
-      body += "<div>" + E.esc(page.content || "").replace(/\[\[img:([A-Za-z0-9_-]+)\]\]/g, function (_, k) { return '<img decoding="async" alt="" src="' + imgBase + k + '.jpg" style="display:block;max-width:100%;height:auto;margin:10px auto">'; }).replace(/\n/g, "<br>") + "</div>";
+      body += "<div>" + E.esc(page.content || "").replace(/\[\[img:([A-Za-z0-9_-]+)\]\]/g, function (_, k) { return '<img decoding="async" alt="" src="' + imgBase + k + '.jpg" style="display:block;max-width:100%;height:auto;margin:10px auto">'; }).replace(/\[\[pimg:([A-Za-z0-9_-]+)\]\]/g, function (_, k) { return '<img decoding="async" alt="" data-pimg="' + encodeURIComponent(String(state.remoteId || state.bookId || "")) + "/" + k + '.jpg" style="display:block;max-width:100%;height:auto;margin:10px auto">'; }).replace(/\n/g, "<br>") + "</div>";
     }
     const videos=Array.isArray(page.metadata&&page.metadata.videos)?page.metadata.videos:[];
     videos.forEach(function(v){
@@ -389,6 +400,7 @@
       else if(provider==="direct"&&url) body+='<div style="margin-top:16px"><h3>🎬 本頁影音</h3><video controls playsinline preload="metadata" src="'+E.esc(url)+'" style="width:100%;max-height:520px;background:#000;border-radius:10px"></video><div style="font-size:13px;margin-top:6px">'+E.esc(title)+'</div></div>';
     });
     el.innerHTML = (bits ? "<h3>" + E.esc(bits) + "</h3>" : "") + body;
+    privImgs(el);
     if(window.AIVAULTAudiobook)window.AIVAULTAudiobook.preparePaper(el);
   }
 
