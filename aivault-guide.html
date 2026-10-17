@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded',()=>{const b=document.getElementByI
 <script>
 // TODO: 之後可把上傳的簡報＋講稿存到書架（目前只存在本機 IndexedDB，不碰現有書架）
 const G='digital-human-real/guide/',$=id=>document.getElementById(id);
-const CLIPS={idle:'guide_idle',intro:'guide_intro',point:'guide_point',walk:'guide_walk',explain:'guide_explain',ask:'guide_ask',bow:'guide_bow',talk:'guide_talk'};
+const CLIPS={idle:'guide_idle',intro:'guide_intro',point:'guide_point',walk:'guide_walk',gesture:'guide_gesture',present:'guide_present',explain:'guide_explain',ask:'guide_ask',bow:'guide_bow',talk:'guide_talk'};
 const vids=[$('v0'),$('v1')];let cur=0,curClip=null,lip=null,mouthImgs={};
 let clipGen=0;
 function playClip(name,loop){const my=++clipGen;return new Promise(res=>{const nv=vids[1-cur],ov=vids[cur];nv.loop=!!loop;nv.onended=null;nv.oncanplay=null;nv.src=G+CLIPS[name]+'.mp4';nv.poster=G+CLIPS[name]+'.jpg';
@@ -245,7 +245,7 @@ function primeTTS(){try{heel.unlock();}catch(e){}if(!('speechSynthesis'in window
 function say(text,forceTTS){if(!forceTTS&&voiceMode==='live'&&live.ready())return live.sayLine(text);return new Promise(async res=>{if('speechSynthesis'in window&&(speechSynthesis.speaking||speechSynthesis.pending)){speechSynthesis.cancel();await new Promise(r=>setTimeout(r,150));}$('sub').textContent=text;if(!('speechSynthesis'in window)){const g=pauseGen;setTimeout(()=>res(pauseGen!==g),text.length*220);return;}
  const u=new SpeechSynthesisUtterance(text),v=voices[$('voiceSel').value];if(v)u.voice=v;u.lang=v?v.lang:'zh-TW';u.rate=+$('rate').value||1;
  let done=false;const gen=pauseGen;const fin=()=>{if(done)return;done=true;speaking=false;res(pauseGen!==gen);};
- u.onstart=()=>{speaking=true;if(curClip!=='talk'&&curClip!=='point'&&curClip!=='explain')playClip('talk',true);};
+ u.onstart=()=>{speaking=true;if(!TALKY.has(curClip))playClip('talk',true);};
  u.onboundary=e=>{try{lip2.pulse();}catch(_){}if(e.charIndex>0){const rest=text.slice(e.charIndex);$('sub').textContent=text.length>40?rest.slice(0,40):text;}};
  u.onend=fin;u.onerror=fin;utterRefs.push(u);if(utterRefs.length>20)utterRefs.splice(0,10);speechSynthesis.speak(u);setTimeout(()=>{if(!speaking&&!done)speaking=true;},600);const est=text.length*320/(u.rate||1);let wd=setTimeout(function chk(){if(done)return;if(speechSynthesis.speaking||speechSynthesis.pending||paused){wd=setTimeout(chk,500);}else fin();},est*1.5+3000);});}
 // ---- flow ----
@@ -254,8 +254,11 @@ let pauseGen=0;
 // 說一句；若被暫停打斷，等繼續後從同一句重講
 async function sayP(text){for(;;){await waitPause();if(stopped&&!qaMode)return;const intr=await say(text);if(!intr&&!paused)return;}}
 const waitPause=()=>new Promise(r=>{const t=()=>paused?setTimeout(t,200):r();t();});
+// 站著講解：手勢／點頭、轉向螢幕、講解、指向輪替（整場只走一次）
+const TALKY=new Set(['talk','explain','point','gesture','present']);const CYCLE=['gesture','explain','present','talk','gesture','point','talk'];let cycI=0;
+function gestureFor(s,i){if(/圖|表|這裡|看/.test(s)){oneShot('point');return;}if(i%2===0&&i>0||i===0&&cycI===0){const n=CYCLE[cycI++%CYCLE.length];if(n!=='talk')oneShot(n);}}
 async function speakSentence(s,i){if(stopped)return;await waitPause();
- if(/圖|表|這裡|看/.test(s)){oneShot('point');}else if(i%3===2){oneShot('explain');}
+ gestureFor(s,i);
  await sayP(s);await waitPause();}
 async function run(){if(voiceMode==='live')await live.ensure();stopped=false;queued=null;jump=null;$('skipBtn').style.display='none';paused=false;$('ask').style.display='none';
  await playClip('intro',false);if(stopped)return;playClip('talk',true);await sayP('大家好，我是 Technical Dark Star 暗星，接下來由我為你導讀。');
@@ -354,7 +357,7 @@ const live=(()=>{const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v
   for(let i=0;i<n;i++)ch[i]=dv.getInt16(i*2,true)/32768;if(playCtx.state!=='running')playCtx.resume().catch(()=>{});
   const src=playCtx.createBufferSource();src.buffer=buf;src.connect(outGain);const t0=nextPlay>playCtx.currentTime+0.01?nextPlay:playCtx.currentTime+0.12;src.start(t0);nextPlay=t0+buf.duration;
   sources.push(src);src.onended=()=>{sources=sources.filter(x=>x!==src);if(!sources.length)speaking=false;};
-  if(!speaking){speaking=true;if(curClip!=='talk'&&curClip!=='explain'&&curClip!=='point')playClip('talk',true);}}
+  if(!speaking){speaking=true;if(!TALKY.has(curClip))playClip('talk',true);}}
  function playB64(b,mime){const m=/rate=(\d+)/.exec(String(mime||''));try{const bin=atob(b),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);playPCM(u,m?+m[1]:24000);}catch(e){}}
  function stopAudio(){sources.forEach(x=>{try{x.stop();}catch(e){}});sources=[];nextPlay=0;speaking=false;}
  let curChunk='-',interrupted=false;
@@ -398,7 +401,7 @@ const live=(()=>{const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v
  async function speakBlock(sents){const chunks=chunkify(sents);let ci=0,fails=0;
   while(ci<chunks.length){await waitPause();if(stopped&&!qaMode)return;const part=chunks[ci],txt=part.join('');
    if(!(await ensure())){for(const x of part){for(;;){await waitPause();if(stopped&&!qaMode)return;const intr=await say(x,true);if(!intr&&!paused)break;}}window.__liveLog.push({ci,via:'tts'});ci++;fails=0;continue;}
-   $('sub').textContent=part[0];curChunk='p'+(typeof page!=='undefined'?page+1:'?')+' c'+(ci+1)+'/'+chunks.length;dlog('send',curChunk+' '+txt.length+'字');
+   $('sub').textContent=part[0];try{gestureFor(part[0],2);}catch(e){}curChunk='p'+(typeof page!=='undefined'?page+1:'?')+' c'+(ci+1)+'/'+chunks.length;dlog('send',curChunk+' '+txt.length+'字');
    if(!send('（導讀講稿，請用自然的中文口語把下面這段完整唸出來，不要加入反對、質疑或額外評論，唸完就停）\n'+txt)){ws=null;continue;}
    const r=await waitTurn(txt.length);window.__liveLog.push({ci,ok:r.ok,why:r.why||''});dlog(r.ok?'done':'fail',curChunk+(r.ok?'':' '+r.why));
    if(r.ok){ci++;fails=0;continue;}
@@ -454,7 +457,7 @@ $('heelChk').checked=settings.heel!==false;$('heelChk').onchange=e=>{settings.he
 // ===== 對嘴（lip3 半臉替換；舊 lip2 嘴型檔保留未用）：離線臉部偵測軌跡（guide/lip2/guide_lip2.json），只在正臉、不歪頭、說話時疊上暗星自己的嘴型；?lip=0 關閉 =====
 const lip2=(()=>{const ON=!/[?&]lip=0/.test(location.search),cv=$('lipCv'),cx=cv.getContext('2d');let J=null,S={},alpha=0,vis='closed',visT=0,pulseT=0,lastTs=0;
  if(ON)fetch(G+'lip3/guide_lip3.json').then(r=>r.json()).then(j=>{J=j;for(const[k,f]of Object.entries(j.sprite.files)){const im=new Image();im.src=G+'lip3/'+f;S[k]=im;}}).catch(()=>{});
- const NAME={idle:'idle',intro:'intro',point:'point',walk:'walk',explain:'explain',ask:'ask',bow:'bow',talk:'talk'};
+ const NAME={idle:'idle',intro:'intro',point:'point',walk:'walk',explain:'explain',ask:'ask',bow:'bow',talk:'talk',gesture:'gesture',present:'present'};
  function pulse(){pulseT=performance.now();}
  function pick(now){if(now-visT<110)return vis;visT=now;const recent=now-pulseT<260,r=Math.random();
   vis=recent?(r<0.55?'open':r<0.9?'half':'closed'):(r<0.35?'half':r<0.6?'open':'closed');return vis;}
