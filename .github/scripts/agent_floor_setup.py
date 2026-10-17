@@ -22,6 +22,10 @@ if "publish" in STEPS:
     sql("insert into public.aivault_private_pages(slug,html,updated_at) values ('agent-floor',%s%s%s,now()) on conflict (slug) do update set html=excluded.html, updated_at=now()"%(tag,html,tag)); print("published agent-floor",len(html))
     link='<a class="btn primary" href="aivault-agent-collaboration.html?page=agent-floor" style="display:inline-block;text-decoration:none;margin-left:6px">🏢 1000 人工作區</a>'
     sql("update public.aivault_private_pages set html=replace(html,'🔙 回 Home</a>','🔙 回 Home</a>'||$l$%s$l$),updated_at=now() where slug='agent-collaboration' and position('page=agent-floor' in html)=0"%link)
+    # 協作池最上方直接嵌入工作區動畫（獨立 iframe；localStorage.agentFloorOff=1 即不載入）
+    emb='<div id="agent-floor-embed"></div><script>(function(){if(localStorage.getItem("agentFloorOff")==="1")return;var f=document.createElement("iframe");f.src="aivault-agent-collaboration.html?page=agent-floor&embed=1";f.title="1000 人工作區";f.loading="eager";f.style.cssText="display:block;width:100%;height:72vh;border:1px solid #273244;border-radius:14px;margin:10px 0;background:#06080c";document.getElementById("agent-floor-embed").appendChild(f)})();</script>'
+    sql("update public.aivault_private_pages set html=regexp_replace(html,'(<a class=\"btn primary\" href=\"aivault-agent-collaboration.html\?page=agent-floor\"[^>]*>[^<]*</a>)','\\1'||$e$%s$e$),updated_at=now() where slug='agent-collaboration' and position('agent-floor-embed' in html)=0"%emb)
+    print("collab embed", sql("select position('agent-floor-embed' in html)>0 as embedded from public.aivault_private_pages where slug='agent-collaboration'"))
     print("collab link", sql("select position('page=agent-floor' in html)>0 as linked from public.aivault_private_pages where slug='agent-collaboration'"))
 if any(s in STEPS for s in ("seed","cycle","test")):
     _,keys=http("https://api.supabase.com/v1/projects/%s/api-keys?reveal=true"%REF,headers={"Authorization":"Bearer "+TOKEN})

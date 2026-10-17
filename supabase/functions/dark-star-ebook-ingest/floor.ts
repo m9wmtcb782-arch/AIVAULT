@@ -204,7 +204,13 @@ export async function floor(r: Request) {
         counts[k] = (counts[k] || 0) + 1; const z = zones[t.zone] = zones[t.zone] || {}; z[k] = (z[k] || 0) + 1;
         if (t.agent_id && !seen.has(t.agent_id)) { seen.add(t.agent_id); st.push([t.agent_id, k, String(t.order_text).replace(/^🧬\s*/, "").slice(0, 28), t.kind, t.id, t.updated_at]); }
       }
-      return out({ ok: true, states: st, review: counts.review || 0, counts, zones, server_time: new Date().toISOString() });
+      // 真實統計：今日（台北）完成數、近 2 小時寫入記憶的代理、近 24 小時核准複製出的子代理
+      const day0 = new Date(Date.now() + 8 * 3600e3); day0.setUTCHours(0, 0, 0, 0); const since = new Date(day0.getTime() - 8 * 3600e3).toISOString();
+      const dc = await fetch(URL0 + `/rest/v1/aivault_pool_agent_tasks?status=eq.done&kind=neq.spawn&updated_at=gte.${since}&select=id`, { headers: { ...SRH, Prefer: "count=exact", Range: "0-0" } });
+      const done_today = Number((dc.headers.get("content-range") || "/0").split("/")[1]) || 0;
+      const mem = (await rest(`aivault_pool_agent_memory?created_at=gte.${new Date(Date.now() - 2 * 3600e3).toISOString()}&select=agent_id,kind,created_at&order=created_at.desc&limit=300`).catch(() => [])).map((m: any) => [m.agent_id, m.kind, m.created_at]);
+      const spawns = (await rest(`aivault_pool_agents?spawned=eq.true&select=id,parent_agent_id,created_at&order=created_at.desc&limit=50`).catch(() => [])).map((c: any) => [c.id, c.parent_agent_id, c.created_at]);
+      return out({ ok: true, states: st, review: counts.review || 0, counts, zones, done_today, mem, spawns, server_time: new Date().toISOString() });
     }
     if (a === "reviews") {
       const ts = await rest("aivault_pool_agent_tasks?source=eq.floor&review_status=eq.pending&select=id,agent_id,zone,kind,order_text,result,updated_at&order=updated_at.desc&limit=50");
