@@ -1,0 +1,31 @@
+name: AI lab factory (agents write, test and fix code in an offline sandbox)
+on:
+  schedule:
+    - cron: "17 2,8,14 * * *"
+  workflow_dispatch:
+    inputs:
+      n: { description: "experiments (max 2)", required: false, default: "1" }
+      brief: { description: "brief index (optional)", required: false, default: "" }
+      force: { description: "1 = ignore daily cap", required: false, default: "" }
+      step: { description: "run | migrate", required: false, default: "run" }
+concurrency: { group: agent-lab, cancel-in-progress: false }
+permissions: { contents: read }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - if: inputs.step == 'migrate'
+        env: { TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN }}", PAGES_KEY: "${{ secrets.AIVAULT_PRIVATE_PAGES_KEY }}", STEP: labmig }
+        run: python3 .github/scripts/degree_setup.py
+      - if: inputs.step != 'migrate'
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          N: ${{ inputs.n || '1' }}
+          BRIEF: ${{ inputs.brief || '' }}
+          FORCE: ${{ inputs.force || '' }}
+          OFF: ${{ vars.LAB_OFF }}
+        run: |
+          if [ "$OFF" = "1" ]; then echo "disabled by repo variable LAB_OFF=1"; exit 0; fi
+          python3 .github/scripts/lab_run.py

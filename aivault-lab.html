@@ -1,0 +1,28 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>🧪 AIVAULT AI 實驗工廠</title>
+<style>body{margin:0;font:15px/1.6 -apple-system,"PingFang TC",sans-serif;background:#0b1020;color:#e2e8f0}header{padding:14px 16px;background:#111a33;position:sticky;top:0;z-index:2}h1{font-size:18px;margin:0}.muted{color:#94a3b8;font-size:13px}main{padding:12px;max-width:980px;margin:auto}
+.card{background:#141d38;border:1px solid #24304f;border-radius:12px;padding:12px;margin:10px 0}.tag{display:inline-block;padding:1px 8px;border-radius:9px;font-size:12px;margin-right:6px;background:#1e293b}.ok{background:#14532d}.bad{background:#7f1d1d}.run{background:#713f12}
+pre{background:#0a0f1e;border-radius:8px;padding:8px;overflow:auto;max-height:320px;font-size:12px;white-space:pre-wrap}iframe{width:100%;height:420px;border:1px solid #334155;border-radius:8px;background:#fff}button{background:#1e40af;color:#fff;border:0;border-radius:8px;padding:6px 12px;margin:4px 4px 0 0}details summary{cursor:pointer;color:#93c5fd}a{color:#93c5fd}</style></head><body>
+<header><h1>🧪 AI 實驗工廠</h1><div class="muted">程式與代理區的 AI 真的寫程式、同事 AI 只看規格寫測試、在無網路無密鑰的容器裡真的跑測試，失敗就回饋修正。每一筆都是真實紀錄（包含失敗）。成品只送擁有者審核，不會自動上線。<a href="aivault-town.html">← 回協作城</a></div></header>
+<main id="m"><p class="muted">載入中…</p></main>
+<script>
+(function(){
+try{if(localStorage.getItem('labOff')==='1'){document.getElementById('m').innerHTML='<p class="muted">實驗工廠頁已關閉（localStorage.labOff=1）。</p>';return}}catch(_){}
+var FN='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/dark-star-ebook-ingest?feature=degree';
+var ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE';
+function api(b){return fetch(FN,{method:'POST',headers:{apikey:ANON,Authorization:'Bearer '+ANON,'Content-Type':'application/json'},body:JSON.stringify(Object.assign({action:'lab_public'},b))}).then(function(r){return r.json()})}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function tp(t){return t?new Date(t).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour12:false})+'（台北）':''}
+var ST={passed:['✅ 測試通過','ok'],failed:['❌ 修正後仍失敗','bad'],running:['⚙️ 執行中','run']};
+function card(r){var s=ST[r.status]||[r.status,''],its=r.iterations||[];
+ return '<div class="card" id="e'+r.id+'"><b>#'+r.id+' '+esc(r.title)+'</b> <span class="tag">'+esc(r.kind)+'</span><span class="tag '+s[1]+'">'+s[0]+'</span><div class="muted">寫程式：'+esc(r.lead_name||r.lead_id)+(r.ranks?'（學階 '+r.ranks.lead.join('-')+'）':'')+'　寫測試：'+esc(r.tester_name||r.tester_id)+(r.ranks?'（'+r.ranks.tester.join('-')+'）':'')+'　'+its.length+' 次嘗試　'+(r.tokens||0)+' tokens　'+tp(r.created_at)+'</div>'
+ +'<p>'+esc(r.spec)+'</p>'+its.map(function(i){return '<div class="muted">第 '+i.n+' 次：'+(i.pass==null?'（尚未執行）':i.pass?'✅ 通過':'❌ 失敗')+(i.tests?'（'+i.tests.pass+'/'+i.tests.tests+' 個測試通過）':'')+'｜'+esc(i.model)+(i.note?'｜修正說明：'+esc(i.note):'')+'</div>'}).join('')
+ +'<button data-id="'+r.id+'">看程式、測試輸出與展示</button><div class="more"></div></div>'}
+function demo(r){var h=String(r.demo_html||''),js=String(r.product_js||'').replace(/<\/script/gi,'<\\/script');var csp='<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\'; img-src data:">';
+ h=h.indexOf('<!--PRODUCT-->')>=0?h.replace('<!--PRODUCT-->','<script>'+js+'<\/script>'):h.replace(/<head[^>]*>/i,function(m){return m+'<script>'+js+'<\/script>'});h=/<head[^>]*>/i.test(h)?h.replace(/<head[^>]*>/i,function(m){return m+csp}):csp+h;return h}
+async function more(btn){var box=btn.nextElementSibling;if(box.innerHTML){box.innerHTML='';return}box.innerHTML='<p class="muted">載入中…</p>';var d=await api({id:+btn.dataset.id}),r=d.rows&&d.rows[0];if(!r){box.innerHTML='<p class="muted">找不到</p>';return}var last=(r.iterations||[]).slice(-1)[0]||{};
+ box.innerHTML='<details open><summary>▶ 展示（沙盒：不能連網、碰不到 AIVAULT 登入或任何密鑰）</summary><iframe sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe></details><details><summary>product.js（最後版本）</summary><pre>'+esc(r.product_js)+'</pre></details><details><summary>test.js（'+esc(r.tester_name||r.tester_id)+' 寫）</summary><pre>'+esc(r.test_js)+'</pre></details><details><summary>最後一次測試輸出</summary><pre>'+esc(last.output||'（無）')+'</pre></details><details><summary>API 說明</summary><pre>'+esc(r.api)+'</pre></details>';
+ box.querySelector('iframe').srcdoc=demo(r)}
+api({}).then(function(d){var m=document.getElementById('m');var rows=d.rows||[];m.innerHTML=rows.length?rows.map(card).join(''):'<p class="muted">還沒有實驗。</p>';m.querySelectorAll('button[data-id]').forEach(function(b){b.onclick=function(){more(b)}});if(location.hash){var b=m.querySelector('#e'+location.hash.slice(1)+' button');if(b){b.click();b.scrollIntoView()}}}).catch(function(e){document.getElementById('m').innerHTML='<p>⚠️ 載入失敗：'+esc(e.message)+'</p>'});
+})();
+</script></body></html>
