@@ -91,13 +91,22 @@ body.fs.ctlhide #fsCtl{opacity:0;pointer-events:none}
  <h2>⚙ 導讀設定</h2>
  <div class="hint">PPT 舊格式（.ppt）無法在瀏覽器讀取，請另存成 PPTX 或 PDF。PPTX 只擷取圖片與文字，版面可能不同，建議匯出 PDF。</div>
  <div class="row"><label>語音模式</label><select id="modeSel"><option value="tts">手機語音（免費、離線也可）</option><option value="live">即時語音（AIVAULT AI，需登入）</option></select><div class="hint">iPhone 手機語音會受「靜音開關」影響：請把左側靜音鍵撥到響鈴、調高音量。</div></div>
- <div class="row" id="liveVoiceRow"><label>即時語音聲音</label><select id="liveVoiceSel"></select></div>
+ <div class="row" id="diagRow"><label>連線紀錄</label><button id="diagCopy" type="button">複製</button><pre id="diagPre" style="max-height:120px;overflow:auto;font-size:10px;white-space:pre-wrap;margin:4px 0 0;user-select:text;-webkit-user-select:text"></pre></div>
+<div class="row" id="liveVoiceRow"><label>即時語音聲音</label><select id="liveVoiceSel"></select></div>
  <div class="row"><label>手機語音聲音</label><select id="voiceSel"></select></div>
  <div class="row"><label>語速 <span id="rateVal">1.0</span></label><input type="range" id="rate" min="0.6" max="1.6" step="0.1" value="1"></div>
  <div class="row"><label><input type="checkbox" id="heelChk" checked> 高跟鞋聲（暗星走路時）</label></div>
  <div class="row"><label><input type="checkbox" id="auto" checked> 自動配合簡報播放（講完自動翻頁）</label></div>
  <div class="row"><button class="icon-btn" id="resetBtn">恢復內建示範</button> <button class="icon-btn" id="closeBtn">關閉</button></div>
 </div></div>
+<script>
+window.__diag=[];const DBG=/[?&]debug=1/.test(location.search);let diagEl=null;
+function dlog(ev,info){const t=new Date(),ts=t.toTimeString().slice(0,8);const line=ts+' '+ev+(info?' '+info:'');__diag.push(line);if(__diag.length>80)__diag.shift();
+ const pre=document.getElementById('diagPre');if(pre)pre.textContent=__diag.slice(-40).join('\n');
+ if(DBG){if(!diagEl){diagEl=document.createElement('div');diagEl.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:9999;background:rgba(0,0,0,.75);color:#7f7;font:10px/1.3 monospace;padding:3px 6px;pointer-events:none;white-space:pre-wrap;max-height:30vh;overflow:hidden';document.body.appendChild(diagEl);}diagEl.textContent=__diag.slice(-6).join('\n');}}
+document.addEventListener('visibilitychange',()=>dlog('visibility',document.visibilityState));
+document.addEventListener('DOMContentLoaded',()=>{const b=document.getElementById('diagCopy');if(b)b.onclick=()=>{const txt=__diag.join('\n')||'(無紀錄)';(navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>{b.textContent='已複製';setTimeout(()=>b.textContent='複製',1500);}).catch(()=>{const r=document.createRange();r.selectNodeContents(document.getElementById('diagPre'));const sel=getSelection();sel.removeAllRanges();sel.addRange(r);});};});
+</script>
 <script>
 // TODO: 之後可把上傳的簡報＋講稿存到書架（目前只存在本機 IndexedDB，不碰現有書架）
 const G='digital-human-real/guide/',$=id=>document.getElementById(id);
@@ -250,7 +259,7 @@ async function speakSentence(s,i){if(stopped)return;await waitPause();
  await sayP(s);await waitPause();}
 async function run(){if(voiceMode==='live')await live.ensure();stopped=false;queued=null;jump=null;$('skipBtn').style.display='none';paused=false;$('ask').style.display='none';
  await playClip('intro',false);if(stopped)return;playClip('talk',true);await sayP('大家好，我是 Technical Dark Star 暗星，接下來由我為你導讀。');
- for(;page<slides.length&&!stopped;){showSlide();inSlide=true;const ss=script[page]||[];if((page===0||page%2===0)&&!stopped&&!paused){await playClip('walk',false);if(!paused)playClip('idle',true);}
+ for(;page<slides.length&&!stopped;){showSlide();inSlide=true;const ss=script[page]||[];if(page===0&&!walkedOnce&&!stopped&&!paused){walkedOnce=true;await playClip('walk',false);if(!paused)playClip('idle',true);}
   if(voiceMode==='live'&&live.ready()){if(ss.length)await live.speakBlock(ss);}else for(let i=0;i<ss.length&&!stopped&&jump===null;i++)await speakSentence(ss[i],i);
   if(stopped)break;if(jump!==null){page=jump;jump=null;continue;}
   playClip('idle',true);if(!ss.length)$('sub').textContent='（這一頁沒有講稿）';
@@ -262,9 +271,9 @@ async function run(){if(voiceMode==='live')await live.ensure();stopped=false;que
  if(stopped)return;stopped=true;openQA();}
 function openQA(){qaMode=true;$('ask').style.display='block';$('askBox').disabled=false;$('askSend').disabled=false;$('askBox').placeholder='輸入問題，或按麥克風說出來';status('問答時間：可以問暗星關於這次導讀的問題');$('startBtn').textContent='▶ 重新導讀';}
 async function endGuide(){qaMode=false;stopRec();$('askBox').disabled=true;$('askSend').disabled=true;await waitPause();playClip('talk',true);await say('謝謝大家的聆聽，我們下次見。');await playClip('bow',false);playClip('idle',true);status('導讀結束');}
-let qaMode=false,nextWait=null,inSlide=false,queued=null;
+let walkedOnce=false,qaMode=false,nextWait=null,inSlide=false,queued=null;
 function stopSpeech(){try{speechSynthesis.cancel();}catch(e){}speaking=false;}
-$('startBtn').onclick=()=>{primeTTS();if(voiceMode==='live'){live.unlock();live.ensure();}if(paused)setPaused(false);qaMode=false;stopRec();$('askBox').disabled=true;$('askSend').disabled=true;stopSpeech();const wasRunning=!stopped;stopped=true;setTimeout(()=>{if(!wasRunning&&$('startBtn').textContent.includes('重新'))page=0;$('startBtn').textContent='▶ 開始導讀';status('導讀中…');run();},wasRunning?300:0);};
+$('startBtn').onclick=()=>{walkedOnce=false;primeTTS();if(voiceMode==='live'){try{localStorage.removeItem(nsKey('aivault-guide-live-topic-id'));localStorage.removeItem(nsKey('aivault-guide-live-conversation-id'));}catch(e){}dlog('run','新導讀：使用全新對話（不載入舊記憶）');live.unlock();live.ensure();}if(paused)setPaused(false);qaMode=false;stopRec();$('askBox').disabled=true;$('askSend').disabled=true;stopSpeech();const wasRunning=!stopped;stopped=true;setTimeout(()=>{if(!wasRunning&&$('startBtn').textContent.includes('重新'))page=0;$('startBtn').textContent='▶ 開始導讀';status('導讀中…');run();},wasRunning?300:0);};
 function setPaused(on){if(on===paused)return;paused=on;document.body.classList.toggle('paused',on);
  const lbl=on?'▶ 繼續':'⏸ 暫停';$('pauseBtn').textContent=lbl;$('fsPause').textContent=lbl;
  if(on){pauseGen++;stopRec();live.halt();try{speechSynthesis.cancel();}catch(e){}speaking=false;playClip('idle',true);status('已暫停，按繼續恢復');}
@@ -323,7 +332,7 @@ $('modeBtn').onclick=()=>{const m=voiceMode==='live'?'tts':'live';live.unlock();
 const live=(()=>{const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-voice-v2',AC=window.AudioContext||window.webkitAudioContext,MY='aivault-guide';
  let sockSeq=0,curSock=0,lastWhy='',downUntil=0,everConnected=false,ws=null,gotSetup=false,customFails=0,retry=0,playCtx=null,outGain=null,outEl=null,nextPlay=0,sources=[],dropping=false,outBuf='',turnWait=null,connecting=null,buffering=false;
  let inCtx=null,stream=null,micNode=null,micOn=false,qaPend=null,shared=false,frameT=0,cv=null;
- function startFrames(){clearInterval(frameT);frameT=setInterval(()=>{const v=$('pip');if(!camOn||paused||!ws||ws.readyState!==1||!gotSetup||v.readyState<2||!v.videoWidth)return;cv=cv||document.createElement('canvas');const w=320,h=Math.round(v.videoHeight*w/v.videoWidth);cv.width=w;cv.height=h;cv.getContext('2d').drawImage(v,0,0,w,h);try{ws.send(JSON.stringify({type:'video',data:cv.toDataURL('image/jpeg',0.6).split(',')[1],mimeType:'image/jpeg'}));}catch(e){}},1000);}
+ function startFrames(){clearInterval(frameT);frameT=setInterval(()=>{const v=$('pip');if(!camOn||!qaMode||paused||!ws||ws.readyState!==1||!gotSetup||v.readyState<2||!v.videoWidth)return;cv=cv||document.createElement('canvas');const w=320,h=Math.round(v.videoHeight*w/v.videoWidth);cv.width=w;cv.height=h;cv.getContext('2d').drawImage(v,0,0,w,h);try{ws.send(JSON.stringify({type:'video',data:cv.toDataURL('image/jpeg',0.6).split(',')[1],mimeType:'image/jpeg'}));}catch(e){}},1000);}
  startFrames();
  const AUTHK='sb-clcddygkaaqqtsbswgdf-auth-token';
  function readSess(){try{const j=JSON.parse(localStorage.getItem(AUTHK)||'null');return j&&typeof j==='object'?j:null;}catch(e){return null;}}
@@ -336,8 +345,8 @@ const live=(()=>{const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v
  function agentId(){try{const v=localStorage.getItem('aivault-guide-live-agent'),t=+localStorage.getItem('aivault-guide-live-agent-at')||0;if(v&&v!==MY&&Date.now()-t>6*3600e3){localStorage.removeItem('aivault-guide-live-agent');return MY;}return v||MY;}catch(e){return MY;}}
  const nsKey=b=>b+(agentId()===MY?'-v2':'');
  function topicId(){const k=nsKey('aivault-guide-live-topic-id'),pre=agentId()===MY?'aivault-guide-':'technical-dark-star-';let v=localStorage.getItem(k);if(!v){v=pre+(crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random().toString(36).slice(2));localStorage.setItem(k,v);}return v;}
- function unlock(){try{if(navigator.audioSession)navigator.audioSession.type='playback';}catch(e){}try{heel.unlock();}catch(e){}
-  if(!playCtx||playCtx.state==='closed'){playCtx=new AC();outGain=playCtx.createGain();
+ function unlock(){try{if(navigator.audioSession)navigator.audioSession.type='playback';}catch(e){}
+  if(!playCtx||playCtx.state==='closed'){playCtx=new AC();playCtx.onstatechange=()=>{dlog('audioctx',playCtx.state);if(playCtx.state!=='running'&&playCtx.state!=='closed'&&!paused){playCtx.resume().catch(()=>{});if(outEl)outEl.play().catch(()=>{});}};outGain=playCtx.createGain();
    if(playCtx.createMediaStreamDestination){const d=playCtx.createMediaStreamDestination();outGain.connect(d);outEl=document.createElement('audio');outEl.setAttribute('playsinline','');outEl.autoplay=true;outEl.style.display='none';document.body.appendChild(outEl);outEl.srcObject=d.stream;outEl.play().catch(()=>{try{outGain.disconnect();}catch(e){}outGain.connect(playCtx.destination);});}
    else outGain.connect(playCtx.destination);}
   try{playCtx.resume();}catch(e){}try{const b=playCtx.createBuffer(1,1,22050),n=playCtx.createBufferSource();n.buffer=b;n.connect(outGain);n.start(0);}catch(e){}if(outEl)outEl.play().catch(()=>{});}
@@ -348,25 +357,28 @@ const live=(()=>{const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v
   if(!speaking){speaking=true;if(curClip!=='talk'&&curClip!=='explain'&&curClip!=='point')playClip('talk',true);}}
  function playB64(b,mime){const m=/rate=(\d+)/.exec(String(mime||''));try{const bin=atob(b),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);playPCM(u,m?+m[1]:24000);}catch(e){}}
  function stopAudio(){sources.forEach(x=>{try{x.stop();}catch(e){}});sources=[];nextPlay=0;speaking=false;}
+ let curChunk='-',interrupted=false;
  function onMsg(raw){if(raw instanceof ArrayBuffer){playPCM(new Uint8Array(raw),24000);return;}let d;try{d=JSON.parse(raw);}catch(e){return;}const sc=d.serverContent||d;
   if(d.audio&&d.audio.data)playB64(d.audio.data,d.audio.mimeType);else if(d.data&&String(d.mimeType||'').indexOf('audio')===0)playB64(d.data,d.mimeType);
   else((sc.modelTurn&&sc.modelTurn.parts)||[]).forEach(p=>{const id=p&&p.inlineData;if(id&&id.data&&String(id.mimeType||'').indexOf('audio')===0)playB64(id.data,id.mimeType);});
   try{const cid=d.conversation_id||d.conversationId||(d.live_open&&d.live_open.conversation_id),tp=d.topic_id||d.topicId||(d.live_open&&d.live_open.topic_id);if(typeof cid==='string'&&cid.trim())localStorage.setItem(nsKey('aivault-guide-live-conversation-id'),cid.trim());if(typeof tp==='string'&&tp.trim())localStorage.setItem(nsKey('aivault-guide-live-topic-id'),tp.trim());}catch(e){}
-  if(d.type==='live_open'||d.setupComplete){gotSetup=true;retry=0;}
+  if(d.type==='live_open'||d.setupComplete){if(!gotSetup)dlog('setup',d.type||'setupComplete');gotSetup=true;retry=0;}
+  if(d.type==='live_close'){dlog('live_close','上游即時連線結束（relay 未關 socket）');const w=ws;if(w){try{w.close(4000,'upstream live_close');}catch(e){}}return;}
+  if(sc.interrupted){dlog('interrupted','chunk '+curChunk);interrupted=true;stopAudio();if(turnWait&&!qaPend){const w=turnWait;turnWait=null;outBuf='';w({ok:false,why:'interrupted',said:''});}}
   const out=(sc.outputTranscription&&sc.outputTranscription.text)||(d.type==='outputTranscription'?d.text:'');
   if(out&&!dropping){outBuf+=out;const ss=splitSent(outBuf);if(ss.length&&!qaPend)$('sub').textContent=ss[ss.length-1].slice(-40);if(qaPend)$('sub').textContent=outBuf.slice(-40);}
-  if(sc.turnComplete||d.turnComplete||d.type==='turnComplete'){const said=outBuf;outBuf='';if(dropping){dropping=false;return;}if(turnWait){const w=turnWait;turnWait=null;w({ok:true,said});}else if(micOn&&said){qaLog('a',said);}}
-  if(d.type==='error'||d.error){const m=String(d.message||(d.error&&d.error.message)||'');if(/AUTH_REQUIRED|INVALID_AUTH/.test(m)){authFail=m;}
+  if(sc.turnComplete||d.turnComplete||d.type==='turnComplete'){const said=outBuf;outBuf='';if(interrupted){interrupted=false;dlog('turnComplete','(after interrupt)');return;}if(dropping){dropping=false;return;}if(turnWait){const w=turnWait;turnWait=null;w({ok:true,said});}else if(micOn&&said){qaLog('a',said);}}
+  if(d.type==='error'||d.error){const m=String(d.message||(d.error&&d.error.message)||'');dlog('error',m.slice(0,80));if(/AUTH_REQUIRED|INVALID_AUTH/.test(m)){authFail=m;}
    if(/TOPIC_ID_REQUIRED|IDENTITY_MISMATCH/.test(m)){localStorage.removeItem(nsKey('aivault-guide-live-topic-id'));localStorage.removeItem(nsKey('aivault-guide-live-conversation-id'));}}}
- function bufferOn(t,walk){status(t);if(walk&&!buffering){buffering=true;playClip('walk',true);}}
+ function bufferOn(t,walk){status(t);if(walk&&!buffering){buffering=true;playClip('idle',true);}}
  function bufferOff(){if(buffering){buffering=false;playClip('idle',true);}}
  function failAll(msg){close();downUntil=Date.now()+45000;status(msg);if(turnWait){const w=turnWait;turnWait=null;w({ok:false,why:'auth',said:''});}}   // 不改使用者的模式設定
  async function openOnce(){const tok=await token(forceRefresh);forceRefresh=false;authFail='';return new Promise((res,rej)=>{const q=new URLSearchParams();q.set('voice',$('liveVoiceSel').value||'Aoede');q.set('agent_id',agentId());q.set('client','aivault-guide');q.set('topic_id',topicId());
   const conv=localStorage.getItem(nsKey('aivault-guide-live-conversation-id'));if(conv)q.set('conversation_id',conv);if(!tok){rej(new Error('NOAUTH'));return;}q.set('access_token',tok);
   gotSetup=false;const sock=new WebSocket(RELAY+'?'+q);sock.binaryType='arraybuffer';ws=sock;let t=setTimeout(()=>{try{sock.close();}catch(e){}rej(new Error('timeout'));},10000);
-  const myId=++sockSeq;curSock=myId;sock.onmessage=e=>{if(myId!==curSock)return;onMsg(e.data);if(gotSetup&&t){clearTimeout(t);t=0;res();}};sock.onerror=()=>{};
+  const myId=++sockSeq;curSock=myId;dlog('open#'+myId,agentId());sock.onmessage=e=>{if(myId!==curSock)return;onMsg(e.data);if(gotSetup&&t){clearTimeout(t);t=0;res();}};sock.onerror=()=>{};
   sock.onopen=()=>{setTimeout(()=>{if(t&&ws===sock&&sock.readyState===1){clearTimeout(t);t=0;gotSetup=true;res();}},2500);};
-  sock.onclose=ev=>{if(ws===sock)ws=null;if(myId!==curSock&&!t)return;if(t){clearTimeout(t);t=0;if(authFail){rej(new Error(authFail));return;}if(agentId()===MY&&++customFails>=2&&!/AUTH/.test(String(ev&&ev.reason))){localStorage.setItem('aivault-guide-live-agent','technical-dark-star');localStorage.setItem('aivault-guide-live-agent-at',String(Date.now()));}rej(new Error('closed'));}
+  sock.onclose=ev=>{dlog('close#'+myId,'code='+(ev&&ev.code)+' reason='+((ev&&ev.reason)||'-')+(myId!==curSock?' (stale)':''));if(ws===sock)ws=null;if(myId!==curSock&&!t)return;if(t){clearTimeout(t);t=0;if(authFail){rej(new Error(authFail));return;}if(agentId()===MY&&++customFails>=2&&!/AUTH/.test(String(ev&&ev.reason))){localStorage.setItem('aivault-guide-live-agent','technical-dark-star');localStorage.setItem('aivault-guide-live-agent-at',String(Date.now()));}rej(new Error('closed'));}
    else{dropping=false;stopAudio();if(turnWait){const w=turnWait;turnWait=null;w({ok:false,why:'closed',said:outBuf});outBuf='';}}};});}
  function ensure(){if(ws&&ws.readyState===1&&gotSetup)return Promise.resolve(true);if(Date.now()<downUntil)return Promise.resolve(false);if(connecting)return connecting;
   connecting=(async()=>{let triedRefresh=false;for(retry=0;retry<4;retry++){if(voiceMode!=='live')return false;bufferOn(retry||everConnected?'重新連線中…':'連線中…',(retry>0||everConnected)&&!stopped&&!paused);
@@ -375,7 +387,7 @@ const live=(()=>{const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v
      if(e.message==='NOAUTH'||/AUTH/.test(e.message)){bufferOff();close();downUntil=Date.now()+45000;statusLogin(e.message==='INVALID_AUTH'?'登入已過期，即時語音需要重新登入 AIVAULT，這段先用手機語音。':'即時語音需要先登入 AIVAULT，這段先用手機語音。');if(turnWait){const w=turnWait;turnWait=null;w({ok:false,why:'auth',said:''});}return false;}
      lastWhy=e.message;await new Promise(r=>setTimeout(r,800*2**retry));}}
    bufferOff();downUntil=Date.now()+45000;status('即時語音暫時連不上（'+(lastWhy==='timeout'?'連線逾時':lastWhy==='closed'?'伺服器關閉連線':lastWhy)+'），這段先用手機語音，稍後自動再試');return false;})().finally(()=>{connecting=null;});return connecting;}
- function send(txt){dropping=false;try{ws.send(JSON.stringify({type:'text',text:txt}));return true;}catch(e){return false;}}
+ function send(txt){dropping=false;interrupted=false;try{ws.send(JSON.stringify({type:'text',text:txt}));return true;}catch(e){return false;}}
  function waitTurn(chars){return new Promise(res=>{let done=false;const fin=r=>{if(done)return;done=true;res(r);};
   turnWait=async r=>{if(r&&r.ok){while(playCtx&&nextPlay>playCtx.currentTime+0.05&&!paused&&ws)await new Promise(q=>setTimeout(q,100));if(paused||!ws){fin({ok:false,why:paused?'paused':'closed'});return;}}fin(r);};
   const lim=Date.now()+chars*450+20000;(function chk(){if(done)return;if(Date.now()>lim&&!paused&&turnWait){const w=turnWait;turnWait=null;w({ok:false,why:'timeout'});return;}setTimeout(chk,500);})();});}
@@ -386,9 +398,9 @@ const live=(()=>{const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v
  async function speakBlock(sents){const chunks=chunkify(sents);let ci=0,fails=0;
   while(ci<chunks.length){await waitPause();if(stopped&&!qaMode)return;const part=chunks[ci],txt=part.join('');
    if(!(await ensure())){for(const x of part){for(;;){await waitPause();if(stopped&&!qaMode)return;const intr=await say(x,true);if(!intr&&!paused)break;}}window.__liveLog.push({ci,via:'tts'});ci++;fails=0;continue;}
-   $('sub').textContent=part[0];
+   $('sub').textContent=part[0];curChunk='p'+(typeof page!=='undefined'?page+1:'?')+' c'+(ci+1)+'/'+chunks.length;dlog('send',curChunk+' '+txt.length+'字');
    if(!send('（導讀講稿，請用自然的中文口語把下面這段完整唸出來，不要加入反對、質疑或額外評論，唸完就停）\n'+txt)){ws=null;continue;}
-   const r=await waitTurn(txt.length);window.__liveLog.push({ci,ok:r.ok,why:r.why||''});
+   const r=await waitTurn(txt.length);window.__liveLog.push({ci,ok:r.ok,why:r.why||''});dlog(r.ok?'done':'fail',curChunk+(r.ok?'':' '+r.why));
    if(r.ok){ci++;fails=0;continue;}
    if(r.why==='timeout'&&++fails>=2){for(const x of part){for(;;){await waitPause();const intr=await say(x,true);if(!intr&&!paused)break;}}ci++;fails=0;}   // 同段兩次逾時才改用手機語音唸這段（仍不跳過）
   }}
@@ -404,7 +416,7 @@ const live=(()=>{const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v
    const sink=inCtx.createGain();sink.gain.value=0;src.connect(micNode);micNode.connect(sink);sink.connect(inCtx.destination);micOn=true;$('micBtn').classList.add('rec');status('正在聽你的問題（再按一次停止）');}catch(e){micStop();const n=(e&&e.name)||'';status(n==='NotAllowedError'?'麥克風權限被拒絕：請到 iPhone 設定 › Safari › 麥克風 改為允許，再重新整理':'無法開啟麥克風（'+(n||e)+'），可先打字提問');}}
  function micStop(){micOn=false;try{micNode&&micNode.disconnect();}catch(e){}micNode=null;try{if(!shared)stream&&stream.getTracks().forEach(t=>t.stop());}catch(e){}stream=null;shared=false;try{inCtx&&inCtx.close();}catch(e){}inCtx=null;$('micBtn').classList.remove('rec');}
  function close(){micStop();stopAudio();const w=ws;ws=null;gotSetup=false;try{w&&w.close();}catch(e){}}
- return{_drop(){try{ws&&ws.close();}catch(e){}},reset(){downUntil=0;},unlock,ensure,ready:()=>voiceMode==='live'&&Date.now()>downUntil,speakBlock,sayLine,askQ,halt,toggleMic,close};})();
+ return{audio:()=>playCtx&&outGain?{ctx:playCtx,out:outGain}:null,_drop(){try{ws&&ws.close();}catch(e){}},reset(){downUntil=0;},unlock,ensure,ready:()=>voiceMode==='live'&&Date.now()>downUntil,speakBlock,sayLine,askQ,halt,toggleMic,close};})();
 setMode(voiceMode);
 $('mapL').onclick=()=>shiftScript(-1);$('mapR').onclick=()=>shiftScript(1);
 // ===== 鏡頭＋麥克風（在點擊當下請求權限，iOS 才會跳出詢問）=====
@@ -425,12 +437,12 @@ const heel=(()=>{const AC=window.AudioContext||window.webkitAudioContext;let ctx
  window.__heelLog=[];const enabled=()=>settings.heel!==false;
  fetch(G+'walk_steps.json').then(r=>r.json()).then(j=>{steps=j.steps||[];}).catch(()=>{});
  function load(){if(loading)return;loading=true;for(let i=1;i<=6;i++)fetch(G+'sfx/heel'+i+'.mp3').then(r=>r.arrayBuffer()).then(b=>{ctx.decodeAudioData(b,d=>bufs.push(d),()=>{});}).catch(()=>{});}
- function unlock(){try{if(!ctx){ctx=new AC();out=ctx.createGain();
+ function unlock(){try{if(!ctx){try{live.unlock();const a=live.audio();if(a){ctx=a.ctx;out=a.out;load();return;}}catch(e){}ctx=new AC();out=ctx.createGain();
    if(ctx.createMediaStreamDestination&&'ontouchend'in document&&/iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent)){const d=ctx.createMediaStreamDestination();out.connect(d);el=document.createElement('audio');el.setAttribute('playsinline','');el.autoplay=true;el.style.display='none';document.body.appendChild(el);el.srcObject=d.stream;}
    else out.connect(ctx.destination);load();}
   ctx.resume&&ctx.resume();if(el){const p=el.play();p&&p.catch&&p.catch(()=>{try{out.disconnect();}catch(e){}out.connect(ctx.destination);el=null;});}
   const b=ctx.createBuffer(1,1,22050),n=ctx.createBufferSource();n.buffer=b;n.connect(out);n.start(0);}catch(e){}}
- function click(at,st){if(!ctx||!bufs.length)return;if(ctx.state!=='running'){try{ctx.resume();}catch(e){}}const s=ctx.createBufferSource(),g=ctx.createGain();s.buffer=bufs[(Math.random()*bufs.length)|0];
+ function click(at,st){if(!ctx||!bufs.length)return;if(ctx.state!=='running')dlog('heel','ctx '+ctx.state);if(ctx.state!=='running'){try{ctx.resume();}catch(e){}}const s=ctx.createBufferSource(),g=ctx.createGain();s.buffer=bufs[(Math.random()*bufs.length)|0];
   s.playbackRate.value=0.95+Math.random()*0.1;g.gain.value=(speaking?0.45:0.85)*(0.85+Math.random()*0.3);s.connect(g);g.connect(out);s.start(Math.max(ctx.currentTime,at-0.012));
   window.__heelLog.push({step:st,video:+vids[cur].currentTime.toFixed(3)});}
  function tick(){const v=vids[cur];if(!enabled()||curClip!=='walk'||paused||v.paused||v.readyState<2){lastT=-1;fired.clear();return;}
