@@ -48,6 +48,8 @@ if "learnround" in STEPS:  # ln10：每 10 分鐘四區學習（只印數量、�
     s,b=y({"action":"learn_round","n":N}); ok=isinstance(b,dict)
     print("LEARN10",s,{k:b.get(k) for k in ("used","budget","budget_hit","rate_limited","skipped_locked","off")} if ok else str(b)[:300])
     for r in ((b.get("results") or []) if ok else []): print("  ",r.get("district"),r.get("agent"),r.get("topic"),[p.get("src") for p in (r.get("pages") or [])] or bool(r.get("url")),(r.get("usage") or {}).get("total"),(r.get("error") or "")[:100])
+    if os.environ.get("TRIAGE","1")=="1":  # tr1：練習稿 AI 初審（每輪最多 2 組）
+        s2,b2=y({"action":"triage","groups":2}); print("TRIAGE",s2,json.dumps(b2,ensure_ascii=False)[:600] if isinstance(b2,dict) else str(b2)[:200])
     print("VOICE_ROWS",sql("select count(*) n, count(distinct agent_id) agents from public.aivault_pool_agent_learning where topic like '即時語音：%'"))
 if "cycle" in STEPS or "stats" in STEPS:
     print("DEGREES",sql("select district,tier,count(*) from public.aivault_pool_agent_degree group by 1,2 order by 1,2"))
