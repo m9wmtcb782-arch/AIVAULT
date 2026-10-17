@@ -8,7 +8,7 @@ import { triage, pendingGroups } from "./triage.ts";
 import { watch } from "./watch.ts";
 import { dailyPlans, getPlans } from "./plans.ts";
 import { special } from "./special.ts";
-import { specialRound, specialDegreePublic } from "./specialstudy.ts";
+import { specialRound, specialDegreePublic, summon, summonState } from "./specialstudy.ts";
 const H = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS", "Content-Type": "application/json" };
 const out = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: H });
 const URL0 = Deno.env.get("SUPABASE_URL") || "", SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -188,6 +188,8 @@ export async function degree(r: Request) {
     if (a === "triage") { const u1 = await who(r); if (!u1) return out({ error: "owner only" }, 403); return out(await triage(b)); } // tr1：練習稿 AI 初審
     if (a === "triage_stats") { const u2 = await who(r); if (!u2) return out({ error: "owner only" }, 403); const g = await pendingGroups(); return out({ ok: true, groups: g.length, items: g.reduce((s, x) => s + x.length, 0), top: g.slice(0, 8).map((x) => [String(x[0].order_text).slice(0, 30), x.length]) }); }
     if (a === "special_round") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(await specialRound(b)); } // sp1
+    if (a === "summon") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(await summon(b, u0.id, String(b.via || "town"))); } // sm1
+    if (a === "summon_state") return out({ ok: true, now: new Date().toISOString(), s: await summonState() });
     if (a === "special_public") return out(await specialDegreePublic()); // sp1：暗星／曙光學階（公開唯讀，無作答內容）
     if (a === "learn_round") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(await learnRound(b, (ag: any) => learnOne(ag))); } // ln10：每 10 分鐘四區學習（含學習鎖、每日 token 上限）
     if (a === "peer_review") { // 博士 10 級初審（擁有者仍做最終核准）

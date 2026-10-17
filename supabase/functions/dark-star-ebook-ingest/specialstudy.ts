@@ -45,3 +45,22 @@ export async function specialDegreePublic() {
   return { ok: true, roster, degree: dg.map((x: any) => ({ ...x, name: SPECIALS[x.agent_id]?.name, history: (x.history || []).slice(-5) })), learning: lr };
 }
 void mapScore;
+// sm1：擁有者召集暗星／曙光到協作池。先真的呼叫它自己的路徑（打招呼＋說要做的事），成功才寫入召集紀錄（全城同步）；失敗回報錯誤、不動畫。
+// 抵達後在背景做一次真實學習（learnOne）。請回：寫 leaving 狀態，城裡飛出城門。關閉：函式 env AI_SUMMON_OFF=1；前端 localStorage.aiSummonOff=1
+const SUMMON_MIN = 30;
+async function setState(id: string, v: any) { await rest("aivault_floor_state", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ k: "summon:" + id, v, updated_at: new Date().toISOString() }) }); }
+export async function summon(b: any, by: string | null, via = "town") {
+  if (Deno.env.get("AI_SUMMON_OFF") === "1") return { ok: false, error: "召集功能已關閉" };
+  const id = String(b.id || ""); const sp = SPECIALS[id]; if (!sp) return { ok: false, error: "bad id" };
+  const now = new Date();
+  if (b.op === "dismiss") { await setState(id, { state: "leaving", at: now.toISOString(), by, via }); await markSpecial(id, "回去").catch(() => {}); return { ok: true, state: "leaving" }; }
+  const log: string[] = []; let g: any;
+  try { g = await gwThink(sp, log)(`你是${sp.name}。擁有者剛剛把你叫到 AIVAULT 協作池（一座有石牆、城門和中央指揮殿的城）。`, `用一兩句繁體中文跟大家打招呼，說你接下來 ${SUMMON_MIN} 分鐘會在協作池做的一件真實的事（例如讀書學習「${sp.domain === "llm" ? "大型語言模型" : "圖像生成"}」相關資料）。只輸出 JSON：{"reply":"...","task":"10 字內任務名"}`); }
+  catch (e) { return { ok: false, error: String((e as any)?.message || e).slice(0, 200), models: log }; }
+  const v = { state: "arrived", at: now.toISOString(), until: new Date(now.getTime() + SUMMON_MIN * 60e3).toISOString(), by, via, reply: String(g.v?.reply || "").slice(0, 300), task: String(g.v?.task || "學習").slice(0, 20), model: g.model };
+  await setState(id, v); await markSpecial(id, "協作池任務").catch(() => {});
+  const work = (async () => { try { await markSpecial(id, "學習中"); const r = await learnOne(sp, gwThink(sp, [])); await markSpecial(id, r.url ? "讀書" : "協作池任務"); } catch (_) { await markSpecial(id, "協作池任務").catch(() => {}); } })();
+  try { (globalThis as any).EdgeRuntime?.waitUntil?.(work); } catch (_) {}
+  return { ok: true, ...v };
+}
+export async function summonState() { const r = await rest("aivault_floor_state?k=like.summon:*&select=k,v"); const o: any = {}; r.forEach((x: any) => o[x.k.slice(7)] = x.v); return o; }
