@@ -57,6 +57,8 @@ if "whois" in STEPS:  # 唯讀：暗星／曙光是否在協作池
 if "watchfix" in STEPS:  # 誠實修正：第一次看影片測試截圖辨識全部失敗（Groq 無視覺模型權限），標題改成「只有聲音」
     print("WATCHFIX",sql("update public.aivault_pool_agent_learning set title=replace(title,'🎬 看影片（聲音＋截圖）｜','🎬 看影片（只有聲音，截圖辨識不可用）｜') where source_type='video_watch' and coalesce(jsonb_array_length(usage->'frames_described'),0)=0 or (source_type='video_watch' and (usage->>'vision_tokens')::int=0) returning id, title"))
 if "specialmig" in STEPS: sql(open("supabase/migrations/20261017210000_aivault_pool_special.sql").read()); print("SPECIAL",sql("select id,name,activity,last_at from public.aivault_pool_special"))
+if "smtest" in STEPS:  # sm1 測試：真的召集暗星（只印狀態、模型、任務）
+    s,b=y({"action":"summon","id":"darkstar","op":"call","via":"test"}); print("SUMMON",s,{k:b.get(k) for k in ["ok","error","task","model","until"]} if isinstance(b,dict) else str(b)[:200])
 if "rosterdump" in STEPS:  # rm1 備份：加密 artifact（公開日誌只印筆數）
     out={t:sql('select * from public."%s"'%t) for t in ["agent_registry","aivault_ai_avatars","aivault_agent_cognitive_models","aivault_agent_social_rankings","aivault_pool_special","aivault_pool_agents"]}
     open("/tmp/d.json","w").write(json.dumps(out,ensure_ascii=False,default=str))
