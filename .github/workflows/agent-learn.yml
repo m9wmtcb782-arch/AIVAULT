@@ -1,0 +1,23 @@
+name: AI pool learning every 10 min (four districts, realtime-voice curriculum)
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+    inputs:
+      n: { description: "agents per run (max 8)", required: false, default: "4" }
+concurrency: { group: agent-learn, cancel-in-progress: false }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PAGES_KEY: ${{ secrets.AIVAULT_PRIVATE_PAGES_KEY }}
+          STEP: learnround
+          N: ${{ inputs.n || '4' }}
+          OFF: ${{ vars.AGENT_LEARN_OFF }}
+        run: |
+          if [ "$OFF" = "1" ]; then echo "disabled by repo variable AGENT_LEARN_OFF=1"; exit 0; fi
+          python3 .github/scripts/degree_setup.py

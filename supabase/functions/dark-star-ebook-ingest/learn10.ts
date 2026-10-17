@@ -1,0 +1,81 @@
+// ?feature=degree action=learn_round：每 10 分鐘的四區學習（ln10）。
+// 重點課程：口語化即時語音模組。每位代理有學習鎖（25 分鐘逾時），學到一半的不會被重複排進來。
+// 一次完整學習＝搜尋（arXiv／GitHub／一般搜尋）→ 真的抓網頁 → 讀 → 寫實作筆記；同主題最多讀 2 頁（第 2 頁會看到第 1 頁筆記做補充）。
+// 額度：每日學習 token 上限 LEARN10_DAILY_TOKENS（預設 120000），保留額度給小說循環與考試；遇到 429 立刻停。關閉：函式 env LEARN10_OFF=1、repo var AGENT_LEARN_OFF=1。
+import { callModel } from "./floor.ts";
+import { webSearch } from "./web-search.ts";
+import { districtOf, DIST } from "./degree.ts";
+const URL0 = Deno.env.get("SUPABASE_URL") || "", SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const SRH = { apikey: SR, Authorization: "Bearer " + SR, "Content-Type": "application/json" };
+async function rest(path: string, init: RequestInit = {}) {
+  const r = await fetch(URL0 + "/rest/v1/" + path, { ...init, headers: { ...SRH, Prefer: "return=representation", ...(init.headers || {}) } });
+  const t = await r.text(); if (!r.ok) throw new Error("DB " + r.status + " " + t.slice(0, 200)); return t ? JSON.parse(t) : null;
+}
+// 口語化即時語音模組：子主題（中文名、英文搜尋詞、GitHub 搜尋詞）
+export const VOICE: [string, string, string][] = [
+  ["串流語音辨識 ASR", "streaming speech recognition low latency whisper", "streaming asr"],
+  ["語音活動偵測 VAD", "voice activity detection silero vad real-time", "silero vad"],
+  ["輪流發話與插話 barge-in", "turn-taking barge-in end-of-utterance detection voice agent", "turn detection voice agent"],
+  ["低延遲語音合成 TTS", "low latency streaming text-to-speech", "streaming tts"],
+  ["WebRTC 即時音訊", "WebRTC audio streaming voice agent latency", "webrtc voice agent"],
+  ["WebSocket 音訊串流", "websocket audio streaming PCM opus realtime api", "websocket audio streaming"],
+  ["全雙工語音大模型", "full-duplex spoken dialogue model moshi", "full duplex speech model"],
+  ["中文／台語口語語音", "Taiwanese Mandarin Hokkien speech recognition dataset colloquial", "taiwanese speech"],
+  ["瀏覽器 Web Audio／AudioWorklet", "AudioWorklet microphone streaming getUserMedia echo cancellation", "audioworklet"],
+  ["開源語音代理框架 Pipecat／LiveKit", "pipecat livekit agents voice pipeline", "pipecat"],
+  ["端側語音 sherpa-onnx／whisper.cpp", "sherpa-onnx whisper.cpp on-device streaming", "sherpa-onnx"],
+  ["回音消除與降噪 AEC", "acoustic echo cancellation noise suppression real-time voice", "echo cancellation webrtc"],
+  ["語音延遲預算與量測", "voice agent latency budget time to first audio measurement", "voice agent latency"],
+];
+const VW: Record<string, number> = { av: .8, code: .75, llm: .5, img: .35 };
+async function hdrFetch(u: string, accept = "text/html,*/*") { return fetch(u, { headers: { "User-Agent": "Mozilla/5.0 (compatible; AIVAULT-learner/1.1)", Accept: accept, "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8" }, redirect: "follow", signal: AbortSignal.timeout(10000) }); }
+async function arxiv(q: string) { try { const t = await (await hdrFetch("https://export.arxiv.org/api/query?max_results=4&sortBy=relevance&search_query=all:" + encodeURIComponent(q), "application/atom+xml")).text();
+  return [...t.matchAll(/<entry>[\s\S]*?<id>([^<]+)<\/id>[\s\S]*?<title>([\s\S]*?)<\/title>/g)].map((m) => ({ url: m[1].trim().replace("http://", "https://"), title: m[2].replace(/\s+/g, " ").trim(), src: "arxiv" })); } catch { return []; } }
+async function github(q: string) { try { const j = await (await hdrFetch("https://api.github.com/search/repositories?per_page=4&sort=stars&q=" + encodeURIComponent(q), "application/vnd.github+json")).json();
+  return (j.items || []).map((x: any) => ({ url: x.html_url, title: x.full_name + "：" + (x.description || ""), src: "github", readme: `https://api.github.com/repos/${x.full_name}/readme` })); } catch { return []; } }
+async function general(q: string) { try { const sr = await (await webSearch(new Request("http://local", { method: "POST", body: JSON.stringify({ q, n: 8 }) }))).json(); return (sr.results || []).map((x: any) => ({ url: x.url, title: x.title, src: "web" })); } catch { return []; } }
+const strip = (h: string) => h.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<nav[\s\S]*?<\/nav>|<footer[\s\S]*?<\/footer>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/\s+/g, " ").trim();
+async function sha(s: string) { const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)); return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join(""); }
+async function readPage(c: any) {
+  if (c.readme) { const r = await hdrFetch(c.readme, "application/vnd.github.raw"); if (!r.ok) return null; const raw = (await r.text()).slice(0, 400000); return { status: r.status, url: c.url, raw, text: raw.replace(/\s+/g, " ") }; }
+  const r = await hdrFetch(c.url); const ct = r.headers.get("content-type") || ""; if (!r.ok || !/html|text|xml/.test(ct)) return null; const raw = (await r.text()).slice(0, 600000); return { status: r.status, url: r.url || c.url, raw, text: strip(raw) };
+}
+async function lock(id: string) { const k = "learnlock:" + id; const [x] = await rest(`aivault_floor_state?k=eq.${encodeURIComponent(k)}&select=v`); if (x && Date.parse(x.v?.until) > Date.now()) return false;
+  await rest("aivault_floor_state", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ k, v: { until: new Date(Date.now() + 25 * 60e3).toISOString() }, updated_at: new Date().toISOString() }) }); return true; }
+async function unlock(id: string) { await rest(`aivault_floor_state?k=eq.${encodeURIComponent("learnlock:" + id)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } }).catch(() => {}); }
+export async function tokensToday() { const d0 = new Date(Date.now() + 8 * 3600e3); d0.setUTCHours(0, 0, 0, 0); const since = new Date(d0.getTime() - 8 * 3600e3).toISOString();
+  const rows = await rest(`aivault_pool_agent_learning?created_at=gte.${since}&select=usage&limit=5000`); return rows.reduce((s: number, x: any) => s + (Number(x.usage?.total) || 0), 0); }
+async function session(agent: any) {
+  const d = districtOf(agent.domain); const mine = await rest(`aivault_pool_agent_learning?agent_id=eq.${agent.id}&select=topic,url&limit=2000`); const seen = new Set(mine.map((x: any) => x.url));
+  const cnt: Record<string, number> = {}; mine.forEach((x: any) => cnt[x.topic] = (cnt[x.topic] || 0) + 1);
+  const v = [...VOICE].sort((a, b) => (cnt["即時語音：" + a[0]] || 0) - (cnt["即時語音：" + b[0]] || 0) || Math.random() - .5)[0]; const topic = "即時語音：" + v[0];
+  const [ax, gh, wb] = await Promise.all([arxiv(v[1]), github(v[2]), general(v[1])]);
+  const cands: any[] = []; for (let i = 0; i < 4; i++) [gh[i], ax[i], wb[i]].forEach((c) => { if (c && !seen.has(c.url) && !/news\.google|wikipedia\.org/.test(c.url)) cands.push(c); });
+  wb.filter((c: any) => /wikipedia/.test(c.url) && !seen.has(c.url)).forEach((c: any) => cands.push(c)); // 維基百科放最後
+  const rows: any[] = []; let prev = "", usage = 0;
+  for (const c of cands.slice(0, 6)) { if (rows.length >= 2) break; let pg: any = null; try { pg = await readPage(c); } catch { pg = null; } if (!pg || pg.text.length < 400) continue;
+    const excerpt = pg.text.slice(0, 4500); const fetched_at = new Date().toISOString();
+    const call = await callModel(`${agent.persona || ""}\n你是 AIVAULT ${DIST[d]} 的 AI，正在為「口語化即時語音模組」上網自學「${v[0]}」，目標是之後能親手開發。只能根據下面真的抓回來的內容寫筆記，內容沒寫的不要編。`,
+      `來源（${c.src}）：${pg.url}\n標題：${c.title}\n內容節錄：\n${excerpt}\n${prev ? "\n你剛才在同一主題的上一頁筆記：\n" + prev + "\n請補充新的內容，不要重複。\n" : ""}\n只輸出 JSON：{"notes":"250–450 字繁體中文實作筆記：架構／元件、關鍵參數與數字（延遲 ms、取樣率、chunk 大小、模型名）、API 或程式庫用法、可以怎麼套用到 AIVAULT 暗星即時語音","relevant":true 或 false}`, 1400);
+    const notes = String(call.v?.notes || "").trim(); if (!notes) continue; usage += Number(call.usage?.total) || 0;
+    const [row] = await rest("aivault_pool_agent_learning", { method: "POST", body: JSON.stringify({ agent_id: agent.id, district: d, topic, query: v[1], url: pg.url, title: String(c.title || "").slice(0, 200), http_status: pg.status, bytes: pg.raw.length, sha256: await sha(pg.raw), excerpt: excerpt.slice(0, 600), notes: (call.v?.relevant === false ? "［自評：此頁與主題關聯低］" : "") + notes.slice(0, 1200), model: call.model, usage: call.usage, fetched_at }) });
+    await rest("aivault_pool_agent_memory", { method: "POST", body: JSON.stringify({ agent_id: agent.id, kind: "learning", content: `上網學習「${topic}」：${notes.slice(0, 300)}（${pg.url}）` }) });
+    rows.push({ url: row.url, src: c.src }); prev = notes.slice(0, 500); }
+  return { agent: agent.id, kind: "learn", topic, pages: rows, usage: { total: usage }, error: rows.length ? undefined : "沒有抓到可用網頁" };
+}
+export async function learnRound(b: any, learnOne: (ag: any) => Promise<any>) {
+  if (Deno.env.get("LEARN10_OFF") === "1") return { ok: true, off: true, results: [] };
+  const budget = Number(Deno.env.get("LEARN10_DAILY_TOKENS") || 120000), used = await tokensToday(); if (used >= budget) return { ok: true, budget_hit: true, used, budget, results: [] };
+  const n = Math.min(8, Math.max(1, Number(b.n) || 4)); const all = await rest("aivault_pool_agents?select=id,domain,persona&order=id.asc&limit=1400");
+  const locks = await rest("aivault_floor_state?k=like.learnlock:*&select=k,v&limit=2000"); const busy = new Set(locks.filter((x: any) => Date.parse(x.v?.until) > Date.now()).map((x: any) => x.k.slice(10)));
+  const ln = await rest(`aivault_pool_agent_learning?created_at=gte.${new Date(Date.now() - 7 * 864e5).toISOString()}&select=agent_id&limit=5000`); const c: Record<string, number> = {}; ln.forEach((x: any) => c[x.agent_id] = (c[x.agent_id] || 0) + 1);
+  const ds = ["av", "code", "llm", "img"]; const pick: any[] = []; const pools = ds.map((d) => all.filter((a: any) => districtOf(a.domain) === d && !busy.has(a.id)).sort((x: any, y: any) => (c[x.id] || 0) - (c[y.id] || 0) || Math.random() - .5));
+  for (let i = 0; pick.length < n && i < 50; i++) { const p = pools[i % 4]; const a = p.shift(); if (a) pick.push(a); }
+  const results: any[] = []; let skipped = busy.size;
+  for (const ag of pick) { if (!(await lock(ag.id))) { skipped++; continue; } const d = districtOf(ag.domain);
+    try { const voice = Math.random() < (VW[d] || .4); results.push({ district: d, voice, ...(voice ? await session(ag) : await learnOne(ag)) }); }
+    catch (e) { const msg = String((e as any)?.message || e); results.push({ agent: ag.id, error: msg.slice(0, 200) }); if (/429|LLM_FAILED/.test(msg)) { await unlock(ag.id); return { ok: true, rate_limited: true, used, budget, skipped_locked: skipped, results }; } }
+    await unlock(ag.id);
+    if (used + results.reduce((s, r) => s + (Number(r.usage?.total) || 0), 0) >= budget) return { ok: true, budget_hit: true, used, budget, skipped_locked: skipped, results }; }
+  return { ok: true, used, budget, skipped_locked: skipped, results };
+}

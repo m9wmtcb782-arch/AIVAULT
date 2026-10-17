@@ -3,6 +3,7 @@
 // 學習證明：代理用 web-search 找網頁、真的抓回內容（記錄 URL、HTTP 狀態、位元組、sha256、時間），再由代理自己寫筆記。
 import { callModel } from "./floor.ts";
 import { webSearch } from "./web-search.ts";
+import { learnRound } from "./learn10.ts";
 const H = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS", "Content-Type": "application/json" };
 const out = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: H });
 const URL0 = Deno.env.get("SUPABASE_URL") || "", SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -172,6 +173,7 @@ export async function degree(r: Request) {
       }
       PUB = null; return out({ ok: true, rate_limited: false, results });
     }
+    if (a === "learn_round") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(await learnRound(b, (ag: any) => learnOne(ag))); } // ln10：每 10 分鐘四區學習（含學習鎖、每日 token 上限）
     if (a === "peer_review") { // 博士 10 級初審（擁有者仍做最終核准）
       const docs = await rest("aivault_pool_agent_degree?tier=eq.6&level=eq.10&select=agent_id&limit=20"); if (!docs.length) return out({ ok: true, reviewed: 0, note: "目前沒有博士 10 級的 AI" });
       const ts = await rest("aivault_pool_agent_tasks?source=eq.floor&review_status=eq.pending&select=id,agent_id,order_text,result&order=updated_at.asc&limit=10"); const done = await rest(`aivault_pool_peer_reviews?task_id=in.(${ts.map((t: any) => t.id).join(",") || "00000000-0000-0000-0000-000000000000"})&select=task_id`);
