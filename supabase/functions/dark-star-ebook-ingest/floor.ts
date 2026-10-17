@@ -175,6 +175,7 @@ export async function runTask(t: any, think = callModel) {
   }
 }
 
+let TOWN: { t: number; d: any } | null = null;
 export async function floor(r: Request) {
   if (r.method === "OPTIONS") return new Response("ok", { headers: H });
   try {
@@ -195,7 +196,37 @@ export async function floor(r: Request) {
       const nm = c?.agent_id ? (await rest(`aivault_pool_agents?id=eq.${c.agent_id}&select=name`))[0]?.name : null;
       return out({ ok: true, book: bk, chapter: c ? { ...c, agent_name: nm } : null });
     }
+    if (a === "town" && TOWN && Date.now() - TOWN.t < 20000) return out(TOWN.d); // 公開彙總快取 20 秒
+    if (a === "town") { // 公開（含未登入）：只回匿名彙總——代理 id＋領域類別、狀態、區域；不含名字、任務內容、成果、審核
+      const ag = await rest("aivault_pool_agents?select=id,domain&order=id.asc&limit=1400");
+      const ts = await rest("aivault_pool_agent_tasks?source=eq.floor&select=agent_id,zone,status,review_status,updated_at&order=updated_at.desc&limit=1000");
+      const st: any[] = []; const seen = new Set<string>(); const counts: Record<string, number> = {};
+      for (const t of ts) {
+        const k = t.status === "running" ? "running" : t.status === "queued" ? "queued" : t.status === "failed" ? "failed" : t.review_status === "pending" ? "review" : t.review_status === "approved" ? "approved" : t.review_status === "rejected" ? "rejected" : "done";
+        counts[k] = (counts[k] || 0) + 1;
+        if (t.agent_id && !seen.has(t.agent_id)) { seen.add(t.agent_id); st.push([t.agent_id, k, String(t.zone || ""), "work", "p" + st.length, t.updated_at]); }
+      }
+      const day0 = new Date(Date.now() + 8 * 3600e3); day0.setUTCHours(0, 0, 0, 0); const since = new Date(day0.getTime() - 8 * 3600e3).toISOString();
+      const dc = await fetch(URL0 + `/rest/v1/aivault_pool_agent_tasks?status=eq.done&kind=neq.spawn&updated_at=gte.${since}&select=id`, { headers: { ...SRH, Prefer: "count=exact", Range: "0-0" } });
+      const done_today = Number((dc.headers.get("content-range") || "/0").split("/")[1]) || 0;
+      const mem = (await rest(`aivault_pool_agent_memory?created_at=gte.${new Date(Date.now() - 2 * 3600e3).toISOString()}&select=agent_id,created_at&order=created_at.desc&limit=300`).catch(() => [])).map((m: any) => [m.agent_id, "m", m.created_at]);
+      const cmd = (await rest("aivault_floor_commands?select=id,body,created_at&order=created_at.desc&limit=5").catch(() => []));
+      const os = (await rest("aivault_floor_state?k=eq.owner&select=v,updated_at").catch(() => []))[0];
+      const seenAt = os ? Date.parse(os.updated_at) : 0, lastCmd = cmd[0] ? Date.parse(cmd[0].created_at) : 0;
+      TOWN = { t: Date.now(), d: { ok: true, public: true, agents: ag.map((x: any) => [x.id, x.domain]), states: st, counts, review: counts.review || 0, done_today, mem, commands: cmd, owner_online: Date.now() - Math.max(seenAt, lastCmd) < 10 * 60e3, server_time: new Date().toISOString() } }; return out(TOWN.d);
+    }
     const u = await who(r); if (!u) return out({ error: "owner only" }, 403);
+    if (a === "owner_ping" || a === "command") {
+      if (u.cron || !u.id) return out({ error: "owner only" }, 403);
+      await rest("aivault_floor_state", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ k: "owner", v: { online: true }, updated_at: new Date().toISOString() }) });
+      if (a === "owner_ping") return out({ ok: true });
+      const text = String(b.text || "").replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 500); if (!text) return out({ error: "empty" }, 400);
+      const zone = /程式|code|bug|網站|repo|部署|api/i.test(text) ? "code" : /資安|駭客|防禦|衛士|安全/.test(text) ? "guard" : /研究|搜尋|調查|論文|資料/.test(text) ? "research" : /法律|合約/.test(text) ? "law" : /醫/.test(text) ? "medicine" : /圖|畫|設計/.test(text) ? "image" : /影片|視頻|動畫/.test(text) ? "video" : /聲音|語音|音樂/.test(text) ? "voice" : /3D|模型/i.test(text) ? "d3" : "market";
+      const [c] = await rest("aivault_floor_commands", { method: "POST", body: JSON.stringify({ body: text, zone, created_by: u.id }) });
+      const t = await enqueue(zone, "📣 擁有者指令：" + text, u.id, { command: c.id }).catch(() => null);
+      TOWN = null; if (t) await rest(`aivault_floor_commands?id=eq.${c.id}`, { method: "PATCH", body: JSON.stringify({ task_id: t.id }) });
+      return out({ ok: true, command: { id: c.id, zone, zone_label: zl(zone), task_id: t?.id || null, queued: !!t } });
+    }
     if (a === "floor") {
       const ts = await rest("aivault_pool_agent_tasks?source=eq.floor&select=id,agent_id,zone,kind,status,review_status,order_text,updated_at&order=updated_at.desc&limit=1000");
       const st: any[] = []; const seen = new Set<string>(); const counts: Record<string, number> = {}; const zones: Record<string, any> = {};
@@ -283,7 +314,7 @@ export async function floor(r: Request) {
       await rest(`aivault_pool_agent_tasks?source=eq.floor&status=eq.running&updated_at=lt.${new Date(Date.now() - 900000).toISOString()}`, { method: "PATCH", body: JSON.stringify({ status: "queued" }) });
       const cand = await rest(`aivault_pool_agent_tasks?source=eq.floor&status=eq.queued&kind=eq.work&select=*&order=created_at.asc&limit=40`);
       let q: any[] = [];
-      cand.sort((x: any, y: any) => (y.plan?.novel ? 1 : 0) - (x.plan?.novel ? 1 : 0)); // 先寫小說（第一本優先讓擁有者看品質）
+      const pri = (x: any) => (x.plan?.command ? 2 : x.plan?.novel ? 1 : 0); cand.sort((x: any, y: any) => pri(y) - pri(x)); // 擁有者指令最優先，其次小說 // 先寫小說（第一本優先讓擁有者看品質）
       for (const c of cand) { q.push(c); if (q.length >= n) break; }
       // 沒有媒體金鑰的區不待命：佇列不足就派原創小說大綱（之後自動分章給同區其他人）
       const newBooks = await ensureBooks();
