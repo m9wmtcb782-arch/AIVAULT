@@ -6,6 +6,7 @@ import { webSearch } from "./web-search.ts";
 import { learnRound } from "./learn10.ts";
 import { triage, pendingGroups } from "./triage.ts";
 import { watch } from "./watch.ts";
+import { dailyPlans, getPlans } from "./plans.ts";
 const H = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS", "Content-Type": "application/json" };
 const out = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: H });
 const URL0 = Deno.env.get("SUPABASE_URL") || "", SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -117,6 +118,7 @@ export async function degree(r: Request) {
   if (r.method === "OPTIONS") return new Response("ok", { headers: H });
   try {
     const b = await r.json().catch(() => ({})); const a = String(b.action || "");
+    if (a === "plans_public") { const rows = await getPlans(String(b.day || "").match(/^\d{4}-\d{2}-\d{2}$/) ? b.day : undefined); return out({ ok: true, plans: rows.map((x: any) => x.v) }); } // pl1：每日學習計畫＋暗星審核（公開唯讀）
     if (a === "public") { // 公開：只有學階分佈與每位代理的學階（無作答、無名字）
       if (PUB && Date.now() - PUB.t < 30000) return out(PUB.d);
       const ag = await rest("aivault_pool_agents?select=id,domain&limit=1400"); const dg = await rest("aivault_pool_agent_degree?select=agent_id,tier,level&limit=1400");
@@ -176,6 +178,7 @@ export async function degree(r: Request) {
       PUB = null; return out({ ok: true, rate_limited: false, results });
     }
     if (/^watch_/.test(a)) { const u3 = await who(r); if (!u3) return out({ error: "owner only" }, 403); try { return out(await watch(a, b)); } catch (e) { return out({ error: String((e as any)?.message || e).slice(0, 400) }, 500); } } // wt1：看影片測試
+    if (a === "daily_plan") { const u4 = await who(r); if (!u4) return out({ error: "owner only" }, 403); try { return out(await dailyPlans()); } catch (e) { return out({ error: String((e as any)?.message || e).slice(0, 300) }, 500); } }
     if (a === "triage") { const u1 = await who(r); if (!u1) return out({ error: "owner only" }, 403); return out(await triage(b)); } // tr1：練習稿 AI 初審
     if (a === "triage_stats") { const u2 = await who(r); if (!u2) return out({ error: "owner only" }, 403); const g = await pendingGroups(); return out({ ok: true, groups: g.length, items: g.reduce((s, x) => s + x.length, 0), top: g.slice(0, 8).map((x) => [String(x[0].order_text).slice(0, 30), x.length]) }); }
     if (a === "learn_round") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(await learnRound(b, (ag: any) => learnOne(ag))); } // ln10：每 10 分鐘四區學習（含學習鎖、每日 token 上限）

@@ -27,7 +27,9 @@ with tempfile.TemporaryDirectory() as d:
         t="%02d:%02d"%((i*EVERY+EVERY//2)//60,(i*EVERY+EVERY//2)%60) if False else "%02d:%02d"%((i*EVERY)//60,(i*EVERY)%60)
         s,r=y({"action":"watch_frame","image_b64":base64.b64encode(open(f,"rb").read()).decode(),"t":t})
         if s==200: fr.append({"t":t,"desc":r.get("text","")}); vt+=((r.get("usage") or {}).get("total_tokens") or 0); print("FRAME",t,r.get("text","")[:140].replace("\n"," "))
-        else: print("FRAME_ERR",t,s,str(r)[:200])
+        else:
+            print("FRAME_ERR",t,s,str(r)[:200])
+            if "does not exist" in str(r): print("vision model unavailable; skip remaining frames"); break
         time.sleep(2)
     s,n=y({"action":"watch_note","url":v["url"],"title":v["title"],"license":v["license"],"transcript":a.get("text",""),"language":a.get("language"),"asr_seconds":a.get("duration"),"frames":fr,"frame_count":len(frames),"vision_tokens":vt})
     print("NOTE",s,json.dumps(n,ensure_ascii=False)[:900]); print("VISION_TOKENS",vt)

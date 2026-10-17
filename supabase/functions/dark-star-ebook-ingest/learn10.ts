@@ -5,6 +5,7 @@
 import { callModel } from "./floor.ts";
 import { webSearch } from "./web-search.ts";
 import { districtOf, DIST } from "./degree.ts";
+import { approvedTopics } from "./plans.ts";
 const URL0 = Deno.env.get("SUPABASE_URL") || "", SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const SRH = { apikey: SR, Authorization: "Bearer " + SR, "Content-Type": "application/json" };
 async function rest(path: string, init: RequestInit = {}) {
@@ -66,10 +67,10 @@ async function videoSession(agent: any, v: [string, string, string], topic: stri
   }
   return null; }
 let FORCE_VIDEO = false;
-async function session(agent: any) {
+async function session(agent: any, ov?: [string, string, string], pre = "即時語音：") {
   const d = districtOf(agent.domain); const mine = await rest(`aivault_pool_agent_learning?agent_id=eq.${agent.id}&select=topic,url&limit=2000`); const seen = new Set(mine.map((x: any) => x.url));
   const cnt: Record<string, number> = {}; mine.forEach((x: any) => cnt[x.topic] = (cnt[x.topic] || 0) + 1);
-  const v = [...VOICE].sort((a, b) => (cnt["即時語音：" + a[0]] || 0) - (cnt["即時語音：" + b[0]] || 0) || Math.random() - .5)[0]; const topic = "即時語音：" + v[0];
+  const v = ov || [...VOICE].sort((a, b) => (cnt["即時語音：" + a[0]] || 0) - (cnt["即時語音：" + b[0]] || 0) || Math.random() - .5)[0]; const topic = pre + v[0];
   if (Deno.env.get("LEARN_VIDEO_OFF") !== "1" && (FORCE_VIDEO || Math.random() < (districtOf(agent.domain) === "av" ? .45 : .25))) { const vr = await videoSession(agent, v, topic, seen); if (vr) return vr; }
   const [ax, gh, wb] = await Promise.all([arxiv(v[1]), github(v[2]), general(v[1])]);
   const cands: any[] = []; for (let i = 0; i < 4; i++) [gh[i], ax[i], wb[i]].forEach((c) => { if (c && !seen.has(c.url) && !/news\.google|wikipedia\.org/.test(c.url)) cands.push(c); });
@@ -96,7 +97,9 @@ export async function learnRound(b: any, learnOne: (ag: any) => Promise<any>) {
   for (let i = 0; pick.length < n && i < 50; i++) { const p = pools[i % 4]; const a = p.shift(); if (a) pick.push(a); }
   const results: any[] = []; let skipped = busy.size;
   for (const ag of pick) { if (!(await lock(ag.id))) { skipped++; continue; } const d = districtOf(ag.domain);
-    try { const voice = FORCE_VIDEO || Math.random() < (VW[d] || .4); results.push({ district: d, voice, ...(voice ? await session(ag) : await learnOne(ag)) }); }
+    try { const voice = FORCE_VIDEO || Math.random() < (VW[d] || .4); let pt: string[] = []; if (!voice && Deno.env.get("PLAN_OFF") !== "1") pt = await approvedTopics(d).catch(() => []);
+      if (pt.length) { const tp = pt[Math.floor(Math.random() * pt.length)]; results.push({ district: d, voice, plan: true, ...(await session(ag, [tp, tp, tp], "計畫：")) }); }
+      else results.push({ district: d, voice, ...(voice ? await session(ag) : await learnOne(ag)) }); }
     catch (e) { const msg = String((e as any)?.message || e); results.push({ agent: ag.id, error: msg.slice(0, 200) }); if (/429|LLM_FAILED/.test(msg)) { await unlock(ag.id); return { ok: true, rate_limited: true, used, budget, skipped_locked: skipped, results }; } }
     await unlock(ag.id);
     if (used + results.reduce((s, r) => s + (Number(r.usage?.total) || 0), 0) >= budget) return { ok: true, budget_hit: true, used, budget, skipped_locked: skipped, results }; }
