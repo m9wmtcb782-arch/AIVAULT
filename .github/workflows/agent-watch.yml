@@ -1,0 +1,24 @@
+name: AI pool watch video test (audio Whisper + frames vision, CC-licensed talks only)
+on:
+  schedule:
+    - cron: "40 5 * * *"
+  workflow_dispatch:
+    inputs:
+      idx: { description: "watch_list index (-1 = rotate by day)", required: false, default: "-1" }
+      minutes: { description: "minutes of video to process", required: false, default: "10" }
+concurrency: { group: agent-watch, cancel-in-progress: false }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get install -y -qq ffmpeg >/dev/null
+      - env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          IDX: ${{ inputs.idx || '-1' }}
+          MINUTES: ${{ inputs.minutes || '10' }}
+          OFF: ${{ vars.LEARN_WATCH_OFF }}
+        run: |
+          if [ "$OFF" = "1" ]; then echo "disabled by repo variable LEARN_WATCH_OFF=1"; exit 0; fi
+          python3 .github/scripts/watch_video.py

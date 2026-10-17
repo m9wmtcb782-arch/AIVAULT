@@ -5,6 +5,7 @@ import { callModel } from "./floor.ts";
 import { webSearch } from "./web-search.ts";
 import { learnRound } from "./learn10.ts";
 import { triage, pendingGroups } from "./triage.ts";
+import { watch } from "./watch.ts";
 const H = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS", "Content-Type": "application/json" };
 const out = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: H });
 const URL0 = Deno.env.get("SUPABASE_URL") || "", SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -174,6 +175,7 @@ export async function degree(r: Request) {
       }
       PUB = null; return out({ ok: true, rate_limited: false, results });
     }
+    if (/^watch_/.test(a)) { const u3 = await who(r); if (!u3) return out({ error: "owner only" }, 403); try { return out(await watch(a, b)); } catch (e) { return out({ error: String((e as any)?.message || e).slice(0, 400) }, 500); } } // wt1：看影片測試
     if (a === "triage") { const u1 = await who(r); if (!u1) return out({ error: "owner only" }, 403); return out(await triage(b)); } // tr1：練習稿 AI 初審
     if (a === "triage_stats") { const u2 = await who(r); if (!u2) return out({ error: "owner only" }, 403); const g = await pendingGroups(); return out({ ok: true, groups: g.length, items: g.reduce((s, x) => s + x.length, 0), top: g.slice(0, 8).map((x) => [String(x[0].order_text).slice(0, 30), x.length]) }); }
     if (a === "learn_round") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(await learnRound(b, (ag: any) => learnOne(ag))); } // ln10：每 10 分鐘四區學習（含學習鎖、每日 token 上限）
