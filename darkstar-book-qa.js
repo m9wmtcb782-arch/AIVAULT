@@ -6,7 +6,7 @@
   var ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE";
   /* 修正：私人書（只對登入會員開放）以前用匿名金鑰讀，伺服器回 LOGIN_REQUIRED，暗星學不到。有未過期的登入就帶會員 token。關閉：localStorage.studyAuthListOff='1' */
   function qaTok() { try { if (localStorage.getItem("studyAuthListOff") === "1") return ANON; var j = JSON.parse(localStorage.getItem("sb-clcddygkaaqqtsbswgdf-auth-token") || "null"); j = j && (j.currentSession || j); if (j && j.access_token && (!j.expires_at || j.expires_at * 1000 > Date.now() + 30000)) return j.access_token; } catch (e) {} return ANON; }
-  var CACHE = "aivault_bookqa_cache_v1", MAXC = 1500;
+  var CACHE = "aivault_bookqa_cache_v1", MAXC = 4500;
   var chunks = null, building = null;
   var PRIORITY = { "e0bc8c57-646d-474c-988e-d6cb3d4f8972": 1.25, "840b333d-4329-4d47-80e2-a1b9d92aec03": 1.2, "97a31aa4-8f72-4794-adf7-ee336411c804": 1.15, "9f20615b-fe5d-4abe-93f3-86c7025a866f": 1.1 }; // 林来梵宪法学讲义；姜明安行政法第八版
   // 繁→簡 單字對照（取自 OpenCC tw→cn），只用於比對；顯示仍用原文
@@ -143,8 +143,8 @@
   }
   function addChunks(list, title, pageNo, text, boost, bid) {
     text = String(text || "").replace(/\s+/g, " ").trim();
-    for (var i = 0; i < text.length; i += 250) {
-      var s = text.substr(Math.max(0, i - 50), 350);
+    for (var i = 0; i < text.length; i += 750) {
+      var s = text.substr(Math.max(0, i - 150), 1050);
       list.push({ title: title, page: Number(pageNo), text: s, g: grams(s), b: boost || 1, bid: bid || "" });
     }
   }
