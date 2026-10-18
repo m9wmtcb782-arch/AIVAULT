@@ -88,3 +88,25 @@ export async function commPublic(b: any) {
   const handoffs = await rest(`aivault_comm_handoffs?project_id=eq.${p}&select=*&order=handoff_id`).catch(() => []);
   return { ok: true, project: p, projects: ps, team, messages: msgs, deliveries: dd, merges, files, memory: mem, handoffs };
 }
+// lg1：公開通訊紀錄（唯讀）。只回訊息文字、寄件／收件者名字、類型、專案、時間、correlation_id；payload 裡看起來私密的欄位一律遮蔽，文字再做一次金鑰樣式遮蔽。
+const PRIV = /secret|token|key|passw|private|auth|cookie|email|phone|credential|session|jwt/i;
+const SECRET_RE = /(sk-[A-Za-z0-9_-]{12,}|gsk_[A-Za-z0-9]{12,}|ghp_[A-Za-z0-9]{12,}|github_pat_[A-Za-z0-9_]{12,}|AIza[0-9A-Za-z_-]{20,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{5,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|[\w.+-]+@[\w-]+\.[\w.]+)/g;
+function maskText(s: string) { return String(s || "").replace(SECRET_RE, "•••").slice(0, 2000); }
+function maskPayload(p: any, depth = 0): any {
+  if (p == null || depth > 3) return null; if (typeof p === "string") return maskText(p); if (typeof p !== "object") return p;
+  if (Array.isArray(p)) return p.slice(0, 20).map((x) => maskPayload(x, depth + 1));
+  const o: Record<string, any> = {}; for (const [k, v] of Object.entries(p).slice(0, 30)) o[k] = PRIV.test(k) ? "•••" : (/^(content|product_js|files?)$/i.test(k) && typeof v === "string" && v.length > 400 ? `（檔案內容 ${v.length} 字，未顯示）` : maskPayload(v, depth + 1)); return o;
+}
+function textOf(p: any): string { if (!p || typeof p !== "object") return String(p || ""); for (const k of ["text", "message", "body", "summary", "note", "goal", "reason", "done", "result"]) if (typeof p[k] === "string" && p[k].trim()) return p[k]; return ""; }
+export async function commLog(b: any) {
+  const q: string[] = ["select=id,sender,recipient_kind,recipient,project_id,message_type,payload,correlation_id,reply_to,hop,delivery_status,created_at", "order=id.desc", "limit=" + Math.min(400, Math.max(10, Number(b.limit) || 200))];
+  const clean = (x: any) => String(x || "").replace(/[^\w:.\-]/g, "").slice(0, 80);
+  if (b.project) q.push("project_id=eq." + clean(b.project)); if (b.type) q.push("message_type=eq." + clean(b.type)); if (b.corr) q.push("correlation_id=eq." + clean(b.corr));
+  if (b.agent) { const a = clean(b.agent); q.push(`or=(sender.eq.${a},recipient.eq.${a})`); } if (b.before) q.push("id=lt." + (Number(b.before) || 0));
+  const msgs = await rest("aivault_comm_messages?" + q.join("&"));
+  const ids = [...new Set(msgs.flatMap((m: any) => [m.sender, m.recipient]).filter((x: string) => /^ag-\d+$/.test(x)))];
+  const names: Record<string, string> = {}; if (ids.length) (await rest(`aivault_pool_agents?id=in.(${ids.join(",")})&select=id,name`).catch(() => [])).forEach((x: any) => names[x.id] = x.name);
+  const projects = await rest("aivault_comm_projects?select=id,title&order=created_at.desc&limit=30").catch(() => []);
+  return { ok: true, at: new Date().toISOString(), projects, types: ["handoff", "accept", "reject", "report", "help_request", "delegate", "progress", "deliver", "test_failed", "fix_request", "accepted", "admin_command", "info"],
+    messages: msgs.map((m: any) => { const p = maskPayload(m.payload); return { id: m.id, from: m.sender, from_name: names[m.sender] || null, to: m.recipient, to_kind: m.recipient_kind, to_name: names[m.recipient] || null, project: m.project_id, type: m.message_type, text: maskText(textOf(m.payload)), payload: p, corr: m.correlation_id, reply_to: m.reply_to, hop: m.hop, status: m.delivery_status, at: m.created_at }; }) };
+}

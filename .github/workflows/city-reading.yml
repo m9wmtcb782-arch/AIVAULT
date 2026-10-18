@@ -1,0 +1,15 @@
+name: City reading tier (no-LLM, 0 tokens) — all idle original agents read real free sources
+on:
+  schedule: [{ cron: "7,37 * * * *" }]
+  workflow_dispatch: {}
+concurrency: { group: city-reading, cancel-in-progress: false }
+permissions: { contents: read }
+jobs:
+  read:
+    if: vars.READING_OFF != '1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - env: { TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN }}", GH_TOKEN: "${{ github.token }}" }
+        run: python3 .github/scripts/city_reading.py

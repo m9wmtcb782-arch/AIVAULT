@@ -4,7 +4,7 @@
 import { callModel } from "./floor.ts";
 import { cityPublic, quotaState, quotaProbe } from "./city.ts";
 import { memFix } from "./mem.ts";
-import { commGameStart, commGameTurn, commPendingTests, commTestResult, commPublic } from "./comm.ts";
+import { commGameStart, commGameTurn, commPendingTests, commTestResult, commPublic, commLog } from "./comm.ts";
 import { webSearch } from "./web-search.ts";
 import { learnRound } from "./learn10.ts";
 import { triage, pendingGroups } from "./triage.ts";
@@ -155,15 +155,19 @@ export async function degree(r: Request) {
     if (a === "lab_public") return out(await labPublic(b));
     if (a === "city_public") return out(await cityPublic()); // city1
     if (a === "comm_public") return out(await commPublic(b)); // cm2
+    if (a === "comm_log") return out(await commLog(b)); // lg1：公開通訊紀錄（唯讀、遮蔽）
     if (a === "quota_state") return out({ ok: true, ...(await quotaState()) });
     if (a === "agent_lab") { const id = String(b.id || ""); if (!/^ag-\d{4}$/.test(id)) return out({ error: "bad id" }, 400); return out({ ok: true, learned: await learnedCount(id), ...(await agentLabStats(id)), collab: await collabEvidence(id) }); } // lb2：學了→做了→通過
     if (a === "summon_state") return out({ ok: true, now: new Date().toISOString(), s: await summonState() });
     if (a === "learning_now") { // cr1：此刻真的在上網學習的代理（學習鎖還沒到期，或 10 分鐘內有學習紀錄）；只回 id、區、主題
       const now = Date.now(); const locks = await rest("aivault_floor_state?k=like.learnlock:*&select=k,v&limit=2000"); const live = new Map<string, any>();
       locks.forEach((x: any) => { if (Date.parse(x.v?.until) > now && Date.parse(x.v?.until) - now < 30 * 60e3) live.set(x.k.slice(10), { src: "lock" }); });
-      const rec = await rest(`aivault_pool_agent_learning?created_at=gte.${new Date(now - 10 * 60e3).toISOString()}&select=agent_id,district,topic,created_at&order=created_at.desc&limit=300`);
-      rec.forEach((x: any) => { const o = live.get(x.agent_id) || {}; if (!o.topic) live.set(x.agent_id, { ...o, src: o.src || "record", d: x.district, topic: String(x.topic || "").slice(0, 24), at: x.created_at }); });
-      return out({ ok: true, now: new Date().toISOString(), rows: [...live.entries()].map(([id, o]) => [id, o.d || null, o.topic || null, o.src]) }); }
+      const rec = await rest(`aivault_pool_agent_learning?created_at=gte.${new Date(now - 10 * 60e3).toISOString()}&select=agent_id,district,topic,created_at,model&order=created_at.desc&limit=2000`);
+      rec.forEach((x: any) => { const o = live.get(x.agent_id) || {}; if (!o.topic) live.set(x.agent_id, { ...o, src: o.src || "record", mode: /none/.test(x.model || "") ? "reading" : (o.mode || "llm"), d: x.district, topic: String(x.topic || "").slice(0, 24), at: x.created_at }); });
+      // rd1：閱讀（no-LLM）層的 readlock；已在 LLM 深度學習的不覆蓋。第 5 欄 mode：llm／reading
+      const rl = await rest("aivault_floor_state?k=like.readlock:*&select=k,v&limit=3000").catch(() => []);
+      rl.forEach((x: any) => { const id = x.k.slice(9); if (!live.has(id) && Date.parse(x.v?.until) > now) live.set(id, { src: "reading", mode: "reading", d: x.v?.d, topic: String(x.v?.topic || "").slice(0, 24) }); });
+      return out({ ok: true, now: new Date().toISOString(), rows: [...live.entries()].map(([id, o]) => [id, o.d || null, o.topic || null, o.src, o.mode || "llm"]) }); }
     if (a === "special_daily") return out(await specialDaily(b)); // sd2
     if (a === "special_public") return out(await specialDegreePublic()); // sp1：暗星／曙光學階（公開唯讀，無作答內容）
     const u = await who(r); if (!u) return out({ error: "owner only" }, 403);

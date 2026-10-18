@@ -17,15 +17,17 @@
   [desk,legs,mon,chair].forEach(function(m){m.instanceMatrix.needsUpdate=true;m.castShadow=false;m.frustumCulled=true;G.add(m)});
   try{var sg=label(['🖥️ 露天電腦教室（1000 座）'],420,70,'rgba(30,64,175,.92)');sg.scale.set(9,1.5,1);sg.position.set(cx,5.5,CZ0+ROWS*DZ+1.5);G.add(sg)}catch(_){}
   G.visible=!HIDE;scene.add(G);try{AREAS.cls={c0:[cx,cz],c:[cx,cz],an:Math.atan2(cx,cz)}}catch(_){}}
- function tag(a,txt){var t=TAGS[a.id];if(!t||t.txt!==txt){if(t)scene.remove(t.s);var s=label(['📶 '+txt],300,64,'rgba(14,116,144,.92)');s.scale.set(3.2,.7,1);scene.add(s);t=TAGS[a.id]={s:s,txt:txt}}return t}
- async function pull(){try{var d;if(MOCK){var ids=(window.__floor&&__floor.A?__floor.A():[]).slice(0,24);d={rows:ids.map(function(a,i){return[a.id,['llm','img','av','code'][i%4],'（測試）模型架構','mock']})}}else d=await api('degree','learning_now',{});var nl={};(d.rows||[]).forEach(function(r){nl[r[0]]={d:r[1],topic:r[2]}});LIVE=nl}catch(_){}}
+ function tag(a,txt,rd){var t=TAGS[a.id];if(!t||t.txt!==txt){if(t)scene.remove(t.s);var s=label(['📶 '+txt],340,64,rd?'rgba(71,85,105,.94)':'rgba(14,116,144,.94)');s.scale.set(3.6,.68,1);
+  /* lb1：標籤永遠畫在最上層（不被桌子／螢幕／人擋住） */try{var mm=s.material;(Array.isArray(mm)?mm:[mm]).forEach(function(m){m.depthTest=false;m.depthWrite=false;m.transparent=true});s.renderOrder=999}catch(_){}
+  scene.add(s);t=TAGS[a.id]={s:s,txt:txt}}return t}
+ async function pull(){try{var d;if(MOCK){var ids=(window.__floor&&__floor.A?__floor.A():[]).slice(0,24);d={rows:ids.map(function(a,i){return[a.id,['llm','img','av','code'][i%4],'（測試）模型架構','mock',i%2?'reading':'llm']})}}else d=await api('degree','learning_now',{});var nl={};(d.rows||[]).forEach(function(r){nl[r[0]]={d:r[1],topic:r[2],rd:r[4]==='reading'}});LIVE=nl}catch(_){}}
  /* 包住原本的 think：真的在學習的人走到自己的座位坐下打字；其他照舊 */
  var think0=think;think=function(a,dt,qn,dn){var L=!HIDE&&LIVE[a.id]&&!a.fs&&!a.asm&&!a.carryTask&&!a.dead;
   if(L){a.learnT=Math.max(a.learnT||0,5);if(a.goal!=='learn'||!a.cls){var st=seat(a.id);a.cls=st;a.goal='learn';try{a.path=areaRoute(a,'cls',st)}catch(_){a.path=[[a.x,a.z],st]}a.pi=0;a.loc='city'}}
   else if(a.cls){a.cls=null;if(a.goal==='learn'){a.learnT=0;a.goal='back'}}
   think0(a,dt,qn,dn);if(L&&!a.path&&a.cls){a.yaw=Math.PI;a.pose='type';a.reading=0}};
  function tick(){requestAnimationFrame(tick);var on={};if(!HIDE)Object.keys(LIVE).forEach(function(id){var a=window.__floor&&__floor.A?null:null});
-  var A0=(window.__floor&&__floor.A)?__floor.A():[];for(var i=0;i<A0.length;i++){var a=A0[i];if(!a.cls)continue;var L=LIVE[a.id];var t=tag(a,(L&&L.topic&&!MOCK?(DN[L.d]||DN[distOf(a.dom)])+'｜'+L.topic:(DN[L&&L.d]||DN[distOf(a.dom)])+(MOCK?'（測試）':'')));t.s.position.set(a.x,4.6+Math.sin(performance.now()/400+i)*.12,a.z);t.s.visible=true;on[a.id]=1}
+  var A0=(window.__floor&&__floor.A)?__floor.A():[];for(var i=0;i<A0.length;i++){var a=A0[i];if(!a.cls)continue;var L=LIVE[a.id];var t=tag(a,(L&&L.rd?'📖閱讀 ':'🧠深度學習 ')+(L&&L.topic&&!MOCK?(DN[L.d]||DN[distOf(a.dom)])+'｜'+L.topic:(DN[L&&L.d]||DN[distOf(a.dom)])+(MOCK?'（測試）':'')),L&&L.rd);t.s.position.set(a.x,3.4+(i%3)*.75+Math.sin(performance.now()/400+i)*.12,a.z);t.s.visible=true;on[a.id]=1}
   Object.keys(TAGS).forEach(function(id){if(!on[id]){scene.remove(TAGS[id].s);delete TAGS[id]}})}
  function settings(){var b=document.createElement('span');b.className='chip';b.id='cSet';b.textContent='⚙️ 設定';b.style.cursor='pointer';b.onclick=function(){open('<h3>⚙️ 設定</h3><p><label><input type="checkbox" id="setCls" '+(HIDE?'':'checked')+'> 顯示露天電腦教室</label></p><p class="muted">教室裡只會出現真的正在上網學習的 AI（現在 '+Object.keys(LIVE).length+' 位）。</p>');$('setCls').onchange=function(){HIDE=!this.checked;try{localStorage.setItem('classroomHide',HIDE?'1':'0')}catch(_){}if(G)G.visible=!HIDE}};var h=$('cHum');if(h)h.parentNode.appendChild(b)}
  function start(){if(typeof scene==='undefined'||!scene||typeof label!=='function'||!$('cHum')){setTimeout(start,1000);return}build();settings();pull();setInterval(function(){if(!document.hidden)pull()},30000);requestAnimationFrame(tick)}
