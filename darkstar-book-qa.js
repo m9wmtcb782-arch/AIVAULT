@@ -101,12 +101,30 @@
       el.style.cssText = "position:fixed;z-index:120;padding:6px 10px;border-radius:10px;background:#171717;color:#fff;font-size:13px;font-weight:700;line-height:1.3;box-shadow:0 4px 14px rgba(0,0,0,.2);pointer-events:none";
       document.body.appendChild(el);
     }
-    var r = box.getBoundingClientRect();
-    el.style.top = Math.max(8, r.top + 8) + "px";
-    el.style.left = Math.max(8, r.left - 92) + "px";
+    var min = document.documentElement.classList.contains("ds-panel-min");
+    var dawn = document.getElementById("dsMiniDawn");
+    var anchor = (min && dawn) ? dawn : box;
+    var r = anchor.getBoundingClientRect();
+    el.style.top = Math.max(8, r.top + (min ? 18 : 8)) + "px";
+    el.style.left = Math.max(8, r.left - (min ? 78 : 92)) + "px";
     var n = Math.max(0, Math.min(100, Math.round(pct)));
     el.textContent = "閱讀 " + n + "%";
     el.style.background = n >= 100 ? "#15803d" : "#171717";
+    if (!showReadProgress._follow) {
+      showReadProgress._follow = 1;
+      setInterval(function () {
+        var cur = document.getElementById("dsChapterReadPct");
+        if (!cur || cur.style.display === "none") return;
+        var b = document.getElementById("aivault-darkstar-avatar");
+        if (!b) return;
+        var mini = document.documentElement.classList.contains("ds-panel-min");
+        var dw = document.getElementById("dsMiniDawn");
+        var a = (mini && dw) ? dw : b;
+        var rr = a.getBoundingClientRect();
+        cur.style.top = Math.max(8, rr.top + (mini ? 18 : 8)) + "px";
+        cur.style.left = Math.max(8, rr.left - (mini ? 78 : 92)) + "px";
+      }, 200);
+    }
   }
   async function fetchPages(id, need, into, total) {
     // need: 缺頁頁碼陣列 → 以 context(radius 10) 視窗補抓，4 路並行，每窗最多重試 3 次
