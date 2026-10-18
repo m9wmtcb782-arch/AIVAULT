@@ -30,6 +30,13 @@ if "grants" in STEPS:  # service_role 權限修正（📯 召集 403）
 if "names" in STEPS:  # ts3：自選暱稱伺服器端驗證
     sql(open("supabase/migrations/20261017200000_aivault_town_names.sql").read())
     print("safe_name test", sql("select public.aivault_safe_name('小明') a, public.aivault_safe_name('暗星本人') b, public.aivault_safe_name('fuck') c, public.aivault_safe_name('1234567890123') d"))
+if "backup" in STEPS:  # 發布前備份目前線上 agent-floor（只複製到私有列，不公開）
+    bk=os.environ.get("BACKUP_SLUG","agent-floor-bak-20261018")
+    sql("insert into public.aivault_private_pages(slug,html,updated_at) select '%s',html,now() from public.aivault_private_pages where slug='agent-floor' on conflict (slug) do nothing"%bk)
+    print("backup", sql("select slug,length(html) len,md5(html) md5,updated_at from public.aivault_private_pages where slug in ('agent-floor','%s')"%bk))
+if "restore" in STEPS:  # 回滾：把備份列寫回 agent-floor
+    bk=os.environ.get("BACKUP_SLUG","agent-floor-bak-20261018")
+    sql("update public.aivault_private_pages t set html=b.html,updated_at=now() from public.aivault_private_pages b where t.slug='agent-floor' and b.slug='%s'"%bk); print("restored from",bk)
 if "publish" in STEPS:
     html=subprocess.check_output(["gpg","--batch","--quiet","--pinentry-mode","loopback","--passphrase",os.environ["PAGES_KEY"],"-d","private/agent-floor.html.gpg"]).decode()
     if os.path.exists(".github/scripts/town_social.js") and os.environ.get("TOWN_SOCIAL_OFF")!="1":  # ts1：真人社交層（關閉：localStorage.townSocialOff=1，或刪掉此檔再 publish）
@@ -53,6 +60,9 @@ if "publish" in STEPS:
     if os.path.exists(".github/scripts/town_poolshelf.js") and os.environ.get("TOWN_POOLSHELF_OFF")!="1":  # pb7：協作池書架（關閉：localStorage.poolShelfOff3d=1）
         js=open(".github/scripts/town_poolshelf.js").read(); end="\n})();\n</script></body></html>"; assert html.count(end)==1 and "pb7：" not in html
         html=html.replace(end,"\n"+js+end); print("pb7 poolshelf layer applied")
+    if os.path.exists(".github/scripts/town_seasons.js") and os.environ.get("TOWN_SEASONS_OFF")!="1":  # ss1：台灣四季／節日／天氣／穿著（關閉：localStorage.seasonsOff=1）
+        js=open(".github/scripts/town_seasons.js").read(); end="\n})();\n</script></body></html>"; assert html.count(end)==1 and "ss1：" not in html
+        html=html.replace(end,"\n"+js+end); print("ss1 seasons layer applied")
     tag="$aivpp$"; assert tag not in html
     sql("insert into public.aivault_private_pages(slug,html,updated_at) values ('agent-floor',%s%s%s,now()) on conflict (slug) do update set html=excluded.html, updated_at=now()"%(tag,html,tag)); print("published agent-floor",len(html))
     link='<a class="btn primary" href="aivault-agent-collaboration.html?page=agent-floor" style="display:inline-block;text-decoration:none;margin-left:6px">🏢 1000 人工作區</a>'

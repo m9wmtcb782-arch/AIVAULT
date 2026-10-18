@@ -1,0 +1,20 @@
+name: Town weather (CWA + JMA, every 30 min)
+# ss1：小鎮真實天氣。關閉：repo 變數 TOWN_WEATHER_OFF=1。需要 secrets.CWA_API_KEY（中央氣象署開放資料免費授權碼）才有台北即時天氣與颱風警報。
+on:
+  schedule:
+    - cron: "11,41 * * * *"
+  workflow_dispatch:
+concurrency: { group: town-weather, cancel-in-progress: true }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          CWA_API_KEY: ${{ secrets.CWA_API_KEY }}
+          OFF: ${{ vars.TOWN_WEATHER_OFF }}
+        run: |
+          if [ "$OFF" = "1" ]; then echo "disabled by TOWN_WEATHER_OFF=1"; exit 0; fi
+          python3 .github/scripts/town_weather.py
