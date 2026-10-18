@@ -338,3 +338,5 @@ if "memgetmig" in STEPS:
     sql(open("supabase/migrations/20261018160000_aivault_mem_get.sql").read()); print("MEMGET ok")
 if "notifymig" in STEPS:
     sql(open("supabase/migrations/20261018161000_aivault_mem_notify_v2.sql").read()); print("NOTIFYMIG", sql("select public.aivault_mem_notify(7,'verified_recheck') n"), sql("select agent_id,event,message_id from public.aivault_mem_notify_log where kb_id=7"))
+if "hviewmig" in STEPS:
+    sql(open("supabase/migrations/20261018162000_aivault_handoff_view_v2.sql").read()); print("HVIEW", sql("select handoff_id,sender,recipient,accept_id,reject_id,report_id,report_quality from public.aivault_comm_handoffs where project_id='game-202610180132' order by 1"))
