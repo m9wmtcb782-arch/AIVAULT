@@ -89,11 +89,11 @@ if "pgcron" in STEPS:  # pc1：Supabase 內建排程（pg_cron + pg_net）呼叫
     print("PGCRON",sql("select jobid,jobname,schedule,active from cron.job order by jobid"))
 if "cronstat" in STEPS:  # 只印排程執行狀態與筆數
     print("JOBS",sql("select jobid,jobname,schedule,active from cron.job order by jobid"))
-    print("RUNS",sql("select j.jobname,d.status,to_char(d.start_time at time zone 'Asia/Taipei','MM-DD HH24:MI:SS') t,left(d.return_message,60) m from cron.job_run_details d join cron.job j using(jobid) order by d.start_time desc limit 12"))
-    print("NET",sql("select status_code,count(*),max(created) from net._http_response where created>now()-interval '1 hour' group by 1"))
+    print("RUNS",sql("select j.jobname,d.status,to_char(d.start_time at time zone 'Asia/Taipei','MM-DD HH24:MI:SS') t,left(d.return_message,60) m from cron.job_run_details d join cron.job j using(jobid) where j.jobname like 'aivault-%' and j.jobname not like '%security%' order by d.start_time desc limit 12"))
+    print("NET",sql("select status_code,count(*),max(created) from net._http_response where created>now()-interval '1 hour' group by 1"),sql("select id,status_code,left(content::text,160) c,to_char(created at time zone 'Asia/Taipei','HH24:MI:SS') t from net._http_response order by id desc limit 6"))
     print("LEARN_PER_HOUR",sql("select to_char(date_trunc('hour',created_at) at time zone 'Asia/Taipei','MM-DD HH24') h,count(*) rows,count(distinct agent_id) agents from public.aivault_pool_agent_learning where created_at>now()-interval '6 hours' group by 1 order by 1"))
     print("PLACED",sql("select count(*) from public.aivault_pool_agent_degree"),"UNPLACED",sql("select count(*) c from public.aivault_pool_agents a where not exists (select 1 from public.aivault_pool_agent_degree d where d.agent_id=a.id)"))
-    print("LOCK",sql("select k,v->>'src' src,v->>'at' at from public.aivault_floor_state where k in ('learnround:lock','placecall:lock')"))
+    print("LOCK",sql("select k,v->>'src' src,v->>'at' t0 from public.aivault_floor_state where k in ('learnround:lock','placecall:lock')"))
 if "smtest" in STEPS:  # sm1 測試：真的召集暗星（只印狀態、模型、任務）
     s,b=y({"action":"summon","id":"darkstar","op":"call","via":"test"}); print("SUMMON",s,{k:b.get(k) for k in ["ok","error","task","model","until"]} if isinstance(b,dict) else str(b)[:200])
 if "rosterdump" in STEPS:  # rm1 備份：加密 artifact（公開日誌只印筆數）
