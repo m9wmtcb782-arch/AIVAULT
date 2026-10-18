@@ -143,8 +143,8 @@
   }
   function addChunks(list, title, pageNo, text, boost, bid) {
     text = String(text || "").replace(/\s+/g, " ").trim();
-    for (var i = 0; i < text.length; i += 750) {
-      var s = text.substr(Math.max(0, i - 150), 1050);
+    for (var i = 0; i < text.length; i += 850) {
+      var s = text.substr(Math.max(0, i - 0), 1000);
       list.push({ title: title, page: Number(pageNo), text: s, g: grams(s), b: boost || 1, bid: bid || "" });
     }
   }
