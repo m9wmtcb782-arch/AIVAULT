@@ -318,3 +318,17 @@ if "repmig" in STEPS:
     print("REP eligible_today", sql("select count(*) n from public.aivault_replication_eligible()"), "tier3plus_only", sql("select count(*) n from public.aivault_pool_agent_degree where tier>=3"), "lab_passers", sql("select count(distinct lead_id) n from public.aivault_lab_experiments where status='passed'"))
     print("REP state", sql("select k,v from public.aivault_floor_state where k like 'replication:%'"), sql("select jobname,schedule from cron.job where jobname='aivault-replicate-daily'"))
     print("REP sizes", sql("select pg_database_size(current_database())/1048576 db_mb, (select pg_total_relation_size('public.aivault_pool_agents')+pg_total_relation_size('public.aivault_agent_state')+pg_total_relation_size('public.aivault_agent_lineage')+pg_total_relation_size('public.aivault_ancn_skills'))/1024.0/(select count(*) from public.aivault_pool_agents) kb_per_agent"))
+if "rep2mig" in STEPS:
+    sql(open("supabase/migrations/20261018150000_aivault_replication_double.sql").read())
+    print("REP2 eligible_today", sql("select count(*) n from public.aivault_replication_eligible()"), "lineage", sql("select count(*) n from public.aivault_agent_lineage"), "current_bytes_per_agent", sql("select round(public.aivault_agent_bytes()) b"))
+    # 精簡新生列實測：臨時 schema 複製表結構，模擬插入 1000 個新生（同一段 select），量位元組後刪除
+    sql("""drop schema if exists rep_dry cascade; create schema rep_dry;
+      create table rep_dry.a (like public.aivault_pool_agents including defaults including indexes); create table rep_dry.l (like public.aivault_agent_lineage including defaults including indexes);
+      create table rep_dry.s (like public.aivault_agent_state including defaults including indexes); create table rep_dry.k (like public.aivault_ancn_skills including defaults including indexes);
+      insert into rep_dry.a(id,name,domain,specialty,persona,model_route,avatar,status,stats,zone,parent_agent_id,spawned) select 'ag-'||(200000+row_number() over ()), left(name,40)||'·x', domain, specialty, left(persona,300), '{}', null, 'idle', '{}', zone, id, true from public.aivault_pool_agents where id ~ '^ag-\\d+$' limit 1000;
+      insert into rep_dry.l(agent_id,parent_id,generation,template_version) select id, parent_agent_id, 1, 'v1-lean' from rep_dry.a;
+      insert into rep_dry.s(agent_id,state,reason) select id,'SLEEPING','新生，按需喚醒' from rep_dry.a;
+      insert into rep_dry.k(agent_id,skill,level,evidence) select id,'code',0.05,'[]' from rep_dry.a; analyze rep_dry.a; select 1""")
+    b=sql("select (pg_total_relation_size('rep_dry.a')+pg_total_relation_size('rep_dry.l')+pg_total_relation_size('rep_dry.s')+pg_total_relation_size('rep_dry.k'))/1000.0 bytes, (select count(*) from rep_dry.a) n, pg_database_size(current_database())/1048576.0 db")[0]
+    sql("drop schema rep_dry cascade"); bpa=float(b["bytes"]); db=float(b["db"]); 
+    print("REP2 dry lean offspring bytes/agent=%.0f (n=%s); db now %.1fMB; projected at 100k: +%.1fMB -> %.1fMB (limit 350MB); fits=%s"%(bpa,b["n"],db,bpa*99000/1048576,db+bpa*99000/1048576,db+bpa*99000*1.3/1048576<350))
