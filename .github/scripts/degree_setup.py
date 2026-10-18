@@ -186,3 +186,9 @@ if "dump" in STEPS:  # 樣本（加密 artifact，公開日誌不印內容）
          "answers":sql("select x.exam_id,x.agent_id,a.name,x.qids,x.answers,x.correct,x.score,x.max_score,x.tier,x.level,x.notes_used,x.grader_notes,x.model,x.usage,x.created_at from public.aivault_pool_exam_answers x join public.aivault_pool_agents a on a.id=x.agent_id order by x.created_at desc limit 40")}
     open("/tmp/d.json","w").write(json.dumps(out,ensure_ascii=False,default=str))
     subprocess.check_call(["gpg","--batch","--yes","--quiet","--pinentry-mode","loopback","--passphrase",os.environ["PAGES_KEY"],"-c","-o","degree-dump.json.gpg","/tmp/d.json"]); print("dump ok")
+if "comminv" in STEPS:  # cm1：通訊系統盤點（只印表名、欄位、列數，不印內容）
+    t=sql("select table_name, string_agg(column_name||':'||data_type, ', ' order by ordinal_position) cols from information_schema.columns where table_schema='public' and (table_name ~ '(message|chat|lease|event|worker|task|collab|inbox|project|skill|mail|memory|queue|node)') group by table_name order by 1")
+    for r in t:
+        n=sql("select count(*) c from public.%s"%r["table_name"])[0]["c"]; print("TBL",r["table_name"],n,"|",r["cols"][:600])
+    print("FNS", [x["proname"] for x in sql("select proname from pg_proc p join pg_namespace n on n.oid=p.pronamespace where nspname='public' and proname ~ '(message|lease|claim|task|chat|collab)'")])
+    print("CRON", sql("select jobname,schedule from cron.job"))
