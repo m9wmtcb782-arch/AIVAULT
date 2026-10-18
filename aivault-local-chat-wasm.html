@@ -1,0 +1,34 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AIVAULT 手機本機 AI 對話</title><style>body{background:#0c1525;color:#f1f5ff;font:16px system-ui,-apple-system,sans-serif;max-width:700px;margin:auto;padding:18px;line-height:1.5}button{padding:12px;border:0;border-radius:9px;background:#3476db;color:white;font-size:16px;margin:5px}button:disabled{opacity:.4}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#1b2840;padding:12px;border-radius:9px}</style></head><body><h2>AIVAULT 手機本機 AI 對話</h2><p>版本 local-chat-20261018-a。已證明 iPhone Safari 能執行極小 ONNX WASM 模型；這次使用已下載的 SmolLM2 權重建立可重複提問的本機對話頁。<b>禁止遠端下載模型</b>。注意：q4f16 權重未必相容 WASM，成功與否仍需驗證。</p><button id="scan">1. 檢查既有快取</button><button id="run" disabled>2. 只用快取載入 WASM</button><button id="copy">複製紀錄</button><p>英文小模型（中文回答能力尚未驗證）。輸入你的問題，模型完全在手機本機生成。</p><textarea id="question" rows="3" style="width:100%;box-sizing:border-box;background:#1b2840;color:white;padding:12px;border-radius:9px;font-size:16px">What is two plus two? Answer with only the number.</textarea><p><button id="ask" disabled>產生回答</button></p><div id="answer" style="white-space:pre-wrap;background:#1b2840;padding:14px;border-radius:9px;min-height:35px">尚無回答</div><p id="state">尚未檢查</p><pre id="log">等待檢查</pre><script type="module">
+const $=id=>document.getElementById(id),ver='local-chat-20261018-a';let logLines=[ver];const log=s=>{$('log').textContent=logLines.join('\n')+'\n'+s;logLines.push(s)};
+const fmt=e=>{try{return 'type='+typeof e+'; string='+String(e)+'; stack='+String(e?.stack||'')}catch{return '異常不可讀'}};
+let present=false,loadedPipe=null;
+$('scan').onclick=async()=>{logLines=[ver];$('run').disabled=true;present=false;log('UA='+navigator.userAgent);
+try{const cachesList=await caches.keys();log('Cache Storage='+cachesList.join(', '));const required=['config.json','tokenizer_config.json','tokenizer.json','generation_config.json','onnx/model_q4f16.onnx'];const hits=new Set();
+for(const name of cachesList){const c=await caches.open(name);for(const request of await c.keys()){const u=new URL(request.url);if(!u.pathname.includes('SmolLM2-135M-Instruct-ONNX'))continue;for(const f of required){if(u.pathname.endsWith('/'+f)){hits.add(f);log('FOUND '+f+' ('+name+')')}}}}
+const missing=required.filter(f=>!hits.has(f));if(missing.length){$('state').textContent='快取不完整，不進行推論';log('MISSING '+missing.join(', '));log('不會下載缺少的權重')}else{present=true;$('run').disabled=false;$('state').textContent='檔名齊全，可嘗試 WASM（仍不保證內容完整）';log('檔名齊全；不代表快取位元組完整')}
+}catch(e){$('state').textContent='檢查失敗';log(fmt(e))}};
+$('run').onclick=async()=>{if(!present)return;$('run').disabled=true;log('開始載入 Transformers.js JS；不允許遠端模型檔案');$('state').textContent='WASM 初始化中';try{const m=await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1');m.env.allowRemoteModels=true;m.env.useBrowserCache=true;
+const nativeFetch=globalThis.fetch.bind(globalThis);
+globalThis.fetch=async(input,init)=>{const url=String(typeof input==='string'?input:input?.url||input);if(/(?:huggingface\\.co|hf\\.co|hf-mirror\\.com|cdn-lfs)/i.test(url)&&url.includes('SmolLM2-135M-Instruct-ONNX')){const c=await caches.open('transformers-cache');const match=await c.match(url)||await c.match(new Request(url));if(!match)throw new Error('CACHE_ONLY_BLOCKED: '+new URL(url).pathname);log('CACHE HIT '+new URL(url).pathname.split('/').slice(-2).join('/'));return match.clone()}return nativeFetch(input,init)};
+m.env.backends.onnx.wasm.numThreads=1;log('allowRemoteModels=true; network model fetch blocked unless cached; device=wasm; dtype=q4f16');const pipe=await m.pipeline('text-generation','onnx-community/SmolLM2-135M-Instruct-ONNX',{device:'wasm',dtype:'q4f16',progress_callback:p=>{if(p.status==='done')log('cached '+p.file)}});log('pipeline READY');
+const session=pipe.model?.session||pipe.model?.sessions?.model||pipe.model?.sessions?.decoder_model_merged;
+if(session&&typeof session.run==='function'){
+const originalRun=session.run.bind(session);let reported=false;
+session.run=async(feeds,...args)=>{
+ const fixed={...feeds};let converted=0;
+ for(const [name,t] of Object.entries(feeds)){
+  if(name.startsWith('past_key_values.')&&t?.type==='float16'){
+   const raw=t.data,f32=new Float32Array(raw.length);
+   for(let i=0;i<raw.length;i++){const h=Number(raw[i]);const sign=h&32768?-1:1,exp=h>>10&31,frac=h&1023;f32[i]=exp===0?sign*Math.pow(2,-14)*frac/1024:exp===31?(frac?NaN:sign*Infinity):sign*Math.pow(2,exp-15)*(1+frac/1024)}
+   fixed[name]=new m.Tensor('float32',f32,t.dims);converted++;
+  }
+ }
+ if(!reported){log('KV float16→float32 conversions='+converted);reported=true}
+ return originalRun(fixed,...args);
+};
+log('KV cache type conversion installed');
+}else log('WARN session.run unavailable');
+try{const ses=pipe.model?.session||pipe.model?.sessions?.model||pipe.model?.sessions?.decoder_model_merged;log('session inputs '+JSON.stringify(ses?.inputNames||[]));log('session metadata '+JSON.stringify(ses?.inputMetadata||{}).slice(0,1800))}catch(e){log('metadata unavailable '+fmt(e))}loadedPipe=pipe;$('ask').disabled=false;$('state').textContent='模型載入成功，可輸入問題';log('READY FOR QUESTIONS')}catch(e){log('FAIL '+fmt(e));$('state').textContent='WASM 快取推論失敗（未下載模型）'}finally{$('run').disabled=!!loadedPipe}};
+$('ask').onclick=async()=>{if(!loadedPipe)return;const q=$('question').value.trim();if(!q)return;$('ask').disabled=true;$('answer').textContent='本機生成中…';$('state').textContent='正在生成';const t=performance.now();try{const result=await loadedPipe([{role:'user',content:q}],{max_new_tokens:48,do_sample:false});const msg=result?.[0]?.generated_text;const ans=Array.isArray(msg)?msg.filter(x=>x.role==='assistant').map(x=>x.content).join('\n'):String(msg||JSON.stringify(result));$('answer').textContent=ans||'模型未產生文字';log('ANSWER '+JSON.stringify(ans));log('生成耗時 '+Math.round(performance.now()-t)+' ms');$('state').textContent='生成完成'}catch(e){log('生成失敗 '+fmt(e));$('answer').textContent='生成失敗';$('state').textContent='生成失敗'}finally{$('ask').disabled=false}};
+$('copy').onclick=async()=>{try{await navigator.clipboard.writeText(logLines.join('\n'));log('已複製')}catch(e){log('複製失敗 '+fmt(e))}};
+</script></body></html>
