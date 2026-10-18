@@ -17,6 +17,6 @@ jobs:
         env: { LAB_ID: "${{ inputs.lab_id }}" }
         run: python3 .github/scripts/city_fetch_glb.py
       - name: Render
-        run: blender -b --factory-startup -noaudio -P .github/scripts/city_blender_render.py -- out/model.glb out/render.png 2>&1 | grep -E "^(RENDER|Error|Traceback)" || true; ls -la out
+        run: blender -b --factory-startup -noaudio -P .github/scripts/city_blender_render.py -- out/model.glb out/render.png > out/blender.log 2>&1 || true; grep -E "RENDER|Error|Traceback|rror:" out/blender.log | head -20; tail -5 out/blender.log; ls -la out
       - uses: actions/upload-artifact@v4
         with: { name: blender-render, path: out/render.png, if-no-files-found: error, retention-days: 7 }
