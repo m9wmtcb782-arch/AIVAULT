@@ -151,8 +151,9 @@
     var mine = pending && (nameMe || (!nameOther && (Date.now() - claimAt > 20000 || claimAt === 0)));
     if (mine) claimAt = Date.now();
     var body = lines.length ? lines.map(function (l) { return l.who + "：" + l.t; }).join("\n") : "（留言板目前沒有內容）";
+    var waitNote = (k === "dark" || (pending && !mine)) ? "（不要重複回答，安靜等待開創者說完。）" : "";
     var msg = "【留言板】你剛重新連線，以下是最近的對話紀錄（含另一位 AI 和開創者說的話）：\n" + body +
-      "\n請先看留言板，不要打招呼；若開創者有未回答的問題就直接回答，否則安靜等待。" + (pending && !mine ? "（另一位 AI 已在回答這個問題，你不要重複回答，安靜等待。）" : "");
+      "\n請先看留言板，不要打招呼；若開創者有未回答的問題就直接回答，否則安靜等待。" + waitNote;
     s.mode = mine ? "normal" : "quiet";
     sendNoteTo(k, msg, true);
   }
@@ -175,6 +176,7 @@
     if (!bothLive()) return "play";
     if (muted(k)) return "mute";
     if (addrOn && !user.addr && now - user.at < 4000 && age < HOLD) return "wait"; // 等點名判斷（只在句首）
+    if (k === "dark" && now - user.at < 2500) return "wait"; // 暗星等開創者說完，不重複插話
     if (!arguing() && ((S[other(k)].utt === "play" && now - (S[other(k)].lastAt || 0) < 1500) || busy(other(k)))) return age < 30000 ? "wait" : "play"; // 對方在說 → 整段等
     return "play";
   }
