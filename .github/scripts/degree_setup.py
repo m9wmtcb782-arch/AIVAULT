@@ -313,3 +313,8 @@ if "ancnload" in STEPS:  # an1：合成負載測試（不呼叫模型、不建�
         print("LOAD N=%d nodes=%d(%d rows/s) edges=%d(%d/s) deliveries=%d(%d/s) kb=%d(%d/s) lease_batch=%d in %.1fms(%d/s) fts_top5=%.3fms pick_top3=%.3fms inbox=%.3fms storage=%.1fMB db_before=%sMB"%(N,T["nodes"][0],rate("nodes"),T["edges"][0],rate("edges"),T["deliveries"][0],rate("deliveries"),T["kb"][0],rate("kb"),T["lease_batch"][0],T["lease_batch"][1],rate("lease_batch"),T["fts_top5_avg50"][1],T["pick_top3_avg50"][1],T["inbox_avg50"][1],float(sz),db))
         sql("drop schema %s cascade"%S)
     print("LOAD cleanup ok; db now", sql("select pg_database_size(current_database())/1048576 mb")[0]["mb"],"MB; schemas left:", sql("select nspname from pg_namespace where nspname like 'ancn_load%'"))
+if "repmig" in STEPS:
+    sql(open("supabase/migrations/20261018140000_aivault_replication_auto.sql").read())
+    print("REP eligible_today", sql("select count(*) n from public.aivault_replication_eligible()"), "tier3plus_only", sql("select count(*) n from public.aivault_pool_agent_degree where tier>=3"), "lab_passers", sql("select count(distinct lead_id) n from public.aivault_lab_experiments where status='passed'"))
+    print("REP state", sql("select k,v from public.aivault_floor_state where k like 'replication:%'"), sql("select jobname,schedule from cron.job where jobname='aivault-replicate-daily'"))
+    print("REP sizes", sql("select pg_database_size(current_database())/1048576 db_mb, (select pg_total_relation_size('public.aivault_pool_agents')+pg_total_relation_size('public.aivault_agent_state')+pg_total_relation_size('public.aivault_agent_lineage')+pg_total_relation_size('public.aivault_ancn_skills'))/1024.0/(select count(*) from public.aivault_pool_agents) kb_per_agent"))
