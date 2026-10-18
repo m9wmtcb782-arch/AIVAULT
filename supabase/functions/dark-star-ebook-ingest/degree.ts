@@ -73,12 +73,21 @@ export async function sitExam(agent: any, exam: any, qs: any[], think = callMode
 }
 // lb2：實作門檻。碩士（第 5 階）需 ≥2 件實驗工廠通過的作品，博士（第 6 階）需 ≥5 件；正式／週考升級需至少 1 件通過作品（只讀書沒有作品不能升）。關閉：函式 env LAB_GATE_OFF=1
 export async function labPassed(id: string) { if (SPECIAL_IDS.includes(id)) return 0; const r = await fetch(URL0 + `/rest/v1/aivault_lab_experiments?lead_id=eq.${id}&status=eq.passed&select=id`, { headers: { ...SRH, Prefer: "count=exact", Range: "0-0" } }); return Number((r.headers.get("content-range") || "/0").split("/")[1]) || 0; }
+// cm3：協作證據（交接協定 handoff 品質＋合併被接受數）。只寫進考試／升級紀錄當證據，不改學階計算、不當門檻。關閉：COLLAB_EVIDENCE_OFF=1
+export async function collabEvidence(id: string) {
+  if (Deno.env.get("COLLAB_EVIDENCE_OFF") === "1") return null;
+  try { const h = await rest(`aivault_comm_handoffs?recipient=eq.${id}&select=handoff_id,accept_id,reject_id,report_id,report_quality`); const g = await rest(`aivault_comm_merges?proposer=eq.${id}&select=status`); const sent = await rest(`aivault_comm_handoffs?sender=eq.${id}&select=handoff_id`);
+    const rep = h.filter((x: any) => x.report_id); const q = rep.length ? rep.reduce((s: number, x: any) => s + (x.report_quality || 0), 0) / rep.length : 0;
+    return { handoffs_received: h.length, accepted: h.filter((x: any) => x.accept_id).length, rejected: h.filter((x: any) => x.reject_id).length, reported: rep.length, report_quality_avg: Math.round(q * 100) / 100, handoffs_sent: sent.length, merges_proposed: g.length, merges_accepted: g.filter((x: any) => x.status === "accepted").length };
+  } catch (_) { return null; }
+}
+const collabNote = (c: any) => c && (c.handoffs_received || c.handoffs_sent || c.merges_proposed) ? `；協作證據：收到交接 ${c.handoffs_received}（接 ${c.accepted}／回報 ${c.reported}，回報品質 ${c.report_quality_avg}/4）、發出交接 ${c.handoffs_sent}、合併被接受 ${c.merges_accepted}/${c.merges_proposed}` : "";
 function labCap(m: any, built: number) { if (Deno.env.get("LAB_GATE_OFF") === "1") return { m, note: "" }; const max = built >= 5 ? 6 : built >= 2 ? 5 : 4; if (m.tier <= max) return { m, note: "" }; return { m: { tier: max, level: 10, capped: true }, note: `；實驗工廠通過作品 ${built} 件（碩士需 2、博士需 5），暫列 ${TIERS[max - 1]}` }; }
 export async function placeOne(agent: any, think = callModel) {
   const d = districtOf(agent.domain); const exId = "placement-" + d; const B = await bank(d); if (!B.length) throw new Error("bank missing " + d);
   const qs: any[] = []; for (let lv = 1; lv <= 6; lv++) qs.push(...shuffle(B.filter((q) => q.lv === lv)).slice(0, 2));
   const r = await sitExam(agent, { id: exId }, qs, think); const learned = await learnedCount(agent.id); const built = await labPassed(agent.id); const lc = labCap(mapScore(r.score / r.max, learned), built); const m = lc.m;
-  await rest(`${TB(agent,"exam")}?on_conflict=exam_id,agent_id`, { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ exam_id: exId, agent_id: agent.id, qids: r.qids, answers: r.given, correct: r.correct, score: r.score, max_score: r.max, tier: m.tier, level: m.level, notes_used: r.used, grader: "auto-key", grader_notes: `學習紀錄 ${learned} 筆${m.capped && !lc.note ? "；分數達更高學階但學習紀錄不足，暫列 " + TIERS[m.tier - 1] : ""}${lc.note}`, model: r.model, usage: r.usage }) });
+  await rest(`${TB(agent,"exam")}?on_conflict=exam_id,agent_id`, { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ exam_id: exId, agent_id: agent.id, qids: r.qids, answers: r.given, correct: r.correct, score: r.score, max_score: r.max, tier: m.tier, level: m.level, notes_used: r.used, grader: "auto-key", grader_notes: `學習紀錄 ${learned} 筆${m.capped && !lc.note ? "；分數達更高學階但學習紀錄不足，暫列 " + TIERS[m.tier - 1] : ""}${lc.note}${collabNote(await collabEvidence(agent.id))}`, model: r.model, usage: r.usage }) });
   const hist = [{ exam: exId, at: new Date().toISOString(), score: r.score, max: r.max, tier: m.tier, level: m.level }];
   await rest(`${TB(agent,"degree")}?on_conflict=agent_id`, { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ agent_id: agent.id, district: d, tier: m.tier, level: m.level, placed_at: new Date().toISOString(), last_exam_at: new Date().toISOString(), history: hist, updated_at: new Date().toISOString() }) });
   return { agent: agent.id, kind: "placement", score: r.score, max: r.max, tier: m.tier, level: m.level, capped: m.capped, usage: r.usage };
@@ -91,7 +100,7 @@ export async function examOne(agent: any, exam: any, think = callModel) {
   qs.push(...freshQs(d));
   const r = await sitExam(agent, exam, qs, think); const week = new Date(Date.now() - 7 * 864e5).toISOString();
   const learnedAll = await learnedCount(agent.id), learnedWeek = await learnedCount(agent.id, week); let m = mapScore(r.score / r.max, learnedAll); const built = await labPassed(agent.id); const lc = labCap(m, built); m = lc.m;
-  const old = deg?.tier ? (deg.tier - 1) * 10 + deg.level : 0, nw = (m.tier - 1) * 10 + m.level; let note = `本週學習 ${learnedWeek} 筆／累計 ${learnedAll} 筆／通過作品 ${built} 件` + lc.note;
+  const old = deg?.tier ? (deg.tier - 1) * 10 + deg.level : 0, nw = (m.tier - 1) * 10 + m.level; let note = `本週學習 ${learnedWeek} 筆／累計 ${learnedAll} 筆／通過作品 ${built} 件` + lc.note + collabNote(await collabEvidence(agent.id));
   if (nw > old && built === 0 && Deno.env.get("LAB_GATE_OFF") !== "1" && deg?.tier) { m = { tier: deg.tier, level: deg.level, capped: true }; note += "；還沒有實驗工廠通過的作品，不得升級"; }
   if (nw > old && learnedWeek === 0) { m = { tier: deg.tier, level: deg.level, capped: true }; note += "；本週沒有學習紀錄，不得升級"; }
   if (exam.kind === "weekly" && old && nw > old + 3) { const k = old + 3; m = { tier: Math.ceil(k / 10), level: k - (Math.ceil(k / 10) - 1) * 10, capped: true }; note += "；週考每次最多升 3 級"; }
@@ -147,7 +156,7 @@ export async function degree(r: Request) {
     if (a === "city_public") return out(await cityPublic()); // city1
     if (a === "comm_public") return out(await commPublic(b)); // cm2
     if (a === "quota_state") return out({ ok: true, ...(await quotaState()) });
-    if (a === "agent_lab") { const id = String(b.id || ""); if (!/^ag-\d{4}$/.test(id)) return out({ error: "bad id" }, 400); return out({ ok: true, learned: await learnedCount(id), ...(await agentLabStats(id)) }); } // lb2：學了→做了→通過
+    if (a === "agent_lab") { const id = String(b.id || ""); if (!/^ag-\d{4}$/.test(id)) return out({ error: "bad id" }, 400); return out({ ok: true, learned: await learnedCount(id), ...(await agentLabStats(id)), collab: await collabEvidence(id) }); } // lb2：學了→做了→通過
     if (a === "summon_state") return out({ ok: true, now: new Date().toISOString(), s: await summonState() });
     if (a === "learning_now") { // cr1：此刻真的在上網學習的代理（學習鎖還沒到期，或 10 分鐘內有學習紀錄）；只回 id、區、主題
       const now = Date.now(); const locks = await rest("aivault_floor_state?k=like.learnlock:*&select=k,v&limit=2000"); const live = new Map<string, any>();

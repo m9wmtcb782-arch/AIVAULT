@@ -31,7 +31,12 @@ for i in range(R):
     for a in t.get("agents",[]): print("TURN %d %s"%(i+1,a.get("role")),{k:(len(v) if isinstance(v,list) else v) for k,v in a.items() if k in ("skipped","error","leased","read","sent","tokens","errors")}, "saved=v%s"%((a.get("saved") or {}).get("version")) if a.get("saved") else "", "proposed" if a.get("proposed") else "", [ (d.get("merge"),d.get("status") or d.get("error")) for d in a.get("decisions",[])] if a.get("decisions") else "")
     if not t.get("ok"): print("TURN ERR",t.get("error")); break
     for j in call({"action":"comm_pending_tests","project":P}).get("jobs",[]):
-        code,out,ts=run(j["files"]); ok=code==0 and ts["tests"]>0 and ts["fail"]==0
+        if j.get("path","").endswith(".md"):
+            c=j["files"].get(j["path"],""); ok=len(c.strip())>=200; code,out,ts=(0 if ok else 1),"doc-check: %d chars (plan docs are checked for content, not unit-tested)"%len(c),{"tests":1,"pass":int(ok),"fail":int(not ok)}
+        elif "test.js" not in j["files"]:
+            print("TEST merge#%s waiting: no test.js yet"%j["merge_id"]); continue
+        else:
+            code,out,ts=run(j["files"]); ok=code==0 and ts["tests"]>0 and ts["fail"]==0
         print("TEST merge#%s exit=%s tests=%s fail=%s -> %s"%(j["merge_id"],code,ts["tests"],ts["fail"],"PASS" if ok else "FAIL")); call({"action":"comm_test_result","merge_id":j["merge_id"],"pass":ok,"exit":code,"output":out,"tests":ts})
     print("ROUND %d main=%s complete=%s tokens_total=%d"%(i+1,t.get("main"),t.get("complete"),tot))
     if t.get("complete"): break

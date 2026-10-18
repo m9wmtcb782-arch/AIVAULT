@@ -69,7 +69,7 @@ export async function commPendingTests(b: any) {
   const p = String(b.project || ""); const ms = await rest(`aivault_comm_merges?project_id=eq.${p}&status=eq.proposed&test_result=is.null&select=id,path,branch,version`); const { main, br } = await mainFiles(p); const team = await teamOf(p); const tester = team.find((t) => t.role === "tester")?.agent;
   const jobs = []; for (const m of ms) { const [f] = await rest(`aivault_comm_files?project_id=eq.${p}&path=eq.${encodeURIComponent(m.path)}&branch=eq.${m.branch}&version=eq.${m.version}&select=content`);
     const files: Record<string, string> = {}; for (const k in main) files[k] = main[k].content; files[m.path] = f.content; if (!files["test.js"] && br[tester + ":test.js"]) files["test.js"] = br[tester + ":test.js"].content;
-    jobs.push({ merge_id: m.id, files }); } return { ok: true, jobs };
+    jobs.push({ merge_id: m.id, path: m.path, files }); } return { ok: true, jobs };
 }
 export async function commTestResult(b: any) { const t = { pass: !!b.pass, tests: b.tests || null, exit: b.exit ?? null, output: String(b.output || "").slice(-3000), by: "lab-runner", at: new Date().toISOString() };
   await rest(`aivault_comm_merges?id=eq.${Number(b.merge_id)}&status=eq.proposed`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ test_result: t }) });
