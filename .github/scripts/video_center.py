@@ -107,7 +107,7 @@ if MODE=="accept":
             vb=base64.b64encode(open(clip,"rb").read()).decode(); print("GEMINI_CLIP_MB",round(len(vb)*3/4/1e6,2))
         qs="\n".join("%d. %s"%(i+1,q["q"]) for i,q in enumerate(Q["questions"]))
         pr="Watch this video clip (starts at 0 seconds). Answer each question. Output ONLY a JSON array of 10 objects: [{\"n\":1,\"answer\":\"short answer\",\"t\":integer seconds}]. Questions:\n"+qs
-        s,g=http(BASE+"/functions/v1/aivault-video-spot",{"license":v["license"],"video_b64":vb,"mime":"video/mp4","prompt":pr},H,"POST",timeout=200)
+        s,g=fn({"action":"watch_spot","license":v["license"],"video_b64":vb,"mime":"video/mp4","prompt":pr})
         print("GEMINI",s,str(g)[:300])
         if s==200 and g.get("ok"):
             m=re.search(r"\[.*\]",g["text"],re.S); arr=json.loads(m.group(0)) if m else []

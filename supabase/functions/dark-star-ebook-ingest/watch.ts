@@ -22,7 +22,27 @@ async function vision(b64: string, prompt: string) { let last = "";
 async function todayCount() { const d0 = new Date(Date.now() + 8 * 3600e3); d0.setUTCHours(0, 0, 0, 0); const since = new Date(d0.getTime() - 8 * 3600e3).toISOString();
   const r = await fetch(URL0 + `/rest/v1/aivault_pool_agent_learning?source_type=eq.video_watch&created_at=gte.${since}&select=id`, { headers: { ...SRH, Prefer: "count=exact", Range: "0-0" } }); return Number((r.headers.get("content-range") || "/0").split("/")[1]) || 0; }
 async function sha(s: string) { const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)); return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join(""); }
+
+// vc2：Gemini 免費層影片抽查（Supabase 免費方案函式數已滿，所以放在這裡；只走 watch_ 的 owner／service 驗證）。
+// 只收公開授權；DB 計數 aivault_video_spot_take 每天上限 VIDEO_SPOT_DAILY（預設 20）；429/quota/billing → 當天封鎖，讓給暗星／曙光。關閉：VIDEO_SPOT_OFF=1
+async function spot(b: any) {
+  if (Deno.env.get("VIDEO_SPOT_OFF") === "1") return { ok: false, off: true };
+  if (!/^(cc0|cc by(-sa)?( [0-9.]+)?|public domain)$/i.test(String(b.license || "").trim())) return { ok: false, error: "license not allowed" };
+  const KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY") || ""; if (!KEY) return { ok: false, error: "no Gemini key" };
+  const MODEL = Deno.env.get("VIDEO_SPOT_MODEL") || "gemini-3.6-flash", cap = Number(Deno.env.get("VIDEO_SPOT_DAILY") || 20);
+  const t = await fetch(URL0 + "/rest/v1/rpc/aivault_video_spot_take", { method: "POST", headers: SRH, body: JSON.stringify({ cap }) }); const n = Number(await t.text());
+  if (!(n > 0)) return { ok: false, cap_hit: true, cap };
+  const parts: any[] = []; if (b.video_b64) parts.push({ inline_data: { mime_type: String(b.mime || "video/mp4"), data: String(b.video_b64) } }); parts.push({ text: String(b.prompt || "").slice(0, 8000) });
+  const g = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, { method: "POST", headers: { "x-goog-api-key": KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig: { temperature: 0.1, maxOutputTokens: 2048 } }), signal: AbortSignal.timeout(120000) });
+  const txt = await g.text();
+  if (!g.ok) { if (g.status === 429 || /quota|billing|RESOURCE_EXHAUSTED|paid/i.test(txt)) { const d = new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10);
+      await fetch(URL0 + "/rest/v1/aivault_video_spot_usage?day=eq." + d, { method: "PATCH", headers: SRH, body: JSON.stringify({ blocked: true, last_error: (g.status + " " + txt).slice(0, 300) }) }); }
+    return { ok: false, status: g.status, error: txt.slice(0, 600), used_today: n }; }
+  const j = JSON.parse(txt); return { ok: true, model: MODEL, text: (j.candidates?.[0]?.content?.parts || []).map((p: any) => p.text || "").join(""), usage: j.usageMetadata, used_today: n, cap };
+}
 export async function watch(a: string, b: any) {
+  if (a === "watch_spot") return await spot(b);
   if (Deno.env.get("LEARN_WATCH_OFF") === "1") return { ok: true, off: true };
   if (a === "watch_probe") { const out: any = { keys: keys().length };
     try { const r = await fetch("https://api.groq.com/openai/v1/models", { headers: { Authorization: "Bearer " + keys()[0] } }); const j = await r.json(); out.models = (j.data || []).map((m: any) => m.id).filter((x: string) => /whisper|llama-4|vision|scout|maverick/i.test(x)); } catch (e) { out.models_err = String(e); }
