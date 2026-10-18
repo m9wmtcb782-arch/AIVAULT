@@ -14,9 +14,11 @@
   async function web(q) {
     q = String(q || "").replace(/曙光|暗星|你覺得呢|請問|幫我|上網|搜尋|查一下|google|百度/gi, " ").replace(/\s+/g, " ").trim();
     if (q.length < 2) return [];
-    var r = await fetch(BASE + "/functions/v1/dark-star-ebook-ingest?feature=web-search", { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + (tok() || ANON) }, body: JSON.stringify({ q: q, n: 5 }) });
+    var r = await fetch(BASE + "/functions/v1/dark-star-ebook-ingest?feature=web-search", { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + (tok() || ANON) }, body: JSON.stringify({ q: q, n: 5, prefer: "google" }) });
     var j = await r.json().catch(function () { return {}; });
-    return (j && j.results) || [];
+    var rows = (j && j.results) || [];
+    rows._engine = (j && j.engine) || "";
+    return rows;
   }
   async function books(q) {
     var B = w.AIVAULTBookQA; if (!B || !B.build || !B.search) return [];
@@ -29,9 +31,13 @@
     var p = (async function () {
       var hits = await books(q), parts = [];
       if (hits.length) parts.push("書架電子書：\n" + hits.slice(0, 4).map(function (h, i) { return (i + 1) + ". 《" + h.title + "》p." + h.page + "：" + String(h.text).slice(0, 500); }).join("\n"));
-      if (!hits.length || WEBWORD.test(q)) {
-        try { var rs = await web(q); if (rs.length) parts.push("網路搜尋：\n" + rs.map(function (x, i) { return (i + 1) + ". " + x.title + "（" + x.url + "）" + (x.snippet ? "：" + x.snippet : ""); }).join("\n")); } catch (e) { console.warn("[DawnSearch] web", e); }
-      }
+      try {
+        var rs = await web(q);
+        if (rs.length) {
+          var src = /google/i.test(rs._engine || "") ? "Google 搜尋" : "網路搜尋（含 Google）";
+          parts.push(src + "：\n" + rs.map(function (x, i) { return (i + 1) + ". " + x.title + "（" + x.url + "）" + (x.snippet ? "：" + x.snippet : ""); }).join("\n"));
+        }
+      } catch (e) { console.warn("[DawnSearch] web", e); }
       if (!parts.length) return "";
       return "【參考資料】開創者剛才問：「" + q + "」\n" + parts.join("\n") + "\n請根據以上參考資料回答（書要說書名與頁碼；網路資料要說來源網站），資料不足就老實說。若你剛才已開始回答，請以參考資料修正或補充。";
     })();
