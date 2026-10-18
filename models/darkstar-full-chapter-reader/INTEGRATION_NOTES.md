@@ -1,34 +1,26 @@
-# VERBATIM_READING Formal Integration Notes
+# VERBATIM_READING Formal Integration Notes (updated)
 
 ## Status
-Independent bridge prepared. Protected pages were NOT modified.
+Non-destructive command entry added. Protected pages remain unmodified.
 
-## What was done
-- Added `integration_bridge.js` that can be optionally loaded.
-- Command parser for "完整朗讀《書名》第N章".
-- Status display helper.
-- Explicit separation from knowledge retrieval and academic analysis.
+## Entry
+- `verbatim-command-entry.js` (optional load)
+- Disable: `localStorage.setItem('aivaultVerbatimOff', '1')`
+- Command example: 「暗星，完整朗讀《憲法學講義》第三章。」
+- Uses existing conversation input via custom event or future thin hook; no new buttons added.
 
-## What was deliberately NOT done
-- No edits to `technical-dark-star.html`.
-- No edits to `dark-star-ebook.html` or bookshelf.
-- No changes to live voice, dual-agent, or existing buttons/settings.
-- No merge to main, no deploy.
+## Controls
+- pause / resume / stop exposed on `window.AIVAULT_VERBATIM_CONTROL`
+- Progress status overlay (only visible when active)
 
-## Regression
-Protected files remain byte-identical to main.
-Existing knowledge retrieval and graduate reading guide paths are untouched.
+## Protected
+- technical-dark-star.html, live voice, dual-agent, knowledge retrieval, academic report, ebook layout: NOT modified.
 
-## Real full-chapter playback
-NOT TESTED on live system.
-Single-segment TTS was previously verified; continuous chapter playback requires frontend player wiring and actual audio-end events.
+## Tests
+- Command parse: contract ready
+- Disable switch: ready
+- Real full-chapter continuous playback: NOT TESTED
+- Mobile Safari live: NOT TESTED
 
-## Deployment readiness
-NOT READY.
-Requires:
-1. Explicit authorization to add a non-destructive entry point (button or voice command hook) in the ebook or dark-star page.
-2. Live test of full chapter playback with real completion events.
-3. Confirmation that extraction integrity holds on real books.
-
-## Next step for founder
-Approve a minimal, additive UI entry (new button only) if full integration is desired.
+## Deployment
+NOT READY. Requires explicit authorization for a one-line optional script include and live full-chapter playback verification.
