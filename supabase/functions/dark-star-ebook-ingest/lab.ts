@@ -2,6 +2,7 @@
 // 失敗把錯誤回饋給寫程式的 AI 修正，最多 LAB_MAX_ITER 次。所有程式、測試輸出、通過與否、token、代理 id 都存真實紀錄。成功才送 🟡 作品審核，不會自動上線。
 // 關閉：函式 env LAB_OFF=1；每日上限 LAB_DAILY（預設 4）
 import { callModel } from "./floor.ts";
+import { kbSearch, kbFromLab, helpFromFail } from "./city.ts";
 const URL0 = Deno.env.get("SUPABASE_URL") || "", SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const SRH = { apikey: SR, Authorization: "Bearer " + SR, "Content-Type": "application/json" };
 async function rest(path: string, init: RequestInit = {}) { const r = await fetch(URL0 + "/rest/v1/" + path, { ...init, headers: { ...SRH, Prefer: "return=representation", ...(init.headers || {}) } }); const t = await r.text(); if (!r.ok) throw new Error("DB " + r.status + " " + t.slice(0, 200)); return t ? JSON.parse(t) : null; }
@@ -99,7 +100,8 @@ export async function agentLabStats(id: string) {
 async function sandboxStart(b: any, SB: string, day: string) {
   const L0 = SB_BRIEFS[SB]; const br = b.brief != null ? L0[Number(b.brief) % L0.length] : L0[Math.floor(Math.random() * L0.length)];
   const ag = await pickSandbox(SB); if (!ag?.lead) return { ok: false, error: "no sandbox agents" }; const L = await persona(ag.lead), T = await persona(ag.tester);
-  const c = await callModel(`${L.persona || ""}\n你是 AIVAULT ${SB === "3d" ? "3D" : "遊戲"}沙盒的 ${L.name}，在共用實驗工廠負責製作。${RULES(SB)}`, `需求（${br.kind}）：${br.title}\n${br.spec}\n\n只輸出 JSON：{"api":"函式說明","product_js":"完整程式","demo_html":"完整 HTML${SB === "3d" ? "（可空字串）" : ""}"}`, 6000);
+  const kb = await kbSearch(br.title + " " + br.kind); const kbt = kb.length ? `\n知識庫裡已驗證的相關條目（可參考）：\n${kb.map((k: any) => "- " + k.title + "：" + String(k.summary).slice(0, 300)).join("\n")}` : "";
+  const c = await callModel(`${L.persona || ""}\n你是 AIVAULT ${SB === "3d" ? "3D" : "遊戲"}沙盒的 ${L.name}，在共用實驗工廠負責製作。${RULES(SB)}`, `需求（${br.kind}）：${br.title}\n${br.spec}${kbt}\n\n只輸出 JSON：{"api":"函式說明","product_js":"完整程式","demo_html":"完整 HTML${SB === "3d" ? "（可空字串）" : ""}"}`, 6000);
   if (!c.v?.product_js) return { ok: false, error: "lead returned no code", model: c.model };
   const tHint = SB === "3d" ? `測試檔可用 const THREE = require("three"); const P = require("./product.js"); const s = P.build(THREE); 檢查 Mesh 數量、name、尺寸範圍、材質等需求明確寫到的條件（用 s.traverse 與 new THREE.Box3().setFromObject(s)）。` : `const P = require("./product.js");`;
   const t = await callModel(`${T.persona || ""}\n你是 AIVAULT 的 ${T.name}，負責寫自動測試。你看不到程式，只能依需求與 API 寫測試。`, `需求：${br.title}\n${br.spec}\nAPI：${c.v.api || ""}\n\n請寫 Node.js 測試檔 test.js：用 const { test } = require("node:test"); const assert = require("node:assert/strict"); ${tHint} 寫 5–8 個測試，只測需求明確寫到的行為。只輸出 JSON：{"test_js":"完整測試檔"}`, 3000);
@@ -115,7 +117,8 @@ async function verifyFiles(e: any) {
   const v = await callModel(`${V.persona || ""}\n你是 AIVAULT 的 ${V.name}，擔任獨立驗收員。你看不到程式和原本的測試，只依需求寫 3–5 個隱藏驗收測試。`, `需求：${e.title}\n${e.spec}\nAPI：${e.api || ""}\n\n寫 verify.js：const { test } = require("node:test"); const assert = require("node:assert/strict"); ${tHint} 只輸出 JSON：{"verify_js":"完整測試檔"}`, 2500);
   return { js: String(v.v?.verify_js || ""), model: v.model, tokens: tok(v.usage) };
 }
-export async function labReport(b: any) {
+export async function labReport(b: any) { const r = await labReport0(b); if (r?.done) { try { const [e] = await rest(`aivault_lab_experiments?id=eq.${Number(b.id)}&select=id,title,spec,api,sandbox,lead_id,tester_id,verifier_id`); if (e) { if (r.status === "passed") await kbFromLab(e); else await helpFromFail(e); } } catch (_) { /* best-effort */ } } return r; }
+async function labReport0(b: any) {
   const [e] = await rest(`aivault_lab_experiments?id=eq.${b.id}&select=*`); if (!e || e.status !== "running") return { ok: false, error: "not running" };
   const its = e.iterations || []; const cur = its[its.length - 1]; cur.pass = !!b.pass; cur.exit = b.exit; cur.output = String(b.output || "").slice(0, 6000); cur.tests = b.tests || null; cur.ran_at = new Date().toISOString();
   if (b.stage === "verify") { cur.verify = { pass: !!b.pass, output: String(b.output || "").slice(0, 4000), tests: b.tests || null, by: e.verifier_id };

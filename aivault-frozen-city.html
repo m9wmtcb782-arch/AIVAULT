@@ -1,0 +1,49 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>❄️ FROZEN CITY v0（參考場景）</title>
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#0a1222;font:14px -apple-system,"PingFang TC",sans-serif;color:#e2e8f0}canvas{display:block;touch-action:none}
+#info{position:fixed;left:8px;top:calc(8px + env(safe-area-inset-top));right:8px;background:#0b1020cc;border-radius:10px;padding:8px 10px;font-size:12px}#info b{font-size:14px}a{color:#93c5fd}
+#bench{position:fixed;right:8px;bottom:calc(8px + env(safe-area-inset-bottom));background:#000c;border-radius:8px;padding:6px 10px;font:12px ui-monospace,monospace;white-space:pre;display:none}</style></head><body>
+<div id="info"><b>❄️ FROZEN CITY v0</b>　<span style="background:#713f12;border-radius:6px;padding:0 6px">參考場景・由 Grok Bot 建置，不是代理作品</span><br>用途：3D 沙盒的參考場景與效能基準工具，讓代理作品之後可以放進來比較。拖曳旋轉、雙指縮放。<a href="?bench=1">?bench=1 測 FPS</a>　<a href="aivault-lab.html">實驗工廠</a>　<a href="aivault-city.html">城市管理</a></div>
+<div id="bench"></div>
+<script type="module">
+// 關閉：localStorage.frozenOff=1。品質：?q=low|high。這頁不讀寫任何資料庫。
+if (localStorage.getItem('frozenOff') === '1') { document.body.innerHTML = '<p style="padding:20px">FROZEN CITY 已關閉（localStorage.frozenOff=1）</p>'; throw 0; }
+import * as T from 'https://esm.sh/three@0.160.0';
+import { OrbitControls } from 'https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+const P = new URLSearchParams(location.search), BENCH = P.get('bench') === '1', Q = P.get('q') || (matchMedia('(max-width:700px)').matches ? 'low' : 'high');
+const R = new T.WebGLRenderer({ antialias: Q === 'high', powerPreference: 'high-performance' }); R.setPixelRatio(Math.min(Q === 'high' ? 2 : 1.5, devicePixelRatio)); R.setSize(innerWidth, innerHeight); R.shadowMap.enabled = Q === 'high'; document.body.appendChild(R.domElement);
+const S = new T.Scene(); S.background = new T.Color(0x9fb4cc); S.fog = new T.FogExp2(0x9fb4cc, 0.012);
+const C = new T.PerspectiveCamera(55, innerWidth / innerHeight, .1, 600); C.position.set(60, 45, 70); const ctl = new OrbitControls(C, R.domElement); ctl.target.set(0, 5, 0); ctl.maxPolarAngle = 1.45; ctl.enableDamping = true; ctl.autoRotate = !BENCH ? true : true; ctl.autoRotateSpeed = .4;
+S.add(new T.HemisphereLight(0xdbeafe, 0x475569, 1.1)); const sun = new T.DirectionalLight(0xfff1dc, 1.6); sun.position.set(-60, 80, 30); sun.castShadow = Q === 'high'; sun.shadow.mapSize.set(1024, 1024); Object.assign(sun.shadow.camera, { left: -90, right: 90, top: 90, bottom: -90 }); S.add(sun);
+const ground = new T.Mesh(new T.PlaneGeometry(400, 400), new T.MeshStandardMaterial({ color: 0xeef4fb, roughness: .95 })); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; S.add(ground);
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+// 建築：instanced，格狀街道
+const N = Q === 'high' ? 900 : 450, bg = new T.BoxGeometry(1, 1, 1); bg.translate(0, .5, 0);
+const bm = new T.MeshStandardMaterial({ color: 0x8aa0b8, roughness: .7, metalness: .1 }); const B = new T.InstancedMesh(bg, bm, N); B.castShadow = B.receiveShadow = true;
+const roof = new T.InstancedMesh(new T.BoxGeometry(1, .15, 1), new T.MeshStandardMaterial({ color: 0xffffff, roughness: 1 }), N);
+const m4 = new T.Matrix4(), col = new T.Color(); let i = 0;
+for (let gx = -15; gx <= 15 && i < N; gx++) for (let gz = -15; gz <= 15 && i < N; gz++) { if (gx % 4 === 0 || gz % 4 === 0) continue; const d = Math.hypot(gx, gz); if (rnd() < .25 + d / 40) continue;
+  const w = 2 + rnd() * 2.2, h = Math.max(2, (30 - d * 1.4) * (.4 + rnd() * .9)), x = gx * 5 + (rnd() - .5), z = gz * 5 + (rnd() - .5);
+  m4.makeScale(w, h, w).setPosition(x, 0, z); B.setMatrixAt(i, m4); col.setHSL(.58 + rnd() * .06, .15 + rnd() * .15, .45 + rnd() * .25); B.setColorAt(i, col); m4.makeScale(w * 1.04, 1, w * 1.04).setPosition(x, h, z); roof.setMatrixAt(i, m4); i++; }
+B.count = roof.count = i; S.add(B, roof);
+// 中央能源塔（發光）
+const core = new T.Mesh(new T.CylinderGeometry(1.6, 2.2, 46, 24), new T.MeshStandardMaterial({ color: 0x0ea5e9, emissive: 0x38bdf8, emissiveIntensity: 1.4 })); core.position.y = 23; S.add(core);
+for (let k = 0; k < 3; k++) { const ring = new T.Mesh(new T.TorusGeometry(5 + k * 1.5, .25, 8, 48), new T.MeshStandardMaterial({ color: 0xbae6fd, emissive: 0x7dd3fc, emissiveIntensity: .8 })); ring.position.y = 14 + k * 9; ring.rotation.x = Math.PI / 2; ring.userData.s = .3 + k * .2; S.add(ring); core.userData['r' + k] = ring; }
+// 冰柱與雪松
+const pine = new T.InstancedMesh(new T.ConeGeometry(1, 3.5, 7), new T.MeshStandardMaterial({ color: 0x2f5d50 }), 400); let p = 0;
+for (let k = 0; k < 400; k++) { const a = rnd() * Math.PI * 2, r = 85 + rnd() * 60; m4.makeScale(1 + rnd(), 1 + rnd() * 1.5, 1 + rnd()).setPosition(Math.cos(a) * r, 1.7, Math.sin(a) * r); pine.setMatrixAt(p++, m4); } S.add(pine);
+// 雪
+const SN = Q === 'high' ? 12000 : 5000, sp = new Float32Array(SN * 3); for (let k = 0; k < SN; k++) { sp[k * 3] = (rnd() - .5) * 240; sp[k * 3 + 1] = rnd() * 90; sp[k * 3 + 2] = (rnd() - .5) * 240; }
+const sg = new T.BufferGeometry(); sg.setAttribute('position', new T.BufferAttribute(sp, 3)); const snow = new T.Points(sg, new T.PointsMaterial({ color: 0xffffff, size: .35, transparent: true, opacity: .85, depthWrite: false })); S.add(snow);
+addEventListener('resize', () => { C.aspect = innerWidth / innerHeight; C.updateProjectionMatrix(); R.setSize(innerWidth, innerHeight); });
+// ?bench=1：前 2 秒暖機，之後 10 秒統計 FPS（平均、最低 1%、frame time），每秒更新
+const bx = document.getElementById('bench'); if (BENCH) bx.style.display = 'block'; const fts = []; let last = performance.now(), t0 = last, done = null;
+function stat() { const a = fts.slice().sort((x, y) => y - x), avg = fts.reduce((s, x) => s + x, 0) / fts.length, p99 = a[Math.floor(a.length * .01)] || 0;
+  return { fps_avg: +(1000 / avg).toFixed(1), fps_1pct_low: +(1000 / p99).toFixed(1), ms_avg: +avg.toFixed(2), frames: fts.length, draw_calls: R.info.render.calls, triangles: R.info.render.triangles, buildings: i, snow: SN, quality: Q, dpr: R.getPixelRatio(), size: innerWidth + 'x' + innerHeight, ua: navigator.userAgent.slice(0, 80) }; }
+function loop(now) { requestAnimationFrame(loop); const dt = Math.min(.05, (now - last) / 1000); const ft = now - last; last = now;
+  const pa = sg.attributes.position.array; for (let k = 1; k < pa.length; k += 3) { pa[k] -= dt * 6; if (pa[k] < 0) pa[k] = 90; } sg.attributes.position.needsUpdate = true;
+  for (let k = 0; k < 3; k++) core.userData['r' + k].rotation.z += dt * core.userData['r' + k].userData.s; ctl.update(); R.render(S, C);
+  if (BENCH) { const el = now - t0; if (el > 2000 && el < 12000) fts.push(ft); if (el >= 12000 && !done) { done = stat(); window.__bench = done; }
+    if (Math.floor(now / 1000) !== Math.floor((now - ft) / 1000)) { const s = fts.length ? stat() : null; bx.textContent = done ? '✅ 完成（10 秒）\n' + JSON.stringify(done, null, 1).replace(/[{}"]/g, '') : s ? '測量中 ' + ((el - 2000) / 1000).toFixed(0) + '/10 秒\nFPS ' + s.fps_avg + '  1%low ' + s.fps_1pct_low + '\ndraw ' + s.draw_calls + '  tris ' + s.triangles : '暖機中…'; } } }
+requestAnimationFrame(loop);
+</script></body></html>

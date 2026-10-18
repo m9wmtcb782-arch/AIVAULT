@@ -5,6 +5,7 @@ import { ordersFor, orderBlock, logOrders } from "./orders.ts";
 import { webSearch } from "./web-search.ts";
 const H = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS", "Content-Type": "application/json" };
 const out = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: H });
+import { quotaSleeping, quotaHit } from "./city.ts";
 const URL0 = Deno.env.get("SUPABASE_URL") || "", SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const SRH = { apikey: SR, Authorization: "Bearer " + SR, "Content-Type": "application/json" };
 async function rest(path: string, init: RequestInit = {}) {
@@ -57,6 +58,7 @@ export async function callModel(system0: string, user: string, maxTokens = 4000)
 let RR = Math.floor(Math.random() * 10);
 async function callModelRaw(system: string, user: string, maxTokens = 4000): Promise<{ v: any; model: string; usage: any }> {
   let last = "";
+  { const zz = await quotaSleeping(); if (zz) throw new Error("LLM_FAILED 429 QUOTA_SLEEP until " + new Date(zz).toISOString()); } // city1：額度睡眠中不打 Groq
   const KS = envs("GROQ_API_KEY"); const off = KS.length ? (RR++ % KS.length) : 0; // pd1：輪流從不同金鑰開始，平均分攤免費額度
   for (const k of [...KS.slice(off), ...KS.slice(0, off)]) {
     try {
@@ -67,7 +69,7 @@ async function callModelRaw(system: string, user: string, maxTokens = 4000): Pro
       const u = j.usage || {}; return { v: JSON.parse(m[0]), model: "groq:" + (j.model || "openai/gpt-oss-120b"), usage: { prompt: u.prompt_tokens, completion: u.completion_tokens, total: u.total_tokens, request_id: j.id || r.headers.get("x-request-id") } };
     } catch (e) { last += " groq:" + String((e as any)?.message || e).slice(0, 60); }
   }
-  if (/groq:429/.test(last)) throw new Error("LLM_FAILED 429 " + last);
+  if (/groq:429/.test(last)) { await quotaHit(last); throw new Error("LLM_FAILED 429 " + last); }
   const v = await llm(system, user, { maxTokens: 3500, skipGemini: true }); return { v, model: String(v.__model || "llm"), usage: null };
 }
 let SHA = "";

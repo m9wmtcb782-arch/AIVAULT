@@ -1,0 +1,36 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>🏙️ 自主 AI 城市</title>
+<style>body{margin:0;font:15px/1.5 -apple-system,"PingFang TC",sans-serif;background:#0b1020;color:#e2e8f0}header{padding:12px 14px calc(10px);padding-top:calc(12px + env(safe-area-inset-top));background:#111a33;position:sticky;top:0;z-index:2}h1{font-size:18px;margin:0}h2{font-size:15px;margin:16px 0 6px;color:#93c5fd}.muted{color:#94a3b8;font-size:12px}main{padding:10px;max-width:760px;margin:auto}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.k{background:#141d38;border:1px solid #24304f;border-radius:12px;padding:10px}.k b{font-size:20px;display:block}.sb{background:#141d38;border:1px solid #24304f;border-radius:12px;padding:10px;margin:6px 0}.tag{display:inline-block;padding:0 7px;border-radius:8px;font-size:11px;margin-left:4px}
+.CONFIRMED{background:#14532d}.REQUIRES{background:#713f12}.NOT{background:#334155}.BLOCKED{background:#7f1d1d}a{color:#93c5fd}.row{display:flex;justify-content:space-between;gap:8px;font-size:13px;border-bottom:1px solid #1e293b;padding:5px 0}</style></head><body>
+<header><h1>🏙️ 自主 AI 城市</h1><div class="muted">全部是資料庫真實數字，每 60 秒更新。<a href="aivault-town.html">協作城</a>・<a href="aivault-lab.html">實驗工廠</a>・<a href="aivault-frozen-city.html">FROZEN CITY</a></div></header>
+<main id="m"><p class="muted">載入中…</p></main>
+<script>
+(function(){
+try{if(localStorage.getItem('cityOff')==='1'){document.getElementById('m').innerHTML='<p class="muted">城市管理頁已關閉（localStorage.cityOff=1）。</p>';return}}catch(_){}
+var FN='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/dark-star-ebook-ingest?feature=degree';
+var ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE';
+var MOCK=/[?&]mock=1/.test(location.search);
+var NAME={code:'程式',game:'遊戲',3:'3D','3d':'3D',av:'影音',music:'音樂',tts:'語音 TTS',image:'圖像',reason:'推理',model:'模型研發',gpu:'GPU',collab:'協作',security:'安全驗收'};
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function tp(t){return t?new Date(t).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour12:false,month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})+'（台北）':'—'}
+function load(){if(MOCK)return Promise.resolve({ok:true,mock:true,sandboxes:[{key:'code',lo:1,hi:120,status:'CONFIRMED',members:120,labs:3,passed:1,failed:2,running:0,tokens:0}],quota:{sleeping:false,states:{READY:1000}},kb:[],help:[],recent:[],replication_off:true,degrees:0,cost_usd:0});
+ return fetch(FN,{method:'POST',headers:{apikey:ANON,Authorization:'Bearer '+ANON,'Content-Type':'application/json'},body:JSON.stringify({action:'city_public'})}).then(function(r){return r.json()})}
+function render(d){var m=document.getElementById('m');if(!d.ok){m.innerHTML='<p>⚠️ '+esc(d.error||'載入失敗')+'</p>';return}
+ var q=d.quota||{},st=q.states||{},tot=d.sandboxes.reduce(function(s,b){return s+b.labs},0),pas=d.sandboxes.reduce(function(s,b){return s+b.passed},0);
+ var h=(d.mock?'<p class="tag BLOCKED">MOCK 假資料（?mock=1）</p>':'')+'<div class="grid">'
+ +'<div class="k"><span class="muted">代理狀態</span><b>'+(st.READY||0)+' 待命</b><span class="muted">'+Object.keys(st).filter(function(k){return k!=='READY'}).map(function(k){return k+' '+st[k]}).join('・')+'</span></div>'
+ +'<div class="k"><span class="muted">免費額度（Groq）</span><b>'+(q.sleeping?'😴 睡眠中':'✅ 可用')+'</b><span class="muted">'+(q.sleeping?'到 '+tp(q.until)+' 恢復':'上次用完 '+tp(q.last_sleep))+'</span></div>'
+ +'<div class="k"><span class="muted">實驗／通過</span><b>'+tot+' / '+pas+'</b><span class="muted">總花費 $'+(d.cost_usd||0)+'</span></div>'
+ +'<div class="k"><span class="muted">知識庫／求助</span><b>'+d.kb.length+' / '+d.help.filter(function(x){return x.status==='open'}).length+'</b><span class="muted">已驗證條目／待處理求助</span></div>'
+ +'<div class="k"><span class="muted">學歷</span><b>'+d.degrees+'</b><span class="muted">有正式學歷的代理</span></div>'
+ +'<div class="k"><span class="muted">自我複製</span><b>'+(d.replication_off?'⛔ 關閉':'⚠️ 開啟')+'</b><span class="muted">只有擁有者能開，上限 10 萬</span></div></div>'
+ +'<h2>12 個沙盒（共用一個實驗池）</h2>'+d.sandboxes.map(function(b){var c=String(b.status).split(' ')[0];return '<div class="sb"><b>'+esc(NAME[b.key]||b.key)+'</b> <span class="muted">'+String(b.lo).padStart(4,'0')+'–'+String(b.hi).padStart(4,'0')+'・'+b.members+' 人</span><span class="tag '+c+'">'+esc(b.status)+'</span><div class="muted">實驗 '+b.labs+'・✅ '+b.passed+'・❌ '+b.failed+(b.running?'・⚙️ '+b.running:'')+'・'+b.tokens+' tokens</div></div>'}).join('')
+ +'<h2>最近實驗</h2>'+(d.recent.length?d.recent.map(function(r){return '<div class="row"><a href="aivault-lab.html#'+r.id+'">#'+r.id+' '+esc(r.title)+'</a><span>'+esc(NAME[r.sandbox||'code']||r.sandbox)+'・'+({passed:'✅',failed:'❌',running:'⚙️'}[r.status]||r.status)+'</span></div>'}).join(''):'<p class="muted">還沒有</p>')
+ +'<h2>知識庫（通過驗收自動寫入）</h2>'+(d.kb.length?d.kb.map(function(k){return '<div class="row"><span>'+esc(k.title)+'</span><span class="muted">'+esc(k.source)+(k.verified?' ✅':'')+'</span></div>'}).join(''):'<p class="muted">還沒有條目（第一個通過驗收的實驗會寫入）</p>')
+ +'<h2>求助單</h2>'+(d.help.length?d.help.map(function(x){return '<div class="row"><span>lab#'+x.lab_id+' '+esc(x.requester)+' → '+esc((x.helpers||[]).join('、'))+'</span><span>'+esc(x.status)+'</span></div>'}).join(''):'<p class="muted">沒有</p>')
+ +'<p class="muted">更新：'+tp(d.at)+'</p>';m.innerHTML=h}
+function go(){load().then(render).catch(function(e){document.getElementById('m').innerHTML='<p>⚠️ 載入失敗：'+esc(e.message)+'</p>'})}
+go();setInterval(function(){if(!document.hidden)go()},60000);
+})();
+</script></body></html>

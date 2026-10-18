@@ -1,0 +1,22 @@
+name: City Blender headless render (GLB -> PNG, free runner)
+on:
+  workflow_dispatch:
+    inputs:
+      lab_id: { description: "lab experiment id with a glb: artifact (blank = built-in test scene)", required: false, default: "" }
+permissions: { contents: read }
+concurrency: { group: city-blender, cancel-in-progress: false }
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Blender (apt, free)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq blender >/dev/null && blender --version | head -1
+      - name: Fetch GLB (public lab endpoint, data only)
+        env: { LAB_ID: "${{ inputs.lab_id }}" }
+        run: python3 .github/scripts/city_fetch_glb.py
+      - name: Render
+        run: blender -b --factory-startup -noaudio -P .github/scripts/city_blender_render.py -- out/model.glb out/render.png 2>&1 | grep -E "^(RENDER|Error|Traceback)" || true; ls -la out
+      - uses: actions/upload-artifact@v4
+        with: { name: blender-render, path: out/render.png, if-no-files-found: error, retention-days: 7 }

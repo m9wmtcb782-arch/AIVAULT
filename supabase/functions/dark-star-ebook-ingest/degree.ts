@@ -2,6 +2,7 @@
 // 誠實規則：學歷只來自真實考試紀錄；沒考過＝未鑑定。題目與答案只在伺服器（表 aivault_pool_exams，owner-only），代理作答時只看得到題目與自己的學習筆記（閉卷）。
 // 學習證明：代理用 web-search 找網頁、真的抓回內容（記錄 URL、HTTP 狀態、位元組、sha256、時間），再由代理自己寫筆記。
 import { callModel } from "./floor.ts";
+import { cityPublic, quotaState, quotaProbe } from "./city.ts";
 import { webSearch } from "./web-search.ts";
 import { learnRound } from "./learn10.ts";
 import { triage, pendingGroups } from "./triage.ts";
@@ -141,6 +142,8 @@ export async function degree(r: Request) {
       PUB = { t: Date.now(), d: { ok: true, tiers: TIERS, districts: DIST, list, dist, untested, total: ag.length, assembly: assembly ? { ids: assembly.ids, label: assembly.label, until: assembly.until } : null, next_exam: "2026-10-20T10:00:00+08:00" } }; return out(PUB.d);
     }
     if (a === "lab_public") return out(await labPublic(b));
+    if (a === "city_public") return out(await cityPublic()); // city1
+    if (a === "quota_state") return out({ ok: true, ...(await quotaState()) });
     if (a === "agent_lab") { const id = String(b.id || ""); if (!/^ag-\d{4}$/.test(id)) return out({ error: "bad id" }, 400); return out({ ok: true, learned: await learnedCount(id), ...(await agentLabStats(id)) }); } // lb2：學了→做了→通過
     if (a === "summon_state") return out({ ok: true, now: new Date().toISOString(), s: await summonState() });
     if (a === "learning_now") { // cr1：此刻真的在上網學習的代理（學習鎖還沒到期，或 10 分鐘內有學習紀錄）；只回 id、區、主題
@@ -217,6 +220,7 @@ export async function degree(r: Request) {
     if (a === "triage_stats") { const u2 = await who(r); if (!u2) return out({ error: "owner only" }, 403); const g = await pendingGroups(); return out({ ok: true, groups: g.length, items: g.reduce((s, x) => s + x.length, 0), top: g.slice(0, 8).map((x) => [String(x[0].order_text).slice(0, 30), x.length]) }); }
     if (a === "special_round") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(await specialRound(b)); } // sp1
     if (/^order(s_list|_log|_save|_approve|_revoke)$/.test(a)) { const uo = await who(r); if (!uo || uo.cron) return out({ error: "owner only" }, 403); return out(await orders(a, b, uo.id)); } // so1 長期命令
+    if (a === "quota_probe") { const u1 = await who(r); if (!u1) return out({ error: "owner only" }, 403); return out(await quotaProbe()); }
     if (a === "lab_start" || a === "lab_report") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(a === "lab_start" ? await labStart(b) : await labReport(b)); } // lb1 實驗工廠
     if (a === "summon") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(await summon(b, u0.id, String(b.via || "town"))); } // sm1
     if (a === "learn_round") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(await learnRound(b, (ag: any) => learnOne(ag))); } // ln10：每 10 分鐘四區學習（含學習鎖、每日 token 上限）
