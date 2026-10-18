@@ -293,7 +293,15 @@
   var NUMRE = "([0-9]+|[零〇一二两兩三四五六七八九十百]+)";
   function parseStruct(q) {
     var s = toS(norm(String(q || ""))).replace(/\s+/g, ""), r = {};
-    var m = s.match(new RegExp("第" + NUMRE + "章")); if (m) r.chapter = num(m[1]);
+    var chs = [], re = new RegExp("第" + NUMRE + "(?:[、,，和與与及到至\-]|)" + NUMRE + "?章", "g"), m;
+    while ((m = re.exec(s))) {
+      if (m[1]) chs.push(num(m[1]));
+      if (m[2]) chs.push(num(m[2]));
+    }
+    var bareCh = s.match(/([二三四五六七八九])([二三四五六七八九])章/);
+    if (bareCh) { chs.push(num(bareCh[1])); chs.push(num(bareCh[2])); }
+    chs = chs.filter(function (n, i) { return n > 0 && chs.indexOf(n) === i; });
+    if (chs.length) { r.chapters = chs; r.chapter = chs[0]; }
     m = s.match(new RegExp("第" + NUMRE + "编")); if (m) r.part = num(m[1]);
     m = s.match(new RegExp("第" + NUMRE + "节")); if (m) r.section = num(m[1]);
     m = s.match(new RegExp("第" + NUMRE + "页")) || s.match(/(?:^|[^a-z])p\.?([0-9]+)/i); if (m) r.page = num(m[1]);
@@ -333,6 +341,26 @@
       add("《" + title + "》目錄（編、章與起始頁）：");
       toc.forEach(function (e) { if (lv(e) <= 1 && /^第|导论|附录/.test(toS(e.title))) add((lv(e) ? "  " : "") + e.title + " p." + e.page_number); });
       return { st: st, bid: bid, text: out.join("\n"), sources: sources, label: "目錄" };
+    }
+    if (st.chapters && st.chapters.length > 1) {
+      var idxs = st.chapters.map(function (n) { return findNum("章", n); }).filter(function (i) { return i >= 0; });
+      if (idxs.length) {
+        var froms = idxs.map(function (i) { return +toc[i].page_number; });
+        var tos = idxs.map(function (i) { return rangeOf(i); });
+        var fromAll = Math.min.apply(null, froms), toAll = Math.max.apply(null, tos);
+        await ensurePages(list, bid, fromAll, toAll, title);
+        label = "第" + st.chapters.join("、") + "章（p." + fromAll + "–" + toAll + "）";
+        add("《" + title + "》" + label);
+        idxs.forEach(function (i) {
+          var e2 = toc[i], f2 = +e2.page_number;
+          add("【" + e2.title + "】");
+          chunksAt(list, bid, f2, 2).forEach(function (c) { addChunk(c); });
+        });
+        var words2 = st.s.replace(new RegExp("第" + NUMRE + "[章编节页]", "g"), "").replace(/二三|重点|大意|讲什么|内容|的|是|有|什么/g, "");
+        var hits2 = words2.length >= 2 ? search(words2, list, { bid: bid, from: fromAll, to: toAll }) : [];
+        if (hits2.length) { add("【章內相關段落】"); hits2.forEach(function (c) { addChunk(c); }); }
+        return { st: st, bid: bid, text: out.join("\n"), sources: sources, label: label };
+      }
     }
     if (idx >= 0) {
       var e = toc[idx], from = +e.page_number, to = rangeOf(idx);
