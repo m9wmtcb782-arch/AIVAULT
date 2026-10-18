@@ -262,3 +262,18 @@ if "commtest" in STEPS:  # cm1：傳輸層實測（不呼叫模型）。每項�
     a2=j("select public.aivault_comm_decide(%d,'%s',true,'{\"pass\":true}'::jsonb) r"%(p2["merge_id"],D))["r"]; ok("stale merge flagged conflict (no overwrite)",a2.get("status")=="conflict",a2)
     ok("skill directory lookup",j("select count(*) c from public.aivault_comm_skills where sandbox='3d'")["c"]>=100)
     print("COMMTEST project=%s passed=%d/%d"%(P,sum(R),len(R)))
+if "handoffmig" in STEPS:
+    sql(open("supabase/migrations/20261018110000_aivault_comm_handoff.sql").read()); P="htest-"+datetime.datetime.utcnow().strftime("%m%d%H%M%S"); R=[]
+    def ok(n,c,i=""): R.append(bool(c)); print(("PASS " if c else "FAIL ")+n,i)
+    def S(s,k,r,t,pl,reply="null",corr="null"):
+        try: return sql("select public.aivault_comm_send(%s,%s,%s,%s,%s::jsonb,null,null,%s,%s,null) r"%(lit(s),lit(k),lit(r),lit(t),lit(json.dumps(pl,ensure_ascii=False)),corr if corr=="null" else lit(corr),reply))[0]["r"]
+        except AssertionError as e: return {"ok":False,"error":str(e)[:160]}
+    H={"goal":"g","context":"msg#1","owned_scope":"game.js@ag-0200","forbidden_scope":"main, other files","constraints":"free-only; no privilege escalation; no self-approval","success_criteria":"tests pass","report_format":"done/missing/changes/tests/failures/cost/commits"}
+    bad=dict(H); bad.pop("forbidden_scope"); ok("handoff missing field rejected","forbidden_scope" in str(S("ag-0700","dm","ag-0200","handoff",bad)))
+    b2=dict(H,constraints="be fast"); ok("handoff without free-only rejected",not S("ag-0700","dm","ag-0200","handoff",b2).get("ok"))
+    h=S("ag-0700","dm","ag-0200","handoff",H); ok("valid handoff accepted",h.get("ok"),h)
+    sql("select public.aivault_comm_lease('ag-0200','h',10,60)"); a=S("ag-0200","dm","ag-0700","accept",{"text":"accepted"},reply=str(h["id"])); ok("accept linked by correlation",a.get("ok") and a["correlation_id"]==h["correlation_id"])
+    ok("report missing fields rejected",not S("ag-0200","dm","ag-0700","report",{"done":"x"},reply=str(h["id"])).get("ok"))
+    rp=S("ag-0200","dm","ag-0700","report",{"done":"game.js v1","missing":"none","changes":"game.js","tests":"5/5","failures":"none","cost":"$0, 0 tokens (test)","commits":"workspace v1"},reply=str(h["id"])); ok("full report accepted, same correlation",rp.get("ok") and rp["correlation_id"]==h["correlation_id"],rp)
+    v=sql("select * from public.aivault_comm_handoffs where handoff_id=%d"%h["id"])[0]; ok("handoff view links accept+report",v["accept_id"]==a["id"] and v["report_id"]==rp["id"] and v["report_quality"]>=3,v.get("report_quality"))
+    print("HANDOFFTEST passed=%d/%d"%(sum(R),len(R)))

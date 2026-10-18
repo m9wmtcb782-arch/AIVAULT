@@ -68,6 +68,8 @@ async function videoSession(agent: any, v: [string, string, string], topic: stri
   return null; }
 // sd1：自研課程——付費能力（Kling 影片／fal 圖與 3D／ElevenLabs 語音）不開，改學背後原理，目標日後做自己的免費開源版。關閉：LEARN_SELFDEV_OFF=1
 export const SELFDEV: [string, string, string][] = [
+  ["協作：交接協定 handoff（目標／範圍／禁止範圍／限制／成功標準／回報格式）", "task handoff protocol delegation brief success criteria definition of done", "multi-agent handoff"], // cm3：全體必修
+  ["協作：多代理訊息協定、確認與重試、避免迴圈", "multi-agent communication protocol acknowledgement retry idempotency", "agent message protocol"],
   ["影片生成：擴散模型與時序一致性", "video diffusion model temporal consistency open source", "open-sora video generation"],
   ["影片生成：開源模型 Wan / HunyuanVideo / CogVideoX", "open video generation model Wan HunyuanVideo CogVideoX", "cogvideox"],
   ["圖像生成：潛在擴散與 Flow Matching", "latent diffusion flow matching text-to-image", "stable diffusion flux"],
