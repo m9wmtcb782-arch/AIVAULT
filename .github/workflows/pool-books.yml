@@ -1,0 +1,17 @@
+name: Pool bookshelf (協作池書架, separate from user ebooks)
+on:
+  schedule: [{ cron: "52 */3 * * *" }]
+  workflow_dispatch:
+    inputs:
+      step: { description: "migrate,books,anthology,verify", required: true, default: "books,anthology,verify" }
+concurrency: { group: pool-books, cancel-in-progress: false }
+permissions: { contents: read }
+jobs:
+  run:
+    if: vars.POOL_BOOKS_OFF != '1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - env: { TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN }}", STEP: "${{ inputs.step || 'anthology,verify' }}" }
+        run: python3 .github/scripts/pool_books.py
