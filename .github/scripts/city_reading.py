@@ -75,8 +75,8 @@ def sources(topic):
 seen=collections.defaultdict(set)
 for i in range(0,len(idle),150):
     ids=",".join(a["id"] for a in idle[i:i+150])
-    for r in rest("aivault_pool_agent_learning?select=agent_id,url&agent_id=in.(%s)&title=like.*閱讀*&limit=20000"%ids) or []: seen[r["agent_id"]].add(r["url"])
-recent=set(r["agent_id"] for r in (rest("aivault_pool_agent_learning?select=agent_id&title=like.*閱讀*&created_at=gte.%s&limit=5000"%iso(now-6*3600)) or []))
+    for r in rest("aivault_pool_agent_learning?select=agent_id,url&agent_id=in.(%s)&model=like.none*&limit=20000"%ids) or []: seen[r["agent_id"]].add(r["url"])
+recent=set(r["agent_id"] for r in (rest("aivault_pool_agent_learning?select=agent_id&model=like.none*&created_at=gte.%s&limit=5000"%iso(now-6*3600)) or []))
 rows=[]; locks_out=[]; memw=0; memdup=0; MEMDONE=set()
 for a in idle:
     d=district(a["domain"]); pool=(CUR.get(d) or [])+[(("即時語音："+v[0]),v[1],v[2]) for v in VOICE[:4]]
