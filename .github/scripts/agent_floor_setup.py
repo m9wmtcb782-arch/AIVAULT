@@ -38,6 +38,12 @@ if "backupvis" in STEPS:  # vis1 發布前的新備份
     bk="agent-floor-bak-20261018-vis1"
     sql("insert into public.aivault_private_pages(slug,html,updated_at) select '%s',html,now() from public.aivault_private_pages where slug='agent-floor' on conflict (slug) do update set html=excluded.html,updated_at=now()"%bk)
     print("backupvis", sql("select slug,length(html) len,md5(html) md5,updated_at from public.aivault_private_pages where slug in ('agent-floor','%s')"%bk))
+if "backupflag" in STEPS:  # fg1 發布前備份（新 slug，不覆蓋 20261018 舊備份）
+    bk="agent-floor-bak-20261018-flag1"; assert not sql("select 1 from public.aivault_private_pages where slug='%s'"%bk), "backup exists"
+    sql("insert into public.aivault_private_pages(slug,html,updated_at) select '%s',html,now() from public.aivault_private_pages where slug='agent-floor'"%bk)
+    print("backupflag", sql("select slug,length(html) len,md5(html) md5 from public.aivault_private_pages where slug in ('agent-floor','%s')"%bk))
+if "restoreflag" in STEPS:  # fg1 回滾：寫回 fg1 發布前備份
+    sql("update public.aivault_private_pages t set html=b.html,updated_at=now() from public.aivault_private_pages b where t.slug='agent-floor' and b.slug='agent-floor-bak-20261018-flag1'"); print("restored from agent-floor-bak-20261018-flag1")
 if "restorevis" in STEPS:  # vis1 回滾：寫回 vis1 前的備份
     sql("update public.aivault_private_pages t set html=b.html,updated_at=now() from public.aivault_private_pages b where t.slug='agent-floor' and b.slug='agent-floor-bak-20261018-vis1'"); print("restored from agent-floor-bak-20261018-vis1")
 if "restore" in STEPS:  # 回滾：把備份列寫回 agent-floor
@@ -72,6 +78,9 @@ if "publish" in STEPS:
     if os.path.exists(".github/scripts/town_visuals.js") and os.environ.get("TOWN_VISUALS_OFF")!="1":  # vis1：Kenney CC0 畫面升級 B1（預設關閉；?vis=1 或 localStorage.townVisOn=1 開啟；?vis=0 關閉）
         js=open(".github/scripts/town_visuals.js").read(); end="\n})();\n</script></body></html>"; assert html.count(end)==1 and "vis1：" not in html
         html=html.replace(end,"\n"+js+end); print("vis1 visuals layer applied")
+    if os.path.exists(".github/scripts/town_flag.js") and os.environ.get("TOWN_FLAG_OFF")!="1":  # fg1：軍營紅底暗星旗（關閉：?flag=0 或 localStorage.townFlagOff=1）
+        js=open(".github/scripts/town_flag.js").read(); end="\n})();\n</script></body></html>"; assert html.count(end)==1 and "fg1：" not in html
+        html=html.replace(end,"\n"+js+end); print("fg1 flag layer applied")
     tag="$aivpp$"; assert tag not in html
     sql("insert into public.aivault_private_pages(slug,html,updated_at) values ('agent-floor',%s%s%s,now()) on conflict (slug) do update set html=excluded.html, updated_at=now()"%(tag,html,tag)); print("published agent-floor",len(html))
     link='<a class="btn primary" href="aivault-agent-collaboration.html?page=agent-floor" style="display:inline-block;text-decoration:none;margin-left:6px">🏢 1000 人工作區</a>'
