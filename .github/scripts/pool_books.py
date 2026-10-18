@@ -18,7 +18,7 @@ def rest(path,body=None,method=None,prefer="return=representation"):
     return json.loads(t) if t else None
 TO={"基礎":1,"入門":2,"專業":3}
 if "migrate" in STEPS:
-    sql(open("supabase/migrations/20261018180000_aivault_pool_books.sql").read()); print("migrated pool_books")
+    sql(open("supabase/migrations/20261018180000_aivault_pool_books.sql").read()); sql(open("supabase/migrations/20261018181000_aivault_pool_book_readers.sql").read()); sql("notify pgrst, 'reload schema'"); time.sleep(6); print("migrated pool_books")
 off=rest("aivault_floor_state?k=eq.poolbooks:off&select=v")
 if off and (off[0]["v"] or {}).get("off")=="1": print("poolbooks off"); raise SystemExit
 SECRET=re.compile(r"(sk-[A-Za-z0-9]{16,}|gsk_[A-Za-z0-9]{16,}|ghp_[A-Za-z0-9]{20,}|github_pat_\w{20,}|AIza[0-9A-Za-z\-_]{30,}|eyJ[A-Za-z0-9_\-]{20,}\.[A-Za-z0-9_\-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY|[0-9a-f]{40,}|[\w.+-]+@[\w-]+\.[\w.]+)")
