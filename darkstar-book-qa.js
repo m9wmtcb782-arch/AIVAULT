@@ -445,12 +445,20 @@
     if (!locks.ebook && !(st0.chapter || st0.part || st0.section || st0.page)) bookAsk = false;
     if (!bookAsk) {
       try {
-        var wr = await fetch("https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/dark-star-ebook-ingest?feature=web-search", { method: "POST", headers: { "Content-Type": "application/json", apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE", Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE" }, body: JSON.stringify({ q: q, n: 5 }) });
-        var wj = await wr.json();
-        var rows = (wj && wj.results) || [];
         var srcs = (locks.order || []).filter(function (id) { return id !== "ebook" && locks[id]; });
-        var srcLabel = srcs.length ? srcs.map(function (id, i) { return (i + 1) + "." + ({baidu:"百度",google:"Google",yahoo:"Yahoo",youtube:"YouTube"})[id]; }).join(" ") : "網路";
-        if (rows.length) L.sendRawText("【網路資料｜鎖定 " + srcLabel + "】使用者問：「" + q + "」\n" + rows.map(function (x, i) { return (i + 1) + ". " + x.title + "（" + x.url + "）" + (x.snippet ? "：" + x.snippet : ""); }).join("\n") + "\n請依鎖定來源優先順序回答並說來源。沒打勾電子書就不要用書架。");
+        if (!srcs.length) srcs = ["google"];
+        var site = { baidu: "site:baidu.com ", google: "", yahoo: "site:yahoo.com ", youtube: "site:youtube.com " };
+        var name = { baidu: "百度", google: "Google", yahoo: "Yahoo", youtube: "YouTube" };
+        var blocks = [];
+        for (var si = 0; si < srcs.length; si++) {
+          var id = srcs[si];
+          var wr = await fetch("https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/dark-star-ebook-ingest?feature=web-search", { method: "POST", headers: { "Content-Type": "application/json", apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE", Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE" }, body: JSON.stringify({ q: (site[id] || "") + q, n: 4 }) });
+          var wj = await wr.json();
+          var rows = (wj && wj.results) || [];
+          if (rows.length) blocks.push((si + 1) + ". " + name[id] + "\n" + rows.slice(0, 3).map(function (x, i) { return "  " + (i + 1) + ") " + x.title + "（" + x.url + "）" + (x.snippet ? "：" + x.snippet : ""); }).join("\n"));
+        }
+        var srcLabel = srcs.map(function (id, i) { return (i + 1) + "." + name[id]; }).join(" ");
+        if (blocks.length) L.sendRawText("【網路資料｜優先 " + srcLabel + "】使用者問：「" + q + "」\n" + blocks.join("\n") + "\n請嚴格依 1、2、3 優先順序採用資料並說來源。沒打勾電子書就不要用書架。");
       } catch (e) { console.warn("[BookQA] web", e); }
       return;
     }
