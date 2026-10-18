@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>VERBATIM Browser Player Test</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body{font-family:system-ui,sans-serif;margin:16px;background:#111;color:#eee}button{margin:4px;padding:8px 14px}#log{white-space:pre-wrap;background:#1a1a1a;padding:12px;border-radius:8px;min-height:200px}</style>
+</head>
+<body>
+<h2>VERBATIM 瀏覽器播放測試</h2>
+<p>獨立測試頁。使用已生成的非付費 MP3。僅在收到真實 ended 事件後才推進下一段。</p>
+<div>
+<button id="btnStart">開始播放（需使用者手勢）</button>
+<button id="btnPause">暫停</button>
+<button id="btnResume">繼續</button>
+<button id="btnStop">停止</button>
+</div>
+<p id="status">待命</p>
+<div id="log"></div>
+<script>
+const SEGMENTS = [
+  { id: 0, src: "verbatim-seg-0.mp3", label: "第 0 段" },
+  { id: 1, src: "verbatim-seg-1.mp3", label: "第 1 段" }
+];
+let current = -1, audio = null, userGestureDone = false;
+function log(msg){const el=document.getElementById("log");el.textContent+=new Date().toISOString().slice(11,19)+" "+msg+"\n";el.scrollTop=el.scrollHeight;}
+function setStatus(s){document.getElementById("status").textContent=s;}
+function attachEvents(a,seg){
+  a.addEventListener("loadedmetadata",()=>log(seg.label+" loadedmetadata"),{once:true});
+  a.addEventListener("canplay",()=>log(seg.label+" canplay"),{once:true});
+  a.addEventListener("playing",()=>log(seg.label+" playing"));
+  a.addEventListener("pause",()=>log(seg.label+" pause"));
+  a.addEventListener("waiting",()=>log(seg.label+" waiting"));
+  a.addEventListener("stalled",()=>log(seg.label+" stalled"));
+  a.addEventListener("error",()=>{log(seg.label+" ERROR: "+(a.error?a.error.message:"unknown"));setStatus("播放失敗，未跳過原文");});
+  a.addEventListener("ended",()=>{
+    log(seg.label+" ended (chunk_id="+seg.id+")");
+    if(seg.id!==current){log("WARNING: ended chunk mismatch, not advancing");return;}
+    if(current===SEGMENTS.length-1){setStatus("PLAYBACK_COMPLETED");log("最後一段 ended，回報 PLAYBACK_COMPLETED");}
+    else playNext();
+  });
+}
+function playSegment(idx){
+  if(idx<0||idx>=SEGMENTS.length)return;
+  current=idx;const seg=SEGMENTS[idx];
+  if(audio){audio.pause();audio.src="";}
+  audio=new Audio(seg.src);attachEvents(audio,seg);
+  setStatus("播放中："+seg.label);
+  const p=audio.play();if(p&&p.catch)p.catch(err=>{log("play() rejected: "+err.message);setStatus("需要使用者手勢啟動");});
+}
+function playNext(){if(current<SEGMENTS.length-1)playSegment(current+1);}
+document.getElementById("btnStart").onclick=function(){userGestureDone=true;log("使用者手勢啟動");playSegment(0);};
+document.getElementById("btnPause").onclick=function(){if(audio)audio.pause();};
+document.getElementById("btnResume").onclick=function(){if(audio&&userGestureDone)audio.play().catch(e=>log("resume rejected: "+e.message));};
+document.getElementById("btnStop").onclick=function(){if(audio){audio.pause();audio.src="";}current=-1;setStatus("已停止");log("stopped");};
+</script>
+</body>
+</html>
