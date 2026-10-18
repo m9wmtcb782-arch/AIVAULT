@@ -27,7 +27,7 @@ button:disabled{opacity:.5}
 <button id="btnCopy" type="button">複製診斷紀錄</button>
 <script type="module">
 import { pipeline, TextStreamer } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1';
-const TEST_BUILD = 'qwen3-loader-20261018-c';
+const TEST_BUILD = 'qwen3-loader-20261018-d';
 const $ = id => document.getElementById(id);
 document.title += ' [' + TEST_BUILD + ']';
 const log = m => { $('log').textContent += m + '\n'; $('log').scrollTop = $('log').scrollHeight; };
@@ -64,9 +64,7 @@ $('btnLoad').onclick = async () => {
   $('btnGen').disabled = true;
   $('status').textContent = '狀態：載入中…';
   startLoad = performance.now();
-  const hasGPU = await window.addEventListener('error', e => log('頁面錯誤：' + e.message));
-window.addEventListener('unhandledrejection', e => log('未處理錯誤：' + (e.reason?.stack || describeError(e.reason))));
-detectDevice();
+  const hasGPU = await detectDevice();
   const attempts = hasGPU ? [{ device: 'webgpu', dtype: 'q4f16' }] : [];
   if (!hasGPU) log('未取得 GPUAdapter：不下載 WASM 備援模型。');
   let loaded = false;
