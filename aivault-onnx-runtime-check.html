@@ -1,0 +1,25 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AIVAULT ONNX 執行引擎診斷</title><style>body{background:#0b1324;color:#f1f5ff;font:16px system-ui,-apple-system,sans-serif;margin:0 auto;max-width:720px;padding:18px;line-height:1.55}button{background:#3c7deb;color:white;border:0;border-radius:10px;padding:14px;margin:5px;font-size:16px}pre{background:#172239;padding:14px;white-space:pre-wrap;overflow-wrap:anywhere;border-radius:10px}small{color:#c6d4e9}</style></head><body><h2>AIVAULT ONNX 引擎測試</h2><p>測試版本：ort-wasm-20261018-a</p><p>使用內嵌約 75 位元組的 Identity ONNX 模型，測試 Safari 能否建立 ONNX Runtime WebAssembly 推論工作階段。<b>不下載任何語言模型權重</b>；按下開始後仍需下載 ONNX Runtime 的 JavaScript 與 WASM 執行檔（可能數 MB）。不呼叫付費 API。</p><button id="run">同意載入 ONNX 引擎並測試</button><button id="copy">複製診斷</button><p id="status">尚未測試</p><pre id="log">等待執行</pre><script>
+const $=id=>document.getElementById(id);let lines=[];const log=s=>{$('log').textContent=(lines.push(new Date().toLocaleTimeString()+' '+s),lines.join('\n'))};const describe=e=>{try{return 'type='+typeof e+'; value='+String(e)+'; stack='+String(e?.stack)}catch{return '無法解析異常'}};
+window.addEventListener('error',e=>log('頁面錯誤 '+e.message));window.addEventListener('unhandledrejection',e=>log('Promise 錯誤 '+describe(e.reason)));
+$('copy').onclick=async()=>{try{await navigator.clipboard.writeText(['ort-wasm-20261018-a',$('status').textContent,...lines].join('\n'));log('已複製')}catch(e){log('複製失敗 '+describe(e))}};
+$('run').onclick=async()=>{if(!confirm('只下載 ONNX Runtime 引擎檔，不下載 Qwen3 或其他語言模型。是否繼續？'))return;$('run').disabled=true;lines=[];log('開始：'+navigator.userAgent);$('status').textContent='載入 ONNX Runtime WASM…';let session=null;
+try{
+const src='https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.min.js';
+await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.onload=resolve;s.onerror=()=>reject(Error('無法載入 ONNX Runtime JS'));document.head.appendChild(s)});
+if(!window.ort)throw Error('載入 JS 後找不到 ort');
+ort.env.wasm.wasmPaths='https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/';
+ort.env.wasm.numThreads=1;ort.env.wasm.proxy=false;
+log('ONNX Runtime JS 已載入；numThreads=1；backend=wasm');
+const base64='CAgSB0FJVkFVTFQ6OgoQCgF4EgF5IghJZGVudGl0eRIEdGVzdFoPCgF4EgoKCAgBEgQKAggBYg8KAXkSCgoICAESBAoCCAFCAhAN';
+const bytes=Uint8Array.from(atob(base64),c=>c.charCodeAt(0));
+log('內嵌 ONNX 模型：'+bytes.byteLength+' bytes');
+const t0=performance.now();$('status').textContent='建立 ONNX 工作階段…';
+session=await ort.InferenceSession.create(bytes,{executionProviders:['wasm'],graphOptimizationLevel:'disabled'});
+log('ONNX session 建立成功：'+Math.round(performance.now()-t0)+' ms');
+const output=await session.run({x:new ort.Tensor('float32',new Float32Array([42]),[1])});
+const v=output.y?.data?.[0];log('ONNX 推論輸出：'+v);
+if(v!==42)throw Error('結果不等於 42');
+$('status').textContent='PASS：ONNX WASM 推論成功';log('PASS：已完成真正的 ONNX session 與推論');
+}catch(e){$('status').textContent='FAIL：ONNX WASM 測試失敗';log('FAIL '+describe(e))}finally{try{await session?.release()}catch(e){log('釋放提示 '+describe(e))}$('run').disabled=false}
+};
+</script></body></html>
