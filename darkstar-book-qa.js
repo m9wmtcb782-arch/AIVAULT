@@ -91,6 +91,21 @@
     for (k in coverage) out[k] = { have: coverage[k][0], total: coverage[k][1], pct: coverage[k][1] ? Math.min(100, Math.round(100 * coverage[k][0] / coverage[k][1])) : 0 };
     return out;
   }
+  function showReadProgress(pct, label) {
+    var box = document.getElementById("aivault-darkstar-avatar");
+    if (!box) return;
+    var el = document.getElementById("dsChapterReadPct");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "dsChapterReadPct";
+      el.style.cssText = "position:absolute;left:-8px;top:50%;transform:translate(-100%,-50%);min-width:72px;padding:6px 8px;border-radius:10px;background:rgba(23,23,23,.92);color:#fff;font-size:12px;font-weight:700;text-align:center;z-index:90;box-shadow:0 4px 14px rgba(0,0,0,.18)";
+      box.style.position = box.style.position || "fixed";
+      box.appendChild(el);
+    }
+    el.textContent = (label || "閱讀") + "\n" + Math.max(0, Math.min(100, pct)) + "%";
+    el.style.whiteSpace = "pre";
+    if (pct >= 100) el.style.background = "#15803d";
+  }
   async function fetchPages(id, need, into, total) {
     // need: 缺頁頁碼陣列 → 以 context(radius 10) 視窗補抓，4 路並行，每窗最多重試 3 次
     var starts = [], i = 0;
@@ -103,6 +118,7 @@
         for (var t = 0; t < 3 && !(r && r.pages && r.pages.length); t++) r = await ingest({ action: "context", ebook_id: id, page_number: sp, radius: 10 });
         ((r && r.pages) || []).forEach(function (x) { var n = Number(x.page_number || 0); if (n && x.content != null) into[n] = String(x.content || ""); });
         if (total) setCoverage(id, Object.keys(into).length, total);
+        if (fetchPages._onPct) fetchPages._onPct(Object.keys(into).length, need.length);
       }
     }));
   }
@@ -135,9 +151,17 @@
   async function ensurePages(list, bid, from, to, title) {
     var have = {}; list.forEach(function (c) { if (c.bid === bid && c.page >= from && c.page <= to) have[c.page] = 1; });
     var need = []; for (var p = from; p <= to; p++) if (!have[p]) need.push(p);
-    if (!need.length) return;
+    var span = Math.max(1, to - from + 1), already = span - need.length;
+    showReadProgress(Math.round(100 * already / span), "讀章節");
+    if (!need.length) { showReadProgress(100, "讀完"); return; }
     var tot = (coverage[bid] && coverage[bid][1]) || 0;
-    var got = {}; await fetchPages(bid, need, got, tot);
+    var got = {};
+    fetchPages._onPct = function () {
+      var now = already + Object.keys(got).length;
+      showReadProgress(Math.min(100, Math.round(100 * now / span)), "讀章節");
+    };
+    await fetchPages(bid, need, got, tot);
+    showReadProgress(100, "讀完");
     Object.keys(got).forEach(function (n) { addChunks(list, title, +n, got[n], PRIORITY[bid], bid); });
     if (coverage[bid]) setCoverage(bid, Math.min(coverage[bid][1], coverage[bid][0] + Object.keys(got).length), coverage[bid][1]);
   }
@@ -352,10 +376,16 @@
     var L = w.AIVAULTDarkStarLive;
     if (!isQuestion(q) || !L || !L.isConnected || !L.isConnected() || !L.sendRawText) return;
     var list = await build(), shelf = SHELF_Q.test(q), sv = null;
+    var st0 = parseStruct(q);
+    if (st0.chapter || st0.part || st0.section) {
+      showReadProgress(0, "讀章節");
+      try { L.sendRawText("【系統】使用者指定了章節，正在讀取書架原文。請先不要回答，等資料讀到 100% 再回答，不要說看不到書。"); } catch (e) {}
+    }
     try { sv = await structural(q, list); } catch (e) { console.warn("[BookQA] structural", e); }
     var hits = sv ? sv.sources : search(q, list);
     if (!sv && hits[0] && hits[0].bid) lastBid = hits[0].bid;
-    var msg = sv ? "【書架資料】使用者剛才的題目：「" + q + "」\n" + sv.text + "\n請根據以上書架資料回答，說出書名與頁碼。若你剛才已開始回答，請以書架資料修正或補充剛才的回答。" + EXCERPT_NOTE
+    if (sv && sv.st && (sv.st.chapter || sv.st.part || sv.st.section)) showReadProgress(100, "讀完");
+    var msg = sv ? "【書架資料】使用者剛才的題目：「" + q + "」\n" + sv.text + "\n章節資料已讀到 100%。請現在根據以上書架資料回答，說出書名與頁碼。不要說看不到書或沒有內容。若你剛才已開始回答，請以書架資料修正或補充。" + EXCERPT_NOTE
       : hits.length ? compose(q, hits) : shelf ? "【書架資料】使用者在問書架本身：「" + q + "」。" : "【書架資料】使用者題目：「" + q + "」這次的關鍵詞沒有比對到合適段落（書架上的書仍是完整的）。請請使用者換個說法、說出章節或關鍵詞，不要說書裡沒有這些內容。";
     if (shelf) msg += "\n書架書目：" + bookTitles(list).join("、") + "。請回答你看得到這些書，並邀請使用者出題。";
     msg = withLinHint(withZhangHint(withJiangHint(msg, hits, sv && sv.bid), hits, sv && sv.bid), hits, sv && sv.bid);
