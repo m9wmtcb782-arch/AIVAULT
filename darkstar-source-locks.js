@@ -36,7 +36,7 @@
     if (!btn || !host) return false;
     var box = d.createElement("div");
     box.id = "dsSourceLocks";
-    box.style.cssText = "display:none;margin:6px 8px 8px;padding:10px;border:1px solid #eee;border-radius:12px;background:#fafafa";
+    box.style.cssText = "display:none;margin:6px 8px 8px;padding:10px;border:1px solid #eee;border-radius:12px;background:#fafafa;max-height:42vh;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y";
     box.innerHTML = '<div style="font-size:12px;color:#777;margin-bottom:6px">打勾＝鎖定。先打勾為 1。</div>' +
       ITEMS.map(function (it) {
         return '<label data-src="' + it.id + '" style="display:flex;align-items:center;gap:8px;padding:7px 2px;font-size:15px">' +
@@ -44,15 +44,13 @@
           '<span class="src-pri" style="margin-left:auto;min-width:18px;text-align:right;font-weight:700"></span></label>';
       }).join("");
     btn.insertAdjacentElement("afterend", box);
+    box.addEventListener("touchmove", function (e) { e.stopPropagation(); }, { passive: true });
     btn.addEventListener("click", function (e) {
       e.preventDefault();
       e.stopPropagation();
       var open = box.style.display !== "block";
       box.style.display = open ? "block" : "none";
-      if (open) {
-        host.scrollTop = host.scrollHeight;
-        box.scrollIntoView({ block: "nearest" });
-      }
+      if (open) setTimeout(function () { box.scrollTop = 0; }, 30);
     });
     var st = load(); paint(box, st);
     box.addEventListener("change", function (e) {
