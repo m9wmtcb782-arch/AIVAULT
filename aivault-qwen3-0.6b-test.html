@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AIVAULT Qwen3-0.6B 獨立推論測試頁</title>
+<style>
+body{font-family:-apple-system,system-ui,sans-serif;background:#0b0f1a;color:#e8ecf5;margin:0;padding:16px;max-width:720px}
+button{font-size:16px;padding:12px 18px;border-radius:10px;border:0;background:#3b82f6;color:#fff;margin:4px}
+button:disabled{opacity:.5}
+#log,#out{white-space:pre-wrap;background:#111827;padding:12px;border-radius:8px;margin:8px 0;font-size:13px;max-height:300px;overflow:auto}
+.warn{color:#fbbf24}
+</style>
+</head>
+<body>
+<h1>AIVAULT 自主模型測試：Qwen3-0.6B</h1>
+<p>此頁獨立，不改動暗星／曙光正式頁面。模型來自 Hugging Face <code>onnx-community/Qwen3-0.6B-ONNX</code>（Apache-2.0）。</p>
+<p class="warn">首次載入需下載約 300–500 MB 量化權重（瀏覽器快取後不再重下）。請確認網路與裝置記憶體。將先檢查 GPUAdapter；WebGPU 載入失敗時會嘗試 WASM 的 q4 或 q8 模型。備援可能仍因記憶體、網路或模型格式而失敗。</p>
+<button id="btnLoad">同意並載入模型</button>
+<button id="btnGen" disabled>生成中文回答</button>
+<button id="btnUnload" disabled>卸載模型</button>
+<div id="status">狀態：尚未載入</div>
+<div id="device">裝置：檢測中…</div>
+<div id="metrics">延遲 / tokens/s：—</div>
+<div id="out"></div>
+<div id="log"></div>
+<button id="btnCopy" type="button">複製診斷紀錄</button>
+<script type="module">
+import { pipeline, TextStreamer } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0/dist/transformers.min.js';
+const $ = id => document.getElementById(id);
+const log = m => { $('log').textContent += m + '\n'; $('log').scrollTop = $('log').scrollHeight; };
+let generator = null;
+let startLoad = 0;
+let activeBackend = '—';
+const modelId = 'onnx-community/Qwen3-0.6B-ONNX';
+const describeError = e => e?.message || String(e);
+const disposeGenerator = async () => {
+  const old = generator;
+  generator = null;
+  if (old && typeof old.dispose === 'function') {
+    try { await old.dispose(); } catch(e) { log('釋放資源提示：' + describeError(e)); }
+  }
+};
+async function detectDevice() {
+  const hasWebGPU = !!navigator.gpu;
+  let info = 'navigator.gpu=' + hasWebGPU;
+  if (hasWebGPU) {
+    try {
+      const adapter = await navigator.gpu.requestAdapter();
+      info += adapter ? ' (adapter ok)' : ' (no adapter)';
+    } catch(e) { info += ' (error: ' + e.message + ')'; }
+  }
+  $('device').textContent = '裝置：' + info + ' | UA: ' + navigator.userAgent.slice(0,80);
+  return !!(hasWebGPU && info.includes("adapter ok"));
+}
+$('btnLoad').onclick = async () => {
+  if (!confirm('將從 Hugging Face 下載 Qwen3-0.6B 模型（可能數百 MB）。確定繼續？')) return;
+  $('btnLoad').disabled = true;
+  $('btnGen').disabled = true;
+  $('status').textContent = '狀態：載入中…';
+  startLoad = performance.now();
+  const hasGPU = await detectDevice();
+  const attempts = [
+    ...(hasGPU ? [{ device: 'webgpu', dtype: 'q4f16' }] : []),
+    { device: 'wasm', dtype: 'q4' },
+    { device: 'wasm', dtype: 'q8' },
+  ];
+  let loaded = false;
+  for (const attempt of attempts) {
+    $('status').textContent = `狀態：嘗試 ${attempt.device} / ${attempt.dtype}…`;
+    log(`載入 ${modelId}：${attempt.device} / ${attempt.dtype}`);
+    try {
+      generator = await pipeline('text-generation', modelId, {
+        device: attempt.device,
+        dtype: attempt.dtype,
+        progress_callback: p => {
+          if (p.status === 'progress' && Number.isFinite(p.progress)) {
+            $('status').textContent = `狀態：${attempt.device} / ${attempt.dtype} 下載 ${p.progress.toFixed(0)}%`;
+          }
+        },
+      });
+      activeBackend = `${attempt.device} / ${attempt.dtype}`;
+      loaded = true;
+      break;
+    } catch(e) {
+      log(`${attempt.device} / ${attempt.dtype} 失敗：${describeError(e)}`);
+      await disposeGenerator();
+    }
+  }
+  if (loaded) {
+    const ms = (performance.now() - startLoad).toFixed(0);
+    $('status').textContent = `狀態：模型已載入（${activeBackend}，${ms} ms）`;
+    $('btnGen').disabled = false;
+    $('btnUnload').disabled = false;
+    log('模型載入成功；請按「生成中文回答」驗證實際推論。');
+  } else {
+    $('status').textContent = '狀態：載入失敗（所有備援均失敗，請複製下方紀錄）';
+    $('btnLoad').disabled = false;
+  }
+};
+$('btnGen').onclick = async () => {
+  if (!generator) return;
+  const prompt = '用繁體中文簡短回答：什麼是自主 AI 模型？';
+  $('out').textContent = '生成中…';
+  $('btnGen').disabled = true;
+  const t0 = performance.now();
+  let streamedText = '';
+  try {
+    const messages = [
+      { role: 'system', content: '你是 AIVAULT 的測試助理，請用繁體中文回答。' },
+      { role: 'user', content: prompt }
+    ];
+    const streamer = new TextStreamer(generator.tokenizer, {
+      skip_prompt: true,
+      skip_special_tokens: true,
+      callback_function: (t) => { streamedText += t; $('out').textContent = streamedText; }
+    });
+    const output = await generator(messages, {
+      max_new_tokens: 128,
+      do_sample: false,
+      streamer
+    });
+    const ms = performance.now() - t0;
+    const outputIds = output?.[0]?.generated_token_ids;
+    const tokenCount = Array.isArray(outputIds) ? outputIds.length : null;
+    const tps = tokenCount !== null ? (tokenCount / (ms / 1000)).toFixed(2) : '無法精確計算';
+    $('metrics').textContent = `總生成時間：${ms.toFixed(0)} ms | ${tokenCount === null ? 'tokens/s：未提供可靠 token 數' : `約 ${tps} tokens/s（${tokenCount} tokens）`} | ${activeBackend}`;
+    if (tokenCount === null) log('此版本未回傳可靠的生成 token 數，不以文字串流回呼次數冒充 tokens。');
+    log('生成完成。');
+  } catch (e) {
+    $('out').textContent = '生成失敗：' + e.message;
+    log('生成錯誤：' + e.message);
+  }
+  $('btnGen').disabled = false;
+};
+$('btnUnload').onclick = async () => {
+  await disposeGenerator();
+  $('btnGen').disabled = true;
+  $('btnUnload').disabled = true;
+  $('btnLoad').disabled = false;
+  $('status').textContent = '狀態：已卸載（建議重新整理頁面以釋放記憶體）';
+  $('out').textContent = '';
+  log('模型參考已清除。');
+};
+$('btnCopy').onclick = async () => {
+  const report = [$('status').textContent, $('device').textContent, $('metrics').textContent, $('log').textContent].join('\n');
+  try { await navigator.clipboard.writeText(report); log('診斷紀錄已複製。'); }
+  catch(e) { log('無法自動複製，請長按紀錄選取文字：' + describeError(e)); }
+};
+detectDevice();
+</script>
+</body>
+</html>
