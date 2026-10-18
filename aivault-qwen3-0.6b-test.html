@@ -27,9 +27,13 @@ button:disabled{opacity:.5}
 <button id="btnCopy" type="button">複製診斷紀錄</button>
 <script type="module">
 import { pipeline, TextStreamer } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1';
+const TEST_BUILD = 'qwen3-loader-20261018-b';
 const $ = id => document.getElementById(id);
+document.title += ' [' + TEST_BUILD + ']';
 const log = m => { $('log').textContent += m + '\n'; $('log').scrollTop = $('log').scrollHeight; };
 let generator = null;
+$('status').textContent = '狀態：尚未載入 | 版本：' + TEST_BUILD;
+$('log').textContent = '測試頁版本：' + TEST_BUILD + '\nTransformers.js：3.8.1\n';
 let startLoad = 0;
 let activeBackend = '—';
 const modelId = 'onnx-community/Qwen3-0.6B-ONNX';
@@ -54,6 +58,7 @@ async function detectDevice() {
   return !!(hasWebGPU && info.includes("adapter ok"));
 }
 $('btnLoad').onclick = async () => {
+  log('本次執行版本：' + TEST_BUILD);
   if (!confirm('將從 Hugging Face 下載 Qwen3-0.6B 模型（可能數百 MB）。確定繼續？')) return;
   $('btnLoad').disabled = true;
   $('btnGen').disabled = true;
