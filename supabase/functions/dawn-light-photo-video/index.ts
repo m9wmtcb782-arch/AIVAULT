@@ -1,3 +1,4 @@
+import { paidAllowed, PAID_DENIED } from "../_shared/paid_gate.ts";
 const CORS: Record<string, string> = {
   "Access-Control-Allow-Origin": "https://m9wmtcb782-arch.github.io",
   "Access-Control-Allow-Headers": "authorization, apikey, content-type",
@@ -35,6 +36,7 @@ function videoUrl(data: Record<string, unknown> | null) {
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "method" }, 405);
+  if (!paidAllowed("magic_hour_video")) return json({ agent_id: "dawn-light", status: "FAILED", error: PAID_DENIED }, 403);
   const key = (Deno.env.get("MAGIC_HOUR_API_KEY") || "").trim();
   if (!key) return json({ agent_id: "dawn-light", status: "FAILED", error: "missing_MAGIC_HOUR_API_KEY" }, 500);
   const auth = { Accept: "application/json", Authorization: "Bearer " + key, "Content-Type": "application/json" };

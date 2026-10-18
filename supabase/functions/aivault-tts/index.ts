@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { ttsGemini, geminiConfigured, GeminiQuotaError } from "./gemini.ts";
+import { paidAllowed } from "../_shared/paid_gate.ts";
 
 /**
  * AIVAULT TTS v1.0
@@ -41,13 +42,18 @@ function providerPool() {
   return pool;
 }
 
+// pg1：付費 TTS（google/openai/elevenlabs）只在明確指定且 PAID_API_ALLOW 含 tts_<code> 時使用；
+// auto 永不自動選付費供應商（有金鑰不算授權），維持原本不自動選 gemini → 瀏覽器朗讀。
+const PAID_TTS = new Set(["google", "openai", "elevenlabs"]);
 function pickProvider(requested?: string | null) {
   const pool = providerPool();
+  const browser = pool.find((p) => p.code === "browser")!;
   if (requested && requested !== "auto") {
     const hit = pool.find((p) => p.code === requested);
+    if (hit && PAID_TTS.has(hit.code) && !paidAllowed("tts_" + hit.code)) return browser;
     if (hit) return hit;
   }
-  return pool.find((p) => p.code !== "browser" && p.code !== "gemini" && p.ready) || pool.find((p) => p.code === "browser")!;
+  return pool.find((p) => p.code !== "browser" && p.code !== "gemini" && !PAID_TTS.has(p.code) && p.ready) || browser;
 }
 
 async function ttsGoogle(text: string, language?: string, voice?: string) {

@@ -65,10 +65,9 @@ export async function llm(system: string, user: string, opts: { maxTokens?: numb
       try { const v = JSON.parse(mm[0]); v.__model = m; return v; } catch { last += " " + m + ":badjson(" + (j.candidates?.[0]?.finishReason || "") + "," + t.length + ")"; continue; }
     } catch (e) { last += " " + m + ":" + String((e as any)?.message || e).slice(0, 60); }
   }
-  // OpenAI 相容供應商（Grok 較強優先，Groq 次之；多金鑰）
+  // pg1：只用免費 Groq（多金鑰）。付費 Grok 自動備援已移除（paid-api-gate-plan A1）。
   const envs = (base: string) => [base, ...Array.from({ length: 9 }, (_, i) => base + "_" + (i + 1))].map((n) => Deno.env.get(n) || "").filter((v, i, a) => v && a.indexOf(v) === i);
   const provs = [
-    ...[...envs("XAI_API_KEY"), ...envs("GROK_API_KEY")].map((k) => ({ n: "grok", url: "https://api.x.ai/v1/chat/completions", k, model: Deno.env.get("YINXU_GROK_MODEL") || "grok-4" })),
     ...envs("GROQ_API_KEY").map((k) => ({ n: "groq", url: "https://api.groq.com/openai/v1/chat/completions", k, model: "openai/gpt-oss-120b" })),
   ];
   for (const p of provs) {
@@ -82,7 +81,7 @@ export async function llm(system: string, user: string, opts: { maxTokens?: numb
     } catch (e) { last += ` ${p.n}:` + String((e as any)?.message || e).slice(0, 50); }
   }
   try { // 最後退回 ai-gateway（多金鑰／多供應商）
-    const r = await fetch(URL0 + "/functions/v1/ai-gateway", { method: "POST", headers: { ...SRH, "Content-Type": "application/json" }, signal: AbortSignal.timeout(110000), body: JSON.stringify({ provider: "gemini", messages: [{ role: "system", content: system }, { role: "user", content: user }] }) });
+    const r = await fetch(URL0 + "/functions/v1/ai-gateway", { method: "POST", headers: { ...SRH, "Content-Type": "application/json" }, signal: AbortSignal.timeout(110000), body: JSON.stringify({ provider: "gemini", allowed_providers: ["gemini", "groq"], messages: [{ role: "system", content: system }, { role: "user", content: user }] }) });
     const d = await r.json(); const t = String(d.content || d.text || ""); const mm = t.match(/\{[\s\S]*\}/);
     if (mm) { const v = JSON.parse(mm[0]); v.__model = "gateway:" + (d.model || "?"); return v; } last += " | gateway:nojson";
   } catch (e) { last += " | gateway:" + String((e as any)?.message || e).slice(0, 60); }

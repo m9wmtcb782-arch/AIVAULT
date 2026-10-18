@@ -1,3 +1,4 @@
+import { paidAllowed, PAID_DENIED } from "../_shared/paid_gate.ts";
 const CORS: Record<string, string> = {
   "Access-Control-Allow-Origin": "https://m9wmtcb782-arch.github.io",
   "Access-Control-Allow-Headers": "authorization, apikey, content-type",
@@ -15,6 +16,12 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  if (!paidAllowed("fish_tts")) {
+    return new Response(JSON.stringify({ error: PAID_DENIED }), {
+      status: 403,
+      headers: { ...CORS, "Content-Type": "application/json" },
+    });
+  }
   const key = Deno.env.get("FISH_API_KEY") || "";
   if (!key) {
     return new Response(JSON.stringify({ error: "missing_secret" }), {

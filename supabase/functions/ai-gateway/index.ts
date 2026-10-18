@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { paidAllowed, PAID_DENIED } from "../_shared/paid_gate.ts";
 
 /**
  * AIVAULT AI GATEWAY v3.1
@@ -1140,6 +1141,8 @@ function isImageCapability(
   );
 }
 
+// pg1：自動順序只用免費 gemini/groq。付費 grok 只在呼叫端明確要求 grok/xai，
+// 且 PAID_API_ALLOW 含 gateway_grok_explicit 時才排第一；有金鑰不算授權。
 function buildProviderOrder(
   requestedProvider:
     | string
@@ -1154,42 +1157,16 @@ function buildProviderOrder(
       .toLowerCase()
       .trim();
 
-  if (
-    provider === "groq"
-  ) {
-    return [
-      "groq",
-      "gemini",
-      "grok",
-    ] as ProviderName[];
+  if (provider === "groq") {
+    return ["groq", "gemini"] as ProviderName[];
   }
 
-  if (
-    provider === "gemini"
-  ) {
-    return [
-      "gemini",
-      "groq",
-      "grok",
-    ] as ProviderName[];
+  if (provider === "grok" || provider === "xai") {
+    if (!paidAllowed("gateway_grok_explicit")) return null;
+    return ["grok", "gemini", "groq"] as ProviderName[];
   }
 
-  if (
-    provider === "grok" ||
-    provider === "xai"
-  ) {
-    return [
-      "grok",
-      "gemini",
-      "groq",
-    ] as ProviderName[];
-  }
-
-  return [
-    "gemini",
-    "groq",
-    "grok",
-  ] as ProviderName[];
+  return ["gemini", "groq"] as ProviderName[];
 }
 
 /* =========================================================
@@ -4168,6 +4145,9 @@ async function executeMagicHour(
     typeof discoverProviderPool
   >,
 ) {
+  if (!paidAllowed("magic_hour_video")) {
+    return json({ success: false, error: PAID_DENIED, message: "Magic Hour requires PAID_API_ALLOW=magic_hour_video.", provider: "magic_hour", gateway_version: VERSION }, 403);
+  }
   const candidates =
     getCandidateKeys(
       "magic_hour",
@@ -4554,6 +4534,10 @@ async function executeLLMGateway(
           normalized.requestedProvider,
         );
 
+  if (providerOrder === null) {
+    return json({ success: false, error: PAID_DENIED, message: "Paid provider grok requires PAID_API_ALLOW=gateway_grok_explicit.", gateway_version: VERSION }, 403);
+  }
+
 
   // Optional request-specific provider allowlist; defaults preserve existing routing.
   if (isRecord(body) && Array.isArray(body.allowed_providers)) {
@@ -4592,6 +4576,12 @@ async function executeLLMGateway(
     const provider
     of providerOrder
   ) {
+    // pg1 second check: paid grok never runs without explicit authorization.
+    if (provider === "grok" && !paidAllowed("gateway_grok_explicit")) {
+      attemptedProviders.push(`${provider}:${PAID_DENIED}`);
+      continue;
+    }
+
     const candidates =
       getCandidateKeys(
         provider,

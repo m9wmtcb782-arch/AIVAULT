@@ -10,12 +10,12 @@ export const SPECIALS: Record<string, any> = {
   "darkstar": { id: "darkstar", name: "暗星", domain: "llm", gw: "technical-dark-star", persona: "" },
   "dawn-light": { id: "dawn-light", name: "曙光", domain: "image design", gw: "dawn-light", persona: "" },
 };
-const PAID = /openai|anthropic|claude|gpt-4|gpt-5|o\d-|kling|fal|elevenlabs|runway|replicate|pro\b/i;
+const PAID = /grok|xai|openai|anthropic|claude|gpt-4|gpt-5|o\d-|kling|fal|elevenlabs|runway|replicate|pro\b/i;
 function gwThink(sp: any, log: string[]) {
   return async (system0: string, user: string, _max = 2500) => {
     const os = await ordersFor(system0 + sp.name).catch(() => []); const system = system0 + orderBlock(os); // so1
     const r = await fetch(URL0 + "/functions/v1/ai-gateway", { method: "POST", headers: SRH, signal: AbortSignal.timeout(110000),
-      body: JSON.stringify({ agent_id: sp.gw, engine: sp.gw, stream: false, messages: [{ role: "user", content: system + "\n\n" + user + "\n\n（請只回 JSON，不要其他文字）" }] }) });
+      body: JSON.stringify({ agent_id: sp.gw, engine: sp.gw, allowed_providers: ["gemini", "groq"], stream: false, messages: [{ role: "user", content: system + "\n\n" + user + "\n\n（請只回 JSON，不要其他文字）" }] }) });
     const j = await r.json().catch(() => ({})); const model = `${j.provider || "?"}:${j.model || "?"}`; log.push(model);
     if (!r.ok || j.success === false) throw new Error(`${sp.name} 呼叫失敗 HTTP ${r.status} ${String(j.error || "").slice(0, 120)}`);
     if (PAID.test(model)) throw new Error(`PAID_MODEL ${model}：停止，未寫入`);

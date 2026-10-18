@@ -33,7 +33,7 @@ export const DOMAINS: Dom[] = [
 const TRAITS = ["嚴謹", "大膽創新", "溫和耐心", "直率", "幽默", "極簡", "細膩", "務實", "好奇", "冷靜", "熱情", "批判思考"];
 const G1 = "青星雲嵐澄晨曜霜嶼瀾川穹晴弦朔逸霖雪岑璃翎瑤珂芸藍墨辰昕寧蘊".split(""), G2 = "安羽航明心言風月光川岳晏然禾宇真遙澈晞梧樺嵐霆蔚棠語瑾霏瑜蓁".split("");
 export function route(kind: string) {
-  const text = { kind: "text", provider: "groq", model: "openai/gpt-oss-120b", fallbacks: ["grok:grok-4", "gemini", "ai-gateway"] };
+  const text = { kind: "text", provider: "groq", model: "openai/gpt-oss-120b", fallbacks: ["ai-gateway(gemini,groq)"] };
   if (kind === "text") return text;
   if (kind === "tts") return { ...text, kind: "tts", media: { provider: "gemini-tts", key_env: ["GEMINI_API_KEY"], also: ["ELEVENLABS_API_KEY", "OPENAI_API_KEY"] } };
   if (kind === "image") return { ...text, kind: "image", media: { provider: "gemini-image", key_env: ["GEMINI_API_KEY"], also: ["OPENAI_API_KEY", "STABILITY_API_KEY", "FAL_KEY"] } };
