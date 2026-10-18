@@ -6,27 +6,21 @@ const CORS: Record<string, string> = {
 };
 
 Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: CORS });
-  }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "method" }), {
-      status: 405,
-      headers: { ...CORS, "Content-Type": "application/json" },
+      status: 405, headers: { ...CORS, "Content-Type": "application/json" },
     });
   }
 
   if (!paidAllowed("fish_tts")) {
-    return new Response(JSON.stringify({ error: PAID_DENIED }), {
-      status: 403,
-      headers: { ...CORS, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ error: PAID_DENIED }), { status: 403, headers: { ...CORS, "Content-Type": "application/json" } });
   }
   const key = Deno.env.get("FISH_API_KEY") || "";
   if (!key) {
     return new Response(JSON.stringify({ error: "missing_secret" }), {
-      status: 500,
-      headers: { ...CORS, "Content-Type": "application/json" },
+      status: 500, headers: { ...CORS, "Content-Type": "application/json" },
     });
   }
 
@@ -35,18 +29,17 @@ Deno.serve(async (req: Request) => {
     body = await req.json();
   } catch {
     return new Response(JSON.stringify({ error: "bad_json" }), {
-      status: 400,
-      headers: { ...CORS, "Content-Type": "application/json" },
+      status: 400, headers: { ...CORS, "Content-Type": "application/json" },
     });
   }
 
   const text = String(body.text || "").trim();
   const reference_id = String(body.reference_id || "").trim();
   const format = String(body.format || "mp3");
+
   if (!text || !reference_id) {
     return new Response(JSON.stringify({ error: "need_text_and_reference_id" }), {
-      status: 400,
-      headers: { ...CORS, "Content-Type": "application/json" },
+      status: 400, headers: { ...CORS, "Content-Type": "application/json" },
     });
   }
 
@@ -55,18 +48,19 @@ Deno.serve(async (req: Request) => {
     headers: {
       Authorization: "Bearer " + key,
       "Content-Type": "application/json",
-      model: "s2.1-pro",
+      model: "s2.1-pro-free",
     },
     body: JSON.stringify({
       text,
       reference_id,
       format,
-      model: "s2.1-pro",
     }),
   });
 
   const buf = await fish.arrayBuffer();
-  const ctype = fish.headers.get("content-type") || (fish.ok ? "audio/mpeg" : "application/json");
+  const ctype = fish.headers.get("content-type") ||
+    (fish.ok ? "audio/mpeg" : "application/json");
+
   return new Response(buf, {
     status: fish.status,
     headers: { ...CORS, "Content-Type": ctype },
