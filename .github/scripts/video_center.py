@@ -5,6 +5,14 @@
 # 不呼叫任何付費 API。關閉：repo var VIDEO_CENTER_OFF=1。
 import json, os, sys, time, glob, subprocess, tempfile, hashlib, base64, re, urllib.request, urllib.parse
 REF="clcddygkaaqqtsbswgdf"; BASE="https://%s.supabase.co"%REF; TOKEN=os.environ["TOKEN"]; MODE=os.environ.get("MODE","ingest")
+def dl(url,dst):
+    # vc3: Wikimedia 對預設 Python UA 回 403，改送符合其政策的 UA
+    r=urllib.request.Request(url,headers={"User-Agent":"AIVAULT-video-center/1.0 (https://github.com/m9wmtcb782-arch/AIVAULT; m9wmtcb782@privaterelay.appleid.com)"})
+    with urllib.request.urlopen(r,timeout=600) as f, open(dst,"wb") as o:
+        while True:
+            b=f.read(1<<20)
+            if not b: break
+            o.write(b)
 def http(url,data=None,headers=None,method=None,timeout=300,raw=False):
     body=None if data is None else (data if raw else json.dumps(data).encode())
     r=urllib.request.Request(url,data=body,headers=dict({"Content-Type":"application/json","User-Agent":"aivault-video-center"},**(headers or {})),method=method)
@@ -46,7 +54,7 @@ if MODE=="ingest":
         txt=proc.batch_decode(ids,skip_special_tokens=False)[0]; return str(proc.post_process_generation(txt,task=task,image_size=img.size).get(task,"")).strip()
     START=float(v.get("start",0)); DUR=float(os.environ.get("DUR") or v.get("dur",120)); EVERY=float(os.environ.get("EVERY") or 5)
     with tempfile.TemporaryDirectory() as d:
-        src=os.path.join(d,"v"); urllib.request.urlretrieve(v["url"],src); sz=os.path.getsize(src)
+        src=os.path.join(d,"v"); dl(v["url"],src); sz=os.path.getsize(src)
         h=hashlib.sha256(open(src,"rb").read()).hexdigest(); print("DOWNLOADED_MB",round(sz/1e6,1),"sha256",h[:16])
         dur=float(subprocess.check_output(["ffprobe","-v","error","-show_entries","format=duration","-of","csv=p=0",src]).decode().strip() or 0)
         clip=os.path.join(d,"c.mp4"); subprocess.check_call(["ffmpeg","-loglevel","error","-y","-ss",str(START),"-t",str(DUR),"-i",src,"-c:v","libx264","-preset","veryfast","-an",clip])
@@ -102,7 +110,7 @@ if MODE=="accept":
         rest("aivault_video_learning",{"asset_id":aid,"agent_id":None,"kind":"qa_eval","payload":{"mode":mode,**res[mode],"questions_by":Q["note"]},"score":ok,"model":MID},"POST","return=minimal")
     if os.environ.get("GEMINI_SPOT")=="1":
         with tempfile.TemporaryDirectory() as d:
-            src=os.path.join(d,"v"); urllib.request.urlretrieve(v["url"],src); clip=os.path.join(d,"c.mp4")
+            src=os.path.join(d,"v"); dl(v["url"],src); clip=os.path.join(d,"c.mp4")
             subprocess.check_call(["ffmpeg","-loglevel","error","-y","-ss",str(A["clip_start_s"]),"-t",str(A["clip_dur_s"]),"-i",src,"-vf","scale=320:-2,fps=8","-c:v","libx264","-crf","34","-an",clip])
             vb=base64.b64encode(open(clip,"rb").read()).decode(); print("GEMINI_CLIP_MB",round(len(vb)*3/4/1e6,2))
         qs="\n".join("%d. %s"%(i+1,q["q"]) for i,q in enumerate(Q["questions"]))
