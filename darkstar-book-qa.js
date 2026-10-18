@@ -91,11 +91,24 @@
     for (k in coverage) out[k] = { have: coverage[k][0], total: coverage[k][1], pct: coverage[k][1] ? Math.min(100, Math.round(100 * coverage[k][0] / coverage[k][1])) : 0 };
     return out;
   }
-  var readRun = 0;
+  var readRun = 0, shownPct = 0, pctTimer = 0, pctTarget = 0;
   function restartReadProgress() {
     readRun++;
-    restartReadProgress();
+    shownPct = 0;
+    pctTarget = 1;
+    showReadProgress(1, "讀章節");
+    if (pctTimer) clearInterval(pctTimer);
+    pctTimer = setInterval(function () {
+      if (shownPct < pctTarget) {
+        shownPct = Math.min(pctTarget, shownPct + 1);
+        showReadProgress(shownPct, "讀章節");
+      }
+      if (shownPct >= 100) clearInterval(pctTimer);
+    }, 40);
     return readRun;
+  }
+  function setReadTarget(pct) {
+    pctTarget = Math.max(pctTarget, Math.max(1, Math.min(100, Math.round(pct))));
   }
   function showReadProgress(pct, label) {
     var box = document.getElementById("aivault-darkstar-avatar");
@@ -179,24 +192,17 @@
     var need = []; for (var p = from; p <= to; p++) if (!have[p]) need.push(p);
     var span = Math.max(1, to - from + 1), already = span - need.length;
     var run = readRun;
-    showReadProgress(0, "讀章節");
-    if (!need.length) {
-      var step = 0, timer = setInterval(function () {
-        if (run !== readRun) { clearInterval(timer); return; }
-        step += 20; showReadProgress(Math.min(100, step), "讀章節");
-        if (step >= 100) clearInterval(timer);
-      }, 80);
-      return;
-    }
+    setReadTarget(1);
+    if (!need.length) { setReadTarget(100); return; }
     var tot = (coverage[bid] && coverage[bid][1]) || 0;
     var got = {};
     fetchPages._onPct = function () {
       if (run !== readRun) return;
       var now = already + Object.keys(got).length;
-      showReadProgress(Math.min(100, Math.round(100 * now / span)), "讀章節");
+      setReadTarget(Math.min(100, Math.round(100 * now / span)));
     };
     await fetchPages(bid, need, got, tot);
-    showReadProgress(100, "讀完");
+    setReadTarget(100);
     Object.keys(got).forEach(function (n) { addChunks(list, title, +n, got[n], PRIORITY[bid], bid); });
     if (coverage[bid]) setCoverage(bid, Math.min(coverage[bid][1], coverage[bid][0] + Object.keys(got).length), coverage[bid][1]);
   }
@@ -437,7 +443,7 @@
     try { sv = await structural(q, list); } catch (e) { console.warn("[BookQA] structural", e); }
     var hits = sv ? sv.sources : search(q, list);
     if (!sv && hits[0] && hits[0].bid) lastBid = hits[0].bid;
-    if (sv && sv.st && (sv.st.chapter || sv.st.part || sv.st.section)) showReadProgress(100, "讀完");
+    if (sv && sv.st && (sv.st.chapter || sv.st.part || sv.st.section)) setReadTarget(100);
     var msg = sv ? "【書架資料】使用者剛才的題目：「" + q + "」\n" + sv.text + "\n章節資料已讀到 100%。請現在根據以上書架資料回答，說出書名與頁碼。不要說看不到書或沒有內容。若你剛才已開始回答，請以書架資料修正或補充。" + EXCERPT_NOTE
       : hits.length ? compose(q, hits) : shelf ? "【書架資料】使用者在問書架本身：「" + q + "」。" : "【書架資料】使用者題目：「" + q + "」這次的關鍵詞沒有比對到合適段落（書架上的書仍是完整的）。請請使用者換個說法、說出章節或關鍵詞，不要說書裡沒有這些內容。";
     if (shelf) msg += "\n書架書目：" + bookTitles(list).join("、") + "。請回答你看得到這些書，並邀請使用者出題。";
