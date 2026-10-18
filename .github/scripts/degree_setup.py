@@ -94,6 +94,10 @@ if "cronstat" in STEPS:  # 只印排程執行狀態與筆數
     print("LEARN_PER_HOUR",sql("select to_char(date_trunc('hour',created_at) at time zone 'Asia/Taipei','MM-DD HH24') h,count(*) rows,count(distinct agent_id) agents from public.aivault_pool_agent_learning where created_at>now()-interval '6 hours' group by 1 order by 1"))
     print("PLACED",sql("select count(*) from public.aivault_pool_agent_degree"),"UNPLACED",sql("select count(*) c from public.aivault_pool_agents a where not exists (select 1 from public.aivault_pool_agent_degree d where d.agent_id=a.id)"))
     print("LOCK",sql("select k,v->>'src' src,v->>'at' t0 from public.aivault_floor_state where k in ('learnround:lock','placecall:lock')"))
+if "rvorder" in STEPS:  # rv2：使用者 08:14 的即時語音研究規劃 → 長期命令 #2
+    t="依 docs/realtime-voice-plan.md 分階段研究即時語音（目前只是研究，尚未實作任何功能）：先做第 1 階段（自有國語 TTS：文字正規化、停頓／韻律規劃、開源中文 TTS），再第 2 階段（串流播放、VAD、barge-in）。實驗工廠作品要小而可測（例如國語文字正規化、停頓規劃器、純 JS 的 VAD 與插話狀態機）。標示狀態只能用 已完成／已驗證／待驗證／尚未實作，沒驗證不能說完成。只用合法開源模型與免費資源，不得使用付費 API，不得把外部商業 API 說成自研，不得修改既有暗星／曙光／電子書／算力池功能。"
+    if not sql("select id from public.aivault_standing_orders where text=%s and revoked_at is null"%lit(t)): sql("insert into public.aivault_standing_orders(text,districts,flagged) values (%s,'{}',false)"%lit(t))
+    print("RVORDER",sql("select id,districts,active from public.aivault_standing_orders where revoked_at is null order by id"))
 if "smtest" in STEPS:  # sm1 測試：真的召集暗星（只印狀態、模型、任務）
     s,b=y({"action":"summon","id":"darkstar","op":"call","via":"test"}); print("SUMMON",s,{k:b.get(k) for k in ["ok","error","task","model","until"]} if isinstance(b,dict) else str(b)[:200])
 if "rosterdump" in STEPS:  # rm1 備份：加密 artifact（公開日誌只印筆數）
