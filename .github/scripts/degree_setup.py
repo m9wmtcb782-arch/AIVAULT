@@ -279,3 +279,40 @@ if "handoffmig" in STEPS:
     print("HANDOFFTEST passed=%d/%d"%(sum(R),len(R)))
 if "memmig" in STEPS:
     sql(open("supabase/migrations/20261018120000_aivault_shared_memory.sql").read()); print("MEMMIG", sql("select * from public.aivault_mem_metrics"), sql("select status,kind,count(*) from public.aivault_kb group by 1,2"))
+if "ancnmig" in STEPS:
+    sql(open("supabase/migrations/20261018130000_aivault_ancn.sql").read()); print("ANCNMIG", sql("select neuron_state,count(*) from public.aivault_ancn_neurons group by 1"), sql("select count(*) skills from public.aivault_ancn_skills"))
+if "ancnload" in STEPS:  # an1：合成負載測試（不呼叫模型、不建立真代理）。臨時 schema，測完刪除。模擬 ≠ 真實推理。
+    for N in [1000,10000,100000]:
+        db=sql("select pg_database_size(current_database())/1048576 mb")[0]["mb"]
+        if db>330: print("LOAD skip N=%d db=%sMB (free tier guard)"%(N,db)); continue
+        E=6 if N<100000 else 4; S="ancn_load_%d"%N
+        r=sql("""do $$ begin execute 'drop schema if exists %(S)s cascade'; execute 'create schema %(S)s'; end $$;
+        create table %(S)s.nodes(id int primary key, skill text, state text default 'READY');
+        create table %(S)s.edges(source int, target int, relation text, success int default 0, fail int default 0, weight numeric default .5, primary key(source,target,relation));
+        create table %(S)s.deliv(message_id bigint, agent int, status text default 'queued', lease_until timestamptz, attempts int default 0, primary key(message_id,agent));
+        create index on %(S)s.deliv(agent,status); create index on %(S)s.edges(source,weight desc);
+        create table %(S)s.kb(id serial primary key, body text, tsv tsvector generated always as (to_tsvector('simple',body)) stored); create index on %(S)s.kb using gin(tsv);
+        select 1"""%{"S":S})
+        t=sql("""with a as (select clock_timestamp() t0),
+          n as (insert into %(S)s.nodes(id,skill) select g, (array['code','game','3d','av','music','tts','image','reason','model','gpu','collab','security'])[1+g%%12] from generate_series(1,%(N)d) g returning 1)
+          select (select count(*) from n) n, extract(epoch from clock_timestamp()-(select t0 from a))*1000 ms"""%{"S":S,"N":N})[0]
+        te=sql("""with a as (select clock_timestamp() t0), e as (insert into %(S)s.edges(source,target,relation,success,weight) select g, 1+((g*7919+k*104729)%%%(N)d), 'help', k, round(random()::numeric,3) from generate_series(1,%(N)d) g, generate_series(1,%(E)d) k where 1+((g*7919+k*104729)%%%(N)d)<>g on conflict do nothing returning 1)
+          select (select count(*) from e) n, extract(epoch from clock_timestamp()-(select t0 from a))*1000 ms"""%{"S":S,"N":N,"E":E})[0]
+        M=min(N*2,200000)
+        tm=sql("""with a as (select clock_timestamp() t0), d as (insert into %(S)s.deliv(message_id,agent) select g, 1+(g*31%%%(N)d) from generate_series(1,%(M)d) g returning 1)
+          select (select count(*) from d) n, extract(epoch from clock_timestamp()-(select t0 from a))*1000 ms"""%{"S":S,"N":N,"M":M})[0]
+        K=max(N//10,100)
+        tk=sql("""with a as (select clock_timestamp() t0), k as (insert into %(S)s.kb(body) select 'problem '||g||' '||(array['paginate off by one','sort numeric strings','null pointer render','timeout fetch retry','glb validator error','audio clip pop'])[1+g%%6]||' module'||(g%%97) from generate_series(1,%(K)d) g returning 1)
+          select (select count(*) from k) n, extract(epoch from clock_timestamp()-(select t0 from a))*1000 ms"""%{"S":S,"K":K})[0]
+        sql("analyze %(S)s.nodes; analyze %(S)s.edges; analyze %(S)s.deliv; analyze %(S)s.kb"%{"S":S})
+        tl=sql("""with a as (select clock_timestamp() t0), c as (select message_id, agent from %(S)s.deliv where status='queued' and agent between 1 and %(L)d order by message_id limit 2000 for update skip locked),
+          u as (update %(S)s.deliv d set status='leased', lease_until=now()+interval '2 minutes', attempts=attempts+1 from c where d.message_id=c.message_id and d.agent=c.agent returning 1)
+          select (select count(*) from u) n, extract(epoch from clock_timestamp()-(select t0 from a))*1000 ms"""%{"S":S,"L":N})[0]
+        qk=sql("""with t as (select clock_timestamp() t0), r as (select id from %(S)s.kb where tsv @@ to_tsquery('simple','paginate') order by id limit 5) select (select count(*) from r) hits, extract(epoch from clock_timestamp()-(select t0 from t))*1000 ms"""%{"S":S})[0]
+        qp=sql("""with t as (select clock_timestamp() t0), r as (select target, weight from %(S)s.edges where source=%(X)d and relation='help' order by weight desc limit 3) select (select count(*) from r) n, extract(epoch from clock_timestamp()-(select t0 from t))*1000 ms"""%{"S":S,"X":N//2})[0]
+        qi=sql("""with t as (select clock_timestamp() t0), r as (select count(*) c from %(S)s.deliv where agent=%(X)d and status='queued') select (select c from r) n, extract(epoch from clock_timestamp()-(select t0 from t))*1000 ms"""%{"S":S,"X":N//3})[0]
+        sz=sql("select sum(pg_total_relation_size(c.oid))/1048576.0 mb from pg_class c join pg_namespace n on n.oid=c.relnamespace where nspname='%s' and c.relkind in ('r','m')"%S)[0]["mb"]
+        def rate(x): return round(x["n"]/max(x["ms"],0.001)*1000)
+        print("LOAD N=%d nodes=%d(%d/s) edges=%d(%d/s) deliveries=%d(%d/s) kb=%d(%d/s) lease2000=%dms(%d/s) fts_top5=%.2fms pick_top3=%.2fms inbox_count=%.2fms storage=%.1fMB db_before=%sMB"%(N,t["n"],rate(t),te["n"],rate(te),tm["n"],rate(tm),tk["n"],rate(tk),tl["ms"],rate(tl),qk["ms"],qp["ms"],qi["ms"],sz,db))
+        sql("drop schema %s cascade"%S)
+    print("LOAD cleanup ok; db now", sql("select pg_database_size(current_database())/1048576 mb")[0]["mb"],"MB; schemas left:", sql("select nspname from pg_namespace where nspname like 'ancn_load%'"))

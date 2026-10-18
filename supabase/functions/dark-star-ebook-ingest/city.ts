@@ -59,7 +59,10 @@ export async function cityPublic() {
   ]);
   const mc: Record<string, number> = {}; mem.forEach((m: any) => mc[m.sandbox] = (mc[m.sandbox] || 0) + 1);
   const sb = boxes.map((b: any) => { const L = labs.filter((l: any) => (l.sandbox || "code") === b.key); return { ...b, members: mc[b.key] || 0, labs: L.length, passed: L.filter((l: any) => l.status === "passed").length, failed: L.filter((l: any) => l.status === "failed").length, running: L.filter((l: any) => l.status === "running").length, tokens: L.reduce((s: number, l: any) => s + (l.tokens || 0), 0) }; });
-  return { ok: true, at: new Date().toISOString(), sandboxes: sb, quota, kb, help, recent: labs.slice(0, 12), replication_off: !!(repl && repl.off === "1"), degrees: deg.length, cost_usd: labs.reduce((s: number, l: any) => s + Number(l.cost_usd || 0), 0) };
+  const [nst, edges, acts, mm] = await Promise.all([rest("aivault_ancn_neurons?select=neuron_state").catch(() => []), rest("aivault_ancn_edges?select=source,target,relation,success,fail,weight,last_at&order=last_at.desc.nullslast&limit=12").catch(() => []), rest("aivault_ancn_activations?select=id,requester,skill,goal,status,picked,kb_id,created_at&order=id.desc&limit=8").catch(() => []), rest("aivault_mem_metrics?select=*").catch(() => [])]);
+  const ns: Record<string, number> = {}; nst.forEach((x: any) => ns[x.neuron_state] = (ns[x.neuron_state] || 0) + 1);
+  const ancn = { neurons: ns, edges, edge_count: edges.length, activations: acts, memory: mm[0] || null, kb_recent: await rest("aivault_kb?select=id,kind,status,title,agent_id,solved_by,verifier,dup_count,hits&order=updated_at.desc&limit=8").catch(() => []) };
+  return { ok: true, ancn, at: new Date().toISOString(), sandboxes: sb, quota, kb, help, recent: labs.slice(0, 12), replication_off: !!(repl && repl.off === "1"), degrees: deg.length, cost_usd: labs.reduce((s: number, l: any) => s + Number(l.cost_usd || 0), 0) };
 }
 // 便宜探針（約 20 token）：只在 quota:sleep 已過期時才真的打一次；仍 429 就重新睡。
 export async function quotaProbe() {
