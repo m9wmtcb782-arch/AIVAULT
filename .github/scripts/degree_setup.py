@@ -340,3 +340,8 @@ if "notifymig" in STEPS:
     sql(open("supabase/migrations/20261018161000_aivault_mem_notify_v2.sql").read()); print("NOTIFYMIG", sql("select public.aivault_mem_notify(7,'verified_recheck') n"), sql("select agent_id,event,message_id from public.aivault_mem_notify_log where kb_id=7"))
 if "hviewmig" in STEPS:
     sql(open("supabase/migrations/20261018162000_aivault_handoff_view_v2.sql").read()); print("HVIEW", sql("select handoff_id,sender,recipient,accept_id,reject_id,report_id,report_quality from public.aivault_comm_handoffs where project_id='game-202610180132' order by 1"))
+if "amsginv" in STEPS:
+    print("AMSG fn", sql("select p.proname, p.prosecdef secdef, pg_get_function_arguments(p.oid) args, array(select grantee::regrole::text from aclexplode(p.proacl) where privilege_type='EXECUTE') execs from pg_proc p join pg_namespace n on n.oid=p.pronamespace where nspname='public' and proname like 'agent_module%'"))
+    print("AMSG pol", sql("select policyname, roles, cmd, qual, with_check from pg_policies where tablename='agent_messages'"))
+    print("AMSG grants", sql("select grantee, string_agg(privilege_type,',') p from information_schema.role_table_grants where table_name='agent_messages' group by 1"))
+    print("AMSG recent", sql("select sender_agent_id, receiver_agent_id, message_type, created_at from public.agent_messages order by created_at desc limit 5"))
