@@ -79,7 +79,9 @@ if MODE=="ingest":
     aid=r[0]["id"]; rest("aivault_video_segments?asset_id=eq.%d"%aid,method="DELETE",prefer="return=minimal")
     for x in segs: x["asset_id"]=aid
     if tr: segs.append({"asset_id":aid,"t_s":START,"kind":"asr","transcript":tr[:20000],"model":"groq whisper-large-v3-turbo"})
-    s,r=rest("aivault_video_segments",segs,"POST","return=minimal"); print("SEGMENTS",s,len(segs))
+    K=["asset_id","t_s","kind","caption","ocr","transcript","model","infer_ms"]; segs=[{k:x.get(k) for k in K} for x in segs]  # vc3: PostgREST 批次插入要求每列鍵相同
+    s,r=rest("aivault_video_segments",segs,"POST","return=minimal"); print("SEGMENTS",s,len(segs),str(r)[:300])
+    if s>=300: sys.exit(1)
     s,r=rest("aivault_video_access?on_conflict=asset_id,district",[{"asset_id":aid,"district":dd} for dd in v.get("districts",[])],"POST","resolution=merge-duplicates,return=minimal"); print("ACCESS",s)
 if MODE=="accept":
     import torch
