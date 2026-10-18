@@ -1171,6 +1171,9 @@ a.brand-home:hover,
 </style>
 
 
+
+
+
 <style id="aivault-darkstar-avatar-css">
 #aivault-darkstar-avatar{position:fixed;right:14px;top:72px;width:190px;z-index:80;border:1px solid #e8e4f5;border-radius:18px;background:rgba(255,255,255,.96);box-shadow:0 10px 32px rgba(40,30,80,.14);backdrop-filter:blur(12px);overflow:hidden}
 #aivault-darkstar-avatar .dsah{display:flex;align-items:center;justify-content:space-between;padding:9px 11px;border-bottom:1px solid #eeeaf7;font-size:12px;font-weight:700}
@@ -1230,6 +1233,8 @@ a.brand-home:hover,
     href="aivault-home.html">
     回工作中心
   </a>
+
+
 
   <button id="readabilityToggle"
     class="readability-toggle"
@@ -7899,6 +7904,10 @@ micButton.addEventListener(
   startRecording
 );
 
+
+
+
+
 /* =========================================================
    AI VOICE
 ========================================================= */
@@ -8579,25 +8588,20 @@ window.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__=async()=>{if(state.active||state.
 <script src="technical-dark-star-realtime-voice-v2.js"></script>
 
 
-<script src="darkstar-orb.js?v=20261014-emo2"></script>
+
+
+<script src="darkstar-orb.js?v=20261016-expr2"></script>
+<script src="darkstar-inpage-live.js?v=20261016-expr2-ic2"></script>
 <script src="darkstar-drawer-live-fix.js?v=20261016-dl1"></script>
 <script src="darkstar-study-books.js?v=20261017-sb9"></script>
 <script src="darkstar-book-qa.js?v=20261017-qa11"></script>
 <script src="darkstar-photo-ask.js?v=20261015-pa5"></script>
 <script src="darkstar-bots.js?v=20261016-bots5"></script>
 
-<script src="darkstar-panel-mini.js?v=20261016-mini1"></script>
-<script src="darkstar-chat-orbs.js?v=20261016-co3"></script>
-<script src="darkstar-duo.js?v=20261016-duo2"></script>
-<script src="darkstar-dawn-live-swap.js?v=20261016-swap4"></script>
-<script src="darkstar-dawn-transcript-merge.js?v=20261016-dm2"></script>
-<script src="darkstar-ai-presence.js?v=20261017-ai1"></script>
-<script src="darkstar-summon-cmd.js?v=20261017-sm1"></script>
-<script src="darkstar-dual-live-etiquette.js?v=20261016-et5"></script>
-<script src="darkstar-mini-duo.js?v=20261016-md1"></script>
-<script src="darkstar-dawn-search.js?v=20261016-ws3"></script>
-<script src="darkstar-duo-talk.js?v=20261016-dt8"></script>
-<script src="aivault-presence.js?v=20261017-pr2" defer></script>
+
+
+
+
 <div id="aivault-darkstar-avatar" data-ds-orb-avatar="2" aria-label="暗星數字人">
   <div class="dsah"><span>🌟 暗星數字人</span><span class="dslink"><i id="dsdot" class="dsdot"></i><span id="dstxt">未連結</span></span></div>
   <div class="dsfacebox" id="dsfacebox">
@@ -8615,12 +8619,13 @@ window.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__=async()=>{if(state.active||state.
   const orb=()=>{const el=q('dsorb');if(!el)return null;return el.__dsOrb||(window.DarkStarOrb?window.DarkStarOrb.mount(el,{size:120}):null)};
   const set=(on,text)=>{linked=on;q('dsdot').classList.toggle('on',on);q('dstxt').textContent=text||'未連結'};
   const speak=(v)=>{target=Math.max(0,Math.min(1,v));const st=target>.035?'🗣️ 暗星正在說話':(linked?'👂 暗星正在聆聽':'等待暗星說話');if(target>.035||speak.was){if(q('dsstate').textContent!==st)q('dsstate').textContent=st}speak.was=target>.035};
-  const expr=t=>{const o=orb();if(t==='happy'){q('dsstate').textContent='😊 暗星很開心'}else if(t==='surprise'){q('dsstate').textContent='😮 暗星有點驚訝'}else if(t==='think'){q('dsstate').textContent='🤔 暗星正在思考'}else if(t==='angry'){q('dsstate').textContent='😠 暗星有點生氣'}else if(t==='sad'){q('dsstate').textContent='😢 暗星有點難過'}else if(t==='joy'){q('dsstate').textContent='🤩 暗星好興奮'}
-    const m={surprise:'surprised',surprised:'surprised',think:'curious',happy:'happy',angry:'angry',sad:'sad',joy:'joy'};
-    if(o)o.setExpression(m[t]||'neutral',m[t]?3000:0)};
+  const EXL={happy:'😃 暗星很開心',surprised:'😮 暗星有點驚訝',surprise:'😮 暗星有點驚訝',think:'🤔 暗星正在思考',thinking:'🤔 暗星正在思考',curious:'🤔 暗星正在思考',angry:'😡 暗星生氣了',huffy:'😤 暗星氣呼呼',sad:'😢 暗星有點難過',joy:'🤩 暗星好興奮',love:'😍 暗星好喜歡',sleepy:'😴 暗星想睡了',laughing:'😆 暗星大笑'};
+  // 表情（可指定持續毫秒）；新增：huffy／love／sleepy／laughing／thinking
+  const expr=(t,ms)=>{const o=orb();t=t==='surprise'?'surprised':t==='think'?'thinking':t;{const L=(window.DarkStarOrb&&window.DarkStarOrb.LABELS)||{};if(!EXL[t]&&L[t])EXL[t]=L[t].replace(/^(\S+) /,'$1 暗星');}if(EXL[t])q('dsstate').textContent=EXL[t];
+    if(o)o.setExpression(EXL[t]?t:'neutral',EXL[t]?(ms||3000):0);try{document.dispatchEvent(new CustomEvent('darkstar:expr',{detail:{expr:EXL[t]?t:'neutral',ms:EXL[t]?(ms||3000):0}}))}catch(e){}};
   const loop=()=>{level+=(target-level)*.3;const o=orb();if(o)o.setTalking(level>.02?Math.min(1,level*1.6):0);requestAnimationFrame(loop)};loop();
   // 優先在本頁內連線（darkstar-inpage-live.js）；沒有該模組時維持舊行為（開啟視訊頁）
-  q('dsconnect').onclick=()=>{if(window.AIVAULTDarkStarLive){window.AIVAULTDarkStarLive.toggle();return}set(true,'已連結');q('dsstate').textContent='👂 暗星正在聆聽';window.open('technical-dark-star-live-video-test.html','_blank','noopener');};
+  q('dsconnect').onclick=()=>{if(window.AIVAULTDarkStarLive){window.AIVAULTDarkStarLive.toggle();return}set(true,'已連結');q('dsstate').textContent='👂 暗星正在聆聽';if(window.__AIVAULT_RELEASE_ALL_AUDIO__)window.__AIVAULT_RELEASE_ALL_AUDIO__();window.open('technical-dark-star-live-video-test.html','_blank','noopener');};
   q('dsdemo').onclick=async()=>{set(true,'表情測試');expr('happy');for(let i=0;i<26;i++){speak(Math.abs(Math.sin(i*.72))*.8);await new Promise(r=>setTimeout(r,75))}speak(0);setTimeout(()=>expr('neutral'),500)};
   // 視線：滑鼠／手指位置讓小球眼睛左右看
   document.addEventListener('pointermove',e=>{const o=orb(),b=q('dsorb');if(!o||!b||target>.035)return;const r=b.getBoundingClientRect();o.look((e.clientX-(r.left+r.width/2))/Math.max(200,innerWidth/2))},{passive:true});
@@ -8635,5 +8640,16 @@ window.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__=async()=>{if(state.active||state.
 })();
 </script>
 
-</body>
+<script src="darkstar-panel-mini.js?v=20261016-mini1"></script>
+<script src="darkstar-chat-orbs.js?v=20261016-co3"></script>
+<script src="darkstar-duo.js?v=20261016-duo2"></script>
+<script src="darkstar-dawn-live-swap.js?v=20261016-swap4"></script>
+<script src="darkstar-dawn-transcript-merge.js?v=20261016-dm2"></script>
+<script src="darkstar-ai-presence.js?v=20261017-ai1"></script>
+<script src="darkstar-summon-cmd.js?v=20261017-sm1"></script>
+<script src="darkstar-dual-live-etiquette.js?v=20261016-et5"></script>
+<script src="darkstar-mini-duo.js?v=20261016-md1"></script>
+<script src="darkstar-dawn-search.js?v=20261016-ws3"></script>
+<script src="darkstar-duo-talk.js?v=20261016-dt8"></script>
+<script src="aivault-presence.js?v=20261017-pr2" defer></script></body>
 </html>
