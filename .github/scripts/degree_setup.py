@@ -192,3 +192,10 @@ if "comminv" in STEPS:  # cm1：通訊系統盤點（只印表名、欄位、列
         n=sql("select count(*) c from public.%s"%r["table_name"])[0]["c"]; print("TBL",r["table_name"],n,"|",r["cols"][:600])
     print("FNS", [x["proname"] for x in sql("select proname from pg_proc p join pg_namespace n on n.oid=p.pronamespace where nspname='public' and proname ~ '(message|lease|claim|task|chat|collab)'")])
     print("CRON", sql("select jobname,schedule from cron.job"))
+if "comminv2" in STEPS:  # cm1：agent_messages 約束、觸發器、RLS 與既有函式簽名（不印內容）
+    print("CON", sql("select conname, pg_get_constraintdef(oid) d from pg_constraint where conrelid in ('public.agent_messages'::regclass,'public.agent_subtasks'::regclass,'public.collab_events'::regclass)"))
+    print("TRG", sql("select tgname, tgrelid::regclass::text t from pg_trigger where not tgisinternal and tgrelid in ('public.agent_messages'::regclass,'public.agent_subtasks'::regclass)"))
+    print("RLS", sql("select tablename, policyname, roles, cmd from pg_policies where tablename in ('agent_messages','agent_subtasks','collab_events')"))
+    print("SIG", sql("select proname, pg_get_function_arguments(p.oid) a from pg_proc p join pg_namespace n on n.oid=p.pronamespace where nspname='public' and proname in ('agent_module_send_message','agent_claim_subtask','agent_expire_leases','agent_submit_subtask_result')"))
+    print("MT", sql("select message_type, status, count(*) from public.agent_messages group by 1,2"))
+    print("USE", subprocess.run(["bash","-c","grep -rl 'agent_messages\\|agent_module_send_message' --include=*.ts --include=*.html --include=*.js --include=*.py . | grep -v node_modules | head -20"],capture_output=True,text=True).stdout)
