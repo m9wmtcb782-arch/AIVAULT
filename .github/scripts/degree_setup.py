@@ -336,3 +336,5 @@ if "countsmig" in STEPS:
     sql(open("supabase/migrations/20261018151000_aivault_counts.sql").read()); print("COUNTS", sql("select public.aivault_city_counts() c"))
 if "memgetmig" in STEPS:
     sql(open("supabase/migrations/20261018160000_aivault_mem_get.sql").read()); print("MEMGET ok")
+if "notifymig" in STEPS:
+    sql(open("supabase/migrations/20261018161000_aivault_mem_notify_v2.sql").read()); print("NOTIFYMIG", sql("select public.aivault_mem_notify(7,'verified_recheck') n"), sql("select agent_id,event,message_id from public.aivault_mem_notify_log where kb_id=7"))
