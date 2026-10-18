@@ -14,7 +14,8 @@ def http(url,data=None,headers=None,method=None,timeout=300,raw=False):
 MG={"Authorization":"Bearer "+TOKEN}
 def sql(q): return http("https://api.supabase.com/v1/projects/%s/database/query"%REF,{"query":q},MG,"POST")
 if MODE=="migrate":
-    s,r=sql(open("supabase/migrations/20261018100000_aivault_video_center.sql").read()); print("MIGRATE",s,str(r)[:300])
+    for f in ["20261018100000_aivault_video_center.sql","20261018101000_aivault_video_spot.sql"]:
+        s,r=sql(open("supabase/migrations/"+f).read()); print("MIGRATE",f,s,str(r)[:300])
     print(sql("select table_name from information_schema.tables where table_schema='public' and table_name like 'aivault_video_%' order by 1"))
     print(sql("select relname,relrowsecurity from pg_class where relname like 'aivault_video_%' and relkind='r'")); sys.exit(0 if s in (200,201) else 1)
 _,keys=http("https://api.supabase.com/v1/projects/%s/api-keys?reveal=true"%REF,headers=MG)
@@ -99,4 +100,25 @@ if MODE=="accept":
         res[mode]={"both_correct":ok,"content_correct":content_ok,"timecode_within_3s":tok_ok,"n":len(Q["questions"]),"rows":rows}
         print("SCORE",mode,"both",ok,"content",content_ok,"time",tok_ok,"/",len(Q["questions"]))
         rest("aivault_video_learning",{"asset_id":aid,"agent_id":None,"kind":"qa_eval","payload":{"mode":mode,**res[mode],"questions_by":Q["note"]},"score":ok,"model":MID},"POST","return=minimal")
+    if os.environ.get("GEMINI_SPOT")=="1":
+        with tempfile.TemporaryDirectory() as d:
+            src=os.path.join(d,"v"); urllib.request.urlretrieve(v["url"],src); clip=os.path.join(d,"c.mp4")
+            subprocess.check_call(["ffmpeg","-loglevel","error","-y","-ss",str(A["clip_start_s"]),"-t",str(A["clip_dur_s"]),"-i",src,"-vf","scale=320:-2,fps=8","-c:v","libx264","-crf","34","-an",clip])
+            vb=base64.b64encode(open(clip,"rb").read()).decode(); print("GEMINI_CLIP_MB",round(len(vb)*3/4/1e6,2))
+        qs="\n".join("%d. %s"%(i+1,q["q"]) for i,q in enumerate(Q["questions"]))
+        pr="Watch this video clip (starts at 0 seconds). Answer each question. Output ONLY a JSON array of 10 objects: [{\"n\":1,\"answer\":\"short answer\",\"t\":integer seconds}]. Questions:\n"+qs
+        s,g=http(BASE+"/functions/v1/aivault-video-spot",{"license":v["license"],"video_b64":vb,"mime":"video/mp4","prompt":pr},H,"POST",timeout=200)
+        print("GEMINI",s,str(g)[:300])
+        if s==200 and g.get("ok"):
+            m=re.search(r"\[.*\]",g["text"],re.S); arr=json.loads(m.group(0)) if m else []
+            ok=co=to=0; rows=[]
+            for i,q in enumerate(Q["questions"]):
+                x=next((y for y in arr if int(y.get("n",0))==i+1),{}); ans=str(x.get("answer","")); ts=x.get("t")
+                try: ts=int(ts)
+                except Exception: ts=None
+                c=any(k.lower() in ans.lower() for k in q["kw"]); tt=ts is not None and abs(ts-q["t"])<=3; co+=c; to+=tt; ok+=(c and tt)
+                rows.append({"q":q["q"],"expected_t":q["t"],"answer":ans,"t":ts,"content_ok":c,"time_ok":tt}); print("gemini |",q["t"],"|",ans,ts,"|",c,tt)
+            res["gemini"]={"both_correct":ok,"content_correct":co,"timecode_within_3s":to,"n":len(Q["questions"]),"rows":rows,"model":g.get("model"),"usage":g.get("usage"),"used_today":g.get("used_today")}
+            print("SCORE gemini both",ok,"content",co,"time",to,"/",len(Q["questions"]))
+            rest("aivault_video_learning",{"asset_id":aid,"kind":"qa_eval","payload":{"mode":"gemini_video",**res["gemini"],"questions_by":Q["note"]},"score":ok,"model":g.get("model")},"POST","return=minimal")
     json.dump(res,open("accept_result.json","w"),ensure_ascii=False,indent=1)
