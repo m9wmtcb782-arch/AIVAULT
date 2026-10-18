@@ -1,0 +1,18 @@
+name: Agent comms - 6-agent small game acceptance (free Groq quota, offline tests)
+on:
+  workflow_dispatch:
+    inputs:
+      project: { description: "continue project id (blank = new)", required: false, default: "" }
+      rounds: { description: "rounds (max 10)", required: false, default: "6" }
+concurrency: { group: comm-game, cancel-in-progress: false }
+permissions: { contents: read }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - env: { TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN }}", PROJECT: "${{ inputs.project }}", ROUNDS: "${{ inputs.rounds }}", OFF: "${{ vars.COMM_OFF }}" }
+        run: |
+          if [ "$OFF" = "1" ]; then echo "disabled by COMM_OFF=1"; exit 0; fi
+          python3 .github/scripts/comm_game_run.py

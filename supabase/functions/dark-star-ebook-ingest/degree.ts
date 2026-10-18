@@ -3,6 +3,7 @@
 // 學習證明：代理用 web-search 找網頁、真的抓回內容（記錄 URL、HTTP 狀態、位元組、sha256、時間），再由代理自己寫筆記。
 import { callModel } from "./floor.ts";
 import { cityPublic, quotaState, quotaProbe } from "./city.ts";
+import { commGameStart, commGameTurn, commPendingTests, commTestResult, commPublic } from "./comm.ts";
 import { webSearch } from "./web-search.ts";
 import { learnRound } from "./learn10.ts";
 import { triage, pendingGroups } from "./triage.ts";
@@ -143,6 +144,7 @@ export async function degree(r: Request) {
     }
     if (a === "lab_public") return out(await labPublic(b));
     if (a === "city_public") return out(await cityPublic()); // city1
+    if (a === "comm_public") return out(await commPublic(b)); // cm2
     if (a === "quota_state") return out({ ok: true, ...(await quotaState()) });
     if (a === "agent_lab") { const id = String(b.id || ""); if (!/^ag-\d{4}$/.test(id)) return out({ error: "bad id" }, 400); return out({ ok: true, learned: await learnedCount(id), ...(await agentLabStats(id)) }); } // lb2：學了→做了→通過
     if (a === "summon_state") return out({ ok: true, now: new Date().toISOString(), s: await summonState() });
@@ -220,6 +222,7 @@ export async function degree(r: Request) {
     if (a === "triage_stats") { const u2 = await who(r); if (!u2) return out({ error: "owner only" }, 403); const g = await pendingGroups(); return out({ ok: true, groups: g.length, items: g.reduce((s, x) => s + x.length, 0), top: g.slice(0, 8).map((x) => [String(x[0].order_text).slice(0, 30), x.length]) }); }
     if (a === "special_round") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(await specialRound(b)); } // sp1
     if (/^order(s_list|_log|_save|_approve|_revoke)$/.test(a)) { const uo = await who(r); if (!uo || uo.cron) return out({ error: "owner only" }, 403); return out(await orders(a, b, uo.id)); } // so1 長期命令
+    if (["comm_game_start", "comm_game_turn", "comm_pending_tests", "comm_test_result"].includes(a)) { const u2 = await who(r); if (!u2) return out({ error: "owner only" }, 403); return out(a === "comm_game_start" ? await commGameStart() : a === "comm_game_turn" ? await commGameTurn(b) : a === "comm_pending_tests" ? await commPendingTests(b) : await commTestResult(b)); }
     if (a === "quota_probe") { const u1 = await who(r); if (!u1) return out({ error: "owner only" }, 403); return out(await quotaProbe()); }
     if (a === "lab_start" || a === "lab_report") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(a === "lab_start" ? await labStart(b) : await labReport(b)); } // lb1 實驗工廠
     if (a === "summon") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(await summon(b, u0.id, String(b.via || "town"))); } // sm1

@@ -1,0 +1,28 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>📡 代理通訊證據</title>
+<style>body{margin:0;font:14px/1.5 -apple-system,"PingFang TC",sans-serif;background:#0b1020;color:#e2e8f0}header{padding:12px;padding-top:calc(12px + env(safe-area-inset-top));background:#111a33;position:sticky;top:0}h1{font-size:17px;margin:0}main{padding:10px;max-width:760px;margin:auto}.muted{color:#94a3b8;font-size:12px}.m{background:#141d38;border:1px solid #24304f;border-radius:10px;padding:8px;margin:6px 0}.t{display:inline-block;padding:0 6px;border-radius:7px;font-size:11px;background:#1e293b;margin-right:4px}.L1{background:#334155}.L2{background:#713f12}.L3{background:#1e40af}.L4{background:#14532d}.bad{background:#7f1d1d}a{color:#93c5fd}select{background:#1e293b;color:#e2e8f0;border:0;border-radius:6px;padding:4px}h2{font-size:15px;color:#93c5fd}</style></head><body>
+<header><h1>📡 代理通訊證據</h1><div class="muted">每則訊息四層狀態：<span class="t L1">①DB送達</span><span class="t L2">②代理租到</span><span class="t L3">③讀懂（模型寫出摘要）／回覆</span><span class="t L4">④完成（附證據）</span>　<a href="aivault-city.html">城市</a></div><select id="p"></select></header>
+<main id="m"><p class="muted">載入中…</p></main>
+<script>
+(function(){
+try{if(localStorage.getItem('commOff')==='1'){document.getElementById('m').innerHTML='<p>已關閉（localStorage.commOff=1）</p>';return}}catch(_){}
+var FN='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/dark-star-ebook-ingest?feature=degree';
+var ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE';
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function tp(t){return t?new Date(t).toLocaleTimeString('zh-TW',{timeZone:'Asia/Taipei',hour12:false}):''}
+var LV={queued:['①送達','L1'],leased:['②租到','L2'],read:['③讀懂','L3'],replied:['③已回覆','L3'],done:['④完成','L4'],dead:['失敗5次','bad'],expired:['過期','bad']};
+function load(p){fetch(FN,{method:'POST',headers:{apikey:ANON,Authorization:'Bearer '+ANON,'Content-Type':'application/json'},body:JSON.stringify({action:'comm_public',project:p||undefined})}).then(function(r){return r.json()}).then(function(d){
+ var s=document.getElementById('p');s.innerHTML=(d.projects||[]).map(function(x){return '<option'+(x.id===d.project?' selected':'')+'>'+esc(x.id)+'</option>'}).join('');s.onchange=function(){load(s.value)};
+ var role={};(d.team||[]).forEach(function(t){role[t.agent_id]=t.role});var nm=function(a){return esc(a)+(role[a]?'（'+role[a]+'）':'')};
+ var mem={};(d.memory||[]).forEach(function(x){if(x.ref_message)(mem[x.ref_message]=mem[x.ref_message]||[]).push(x)});
+ var h='<h2>團隊</h2><div class="muted">'+(d.team||[]).map(function(t){return t.role+'＝'+esc(t.agent_id)}).join('・')+'</div><h2>訊息（'+(d.messages||[]).length+'）</h2>';
+ h+=(d.messages||[]).map(function(m){var dl=(d.deliveries||[]).filter(function(x){return x.message_id===m.id});
+  return '<div class="m"><b>#'+m.id+'</b> '+nm(m.sender)+' → '+(m.recipient_kind==='dm'?nm(m.recipient):esc(m.recipient_kind+':'+m.recipient))+' <span class="t">'+esc(m.message_type)+'</span>'+(m.reply_to?'<span class="muted">回覆 #'+m.reply_to+'・hop '+m.hop+'</span>':'')+'<span class="muted"> '+tp(m.created_at)+'</span><div>'+esc((m.payload||{}).text||JSON.stringify(m.payload)).slice(0,600)+'</div>'
+  +dl.map(function(x){var l=LV[x.status]||[x.status,''];return '<span class="t '+l[1]+'">'+esc(x.agent_id)+' '+l[0]+(x.attempts>1?' ×'+x.attempts:'')+'</span>'}).join('')
+  +(mem[m.id]||[]).map(function(x){return '<div class="muted">🧠 '+esc(x.agent_id)+' '+esc(x.note)+'</div>'}).join('')+'</div>'}).join('');
+ h+='<h2>合併（驗收）</h2>'+((d.merges||[]).map(function(g){return '<div class="m">merge#'+g.id+' '+esc(g.path)+' v'+g.version+' by '+nm(g.proposer)+' <span class="t '+(g.status==='accepted'?'L4':g.status==='proposed'?'L2':'bad')+'">'+esc(g.status)+'</span>'+(g.test_result?'容器測試 '+(g.test_result.pass?'✅':'❌')+' '+((g.test_result.tests||{}).pass||0)+'/'+((g.test_result.tests||{}).tests||0):'')+(g.acceptor?'　驗收：'+nm(g.acceptor):'')+'</div>'}).join('')||'<p class="muted">沒有</p>');
+ h+='<h2>工作區版本</h2>'+((d.files||[]).map(function(f){return '<div class="muted">'+esc(f.path)+' @'+esc(f.branch)+' v'+f.version+' '+esc(f.sha256).slice(0,10)+' '+tp(f.created_at)+'</div>'}).join('')||'<p class="muted">沒有</p>');
+ document.getElementById('m').innerHTML=h}).catch(function(e){document.getElementById('m').innerHTML='⚠️ '+esc(e.message)})}
+load(new URLSearchParams(location.search).get('p'));
+})();
+</script></body></html>
