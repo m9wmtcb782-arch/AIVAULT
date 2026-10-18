@@ -7,7 +7,8 @@ on:
       n: { description: "experiments (max 2)", required: false, default: "1" }
       brief: { description: "brief index (optional)", required: false, default: "" }
       force: { description: "1 = ignore daily cap", required: false, default: "" }
-      step: { description: "run | migrate", required: false, default: "run" }
+      sandbox: { description: "code | game | 3d", required: false, default: "" }
+      step: { description: "run | migrate | citymig", required: false, default: "run" }
 concurrency: { group: agent-lab, cancel-in-progress: false }
 permissions: { contents: read }
 jobs:
@@ -18,13 +19,17 @@ jobs:
       - uses: actions/checkout@v4
       - if: inputs.step == 'migrate'
         env: { TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN }}", PAGES_KEY: "${{ secrets.AIVAULT_PRIVATE_PAGES_KEY }}", STEP: labmig }
+      - if: inputs.step == 'citymig'
+        env: { TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN }}", PAGES_KEY: "${{ secrets.AIVAULT_PRIVATE_PAGES_KEY }}", STEP: citymig }
         run: python3 .github/scripts/degree_setup.py
-      - if: inputs.step != 'migrate'
+        run: python3 .github/scripts/degree_setup.py
+      - if: inputs.step != 'migrate' && inputs.step != 'citymig'
         env:
           TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           N: ${{ inputs.n || '1' }}
           BRIEF: ${{ inputs.brief || '' }}
           FORCE: ${{ inputs.force || '' }}
+          SANDBOX: ${{ inputs.sandbox || '' }}
           OFF: ${{ vars.LAB_OFF }}
         run: |
           if [ "$OFF" = "1" ]; then echo "disabled by repo variable LAB_OFF=1"; exit 0; fi
