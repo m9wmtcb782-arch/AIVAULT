@@ -91,6 +91,12 @@
     for (k in coverage) out[k] = { have: coverage[k][0], total: coverage[k][1], pct: coverage[k][1] ? Math.min(100, Math.round(100 * coverage[k][0] / coverage[k][1])) : 0 };
     return out;
   }
+  var readRun = 0;
+  function restartReadProgress() {
+    readRun++;
+    restartReadProgress();
+    return readRun;
+  }
   function showReadProgress(pct, label) {
     var box = document.getElementById("aivault-darkstar-avatar");
     if (!box) return;
@@ -172,11 +178,20 @@
     var have = {}; list.forEach(function (c) { if (c.bid === bid && c.page >= from && c.page <= to) have[c.page] = 1; });
     var need = []; for (var p = from; p <= to; p++) if (!have[p]) need.push(p);
     var span = Math.max(1, to - from + 1), already = span - need.length;
-    showReadProgress(Math.round(100 * already / span), "讀章節");
-    if (!need.length) { showReadProgress(100, "讀完"); return; }
+    var run = readRun;
+    showReadProgress(0, "讀章節");
+    if (!need.length) {
+      var step = 0, timer = setInterval(function () {
+        if (run !== readRun) { clearInterval(timer); return; }
+        step += 20; showReadProgress(Math.min(100, step), "讀章節");
+        if (step >= 100) clearInterval(timer);
+      }, 80);
+      return;
+    }
     var tot = (coverage[bid] && coverage[bid][1]) || 0;
     var got = {};
     fetchPages._onPct = function () {
+      if (run !== readRun) return;
       var now = already + Object.keys(got).length;
       showReadProgress(Math.min(100, Math.round(100 * now / span)), "讀章節");
     };
