@@ -98,13 +98,15 @@
     if (!el) {
       el = document.createElement("div");
       el.id = "dsChapterReadPct";
-      el.style.cssText = "position:absolute;left:-8px;top:50%;transform:translate(-100%,-50%);min-width:72px;padding:6px 8px;border-radius:10px;background:rgba(23,23,23,.92);color:#fff;font-size:12px;font-weight:700;text-align:center;z-index:90;box-shadow:0 4px 14px rgba(0,0,0,.18)";
-      box.style.position = box.style.position || "fixed";
-      box.appendChild(el);
+      el.style.cssText = "position:fixed;z-index:120;padding:6px 10px;border-radius:10px;background:#171717;color:#fff;font-size:13px;font-weight:700;line-height:1.3;box-shadow:0 4px 14px rgba(0,0,0,.2);pointer-events:none";
+      document.body.appendChild(el);
     }
-    el.textContent = (label || "閱讀") + "\n" + Math.max(0, Math.min(100, pct)) + "%";
-    el.style.whiteSpace = "pre";
-    if (pct >= 100) el.style.background = "#15803d";
+    var r = box.getBoundingClientRect();
+    el.style.top = Math.max(8, r.top + 8) + "px";
+    el.style.left = Math.max(8, r.left - 92) + "px";
+    var n = Math.max(0, Math.min(100, Math.round(pct)));
+    el.textContent = "閱讀 " + n + "%";
+    el.style.background = n >= 100 ? "#15803d" : "#171717";
   }
   async function fetchPages(id, need, into, total) {
     // need: 缺頁頁碼陣列 → 以 context(radius 10) 視窗補抓，4 路並行，每窗最多重試 3 次
