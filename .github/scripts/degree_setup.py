@@ -87,7 +87,8 @@ if "pgcron" in STEPS:  # pc1：Supabase 內建排程（pg_cron + pg_net）呼叫
     job("aivault-learn10","*/10 * * * *",{"action":"learn_round","n":8,"src":"pg_cron"},150000)
     job("aivault-place","5-59/10 * * * *",{"action":"cycle","mode":"place","n":6,"src":"pg_cron"},150000)
     print("PGCRON",sql("select jobid,jobname,schedule,active from cron.job order by jobid"))
-if "cronstat" in STEPS:  # 只印排程執行狀態與筆數
+if "cronstat" in STEPS:
+    print("RLKIND",sql("select id, (content::text ~ 'per day') per_day, (content::text ~ 'per minute') per_min, substring(content::text from 'Limit [0-9]+, Used [0-9]+') lim from net._http_response order by id desc limit 4"))  # 只印排程執行狀態與筆數
     print("JOBS",sql("select jobid,jobname,schedule,active from cron.job order by jobid"))
     print("RUNS",sql("select j.jobname,d.status,to_char(d.start_time at time zone 'Asia/Taipei','MM-DD HH24:MI:SS') t,left(d.return_message,60) m from cron.job_run_details d join cron.job j using(jobid) where j.jobname like 'aivault-%' and j.jobname not like '%security%' order by d.start_time desc limit 12"))
     print("NET",sql("select status_code,count(*),max(created) from net._http_response where created>now()-interval '1 hour' group by 1"),sql("select id,status_code,left(content::text,160) c,to_char(created at time zone 'Asia/Taipei','HH24:MI:SS') t from net._http_response order by id desc limit 6"))
