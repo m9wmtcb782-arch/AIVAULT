@@ -66,6 +66,7 @@ function emotionFromText(t){
  return'neutral';
 }
 function mount(){
+ return; // emotion avatar removed; black orb kept
  addStyle();
  if(document.getElementById('dsEmotionAvatar'))return;
  const box=document.createElement('section');box.id='dsEmotionAvatar';box.dataset.emotion='neutral';
