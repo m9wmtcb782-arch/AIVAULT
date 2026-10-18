@@ -50,6 +50,9 @@ if "publish" in STEPS:
     if os.path.exists(".github/scripts/town_classroom.js") and os.environ.get("TOWN_CLASSROOM_OFF")!="1":  # cr1：露天電腦教室（真的在學習的 AI 才進來）
         js=open(".github/scripts/town_classroom.js").read(); end="\n})();\n</script></body></html>"; assert html.count(end)==1 and "cr1：" not in html
         html=html.replace(end,"\n"+js+end); print("cr1 classroom layer applied")
+    if os.path.exists(".github/scripts/town_poolshelf.js") and os.environ.get("TOWN_POOLSHELF_OFF")!="1":  # pb7：協作池書架（關閉：localStorage.poolShelfOff3d=1）
+        js=open(".github/scripts/town_poolshelf.js").read(); end="\n})();\n</script></body></html>"; assert html.count(end)==1 and "pb7：" not in html
+        html=html.replace(end,"\n"+js+end); print("pb7 poolshelf layer applied")
     tag="$aivpp$"; assert tag not in html
     sql("insert into public.aivault_private_pages(slug,html,updated_at) values ('agent-floor',%s%s%s,now()) on conflict (slug) do update set html=excluded.html, updated_at=now()"%(tag,html,tag)); print("published agent-floor",len(html))
     link='<a class="btn primary" href="aivault-agent-collaboration.html?page=agent-floor" style="display:inline-block;text-decoration:none;margin-left:6px">🏢 1000 人工作區</a>'
