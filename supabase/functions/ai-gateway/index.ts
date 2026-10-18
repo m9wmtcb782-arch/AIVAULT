@@ -56,6 +56,46 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const VERSION = "ai-gateway-v3.1.5";
 
+/* sm2：暗星／曙光接上全城共享記憶（與代理同一套資料庫介面 aivault_mem_search / aivault_mem_write / aivault_mem_notify）。
+ * 只在文字對話路徑（executeLLMGateway）做：取前 3 筆相關片段注入 system，要求引用 [mem#id]；回覆後記錄引用並把建議寫回記憶（admin 層，含來源對話與版本）。
+ * 不動即時語音／視訊；不改角色、聊天紀錄、個人記憶（那些照舊各自存放）。關閉：env CITY_MEM_HOOK_OFF=1 */
+const CITY_MEM_AGENTS: Record<string, string> = { "technical-dark-star": "darkstar", "darkstar": "darkstar", "dawn-light": "dawn-light" };
+async function cityMemRpc(fn: string, args: Record<string, unknown>) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return null;
+  const r = await fetch(SUPABASE_URL + "/rest/v1/rpc/" + fn, { method: "POST", headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: "Bearer " + SUPABASE_SERVICE_ROLE_KEY, "Content-Type": "application/json" }, body: JSON.stringify(args), signal: AbortSignal.timeout(4000) });
+  return r.ok ? await r.json() : null;
+}
+async function cityMemAudit(actor: string, action: string, target: string, detail: Record<string, unknown>) {
+  try { await fetch(SUPABASE_URL + "/rest/v1/aivault_audit_events", { method: "POST", headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: "Bearer " + SUPABASE_SERVICE_ROLE_KEY, "Content-Type": "application/json", Prefer: "return=minimal" }, body: JSON.stringify({ actor, action, target, detail }) }); } catch (_) { /* audit best-effort */ }
+}
+async function cityMemInject(body: unknown, messages: GatewayMessage[], memory: MemoryContext): Promise<GatewayMessage[]> {
+  try {
+    if (Deno.env.get("CITY_MEM_HOOK_OFF") === "1" || !isRecord(body)) return messages;
+    const who = CITY_MEM_AGENTS[String(body.agent_id || body.agent || body.engine || "").trim()]; if (!who) return messages;
+    const q = String(memory.current_user_message || "").slice(0, 600); if (q.trim().length < 4) return messages;
+    const ids = [...q.matchAll(/mem#(\d+)/g)].map((m) => Number(m[1]));
+    const r: any = await cityMemRpc("aivault_mem_search", { p_agent: who, p_q: q, p_error: q, p_layers: ["public", "district", "project", "admin"], p_district: null, p_project: null, p_status: null, p_since: null, p_version: null, p_k: 3 });
+    let res: any[] = Array.isArray(r?.results) ? r.results : [];
+    for (const id of ids) if (!res.some((x) => x.id === id)) { const one: any = await cityMemRpc("aivault_mem_get", { p_agent: who, p_id: id }); if (one?.id) res.unshift(one); }
+    res = res.slice(0, 3); if (!res.length) return messages;
+    memory.city_mem = { agent: who, ids: res.map((x) => x.id), at: new Date().toISOString(), q: q.slice(0, 200) };
+    await cityMemAudit(who, "mem_retrieval_in_chat", "conv:" + (memory.conversation_id || "-"), { ids: memory.city_mem.ids, latency_ms: r?.latency_ms, gateway: VERSION });
+    const block = "【城市共享記憶（與代理相同的資料庫介面，前 " + res.length + " 筆相關片段）】\n" + res.map((x) => `[mem#${x.id}]（${x.kind}／${x.status}／作者 ${x.author || "-"}${x.solved_by ? "／解法 " + x.solved_by : ""}${x.verifier ? "／驗證 " + x.verifier : ""}${x.code_version ? "／版本 " + x.code_version : ""}）${x.title}\n重現：${String(x.repro || "").slice(0, 300)}\n錯誤：${String(x.error || "").slice(0, 200)}\n內容：${String(x.snippet || "").slice(0, 400)}`).join("\n") + "\n回答時若用到這些記憶，必須在句中標註 [mem#編號]；不要捏造記憶裡沒有的事。";
+    const out = [...messages]; const lastUser = out.map((m) => m.role).lastIndexOf("user"); out.splice(lastUser >= 0 ? lastUser : out.length, 0, { role: "system", content: block } as GatewayMessage); return out;
+  } catch (_) { return messages; }
+}
+async function cityMemAfter(memory: MemoryContext, assistantMessage: string) {
+  try {
+    const cm = memory.city_mem; if (!cm || !assistantMessage) return;
+    const cited = [...new Set([...assistantMessage.matchAll(/mem#(\d+)/g)].map((m) => Number(m[1])))].filter((x) => cm.ids.includes(x));
+    await cityMemAudit(cm.agent, "mem_cited_in_reply", "conv:" + (memory.conversation_id || "-"), { retrieved: cm.ids, cited, reply_chars: assistantMessage.length, gateway: VERSION });
+    for (const id of cited) {
+      const w: any = await cityMemRpc("aivault_mem_write", { p_agent: cm.agent, p_kind: "note", p_layer: "admin", p_title: (cm.agent === "darkstar" ? "暗星" : "曙光") + " 對 mem#" + id + " 的意見", p_body: assistantMessage.slice(0, 3000), p_district: null, p_project: null, p_error: null, p_env: "ai-gateway chat conv " + (memory.conversation_id || "-"), p_code_version: VERSION, p_repro: "ref mem#" + id });
+      if (w?.ok) { await cityMemRpc("aivault_mem_notify", { p_kb: id, p_event: cm.agent + "_input" }); await cityMemAudit(cm.agent, "mem_written_from_chat", "kb:" + id, { note_id: w.id }); }
+    }
+  } catch (_) { /* never break chat */ }
+}
+
 type RuntimeEvent = {
   action: string;
   target?: string;
@@ -195,6 +235,7 @@ interface MediaPart {
 }
 
 interface MemoryContext {
+  city_mem?: { agent: string; ids: number[]; at: string; q: string };
   enabled: boolean;
   topic_id: string | null;
   conversation_id: string | null;
@@ -3141,6 +3182,7 @@ async function persistCompletedTurn(
   userMessage: string,
   assistantMessage: string,
 ) {
+  await cityMemAfter(memory, assistantMessage); // sm2
   const rememberNote =
     extractDarkStarRememberNote(
       userMessage,
@@ -4437,6 +4479,7 @@ async function executeLLMGateway(
    */
   let messages =
     memory.messages;
+  messages = await cityMemInject(body, messages, memory); memory.messages = messages; // sm2
 
   if (
     !Array.isArray(messages) ||

@@ -1,0 +1,24 @@
+name: Deploy ai-gateway (sm2 city memory hook; refuses if live code differs from repo base)
+on:
+  workflow_dispatch:
+    inputs:
+      base: { description: "repo commit the live gateway must match before patch", required: true, default: "3115f1b" }
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - name: Compare live source with repo base, keep live JWT setting, then deploy
+        env: { SUPABASE_ACCESS_TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN }}", BASE: "${{ inputs.base }}" }
+        run: |
+          set -e
+          mkdir -p /tmp/live && cd /tmp/live && supabase functions download ai-gateway --project-ref clcddygkaaqqtsbswgdf --use-api >/dev/null 2>&1 || supabase functions download ai-gateway --project-ref clcddygkaaqqtsbswgdf >/dev/null
+          cd "$GITHUB_WORKSPACE"; LIVE=$(find /tmp/live -path '*ai-gateway/index.ts' | head -1); git show "$BASE:supabase/functions/ai-gateway/index.ts" > /tmp/base.ts
+          if ! diff -q <(tr -d '\r' < "$LIVE") <(tr -d '\r' < /tmp/base.ts) >/dev/null; then echo "LIVE DIFFERS from $BASE ($(diff <(tr -d '\r' < "$LIVE") <(tr -d '\r' < /tmp/base.ts) | wc -l) lines) - refusing to overwrite"; exit 1; fi
+          echo "live == $BASE"
+          VJ=$(curl -s -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" https://api.supabase.com/v1/projects/clcddygkaaqqtsbswgdf/functions/ai-gateway | python3 -c "import json,sys;print(json.load(sys.stdin).get('verify_jwt'))")
+          echo "verify_jwt=$VJ"; FLAG=""; [ "$VJ" = "False" ] && FLAG="--no-verify-jwt"
+          supabase functions deploy ai-gateway --project-ref clcddygkaaqqtsbswgdf --use-api $FLAG
