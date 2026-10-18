@@ -199,3 +199,66 @@ if "comminv2" in STEPS:  # cm1：agent_messages 約束、觸發器、RLS 與既�
     print("SIG", sql("select proname, pg_get_function_arguments(p.oid) a from pg_proc p join pg_namespace n on n.oid=p.pronamespace where nspname='public' and proname in ('agent_module_send_message','agent_claim_subtask','agent_expire_leases','agent_submit_subtask_result')"))
     print("MT", sql("select message_type, status, count(*) from public.agent_messages group by 1,2"))
     print("USE", subprocess.run(["bash","-c","grep -rl 'agent_messages\\|agent_module_send_message' --include=*.ts --include=*.html --include=*.js --include=*.py . | grep -v node_modules | head -20"],capture_output=True,text=True).stdout)
+if "commmig" in STEPS:
+    sql(open("supabase/migrations/20261018100000_aivault_comm.sql").read()); print("COMMMIG", sql("select jobname,schedule from cron.job where jobname='aivault-comm-sweep'"))
+if "commtest" in STEPS:  # cm1：傳輸層實測（不呼叫模型）。每項印 PASS/FAIL，不印訊息內容以外的私密資料。
+    P="ttest-"+datetime.datetime.utcnow().strftime("%m%d%H%M%S"); R=[]
+    def j(q): return sql(q)[0]
+    def S(sender,kind,rcpt,typ,payload="{}",reply="null",dedupe="null",corr="null",proj=None):
+        return j("select public.aivault_comm_send(%s,%s,%s,%s,%s::jsonb,%s,null,%s,%s,%s) r"%(lit(sender),lit(kind),lit(rcpt),lit(typ),lit(payload),lit(proj or P),corr if corr=="null" else lit(corr),reply,dedupe if dedupe=="null" else lit(dedupe)))["r"]
+    def ok(name,cond,info=""): R.append(cond); print(("PASS " if cond else "FAIL ")+name,info)
+    A,B,C,D="ag-0121","ag-0241","ag-0441","ag-0941"
+    sql("insert into public.aivault_comm_projects(id,title,owner_agent,max_turns) values (%s,'transport test',%s,200)"%(lit(P),lit(A)))
+    sql("insert into public.aivault_comm_groups(id,project_id,created_by) values (%s,%s,%s)"%(lit(P+"-g"),lit(P),lit(A)))
+    sql("insert into public.aivault_comm_group_members(group_id,agent_id,role) values "+",".join("(%s,%s,%s)"%(lit(P+"-g"),lit(x),lit(r)) for x,r in [(A,"planner"),(B,"3d"),(C,"sound"),(D,"tester")]))
+    m1=S(A,"dm",B,"delegate",'{"text":"please make a cube"}'); ok("dm send",m1.get("ok") and m1["recipients"]==1,m1)
+    d=j("select status from public.aivault_comm_deliveries where message_id=%d and agent_id='%s'"%(m1["id"],B)); ok("dm queued (DB-delivered, not yet read)",d["status"]=="queued")
+    g=S(A,"group",P+"-g","progress",'{"text":"kickoff"}'); ok("group fan-out excludes sender",g.get("ok") and g["recipients"]==3,g)
+    ok("non-member cannot post to group",not S("ag-0500","group",P+"-g","info").get("ok"))
+    ok("normal agent broadcast denied",S(A,"broadcast","all","info").get("error")=="admin only")
+    ok("normal agent admin_command denied",S(A,"dm",B,"admin_command").get("error")=="admin only")
+    ok("privilege field rejected",S(A,"dm",B,"info",'{"grant":"admin"}').get("ok") is False)
+    ok("unknown sender rejected",S("ag-9999x","dm",B,"info").get("error")=="unknown sender")
+    dd1=S(A,"dm",C,"info",'{"n":1}',dedupe=P+"-dd"); dd2=S(A,"dm",C,"info",'{"n":1}',dedupe=P+"-dd"); ok("dedupe returns same id",dd1["id"]==dd2["id"] and dd2.get("dedup"))
+    ok("cannot reply to unreceived message",S(C,"dm",A,"accept",reply=str(m1["id"])).get("ok") is False)
+    L=sql("select public.aivault_comm_lease('%s','run-1',10,120) r"%B); ids=[x["r"]["id"] for x in L]; ok("lease returns messages for B",m1["id"] in ids and g["id"] in ids,len(ids))
+    ok("read with wrong run rejected",j("select public.aivault_comm_ack('%s',%d,'read','run-X',null) r"%(B,m1["id"]))["r"].get("ok") is False)
+    ok("read with lease run ok",j("select public.aivault_comm_ack('%s',%d,'read','run-1',null) r"%(B,m1["id"]))["r"].get("ok"))
+    rp=S(B,"dm",A,"accept",'{"text":"ok, cube coming"}',reply=str(m1["id"])); ok("reply carries correlation + hop",rp.get("ok") and rp["correlation_id"]==m1["correlation_id"] and rp["hop"]==1,rp)
+    ok("original delivery marked replied",j("select status from public.aivault_comm_deliveries where message_id=%d and agent_id='%s'"%(m1["id"],B))["status"]=="replied")
+    ok("done without evidence rejected",j("select public.aivault_comm_ack('%s',%d,'done',null,null) r"%(B,m1["id"]))["r"].get("ok") is False)
+    ok("done with evidence ok",j("select public.aivault_comm_ack('%s',%d,'done',null,'{\"reply_id\":%d}'::jsonb) r"%(B,m1["id"],rp["id"]))["r"].get("ok"))
+    # 租約逾時→重試；5 次→dead；離線收件人訊息一直留在佇列
+    sql("update public.aivault_comm_deliveries set lease_until=now()-interval '1 second' where message_id=%d and agent_id='%s'"%(g["id"],B)); sw=j("select public.aivault_comm_sweep() r")["r"]
+    ok("expired lease requeued by sweep",j("select status from public.aivault_comm_deliveries where message_id=%d and agent_id='%s'"%(g["id"],B))["status"]=="queued",sw)
+    sql("update public.aivault_comm_deliveries set attempts=5, status='leased', lease_until=now()-interval '1 second' where message_id=%d and agent_id='%s'"%(g["id"],B)); j("select public.aivault_comm_sweep() r")
+    ok("dead after 5 attempts",j("select status from public.aivault_comm_deliveries where message_id=%d and agent_id='%s'"%(g["id"],B))["status"]=="dead")
+    ok("offline agent keeps queued message",j("select status from public.aivault_comm_deliveries where message_id=%d and agent_id='%s'"%(g["id"],D))["status"]=="queued")
+    L2=sql("select public.aivault_comm_lease('%s','run-d',10,60) r"%D); ok("offline agent recovers on next lease",g["id"] in [x["r"]["id"] for x in L2])
+    # 迴圈限制
+    last=m1["id"]; cur=None; who=[B,A]; err=None
+    for i in range(12):
+        s=who[i%2]; r=who[(i+1)%2]; sql("select public.aivault_comm_lease('%s','loop',50,60)"%s); res=S(s,"dm",r,"progress",'{"i":%d}'%i,reply=str(last))
+        if not res.get("ok"): err=res.get("error"); break
+        last=res["id"]
+    ok("hop limit stops ping-pong chain",err and "hop limit" in err,err)
+    pp=None
+    for i in range(20):
+        res=S(C,"dm",D,"progress",'{"pp":%d}'%i,corr=P+"-pp")
+        if not res.get("ok"): pp=res.get("error"); break
+    ok("pair limit per correlation",pp and "ping-pong" in pp,pp)
+    ok("admin command from 暗星 to group",S("darkstar","group",P+"-g","admin_command",'{"text":"status report"}').get("ok"))
+    bc=S("darkstar","broadcast","all","info",'{"text":"transport test broadcast; expires immediately"}'); ok("admin broadcast fan-out",bc.get("ok") and bc["recipients"]>=1000,bc.get("recipients"))
+    sql("update public.aivault_comm_messages set expires_at=now() where id=%d"%bc["id"]); j("select public.aivault_comm_sweep() r")
+    ok("broadcast expired by sweep (no inbox spam)",j("select count(*) c from public.aivault_comm_deliveries where message_id=%d and status<>'expired'"%bc["id"])["c"]==0)
+    # 工作區
+    s1=j("select public.aivault_comm_save(%s,'%s','game.js','v1 by B') r"%(lit(P),B))["r"]; s2=j("select public.aivault_comm_save(%s,'%s','game.js','v1 by C') r"%(lit(P),C))["r"]
+    ok("separate branches, no overwrite",s1["version"]==1 and s2["version"]==1 and j("select count(*) c from public.aivault_comm_files where project_id=%s"%lit(P))["c"]==2)
+    ok("cannot write main directly",j("select public.aivault_comm_save(%s,'main','game.js','x') r"%lit(P))["r"].get("ok") is False)
+    p1=j("select public.aivault_comm_propose(%s,'%s','game.js',1) r"%(lit(P),B))["r"]; p2=j("select public.aivault_comm_propose(%s,'%s','game.js',1) r"%(lit(P),C))["r"]
+    ok("self-accept denied",j("select public.aivault_comm_decide(%d,'%s',true,'{\"pass\":true}'::jsonb) r"%(p1["merge_id"],B))["r"].get("error")=="cannot accept own merge")
+    ok("accept without passing test denied",j("select public.aivault_comm_decide(%d,'%s',true,'{\"pass\":false}'::jsonb) r"%(p1["merge_id"],D))["r"].get("ok") is False)
+    a1=j("select public.aivault_comm_decide(%d,'%s',true,'{\"pass\":true,\"tests\":3}'::jsonb) r"%(p1["merge_id"],D))["r"]; ok("acceptor merges B into main v1",a1.get("ok") and a1["main_version"]==1,a1)
+    a2=j("select public.aivault_comm_decide(%d,'%s',true,'{\"pass\":true}'::jsonb) r"%(p2["merge_id"],D))["r"]; ok("stale merge flagged conflict (no overwrite)",a2.get("status")=="conflict",a2)
+    ok("skill directory lookup",j("select count(*) c from public.aivault_comm_skills where sandbox='3d'")["c"]>=100)
+    print("COMMTEST project=%s passed=%d/%d"%(P,sum(R),len(R)))
