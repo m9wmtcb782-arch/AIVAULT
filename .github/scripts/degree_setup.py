@@ -294,26 +294,22 @@ if "ancnload" in STEPS:  # an1：合成負載測試（不呼叫模型、不建�
         create index on %(S)s.deliv(agent,status); create index on %(S)s.edges(source,weight desc);
         create table %(S)s.kb(id serial primary key, body text, tsv tsvector generated always as (to_tsvector('simple',body)) stored); create index on %(S)s.kb using gin(tsv);
         select 1"""%{"S":S})
-        t=sql("""with a as (select clock_timestamp() t0),
-          n as (insert into %(S)s.nodes(id,skill) select g, (array['code','game','3d','av','music','tts','image','reason','model','gpu','collab','security'])[1+g%%12] from generate_series(1,%(N)d) g returning 1)
-          select (select count(*) from n) n, extract(epoch from clock_timestamp()-(select t0 from a))*1000 ms"""%{"S":S,"N":N})[0]
-        te=sql("""with a as (select clock_timestamp() t0), e as (insert into %(S)s.edges(source,target,relation,success,weight) select g, 1+((g*7919+k*104729)%%%(N)d), 'help', k, round(random()::numeric,3) from generate_series(1,%(N)d) g, generate_series(1,%(E)d) k where 1+((g*7919+k*104729)%%%(N)d)<>g on conflict do nothing returning 1)
-          select (select count(*) from e) n, extract(epoch from clock_timestamp()-(select t0 from a))*1000 ms"""%{"S":S,"N":N,"E":E})[0]
-        M=min(N*2,200000)
-        tm=sql("""with a as (select clock_timestamp() t0), d as (insert into %(S)s.deliv(message_id,agent) select g, 1+(g*31%%%(N)d) from generate_series(1,%(M)d) g returning 1)
-          select (select count(*) from d) n, extract(epoch from clock_timestamp()-(select t0 from a))*1000 ms"""%{"S":S,"N":N,"M":M})[0]
-        K=max(N//10,100)
-        tk=sql("""with a as (select clock_timestamp() t0), k as (insert into %(S)s.kb(body) select 'problem '||g||' '||(array['paginate off by one','sort numeric strings','null pointer render','timeout fetch retry','glb validator error','audio clip pop'])[1+g%%6]||' module'||(g%%97) from generate_series(1,%(K)d) g returning 1)
-          select (select count(*) from k) n, extract(epoch from clock_timestamp()-(select t0 from a))*1000 ms"""%{"S":S,"K":K})[0]
-        sql("analyze %(S)s.nodes; analyze %(S)s.edges; analyze %(S)s.deliv; analyze %(S)s.kb"%{"S":S})
-        tl=sql("""with a as (select clock_timestamp() t0), c as (select message_id, agent from %(S)s.deliv where status='queued' and agent between 1 and %(L)d order by message_id limit 2000 for update skip locked),
-          u as (update %(S)s.deliv d set status='leased', lease_until=now()+interval '2 minutes', attempts=attempts+1 from c where d.message_id=c.message_id and d.agent=c.agent returning 1)
-          select (select count(*) from u) n, extract(epoch from clock_timestamp()-(select t0 from a))*1000 ms"""%{"S":S,"L":N})[0]
-        qk=sql("""with t as (select clock_timestamp() t0), r as (select id from %(S)s.kb where tsv @@ to_tsquery('simple','paginate') order by id limit 5) select (select count(*) from r) hits, extract(epoch from clock_timestamp()-(select t0 from t))*1000 ms"""%{"S":S})[0]
-        qp=sql("""with t as (select clock_timestamp() t0), r as (select target, weight from %(S)s.edges where source=%(X)d and relation='help' order by weight desc limit 3) select (select count(*) from r) n, extract(epoch from clock_timestamp()-(select t0 from t))*1000 ms"""%{"S":S,"X":N//2})[0]
-        qi=sql("""with t as (select clock_timestamp() t0), r as (select count(*) c from %(S)s.deliv where agent=%(X)d and status='queued') select (select c from r) n, extract(epoch from clock_timestamp()-(select t0 from t))*1000 ms"""%{"S":S,"X":N//3})[0]
+        M=min(N*2,200000); K=max(N//10,100)
+        sql("""create table %(S)s.timing(op text, n bigint, ms numeric);
+        do $$ declare t timestamptz; c bigint; i int; tot numeric; begin
+          t:=clock_timestamp(); insert into %(S)s.nodes(id,skill) select g, (array['code','game','3d','av','music','tts','image','reason','model','gpu','collab','security'])[1+g%%12] from generate_series(1,%(N)d) g; get diagnostics c=row_count; insert into %(S)s.timing values('nodes',c,extract(epoch from clock_timestamp()-t)*1000);
+          t:=clock_timestamp(); insert into %(S)s.edges(source,target,relation,success,weight) select g, 1+((g*7919+k*104729)%%%(N)d), 'help', k, round(random()::numeric,3) from generate_series(1,%(N)d) g, generate_series(1,%(E)d) k where 1+((g*7919+k*104729)%%%(N)d)<>g on conflict do nothing; get diagnostics c=row_count; insert into %(S)s.timing values('edges',c,extract(epoch from clock_timestamp()-t)*1000);
+          t:=clock_timestamp(); insert into %(S)s.deliv(message_id,agent) select g, 1+(g*31%%%(N)d) from generate_series(1,%(M)d) g; get diagnostics c=row_count; insert into %(S)s.timing values('deliveries',c,extract(epoch from clock_timestamp()-t)*1000);
+          t:=clock_timestamp(); insert into %(S)s.kb(body) select 'problem '||g||' '||(array['paginate off by one','sort numeric strings','null pointer render','timeout fetch retry','glb validator error','audio clip pop'])[1+g%%6]||' module'||(g%%97) from generate_series(1,%(K)d) g; get diagnostics c=row_count; insert into %(S)s.timing values('kb',c,extract(epoch from clock_timestamp()-t)*1000);
+          analyze %(S)s.nodes; analyze %(S)s.edges; analyze %(S)s.deliv; analyze %(S)s.kb;
+          t:=clock_timestamp(); with c2 as (select message_id, agent from %(S)s.deliv where status='queued' order by message_id limit 2000 for update skip locked) update %(S)s.deliv d set status='leased', lease_until=now()+interval '2 minutes', attempts=attempts+1 from c2 where d.message_id=c2.message_id and d.agent=c2.agent; get diagnostics c=row_count; insert into %(S)s.timing values('lease_batch',c,extract(epoch from clock_timestamp()-t)*1000);
+          tot:=0; for i in 1..50 loop t:=clock_timestamp(); perform count(*) from (select id from %(S)s.kb where tsv @@ to_tsquery('simple',(array['paginate','numeric','timeout','validator','audio'])[1+i%%5]) order by id limit 5) x; tot:=tot+extract(epoch from clock_timestamp()-t)*1000; end loop; insert into %(S)s.timing values('fts_top5_avg50',50,tot/50);
+          tot:=0; for i in 1..50 loop t:=clock_timestamp(); perform count(*) from (select target from %(S)s.edges where source=1+(i*977)%%%(N)d and relation='help' order by weight desc limit 3) x; tot:=tot+extract(epoch from clock_timestamp()-t)*1000; end loop; insert into %(S)s.timing values('pick_top3_avg50',50,tot/50);
+          tot:=0; for i in 1..50 loop t:=clock_timestamp(); perform count(*) from %(S)s.deliv where agent=1+(i*613)%%%(N)d and status='queued'; tot:=tot+extract(epoch from clock_timestamp()-t)*1000; end loop; insert into %(S)s.timing values('inbox_avg50',50,tot/50);
+        end $$; select 1"""%{"S":S,"N":N,"E":E,"M":M,"K":K})
+        T={x["op"]:(int(x["n"]),float(x["ms"])) for x in sql("select * from %s.timing"%S)}
         sz=sql("select sum(pg_total_relation_size(c.oid))/1048576.0 mb from pg_class c join pg_namespace n on n.oid=c.relnamespace where nspname='%s' and c.relkind in ('r','m')"%S)[0]["mb"]
-        def rate(x): return round(float(x["n"])/max(float(x["ms"]),0.001)*1000)
-        print("LOAD N=%d nodes=%d(%d/s) edges=%d(%d/s) deliveries=%d(%d/s) kb=%d(%d/s) lease2000=%dms(%d/s) fts_top5=%.2fms pick_top3=%.2fms inbox_count=%.2fms storage=%.1fMB db_before=%sMB"%(N,t["n"],rate(t),te["n"],rate(te),tm["n"],rate(tm),tk["n"],rate(tk),float(tl["ms"]),rate(tl),float(qk["ms"]),float(qp["ms"]),float(qi["ms"]),float(sz),db))
+        rate=lambda k: round(T[k][0]/max(T[k][1],0.001)*1000)
+        print("LOAD N=%d nodes=%d(%d rows/s) edges=%d(%d/s) deliveries=%d(%d/s) kb=%d(%d/s) lease_batch=%d in %.1fms(%d/s) fts_top5=%.3fms pick_top3=%.3fms inbox=%.3fms storage=%.1fMB db_before=%sMB"%(N,T["nodes"][0],rate("nodes"),T["edges"][0],rate("edges"),T["deliveries"][0],rate("deliveries"),T["kb"][0],rate("kb"),T["lease_batch"][0],T["lease_batch"][1],rate("lease_batch"),T["fts_top5_avg50"][1],T["pick_top3_avg50"][1],T["inbox_avg50"][1],float(sz),db))
         sql("drop schema %s cascade"%S)
     print("LOAD cleanup ok; db now", sql("select pg_database_size(current_database())/1048576 mb")[0]["mb"],"MB; schemas left:", sql("select nspname from pg_namespace where nspname like 'ancn_load%'"))
