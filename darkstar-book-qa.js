@@ -440,16 +440,26 @@
       showReadProgress(0, "讀章節");
       try { L.sendRawText("【系統】使用者指定了章節，正在讀取書架原文。請先不要回答，等資料讀到 100% 再回答，不要說看不到書。"); } catch (e) {}
     }
+    var bookAsk = shelf || st0.chapter || st0.part || st0.section || st0.page || st0.toc || (st0.chapters && st0.chapters.length);
+    if (!bookAsk) {
+      try {
+        var wr = await fetch("https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/dark-star-ebook-ingest?feature=web-search", { method: "POST", headers: { "Content-Type": "application/json", apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE", Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE" }, body: JSON.stringify({ q: q, n: 5 }) });
+        var wj = await wr.json();
+        var rows = (wj && wj.results) || [];
+        if (rows.length) L.sendRawText("【網路資料】使用者問：「" + q + "」\n" + rows.map(function (x, i) { return (i + 1) + ". " + x.title + "（" + x.url + "）" + (x.snippet ? "：" + x.snippet : ""); }).join("\n") + "\n請用網路資料回答並說來源。這不是電子書題，不要硬套書架內容。");
+      } catch (e) { console.warn("[BookQA] web", e); }
+      return;
+    }
     try { sv = await structural(q, list); } catch (e) { console.warn("[BookQA] structural", e); }
     var hits = sv ? sv.sources : search(q, list);
     if (!sv && hits[0] && hits[0].bid) lastBid = hits[0].bid;
     if (sv && sv.st && (sv.st.chapter || sv.st.part || sv.st.section)) setReadTarget(100);
-    var msg = sv ? "【書架資料】使用者剛才的題目：「" + q + "」\n" + sv.text + "\n章節資料已讀到 100%。請現在根據以上書架資料回答，說出書名與頁碼。不要說看不到書或沒有內容。若你剛才已開始回答，請以書架資料修正或補充。" + EXCERPT_NOTE
-      : hits.length ? compose(q, hits) : shelf ? "【書架資料】使用者在問書架本身：「" + q + "」。" : "【書架資料】使用者題目：「" + q + "」這次的關鍵詞沒有比對到合適段落（書架上的書仍是完整的）。請請使用者換個說法、說出章節或關鍵詞，不要說書裡沒有這些內容。";
-    if (shelf) msg += "\n書架書目：" + bookTitles(list).join("、") + "。請回答你看得到這些書，並邀請使用者出題。";
+    var msg = sv ? "【書架資料】使用者剛才的題目：「" + q + "」\n" + sv.text + "\n章節資料已讀到 100%。請現在根據以上書架資料回答，說出書名與頁碼。" + EXCERPT_NOTE
+      : hits.length ? compose(q, hits) : shelf ? "【書架資料】使用者在問書架本身：「" + q + "」。" : "";
+    if (!msg) return;
+    if (shelf) msg += "\n書架書目：" + bookTitles(list).join("、") + "。請回答你看得到這些書。";
     msg = withLinHint(withZhangHint(withJiangHint(msg, hits, sv && sv.bid), hits, sv && sv.bid), hits, sv && sv.bid);
-    if (!introSent) msg = intro(list) + msg;
-    if (L.sendRawText(msg)) { introSent = true; if (hits.length || sv) bubble(hits, sv && sv.bid); }
+    if (L.sendRawText(msg)) { if (hits.length || sv) bubble(hits, sv && sv.bid); }
   }
   w.addEventListener("darkstar-live-user-turn", onTurn);
   w.AIVAULTBookQA = { build: build, search: search, isQuestion: isQuestion, compose: compose, structural: structural, coverage: coverage, progress: progressOf, parseStruct: parseStruct, intro: intro, bookTitles: bookTitles, reset: function () { chunks = null; } };
