@@ -145,7 +145,7 @@ export async function degree(r: Request) {
     if (a === "plans_public") { const rows = await getPlans(String(b.day || "").match(/^\d{4}-\d{2}-\d{2}$/) ? b.day : undefined); return out({ ok: true, plans: rows.map((x: any) => x.v) }); } // pl1：每日學習計畫＋暗星審核（公開唯讀）
     if (a === "public") { // 公開：只有學階分佈與每位代理的學階（無作答、無名字）
       if (PUB && Date.now() - PUB.t < 30000) return out(PUB.d);
-      const ag = await rest("aivault_pool_agents?select=id,domain&limit=1400"); const dg = await rest("aivault_pool_agent_degree?select=agent_id,tier,level&limit=1400");
+      const ag = await rest("aivault_pool_agents?or=(id.lt.ag-1,id.gte.ah)&select=id,domain&limit=1400"); const dg = await rest("aivault_pool_agent_degree?select=agent_id,tier,level&limit=1400");
       const m: Record<string, any> = {}; dg.forEach((x: any) => m[x.agent_id] = x); const dist: any = {}; let untested = 0;
       const list = ag.map((x: any) => { const g = m[x.id], d = districtOf(x.domain); dist[d] = dist[d] || { untested: 0, tiers: [0, 0, 0, 0, 0, 0], levels: {} };
         if (!g?.tier) { untested++; dist[d].untested++; return [x.id, 0, 0, d]; } dist[d].tiers[g.tier - 1]++; const k = g.tier + "-" + g.level; dist[d].levels[k] = (dist[d].levels[k] || 0) + 1; return [x.id, g.tier, g.level, d]; });
@@ -202,7 +202,7 @@ export async function degree(r: Request) {
       if (b.mode === "place" && b.src === "pg_cron") { const k = "placecall:lock"; const [x] = await rest(`aivault_floor_state?k=eq.${k}&select=v`); if (x && Date.parse(x.v?.until) > Date.now()) return out({ ok: true, skipped_round: true, results: [] });
         await rest("aivault_floor_state", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ k, v: { until: new Date(Date.now() + 4 * 60e3).toISOString(), src: "pg_cron" }, updated_at: new Date().toISOString() }) }); } // pc1
       if (b.mode === "place") { // pd1：平行鑑定（每位代理仍各自一份考卷、各自閉卷作答；一次呼叫就是一整份 12 題考卷）
-        const placed = new Set((await rest("aivault_pool_agent_degree?select=agent_id&limit=1400")).map((x: any) => x.agent_id)); const all = await rest("aivault_pool_agents?select=id,domain,persona&order=id.asc&limit=1400");
+        const placed = new Set((await rest("aivault_pool_agent_degree?select=agent_id&limit=1400")).map((x: any) => x.agent_id)); const all = await rest("aivault_pool_agents?or=(id.lt.ag-1,id.gte.ah)&select=id,domain,persona&order=id.asc&limit=1400");
         const left = all.filter((x: any) => !placed.has(x.id)).sort(() => Math.random() - .5).slice(0, Math.min(8, n));
         const rs = await Promise.allSettled(left.map((ag: any) => placeOne(ag))); let rl = false;
         rs.forEach((x) => { if (x.status === "fulfilled") results.push(x.value); else { const m = String((x.reason as any)?.message || x.reason); results.push({ error: m.slice(0, 200) }); if (/429|LLM_FAILED/.test(m)) rl = true; } });
@@ -217,9 +217,9 @@ export async function degree(r: Request) {
               const c = await rest(`aivault_pool_agent_degree?district=eq.${e.district}&tier=not.is.null${ids.length ? "&agent_id=not.in.(" + ids.join(",") + ")" : ""}&select=agent_id&order=updated_at.asc&limit=1`);
               if (c[0]) { const [ag] = await rest(`aivault_pool_agents?id=eq.${c[0].agent_id}&select=id,domain,persona`); job = await examOne(ag, e); break; } }
             if (!job) { const placed = await rest("aivault_pool_agent_degree?select=agent_id&limit=1400"); const ps = new Set(placed.map((x: any) => x.agent_id));
-              const all = await rest("aivault_pool_agents?select=id,domain,persona&order=id.asc&limit=1400"); const left = all.filter((x: any) => !ps.has(x.id));
+              const all = await rest("aivault_pool_agents?or=(id.lt.ag-1,id.gte.ah)&select=id,domain,persona&order=id.asc&limit=1400"); const left = all.filter((x: any) => !ps.has(x.id));
               if (left.length) job = await placeOne(left[Math.floor(Math.random() * left.length)]); } }
-          if (!job) { const all = await rest("aivault_pool_agents?select=id,domain,persona,updated_at&order=id.asc&limit=1400"); const ln = await rest(`aivault_pool_agent_learning?created_at=gte.${new Date(Date.now() - 7 * 864e5).toISOString()}&select=agent_id&limit=5000`);
+          if (!job) { const all = await rest("aivault_pool_agents?or=(id.lt.ag-1,id.gte.ah)&select=id,domain,persona,updated_at&order=id.asc&limit=1400"); const ln = await rest(`aivault_pool_agent_learning?created_at=gte.${new Date(Date.now() - 7 * 864e5).toISOString()}&select=agent_id&limit=5000`);
             const c: Record<string, number> = {}; ln.forEach((x: any) => c[x.agent_id] = (c[x.agent_id] || 0) + 1); const ag = all.sort((x: any, y: any) => (c[x.id] || 0) - (c[y.id] || 0) || Math.random() - .5)[0]; job = await learnOne(ag); }
           results.push(job);
         } catch (e) { const msg = String((e as any)?.message || e); results.push({ error: msg.slice(0, 200) }); if (/429|LLM_FAILED/.test(msg)) return out({ ok: true, rate_limited: true, results }); }

@@ -332,3 +332,5 @@ if "rep2mig" in STEPS:
     b=sql("select (pg_total_relation_size('rep_dry.a')+pg_total_relation_size('rep_dry.l')+pg_total_relation_size('rep_dry.s')+pg_total_relation_size('rep_dry.k'))/1000.0 bytes, (select count(*) from rep_dry.a) n, pg_database_size(current_database())/1048576.0 db")[0]
     sql("drop schema rep_dry cascade"); bpa=float(b["bytes"]); db=float(b["db"]); 
     print("REP2 dry lean offspring bytes/agent=%.0f (n=%s); db now %.1fMB; projected at 100k: +%.1fMB -> %.1fMB (limit 350MB); fits=%s"%(bpa,b["n"],db,bpa*99000/1048576,db+bpa*99000/1048576,db+bpa*99000*1.3/1048576<350))
+if "countsmig" in STEPS:
+    sql(open("supabase/migrations/20261018151000_aivault_counts.sql").read()); print("COUNTS", sql("select public.aivault_city_counts() c"))

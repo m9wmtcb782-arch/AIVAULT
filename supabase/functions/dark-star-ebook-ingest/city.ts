@@ -16,7 +16,7 @@ let CACHE: { at: number; until: number } = { at: 0, until: 0 };
 export async function quotaSleeping(): Promise<number> {
   if (Date.now() - CACHE.at < 30000) return CACHE.until > Date.now() ? CACHE.until : 0;
   let until = 0; try { const off = await getK("quota:off"); const q = await getK("quota:sleep"); if (!(off && off.off === "1") && q?.until) until = Date.parse(q.until) || 0;
-    if (q?.until && until && until <= Date.now() && !q.woke) { await setK("quota:sleep", { ...q, woke: new Date().toISOString() }); await rest("aivault_agent_state?state=eq.SLEEPING", { method: "PATCH", headers: MIN, body: JSON.stringify({ state: "READY", reason: "額度恢復", since: new Date().toISOString() }) }); await audit("system", "quota_wake", "groq", { until: q.until }); }
+    if (q?.until && until && until <= Date.now() && !q.woke) { await setK("quota:sleep", { ...q, woke: new Date().toISOString() }); await rest("aivault_agent_state?state=eq.SLEEPING&reason=like.Groq*", { method: "PATCH", headers: MIN, body: JSON.stringify({ state: "READY", reason: "額度恢復", since: new Date().toISOString() }) }); await audit("system", "quota_wake", "groq", { until: q.until }); }
   } catch (_) { until = 0; }
   CACHE = { at: Date.now(), until }; return until > Date.now() ? until : 0;
 }
@@ -29,8 +29,7 @@ export async function quotaHit(text: string) {
   } catch (_) { /* never break caller */ }
 }
 export async function quotaState() {
-  const q = (await getK("quota:sleep")) || {}; const until = await quotaSleeping(); const st = await rest("aivault_agent_state?select=state");
-  const counts: Record<string, number> = {}; st.forEach((x: any) => counts[x.state] = (counts[x.state] || 0) + 1);
+  const q = (await getK("quota:sleep")) || {}; const until = await quotaSleeping(); const cc = await rest("rpc/aivault_city_counts", { method: "POST", body: "{}" }).catch(() => ({})); const counts: Record<string, number> = cc?.states || {};
   const left = q.limit && q.used != null && !until ? null : 0; // 醒著時無法免費得知剩多少，不猜
   return { sleeping: !!until, until: until ? new Date(until).toISOString() : null, limit: q.limit || null, used_at_sleep: q.used ?? null, last_sleep: q.at || null, woke: q.woke || null, activities_left: until ? 0 : left, per_activity: PER_ACTIVITY, states: counts };
 }
@@ -53,15 +52,15 @@ export async function helpFromFail(e: any) {
 }
 export async function cityPublic() {
   const [boxes, mem, quota, kb, help, labs, repl, deg] = await Promise.all([
-    rest("aivault_sandboxes?select=*&order=lo"), rest("aivault_sandbox_members?select=sandbox"), quotaState(), rest("aivault_kb?select=id,title,source,verified,created_at&order=created_at.desc&limit=10"),
+    rest("aivault_sandboxes?select=*&order=lo"), rest("rpc/aivault_city_counts", { method: "POST", body: "{}" }), quotaState(), rest("aivault_kb?select=id,title,source,verified,created_at&order=created_at.desc&limit=10"),
     rest("aivault_help_requests?select=id,lab_id,requester,helpers,status,created_at&order=created_at.desc&limit=10"), rest("aivault_lab_experiments?select=id,title,sandbox,status,tokens,cost_usd,lead_id,verifier_id,created_at&order=created_at.desc&limit=200"),
     getK("replication:off"), rest("aivault_pool_agent_degree?select=tier"),
   ]);
-  const mc: Record<string, number> = {}; mem.forEach((m: any) => mc[m.sandbox] = (mc[m.sandbox] || 0) + 1);
+  const mc: Record<string, number> = mem?.members || {};
   const sb = boxes.map((b: any) => { const L = labs.filter((l: any) => (l.sandbox || "code") === b.key); return { ...b, members: mc[b.key] || 0, labs: L.length, passed: L.filter((l: any) => l.status === "passed").length, failed: L.filter((l: any) => l.status === "failed").length, running: L.filter((l: any) => l.status === "running").length, tokens: L.reduce((s: number, l: any) => s + (l.tokens || 0), 0) }; });
-  const [nst, edges, acts, mm] = await Promise.all([rest("aivault_ancn_neurons?select=neuron_state").catch(() => []), rest("aivault_ancn_edges?select=source,target,relation,success,fail,weight,last_at&order=last_at.desc.nullslast&limit=12").catch(() => []), rest("aivault_ancn_activations?select=id,requester,skill,goal,status,picked,kb_id,created_at&order=id.desc&limit=8").catch(() => []), rest("aivault_mem_metrics?select=*").catch(() => [])]);
-  const ns: Record<string, number> = {}; nst.forEach((x: any) => ns[x.neuron_state] = (ns[x.neuron_state] || 0) + 1);
-  const ancn = { neurons: ns, edges, edge_count: edges.length, activations: acts, memory: mm[0] || null, kb_recent: await rest("aivault_kb?select=id,kind,status,title,agent_id,solved_by,verifier,dup_count,hits&order=updated_at.desc&limit=8").catch(() => []) };
+  const [nst, edges, acts, mm] = await Promise.all([Promise.resolve([]), rest("aivault_ancn_edges?select=source,target,relation,success,fail,weight,last_at&order=last_at.desc.nullslast&limit=12").catch(() => []), rest("aivault_ancn_activations?select=id,requester,skill,goal,status,picked,kb_id,created_at&order=id.desc&limit=8").catch(() => []), rest("aivault_mem_metrics?select=*").catch(() => [])]);
+  const ns: Record<string, number> = mem?.neurons || {};
+  const ancn = { population: mem?.population, offspring: mem?.offspring, db_mb: mem?.db_mb, neurons: ns, edges, edge_count: edges.length, activations: acts, memory: mm[0] || null, kb_recent: await rest("aivault_kb?select=id,kind,status,title,agent_id,solved_by,verifier,dup_count,hits&order=updated_at.desc&limit=8").catch(() => []) };
   return { ok: true, ancn, at: new Date().toISOString(), sandboxes: sb, quota, kb, help, recent: labs.slice(0, 12), replication_off: !!(repl && repl.off === "1"), degrees: deg.length, cost_usd: labs.reduce((s: number, l: any) => s + Number(l.cost_usd || 0), 0) };
 }
 // 便宜探針（約 20 token）：只在 quota:sleep 已過期時才真的打一次；仍 429 就重新睡。

@@ -108,7 +108,7 @@ async function who(r: Request) {
   const role = u?.app_metadata?.role; return u?.id && (role === "owner" || role === "admin") ? { id: u.id as string, cron: false } : null;
 }
 async function idleAgent(zone: string) {
-  const a = await rest(`aivault_pool_agents?zone=eq.${zone}&status=eq.idle&select=id&order=updated_at.asc&limit=1`);
+  const a = await rest(`aivault_pool_agents?or=(id.lt.ag-1,id.gte.ah)&zone=eq.${zone}&status=eq.idle&select=id&order=updated_at.asc&limit=1`);
   return a[0]?.id || null;
 }
 async function enqueue(zone: string, text: string, by: string | null, plan: any = null) {
@@ -207,7 +207,7 @@ export async function floor(r: Request) {
     }
     if (a === "town" && TOWN && Date.now() - TOWN.t < 20000) return out(TOWN.d); // 公開彙總快取 20 秒
     if (a === "town") { // 公開（含未登入）：只回匿名彙總——代理 id＋領域類別、狀態、區域；不含名字、任務內容、成果、審核
-      const ag = await rest("aivault_pool_agents?select=id,domain&order=id.asc&limit=1400");
+      const ag = await rest("aivault_pool_agents?or=(id.lt.ag-1,id.gte.ah)&select=id,domain&order=id.asc&limit=1400");
       const ts = await rest("aivault_pool_agent_tasks?source=eq.floor&select=agent_id,zone,status,review_status,updated_at&order=updated_at.desc&limit=1000");
       const st: any[] = []; const seen = new Set<string>(); const counts: Record<string, number> = {};
       for (const t of ts) {
