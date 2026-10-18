@@ -3,6 +3,7 @@
 // 學習證明：代理用 web-search 找網頁、真的抓回內容（記錄 URL、HTTP 狀態、位元組、sha256、時間），再由代理自己寫筆記。
 import { callModel } from "./floor.ts";
 import { cityPublic, quotaState, quotaProbe } from "./city.ts";
+import { memFix } from "./mem.ts";
 import { commGameStart, commGameTurn, commPendingTests, commTestResult, commPublic } from "./comm.ts";
 import { webSearch } from "./web-search.ts";
 import { learnRound } from "./learn10.ts";
@@ -223,6 +224,7 @@ export async function degree(r: Request) {
     if (a === "special_round") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(await specialRound(b)); } // sp1
     if (/^order(s_list|_log|_save|_approve|_revoke)$/.test(a)) { const uo = await who(r); if (!uo || uo.cron) return out({ error: "owner only" }, 403); return out(await orders(a, b, uo.id)); } // so1 長期命令
     if (["comm_game_start", "comm_game_turn", "comm_pending_tests", "comm_test_result"].includes(a)) { const u2 = await who(r); if (!u2) return out({ error: "owner only" }, 403); return out(a === "comm_game_start" ? await commGameStart() : a === "comm_game_turn" ? await commGameTurn(b) : a === "comm_pending_tests" ? await commPendingTests(b) : await commTestResult(b)); }
+    if (a === "mem_fix") { const u3 = await who(r); if (!u3) return out({ error: "owner only" }, 403); return out(await memFix(b)); }
     if (a === "quota_probe") { const u1 = await who(r); if (!u1) return out({ error: "owner only" }, 403); return out(await quotaProbe()); }
     if (a === "lab_start" || a === "lab_report") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(a === "lab_start" ? await labStart(b) : await labReport(b)); } // lb1 實驗工廠
     if (a === "summon") { const u0 = await who(r); if (!u0) return out({ error: "owner only" }, 403); return out(await summon(b, u0.id, String(b.via || "town"))); } // sm1

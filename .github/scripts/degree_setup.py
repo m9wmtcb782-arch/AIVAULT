@@ -277,3 +277,5 @@ if "handoffmig" in STEPS:
     rp=S("ag-0200","dm","ag-0700","report",{"done":"game.js v1","missing":"none","changes":"game.js","tests":"5/5","failures":"none","cost":"$0, 0 tokens (test)","commits":"workspace v1"},reply=str(h["id"])); ok("full report accepted, same correlation",rp.get("ok") and rp["correlation_id"]==h["correlation_id"],rp)
     v=sql("select * from public.aivault_comm_handoffs where handoff_id=%d"%h["id"])[0]; ok("handoff view links accept+report",v["accept_id"]==a["id"] and v["report_id"]==rp["id"] and v["report_quality"]>=3,v.get("report_quality"))
     print("HANDOFFTEST passed=%d/%d"%(sum(R),len(R)))
+if "memmig" in STEPS:
+    sql(open("supabase/migrations/20261018120000_aivault_shared_memory.sql").read()); print("MEMMIG", sql("select * from public.aivault_mem_metrics"), sql("select status,kind,count(*) from public.aivault_kb group by 1,2"))

@@ -3,6 +3,7 @@
 // 關閉：函式 env LAB_OFF=1；每日上限 LAB_DAILY（預設 4）
 import { callModel } from "./floor.ts";
 import { kbSearch, kbFromLab, helpFromFail } from "./city.ts";
+import { memContext } from "./mem.ts";
 const URL0 = Deno.env.get("SUPABASE_URL") || "", SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const SRH = { apikey: SR, Authorization: "Bearer " + SR, "Content-Type": "application/json" };
 async function rest(path: string, init: RequestInit = {}) { const r = await fetch(URL0 + "/rest/v1/" + path, { ...init, headers: { ...SRH, Prefer: "return=representation", ...(init.headers || {}) } }); const t = await r.text(); if (!r.ok) throw new Error("DB " + r.status + " " + t.slice(0, 200)); return t ? JSON.parse(t) : null; }
@@ -100,7 +101,7 @@ export async function agentLabStats(id: string) {
 async function sandboxStart(b: any, SB: string, day: string) {
   const L0 = SB_BRIEFS[SB]; const br = b.brief != null ? L0[Number(b.brief) % L0.length] : L0[Math.floor(Math.random() * L0.length)];
   const ag = await pickSandbox(SB); if (!ag?.lead) return { ok: false, error: "no sandbox agents" }; const L = await persona(ag.lead), T = await persona(ag.tester);
-  const kb = await kbSearch(br.title + " " + br.kind); const kbt = kb.length ? `\n知識庫裡已驗證的相關條目（可參考）：\n${kb.map((k: any) => "- " + k.title + "：" + String(k.summary).slice(0, 300)).join("\n")}` : "";
+  const kbt = await memContext(ag.lead, br.title + " " + br.kind); // sm1：開工前檢索共享記憶（取代原本 kbSearch，同一張表）
   const c = await callModel(`${L.persona || ""}\n你是 AIVAULT ${SB === "3d" ? "3D" : "遊戲"}沙盒的 ${L.name}，在共用實驗工廠負責製作。${RULES(SB)}`, `需求（${br.kind}）：${br.title}\n${br.spec}${kbt}\n\n只輸出 JSON：{"api":"函式說明","product_js":"完整程式","demo_html":"完整 HTML${SB === "3d" ? "（可空字串）" : ""}"}`, 6000);
   if (!c.v?.product_js) return { ok: false, error: "lead returned no code", model: c.model };
   const tHint = SB === "3d" ? `測試檔可用 const THREE = require("three"); const P = require("./product.js"); const s = P.build(THREE); 檢查 Mesh 數量、name、尺寸範圍、材質等需求明確寫到的條件（用 s.traverse 與 new THREE.Box3().setFromObject(s)）。` : `const P = require("./product.js");`;

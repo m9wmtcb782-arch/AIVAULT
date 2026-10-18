@@ -1,0 +1,19 @@
+name: Shared memory A/B/C/D acceptance (offline sandbox, 1 free model call)
+on:
+  workflow_dispatch:
+    inputs:
+      step: { description: "migrate | test | both", required: false, default: "both" }
+concurrency: { group: mem-acceptance, cancel-in-progress: false }
+permissions: { contents: read }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - if: inputs.step != 'test'
+        env: { TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN }}", PAGES_KEY: "${{ secrets.AIVAULT_PRIVATE_PAGES_KEY }}", STEP: memmig }
+        run: python3 .github/scripts/degree_setup.py
+      - if: inputs.step != 'migrate'
+        env: { TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN }}" }
+        run: python3 .github/scripts/mem_acceptance.py
