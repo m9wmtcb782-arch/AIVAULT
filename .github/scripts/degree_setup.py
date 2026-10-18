@@ -99,6 +99,27 @@ if "rvorder" in STEPS:  # rv2：使用者 08:14 的即時語音研究規劃 → 
     t="依 docs/realtime-voice-plan.md 分階段研究即時語音（目前只是研究，尚未實作任何功能）：先做第 1 階段（自有國語 TTS：文字正規化、停頓／韻律規劃、開源中文 TTS），再第 2 階段（串流播放、VAD、barge-in）。實驗工廠作品要小而可測（例如國語文字正規化、停頓規劃器、純 JS 的 VAD 與插話狀態機）。標示狀態只能用 已完成／已驗證／待驗證／尚未實作，沒驗證不能說完成。只用合法開源模型與免費資源，不得使用付費 API，不得把外部商業 API 說成自研，不得修改既有暗星／曙光／電子書／算力池功能。"
     if not sql("select id from public.aivault_standing_orders where text=%s and revoked_at is null"%lit(t)): sql("insert into public.aivault_standing_orders(text,districts,flagged) values (%s,'{}',false)"%lit(t))
     print("RVORDER",sql("select id,districts,active from public.aivault_standing_orders where revoked_at is null order by id"))
+if "inv" in STEPS:  # B1 盤點（只讀，只印計數與欄位）
+    q=lambda x: sql(x)
+    for t in ["aivault_collaboration_pool_members","aivault_agent_social_rankings","aivault_pool_exams","aivault_pool_exam_answers","aivault_pool_agent_learning","aivault_lab_experiments","aivault_pool_agents","agent_registry","aivault_pool_agent_degree","aivault_pool_agent_tasks","aivault_pool_agent_memory"]:
+        try: print("INV",t,q('select count(*) c from public."%s"'%t)[0]["c"],[x["column_name"] for x in q("select column_name from information_schema.columns where table_schema='public' and table_name='%s' order by ordinal_position"%t)][:30])
+        except Exception as e: print("INV",t,"ERR",str(e)[:80])
+    try: print("CPM_ROLES",q("select role,count(*) from public.aivault_collaboration_pool_members group by 1 order by 2 desc limit 20"))
+    except Exception as e: print("CPM_ROLES err",str(e)[:120])
+    try: print("CPM_IDS",q("select substring(member_id::text from '^[A-Za-z-]+') p,count(*) from public.aivault_collaboration_pool_members group by 1 order by 2 desc limit 20"))
+    except Exception as e: print("CPM_IDS err",str(e)[:120])
+    print("EXAMS",q("select id,district,kind,jsonb_array_length(questions) nq,opens_at from public.aivault_pool_exams order by id"))
+    print("ANS",q("select exam_id,count(*),round(avg(score::numeric/nullif(max_score,0))*100,1) pct,count(distinct model) models,string_agg(distinct grader,',') graders from public.aivault_pool_exam_answers group by 1 order by 1"))
+    print("BANKSRC",q("select id,left(title,40) t from public.aivault_pool_exams where id like 'bank-%'"))
+    print("DEG",q("select district,tier,level,count(*) from public.aivault_pool_agent_degree group by 1,2,3 order by 1,2,3"))
+    print("LEARN",q("select coalesce(source_type,'web') s,count(*),count(distinct agent_id) a,count(*) filter (where lab_id is not null) linked from public.aivault_pool_agent_learning group by 1"))
+    print("LEARNTOP",q("select split_part(topic,'：',1) k,count(*) from public.aivault_pool_agent_learning group by 1 order by 2 desc limit 12"))
+    print("LAB",q("select status,count(*),sum(tokens) from public.aivault_lab_experiments group by 1"))
+    print("TASKS",q("select kind,status,review_status,count(*) from public.aivault_pool_agent_tasks group by 1,2,3 order by 4 desc limit 20"))
+    print("DOMAINS",q("select domain,count(*),min(id),max(id) from public.aivault_pool_agents group by 1 order by 1"))
+    print("USAGE",q("select * from public.aivault_pool_agent_usage order by day desc limit 5"))
+    print("LMODELS",q("select model,count(*),sum((usage->>'total')::int) tok from public.aivault_pool_agent_learning group by 1 order by 2 desc limit 8"))
+    print("DBSIZE",q("select pg_size_pretty(pg_database_size(current_database())) s, pg_database_size(current_database()) b"))
 if "smtest" in STEPS:  # sm1 測試：真的召集暗星（只印狀態、模型、任務）
     s,b=y({"action":"summon","id":"darkstar","op":"call","via":"test"}); print("SUMMON",s,{k:b.get(k) for k in ["ok","error","task","model","until"]} if isinstance(b,dict) else str(b)[:200])
 if "rosterdump" in STEPS:  # rm1 備份：加密 artifact（公開日誌只印筆數）
