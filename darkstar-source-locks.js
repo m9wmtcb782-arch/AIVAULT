@@ -1,4 +1,4 @@
-/* 抽屜設定：來源鎖定。打勾＝鎖定；先打勾為優先 1。 */
+/* 抽屜「設定」內容：來源鎖定。打勾＝鎖定；先打勾為優先 1。 */
 (function (w, d) {
   "use strict";
   var KEY = "aivaultSourceLocks";
@@ -31,22 +31,29 @@
   }
   function install() {
     if (d.getElementById("dsSourceLocks")) return true;
+    var btn = d.getElementById("darkStarSettingsButton");
     var host = d.querySelector(".drawer-bottom");
-    if (!host) return false;
+    if (!btn || !host) return false;
     var box = d.createElement("div");
     box.id = "dsSourceLocks";
-    box.style.cssText = "margin:8px 10px;padding:10px;border:1px solid #eee;border-radius:12px;background:#fff";
-    box.innerHTML = '<div style="font-size:13px;font-weight:700;margin-bottom:4px">⚙️ 設定 · 來源鎖定</div>' +
-      '<div style="font-size:11px;color:#777;margin-bottom:6px">打勾＝鎖定。先打勾為 1。</div>' +
+    box.style.cssText = "display:none;margin:6px 8px 8px;padding:10px;border:1px solid #eee;border-radius:12px;background:#fafafa";
+    box.innerHTML = '<div style="font-size:12px;color:#777;margin-bottom:6px">打勾＝鎖定。先打勾為 1。</div>' +
       ITEMS.map(function (it) {
-        return '<label data-src="' + it.id + '" style="display:flex;align-items:center;gap:8px;padding:6px 2px;font-size:15px">' +
+        return '<label data-src="' + it.id + '" style="display:flex;align-items:center;gap:8px;padding:7px 2px;font-size:15px">' +
           '<input type="checkbox" style="width:18px;height:18px"> ' + it.label +
           '<span class="src-pri" style="margin-left:auto;min-width:18px;text-align:right;font-weight:700"></span></label>';
       }).join("");
-    var btn = d.getElementById("darkStarSettingsButton");
-    if (btn && btn.parentNode === host) host.insertBefore(box, btn);
-    else host.insertBefore(box, host.firstChild);
-    if (btn) btn.addEventListener("click", function () { box.scrollIntoView({ block: "nearest" }); box.style.outline = "2px solid #111"; setTimeout(function () { box.style.outline = ""; }, 800); });
+    btn.insertAdjacentElement("afterend", box);
+    btn.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var open = box.style.display !== "block";
+      box.style.display = open ? "block" : "none";
+      if (open) {
+        host.scrollTop = host.scrollHeight;
+        box.scrollIntoView({ block: "nearest" });
+      }
+    });
     var st = load(); paint(box, st);
     box.addEventListener("change", function (e) {
       var row = e.target.closest("[data-src]"); if (!row) return;
