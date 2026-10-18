@@ -268,7 +268,7 @@ if "handoffmig" in STEPS:
     def S(s,k,r,t,pl,reply="null",corr="null"):
         try: return sql("select public.aivault_comm_send(%s,%s,%s,%s,%s::jsonb,null,null,%s,%s,null) r"%(lit(s),lit(k),lit(r),lit(t),lit(json.dumps(pl,ensure_ascii=False)),corr if corr=="null" else lit(corr),reply))[0]["r"]
         except AssertionError as e: return {"ok":False,"error":str(e)[:160]}
-    H={"goal":"g","context":"msg#1","owned_scope":"game.js@ag-0200","forbidden_scope":"main, other files","constraints":"free-only; no privilege escalation; no self-approval","success_criteria":"tests pass","report_format":"done/missing/changes/tests/failures/cost/commits"}
+    H={"goal":"write game.js","context":"msg#1","owned_scope":"game.js@ag-0200","forbidden_scope":"main, other files","constraints":"free-only; no privilege escalation; no self-approval","success_criteria":"tests pass","report_format":"done/missing/changes/tests/failures/cost/commits"}
     bad=dict(H); bad.pop("forbidden_scope"); ok("handoff missing field rejected","forbidden_scope" in str(S("ag-0700","dm","ag-0200","handoff",bad)))
     b2=dict(H,constraints="be fast"); ok("handoff without free-only rejected",not S("ag-0700","dm","ag-0200","handoff",b2).get("ok"))
     h=S("ag-0700","dm","ag-0200","handoff",H); ok("valid handoff accepted",h.get("ok"),h)
