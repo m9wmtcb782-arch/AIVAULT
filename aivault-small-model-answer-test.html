@@ -1,0 +1,29 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AIVAULT 小模型本機回答驗證</title><style>body{background:#0d1423;color:#f1f5ff;font:16px system-ui,-apple-system,sans-serif;margin:0 auto;max-width:720px;padding:18px;line-height:1.5}button{background:#397ce6;color:#fff;border:0;border-radius:10px;padding:13px;font-size:16px;margin:5px}button:disabled{opacity:.4}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#1a253b;padding:12px;border-radius:10px;font-size:13px}#out{background:#16273c;padding:15px;min-height:40px;border-radius:10px}</style></head><body><h2>AIVAULT 本機 AI 回答驗證</h2><p>獨立實驗：SmolLM2-135M-Instruct（約 117 MB q4f16 權重）。這不是 Qwen3，也不是 AIVAULT 自研模型。目標只驗證手機瀏覽器能否完成真正的文字生成。</p><p>模型主要適用英文，因此使用簡短英文問題，避免把中文能力誤當成載入故障。只有按下同意才會下載；不自動重試。</p><button id="load">同意下載約 117 MB 並載入</button><button id="ask" disabled>讓模型回答</button><button id="copy">複製診斷</button><p id="status">尚未載入</p><div id="out"></div><pre id="log">尚未開始</pre>
+<script type="module">
+import {pipeline,TextStreamer} from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1';
+const $=id=>document.getElementById(id),VERSION='small-answer-20261018-a',KEY='aivault-small-answer-stage';
+const say=m=>{$('log').textContent+='\n'+m};let model=null;
+function stage(s){try{localStorage.setItem(KEY,JSON.stringify({stage:s,time:new Date().toISOString()}))}catch{}}
+try{const p=localStorage.getItem(KEY);$('log').textContent=VERSION+'\n上次階段：'+(p||'無');if(p&& !/ready|failed/.test(p))say('上次未正常結束；請勿盲目重複下載。')}catch{}
+window.addEventListener('error',e=>say('頁面錯誤 '+e.message));window.addEventListener('unhandledrejection',e=>say('未處理錯誤 '+(e.reason?.stack||e.reason)));
+$('load').onclick=async()=>{
+if(!confirm('確認下載約 117 MB 模型權重（另有 tokenizer 等檔案）？'))return;
+$('load').disabled=true;stage('started');$('status').textContent='開始載入';
+try{
+const adapter=await navigator.gpu?.requestAdapter();if(!adapter)throw Error('沒有 GPUAdapter');
+say('adapter ok；開始載入');
+let last=-1;
+model=await pipeline('text-generation','onnx-community/SmolLM2-135M-Instruct-ONNX',{device:'webgpu',dtype:'q4f16',progress_callback:p=>{
+if(p.status==='progress'&&Number.isFinite(p.progress)){const x=Math.floor(p.progress/10)*10;if(x!==last){last=x;stage('progress '+x+'% '+(p.file||''))}$('status').textContent='下載 '+Math.floor(p.progress)+'%：'+(p.file||'')}
+else if(['done','ready'].includes(p.status)){stage(p.status+' '+(p.file||''));say(p.status+' '+(p.file||''))}
+}});
+stage('ready');$('status').textContent='模型已載入，請按「讓模型回答」';$('ask').disabled=false;say('模型已載入');
+}catch(e){stage('failed '+e.message);$('status').textContent='載入失敗';say(e.stack||e.message)}
+};
+$('ask').onclick=async()=>{
+if(!model)return;$('ask').disabled=true;$('out').textContent='生成中…';stage('generating');
+try{let str='';const streamer=new TextStreamer(model.tokenizer,{skip_prompt:true,skip_special_tokens:true,callback_function:t=>{$('out').textContent=(str+=t)}});
+const output=await model([{role:'user',content:'What is two plus two? Answer in one short sentence.'}],{max_new_tokens:40,do_sample:false,streamer});if(!str)$('out').textContent=JSON.stringify(output);stage('answered');say('推論完成')}catch(e){stage('failed generation '+e.message);say('生成失敗：'+(e.stack||e.message));$('out').textContent='生成失敗'}finally{$('ask').disabled=false}
+};
+$('copy').onclick=async()=>{try{await navigator.clipboard.writeText([VERSION,$('status').textContent,$('out').textContent,$('log').textContent,localStorage.getItem(KEY)].join('\n'));say('已複製')}catch(e){say('複製失敗 '+e.message)}};
+</script></body></html>
