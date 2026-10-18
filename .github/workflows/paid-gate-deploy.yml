@@ -1,0 +1,44 @@
+name: Paid-gate pg1 (check / backup / deploy 4 functions, manual only)
+# pg1：付費閘門 Phase A 的四個函式（aivault-tts、fish-tts、dawn-light-video、dawn-light-photo-video）。
+# check：只印祕密「名稱」是否含 PAID_API_ALLOW/PAID_API_KILL（不印值）與各函式 verify_jwt。
+# backup：下載正式版原始碼為 artifact（回滾用）。deploy：保留各自 verify_jwt 部署。不設任何祕密。
+on:
+  workflow_dispatch:
+    inputs:
+      step: { description: "check | backup | deploy", required: true, default: "check" }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      REF: clcddygkaaqqtsbswgdf
+      FNS: "aivault-tts fish-tts dawn-light-video dawn-light-photo-video"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - name: check
+        if: inputs.step == 'check'
+        run: |
+          N=$(supabase secrets list --project-ref $REF -o json 2>/dev/null | python3 -c "import json,sys;print(' '.join(sorted(x['name'] for x in json.load(sys.stdin))))")
+          for s in PAID_API_ALLOW PAID_API_KILL; do echo "$N" | tr ' ' '\n' | grep -qx "$s" && echo "SECRET $s: PRESENT" || echo "SECRET $s: ABSENT"; done
+          for f in $FNS ai-gateway dark-star-ebook-ingest; do curl -s -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" https://api.supabase.com/v1/projects/$REF/functions/$f | python3 -c "import json,sys;d=json.load(sys.stdin);print('FN',sys.argv[1],'verify_jwt=',d.get('verify_jwt'),'version=',d.get('version'),'updated=',d.get('updated_at'))" $f; done
+      - name: backup
+        if: inputs.step == 'backup'
+        run: |
+          mkdir -p /tmp/bak && cd /tmp/bak
+          for f in $FNS; do supabase functions download $f --project-ref $REF --use-api >/dev/null 2>&1 || supabase functions download $f --project-ref $REF >/dev/null; done
+          find /tmp/bak -type f | sed 's#/tmp/bak/##'
+          cd "$GITHUB_WORKSPACE"; for f in $FNS; do L=$(find /tmp/bak -path "*$f/index.ts" | head -1); echo "DIFF live vs repo-before-pg1 $f: $(diff <(tr -d '\r' < "$L") <(git show 89141fd~1:supabase/functions/$f/index.ts | tr -d '\r') | wc -l) lines"; done
+      - if: inputs.step == 'backup'
+        uses: actions/upload-artifact@v4
+        with: { name: paid-gate-live-backup, path: /tmp/bak, retention-days: 30 }
+      - name: deploy
+        if: inputs.step == 'deploy'
+        run: |
+          for f in $FNS; do
+            VJ=$(curl -s -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" https://api.supabase.com/v1/projects/$REF/functions/$f | python3 -c "import json,sys;print(json.load(sys.stdin).get('verify_jwt'))")
+            FLAG=""; [ "$VJ" = "False" ] && FLAG="--no-verify-jwt"; echo "$f verify_jwt=$VJ"
+            supabase functions deploy $f --project-ref $REF --use-api $FLAG
+          done
