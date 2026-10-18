@@ -35,8 +35,8 @@
     if (!host) return false;
     var box = d.createElement("div");
     box.id = "dsSourceLocks";
-    box.style.cssText = "display:none;margin:4px 10px 8px;padding:10px;border:1px solid #eee;border-radius:12px;background:#fff";
-    box.innerHTML = '<div style="font-size:13px;font-weight:700;margin-bottom:4px">設定 · 來源鎖定</div>' +
+    box.style.cssText = "margin:8px 10px;padding:10px;border:1px solid #eee;border-radius:12px;background:#fff";
+    box.innerHTML = '<div style="font-size:13px;font-weight:700;margin-bottom:4px">⚙️ 設定 · 來源鎖定</div>' +
       '<div style="font-size:11px;color:#777;margin-bottom:6px">打勾＝鎖定。先打勾為 1。</div>' +
       ITEMS.map(function (it) {
         return '<label data-src="' + it.id + '" style="display:flex;align-items:center;gap:8px;padding:6px 2px;font-size:15px">' +
@@ -44,13 +44,9 @@
           '<span class="src-pri" style="margin-left:auto;min-width:18px;text-align:right;font-weight:700"></span></label>';
       }).join("");
     var btn = d.getElementById("darkStarSettingsButton");
-    if (btn && btn.parentNode === host) host.insertBefore(box, btn.nextSibling);
+    if (btn && btn.parentNode === host) host.insertBefore(box, btn);
     else host.insertBefore(box, host.firstChild);
-    if (btn) btn.addEventListener("click", function () {
-      var open = box.style.display !== "block";
-      box.style.display = open ? "block" : "none";
-      if (open) box.scrollIntoView({ block: "nearest" });
-    });
+    if (btn) btn.addEventListener("click", function () { box.scrollIntoView({ block: "nearest" }); box.style.outline = "2px solid #111"; setTimeout(function () { box.style.outline = ""; }, 800); });
     var st = load(); paint(box, st);
     box.addEventListener("change", function (e) {
       var row = e.target.closest("[data-src]"); if (!row) return;
