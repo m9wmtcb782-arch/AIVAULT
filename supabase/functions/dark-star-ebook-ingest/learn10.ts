@@ -2,6 +2,7 @@
 // 重點課程：口語化即時語音模組。每位代理有學習鎖（25 分鐘逾時），學到一半的不會被重複排進來。
 // 一次完整學習＝搜尋（arXiv／GitHub／一般搜尋）→ 真的抓網頁 → 讀 → 寫實作筆記；同主題最多讀 2 頁（第 2 頁會看到第 1 頁筆記做補充）。
 // 額度：每日學習 token 上限 LEARN10_DAILY_TOKENS（預設 120000），保留額度給小說循環與考試；遇到 429 立刻停。關閉：函式 env LEARN10_OFF=1、repo var AGENT_LEARN_OFF=1。
+import { holidayToday } from "./holiday.ts";
 import { callModel } from "./floor.ts";
 import { webSearch } from "./web-search.ts";
 import { districtOf, DIST } from "./degree.ts";
@@ -138,6 +139,11 @@ async function poolBookSession(agent: any) {
 export async function learnRound(b: any, learnOne: (ag: any) => Promise<any>) {
   FORCE_VIDEO = !!b.force_video;
   if (Deno.env.get("LEARN10_OFF") === "1") return { ok: true, off: true, results: [] };
+  // hr1：國定假日／補假＝AI 休假，LLM 學習只跑 1/4 的輪次（免 token 的閱讀層、真實任務、考試、複製、通訊都照常）。
+  // 關閉：環境變數 LEARN_HOLIDAY_REST_OFF=1，或 aivault_floor_state k='holiday_rest' 的 v.off=true。強制測試：b.holiday_test=true。
+  { const hn = b.holiday_test ? "測試假日" : holidayToday(); if (hn && Deno.env.get("LEARN_HOLIDAY_REST_OFF") !== "1" && !b.force_round) {
+      const [hs] = await rest("aivault_floor_state?k=eq.holiday_rest&select=v").catch(() => [null]); if (!(hs && hs.v && hs.v.off === true)) {
+        const slot = Math.floor(Date.now() / 600e3); if (slot % 4 !== 0) return { ok: true, holiday_rest: true, holiday: hn, note: "國定假日：LLM 學習降為 1/4（本輪休息）", results: [] }; b.n = Math.min(Number(b.n) || 8, 8); } } }
   // pc1：整輪鎖，pg_cron 與 GitHub 備援不會重複跑同一輪（8 分鐘內只跑一次）
   { const k = "learnround:lock"; const [x] = await rest(`aivault_floor_state?k=eq.${k}&select=v`); if (x && Date.parse(x.v?.until) > Date.now() && !b.force_round) return { ok: true, skipped_round: true, by: x.v?.src, results: [] };
     await rest("aivault_floor_state", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ k, v: { until: new Date(Date.now() + 8 * 60e3).toISOString(), src: String(b.src || "github"), at: new Date().toISOString() }, updated_at: new Date().toISOString() }) }); }

@@ -106,7 +106,7 @@
   var src=WX.src==='cwa'?'中央氣象署實測':'模擬天氣（依日期推算）';if(FD||FS||FW)src='預覽模式';
   var s=SI[SEA]+' '+SN[SEA]+'・'+t.m+'/'+t.d+'・'+W+' '+WX.temp+'°C';
   if(WX.ty)s+='<br>🌀 '+(WX.ty.real?'颱風 '+WX.ty.zh+' '+WX.ty.en+'（中央氣象署警報）':'模擬颱風日・下一個輪替名：'+WX.ty.zh+' '+WX.ty.en);
-  if(FEST.name)s+='<br>🎉 '+FEST.name+(FEST.off?'（國定放假）':'');if(!FEST.known)s+='<br>⚠️ 本年度節日表未更新';
+  if(FEST.name)s+='<br>🎉 '+FEST.name+(FEST.off?'（國定放假・AI 休假：LLM 學習降為 1/4，任務、考試、通訊照常）':'');if(!FEST.known)s+='<br>⚠️ 本年度節日表未更新';
   if(el.classList.contains('x'))s+='<br><span style="opacity:.75">來源：'+src+(SNAP&&SNAP.typhoons&&SNAP.typhoons.length?'｜西北太平洋現有颱風：'+SNAP.typhoons.map(function(y){return(tyZh(y.name_en)||'')+' '+y.name_en}).join('、')+'（RSMC 東京）':'')+'<br>節日：人事行政總處辦公日曆表｜關閉：設定 seasonsOff</span>';
   else s+=' <span style="opacity:.6">ⓘ</span>';el.innerHTML=s}
  /* 動畫 */

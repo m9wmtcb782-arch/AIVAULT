@@ -34,3 +34,12 @@
 1. 跑 `agent-floor.yml`，step 設成 `restore`，會把 `agent-floor-bak-20261018` 寫回 agent-floor。
 2. 或刪掉 `town_seasons.js` 再 publish。
 3. 或 `git revert <ss1 commit>` 之後 publish。
+
+## hr1：國定假日休假（第二批）
+- `supabase/functions/dark-star-ebook-ingest/holiday.ts`：從 DGPA 表產生的放假日，包括補假。依台北時間判斷。
+- `learn10.ts` 的 `learnRound`：放假日只跑 1/4 的輪次（以 10 分鐘為一輪，每 4 輪跑 1 輪），每輪最多 8 位 AI。其他輪次會回傳 `holiday_rest:true`，不呼叫模型。
+- 不受影響：免 token 的閱讀層（city-reading）、真實任務（floor cycle）、考試（degree／place）、每日複製、通訊。
+- 關閉：
+  - 立即生效：`insert into aivault_floor_state(k,v) values('holiday_rest','{"off":true}') on conflict (k) do update set v=excluded.v;`
+  - 或設定 Edge 環境變數 `LEARN_HOLIDAY_REST_OFF=1`。
+- 回滾：`git revert` hr1 那個 commit，再跑 deploy-dark-star-ebook-ingest.yml。
