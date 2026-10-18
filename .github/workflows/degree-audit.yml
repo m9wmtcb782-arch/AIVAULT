@@ -1,0 +1,14 @@
+name: Degree audit (read-only)
+on: { workflow_dispatch: {} }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - env: { TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN }}", PUB: "${{ github.workspace }}/.github/scripts/degree-audit.pub.asc" }
+        run: |
+          python3 .github/scripts/degree_audit.py
+          gpg --batch --import "$PUB" && R=$(gpg --batch --with-colons --list-keys | awk -F: '/^pub/{print $5; exit}') && gpg --batch --trust-model always -e -r "$R" -o degree-audit.json.gpg degree-audit.json
+      - uses: actions/upload-artifact@v4
+        with: { name: degree-audit, path: degree-audit.json.gpg, retention-days: 2 }
