@@ -347,8 +347,8 @@ if "amsginv" in STEPS:
     print("AMSG recent", sql("select sender_agent_id, receiver_agent_id, message_type, created_at from public.agent_messages order by created_at desc limit 5"))
 
 def amsg_try(role, claims, how):
-    body = ("perform public.agent_module_send_message('sec-test','x','dawn-light','MESSAGE','attack probe',null);" if how=="rpc" else
-            "insert into public.agent_messages(task_id,sender_agent_id,receiver_agent_id,message_type,content) values('sec-test','x','dawn-light','MESSAGE','attack probe');")
+    body = ("perform public.agent_module_send_message('sec-test','technical-dark-star','dawn-light','MESSAGE','attack probe',null);" if how=="rpc" else
+            "insert into public.agent_messages(task_id,sender_agent_id,receiver_agent_id,message_type,content) values('sec-test','technical-dark-star','dawn-light','MESSAGE','attack probe');")
     q = ("do $t$ begin perform set_config('request.jwt.claims', %s, true); execute 'set local role %s'; begin %s exception when others then raise exception 'RESULT:%%:%%', sqlstate, sqlerrm; end; raise exception 'RESULT:OK(rolled back)'; end $t$" % ("'"+claims+"'", role, body))
     try: sql(q); return "?"
     except Exception as e: m = str(e); i = m.find("RESULT:"); return m[i:i+140] if i >= 0 else m[:160]
