@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AIVAULT iPhone WebGPU 零下載診斷</title><style>
+body{background:#0b1020;color:#edf2ff;font:16px -apple-system,system-ui,sans-serif;margin:0 auto;max-width:700px;padding:20px;line-height:1.55}
+h1{font-size:25px}button{background:#447eea;color:white;border:0;border-radius:12px;padding:14px;font-size:17px;margin:6px 4px 6px 0}button:disabled{opacity:.5}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#182136;padding:15px;border-radius:12px;font-size:13px}small{color:#c8d5ee}.ok{color:#83e7ae}.bad{color:#ffb5ad}
+</style></head><body>
+<h1>AIVAULT GPU 診斷（不下載模型）</h1>
+<p>版本：gpu-diagnostic-20261018-a</p><p>只檢查本機 WebGPU 建立、運算、記憶體資訊（若瀏覽器提供）。不載入 Qwen3，不呼叫任何 API，不更動 AIVAULT 正式系統。</p>
+<button id="run">開始 GPU 診斷</button><button id="copy">複製完整結果</button>
+<p id="state">狀態：尚未檢查</p><pre id="log">等待執行。</pre>
+<script>
+const $=id=>document.getElementById(id);let lines=[];let busy=false;
+function log(s){lines.push(new Date().toLocaleTimeString()+' '+s);$('log').textContent=lines.join('\n')}
+function err(e){return e?.stack||e?.message||String(e)}
+window.addEventListener('error',e=>log('頁面錯誤：'+e.message));
+window.addEventListener('unhandledrejection',e=>log('未處理 Promise 錯誤：'+err(e.reason)));
+$('copy').onclick=async()=>{const s=['AIVAULT GPU 診斷 gpu-diagnostic-20261018-a',...lines].join('\n');try{await navigator.clipboard.writeText(s);$('state').textContent='已複製，請貼回 ChatGPT'}catch(e){$('state').textContent='無法自動複製，請長按下方文字選取'}};
+$('run').onclick=async()=>{
+if(busy)return;busy=true;$('run').disabled=true;lines=[];let device=null,buffer=null,read=null;
+try{
+$('state').textContent='檢查中…';log('開始；UA='+navigator.userAgent);
+log('安全連線='+isSecureContext+'；navigator.gpu='+!!navigator.gpu);
+log('deviceMemory='+(navigator.deviceMemory??'瀏覽器未提供')+' GB');
+if(!navigator.gpu)throw Error('WebGPU API 不存在');
+const t0=performance.now();const adapter=await navigator.gpu.requestAdapter();
+if(!adapter)throw Error('requestAdapter 回傳 null');
+log('取得 adapter：'+Math.round(performance.now()-t0)+' ms');
+log('adapter limits：maxBufferSize='+adapter.limits.maxBufferSize+'；maxStorageBufferBindingSize='+adapter.limits.maxStorageBufferBindingSize+'；maxComputeWorkgroupSizeX='+adapter.limits.maxComputeWorkgroupSizeX);
+log('adapter features='+[...adapter.features].join(', '));
+const t1=performance.now();device=await adapter.requestDevice();log('requestDevice 成功：'+Math.round(performance.now()-t1)+' ms');
+device.lost.then(info=>log('GPU device lost：'+info.reason+' / '+info.message));
+device.addEventListener('uncapturederror',e=>log('GPU uncaptured error：'+e.error.message));
+const shader=device.createShaderModule({code:`@group(0) @binding(0) var<storage,read_write> result: array<u32>;
+@compute @workgroup_size(1)
+fn main() { result[0] = 6u * 7u; }`});
+const compilation=await shader.getCompilationInfo();
+for(const m of compilation.messages)log('shader '+m.type+': '+m.message);
+if(compilation.messages.some(m=>m.type==='error'))throw Error('WGSL shader 編譯失敗');
+buffer=device.createBuffer({size:4,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_SRC});
+read=device.createBuffer({size:4,usage:GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ});
+const pipeline=device.createComputePipeline({layout:'auto',compute:{module:shader,entryPoint:'main'}});
+const bind=device.createBindGroup({layout:pipeline.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer}}]});
+const encoder=device.createCommandEncoder(),pass=encoder.beginComputePass();
+pass.setPipeline(pipeline);pass.setBindGroup(0,bind);pass.dispatchWorkgroups(1);pass.end();
+encoder.copyBufferToBuffer(buffer,0,read,0,4);
+const t2=performance.now();device.queue.submit([encoder.finish()]);
+await read.mapAsync(GPUMapMode.READ);
+const result=new Uint32Array(read.getMappedRange())[0];
+read.unmap();log('GPU 計算結果='+result+'；耗時='+Math.round(performance.now()-t2)+' ms');
+if(result!==42)throw Error('GPU 運算結果不正確：'+result);
+$('state').textContent='GPU 基本運算成功；Qwen3 模型相容性仍待查';log('PASS：WebGPU 裝置建立、Shader、GPU 運算、回讀均成功');
+}catch(e){$('state').textContent='診斷未通過：請複製結果';log('FAIL：'+err(e))}
+finally{try{read?.destroy();buffer?.destroy();device?.destroy()}catch(e){log('清理提示：'+err(e))}busy=false;$('run').disabled=false}
+};
+</script></body></html>
