@@ -15,7 +15,7 @@ button:disabled{opacity:.5}
 <body>
 <h1>AIVAULT 自主模型測試：Qwen3-0.6B</h1>
 <p>此頁獨立，不改動暗星／曙光正式頁面。模型來自 Hugging Face <code>onnx-community/Qwen3-0.6B-ONNX</code>（Apache-2.0）。</p>
-<p class="warn">首次載入需下載約 300–500 MB 量化權重（瀏覽器快取後不再重下）。請確認網路與裝置記憶體。將先檢查 GPUAdapter；WebGPU 載入失敗時會嘗試 WASM 的 q4 或 q8 模型。備援可能仍因記憶體、網路或模型格式而失敗。</p>
+<p class="warn">只嘗試官方建議的 WebGPU / q4f16 模型，不會自動切換並下載其他量化版本。下載 100% 後仍須等待 ONNX 初始化；若瀏覽器關閉頁面，可能無法取得錯誤紀錄。</p>
 <button id="btnLoad">同意並載入模型</button>
 <button id="btnGen" disabled>生成中文回答</button>
 <button id="btnUnload" disabled>卸載模型</button>
@@ -27,7 +27,7 @@ button:disabled{opacity:.5}
 <button id="btnCopy" type="button">複製診斷紀錄</button>
 <script type="module">
 import { pipeline, TextStreamer } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1';
-const TEST_BUILD = 'qwen3-loader-20261018-b';
+const TEST_BUILD = 'qwen3-loader-20261018-c';
 const $ = id => document.getElementById(id);
 document.title += ' [' + TEST_BUILD + ']';
 const log = m => { $('log').textContent += m + '\n'; $('log').scrollTop = $('log').scrollHeight; };
@@ -64,23 +64,29 @@ $('btnLoad').onclick = async () => {
   $('btnGen').disabled = true;
   $('status').textContent = '狀態：載入中…';
   startLoad = performance.now();
-  const hasGPU = await detectDevice();
-  const attempts = [
-    ...(hasGPU ? [{ device: 'webgpu', dtype: 'q4f16' }] : []),
-    { device: 'wasm', dtype: 'q4' },
-    { device: 'wasm', dtype: 'q8' },
-  ];
+  const hasGPU = await window.addEventListener('error', e => log('頁面錯誤：' + e.message));
+window.addEventListener('unhandledrejection', e => log('未處理錯誤：' + (e.reason?.stack || describeError(e.reason))));
+detectDevice();
+  const attempts = hasGPU ? [{ device: 'webgpu', dtype: 'q4f16' }] : [];
+  if (!hasGPU) log('未取得 GPUAdapter：不下載 WASM 備援模型。');
   let loaded = false;
   for (const attempt of attempts) {
     $('status').textContent = `狀態：嘗試 ${attempt.device} / ${attempt.dtype}…`;
     log(`載入 ${modelId}：${attempt.device} / ${attempt.dtype}`);
     try {
+      log('開始建立 ONNX 推論工作階段（此步可能耗時）。');
+      let lastProgress = '';
       generator = await pipeline('text-generation', modelId, {
         device: attempt.device,
         dtype: attempt.dtype,
         progress_callback: p => {
           if (p.status === 'progress' && Number.isFinite(p.progress)) {
-            $('status').textContent = `狀態：${attempt.device} / ${attempt.dtype} 下載 ${p.progress.toFixed(0)}%`;
+            $('status').textContent = `狀態：${attempt.device} / ${attempt.dtype} 下載 ${p.progress.toFixed(0)}%（完成後仍需初始化）`;
+          }
+          if (p.status === 'done' || p.status === 'ready' || p.status === 'initiate') {
+            const info = [p.status, p.file || ''].join(' ');
+            if (info !== lastProgress) { log('載入事件：' + info); lastProgress = info; }
+            if (p.status === 'done') $('status').textContent = '狀態：檔案已下載；等待模型初始化（尚不能回答）';
           }
         },
       });
@@ -88,7 +94,7 @@ $('btnLoad').onclick = async () => {
       loaded = true;
       break;
     } catch(e) {
-      log(`${attempt.device} / ${attempt.dtype} 失敗：${describeError(e)}`);
+      log(`${attempt.device} / ${attempt.dtype} 失敗：${e?.stack || describeError(e)}`);
       await disposeGenerator();
     }
   }
@@ -99,7 +105,7 @@ $('btnLoad').onclick = async () => {
     $('btnUnload').disabled = false;
     log('模型載入成功；請按「生成中文回答」驗證實際推論。');
   } else {
-    $('status').textContent = '狀態：載入失敗（所有備援均失敗，請複製下方紀錄）';
+    $('status').textContent = '狀態：載入失敗（未下載其他量化版本，請複製下方紀錄）';
     $('btnLoad').disabled = false;
   }
 };
@@ -134,7 +140,7 @@ $('btnGen').onclick = async () => {
     log('生成完成。');
   } catch (e) {
     $('out').textContent = '生成失敗：' + e.message;
-    log('生成錯誤：' + e.message);
+    log('生成錯誤：' + (e?.stack || e.message));
   }
   $('btnGen').disabled = false;
 };
