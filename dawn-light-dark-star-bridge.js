@@ -7,11 +7,16 @@
   var ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE";
   var talking = false;
 
+  // sec 10:06：寫 agent_messages 需要已驗證的 owner/admin 身分，所以帶上登入者的 access token（沒登入才用 anon key）。
+  function userToken() {
+    try { var j = JSON.parse(localStorage.getItem("sb-clcddygkaaqqtsbswgdf-auth-token") || "null"); return String((j && (j.access_token || (j.currentSession && j.currentSession.access_token))) || ""); } catch (e) { return ""; }
+  }
   function headers() {
+    var t = userToken();
     return {
       "Content-Type": "application/json",
       apikey: ANON_KEY,
-      Authorization: "Bearer " + ANON_KEY
+      Authorization: "Bearer " + (t || ANON_KEY)
     };
   }
 

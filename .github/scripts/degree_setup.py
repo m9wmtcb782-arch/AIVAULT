@@ -345,3 +345,17 @@ if "amsginv" in STEPS:
     print("AMSG pol", sql("select policyname, roles, cmd, qual, with_check from pg_policies where tablename='agent_messages'"))
     print("AMSG grants", sql("select grantee, string_agg(privilege_type,',') p from information_schema.role_table_grants where table_name='agent_messages' group by 1"))
     print("AMSG recent", sql("select sender_agent_id, receiver_agent_id, message_type, created_at from public.agent_messages order by created_at desc limit 5"))
+
+def amsg_try(role, claims, how):
+    body = ("perform public.agent_module_send_message('sec-test','x','dawn-light','MESSAGE','attack probe',null);" if how=="rpc" else
+            "insert into public.agent_messages(task_id,sender_agent_id,receiver_agent_id,message_type,content) values('sec-test','x','dawn-light','MESSAGE','attack probe');")
+    q = ("do $t$ begin perform set_config('request.jwt.claims', %s, true); execute 'set local role %s'; begin %s exception when others then raise exception 'RESULT:%%:%%', sqlstate, sqlerrm; end; raise exception 'RESULT:OK(rolled back)'; end $t$" % ("'"+claims+"'", role, body))
+    try: sql(q); return "?"
+    except Exception as e: m = str(e); i = m.find("RESULT:"); return m[i:i+140] if i >= 0 else m[:160]
+if "amsgmig" in STEPS or "amsgtest" in STEPS:
+    if "amsgmig" in STEPS:
+        print("AMSG before:", {k: amsg_try(*k) for k in [("anon",'{"role":"anon"}',"rpc"),("authenticated",'{"role":"authenticated","sub":"00000000-0000-0000-0000-000000000001"}',"rpc"),("authenticated",'{"role":"authenticated","sub":"00000000-0000-0000-0000-000000000001"}',"insert")]})
+        sql(open("supabase/migrations/20261018170000_agent_messages_write_guard.sql").read())
+        print("AMSG mig applied", sql("select policyname, cmd from pg_policies where tablename='agent_messages'"), sql("select count(*) n from public.agent_messages"))
+    for k in [("anon",'{"role":"anon"}',"rpc"),("authenticated",'{"role":"authenticated","sub":"00000000-0000-0000-0000-000000000001"}',"rpc"),("authenticated",'{"role":"authenticated","sub":"00000000-0000-0000-0000-000000000001"}',"insert"),("authenticated",'{"role":"authenticated","sub":"00000000-0000-0000-0000-000000000002","app_metadata":{"role":"owner"}}',"rpc"),("service_role",'{"role":"service_role"}',"rpc")]:
+        print("AMSG after", k[0], json.loads(k[1]).get("app_metadata",{}).get("role","-"), k[2], "=>", amsg_try(*k))
