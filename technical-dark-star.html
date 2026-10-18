@@ -1,4 +1,8607 @@
-RESTORE_PLACEHOLDE
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="theme-color" content="#ffffff">
+<title>Technical Dark Star</title>
+
+<style>
+*{box-sizing:border-box}
+
+html,body{
+  margin:0;
+  padding:0;
+  width:100%;
+  height:100%;
+  background:#fff;
+  color:#202123;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",
+    "Noto Sans TC","PingFang TC",sans-serif;
+}
+
+button,textarea,input{font:inherit}
+button{cursor:pointer}
+body{overflow:hidden}
+
+.app{
+  width:100%;
+  height:100dvh;
+  display:flex;
+  flex-direction:column;
+  background:#fff;
+}
+
+/* =========================================================
+   TOP
+========================================================= */
+
+.topbar{
+  height:58px;
+  min-height:58px;
+  display:flex;
+  align-items:center;
+  padding:0 14px;
+  border-bottom:1px solid #eee;
+  background:rgba(255,255,255,.96);
+  position:relative;
+  z-index:30;
+}
+
+.menu-button{
+  width:38px;
+  height:38px;
+  border:0;
+  background:transparent;
+  border-radius:10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#303030;
+}
+
+.menu-button:hover{
+  background:#f3f3f3;
+}
+
+.brand{
+  margin-left:7px;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-width:0;
+}
+
+.brand-mark{
+  width:28px;
+  height:28px;
+  border-radius:8px;
+  background:linear-gradient(135deg,#ff3b30,#ff9500,#ffcc00,#34c759,#0a84ff,#5856d6,#af52de,#ff2d55) !important;
+  background-size:300% 300% !important;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:14px;
+  font-weight:600;
+  animation:aivaultLogoColorShift 6s ease-in-out infinite;
+}
+
+.brand-title{
+  font-size:15px;
+  font-weight:600;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.brand-engine{
+  font-size:12px;
+  color:#8b8b8b;
+}
+
+.brand-home{
+  margin-left:auto;
+  border:1px solid #e5e5e5;
+  background:#fff;
+  color:#333;
+  border-radius:9px;
+  padding:7px 10px;
+  font-size:12px;
+  text-decoration:none;
+}
+
+.brand-home:hover{
+  background:#f4f4f4;
+}
+
+/* =========================================================
+   CHAT
+========================================================= */
+
+.main{
+  flex:1;
+  min-height:0;
+  position:relative;
+  display:flex;
+}
+
+.chat{
+  flex:1;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  background:#fff;
+}
+
+.messages{
+  flex:1;
+  min-height:0;
+  overflow-y:auto;
+  scroll-behavior:smooth;
+}
+
+.messages-inner{
+  width:min(760px,calc(100% - 32px));
+  margin:0 auto;
+  padding:34px 0 150px;
+}
+
+/* =========================================================
+   SCROLL TO LATEST
+========================================================= */
+
+.scroll-latest{
+  position:absolute;
+  right:18px;
+  bottom:112px;
+  width:42px;
+  height:42px;
+  border:1px solid #dedede;
+  border-radius:50%;
+  background:rgba(255,255,255,.97);
+  color:#333;
+  box-shadow:0 3px 14px rgba(0,0,0,.12);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  font-size:21px;
+  line-height:1;
+  z-index:25;
+}
+
+.scroll-latest.show{
+  display:flex;
+}
+
+.scroll-latest:hover{
+  background:#f5f5f5;
+}
+
+@media(max-width:700px){
+  .scroll-latest{
+    right:12px;
+    bottom:108px;
+  }
+}
+
+/* =========================================================
+   WELCOME
+========================================================= */
+
+.welcome{
+  min-height:calc(100dvh - 220px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:40px 0;
+}
+
+.welcome-content{
+  width:100%;
+}
+
+.welcome-mark{
+  width:54px;
+  height:54px;
+  margin:0 auto 22px;
+  border-radius:16px;
+  background:#171717;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:24px;
+}
+
+.welcome-title{
+  margin:0;
+  font-size:30px;
+  font-weight:600;
+  letter-spacing:-.7px;
+}
+
+.welcome-subtitle{
+  margin:13px auto 0;
+  max-width:570px;
+  font-size:15px;
+  line-height:1.75;
+  color:#777;
+}
+
+/* =========================================================
+   MESSAGE
+========================================================= */
+
+.message{
+  display:flex;
+  gap:13px;
+  margin-bottom:30px;
+}
+
+.message.user{
+  justify-content:flex-end;
+}
+
+.message-avatar{
+  width:30px;
+  height:30px;
+  min-width:30px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:11px;
+  font-weight:600;
+  background:#171717;
+  color:#fff;
+  margin-top:2px;
+}
+
+.message.user .message-avatar{
+  background:#e9e9e9;
+  color:#444;
+  animation:none;
+}
+
+.message-body{
+  min-width:0;
+  max-width:690px;
+}
+
+.message.user .message-body{
+  max-width:min(600px,82%);
+}
+
+.message-text{
+  font-size:16px;
+  line-height:1.75;
+  white-space:normal;
+  word-break:break-word;
+}
+
+.message.user .message-text{
+  background:#f4f4f4;
+  border-radius:18px;
+  padding:10px 15px;
+}
+
+.message-actions{
+  margin-top:8px;
+  display:flex;
+  gap:4px;
+}
+
+.message-action{
+  width:31px;
+  height:31px;
+  border:0;
+  background:transparent;
+  border-radius:8px;
+  color:#777;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.message-action:hover{
+  background:#f2f2f2;
+  color:#222;
+}
+
+.message-action.danger:hover{
+  background:#fdeaea;
+  color:#dc2626;
+}
+
+/* =========================================================
+   MEDIA
+========================================================= */
+
+.media-stack{
+  margin-top:8px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.media-image,
+.media-video{
+  display:block;
+  max-width:min(420px,100%);
+  max-height:320px;
+  border-radius:14px;
+  border:1px solid #e8e8e8;
+  background:#f7f7f7;
+  object-fit:contain;
+}
+
+.media-article{
+  margin-top:8px;
+  padding:12px 14px;
+  border:1px solid #e8e8e8;
+  border-radius:14px;
+  background:#fafafa;
+  font-size:14px;
+  line-height:1.7;
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+
+.media-article a{
+  color:#155eef;
+}
+
+/* =========================================================
+   SANDBOX
+========================================================= */
+
+.sandbox-card{
+  margin-top:15px;
+  border:1px solid #e4e4e4;
+  border-radius:14px;
+  overflow:hidden;
+  background:#fff;
+}
+
+.sandbox-head{
+  min-height:48px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  padding:7px 10px 7px 14px;
+  border-bottom:1px solid #ededed;
+}
+
+.sandbox-title{
+  font-size:13px;
+  font-weight:600;
+}
+
+.sandbox-tabs{
+  display:flex;
+  gap:3px;
+}
+
+.sandbox-tab{
+  border:0;
+  background:transparent;
+  color:#777;
+  border-radius:7px;
+  padding:6px 9px;
+  font-size:11px;
+}
+
+.sandbox-tab.active{
+  background:#eee;
+  color:#222;
+}
+
+.sandbox-body{
+  height:420px;
+}
+
+.sandbox-view{
+  display:none;
+  width:100%;
+  height:100%;
+}
+
+.sandbox-view.active{
+  display:block;
+}
+
+.sandbox-empty{
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  color:#888;
+  padding:30px;
+}
+
+.sandbox-empty-title{
+  color:#555;
+  font-size:14px;
+  margin-bottom:7px;
+}
+
+.sandbox-empty-text{
+  font-size:12px;
+  line-height:1.6;
+}
+
+.sandbox-frame{
+  width:100%;
+  height:100%;
+  border:0;
+  background:#fff;
+}
+
+.sandbox-code{
+  width:100%;
+  height:calc(100% - 42px);
+  border:0;
+  outline:0;
+  resize:none;
+  background:#101114;
+  color:#ddd;
+  padding:15px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,
+    Consolas,monospace;
+  font-size:13px;
+  line-height:1.6;
+}
+
+.sandbox-code-tools{
+  height:42px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 10px;
+  background:#181a1f;
+  border-bottom:1px solid #292c31;
+}
+
+.sandbox-file{
+  color:#aaa;
+  font-size:11px;
+  overflow:hidden;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+}
+
+.sandbox-copy{
+  border:1px solid #373a40;
+  background:#22252b;
+  color:#eee;
+  border-radius:6px;
+  padding:5px 9px;
+  font-size:11px;
+  white-space:nowrap;
+}
+
+.sandbox-copy:hover{
+  background:#2c3037;
+}
+
+/* =========================================================
+   GATES
+========================================================= */
+
+.gate-card{
+  margin-top:15px;
+  border:1px solid #e5e5e5;
+  border-radius:14px;
+  overflow:hidden;
+}
+
+.gate-head{
+  padding:13px 14px;
+  border-bottom:1px solid #eee;
+  font-size:13px;
+  font-weight:600;
+}
+
+.gate-list{
+  padding:9px 14px 12px;
+}
+
+.gate-row{
+  display:flex;
+  align-items:flex-start;
+  gap:9px;
+  padding:7px 0;
+}
+
+.gate-icon{
+  width:20px;
+  height:20px;
+  min-width:20px;
+  border-radius:50%;
+  background:#eee;
+  color:#999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:10px;
+}
+
+.gate-row.running .gate-icon{
+  background:#e9f0ff;
+  color:#2563eb;
+}
+
+.gate-row.completed .gate-icon{
+  background:#e7f7ef;
+  color:#15803d;
+}
+
+.gate-row.failed .gate-icon{
+  background:#fdeaea;
+  color:#dc2626;
+}
+
+.gate-name{
+  font-size:12px;
+  font-weight:500;
+}
+
+.gate-status{
+  margin-top:2px;
+  color:#888;
+  font-size:11px;
+}
+
+/* =========================================================
+   COMPOSER
+========================================================= */
+
+.composer-area{
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  padding:10px 16px max(16px,env(safe-area-inset-bottom));
+  background:linear-gradient(
+    to bottom,
+    rgba(255,255,255,0),
+    rgba(255,255,255,.94) 22%,
+    #fff 45%
+  );
+  pointer-events:none;
+}
+
+.composer{
+  width:min(760px,100%);
+  margin:0 auto;
+  pointer-events:auto;
+  border:1px solid #d9d9d9;
+  border-radius:25px;
+  background:#fff;
+  box-shadow:0 3px 14px rgba(0,0,0,.06);
+  overflow:hidden;
+}
+
+.attachment-preview{
+  display:none;
+  padding:9px 12px 0;
+  gap:7px;
+  flex-wrap:wrap;
+}
+
+.attachment-preview.show{
+  display:flex;
+}
+
+.attachment-chip{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:7px 9px;
+  background:#f4f4f4;
+  border-radius:9px;
+  font-size:11px;
+  color:#555;
+  max-width:230px;
+}
+
+.attachment-chip-name{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.attachment-remove{
+  border:0;
+  background:transparent;
+  color:#888;
+  padding:0;
+  font-size:14px;
+}
+
+.attachment-chip img{
+  width:28px;
+  height:28px;
+  object-fit:cover;
+  border-radius:6px;
+}
+
+.composer-row{
+  min-height:54px;
+  display:flex;
+  align-items:flex-end;
+  gap:5px;
+  padding:6px 7px;
+}
+
+.composer-plus,
+.composer-mic{
+  width:39px;
+  height:39px;
+  min-width:39px;
+  border:0;
+  border-radius:50%;
+  background:transparent;
+  color:#444;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.composer-plus:hover,
+.composer-mic:hover{
+  background:#f1f1f1;
+}
+
+.composer-mic.recording{
+  background:#f0f0f0;
+  color:#111;
+}
+
+.composer-input{
+  flex:1;
+  min-height:39px;
+  max-height:180px;
+  resize:none;
+  border:0;
+  outline:0;
+  padding:9px 7px;
+  background:transparent;
+  font-size:16px;
+  line-height:1.45;
+}
+
+.composer-input::placeholder{
+  color:#9a9a9a;
+}
+
+.composer-send{
+  width:39px;
+  height:39px;
+  min-width:39px;
+  border:0;
+  border-radius:50%;
+  background:#171717;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.composer-send:disabled{
+  opacity:.35;
+  cursor:default;
+}
+
+/* =========================================================
+   ATTACH MENU
+========================================================= */
+
+.attach-menu{
+  position:fixed;
+  left:16px;
+  bottom:90px;
+  width:230px;
+  padding:7px;
+  background:#fff;
+  border:1px solid #e5e5e5;
+  border-radius:14px;
+  box-shadow:0 8px 30px rgba(0,0,0,.12);
+  display:none;
+  z-index:100;
+}
+
+.attach-menu.show{
+  display:block;
+}
+
+.attach-option{
+  width:100%;
+  border:0;
+  background:transparent;
+  border-radius:9px;
+  padding:11px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  text-align:left;
+  font-size:13px;
+  color:#333;
+}
+
+.attach-option .ds-ic{flex:none;width:36px;height:36px;border-radius:50%;background:#f0f0f0;display:inline-flex;align-items:center;justify-content:center}
+.attach-option{font-size:15px!important;color:#111!important}
+.attach-option:hover{
+  background:#f3f3f3;
+}
+
+/* =========================================================
+   DRAWER
+========================================================= */
+
+.drawer-backdrop{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.22);
+  opacity:0;
+  visibility:hidden;
+  transition:.18s;
+  z-index:80;
+}
+
+.drawer-backdrop.show{
+  opacity:1;
+  visibility:visible;
+}
+
+.drawer{
+  position:fixed;
+  top:0;
+  bottom:0;
+  left:0;
+  width:min(310px,88vw);
+  background:#fff;
+  box-shadow:8px 0 30px rgba(0,0,0,.12);
+  transform:translateX(-105%);
+  transition:.2s;
+  z-index:90;
+  display:flex;
+  flex-direction:column;
+}
+
+.drawer.show{
+  transform:translateX(0);
+}
+
+.drawer-top{
+  height:60px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 12px;
+  border-bottom:1px solid #eee;
+}
+
+.drawer-brand{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  font-size:14px;
+  font-weight:600;
+}
+
+.drawer-close{
+  width:36px;
+  height:36px;
+  border:0;
+  background:transparent;
+  border-radius:9px;
+}
+
+.drawer-close:hover{
+  background:#f2f2f2;
+}
+
+.new-chat{
+  margin:12px;
+  height:42px;
+  border:1px solid #dedede;
+  background:#fff;
+  border-radius:10px;
+  text-align:left;
+  padding:0 13px;
+  font-size:13px;
+}
+
+.new-chat:hover{
+  background:#f5f5f5;
+}
+
+.history{
+  flex:1;
+  min-height:0;
+  overflow-y:auto;
+  padding:3px 9px 20px;
+}
+
+.history-label{
+  padding:12px 8px 6px;
+  color:#999;
+  font-size:11px;
+}
+
+.history-item-wrap{
+  display:flex;
+  align-items:center;
+  gap:4px;
+}
+
+.history-item-wrap .history-item{
+  flex:1;
+}
+
+.history-item{
+  width:100%;
+  border:0;
+  background:transparent;
+  border-radius:9px;
+  padding:10px 9px;
+  text-align:left;
+  color:#333;
+  font-size:13px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.history-item:hover{
+  background:#f2f2f2;
+}
+
+.history-del{
+  width:28px;
+  min-width:28px;
+  height:28px;
+  border:0;
+  background:transparent;
+  color:#aaa;
+  border-radius:7px;
+  font-size:14px;
+}
+
+.history-del:hover{
+  background:#fdeaea;
+  color:#dc2626;
+}
+
+.drawer-bottom{
+  border-top:1px solid #eee;
+  padding:9px;
+}
+
+.drawer-item{
+  width:100%;
+  border:0;
+  background:transparent;
+  border-radius:9px;
+  padding:10px;
+  text-align:left;
+  font-size:13px;
+  color:#444;
+}
+
+.drawer-item:hover{
+  background:#f3f3f3;
+}
+
+/* =========================================================
+   VOICE
+========================================================= */
+
+/* AIVAULT_DARK_STAR_WORK_LOCATION_V1 */
+.dark-star-work-location{
+  display:block;
+  margin-top:4px;
+  color:#777;
+  font-size:13px;
+  line-height:1.45;
+  word-break:break-word;
+}
+@media(max-width:700px){
+  .dark-star-work-location{font-size:13px;}
+}
+
+.voice-status{
+  position:fixed;
+  left:50%;
+  bottom:105px;
+  transform:translateX(-50%);
+  padding:10px 15px;
+  background:#171717;
+  color:#fff;
+  border-radius:20px;
+  font-size:12px;
+  display:none;
+  z-index:120;
+}
+
+.voice-status.show{
+  display:block;
+}
+
+.hidden-file{
+  display:none;
+}
+
+.icon{
+  width:20px;
+  height:20px;
+  display:block;
+}
+
+.icon-small{
+  width:18px;
+  height:18px;
+}
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media(max-width:700px){
+
+  .brand-engine{
+    display:none;
+  }
+
+  .messages-inner{
+    width:calc(100% - 24px);
+    padding-top:25px;
+  }
+
+  .welcome{
+    min-height:calc(100dvh - 220px);
+  }
+
+  .welcome-title{
+    font-size:25px;
+  }
+
+  .welcome-subtitle{
+    font-size:14px;
+  }
+
+  .message-text{
+    font-size:16px;
+  }
+
+  .sandbox-body{
+    height:360px;
+  }
+
+  .composer-area{
+    padding-left:9px;
+    padding-right:9px;
+  }
+
+  .composer{
+    border-radius:22px;
+  }
+
+  .attach-menu{
+    left:9px;
+    bottom:88px;
+  }
+}
+
+
+@keyframes aivaultLogoColorShift{
+  0%{background-position:0% 50%}
+  50%{background-position:100% 50%}
+  100%{background-position:0% 50%}
+}
+
+/* AIVAULT_DARK_STAR_AVATAR_COLOR_SHIFT_V1 */
+.message.ai .message-avatar{
+  width:36px;
+  height:36px;
+  min-width:36px;
+  border-radius:10px;
+  background:linear-gradient(135deg,#ff3b30,#ff9500,#ffcc00,#34c759,#0a84ff,#5856d6,#af52de,#ff2d55) !important;
+  background-size:300% 300% !important;
+  color:#fff !important;
+  font-size:20px;
+  font-weight:800;
+  text-shadow:0 1px 2px rgba(0,0,0,.28);
+  animation:aivaultLogoColorShift 6s ease-in-out infinite;
+  border:0;
+}
+
+/* AIVAULT_WHITE_BUTTONS_V1 */
+button,
+a.brand-home,
+.composer-plus,
+.composer-mic,
+.composer-send,
+.attach-option,
+.sandbox-tab,
+.sandbox-copy,
+.drawer-close,
+.new-chat,
+.history-item,
+.history-del,
+.drawer-item,
+.message-action{
+  background:#fff !important;
+  color:#111 !important;
+  border-color:#ddd !important;
+}
+
+.brand-mark,
+.welcome-mark,
+.drawer-brand .brand-mark{
+  background:linear-gradient(135deg,#ff3b30,#ff9500,#ffcc00,#34c759,#0a84ff,#5856d6,#af52de,#ff2d55) !important;
+  background-size:300% 300% !important;
+  color:#fff !important;
+  text-shadow:0 0 8px rgba(255,255,255,.85),0 0 16px rgba(255,80,180,.55);
+  box-shadow:0 0 10px rgba(255,59,48,.45),0 0 18px rgba(10,132,255,.35),0 0 28px rgba(175,82,222,.28);
+  animation:aivaultLogoColorShift 6s ease-in-out infinite;
+}
+button:hover,
+a.brand-home:hover,
+.composer-plus:hover,
+.composer-mic:hover,
+.composer-send:hover,
+.attach-option:hover,
+.sandbox-tab:hover,
+.sandbox-copy:hover,
+.drawer-close:hover,
+.new-chat:hover,
+.history-item:hover,
+.drawer-item:hover,
+.message-action:hover{
+  background:#f5f5f5 !important;
+  color:#111 !important;
+}
+
+.composer-send:disabled{
+  background:#fff !important;
+  color:#777 !important;
+  opacity:.5;
+}
+
+
+/* AIVAULT_DARK_STAR_READABILITY_V1 */
+.message-text{
+  font-size:20px !important;
+  line-height:1.8 !important;
+}
+.message.user .message-text{
+  padding:11px 16px;
+}
+.media-article{
+  font-size:18px !important;
+  line-height:1.8 !important;
+}
+.composer-input{
+  font-size:19px !important;
+  line-height:1.55 !important;
+}
+.brand-title{font-size:16px !important;}
+.brand-engine{font-size:13px !important;}
+.history-item,.drawer-item,.new-chat,.attach-option{font-size:16px !important;}
+.voice-status{font-size:15px !important;}
+@media(max-width:700px){
+  .message-text{font-size:19px !important;line-height:1.8 !important;}
+  .welcome-subtitle{font-size:17px !important;line-height:1.8 !important;}
+  .composer-input{font-size:19px !important;}
+  .history-item,.drawer-item,.new-chat,.attach-option{font-size:16px !important;}
+}
+
+/* AIVAULT_DARK_STAR_LARGE_TEXT_MODE_V1 */
+.readability-toggle{
+  margin-left:8px;
+  border:1px solid #ddd;
+  background:#fff;
+  color:#111;
+  border-radius:9px;
+  padding:7px 10px;
+  font-size:13px;
+  white-space:nowrap;
+}
+.readability-toggle.active{background:#111;color:#fff;border-color:#111;}
+.large-text-mode .message-text{font-size:24px !important;line-height:1.9 !important;}
+.large-text-mode .media-article{font-size:22px !important;line-height:1.9 !important;}
+.large-text-mode .message{margin-bottom:34px;}
+.large-text-mode .welcome-title{font-size:34px;}
+.large-text-mode .welcome-subtitle{font-size:19px;}
+@media(max-width:700px){
+  .readability-toggle{padding:7px 9px;font-size:13px;}
+  .large-text-mode .message-text{font-size:22px !important;line-height:1.9 !important;}
+  .large-text-mode .media-article{font-size:20px !important;line-height:1.9 !important;}
+  .large-text-mode .welcome-title{font-size:29px;}
+  .large-text-mode .welcome-subtitle{font-size:18px;}
+}
+.dark-star-diagnostic{
+  margin-top:10px;
+  border:1px solid #e5e5e5;
+  border-radius:12px;
+  background:#fafafa;
+  overflow:hidden;
+}
+.dark-star-diagnostic summary{
+  cursor:pointer;
+  padding:9px 11px;
+  font-size:12px;
+  color:#555;
+  user-select:none;
+}
+.dark-star-diagnostic pre{
+  margin:0;
+  padding:11px;
+  border-top:1px solid #e5e5e5;
+  background:#111318;
+  color:#ddd;
+  font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+  white-space:pre-wrap;
+  word-break:break-word;
+  max-height:360px;
+  overflow:auto;
+}
+.dark-star-diagnostic-notice{
+  margin-top:8px;
+  padding:9px 11px;
+  border-left:3px solid #777;
+  background:#f5f5f5;
+  border-radius:8px;
+  font-size:13px;
+  line-height:1.6;
+}
+/* AIVAULT_DARK_STAR_COMPUTE_SANDBOX_V1 */
+.compute-sandbox-overlay{position:fixed;inset:0;background:rgba(0,0,0,.18);display:none;align-items:center;justify-content:center;padding:18px;z-index:150}
+.compute-sandbox-overlay.show{display:flex}
+.compute-sandbox-window{width:min(520px,100%);background:#fff;border:1px solid #ddd;border-radius:16px;box-shadow:0 14px 50px rgba(0,0,0,.18);overflow:hidden}
+.compute-sandbox-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #eee}
+.compute-sandbox-title{font-size:15px;font-weight:600}.compute-sandbox-close{border:1px solid #ddd;background:#fff;border-radius:8px;padding:5px 9px}
+.compute-sandbox-body{padding:16px}.compute-sandbox-status{font-size:14px;font-weight:600;margin-bottom:12px}.compute-sandbox-row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px}.compute-sandbox-row:last-child{border-bottom:0}.compute-sandbox-label{color:#888}.compute-sandbox-value{color:#222;text-align:right;word-break:break-word}.compute-sandbox-note{margin-top:12px;padding:10px 12px;border-radius:9px;background:#f6f6f6;color:#666;font-size:12px;line-height:1.6}
+</style>
+
+
+
+
+
+<style id="aivault-darkstar-avatar-css">
+#aivault-darkstar-avatar{position:fixed;right:14px;top:72px;width:190px;z-index:80;border:1px solid #e8e4f5;border-radius:18px;background:rgba(255,255,255,.96);box-shadow:0 10px 32px rgba(40,30,80,.14);backdrop-filter:blur(12px);overflow:hidden}
+#aivault-darkstar-avatar .dsah{display:flex;align-items:center;justify-content:space-between;padding:9px 11px;border-bottom:1px solid #eeeaf7;font-size:12px;font-weight:700}
+#aivault-darkstar-avatar .dslink{font-size:10px;color:#777;display:flex;gap:5px;align-items:center}
+#aivault-darkstar-avatar .dsdot{width:7px;height:7px;border-radius:50%;background:#bbb}.dsdot.on{background:#42b96b;box-shadow:0 0 0 3px #e9f8ee}
+#aivault-darkstar-avatar .dsfacebox{height:190px;position:relative;display:flex;align-items:center;justify-content:center;padding-bottom:16px;box-sizing:border-box;background:radial-gradient(circle at 50% 38%,#fff,#f3efff 68%,#ebe6ff)}
+#aivault-darkstar-avatar .dsfacebox .ds-orb{width:120px!important;height:120px!important}
+#aivault-darkstar-avatar .dsstate{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);white-space:nowrap;padding:3px 7px;border-radius:99px;background:rgba(255,255,255,.84);font-size:9px;color:#70697c}
+#aivault-darkstar-avatar .dsfoot{display:flex;gap:6px;padding:8px}.dsbtn{flex:1;border:1px solid #ddd7ed;background:#fff;border-radius:8px;padding:6px 5px;font-size:10px;color:#444}.dsbtn.primary{background:#171717;color:#fff;border-color:#171717}
+@media(max-width:700px){#aivault-darkstar-avatar{right:9px;top:auto;bottom:92px;width:164px}#aivault-darkstar-avatar .dsfacebox{height:166px}#aivault-darkstar-avatar .dsfacebox .ds-orb{width:100px!important;height:100px!important}#aivault-darkstar-avatar .dsah{padding:7px 9px}.dsbtn{padding:5px 3px}}
+</style>
+
+</head>
+
+<body>
+
+<div class="app">
+
+<header class="topbar">
+
+  <button id="menuButton"
+    class="menu-button"
+    aria-label="聊天紀錄">
+
+    <svg class="icon"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.8"
+      stroke-linecap="round">
+
+      <path d="M4 7h16"/>
+      <path d="M4 12h16"/>
+      <path d="M4 17h16"/>
+
+    </svg>
+
+  </button>
+
+  <div class="brand">
+
+    <div class="brand-mark">✦</div>
+
+    <span data-darkstar-orb data-size="30" title="暗星" style="margin-right:6px"></span>
+    <div class="brand-title">
+      Technical Dark Star
+    </div>
+
+    <div class="brand-engine">
+      technical-dark-star
+    </div>
+
+  </div>
+
+  <a id="homeButton"
+    class="brand-home"
+    href="aivault-home.html">
+    回工作中心
+  </a>
+
+
+
+  <button id="readabilityToggle"
+    class="readability-toggle"
+    type="button"
+    aria-pressed="false"
+    title="放大聊天文字"
+    style="display:none">
+    大字
+  </button>
+
+</header>
+
+<main class="main">
+
+<section class="chat">
+
+  <div id="messages" class="messages">
+  <button id="scrollLatest" class="scroll-latest" type="button" aria-label="回到最新消息" title="回到最新消息">↓</button>
+
+    <div id="messagesInner"
+      class="messages-inner">
+
+      <section id="welcome"
+        class="welcome">
+
+        <div class="welcome-content">
+
+          <div class="welcome-mark">
+            ✦
+          </div>
+
+          <h1 class="welcome-title">
+            你好，我是 Technical Dark Star
+          </h1>
+
+          <p class="welcome-subtitle">
+            直接跟我聊天、說話、傳檔案或貼上程式碼。
+            <br>
+            我會透過 AIVAULT 處理真正的 AI 回應與工程工作。
+          </p>
+
+        </div>
+
+      </section>
+
+    </div>
+
+  </div>
+
+  <div class="composer-area">
+
+    <div class="composer">
+
+      <div id="attachmentPreview"
+        class="attachment-preview">
+      </div>
+
+      <div class="composer-row">
+
+        <button id="plusButton"
+          class="composer-plus"
+          aria-label="新增">
+
+          <svg class="icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round">
+
+            <path d="M12 5v14"/>
+            <path d="M5 12h14"/>
+
+          </svg>
+
+        </button>
+
+        <textarea
+          id="composerInput"
+          class="composer-input"
+          rows="1"
+          placeholder="傳訊息給 Technical Dark Star……"></textarea>
+
+        <button id="micButton"
+          class="composer-mic"
+          aria-label="語音輸入">
+
+          <svg class="icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round">
+
+            <rect x="9"
+              y="3"
+              width="6"
+              height="12"
+              rx="3"/>
+
+            <path d="M5 11a7 7 0 0 0 14 0"/>
+            <path d="M12 18v3"/>
+            <path d="M9 21h6"/>
+
+          </svg>
+
+        </button>
+
+        <button id="sendButton"
+          class="composer-send"
+          aria-label="送出"
+          disabled>
+
+          <svg class="icon-small"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round">
+
+            <path d="M12 19V5"/>
+            <path d="M6 11l6-6 6 6"/>
+
+          </svg>
+
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
+
+</main>
+</div>
+
+<!-- =======================================================
+     ATTACH MENU
+======================================================= -->
+
+<div id="attachMenu"
+  class="attach-menu">
+
+  <button class="attach-option"
+    data-type="image/*">
+    <i class="ds-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="3.5"/><circle cx="15" cy="9.5" r="1.8"/><path d="M3.8 17.5l5.4-5.4 7.6 7.4"/></svg></i><span>圖片</span>
+  </button>
+
+  <button class="attach-option"
+    data-type=".doc,.docx">
+    <i class="ds-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 7v8.5a3.5 3.5 0 0 1-7 0V6a2.3 2.3 0 0 1 4.6 0v9.2a1.1 1.1 0 0 1-2.2 0V8"/></svg></i><span>Word</span>
+  </button>
+
+  <button class="attach-option"
+    data-type=".pdf">
+    <i class="ds-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 7v8.5a3.5 3.5 0 0 1-7 0V6a2.3 2.3 0 0 1 4.6 0v9.2a1.1 1.1 0 0 1-2.2 0V8"/></svg></i><span>PDF</span>
+  </button>
+
+  <button class="attach-option"
+    data-type=".txt,.md,.json,.js,.ts,.html,.css,.jsx,.tsx">
+    <i class="ds-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 7v8.5a3.5 3.5 0 0 1-7 0V6a2.3 2.3 0 0 1 4.6 0v9.2a1.1 1.1 0 0 1-2.2 0V8"/></svg></i><span>TXT／程式碼</span>
+  </button>
+
+  <button class="attach-option"
+    data-type="video/mp4">
+    <i class="ds-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 7v8.5a3.5 3.5 0 0 1-7 0V6a2.3 2.3 0 0 1 4.6 0v9.2a1.1 1.1 0 0 1-2.2 0V8"/></svg></i><span>MP4</span>
+  </button>
+
+  <button class="attach-option"
+    data-type="audio/wav,audio/x-wav">
+    <i class="ds-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 7v8.5a3.5 3.5 0 0 1-7 0V6a2.3 2.3 0 0 1 4.6 0v9.2a1.1 1.1 0 0 1-2.2 0V8"/></svg></i><span>WAV</span>
+  </button>
+
+</div>
+
+<input id="fileInput"
+  class="hidden-file"
+  type="file">
+
+<!-- =======================================================
+     DRAWER
+======================================================= -->
+
+<div id="drawerBackdrop"
+  class="drawer-backdrop">
+</div>
+
+<aside id="drawer"
+  class="drawer">
+
+  <div class="drawer-top">
+
+    <div class="drawer-brand">
+
+      <div class="brand-mark">
+        ✦
+      </div>
+
+      Technical Dark Star
+
+    </div>
+
+    <button id="drawerClose"
+      class="drawer-close">
+
+      <svg class="icon-small"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round">
+
+        <path d="M6 6l12 12"/>
+        <path d="M18 6L6 18"/>
+
+      </svg>
+
+    </button>
+
+  </div>
+
+  <button id="newChatButton"
+    class="new-chat">
+    ＋ 新聊天
+  </button>
+
+  <div id="history"
+    class="history">
+
+    <div class="history-label">
+      對話紀錄
+    </div>
+
+  </div>
+
+  <div class="drawer-bottom">
+
+    <button id="darkStarLiveButton" type="button" class="drawer-item">暗星即時</button>
+    <button id="darkStarLiveVideoButton" type="button" class="drawer-item">即時視訊</button>
+    <button id="darkStarSettingsButton" type="button" class="drawer-item">⚙️ 設定</button>
+    <button id="darkStarPhotoSolveButton" type="button" class="drawer-item" onclick="location.href='dark-star-photo-solve.html'"><span aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:#f0f0f0;vertical-align:middle;margin-right:6px"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.6-2.4h6.8L17 8h3v11H4z"/><circle cx="12" cy="13.2" r="3.4"/></svg></span>教材拍照解題</button>
+
+    
+
+    <button id="clearMessagesButton"
+      class="drawer-item">
+      🗑 刪除測試訊息
+    </button>
+
+    <button id="capabilityButton"
+      class="drawer-item">
+      🧠 學習能力
+    </button>
+
+    <button id="workHistoryButton"
+      class="drawer-item">
+      🧪 工作紀錄
+    </button>
+
+    <button id="dawnLightTalkButton"
+      class="drawer-item"
+      type="button">
+      ☀ 曙光 Dawn Light
+    </button>
+
+  </div>
+
+</aside>
+
+<div id="voiceStatus"
+  class="voice-status">
+  正在聆聽……
+</div>
+
+<script>
+
+/* =========================================================
+   AIVAULT / DARK STAR ENDPOINTS
+========================================================= */
+
+const SUPABASE_URL =
+  "https://clcddygkaaqqtsbswgdf.supabase.co";
+
+const AI_GATEWAY_URL =
+  SUPABASE_URL +
+  "/functions/v1/ai-gateway";
+
+const SANDBOX_URL =
+  SUPABASE_URL +
+  "/functions/v1/dark-star-sandbox";
+
+const GAME_SANDBOX_URL =
+  SUPABASE_URL +
+  "/functions/v1/dark-star-game-sandbox";
+
+const DRAW_SANDBOX_URL =
+  SUPABASE_URL +
+  "/functions/v1/dark-star-draw-sandbox";
+
+const ENGINE =
+  "technical-dark-star";
+
+
+/* =========================================================
+   STATE
+========================================================= */
+
+let conversationId =
+  localStorage.getItem(
+    "technical_dark_star_conversation_id"
+  ) || null;
+
+let messagesHistory = [];
+
+try{
+
+  messagesHistory =
+    JSON.parse(
+      localStorage.getItem(
+        "technical_dark_star_messages"
+      ) || "[]"
+    );
+
+  if(!Array.isArray(messagesHistory)){
+    messagesHistory = [];
+  }
+
+}catch(error){
+
+  console.warn(
+    "[DarkStar] localStorage messages parse failed",
+    error
+  );
+
+  messagesHistory = [];
+}
+
+let attachments = [];
+let recognition = null;
+let isRecording = false;
+
+let lastSandboxFiles = {};
+
+/*
+  ========================================================
+  IMPORTANT: SINGLE REQUEST LOCK
+  ========================================================
+
+  防止：
+
+  - 連按送出
+  - Enter + click
+  - Safari 事件重複
+  - 多次初始化造成重複送出
+
+  同一時間只允許一個 sendMessage()。
+*/
+
+let isSending = false;
+
+let requestSequence = 0;
+
+
+/* =========================================================
+   ELEMENTS
+========================================================= */
+
+const messages =
+  document.getElementById("messages");
+
+const messagesInner =
+  document.getElementById("messagesInner");
+
+const scrollLatest =
+  document.getElementById("scrollLatest");
+
+const input =
+  document.getElementById("composerInput");
+
+const sendButton =
+  document.getElementById("sendButton");
+
+const micButton =
+  document.getElementById("micButton");
+
+const plusButton =
+  document.getElementById("plusButton");
+
+const attachMenu =
+  document.getElementById("attachMenu");
+
+const fileInput =
+  document.getElementById("fileInput");
+
+const attachmentPreview =
+  document.getElementById("attachmentPreview");
+
+const drawer =
+  document.getElementById("drawer");
+
+const drawerBackdrop =
+  document.getElementById("drawerBackdrop");
+
+const menuButton =
+  document.getElementById("menuButton");
+
+const drawerClose =
+  document.getElementById("drawerClose");
+
+const historyElement =
+  document.getElementById("history");
+
+const voiceStatus =
+  document.getElementById("voiceStatus");
+
+
+/* =========================================================
+   UTIL
+========================================================= */
+
+function escapeHTML(value){
+
+  return String(value ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
+}
+
+
+function isNearBottom(){
+
+  return (
+    messages.scrollHeight -
+    messages.scrollTop -
+    messages.clientHeight
+  ) < 80;
+}
+
+function updateScrollLatest(){
+
+  if(!scrollLatest)return;
+
+  scrollLatest.classList.toggle(
+    "show",
+    !isNearBottom()
+  );
+}
+
+function scrollBottom(){
+
+  requestAnimationFrame(()=>{
+
+    messages.scrollTop =
+      messages.scrollHeight;
+
+    updateScrollLatest();
+
+  });
+}
+
+messages.addEventListener(
+  "scroll",
+  updateScrollLatest,
+  {passive:true}
+);
+
+scrollLatest?.addEventListener(
+  "click",
+  ()=>{
+    messages.scrollTo({
+      top:messages.scrollHeight,
+      behavior:"smooth"
+    });
+  }
+);
+
+
+function saveState(){
+
+  try{
+
+    localStorage.setItem(
+      "technical_dark_star_messages",
+      JSON.stringify(messagesHistory)
+    );
+
+  }catch(error){
+
+    console.warn(
+      "[DarkStar] save messages failed",
+      error
+    );
+
+  }
+
+
+  if(conversationId){
+
+    try{
+
+      localStorage.setItem(
+        "technical_dark_star_conversation_id",
+        conversationId
+      );
+
+    }catch(error){
+
+      console.warn(
+        "[DarkStar] save conversation failed",
+        error
+      );
+
+    }
+
+  }else{
+
+    try{
+
+      localStorage.removeItem(
+        "technical_dark_star_conversation_id"
+      );
+
+    }catch(error){}
+
+  }
+}
+
+
+/* =========================================================
+   INPUT
+========================================================= */
+
+function resizeInput(){
+
+  input.style.height = "auto";
+
+  input.style.height =
+    Math.min(input.scrollHeight,180) + "px";
+}
+
+
+input.addEventListener("input",()=>{
+
+  resizeInput();
+
+  sendButton.disabled =
+    isSending ||
+    (
+      !input.value.trim() &&
+      attachments.length === 0
+    );
+
+});
+
+
+input.addEventListener("keydown",event=>{
+
+  if(
+    event.key === "Enter" &&
+    !event.shiftKey
+  ){
+
+    event.preventDefault();
+
+    /*
+      不直接重複呼叫。
+      sendMessage() 內部還有 isSending lock。
+    */
+
+    sendMessage();
+
+  }
+
+});
+
+
+/* =========================================================
+   DRAWER
+========================================================= */
+
+function openDrawer(){
+
+  drawer.classList.add("show");
+  drawerBackdrop.classList.add("show");
+
+  renderHistory();
+}
+
+
+function closeDrawer(){
+
+  drawer.classList.remove("show");
+  drawerBackdrop.classList.remove("show");
+}
+
+
+menuButton.addEventListener(
+  "click",
+  openDrawer
+);
+
+drawerClose.addEventListener(
+  "click",
+  closeDrawer
+);
+
+drawerBackdrop.addEventListener(
+  "click",
+  closeDrawer
+);
+
+
+/* =========================================================
+   NEW CHAT
+========================================================= */
+
+document
+  .getElementById("newChatButton")
+  .addEventListener("click",()=>{
+
+    if(isSending){
+
+      alert(
+        "目前暗星正在處理上一個任務，請等待完成。"
+      );
+
+      return;
+    }
+
+    conversationId = null;
+
+    messagesHistory = [];
+
+
+    attachments = [];
+
+    /*
+      新聊天也建立新的 topic。
+    */
+
+    try{
+
+      localStorage.removeItem(
+        "technical_dark_star_topic-id"
+      );
+
+    }catch(error){}
+
+    saveState();
+
+    renderAttachments();
+
+    messagesInner.innerHTML = "";
+
+    messagesInner.appendChild(
+      createWelcome()
+    );
+
+    closeDrawer();
+
+  });
+
+
+function createWelcome(){
+
+  const section =
+    document.createElement("section");
+
+  section.className =
+    "welcome";
+
+  section.innerHTML = `
+
+<div class="welcome-content">
+
+  <div class="welcome-mark">
+    ✦
+  </div>
+
+  <h1 class="welcome-title">
+    你好，我是 Technical Dark Star
+  </h1>
+
+  <p class="welcome-subtitle">
+    直接跟我聊天、說話、傳檔案或貼上程式碼。
+    <br>
+    我會透過 AIVAULT 處理真正的 AI 回應與工程工作。
+  </p>
+
+</div>
+
+`;
+
+  return section;
+}
+
+
+/* =========================================================
+   HISTORY
+========================================================= */
+
+function renderHistory(){
+
+  historyElement.innerHTML = `
+    <div class="history-label">
+      對話紀錄
+    </div>
+  `;
+
+  const users =
+    messagesHistory.filter(
+      item=>item.role === "user"
+    );
+
+  if(!users.length){
+
+    const empty =
+      document.createElement("div");
+
+    empty.style.padding =
+      "15px 8px";
+
+    empty.style.fontSize =
+      "12px";
+
+    empty.style.color =
+      "#999";
+
+    empty.textContent =
+      "目前沒有對話紀錄";
+
+    historyElement.appendChild(
+      empty
+    );
+
+    return;
+  }
+
+  messagesHistory.forEach(
+    (item,index)=>{
+
+      if(item.role !== "user"){
+        return;
+      }
+
+      const wrap =
+        document.createElement("div");
+
+      wrap.className =
+        "history-item-wrap";
+
+      const button =
+        document.createElement("button");
+
+      button.className =
+        "history-item";
+
+      button.textContent =
+        item.text ||
+        "測試訊息";
+
+      button.onclick = ()=>{
+
+        loadConversation();
+
+        closeDrawer();
+
+      };
+
+
+      const del =
+        document.createElement("button");
+
+      del.className =
+        "history-del";
+
+      del.title =
+        "刪除這則測試訊息";
+
+      del.textContent =
+        "×";
+
+      del.onclick = event=>{
+
+        event.stopPropagation();
+
+        deleteMessage(index);
+
+      };
+
+
+      wrap.appendChild(button);
+
+      wrap.appendChild(del);
+
+      historyElement.appendChild(wrap);
+
+    }
+  );
+}
+
+
+function loadConversation(){
+
+  messagesInner.innerHTML = "";
+
+  if(!messagesHistory.length){
+
+    messagesInner.appendChild(
+      createWelcome()
+    );
+
+    return;
+  }
+
+  messagesHistory.forEach(
+    (item,index)=>{
+
+      if(item.role === "user"){
+
+        renderUserMessage(
+          item.text,
+          item.attachments || [],
+          index
+        );
+
+      }else{
+
+        renderAIMessage(
+          item.text,
+          item.result || null,
+          index
+        );
+
+      }
+
+    }
+  );
+
+  scrollBottom();
+}
+
+
+/* =========================================================
+   ATTACHMENT
+========================================================= */
+
+plusButton.addEventListener(
+  "click",
+  event=>{
+
+    event.stopPropagation();
+
+    attachMenu.classList.toggle(
+      "show"
+    );
+
+  }
+);
+
+
+document.addEventListener(
+  "click",
+  event=>{
+
+    if(
+      !attachMenu.contains(
+        event.target
+      ) &&
+      event.target !== plusButton
+    ){
+
+      attachMenu.classList.remove(
+        "show"
+      );
+
+    }
+
+  }
+);
+
+
+document
+  .querySelectorAll(".attach-option")
+  .forEach(button=>{
+
+    button.addEventListener(
+      "click",
+      ()=>{
+
+        fileInput.accept =
+          button.dataset.type;
+
+        fileInput.click();
+
+        attachMenu.classList.remove(
+          "show"
+        );
+
+      }
+    );
+
+  });
+
+
+async function addFilesFromList(
+  fileList
+){
+
+  const incoming =
+    Array.from(
+      fileList || []
+    ).filter(Boolean);
+
+  if(!incoming.length){
+    return;
+  }
+
+  for(const file of incoming){
+
+    try{
+
+      const attachment =
+        await prepareAttachment(
+          file
+        );
+
+      attachments.push(
+        attachment
+      );
+
+    }catch(error){
+
+      alert(
+        "檔案處理失敗：\n" +
+        error.message
+      );
+
+    }
+
+  }
+
+  renderAttachments();
+
+  sendButton.disabled =
+    isSending ||
+    (
+      !input.value.trim() &&
+      attachments.length === 0
+    );
+
+}
+
+
+document.addEventListener(
+  "paste",
+  async event=>{
+
+    const clipboard =
+      event.clipboardData;
+
+    if(!clipboard){
+      return;
+    }
+
+    const files = [];
+
+    if(
+      clipboard.files &&
+      clipboard.files.length
+    ){
+
+      Array.from(
+        clipboard.files
+      ).forEach(
+        file=>files.push(file)
+      );
+
+    }
+
+
+    Array.from(
+      clipboard.items || []
+    ).forEach(item=>{
+
+      if(item.kind === "file"){
+
+        const file =
+          item.getAsFile();
+
+        if(
+          file &&
+          !files.includes(file)
+        ){
+
+          files.push(file);
+
+        }
+
+      }
+
+    });
+
+
+    if(files.length){
+
+      event.preventDefault();
+
+      await addFilesFromList(
+        files
+      );
+
+      return;
+    }
+
+
+    const pasted =
+      clipboard.getData(
+        "text/plain"
+      );
+
+
+    if(
+      pasted &&
+      pasted.length > 800 &&
+      document.activeElement !== input
+    ){
+
+      event.preventDefault();
+
+      const file =
+        new File(
+          [pasted],
+          "pasted-article.txt",
+          {
+            type:"text/plain"
+          }
+        );
+
+      await addFilesFromList(
+        [file]
+      );
+
+    }
+
+  }
+);
+
+
+["dragenter","dragover"].forEach(
+  name=>{
+
+    document.addEventListener(
+      name,
+      event=>{
+
+        event.preventDefault();
+
+        if(event.dataTransfer){
+
+          event.dataTransfer.dropEffect =
+            "copy";
+
+        }
+
+      }
+    );
+
+  }
+);
+
+
+document.addEventListener(
+  "drop",
+  async event=>{
+
+    event.preventDefault();
+
+    const files =
+      event.dataTransfer?.files;
+
+    if(
+      files &&
+      files.length
+    ){
+
+      await addFilesFromList(
+        files
+      );
+
+    }
+
+  }
+);
+
+
+fileInput.addEventListener(
+  "change",
+  async event=>{
+
+    await addFilesFromList(
+      event.target.files
+    );
+
+    fileInput.value = "";
+
+  }
+);
+
+
+async function prepareAttachment(
+  file
+){
+
+  const base = {
+
+    name:
+      file.name,
+
+    type:
+      file.type ||
+      "application/octet-stream",
+
+    size:
+      file.size
+
+  };
+
+
+  const textTypes = [
+
+    "text/plain",
+    "text/markdown",
+    "application/json",
+    "text/javascript",
+    "application/javascript",
+    "text/css",
+    "text/html"
+
+  ];
+
+
+  const extension =
+    file.name
+      .split(".")
+      .pop()
+      .toLowerCase();
+
+
+  const textExtensions = [
+
+    "txt",
+    "md",
+    "json",
+    "js",
+    "ts",
+    "jsx",
+    "tsx",
+    "html",
+    "css",
+    "csv",
+    "xml",
+    "yml",
+    "yaml"
+
+  ];
+
+
+  if(
+    textTypes.includes(
+      file.type
+    ) ||
+    textExtensions.includes(
+      extension
+    )
+  ){
+
+    const content =
+      await file.text();
+
+    return {
+
+      ...base,
+
+      content_type:
+        ["md","txt","html"]
+          .includes(extension)
+          ? "article"
+          : "text",
+
+      content,
+
+      preview:
+        content.slice(0,4000)
+
+    };
+
+  }
+
+
+  if(
+    file.type.startsWith(
+      "image/"
+    ) ||
+    [
+      "png",
+      "jpg",
+      "jpeg",
+      "gif",
+      "webp",
+      "bmp",
+      "svg"
+    ].includes(extension)
+  ){
+
+    const preview =
+      await readAsDataURL(
+        file
+      );
+
+    return {
+
+      ...base,
+
+      content_type:
+        "image",
+
+      content_base64:
+        preview,
+
+      preview
+
+    };
+
+  }
+
+
+  if(
+    file.type.startsWith(
+      "video/"
+    ) ||
+    [
+      "mp4",
+      "webm",
+      "mov"
+    ].includes(extension)
+  ){
+
+    if(
+      file.size >
+      3.5 * 1024 * 1024
+    ){
+
+      throw new Error(
+        "影片超過 3.5MB。手機影片可能太大，請改拍更短的影片，或先使用照片。"
+      );
+
+    }
+
+    const preview =
+      await readAsDataURL(
+        file
+      );
+
+    return {
+
+      ...base,
+
+      content_type:
+        "video",
+
+      content_base64:
+        preview,
+
+      preview
+
+    };
+
+  }
+
+
+  if(
+    file.type ===
+      "application/pdf" ||
+    extension === "pdf"
+  ){
+
+    return {
+
+      ...base,
+
+      content_type:
+        "article",
+
+      preview_kind:
+        "pdf",
+
+      content:
+        "[PDF] " +
+        file.name
+
+    };
+
+  }
+
+
+  return {
+
+    ...base,
+
+    content_type:
+      "file"
+
+  };
+
+}
+
+
+function readAsDataURL(file){
+
+  return new Promise(
+    (resolve,reject)=>{
+
+      const reader =
+        new FileReader();
+
+      reader.onload =
+        ()=>resolve(
+          reader.result
+        );
+
+      reader.onerror =
+        ()=>reject(
+          new Error(
+            "無法讀取檔案"
+          )
+        );
+
+      reader.readAsDataURL(
+        file
+      );
+
+    }
+  );
+
+}
+
+
+function renderAttachments(){
+
+  attachmentPreview.innerHTML =
+    "";
+
+  if(!attachments.length){
+
+    attachmentPreview.classList.remove(
+      "show"
+    );
+
+    return;
+  }
+
+  attachmentPreview.classList.add(
+    "show"
+  );
+
+
+  attachments.forEach(
+    (attachment,index)=>{
+
+      const chip =
+        document.createElement(
+          "div"
+        );
+
+      chip.className =
+        "attachment-chip";
+
+
+      const thumb =
+        attachment.preview &&
+        attachment.content_type ===
+          "image"
+
+        ? `<img src="${attachment.preview}" alt="">`
+
+        : `<span>${getFileIcon(attachment.type)}</span>`;
+
+
+      chip.innerHTML = `
+
+${thumb}
+
+<span class="attachment-chip-name">
+  ${escapeHTML(
+    attachment.name
+  )}
+</span>
+
+<button
+  class="attachment-remove"
+  data-index="${index}">
+  ×
+</button>
+
+`;
+
+
+      attachmentPreview.appendChild(
+        chip
+      );
+
+    }
+  );
+
+
+  attachmentPreview
+    .querySelectorAll(
+      ".attachment-remove"
+    )
+    .forEach(button=>{
+
+      button.onclick = ()=>{
+
+        const index =
+          Number(
+            button.dataset.index
+          );
+
+        attachments.splice(
+          index,
+          1
+        );
+
+        renderAttachments();
+
+        sendButton.disabled =
+          isSending ||
+          (
+            !input.value.trim() &&
+            attachments.length === 0
+          );
+
+      };
+
+    });
+
+}
+
+
+function getFileIcon(type){
+
+  if(
+    type?.startsWith(
+      "image/"
+    )
+  ){
+    return "圖片";
+  }
+
+  if(
+    type ===
+      "application/pdf"
+  ){
+    return "PDF";
+  }
+
+  if(
+    type?.startsWith(
+      "video/"
+    )
+  ){
+    return "MP4";
+  }
+
+  if(
+    type?.startsWith(
+      "audio/"
+    )
+  ){
+    return "WAV";
+  }
+
+  return "檔案";
+}
+
+
+/* AIVAULT_DARK_STAR_SELF_CORRECTION_CONTEXT_V1 */
+
+function isExplicitDarkStarCorrection(text){
+  const s=String(text||"").trim();
+  return /^(不對|不对|不是|錯了|错了|你理解錯了|你理解错了|我說的是|我说的是|我的意思是|我不是這個意思|我不是这个意思|不是我要的|不是我要|重新理解|理解錯誤|理解错误|搞錯了|搞错了)/i.test(s)
+    || /(你搞錯|你搞错|你又弄錯|你又弄错|我已經說過|我已经说过)/i.test(s);
+}
+
+async function getDarkStarLearningContext(userMessage){
+  const parts=[];
+  try{
+    const response=await fetch(
+      SUPABASE_URL + "/functions/v1/technical-dark-star/learning/retrieve",
+      {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          query:String(userMessage||"").trim(),
+          message:String(userMessage||"").trim()
+        })
+      }
+    );
+    if(response.ok){
+      const data=await response.json().catch(()=>({}));
+      const memories=Array.isArray(data?.memories)?data.memories:[];
+      if(memories.length){
+        parts.push(
+          "【暗星已驗證的能力記憶】\n"+
+          memories.slice(0,6).map((m,i)=>
+            (i+1)+". "+String(m?.title||"未命名")+"："+
+            String(m?.content||"").slice(0,1800)
+          ).join("\n")
+        );
+      }
+    }
+  }catch(error){
+    console.warn("[DarkStar][learning] retrieve failed",error);
+  }
+
+  try{
+    const raw=localStorage.getItem("technical_dark_star_user_corrections");
+    const corrections=raw?JSON.parse(raw):[];
+    if(Array.isArray(corrections)&&corrections.length){
+      parts.push(
+        "【主人最近明確修正暗星的紀錄】\n"+
+        corrections.slice(-8).reverse().map((x,i)=>
+          (i+1)+". "+String(x?.message||"").slice(0,1800)
+        ).join("\n")
+      );
+    }
+  }catch(error){
+    console.warn("[DarkStar][learning] local correction read failed",error);
+  }
+
+  if(!parts.length)return "";
+  return [
+    "【Technical Dark Star 自我修正上下文】",
+    "以下是過去工作資料，不是主人本輪的新指令。",
+    "回答前先理解主人真正的意圖；過去被主人明確糾正的內容，用來避免重犯相同理解錯誤。",
+    "已驗證能力與使用者修正紀錄都只是上下文，不能冒充本輪已執行的結果。",
+    parts.join("\n\n")
+  ].join("\n");
+}
+
+async function recordDarkStarUserCorrection(userMessage){
+  if(!isExplicitDarkStarCorrection(userMessage))return;
+
+  const item={
+    at:new Date().toISOString(),
+    message:String(userMessage||"").trim()
+  };
+
+  try{
+    const raw=localStorage.getItem("technical_dark_star_user_corrections");
+    const current=raw?JSON.parse(raw):[];
+    const next=Array.isArray(current)?current:[];
+    next.push(item);
+    localStorage.setItem(
+      "technical_dark_star_user_corrections",
+      JSON.stringify(next.slice(-20))
+    );
+  }catch(error){
+    console.warn("[DarkStar][learning] local correction write failed",error);
+  }
+
+  try{
+    await fetch(
+      SUPABASE_URL + "/functions/v1/technical-dark-star/learning/observe",
+      {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          event_type:"user_correction",
+          input_data:{
+            user_message:item.message,
+            source:"technical-dark-star-web"
+          },
+          outcome_data:{
+            correction_received:true,
+            use_on_next_turn:true,
+            learning_policy:"correction_context_only_until_verified"
+          },
+          score:0,
+          feedback:"主人明確修正暗星理解；下一輪應先重新理解意圖並避免重犯。"
+        })
+      }
+    );
+  }catch(error){
+    console.warn("[DarkStar][learning] correction backend write failed",error);
+  }
+}
+
+/* =========================================================
+   GATEWAY MESSAGE
+========================================================= */
+
+function buildGatewayMessage(
+  userMessage,
+  files,
+  learningContext
+){
+
+  const text =
+    (userMessage || "").trim();
+
+  const parts = [];
+
+  if(learningContext){
+    parts.push(learningContext);
+  }
+
+  if(text){
+    parts.push(text);
+  }
+
+
+  (files || []).forEach(
+    file=>{
+
+      if(
+        file.content_type ===
+        "image"
+      ){
+
+        parts.push(
+          "（已附加圖片：" +
+          (file.name || "image") +
+          "。請先辨識圖片。若圖中有程式碼，請完整讀出、指出錯誤並給出修正後的程式。）"
+        );
+
+      }else if(
+        file.content_type ===
+        "video"
+      ){
+
+        parts.push(
+          "（已附加影片：" +
+          (file.name || "video") +
+          "）"
+        );
+
+      }else if(
+        file.content_type ===
+          "article" ||
+        file.content_type ===
+          "text"
+      ){
+
+        parts.push(
+          "（已附加文章／文件：" +
+          (file.name || "file") +
+          "）\n" +
+          String(
+            file.content || ""
+          ).slice(0,12000)
+        );
+
+      }else if(file.name){
+
+        parts.push(
+          "（已附加檔案：" +
+          file.name +
+          "）"
+        );
+
+      }
+
+    }
+  );
+
+
+  return (
+    parts.join("\n\n") ||
+    "請分析我上傳的檔案。"
+  );
+}
+
+
+/* =========================================================
+   TOPIC ID
+========================================================= */
+
+function getDarkStarTopicId(){
+
+  /*
+    Gateway v3.1 Memory
+
+    conversationId 優先。
+    沒有 conversationId 時，
+    使用固定 localStorage topic。
+  */
+
+  let topicId = null;
+
+
+  try{
+
+    topicId =
+      localStorage.getItem(
+        "technical-dark-star-topic-id"
+      );
+
+  }catch(error){
+
+    console.warn(
+      "[DarkStar][memory] localStorage read failed",
+      error
+    );
+
+  }
+
+
+  if(
+    typeof topicId !==
+      "string" ||
+    !topicId.trim()
+  ){
+
+    if(
+      window.crypto &&
+      typeof crypto.randomUUID ===
+        "function"
+    ){
+
+      topicId =
+        "technical-dark-star-" +
+        crypto.randomUUID();
+
+    }else{
+
+      topicId =
+        "technical-dark-star-" +
+        Date.now() +
+        "-" +
+        Math.random()
+          .toString(36)
+          .slice(2);
+
+    }
+
+
+    try{
+
+      localStorage.setItem(
+        "technical-dark-star-topic-id",
+        topicId
+      );
+
+    }catch(error){
+
+      console.warn(
+        "[DarkStar][memory] localStorage write failed",
+        error
+      );
+
+    }
+
+  }
+
+
+  return topicId;
+}
+
+
+/* =========================================================
+   GATEWAY RESPONSE HELPERS
+========================================================= */
+
+function logGatewaySchema(data){
+
+  try{
+
+    if(
+      !data ||
+      typeof data !==
+        "object"
+    ){
+
+      console.info(
+        "[DarkStar][gateway-schema]",
+        typeof data
+      );
+
+      return;
+
+    }
+
+
+    const keys =
+      Object.keys(data)
+        .map(key=>({
+
+          key,
+
+          type:
+            Array.isArray(
+              data[key]
+            )
+              ? "array"
+              : typeof data[key]
+
+        }));
+
+
+    console.info(
+      "[DarkStar][gateway-schema]",
+      {
+
+        keys,
+
+        success:
+          data.success,
+
+        provider:
+          data.provider,
+
+        model:
+          data.model,
+
+        hasContent:
+          typeof data.content ===
+            "string",
+
+        hasText:
+          typeof data.text ===
+            "string",
+
+        memory:
+          data.memory || null
+
+      }
+    );
+
+  }catch(error){
+
+    console.info(
+      "[DarkStar][gateway-schema] log failed"
+    );
+
+  }
+
+}
+
+
+function extractTextValue(
+  value,
+  depth = 0
+){
+
+  if(value == null){
+    return null;
+  }
+
+
+  if(
+    typeof value ===
+      "string"
+  ){
+
+    const text =
+      value.trim();
+
+    return text
+      ? text
+      : null;
+
+  }
+
+
+  if(
+    typeof value ===
+      "number" ||
+    typeof value ===
+      "boolean"
+  ){
+
+    return String(value);
+
+  }
+
+
+  if(depth > 6){
+    return null;
+  }
+
+
+  if(Array.isArray(value)){
+
+    const parts =
+      value
+        .map(
+          item =>
+            extractTextValue(
+              item,
+              depth + 1
+            )
+        )
+        .filter(Boolean);
+
+    return parts.length
+      ? parts.join("\n")
+      : null;
+
+  }
+
+
+  if(
+    typeof value ===
+      "object"
+  ){
+
+    const preferred = [
+
+      "content",
+      "text",
+      "reply",
+      "response",
+      "answer",
+      "output",
+      "message"
+
+    ];
+
+
+    for(
+      const key of preferred
+    ){
+
+      if(
+        !(key in value)
+      ){
+        continue;
+      }
+
+
+      if(
+        key === "message" &&
+        typeof value[key] !==
+          "string"
+      ){
+
+        const nested =
+          extractTextValue(
+            value[key],
+            depth + 1
+          );
+
+        if(nested){
+          return nested;
+        }
+
+        continue;
+
+      }
+
+
+      const found =
+        extractTextValue(
+          value[key],
+          depth + 1
+        );
+
+      if(found){
+        return found;
+      }
+
+    }
+
+
+    if(
+      Array.isArray(
+        value.choices
+      ) &&
+      value.choices[0]
+    ){
+
+      const choice =
+        value.choices[0];
+
+      const found =
+        extractTextValue(
+
+          choice.message?.content ??
+          choice.text ??
+          choice.content ??
+          choice,
+
+          depth + 1
+
+        );
+
+      if(found){
+        return found;
+      }
+
+    }
+
+
+    if(
+      Array.isArray(
+        value.candidates
+      ) &&
+      value.candidates[0]
+    ){
+
+      const candidate =
+        value.candidates[0];
+
+      const found =
+        extractTextValue(
+
+          candidate.content ??
+          candidate,
+
+          depth + 1
+
+        );
+
+      if(found){
+        return found;
+      }
+
+    }
+
+
+    if(
+      Array.isArray(
+        value.parts
+      )
+    ){
+
+      const parts =
+        value.parts
+
+          .map(
+            part =>
+              extractTextValue(
+                part?.text ??
+                part,
+                depth + 1
+              )
+          )
+
+          .filter(Boolean);
+
+      if(parts.length){
+
+        return parts.join(
+          "\n"
+        );
+
+      }
+
+    }
+
+  }
+
+
+  return null;
+}
+
+
+function getAIReply(data){
+
+  if(!data){
+    return null;
+  }
+
+
+  logGatewaySchema(data);
+
+
+  const direct =
+    extractTextValue(
+
+      {
+
+        content:
+          data.content,
+
+        text:
+          data.text,
+
+        reply:
+          data.reply,
+
+        response:
+          typeof data.response ===
+            "string"
+            ? data.response
+            : null,
+
+        answer:
+          data.answer,
+
+        output:
+          data.output,
+
+        message:
+          typeof data.message ===
+            "string"
+            ? data.message
+            : null
+
+      },
+
+      0
+
+    );
+
+
+  if(direct){
+    return direct;
+  }
+
+
+  return (
+
+    extractTextValue(
+      data.result,
+      0
+    ) ||
+
+    extractTextValue(
+      data.data,
+      0
+    ) ||
+
+    extractTextValue(
+      data.payload,
+      0
+    ) ||
+
+    extractTextValue(
+      data.output,
+      0
+    ) ||
+
+    null
+
+  );
+
+}
+
+
+/* =========================================================
+   AI MEDIA
+========================================================= */
+
+function isDataOrHttpURL(value){
+
+  return (
+    typeof value ===
+      "string" &&
+    /^(https?:\/\/|data:image\/|data:video\/)/i
+      .test(
+        value.trim()
+      )
+  );
+
+}
+
+
+function collectAIMedia(
+  result,
+  text
+){
+
+  const items = [];
+
+
+  function push(item){
+
+    if(!item){
+      return;
+    }
+
+    /*
+      避免相同 URL 被加入兩次。
+    */
+
+    const exists =
+      items.some(
+        existing =>
+          existing.preview ===
+          item.preview
+      );
+
+    if(!exists){
+      items.push(item);
+    }
+
+  }
+
+
+  const urls = [];
+
+
+  String(text || "")
+    .replace(
+
+      /(!)?\[([^\]]*)\]\(([^)]+)\)|(https?:\/\/[^\s<>"']+\.(?:png|jpe?g|gif|webp|mp4|webm))/ig,
+
+      function(
+        match,
+        bang,
+        label,
+        mdUrl,
+        rawUrl
+      ){
+
+        const url =
+          mdUrl || rawUrl;
+
+        if(url){
+          urls.push(url);
+        }
+
+        return match;
+
+      }
+
+    );
+
+
+  urls.forEach(
+    url=>{
+
+      if(
+        /\.(mp4|webm|mov)(\?|$)/i
+          .test(url)
+      ){
+
+        push({
+
+          name:"video",
+
+          content_type:
+            "video",
+
+          preview:url
+
+        });
+
+      }else if(
+
+        /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i
+          .test(url) ||
+        url.startsWith(
+          "data:image/"
+        )
+
+      ){
+
+        push({
+
+          name:"image",
+
+          content_type:
+            "image",
+
+          preview:url
+
+        });
+
+      }
+
+    }
+  );
+
+
+  const pools = [
+
+    result,
+    result?.files,
+    result?.media,
+    result?.images,
+    result?.videos,
+    result?.artifacts,
+    result?.workspace
+
+  ];
+
+
+  pools.forEach(
+    pool=>{
+
+      if(!pool){
+        return;
+      }
+
+
+      if(
+        typeof pool ===
+          "string" &&
+        isDataOrHttpURL(pool)
+      ){
+
+        push({
+
+          name:"media",
+
+          content_type:
+            pool.includes("video") ||
+            /\.mp4/i.test(pool)
+              ? "video"
+              : "image",
+
+          preview:pool
+
+        });
+
+        return;
+
+      }
+
+
+      if(Array.isArray(pool)){
+
+        pool.forEach(
+          (item,i)=>{
+
+            if(
+              typeof item ===
+                "string" &&
+              isDataOrHttpURL(item)
+            ){
+
+              push({
+
+                name:
+                  "media-" + i,
+
+                content_type:
+                  /\.mp4|video/i
+                    .test(item)
+                    ? "video"
+                    : "image",
+
+                preview:item
+
+              });
+
+            }else if(
+              item &&
+              typeof item ===
+                "object"
+            ){
+
+              const url =
+                item.url ||
+                item.preview ||
+                item.content_base64 ||
+                item.src;
+
+              if(
+                isDataOrHttpURL(url)
+              ){
+
+                push({
+
+                  name:
+                    item.name ||
+                    "media-" + i,
+
+                  content_type:
+                    item.content_type ||
+                    (
+                      String(
+                        item.type || ""
+                      ).startsWith(
+                        "video"
+                      )
+                        ? "video"
+                        : "image"
+                    ),
+
+                  preview:url
+
+                });
+
+              }
+
+            }
+
+          }
+        );
+
+      }
+
+    }
+  );
+
+
+  return items;
+}
+
+
+function formatAIText(text){
+
+  const escaped =
+    escapeHTML(
+      text || ""
+    );
+
+
+  const html =
+    escaped
+
+      .replace(
+        /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,
+        '<a href="$2" target="_blank" rel="noopener">$1</a>'
+      )
+
+      .replace(
+        /(https?:\/\/[^\s<]+)/g,
+        function(url){
+
+          if(
+            url.includes(
+              "</a>"
+            )
+          ){
+
+            return url;
+
+          }
+
+          return (
+            '<a href="' +
+            url +
+            '" target="_blank" rel="noopener">' +
+            url +
+            "</a>"
+          );
+
+        }
+      )
+
+      .replace(
+        /\n/g,
+        "<br>"
+      );
+
+
+  return {
+    html
+  };
+
+}
+
+
+/* =========================================================
+   MEDIA RENDER
+========================================================= */
+
+function renderMediaStack(
+  files
+){
+
+  const stack =
+    document.createElement(
+      "div"
+    );
+
+  stack.className =
+    "media-stack";
+
+
+  (files || []).forEach(
+    file=>{
+
+      const type =
+        file.content_type ||
+        (
+          String(
+            file.type || ""
+          ).startsWith(
+            "image/"
+          )
+            ? "image"
+            : String(
+                file.type || ""
+              ).startsWith(
+                "video/"
+              )
+                ? "video"
+                : file.content
+                  ? "article"
+                  : "file"
+        );
+
+
+      const src =
+        file.preview ||
+        file.content_base64 ||
+        file.url ||
+        "";
+
+
+      if(
+        type === "image" &&
+        src
+      ){
+
+        const img =
+          document.createElement(
+            "img"
+          );
+
+        img.className =
+          "media-image";
+
+        img.src =
+          src;
+
+        img.alt =
+          file.name ||
+          "圖片";
+
+        stack.appendChild(
+          img
+        );
+
+        return;
+
+      }
+
+
+      if(
+        type === "video" &&
+        src
+      ){
+
+        const video =
+          document.createElement(
+            "video"
+          );
+
+        video.className =
+          "media-video";
+
+        video.src =
+          src;
+
+        video.controls =
+          true;
+
+        video.playsInline =
+          true;
+
+        stack.appendChild(
+          video
+        );
+
+        return;
+
+      }
+
+
+      if(
+        type === "article" ||
+        type === "text"
+      ){
+
+        const article =
+          document.createElement(
+            "article"
+          );
+
+        article.className =
+          "media-article";
+
+        article.textContent =
+          (
+            file.name
+              ? file.name +
+                "\n\n"
+              : ""
+          ) +
+          String(
+            file.content ||
+            file.preview ||
+            ""
+          );
+
+        stack.appendChild(
+          article
+        );
+
+        return;
+
+      }
+
+
+      const fallback =
+        document.createElement(
+          "div"
+        );
+
+      fallback.style.fontSize =
+        "12px";
+
+      fallback.style.color =
+        "#777";
+
+      fallback.textContent =
+        "📎 " +
+        (
+          file.name ||
+          "檔案"
+        );
+
+      stack.appendChild(
+        fallback
+      );
+
+    }
+  );
+
+
+  return stack;
+}
+
+
+/* =========================================================
+   MESSAGE RENDER
+========================================================= */
+
+function removeWelcome(){
+
+  const welcome =
+    document.getElementById(
+      "welcome"
+    );
+
+  if(welcome){
+    welcome.remove();
+  }
+
+}
+
+
+function renderUserMessage(
+  text,
+  attachedFiles = [],
+  messageIndex = null
+){
+
+  removeWelcome();
+
+
+  const row =
+    document.createElement(
+      "div"
+    );
+
+  row.className =
+    "message user";
+
+
+  if(
+    messageIndex != null
+  ){
+
+    row.dataset.index =
+      String(messageIndex);
+
+  }
+
+
+  row.innerHTML = `
+
+<div class="message-body">
+
+  <div class="message-text">
+    ${escapeHTML(
+      text ||
+      "已上傳檔案。"
+    ).replace(
+      /\n/g,
+      "<br>"
+    )}
+  </div>
+
+</div>
+
+<div class="message-avatar">
+  你
+</div>
+
+`;
+
+
+  if(
+    attachedFiles.length
+  ){
+
+    row
+      .querySelector(
+        ".message-body"
+      )
+      .appendChild(
+        renderMediaStack(
+          attachedFiles
+        )
+      );
+
+  }
+
+
+  if(
+    messageIndex != null
+  ){
+
+    const actions =
+      document.createElement(
+        "div"
+      );
+
+    actions.className =
+      "message-actions";
+
+    actions.style.justifyContent =
+      "flex-end";
+
+    actions.appendChild(
+      createDeleteButton(
+        messageIndex
+      )
+    );
+
+    row
+      .querySelector(
+        ".message-body"
+      )
+      .appendChild(
+        actions
+      );
+
+  }
+
+
+  messagesInner.appendChild(
+    row
+  );
+
+  scrollBottom();
+
+}
+
+
+function renderAIMessage(
+  text,
+  result = null,
+  messageIndex = null
+){
+
+  removeWelcome();
+
+
+  const row =
+    document.createElement(
+      "div"
+    );
+
+  row.className =
+    "message ai";
+
+
+  if(
+    messageIndex != null
+  ){
+
+    row.dataset.index =
+      String(messageIndex);
+
+  }
+
+
+  const avatar =
+    document.createElement(
+      "div"
+    );
+
+  avatar.className =
+    "message-avatar";
+
+  avatar.textContent =
+    "✦";
+
+
+  const body =
+    document.createElement(
+      "div"
+    );
+
+  body.className =
+    "message-body";
+
+
+  const messageText =
+    document.createElement(
+      "div"
+    );
+
+  messageText.className =
+    "message-text";
+
+
+  const userNotice =
+    String(
+      result?.diagnostic?.user_notice ||
+      ""
+    ).trim();
+
+  const visibleText =
+    userNotice
+      ? userNotice + "\n\n" + String(text || "")
+      : String(text || "");
+
+  const formatted =
+    formatAIText(
+      visibleText
+    );
+
+  messageText.innerHTML =
+    formatted.html;
+
+  if(userNotice){
+    messageText.classList.add(
+      "dark-star-has-diagnostic-notice"
+    );
+  }
+
+  body.appendChild(
+    messageText
+  );
+
+  appendDarkStarDiagnostic(
+    body,
+    result
+  );
+
+
+  const aiMedia =
+    collectAIMedia(
+      result,
+      text
+    );
+
+
+  if(aiMedia.length){
+
+    body.appendChild(
+      renderMediaStack(
+        aiMedia
+      )
+    );
+
+  }
+
+
+  if(text){
+
+    const actions =
+      document.createElement(
+        "div"
+      );
+
+    actions.className =
+      "message-actions";
+
+
+    const speak =
+      document.createElement(
+        "button"
+      );
+
+    speak.className =
+      "message-action";
+
+    speak.title =
+      "聽 AI 說話";
+
+
+    speak.innerHTML = `
+
+<svg
+  class="icon-small"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.7"
+  stroke-linecap="round"
+  stroke-linejoin="round">
+
+  <path d="M4 10v4h4l5 4V6l-5 4H4z"/>
+  <path d="M17 9a5 5 0 0 1 0 6"/>
+  <path d="M19.5 6.5a9 9 0 0 1 0 11"/>
+
+</svg>
+
+`;
+
+
+    speak.onclick =
+      ()=>speakText(
+        text
+      );
+
+
+    actions.appendChild(
+      speak
+    );
+
+    actions.appendChild(
+      createCopyButton(text)
+    );
+
+
+    if(
+      messageIndex != null
+    ){
+
+      actions.appendChild(
+        createDeleteButton(
+          messageIndex
+        )
+      );
+
+    }
+
+
+    body.appendChild(
+      actions
+    );
+
+  }else if(
+    messageIndex != null
+  ){
+
+    const actions =
+      document.createElement(
+        "div"
+      );
+
+    actions.className =
+      "message-actions";
+
+    actions.appendChild(
+      createDeleteButton(
+        messageIndex
+      )
+    );
+
+    body.appendChild(
+      actions
+    );
+
+  }
+
+
+  if(result){
+
+    appendResultArtifacts(
+      body,
+      result
+    );
+
+  }
+
+
+  row.appendChild(
+    avatar
+  );
+
+  row.appendChild(
+    body
+  );
+
+  messagesInner.appendChild(
+    row
+  );
+
+  scrollBottom();
+
+
+  return row;
+}
+
+
+function appendDarkStarDiagnostic(
+  body,
+  result
+){
+  if(!result || typeof result !== "object"){
+    return;
+  }
+
+  const diagnostic =
+    result.diagnostic ||
+    result.failover ||
+    result.quota ||
+    null;
+
+  if(!diagnostic){
+    return;
+  }
+
+  const details =
+    document.createElement("details");
+
+  details.className =
+    "dark-star-diagnostic";
+
+  const summary =
+    document.createElement("summary");
+
+  summary.textContent =
+    "🔧 技術診斷（工程用，不作為暗星回答）";
+
+  const pre =
+    document.createElement("pre");
+
+  try{
+    pre.textContent =
+      JSON.stringify(
+        {
+          gateway_version:
+            result.gateway?.version ||
+            null,
+          quota:
+            result.quota ||
+            null,
+          diagnostic:
+            result.diagnostic ||
+            null,
+          failover:
+            result.failover ||
+            null,
+        },
+        null,
+        2
+      );
+  }catch(error){
+    pre.textContent =
+      String(error);
+  }
+
+  details.appendChild(summary);
+  details.appendChild(pre);
+  body.appendChild(details);
+}
+
+
+/* =========================================================
+   RESULT ARTIFACTS
+========================================================= */
+
+function appendResultArtifacts(
+  body,
+  result
+){
+
+  if(!result){
+    return;
+  }
+
+
+  const files =
+    result.files ||
+    result.workspace?.files ||
+    result.artifacts?.files ||
+    null;
+
+
+  /*
+    只有真正由 Sandbox 執行產生的結果才顯示 Sandbox UI。
+    正常聊天即使 Gateway 回傳 files，也不能自動把對話
+    變成 Sandbox 對話。
+  */
+
+  const sandboxExecuted =
+    result?.sandbox === true ||
+    result?.sandbox?.executed === true ||
+    result?.sandbox?.status === "executed" ||
+    result?.execution?.environment === "sandbox" ||
+    result?.source === "dark-star-sandbox";
+
+  if(files && sandboxExecuted){
+
+    renderSandbox(
+      body,
+      files,
+      result
+    );
+
+  }
+
+
+  const gates =
+    result.gates ||
+    result.learning?.gates ||
+    result.stages ||
+    null;
+
+
+  if(
+    Array.isArray(gates) &&
+    gates.length
+  ){
+
+    renderGates(
+      body,
+      gates
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   SANDBOX
+========================================================= */
+
+function renderSandbox(
+  parent,
+  files,
+  result
+){
+
+  const names =
+    Object.keys(
+      files || {}
+    );
+
+
+  if(!names.length){
+    return;
+  }
+
+
+  lastSandboxFiles =
+    files;
+
+
+  const preferred = [
+
+    "index.html",
+    "index.htm",
+    "src/App.jsx",
+    "App.jsx",
+    "main.js",
+    "src/main.js"
+
+  ];
+
+
+  const selected =
+    preferred.find(
+      name =>
+        names.includes(name)
+    ) ||
+    names[0];
+
+
+  const code =
+    typeof files[selected] ===
+      "string"
+
+      ? files[selected]
+
+      : JSON.stringify(
+          files[selected],
+          null,
+          2
+        );
+
+
+  const sandbox =
+    document.createElement(
+      "div"
+    );
+
+  sandbox.className =
+    "sandbox-card";
+
+
+  sandbox.innerHTML = `
+
+<div class="sandbox-head">
+
+  <div class="sandbox-title">
+    Sandbox
+  </div>
+
+  <div class="sandbox-tabs">
+
+    <button
+      class="sandbox-tab active"
+      data-mode="preview">
+      完成品
+    </button>
+
+    <button
+      class="sandbox-tab"
+      data-mode="code">
+      程式碼
+    </button>
+
+    <button
+      class="sandbox-copy sandbox-rerun">
+      重跑沙盒
+    </button>
+
+  </div>
+
+</div>
+
+<div class="sandbox-body">
+
+  <div
+    class="sandbox-view active"
+    data-view="preview">
+
+    <div class="sandbox-empty">
+
+      <div>
+
+        <div class="sandbox-empty-title">
+          已收到實際檔案
+        </div>
+
+        <div class="sandbox-empty-text">
+          尚未提供 Sandbox Preview。
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <div
+    class="sandbox-view"
+    data-view="code">
+
+    <div class="sandbox-code-tools">
+
+      <div class="sandbox-file">
+        ${escapeHTML(selected)}
+      </div>
+
+      <button class="sandbox-copy sandbox-copy-all">
+        複製全部
+      </button>
+
+    </div>
+
+    <textarea
+      class="sandbox-code"
+      readonly></textarea>
+
+  </div>
+
+</div>
+
+`;
+
+
+  const textarea =
+    sandbox.querySelector(
+      ".sandbox-code"
+    );
+
+  textarea.value =
+    code;
+
+
+  const previewPane =
+    sandbox.querySelector(
+      '[data-view="preview"]'
+    );
+
+
+  if(
+    String(selected)
+      .toLowerCase()
+      .endsWith(".html") ||
+    String(selected)
+      .toLowerCase()
+      .endsWith(".htm")
+  ){
+
+    previewPane.innerHTML =
+      "";
+
+    const iframe =
+      document.createElement(
+        "iframe"
+      );
+
+    iframe.className =
+      "sandbox-frame";
+
+    iframe.srcdoc =
+      code;
+
+    previewPane.appendChild(
+      iframe
+    );
+
+  }
+
+
+  const previewURL =
+    result?.sandbox?.preview_url ||
+    result?.sandbox?.previewUrl ||
+    result?.sandbox?.url ||
+    result?.preview_url ||
+    result?.previewUrl ||
+    null;
+
+
+  if(previewURL){
+
+    previewPane.innerHTML =
+      "";
+
+    const iframe =
+      document.createElement(
+        "iframe"
+      );
+
+    iframe.className =
+      "sandbox-frame";
+
+    iframe.src =
+      previewURL;
+
+    iframe.loading =
+      "lazy";
+
+    previewPane.appendChild(
+      iframe
+    );
+
+  }
+
+
+  sandbox
+    .querySelectorAll(
+      ".sandbox-tab"
+    )
+    .forEach(
+      tab=>{
+
+        tab.onclick =
+          ()=>{
+
+            sandbox
+              .querySelectorAll(
+                ".sandbox-tab"
+              )
+              .forEach(
+                item =>
+                  item.classList.remove(
+                    "active"
+                  )
+              );
+
+
+            tab.classList.add(
+              "active"
+            );
+
+
+            sandbox
+              .querySelectorAll(
+                ".sandbox-view"
+              )
+              .forEach(
+                view =>
+                  view.classList.remove(
+                    "active"
+                  )
+              );
+
+
+            const target =
+              sandbox.querySelector(
+                `[data-view="${tab.dataset.mode}"]`
+              );
+
+
+            if(target){
+
+              target.classList.add(
+                "active"
+              );
+
+            }
+
+          };
+
+      }
+    );
+
+
+  const copyButton =
+    sandbox.querySelector(
+      ".sandbox-copy-all"
+    );
+
+
+  copyButton.onclick =
+    async ()=>{
+
+      try{
+
+        await navigator.clipboard.writeText(
+          getAllFilesText(
+            files
+          )
+        );
+
+        alert(
+          "完整程式碼已複製"
+        );
+
+      }catch(error){
+
+        textarea.focus();
+
+        textarea.select();
+
+        document.execCommand(
+          "copy"
+        );
+
+        alert(
+          "程式碼已複製"
+        );
+
+      }
+
+    };
+
+
+  const rerun =
+    sandbox.querySelector(
+      ".sandbox-rerun"
+    );
+
+
+  rerun.onclick =
+    async ()=>{
+
+      if(isSending){
+
+        alert(
+          "目前已有任務正在執行，請等待完成。"
+        );
+
+        return;
+
+      }
+
+
+      rerun.disabled =
+        true;
+
+      rerun.textContent =
+        "重跑中…";
+
+
+      try{
+
+        const rerunResult =
+          await callSandbox(
+            "請重跑並測試目前的沙盒。",
+            lastSandboxFiles,
+            "rerun"
+          );
+
+
+        lastSandboxFiles =
+          rerunResult.files ||
+          lastSandboxFiles;
+
+
+        renderAIMessage(
+          getAIReply(
+            rerunResult
+          ) ||
+          "沙盒已重跑。",
+          rerunResult
+        );
+
+
+      }catch(error){
+
+        alert(
+          "沙盒重跑失敗：\n" +
+          error.message
+        );
+
+      }finally{
+
+        rerun.disabled =
+          false;
+
+        rerun.textContent =
+          "重跑沙盒";
+
+      }
+
+    };
+
+
+  parent.appendChild(
+    sandbox
+  );
+
+}
+
+
+function getAllFilesText(
+  files
+){
+
+  return Object
+    .entries(files || {})
+    .map(
+      ([name,content]) =>
+        `===== ${name} =====\n\n` +
+        (
+          typeof content ===
+            "string"
+            ? content
+            : JSON.stringify(
+                content,
+                null,
+                2
+              )
+        ) +
+        "\n\n"
+    )
+    .join("");
+
+}
+
+
+/* =========================================================
+   GATES
+========================================================= */
+
+function renderGates(
+  parent,
+  gates
+){
+
+  const card =
+    document.createElement(
+      "div"
+    );
+
+  card.className =
+    "gate-card";
+
+
+  const head =
+    document.createElement(
+      "div"
+    );
+
+  head.className =
+    "gate-head";
+
+  head.textContent =
+    "Technical Dark Star 工作進度";
+
+
+  const list =
+    document.createElement(
+      "div"
+    );
+
+  list.className =
+    "gate-list";
+
+
+  gates.forEach(
+    gate=>{
+
+      const row =
+        document.createElement(
+          "div"
+        );
+
+
+      const state =
+        String(
+          gate.status ||
+          gate.state ||
+          "pending"
+        ).toLowerCase();
+
+
+      if(
+        [
+          "completed",
+          "passed",
+          "success"
+        ].includes(state)
+      ){
+
+        row.className =
+          "gate-row completed";
+
+      }else if(
+        state === "running"
+      ){
+
+        row.className =
+          "gate-row running";
+
+      }else if(
+        [
+          "failed",
+          "error"
+        ].includes(state)
+      ){
+
+        row.className =
+          "gate-row failed";
+
+      }else{
+
+        row.className =
+          "gate-row";
+
+      }
+
+
+      let icon =
+        "○";
+
+
+      if(
+        [
+          "completed",
+          "passed",
+          "success"
+        ].includes(state)
+      ){
+
+        icon =
+          "✓";
+
+      }else if(
+        state === "running"
+      ){
+
+        icon =
+          "●";
+
+      }else if(
+        [
+          "failed",
+          "error"
+        ].includes(state)
+      ){
+
+        icon =
+          "!";
+
+      }
+
+
+      row.innerHTML = `
+
+<div class="gate-icon">
+  ${icon}
+</div>
+
+<div>
+
+  <div class="gate-name">
+    ${escapeHTML(
+      gate.name ||
+      gate.stage ||
+      "Unknown"
+    )}
+  </div>
+
+  <div class="gate-status">
+    ${escapeHTML(
+      gate.message ||
+      gate.label ||
+      state
+    )}
+  </div>
+
+</div>
+
+`;
+
+
+      list.appendChild(
+        row
+      );
+
+    }
+  );
+
+
+  card.appendChild(
+    head
+  );
+
+  card.appendChild(
+    list
+  );
+
+  parent.appendChild(
+    card
+  );
+
+}
+
+
+/* =========================================================
+   INTENT
+========================================================= */
+
+function isDebugIntent(
+  text
+){
+
+  return /除錯|debug|報錯|錯誤|修bug|看這(段|張)|程式碼|code review|為什麼不能|讀圖|辨識圖片/i
+    .test(
+      String(text || "")
+    );
+
+}
+
+
+function hasImageAttachment(
+  files
+){
+
+  return (
+    files || []
+  ).some(
+    file =>
+      file.content_type ===
+        "image" ||
+      String(
+        file.type || ""
+      ).startsWith(
+        "image/"
+      )
+  );
+
+}
+
+
+function chooseDarkStarImageFormat(){
+  return new Promise((resolve)=>{
+    const existing = document.getElementById("darkStarImageFormatModal");
+    if(existing) existing.remove();
+
+    const styleId = "darkStarImageFormatModalStyle";
+    if(!document.getElementById(styleId)){
+      const style = document.createElement("style");
+      style.id = styleId;
+      style.textContent = `
+        #darkStarImageFormatModal{
+          position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;
+          padding:20px;background:rgba(0,0,0,.48);backdrop-filter:blur(4px);
+        }
+        #darkStarImageFormatModal .format-card{
+          width:min(420px,92vw);background:#fff;color:#111;border-radius:20px;padding:22px;
+          box-shadow:0 20px 60px rgba(0,0,0,.28);
+        }
+        #darkStarImageFormatModal .format-title{font-size:19px;font-weight:700;margin-bottom:8px}
+        #darkStarImageFormatModal .format-note{font-size:14px;color:#666;margin-bottom:18px;line-height:1.55}
+        #darkStarImageFormatModal .format-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+        #darkStarImageFormatModal button{
+          border:1px solid #ddd;border-radius:14px;padding:15px 10px;background:#fafafa;
+          color:#111;font-size:16px;font-weight:650;cursor:pointer;
+        }
+        #darkStarImageFormatModal button:hover{background:#f0f0f0}
+        #darkStarImageFormatModal .format-sub{display:block;font-size:12px;font-weight:400;color:#777;margin-top:5px}
+      `;
+      document.head.appendChild(style);
+    }
+
+    const modal=document.createElement("div");
+    modal.id="darkStarImageFormatModal";
+    modal.innerHTML=`
+      <div class="format-card" role="dialog" aria-modal="true" aria-labelledby="darkStarImageFormatTitle">
+        <div id="darkStarImageFormatTitle" class="format-title">暗星要生成圖片</div>
+        <div class="format-note">請選擇這一次的輸出格式。未選擇前，暗星不會自行決定 SVG 或 JPG。</div>
+        <div class="format-actions">
+          <button type="button" data-format="jpg">JPG<span class="format-sub">一般照片／點陣圖片</span></button>
+          <button type="button" data-format="svg">SVG<span class="format-sub">向量圖／SVG 沙盒</span></button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const finish=(format)=>{
+      modal.remove();
+      resolve(format);
+    };
+    modal.querySelectorAll("[data-format]").forEach(btn=>{
+      btn.addEventListener("click",()=>finish(btn.dataset.format));
+    });
+  });
+}
+
+
+function isExplicitSvgIntent(text){
+
+  const value = String(text || "").trim();
+
+  if(!value) return false;
+
+  /*
+    SVG 必須是使用者明確要求的輸出格式／沙盒。
+    提到 SVG 本身不能搶走 JPG／照片生成路由。
+  */
+
+  const wantsRaster =
+    /JPG|JPEG|照片|點陣圖|點陣圖片|生成圖片|產生圖片|生成照片|產生照片|圖片生成|生圖|轉成JPG|轉成JPEG|改成JPG|改成JPEG/i
+      .test(value);
+
+  if(
+    wantsRaster &&
+    !/(?:只要|只輸出|僅輸出|輸出|生成|產生|畫出|做出)\s*(?:一份)?\s*(?:SVG|向量圖|向量圖形)/i
+      .test(value)
+  ){
+    return false;
+  }
+
+  if(
+    /(?:不要|不用|不需要|別|勿)\s*(?:輸出)?\s*(?:SVG|向量圖|向量圖形)/i
+      .test(value)
+  ){
+    return false;
+  }
+
+  return /(?:輸出|生成|產生|畫出|做出|建立|轉成|使用|進入|執行|開始|重跑|測試)?\s*(?:SVG|向量圖|向量圖形)|(?:SVG|向量圖|向量圖形)\s*(?:圖|格式|程式碼|程式|Sandbox|沙盒|測試|執行)/i
+    .test(value);
+
+}
+
+
+/*
+  ========================================================
+   IMAGE CONTEXT / INTENT
+  ========================================================
+
+  上一個任務若已經是圖片生成，後續只描述
+  構圖、人物、服裝、背景、風格等內容時，
+  視為同一圖片任務的延續，不要求使用者再次說 JPG。
+*/
+
+/* AIVAULT_JPG_FIRST_IMAGE_TASK_V2
+   規則：
+   1. 一般圖片/照片一律以 JPG 為預設。
+   2. 只有明確 SVG 才進 SVG。
+   3. 已有上一張 JPG 時，自然語言修改預設沿用同一圖片任務。
+   4. 新人物/全新圖片等明確要求才建立新圖片任務。
+*/
+
+function normalizeImageTaskText(value){
+  return String(value || "").replace(/\s+/g," ").trim();
+}
+
+function buildImageTaskState(previousTask, userMessage, continuation){
+  /*
+    AIVAULT_IMAGE_TASK_STATE_V3
+    任務狀態只有在「延續／修改」時才繼承上一張。
+    全新生成必須建立乾淨 task state，避免上一張人物身份
+    （例如 Arnold Schwarzenegger）滲入新的圖片提示詞。
+  */
+  const previous =
+    continuation &&
+    previousTask?.image_task &&
+    typeof previousTask.image_task === "object"
+      ? previousTask.image_task
+      : {};
+  const text = normalizeImageTaskText(userMessage);
+  const task = {
+    ethnicity: previous.ethnicity || "",
+    face: previous.face || "",
+    skin_tone: previous.skin_tone || "",
+    hair: previous.hair || "",
+    clothing: previous.clothing || "",
+    body: previous.body || "",
+    pose: previous.pose || "",
+    camera: previous.camera || "",
+    background: previous.background || "",
+    lighting: previous.lighting || "",
+    style: previous.style || "",
+    anatomy: previous.anatomy || "",
+    breastfeeding: previous.breastfeeding || "",
+    breast_anatomy: previous.breast_anatomy || ""
+  };
+  if(!continuation){
+    if(/亞洲|亞裔|東亞|中國人|華人|日本人|韓國人|台灣人|東南亞/i.test(text)){
+      task.ethnicity="亞洲／東亞成人女性面部外觀；維持自然一致的亞洲面部結構。";
+      task.face="自然亞洲成人女性五官與臉型；眼睛、眉骨、鼻部、嘴唇與整體面部結構保持一致。";
+    }else if(/白人|歐美人|歐洲人|西方人|高加索|Caucasian|European/i.test(text)){
+      task.ethnicity="歐美／白人成年人面部外觀；維持一致的歐美面部結構。";
+      task.face="自然一致的歐美成人五官與臉型。";
+    }else if(/非裔|黑人|African/i.test(text)){
+      task.ethnicity="非洲裔成人面部外觀；維持自然一致的面部結構。";
+    }else if(/南亞|印度人|印度裔|South Asian|Indian/i.test(text)){
+      task.ethnicity="南亞成人面部外觀；維持自然一致的面部結構。";
+    }
+    if(/黑髮|黑色頭髮|黑長髮|長髮/i.test(text)) task.hair="黑色長髮";
+    if(/性感/i.test(text)) task.style="性感成人肖像風格";
+  }
+  if(/豐滿|豐腴|曲線豐滿|身材豐滿/i.test(text)){
+    task.body="成人身體比例較豐滿、自然有曲線；肩、腰、臀與四肢比例協調，保持自然人體結構。身材描述不等同於鏡頭構圖要求。";
+  }
+  if(/纖細|苗條|瘦|修長/i.test(text)){
+    task.body="成人身體比例較纖細、自然修長；肩、腰、臀與四肢比例協調，保持自然人體結構。";
+  }
+  if(/近距離|近景|特寫/i.test(text)) task.camera="中近景構圖；完整頭部與臉部可見，不裁切臉或頭。";
+  if(/上半身|半身/i.test(text)) task.camera="上半身／半身構圖；完整頭部、完整臉部與雙肩可見，不裁切臉或頭。";
+  if(/全身/i.test(text)) task.camera="全身構圖；從頭到腳完整入鏡，不裁切頭部或腳部。";
+  if(/背景/i.test(text)) task.background=text;
+  if(/光線|柔光|逆光|燈光/i.test(text)) task.lighting=text;
+  if(/姿勢|動作/i.test(text)) task.pose=text;
+  if(/衣服|服裝|裙子|上衣/i.test(text)) task.clothing=text;
+  if(/寫實|逼真/i.test(text)) task.style="寫實成人肖像";
+  if(/人體工學|人體結構|人體比例|骨架|關節|姿勢分析|人體研究|人體藝術|哺乳|母乳|餵奶|餵母乳|母乳哺育|哺育嬰兒/i.test(text)){
+    task.anatomy="人體結構研究：頭身比例、肩胯比例、脊柱與四肢長度、主要關節位置、姿勢與重心保持自然一致；以人體結構與工學為主要研究目標。";
+  }
+  if(/哺乳|母乳|餵奶|餵母乳|母乳哺育|哺育嬰兒/i.test(text)){
+    task.breastfeeding="母乳哺育情境：成年母親與嬰兒的自然哺乳互動；以母嬰姿勢、支撐、關節角度、重心與照護情境為語意重點，不將哺乳自動解讀為性感情境。";
+    task.breast_anatomy="乳房解剖定位：左右乳房位於胸廓前側，乳暈與乳頭位於各自乳房的合理中心區域；左右位置、大小比例與胸壁連接保持自然一致。";
+    task.anatomy=(task.anatomy?task.anatomy+" ":"")+"哺乳相關人體結構：胸廓、乳房位置、母嬰接觸姿勢與支撐關係保持自然一致。";
+  }
+  return task;
+}
+
+function imageTaskLockPrompt(task){
+  const entries=[
+    ["人物族群",task.ethnicity],["面部",task.face],["膚色",task.skin_tone],
+    ["髮型",task.hair],["服裝",task.clothing],["身體比例",task.body],
+    ["姿勢",task.pose],["鏡頭構圖",task.camera],["背景",task.background],
+    ["光線",task.lighting],["風格",task.style],["人體結構",task.anatomy],
+    ["哺乳情境",task.breastfeeding],["乳房解剖",task.breast_anatomy]
+  ].filter(([,value])=>String(value || "").trim());
+  if(!entries.length)return "";
+  return "【IMAGE TASK LOCK】\n"+
+    entries.map(([name,value])=>name+"："+value).join("\n")+
+    "\n以上是目前圖片任務狀態。後續修改只能改變使用者本輪明確要求的欄位；未被要求的欄位必須保持不變。\n"+
+    "人物族群、面部結構與身份是獨立鎖定條件。除非使用者明確要求換人物或改變族群，不得因鏡頭、身材、服裝、背景或風格修改而改變臉部或族群外觀。\n";
+}
+
+function getLatestImageTask(){
+
+  for(let i = messagesHistory.length - 1; i >= 0; i--){
+
+    const item = messagesHistory[i];
+
+    if(
+      item &&
+      item.role === "assistant" &&
+      item.result &&
+      item.result.capability === "image_generation"
+    ){
+
+      const previousUser =
+        messagesHistory
+          .slice(0, i)
+          .reverse()
+          .find(message =>
+            message &&
+            message.role === "user" &&
+            String(message.text || "").trim()
+          );
+
+      return {
+        prompt:
+          String(
+            item.result.image_prompt ||
+            previousUser?.text ||
+            ""
+          ).trim(),
+        image_task:
+          item.result.image_task &&
+          typeof item.result.image_task === "object"
+            ? item.result.image_task
+            : null,
+        format:
+          String(
+            item.result.mime_type ||
+            "image/jpeg"
+          ).toLowerCase(),
+        reference_url:
+          String(
+            item.result.artifact?.signed_url ||
+            item.result.images?.[0]?.url ||
+            ""
+          ).trim(),
+        result: item.result
+      };
+
+    }
+
+  }
+
+  return null;
+}
+
+
+function getRequestedImageAspectRatio(text){
+  const value=String(text||"").trim();
+  if(/(?:手機直式|直式|豎版|豎直|9[:：]16|9／16)/i.test(value)) return "9:16";
+  if(/(?:橫式|橫向|寬幅|橫幅|16[:：]9|16／9)/i.test(value)) return "16:9";
+  if(/(?:全身|站立全身|從頭到腳|完整全身)/i.test(value)) return "2:3";
+  if(/(?:上半身|半身)/i.test(value)) return "3:4";
+  if(/(?:近距離|近景|特寫|頭像|頭部特寫)/i.test(value)) return "4:5";
+  if(/(?:正方形|方形|1[:：]1|1／1)/i.test(value)) return "1:1";
+  return "3:4";
+}
+
+function getRequestedImageAppearanceGuidance(text){
+  const value = String(text || "").trim();
+  if(/亞洲|亞裔|東亞|中國人|華人|日本人|韓國人|台灣人|東南亞/i.test(value)){
+    return "人物族群外觀要求：請維持明確的亞洲／東亞面部外觀與自然的亞洲成人五官比例；不要自動轉成歐美白人面部結構。這不是單純膚色要求，還包括臉型、眼睛、眉骨、鼻部、嘴唇與整體面部結構的協調一致。";
+  }
+  if(/白人|歐美人|歐洲人|西方人|高加索|Caucasian|European/i.test(value)){
+    return "人物族群外觀要求：請維持明確的歐美／白人成年人面部外觀與自然一致的面部結構；不要在未要求時改成亞洲面部外觀。";
+  }
+  if(/非裔|黑人|African/i.test(value)){
+    return "人物族群外觀要求：請維持明確且自然一致的非洲裔成人面部外觀；不要在未要求時改成其他族群的面部外觀。";
+  }
+  if(/南亞|印度人|印度裔|South Asian|Indian/i.test(value)){
+    return "人物族群外觀要求：請維持明確且自然一致的南亞成人面部外觀；不要在未要求時改成其他族群的面部外觀。";
+  }
+  return "";
+}
+
+function isImageContinuationIntent(text, files){
+
+  const value = String(text || "").trim();
+
+  if(
+    !value ||
+    isDebugIntent(value) ||
+    hasImageAttachment(files) ||
+    isExplicitSvgIntent(value)
+  ){
+    return false;
+  }
+
+  if(!getLatestImageTask()){
+    return false;
+  }
+
+  /*
+    已經有 JPG 圖片任務後：
+    使用者描述的是「修改」時，一律修改目前這張 JPG。
+    不要求再次輸入 JPG。
+  */
+  const explicitNewImage =
+    /重新創作一張|重新生成一張|新做一張|新生成一張|換一個人物|換另一個人|另一個人物|不同的人物|另一張完全不同|全新圖片|全新照片/i
+      .test(value);
+
+  if(explicitNewImage){
+    return false;
+  }
+
+  /*
+    AIVAULT_IMAGE_CONTINUATION_GUARD_V2
+    新的「生成／產生／畫」命令不得繼承上一張圖片。
+    否則上一張人物可能被錯誤當成 reference image。
+  */
+  const explicitNewGeneration =
+    /^(?:請|幫我|幫忙|麻煩)?\s*(?:生成|產生|畫|繪製|做|製作)\s*(?:一(?:張|個|幅)|幾(?:張|個))?/i
+      .test(value) ||
+    /(?:生成|產生|畫|繪製|做|製作)\s*(?:一張|一個|一幅)?\s*(?:美女|女性|女人|男人|男性|人物|肖像|照片|圖片|圖)/i
+      .test(value);
+
+  if(explicitNewGeneration){
+    return false;
+  }
+
+  const explicitModification =
+    /上一張|上一個圖片|目前這張|這張圖|這張照片|修改圖片|修改照片|修改上一張|調整上一張|改上一張|繼續修改|幫我修改|幫我調整/i
+      .test(value);
+
+  if(explicitModification){
+    return true;
+  }
+
+  /*
+    沒有明確「上一張／這張／修改」時，不自動沿用舊人物。
+  */
+  return /近距離|遠距離|近景|特寫|半身|上半身|全身|胸|身材|比例|大小|人物佔比|髮型|頭髮|臉|五官|眼睛|嘴唇|衣服|服裝|裙子|背景|光線|色調|姿勢|動作|角度|構圖|鏡頭|畫面|留白|裁切|裁剪|完整臉|不要裁臉|不要裁頭|風格|寫實|逼真|人體工學|人體結構|人體比例|骨架|關節|姿勢分析|人體研究|人體藝術|更像|換成|改成|調整|增加|減少|縮小|放大|再近|再遠|不要|保留|重新生成|再生成|再做一張|再來一張/i
+    .test(value);
+}
+
+
+/* AIVAULT_HARD_JPG_VISUAL_ROUTER_V1
+   Final safety net: any ordinary natural-language visual request must never
+   fall through to Gateway text/SVG generation. Explicit SVG remains allowed.
+*/
+function isHardJpgVisualRequest(text, files){
+  const value = String(text || "").trim();
+  if(!value || isExplicitSvgIntent(value) || hasImageAttachment(files)) return false;
+  return (
+    /(?:生成|產生|畫|繪製|做|製作|給我|來一張|来一张|傳|传)/i.test(value) &&
+    /(?:圖片|图|照片|相片|女性|女人|女生|男性|男人|人物|肖像|旗袍|漢服|汉服|狗|貓|猫|風景|风景|街頭|街头|上海|夜景|霓虹|建築|建筑|汽車|汽车|場景|场景)/i.test(value)
+  ) || (
+    /(?:旗袍|漢服|汉服|女性|女人|女生|男性|男人|人物|肖像|上海街頭|上海街头|夜景|霓虹|街頭|街头|風景|风景)/i.test(value)
+  );
+}
+
+function isJpgImageIntent(text, files){
+
+  const value = String(text || "").trim();
+
+  if(
+    !value ||
+    isDebugIntent(value) ||
+    hasImageAttachment(files) ||
+    isExplicitSvgIntent(value)
+  ){
+    return false;
+  }
+
+  /*
+    AIVAULT_JPG_DEFAULT_ROUTER_V5
+
+    自然語言視覺描述也屬於真正圖片任務。
+    不要求使用者說「生成圖片」或「JPG」。
+    例如：
+      「傳旗袍的女性」
+      「夜色上海街頭，身著紅色旗袍的優雅女性」
+    都必須進入真正的 JPG 圖片生成器，而不是一般文字回應或 SVG Sandbox。
+  */
+  if(
+    /JPG|JPEG|照片|相片|圖片|生成圖片|產生圖片|生成一張圖|產生一張圖|生成照片|產生照片|圖片生成|生圖|畫一張|畫個|畫一個|做一張圖|做個圖|做張圖|生成美女|產生美女|生成女性|產生女性|生成男性|產生男性|性感美女|人物肖像|人像照片|一張照片|一張圖片/i
+      .test(value)
+  ){
+    return true;
+  }
+
+  /*
+    AIVAULT_NATURAL_VISUAL_INTENT_V1
+    視覺主體＋服裝／場景／外觀描述，即使沒有「生成」動詞，
+    仍視為圖片生成意圖。這是給暗星自然語意理解層的入口。
+  */
+  if(
+    /(?:旗袍|漢服|汉服|西裝|西装|洋裝|连衣裙|制服|晚禮服|婚紗|泳裝|衣服|服裝|服饰|qipao|cheongsam|hanfu|suit|dress)/i.test(value)
+    &&
+    /(?:女性|女人|女生|女子|女孩子|男性|男人|男生|男子|男孩子|人物|人像|肖像|美女|美人|woman|female|girl|man|male|boy|person|portrait)/i.test(value)
+  ){
+    return true;
+  }
+
+  if(
+    /(?:上海街頭|上海街头|街頭|街头|夜色|夜晚|夜景|霓虹|雨夜|咖啡廳|咖啡厅|室內|室内|戶外|户外|風景|风景|山景|海景|城市景觀|城市景观)/i.test(value)
+    &&
+    /(?:女性|女人|女生|女子|男性|男人|男生|男子|人物|人像|肖像|美女|美人|woman|female|girl|man|male|boy|person|portrait|建築|建筑|汽車|汽车|動物|动物)/i.test(value)
+  ){
+    return true;
+  }
+
+  /*
+    「傳旗袍的女性」這類口語省略句：
+    在圖片上下文中，「傳」不是檔案上傳，而是要求呈現該視覺主體。
+  */
+  if(
+    /^(?:請|幫我|帮我|麻煩|麻烦)?\s*(?:傳|传|給我|给我|來一張|来一张|來個|来个)?\s*(?:一位|一名|一個|一个)?\s*(?:穿著|穿着|身著|身着)?\s*(?:紅色|红色|黑色|白色|藍色|蓝色|綠色|绿色|紫色|粉色)?\s*(?:旗袍|漢服|汉服|qipao|cheongsam|hanfu)\s*(?:的)?\s*(?:女性|女人|女生|女子|女孩子|美女|美人|woman|female|girl)/i.test(value)
+  ){
+    return true;
+  }
+
+  /*
+    自然語言「生成／產生／畫／繪製」＋視覺主體，
+    直接視為圖片任務，不要求 JPG 關鍵字。
+  */
+  if(
+    /^(?:請|幫我|幫忙|麻煩)?\s*(?:生成|產生|畫|繪製|做|製作)\s*(?:一(?:隻|個|張|幅|台|棵|朵|座|艘|輛|件)|幾(?:隻|個|張))?\s*(?:狗|小狗|瑪爾濟斯|貓|小貓|兔子|鳥|馬|鹿|獅子|老虎|熊|大象|房子|建築|汽車|機車|飛機|船|風景|山|海|樹|花|植物|食物|蛋糕|水果|物品|角色|人物|男人|女人|男性|女性|女孩|男孩|機器人|怪獸|場景|插畫|海報|圖案|肖像)/i
+      .test(value)
+  ){
+    return true;
+  }
+
+  return isImageContinuationIntent(value, files);
+}
+
+
+function isDrawIntent(
+  text,
+  files
+){
+
+  const value =
+    String(text || "");
+
+  if(
+    isDebugIntent(value) ||
+    hasImageAttachment(files) ||
+    isJpgImageIntent(value, files) ||
+    isExplicitSvgIntent(value)
+  ){
+    return false;
+  }
+
+  /*
+    Draw Sandbox 不再攔截普通「圖片／生圖／畫一張」。
+    SVG 必須由上層 isExplicitSvgIntent() 明確路由。
+  */
+  return /動畫|拍翅膀|轉動|閃爍|animate|gif|sketch/i
+    .test(value);
+}
+
+
+function isGameIntent(
+  text,
+  files
+){
+
+  const value =
+    String(text || "");
+
+
+  if(
+    isDebugIntent(value) ||
+    hasImageAttachment(files) ||
+    isDrawIntent(
+      value,
+      files
+    )
+  ){
+
+    return false;
+
+  }
+
+
+  return /小遊戲|遊戲|貪食蛇|寫一個遊戲|做一個遊戲|玩法/i
+    .test(value);
+
+}
+
+
+function isSandboxIntent(
+  text,
+  files
+){
+
+  /*
+    Sandbox 是工程測試工具，不是正常聊天通道。
+
+    只有使用者明確要求進入／執行／重跑 Sandbox
+    時才啟用。一般「建立、做成、寫頁面、實作」
+    等需求仍先走正常 Technical Dark Star 對話，
+    不得因關鍵字誤判而自動把使用者送進 Sandbox。
+  */
+
+  const value =
+    String(text || "").trim();
+
+  if(
+    !value ||
+    isDebugIntent(value) ||
+    hasImageAttachment(files) ||
+    isGameIntent(value, files) ||
+    isDrawIntent(value, files)
+  ){
+
+    return false;
+
+  }
+
+  return /(?:進入|使用|執行|開始|重跑|測試)\s*(?:沙盒|sandbox)|(?:沙盒|sandbox)\s*(?:測試|執行|重跑|驗證)/i
+    .test(value);
+
+}
+
+
+/* =========================================================
+   HTML / SVG EXTRACTION
+========================================================= */
+
+function extractHtmlFromText(
+  text
+){
+
+  const raw =
+    String(text || "");
+
+
+  const doctype =
+    raw.search(
+      /<!DOCTYPE html/i
+    );
+
+
+  if(doctype >= 0){
+
+    return raw
+      .slice(doctype)
+      .trim();
+
+  }
+
+
+  const start =
+    raw.search(
+      /<html/i
+    );
+
+
+  if(start >= 0){
+
+    return raw
+      .slice(start)
+      .trim();
+
+  }
+
+
+  return "";
+
+}
+
+
+function extractSvgFromText(
+  text
+){
+
+  const raw =
+    String(text || "");
+
+
+  const start =
+    raw.search(
+      /<svg/i
+    );
+
+
+  const end =
+    raw
+      .toLowerCase()
+      .lastIndexOf(
+        "</svg>"
+      );
+
+
+  if(
+    start === -1 ||
+    end === -1 ||
+    end < start
+  ){
+
+    return "";
+
+  }
+
+
+  return raw
+    .slice(
+      start,
+      end + 6
+    );
+
+}
+
+
+/* =========================================================
+   DRAW SANDBOX
+========================================================= */
+
+async function callDrawSandbox(
+  userMessage,
+  svg
+){
+  updateDarkStarWorkLocation("📍 AIVAULT → Draw Sandbox → 執行 SVG 測試");
+
+  const animation =
+    /動畫|拍翅膀|轉動|閃爍|animate|gif/i
+      .test(
+        String(
+          userMessage || ""
+        )
+      );
+
+
+  const response =
+    await fetch(
+      DRAW_SANDBOX_URL,
+      {
+
+        method:"POST",
+
+        headers:{
+          "Content-Type":
+            "application/json"
+        },
+
+        body:
+          JSON.stringify({
+
+            engine:
+              ENGINE,
+
+            source:
+              "technical-dark-star-web",
+
+            message:
+              userMessage,
+
+            kind:
+              animation
+                ? "animation"
+                : "image",
+
+            svg:
+              svg || "",
+
+            files:
+              svg
+                ? {
+                    "image.svg":
+                      svg
+                  }
+                : {}
+
+          })
+
+      }
+    );
+
+
+  const responseText =
+    await response.text();
+
+
+  let data;
+
+
+  try{
+
+    data =
+      responseText
+        ? JSON.parse(
+            responseText
+          )
+        : {};
+
+  }catch(error){
+
+    throw new Error(
+      "Draw sandbox 回傳不是 JSON：\n" +
+      responseText.slice(
+        0,
+        800
+      )
+    );
+
+  }
+
+
+  if(!response.ok){
+
+    throw new Error(
+
+      data?.error ||
+      data?.message ||
+      `HTTP ${response.status}（若是 404，表示尚未部署 dark-star-draw-sandbox）`
+
+    );
+
+  }
+
+
+  if(
+    data.files &&
+    typeof data.files ===
+      "object"
+  ){
+
+    lastSandboxFiles =
+      data.files;
+
+  }
+
+
+  return data;
+
+}
+
+
+async function makeJpgImageWithDarkStar(
+  userMessage,
+  files
+){
+
+  updateDarkStarWorkLocation(
+    "📍 AIVAULT → Image Generation → Gemini 3.1 Flash Image"
+  );
+
+  const latestImageTask = getLatestImageTask();
+  const continuation = isImageContinuationIntent(userMessage, files);
+  const imageTask = buildImageTaskState(latestImageTask, userMessage, continuation);
+  const imagePrompt =
+    continuation && latestImageTask?.prompt
+      ? (
+          "你正在修改上一張實際生成的 JPG 圖片，不是在重新創造一個新人物。\\n" +
+          imageTaskLockPrompt(imageTask) +
+          "上一張圖片是本次修改的唯一視覺基準；必須使用上一張實際 JPG 作為 reference image。\\n" +
+          "除非使用者明確要求，絕對不要自行換人、換人種、換膚色、換髮型、換衣服、換配件或換整體風格。\\n" +
+          "上一個圖片任務文字基準：\\n" +
+          latestImageTask.prompt +
+          "\\n\\n本輪使用者修改：\\n" +
+          String(userMessage || "").trim() +
+          "\\n\\n只修改使用者本輪明確要求的部分；其他鎖定欄位全部保持不變。\\n" +
+          "本輪若要求改變鏡頭、構圖或身體比例，僅依照使用者明確描述調整對應欄位；不要把一般人物外觀或身體比例描述自行解讀成其他內容，也不要因此拒絕正常的圖片編輯要求。\\n" +
+          "上一張圖片始終是角色身份與視覺一致性的 reference；除非使用者明確要求，不得換人或改變臉部身份。"
+        )
+      : (
+          "這是新的 JPG 圖片任務。請完整理解使用者需求。\\n" +
+          imageTaskLockPrompt(imageTask) +
+          "只生成使用者明確指定的主體與場景。使用者沒有要求人物時，絕對不要自行加入男人、女人或任何人物；使用者說狗就以狗為主體，不得改成男女肖像或其他主體。不要自行加入未要求的構圖、人物、膚色、人種、服裝或風格變化。\\n" +
+          getRequestedImageAppearanceGuidance(userMessage) + "\\n" +
+          String(userMessage || "").trim()
+        );
+
+
+  const response =
+    await fetch(
+      SUPABASE_URL +
+      "/functions/v1/technical-dark-star/image/generate",
+      {
+
+        method:"POST",
+
+        headers:{
+          "Content-Type":
+            "application/json"
+        },
+
+        body:
+          JSON.stringify({
+
+            prompt:
+              imagePrompt,
+
+            // AIVAULT_IMAGE_TASK_ISOLATION_V1
+            // The backend must distinguish a genuinely new image from an edit.
+            image_task_mode:
+              continuation ? "continuation" : "new",
+            user_request:
+              String(userMessage || "").trim(),
+
+            mime_type:
+              "image/jpeg",
+
+            aspect_ratio:
+              getRequestedImageAspectRatio(userMessage),
+
+            image_size:
+              "1K",
+
+            reference_image_urls:
+              continuation && latestImageTask?.reference_url
+                ? [latestImageTask.reference_url]
+                : []
+
+          })
+
+      }
+    );
+
+
+  // AIVAULT_IMAGE_RESPONSE_HARDENING_V1
+  // Safari/iOS can surface a generic "Load failed" while reading a
+  // completed fetch body. Read text first so the real backend error/result
+  // is preserved and can be parsed explicitly.
+  const responseText = await response.text();
+  let data = {};
+  try{
+    data = responseText ? JSON.parse(responseText) : {};
+  }catch(parseError){
+    throw new Error(
+      "JPG 後端回應不是有效 JSON：" +
+      responseText.slice(0, 800)
+    );
+  }
+
+
+  if(
+    !response.ok ||
+    data?.success === false
+  ){
+
+    const rawError =
+      data?.error ??
+      data?.image_generation?.error ??
+      ("JPG 圖片生成失敗（HTTP " +
+        response.status +
+        "）");
+
+    let readableError = "";
+
+    if (typeof rawError === "string") {
+      readableError = rawError;
+    } else {
+      try {
+        readableError =
+          rawError?.message ||
+          rawError?.error?.message ||
+          JSON.stringify(rawError);
+      } catch (error) {
+        readableError = String(rawError);
+      }
+    }
+
+    throw new Error(
+      readableError ||
+      ("JPG 圖片生成失敗（HTTP " +
+        response.status +
+        "）")
+    );
+
+  }
+
+
+  const generated =
+    data?.image_generation ||
+    data;
+
+
+  const artifact =
+    generated?.artifact;
+
+
+  const signedUrl =
+    artifact?.signed_url ||
+    generated?.signed_url ||
+    data?.signed_url ||
+    null;
+
+  const inlineDataUrl =
+    artifact?.inline_data_url ||
+    generated?.inline_data_url ||
+    data?.inline_data_url ||
+    null;
+
+  // Prefer the backend's verified JPEG bytes for rendering on iPhone/Safari.
+  // Keep the signed URL as the persistent/downloadable artifact reference.
+  const renderUrl =
+    typeof inlineDataUrl === "string" &&
+    inlineDataUrl.startsWith("data:image/jpeg;base64,")
+      ? inlineDataUrl
+      : signedUrl;
+
+
+  if(!signedUrl){
+
+    throw new Error(
+      "JPG 已收到後端回應，但沒有取得圖片 URL。"
+    );
+
+  }
+
+  /*
+    AIVAULT_OUTPUT_CONTRACT_V1
+    前端最後一道硬閘門：
+    一般圖片任務要求 JPG 時，只接受後端已驗證的真正 JPEG。
+    不接受 SVG、文字、未驗證的 MIME 或其他格式冒充 JPG。
+  */
+  const verifiedMime =
+    String(
+      generated?.mime_type ||
+      data?.mime_type ||
+      ""
+    ).toLowerCase();
+
+  /*
+    AIVAULT_OUTPUT_CONTRACT_V2
+    technical-dark-star/image/generate 會把真正的
+    dark-star-image-generation 回應包在 data.image_generation。
+    驗證必須讀取「實際下游結果」generated，而不是外層 wrapper。
+  */
+  if(
+    generated?.format_verified !== true ||
+    verifiedMime !== "image/jpeg"
+  ){
+    throw new Error(
+      "JPG 輸出驗證失敗：後端沒有提供已驗證的 image/jpeg。SVG／文字 fallback 已禁止。"
+    );
+  }
+
+  if(
+    artifact?.signed_url &&
+    !/^https?:\/\//i.test(String(artifact.signed_url))
+  ){
+    throw new Error(
+      "JPG 輸出驗證失敗：圖片 URL 格式不正確。"
+    );
+  }
+
+
+  return {
+
+    success:true,
+
+    capability:
+      "image_generation",
+
+    provider:
+      generated?.provider ||
+      "google",
+
+    model:
+      generated?.model ||
+      "gemini-3.1-flash-image",
+
+    mime_type:
+      generated?.mime_type ||
+      "image/jpeg",
+
+    image_prompt:
+      imagePrompt,
+
+    image_task:
+      imageTask,
+
+    artifact:
+      artifact ||
+      null,
+
+    images:[
+      {
+        name:
+          "dark-star-generated.jpg",
+
+        type:
+          "image/jpeg",
+
+        content_type:
+          "image",
+
+        url:
+          renderUrl,
+
+        preview:
+          renderUrl
+      }
+    ]
+
+  };
+
+}
+
+
+async function makeDrawWithDarkStar(
+  userMessage,
+  files
+){
+
+  const animation =
+    /動畫|拍翅膀|轉動|閃爍|animate|gif/i
+      .test(
+        String(
+          userMessage || ""
+        )
+      );
+
+
+  const ai =
+    await callAIVAULT(
+
+      "你是暗星。請依使用者描述畫圖。" +
+
+      (
+        animation
+          ? "請輸出一份會動的完整 SVG（含 animate 或 animateTransform）。"
+          : "請輸出一份完整 SVG 圖。"
+      ) +
+
+      "必須含 <svg> 與 </svg>，用路徑畫出主體，不要只寫文字標題，不要 markdown，不要解釋。" +
+
+      "需求：\n" +
+      userMessage,
+
+      files
+
+    );
+
+
+  const svg =
+    extractSvgFromText(
+      getAIReply(ai) || ""
+    );
+
+
+  if(!svg){
+    throw new Error(
+      "SVG 生成失敗：暗星未取得完整 SVG。已停止，不以文字或其他格式冒充圖片。"
+    );
+  }
+
+
+  const sandboxResult =
+    await callDrawSandbox(
+      userMessage,
+      svg
+    );
+
+
+  /*
+    使用者明確要求 SVG 時，必須把 SVG 當成實際圖片成果處理。
+    不得只把模型回覆中的 <svg> 原始碼當普通文字顯示。
+  */
+  if(
+    sandboxResult &&
+    typeof sandboxResult === "object"
+  ){
+    sandboxResult.capability =
+      sandboxResult.capability ||
+      "svg_generation";
+
+    sandboxResult.sandbox =
+      sandboxResult.sandbox &&
+      typeof sandboxResult.sandbox === "object"
+        ? {
+            ...sandboxResult.sandbox,
+            executed: true
+          }
+        : {
+            executed: true
+          };
+
+    if(
+      !sandboxResult.files ||
+      typeof sandboxResult.files !== "object"
+    ){
+      sandboxResult.files = {
+        "image.svg": svg
+      };
+    }
+
+    sandboxResult.mime_type =
+      sandboxResult.mime_type ||
+      "image/svg+xml";
+  }
+
+  return sandboxResult;
+
+}
+
+
+/* =========================================================
+   GAME SANDBOX
+========================================================= */
+
+async function callGameSandbox(
+  userMessage,
+  html
+){
+  updateDarkStarWorkLocation("📍 AIVAULT → Game Sandbox → 執行遊戲測試");
+
+  const response =
+    await fetch(
+      GAME_SANDBOX_URL,
+      {
+
+        method:"POST",
+
+        headers:{
+          "Content-Type":
+            "application/json"
+        },
+
+        body:
+          JSON.stringify({
+
+            engine:
+              ENGINE,
+
+            source:
+              "technical-dark-star-web",
+
+            action:
+              "run",
+
+            message:
+              userMessage,
+
+            html:
+              html,
+
+            files:
+              html
+                ? {
+                    "index.html":
+                      html
+                  }
+                : {}
+
+          })
+
+      }
+    );
+
+
+  const responseText =
+    await response.text();
+
+
+  let data;
+
+
+  try{
+
+    data =
+      responseText
+        ? JSON.parse(
+            responseText
+          )
+        : {};
+
+  }catch(error){
+
+    throw new Error(
+      "Game sandbox 回傳不是 JSON：\n" +
+      responseText.slice(
+        0,
+        800
+      )
+    );
+
+  }
+
+
+  if(!response.ok){
+
+    throw new Error(
+
+      data?.error ||
+      data?.message ||
+      `HTTP ${response.status}（若是 404，表示尚未部署 dark-star-game-sandbox）`
+
+    );
+
+  }
+
+
+  if(
+    data.files &&
+    typeof data.files ===
+      "object"
+  ){
+
+    lastSandboxFiles =
+      data.files;
+
+  }
+
+
+  return data;
+
+}
+
+
+async function makeGameWithDarkStar(
+  userMessage,
+  files
+){
+
+  const ai =
+    await callAIVAULT(
+
+      "你是暗星。請依使用者的想像做一個可在瀏覽器玩的小遊戲。" +
+
+      "只輸出一份完整 HTML（含 <html>、<body>、<script>），不要解釋、不要 markdown。" +
+
+      "遊戲必須符合這段需求：\n" +
+      userMessage,
+
+      files
+
+    );
+
+
+  const html =
+    extractHtmlFromText(
+      getAIReply(ai) || ""
+    );
+
+
+  if(!html){
+    return ai;
+  }
+
+
+  const sandboxed =
+    await callGameSandbox(
+      userMessage,
+      html
+    );
+
+
+  if(
+    !sandboxed.content &&
+    getAIReply(ai)
+  ){
+
+    sandboxed.content =
+      getAIReply(ai);
+
+  }
+
+
+  return sandboxed;
+
+}
+
+
+/* =========================================================
+   NORMAL SANDBOX
+========================================================= */
+
+async function callSandbox(
+  userMessage,
+  files,
+  action
+){
+  updateDarkStarWorkLocation("📍 AIVAULT → Sandbox → " + (action === "rerun" ? "重新執行測試" : "執行網頁測試"));
+
+  const response =
+    await fetch(
+      SANDBOX_URL,
+      {
+
+        method:"POST",
+
+        headers:{
+          "Content-Type":
+            "application/json"
+        },
+
+        body:
+          JSON.stringify({
+
+            engine:
+              ENGINE,
+
+            source:
+              "technical-dark-star-web",
+
+            action:
+              action || "run",
+
+            message:
+              userMessage,
+
+            files:
+              files &&
+              Object.keys(files).length
+                ? files
+                : lastSandboxFiles
+
+          })
+
+      }
+    );
+
+
+  const responseText =
+    await response.text();
+
+
+  let data;
+
+
+  try{
+
+    data =
+      responseText
+        ? JSON.parse(
+            responseText
+          )
+        : {};
+
+  }catch(error){
+
+    throw new Error(
+      "Sandbox 回傳不是 JSON：\n" +
+      responseText.slice(
+        0,
+        800
+      )
+    );
+
+  }
+
+
+  if(!response.ok){
+
+    throw new Error(
+
+      data?.error ||
+      data?.message ||
+      `HTTP ${response.status}（若是 404，表示尚未部署 dark-star-sandbox）`
+
+    );
+
+  }
+
+
+  if(
+    data.files &&
+    typeof data.files ===
+      "object"
+  ){
+
+    lastSandboxFiles =
+      data.files;
+
+  }
+
+
+  return data;
+
+}
+
+
+async function makePageWithDarkStar(
+  userMessage,
+  files
+){
+
+  const ai =
+    await callAIVAULT(
+
+      "你是暗星。請依使用者需求做一個完整可在瀏覽器打開的網頁。" +
+
+      "只輸出一份完整 HTML（含 <html>、<body>），不要解釋、不要 markdown。" +
+
+      "需求：\n" +
+      userMessage,
+
+      files
+
+    );
+
+
+  const html =
+    extractHtmlFromText(
+      getAIReply(ai) || ""
+    );
+
+
+  if(!html){
+    return ai;
+  }
+
+
+  return await callSandbox(
+    userMessage,
+    {
+      "index.html":
+        html
+    },
+    "run"
+  );
+
+}
+
+
+function getAIVAULTAccessToken(){
+  try{
+    const raw=localStorage.getItem("sb-clcddygkaaqqtsbswgdf-auth-token");
+    if(!raw)return "";
+    const j=JSON.parse(raw);
+    return String(j?.access_token || j?.currentSession?.access_token || "").trim();
+  }catch(error){
+    return "";
+  }
+}
+
+function isDarkStarSelfRepairIntent(text){
+  const value = String(text || "").trim().toLowerCase();
+  return [
+    "開始自我修復","開始自我修復。","開始自我修復自己",
+    "依照你剛才的診斷修復","依照剛才的診斷修復",
+    "修復這個故障","暗星，開始自我修復","暗星開始自我修復"
+  ].some(keyword => value.includes(keyword));
+}
+
+function isDarkStarSelfDiagnosticIntent(text){
+  const value = String(text || "").toLowerCase();
+  return [
+    "查額度","額度狀態","api額度","api 額度","配額狀態","quota",
+    "diagnostic","自我診斷","系統診斷","查引擎","查模型","查 ai 引擎",
+    "查 ai 模型","你目前使用什麼引擎","你目前使用什麼模型","請檢查系統"
+  ].some(keyword => value.includes(keyword));
+}
+
+function formatSelfRepairReply(result){
+  if(!result?.success){
+    return [
+      "【自我修復未啟動】",
+      result?.message || "Owner 授權沒有建立，因此我不會修改自己的程式或後端。",
+      "",
+      "證據：NOT_AUTHORIZED",
+      result?.error ? "工程代碼：" + result.error : ""
+    ].filter(Boolean).join("\n");
+  }
+  const a=result.authorization||{};
+  return [
+    "【Owner 自我修復授權已建立】",
+    "我只在你明確下達修復命令後取得這一次授權。",
+    "command_id：" + (a.command_id || "未回傳"),
+    "有效時間：10 分鐘",
+    "一次性授權：是",
+    "",
+    "允許範圍：Gateway 路由、Provider cooldown、配額事件儲存、記憶完整性檢查、Runtime 健康檢查。",
+    "禁止：任意 SQL、任意程式碼執行、刪除資料、未經另外確認的架構變更。",
+    "",
+    "狀態：AUTHORIZATION_CONFIRMED"
+  ].join("\n");
+}
+
+function formatSelfDiagnosticReply(result){
+  const providers = result?.providers || {};
+  const lines = [
+    "我是暗星。我沒有用模型猜測這個狀態，而是直接查詢 AIVAULT Gateway 的自我診斷資料。",
+    "",
+    "【目前可確認的資料】"
+  ];
+
+  for(const provider of ["gemini","groq","grok"]){
+    const entries = Array.isArray(providers[provider]) ? providers[provider] : [];
+    if(!entries.length){
+      lines.push(provider.toUpperCase() + "：目前沒有可用的已發現金鑰資料。");
+      continue;
+    }
+    for(const item of entries){
+      const q = item?.quota || {};
+      lines.push(
+        provider.toUpperCase() + " Key " + item.key_index +
+        "：模型 " + (item.model || "未指定") +
+        "；狀態 " + (q.status || "UNKNOWN") +
+        "；證據 " + (q.evidence || "NOT_VERIFIED") +
+        "；今日 AIVAULT 觀察請求 " +
+        (q.observed_key_requests_today ?? "NOT_VERIFIED") + "。"
+      );
+    }
+  }
+
+  const last = result?.last_observed_call;
+  if(last){
+    lines.push(
+      "",
+      "【最近一次實際 Gateway 紀錄】",
+      "Provider：" + (last.provider || "未記錄"),
+      "Model：" + (last.model || "未記錄"),
+      "時間：" + (last.event_at || "未記錄"),
+      "結果：" + (last.success ? "成功" : "失敗"),
+      "HTTP：" + (last.status ?? "未記錄"),
+      "失敗分類：" + (last.failure_type || "無")
+    );
+  }else{
+    lines.push(
+      "",
+      "【目前無法確認】",
+      "目前 quota_events 沒有可供追溯的實際呼叫紀錄，因此不能假裝知道剩餘額度或今日剩餘 Token。這項狀態是 NOT_VERIFIED，不代表額度為零。"
+    );
+  }
+
+  lines.push(
+    "",
+    "如果供應商只回報 HTTP 429，我會標示為頻率或配額限制，不會直接判定為每日額度耗盡。"
+  );
+  return lines.join("\n");
+}
+
+/* =========================================================
+   AIVAULT AI GATEWAY
+   SINGLE VERSION ONLY
+========================================================= */
+
+async function callAIVAULT(
+  userMessage,
+  files
+){
+  updateDarkStarWorkLocation("📍 AIVAULT → AI Gateway → 發送請求");
+
+  const requestId =
+    ++requestSequence;
+
+
+  console.info(
+    "[DarkStar][GATEWAY REQUEST]",
+    requestId
+  );
+
+
+  const safeFiles =
+    (files || []).map(
+      file=>({
+
+        name:
+          file.name,
+
+        type:
+          file.type,
+
+        size:
+          file.size,
+
+        content_type:
+          file.content_type,
+
+        content:
+          file.content ||
+          null,
+
+        content_base64:
+          file.content_base64 ||
+          file.preview ||
+          null
+
+      })
+    );
+
+
+  const images =
+    safeFiles
+      .filter(
+        file =>
+          file.content_type ===
+            "image" &&
+          file.content_base64
+      )
+      .map(
+        file =>
+          file.content_base64
+      );
+
+
+  const topicId =
+    getDarkStarTopicId();
+
+  const learningContext =
+    await getDarkStarLearningContext(userMessage);
+
+
+  const payload = {
+
+    engine:
+      ENGINE,
+
+    message:
+      buildGatewayMessage(
+        userMessage,
+        safeFiles,
+        learningContext
+      ),
+
+    conversation_id:
+      conversationId || null,
+
+    topic_id:
+      topicId,
+
+    agent_id:
+      "technical-dark-star",
+
+    source:
+      "technical-dark-star-web",
+
+    provider:
+      "gemini",
+
+    model:
+      "gemini-3.6-flash",
+
+    files:
+      safeFiles,
+
+    image:
+      images[0] || null,
+
+    images:
+      images
+
+  };
+
+  if(isDarkStarSelfRepairIntent(userMessage)){
+    payload.action = "self_repair_authorize";
+    payload.command_text = userMessage;
+    payload.issue_summary = "Owner 明確要求 Technical Dark Star 進入自我修復授權流程";
+    payload.stream = false;
+    updateDarkStarWorkLocation("📍 AIVAULT → AI Gateway → Owner 自我修復授權");
+  }else if(isDarkStarSelfDiagnosticIntent(userMessage)){
+    payload.action = "self_diagnostic";
+    payload.stream = false;
+    updateDarkStarWorkLocation("📍 AIVAULT → AI Gateway → 自我診斷");
+  }
+
+
+  console.info(
+    "[DarkStar][GATEWAY PAYLOAD]",
+    {
+
+      request_id:
+        requestId,
+
+      topic_id:
+        payload.topic_id,
+
+      conversation_id:
+        payload.conversation_id,
+
+      agent_id:
+        payload.agent_id,
+
+      files:
+        safeFiles.length,
+
+      images:
+        images.length
+
+    }
+  );
+
+
+  updateDarkStarWorkLocation("📍 AIVAULT → AI Gateway → 等待真實回應");
+
+  if(!payload.action){
+    payload.stream = !window.__dsGatewayNoStream;
+  }
+
+  const response =
+    await fetch(
+      AI_GATEWAY_URL,
+      {
+
+        method:"POST",
+
+        headers:{
+          "Content-Type":
+            "application/json",
+          "Accept":
+            "text/event-stream, application/json",
+          ...(getAIVAULTAccessToken()
+            ? { "Authorization": "Bearer " + getAIVAULTAccessToken() }
+            : {})
+        },
+
+        body:
+          JSON.stringify(
+            payload
+          )
+
+      }
+    );
+
+  let data = {};
+
+  if(!response.ok){
+    const errorText = await response.text();
+    let errorData = {};
+    try{
+      errorData = errorText ? JSON.parse(errorText) : {};
+    }catch(error){}
+    const detail =
+      errorData?.message ||
+      errorData?.error ||
+      `HTTP ${response.status}`;
+    throw new Error(String(detail));
+  }
+
+  const contentType =
+    String(response.headers.get("content-type") || "").toLowerCase();
+
+  if(contentType.includes("text/event-stream") && response.body){
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let streamDone = false;
+
+    const handleEventBlock = (block) => {
+      const lines = String(block || "").split(/\r?\n/);
+      let eventName = "message";
+      const dataLines = [];
+
+      for(const line of lines){
+        if(line.startsWith("event:")){
+          eventName = line.slice(6).trim();
+        }else if(line.startsWith("data:")){
+          dataLines.push(line.slice(5).trimStart());
+        }
+      }
+
+      if(!dataLines.length) return;
+
+      const raw = dataLines.join("\n");
+      let eventData = {};
+      try{
+        eventData = JSON.parse(raw);
+      }catch(error){
+        console.warn("[DarkStar][Gateway SSE] invalid event data", raw);
+        return;
+      }
+
+      if(eventName === "runtime"){
+        const action = String(eventData?.action || "").trim();
+        const target = String(eventData?.target || "").trim();
+        if(action || target){
+          const label = [action, target].filter(Boolean).join("：");
+          updateDarkStarWorkLocation("📍 " + label);
+        }
+        return;
+      }
+
+      if(eventName === "result"){
+        data = eventData && typeof eventData === "object"
+          ? eventData
+          : {};
+        return;
+      }
+
+      if(eventName === "error"){
+        throw new Error(
+          String(eventData?.message || eventData?.error || "AIVAULT AI Gateway 串流執行失敗")
+        );
+      }
+
+      if(eventName === "done"){
+        streamDone = true;
+      }
+    };
+
+    while(!streamDone){
+      const {value, done} = await reader.read();
+      if(done) break;
+
+      buffer += decoder.decode(value, {stream:true});
+
+      const blocks = buffer.split("\n\n");
+      buffer = blocks.pop() || "";
+
+      for(const block of blocks){
+        handleEventBlock(block);
+      }
+    }
+
+    buffer += decoder.decode();
+    if(buffer.trim()) handleEventBlock(buffer);
+
+    if(!data || typeof data !== "object" || Object.keys(data).length === 0){
+      throw new Error("AIVAULT AI Gateway 串流沒有收到最終結果。");
+    }
+  }else{
+    const responseText = await response.text();
+    try{
+      data =
+        responseText
+          ? JSON.parse(responseText)
+          : {};
+    }catch(error){
+      throw new Error(
+        "AIVAULT AI Gateway 回傳不是 JSON：\n" +
+        responseText.slice(0,1200)
+      );
+    }
+  }
+
+
+  if(!response.ok){
+
+    const detail =
+      data?.message ||
+      data?.error ||
+      (
+        Array.isArray(
+          data?.failover
+            ?.previous_failures
+        ) &&
+        data.failover
+          .previous_failures[0]
+          ?.error
+      ) ||
+      `HTTP ${response.status}`;
+
+
+    throw new Error(
+      String(detail)
+    );
+
+  }
+
+
+  conversationId =
+    data.conversation_id ||
+    data.conversationId ||
+    data.session_id ||
+    data.sessionId ||
+    conversationId;
+
+
+  try{
+    const returnedTopicId = data?.memory?.topic_id || data?.topic_id || topicId;
+    if(returnedTopicId){
+      localStorage.setItem("technical-dark-star-topic-id", String(returnedTopicId));
+    }
+  }catch(error){
+    console.warn("[DarkStar][memory] topic persistence failed", error);
+  }
+
+
+  const actualLocation = createWorkLocationFromGateway(data);
+  if(actualLocation){
+    updateDarkStarWorkLocation(actualLocation);
+  }
+
+  await recordDarkStarUserCorrection(userMessage);
+
+  console.info(
+    "[DarkStar][GATEWAY RESPONSE]",
+    {
+
+      request_id:
+        requestId,
+
+      success:
+        data?.success,
+
+      provider:
+        data?.provider,
+
+      model:
+        data?.model,
+
+      conversation_id:
+        data?.conversation_id ||
+        conversationId,
+
+      memory_enabled:
+        data?.memory?.enabled,
+
+      memory_reason:
+        data?.memory?.reason
+
+    }
+  );
+
+
+  console.info(
+    "[DarkStar][MEMORY]",
+    {
+
+      request_id:
+        requestId,
+
+      enabled:
+        data?.memory?.enabled,
+
+      topic_id:
+        data?.memory?.topic_id ||
+        data?.topic_id ||
+        topicId,
+
+      conversation_id:
+        data?.memory?.conversation_id ||
+        data?.conversation_id ||
+        conversationId,
+
+      retained_messages:
+        data?.memory?.retained_messages,
+
+      context_messages_sent:
+        data?.memory
+          ?.context_messages_sent,
+
+      reason:
+        data?.memory?.reason,
+
+      diagnostic:
+        data?.memory?.diagnostic
+
+    }
+  );
+
+
+  saveState();
+
+
+  return data;
+
+}
+
+
+/* =========================================================
+   SEND MESSAGE
+   SINGLE ENTRY POINT
+========================================================= */
+
+let activeDarkStarWorkLocation = null;
+
+function updateDarkStarWorkLocation(location){
+  const text = String(location || "").trim();
+  if(!text) return;
+  if(activeDarkStarWorkLocation){
+    activeDarkStarWorkLocation.textContent = text;
+  }
+  console.info("[DarkStar][WORK LOCATION]", text);
+}
+
+function createWorkLocationFromGateway(data){
+  const startup = Array.isArray(data?.memory?.startup_files_loaded)
+    ? data.memory.startup_files_loaded.filter(Boolean)
+    : [];
+
+  if(startup.length){
+    const file = String(startup[0]);
+    return "📍 GitHub → AIVAULT → " + file;
+  }
+
+  if(data?.memory?.canonical_source === "Supabase"){
+    return "📍 Supabase → Conversation Memory → 正在同步";
+  }
+
+  if(data?.provider){
+    const model = data?.model ? " → " + data.model : "";
+    return "📍 AI Gateway → " + String(data.provider).toUpperCase() + model;
+  }
+
+  return "";
+}
+
+
+async function sendMessage(){
+
+  const liveText = input.value.trim();
+  if(liveText && typeof window.__AIVAULT_DARK_STAR_SEND_LIVE_TEXT__ === 'function' && window.__AIVAULT_DARK_STAR_SEND_LIVE_TEXT__(liveText)){
+    input.value = '';
+    attachments = [];
+    renderAttachments();
+    resizeInput();
+    return;
+  }
+
+
+  // 表情指令（「做一個生氣的表情」「開心」「氣呼呼」😤）：直接在本機讓暗星小臉做表情，不呼叫 AI Gateway
+  {
+    const exText = input.value.trim(), O = window.DarkStarOrb;
+    const ex = !isSending && !attachments.length && exText && O && O.detectCommand ? O.detectCommand(exText) : null;
+    if(ex && (/表情|臉|脸|face/i.test(exText) || exText.replace(/[\s，。！？!?~～、]/g,"").length <= 4)){
+      const EXR = { angry:"😡 哼！我生氣了！", huffy:"😤 氣呼呼～", happy:"😃 好開心！", sad:"😢 嗚嗚…有點難過", surprised:"😮 哇！嚇我一跳！", thinking:"🤔 嗯…讓我想想", love:"😍 好喜歡你～", sleepy:"😴 呼…好想睡", laughing:"😆 哈哈哈哈！" };
+      input.value = ""; try{ resizeInput(); }catch(e){}
+      renderUserMessage(exText, []);
+      try{ if(window.AIVAULTDarkStarAvatar && window.AIVAULTDarkStarAvatar.expr) window.AIVAULTDarkStarAvatar.expr(ex, 5000); }catch(e){}
+      renderAIMessage(EXR[ex] || ((O.LABELS && O.LABELS[ex]) ? O.LABELS[ex].replace(/^(\S+) /, "$1 暗星") : "🙂"));
+      return;
+    }
+  }
+
+  /*
+    ========================================================
+    HARD LOCK
+    ========================================================
+
+    這是這次修正「回答兩次」的核心。
+  */
+
+  if(isSending){
+
+    console.warn(
+      "[DarkStar][SEND BLOCKED] already sending"
+    );
+
+    return;
+
+  }
+
+
+  const text =
+    input.value.trim();
+
+
+  if(
+    !text &&
+    !attachments.length
+  ){
+
+    return;
+
+  }
+
+
+  isSending =
+    true;
+
+
+  const sendId =
+    ++requestSequence;
+
+
+  console.info(
+    "[DarkStar][SEND START]",
+    sendId
+  );
+
+
+  /*
+    立即鎖定按鈕。
+  */
+
+  sendButton.disabled =
+    true;
+
+
+  const outgoingFiles =
+    attachments.map(
+      file=>({
+        ...file
+      })
+    );
+
+
+  const displayText =
+    text ||
+    "請分析我上傳的檔案。";
+
+
+  /*
+    先顯示使用者訊息。
+  */
+
+  renderUserMessage(
+    text,
+    outgoingFiles
+  );
+
+
+  /*
+    保存使用者訊息。
+  */
+
+  messagesHistory.push({
+
+    role:
+      "user",
+
+    text:
+      text,
+
+    attachments:
+      outgoingFiles.map(
+        file=>({
+
+          name:
+            file.name,
+
+          type:
+            file.type,
+
+          size:
+            file.size,
+
+          content_type:
+            file.content_type,
+
+          preview:
+            file.preview ||
+            file.content_base64 ||
+            null,
+
+          content:
+            file.content_type ===
+                "article" ||
+            file.content_type ===
+                "text"
+
+              ? String(
+                  file.content ||
+                  file.preview ||
+                  ""
+                ).slice(
+                  0,
+                  8000
+                )
+
+              : null
+
+        })
+      )
+
+  });
+
+
+  saveState();
+
+
+  /*
+    清空輸入。
+  */
+
+  input.value = "";
+
+  attachments = [];
+
+  renderAttachments();
+
+  resizeInput();
+
+
+  const loading =
+    createLoadingMessage("📍 正在思考……");
+
+
+  try{
+
+    const hardJpgVisualRequest =
+      isHardJpgVisualRequest(text, outgoingFiles);
+
+    const jpgImageIntent =
+      isJpgImageIntent(
+        text,
+        outgoingFiles
+      ) ||
+      hardJpgVisualRequest;
+
+    console.info(
+      "[DarkStar][TASK]",
+      sendId,
+      {
+        jpg:
+          jpgImageIntent,
+
+        draw:
+          isDrawIntent(
+            text,
+            outgoingFiles
+          ),
+
+        game:
+          isGameIntent(
+            text,
+            outgoingFiles
+          ),
+
+        sandbox:
+          isSandboxIntent(
+            text,
+            outgoingFiles
+          ),
+
+        normal:
+          !jpgImageIntent &&
+          !isDrawIntent(
+            text,
+            outgoingFiles
+          ) &&
+          !isGameIntent(
+            text,
+            outgoingFiles
+          ) &&
+          !isSandboxIntent(
+            text,
+            outgoingFiles
+          )
+
+      }
+    );
+
+
+    /*
+      真正工作路由。
+    */
+
+    let result;
+
+    /*
+      AIVAULT_IMAGE_ROUTER_V3
+      HARD ROUTING:
+      - 一般圖片／照片需求優先走真正 JPG 圖片生成。
+      - SVG 只有使用者明確指定 SVG／向量圖時才允許。
+      - 不讓模型自行輸出 SVG 搶走圖片生成路由。
+    */
+    const explicitSvgIntent =
+      isExplicitSvgIntent(text);
+
+    const explicitJpgIntent =
+      /JPG|JPEG|照片|相片|點陣圖|點陣圖片|轉成JPG|轉成JPEG|改成JPG|改成JPEG/i.test(String(text || ""));
+
+    const drawIntent =
+      isDrawIntent(
+        text,
+        outgoingFiles
+      );
+
+    let selectedImageFormat = null;
+
+    /*
+      AIVAULT_IMAGE_FORMAT_CHOICE_V1
+      使用者未明確指定 SVG/JPG 時，不讓暗星自行決定格式。
+      先由使用者選擇，再進入對應的實際生成路由。
+    */
+    if(
+      (jpgImageIntent || drawIntent) &&
+      !explicitSvgIntent &&
+      !explicitJpgIntent
+    ){
+      /*
+        AIVAULT_JPG_FIRST_IMAGE_ROUTER_V5
+        自然圖片需求直接走真正 JPG 圖片生成。
+        SVG 只有使用者明確要求 SVG 時才允許。
+        不再讓格式選擇視窗把一般圖片任務送進 SVG Sandbox。
+      */
+      selectedImageFormat = "jpg";
+    }
+
+    console.info(
+      "[DarkStar][IMAGE ROUTER V4]",
+      {
+        explicitSvgIntent,
+        explicitJpgIntent,
+        selectedImageFormat,
+        jpgImageIntent,
+        drawIntent,
+        text
+      }
+    );
+
+    if(
+      explicitSvgIntent ||
+      selectedImageFormat === "svg"
+    ){
+
+      result =
+        await makeDrawWithDarkStar(
+          text,
+          outgoingFiles
+        );
+
+    }else if(
+      explicitJpgIntent ||
+      jpgImageIntent ||
+      selectedImageFormat === "jpg"
+    ){
+
+      result =
+        await makeJpgImageWithDarkStar(
+          text,
+          outgoingFiles
+        );
+
+    }else if(
+      drawIntent
+    ){
+
+      result =
+        await makeDrawWithDarkStar(
+          text,
+          outgoingFiles
+        );
+
+    }else if(
+      isGameIntent(
+        text,
+        outgoingFiles
+      )
+    ){
+
+      result =
+        await makeGameWithDarkStar(
+          text,
+          outgoingFiles
+        );
+
+    }else if(
+      isSandboxIntent(
+        text,
+        outgoingFiles
+      )
+    ){
+
+      result =
+        await makePageWithDarkStar(
+          text,
+          outgoingFiles
+        );
+
+    }else if(
+      isHardJpgVisualRequest(text, outgoingFiles)
+    ){
+
+      // Final hard stop: visual requests cannot fall through to text/SVG.
+      result =
+        await makeJpgImageWithDarkStar(
+          text,
+          outgoingFiles
+        );
+
+    }else{
+
+      // iOS Safari 的「Load failed」（TypeError：串流中斷、背景切換、網路切換）→ 以非串流模式自動重試一次
+      try{
+        result = await callAIVAULT(text, outgoingFiles);
+      }catch(firstError){
+        if(!(firstError instanceof TypeError) && !/Load failed|Failed to fetch|NetworkError|network connection was lost/i.test(String(firstError && firstError.message))) throw firstError;
+        console.warn("[DarkStar][SEND RETRY] network error, retrying without stream", firstError);
+        await new Promise(r=>setTimeout(r, 700));
+        window.__dsGatewayNoStream = true;
+        try{ result = await callAIVAULT(text, outgoingFiles); }finally{ window.__dsGatewayNoStream = false; }
+      }
+
+    }
+
+
+    /*
+      移除唯一一個 loading。
+    */
+
+    loading.remove();
+
+
+    const reply =
+      result?.diagnostic_mode === "self_repair_authorization"
+        ? formatSelfRepairReply(result)
+        : result?.diagnostic_mode === "self_diagnostic"
+          ? formatSelfDiagnosticReply(result)
+          : getAIReply(result);
+
+
+    const displayReply =
+      reply ||
+      (
+        result?.capability === "svg_generation"
+          ? "SVG 圖片已生成，請查看下方圖片預覽。"
+          : "AIVAULT AI Gateway 已回傳資料，但沒有提供可顯示的文字回應。"
+      );
+
+
+    /*
+      一次 sendMessage 只允許這裡
+      render 一次 AI。
+    */
+
+    console.info(
+      "[DarkStar][RENDER REPLY]",
+      sendId
+    );
+
+
+    renderAIMessage(
+      displayReply,
+      result
+    );
+
+
+    messagesHistory.push({
+
+      role:
+        "assistant",
+
+      text:
+        displayReply,
+
+      result:
+        result
+
+    });
+
+
+    saveState();
+
+
+    console.info(
+      "[DarkStar][SEND COMPLETE]",
+      sendId
+    );
+
+
+  }catch(error){
+
+    loading.remove();
+
+
+    let readableError = "";
+
+    try{
+
+      const rawError =
+        error?.message ??
+        error?.error ??
+        error;
+
+      if(
+        typeof rawError ===
+          "string"
+      ){
+
+        readableError =
+          rawError;
+
+      }else if(
+        rawError &&
+        typeof rawError ===
+          "object"
+      ){
+
+        readableError =
+          rawError.message ||
+          rawError.error?.message ||
+          JSON.stringify(
+            rawError
+          );
+
+      }else{
+
+        readableError =
+          String(
+            rawError
+          );
+
+      }
+
+    }catch(serializationError){
+
+      readableError =
+        String(
+          error
+        );
+
+    }
+
+    const errorText =
+      "Technical Dark Star 無法取得 AIVAULT 的真實回應。\n\n" +
+      (
+        readableError ||
+        "未知錯誤"
+      );
+
+
+    console.error(
+      "[DarkStar][SEND ERROR]",
+      sendId,
+      error
+    );
+
+
+    renderAIMessage(
+      errorText
+    );
+
+
+    messagesHistory.push({
+
+      role:
+        "assistant",
+
+      text:
+        errorText
+
+    });
+
+
+    saveState();
+
+
+  }finally{
+
+    /*
+      ======================================================
+      RELEASE LOCK
+      ======================================================
+    */
+
+    isSending =
+      false;
+
+    window.__AIVAULT_LAST_SPEECH_SUBMIT__ = "";
+
+    sendButton.disabled =
+      !input.value.trim() &&
+      attachments.length === 0;
+
+    if(window.__AIVAULT_SPEECH_AUTO_RESTART__ && !window.__AIVAULT_LIVE_VOICE_WANTED__ && recognition && !isRecording){
+      window.__AIVAULT_SPEECH_AUTO_RESTART__ = false;
+      setTimeout(function(){
+        try{ startRecording(); }catch(e){}
+      },250);
+    }
+
+    renderHistory();
+
+
+    console.info(
+      "[DarkStar][SEND FINALLY]",
+      sendId
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   LOADING
+========================================================= */
+
+function createLoadingMessage(){
+
+  removeWelcome();
+
+
+  const row =
+    document.createElement(
+      "div"
+    );
+
+  row.className =
+    "message ai";
+
+
+  row.innerHTML = `
+
+<div class="message-avatar">
+  ✦
+</div>
+
+<div class="message-body">
+
+  <div
+    class="message-text"
+    style="color:#888">
+
+    Technical Dark Star 正在思考……
+    <span class="think-timer">
+      0 秒
+    </span>
+    <span class="dark-star-work-location"></span>
+
+  </div>
+
+</div>
+
+`;
+
+
+  const timer =
+    row.querySelector(
+      ".think-timer"
+    );
+
+  const location =
+    row.querySelector(
+      ".dark-star-work-location"
+    );
+
+  if(location){
+    activeDarkStarWorkLocation = location;
+    location.textContent = "正在思考……";
+  }
+
+
+  const started =
+    Date.now();
+
+
+  const tick =
+    ()=>{
+
+      const seconds =
+        Math.floor(
+          (
+            Date.now() -
+            started
+          ) / 1000
+        );
+
+
+      if(timer){
+
+        timer.textContent =
+          seconds +
+          " 秒";
+
+      }
+
+    };
+
+
+  tick();
+
+
+  const interval =
+    setInterval(
+      tick,
+      250
+    );
+
+
+  const originalRemove =
+    row.remove.bind(
+      row
+    );
+
+
+  row.remove =
+    ()=>{
+
+      clearInterval(
+        interval
+      );
+
+      originalRemove();
+
+    };
+
+
+  messagesInner.appendChild(
+    row
+  );
+
+
+  scrollBottom();
+
+
+  return row;
+
+}
+
+window.createLoadingMessage = createLoadingMessage;
+
+
+/*
+  ========================================================
+  SINGLE SEND BUTTON LISTENER
+  ========================================================
+*/
+
+sendButton.addEventListener(
+  "click",
+  event=>{
+
+    event.preventDefault();
+
+    event.stopPropagation();
+
+    sendMessage();
+
+  }
+);
+
+
+/* =========================================================
+   VOICE INPUT
+========================================================= */
+
+const SpeechRecognition =
+  window.SpeechRecognition ||
+  window.webkitSpeechRecognition;
+
+
+if(SpeechRecognition){
+
+  recognition =
+    new SpeechRecognition();
+
+
+  recognition.lang =
+    "zh-TW";
+
+
+  recognition.continuous =
+    false;
+
+
+  recognition.interimResults =
+    true;
+
+
+  recognition.onstart =
+    ()=>{
+
+      isRecording =
+        true;
+
+      micButton.classList.add(
+        "recording"
+      );
+
+      voiceStatus.classList.add(
+        "show"
+      );
+
+      voiceStatus.textContent =
+        "正在聆聽……";
+
+    };
+
+
+  recognition.onresult =
+    event=>{
+
+      let transcript =
+        "";
+
+
+      for(
+        let i =
+          event.resultIndex;
+
+        i <
+          event.results.length;
+
+        i++
+      ){
+
+        transcript +=
+          event.results[i][0]
+            .transcript;
+
+      }
+
+      var finalText = "";
+      for (var ri = event.resultIndex; ri < event.results.length; ri++) {
+        if (event.results[ri].isFinal) finalText += event.results[ri][0].transcript;
+      }
+
+      input.value =
+        transcript;
+
+      resizeInput();
+
+      sendButton.disabled =
+        isSending ||
+        !transcript.trim();
+
+      if (finalText.trim() && !isSending && finalText.trim() !== window.__AIVAULT_LAST_SPEECH_SUBMIT__) {
+        window.__AIVAULT_LAST_SPEECH_SUBMIT__ = finalText.trim();
+        window.__AIVAULT_SPEECH_AUTO_RESTART__ = true;
+        document.querySelectorAll('[data-aivault-live-user="1"]').forEach(function(el) {
+          var t = el.querySelector(".message-text");
+          if (t && t.textContent.trim() === finalText.trim()) el.remove();
+        });
+        try { recognition.stop(); } catch (e) {}
+        sendButton.click();
+      }
+
+    };
+
+
+  recognition.onerror =
+    event=>{
+
+      console.error(
+        "Speech recognition error:",
+        event.error
+      );
+
+      stopRecording();
+
+    };
+
+
+  recognition.onend =
+    ()=>{
+
+      stopRecording();
+
+    };
+
+}else{
+
+  micButton.title =
+    "此瀏覽器不支援語音辨識";
+
+}
+
+
+function startRecording(){
+
+  if(!recognition){
+
+    alert(
+      "目前瀏覽器不支援語音辨識。"
+    );
+
+    return;
+
+  }
+
+
+  if(isRecording){
+
+    recognition.stop();
+
+    return;
+
+  }
+
+
+  try{
+
+    recognition.start();
+
+  }catch(error){
+
+    console.warn(
+      "[DarkStar][voice]",
+      error
+    );
+
+  }
+
+}
+
+
+function stopRecording(){
+
+  isRecording =
+    false;
+
+  micButton.classList.remove(
+    "recording"
+  );
+
+  voiceStatus.classList.remove(
+    "show"
+  );
+
+}
+
+
+micButton.addEventListener(
+  "click",
+  startRecording
+);
+
+
+
+
+
+/* =========================================================
+   AI VOICE
+========================================================= */
+
+function speakText(text){
+
+  if(
+    !("speechSynthesis" in window)
+  ){
+
+    alert(
+      "目前瀏覽器不支援語音播放。"
+    );
+
+    return;
+
+  }
+
+
+  window.speechSynthesis.cancel();
+
+
+  const utterance =
+    new SpeechSynthesisUtterance(
+      text
+    );
+
+
+  utterance.lang =
+    "zh-TW";
+
+  utterance.rate =
+    1;
+
+  utterance.pitch =
+    1;
+
+
+  window.speechSynthesis.speak(
+    utterance
+  );
+
+}
+
+
+/* =========================================================
+   DELETE
+========================================================= */
+
+/* =========================================================
+   COPY AI MESSAGE
+========================================================= */
+
+async function copyTextToClipboard(text){
+
+  const value = String(text || "");
+
+  if(!value){
+    return false;
+  }
+
+  try{
+
+    if(
+      navigator.clipboard &&
+      typeof navigator.clipboard.writeText === "function"
+    ){
+
+      await navigator.clipboard.writeText(value);
+      return true;
+
+    }
+
+  }catch(error){
+    console.warn("[DarkStar][copy] clipboard API failed",error);
+  }
+
+  try{
+
+    const area = document.createElement("textarea");
+    area.value = value;
+    area.setAttribute("readonly","");
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    area.style.pointerEvents = "none";
+    document.body.appendChild(area);
+    area.select();
+    area.setSelectionRange(0, area.value.length);
+    const ok = document.execCommand("copy");
+    area.remove();
+    return ok;
+
+  }catch(error){
+
+    console.warn("[DarkStar][copy] fallback failed",error);
+    return false;
+
+  }
+}
+
+function createCopyButton(text){
+
+  const button = document.createElement("button");
+
+  button.className = "message-action";
+  button.type = "button";
+  button.title = "複製";
+  button.setAttribute("aria-label","複製這則暗星回答");
+
+  button.innerHTML = '<svg class="icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>';
+
+  button.onclick = async event=>{
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const ok = await copyTextToClipboard(text);
+
+    if(ok){
+      button.textContent = "✓";
+      button.title = "已複製";
+      button.setAttribute("aria-label","已複製");
+
+      setTimeout(()=>{
+        button.innerHTML = '<svg class="icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>';
+        button.title = "複製";
+        button.setAttribute("aria-label","複製這則暗星回答");
+      },1200);
+
+    }else{
+      button.title = "複製失敗，請長按文字複製";
+    }
+
+  };
+
+  return button;
+}
+
+
+/* =========================================================
+   DELETE
+========================================================= */
+
+function createDeleteButton(
+  index
+){
+
+  const button =
+    document.createElement(
+      "button"
+    );
+
+  button.className =
+    "message-action danger";
+
+  button.title =
+    "刪除這則訊息";
+
+  button.textContent =
+    "×";
+
+
+  button.onclick =
+    event=>{
+
+      event.stopPropagation();
+
+      deleteMessage(
+        index
+      );
+
+    };
+
+
+  return button;
+
+}
+
+
+function deleteMessage(
+  index
+){
+
+  if(
+    index == null ||
+    index < 0 ||
+    index >=
+      messagesHistory.length
+  ){
+
+    return;
+
+  }
+
+
+  messagesHistory.splice(
+    index,
+    1
+  );
+
+
+  saveState();
+
+  loadConversation();
+
+  renderHistory();
+
+}
+
+
+/* =========================================================
+   CLEAR
+========================================================= */
+
+function clearAllMessages(){
+
+  if(!messagesHistory.length){
+
+    alert(
+      "目前沒有測試訊息。"
+    );
+
+    return;
+
+  }
+
+
+  if(
+    !confirm(
+      "確定刪除全部測試訊息？"
+    )
+  ){
+
+    return;
+
+  }
+
+
+  conversationId =
+    null;
+
+  messagesHistory =
+    [];
+
+  attachments =
+    [];
+
+
+  try{
+
+    localStorage.removeItem(
+      "technical-dark-star-topic-id"
+    );
+
+  }catch(error){}
+
+
+  saveState();
+
+  renderAttachments();
+
+  messagesInner.innerHTML =
+    "";
+
+  messagesInner.appendChild(
+    createWelcome()
+  );
+
+  renderHistory();
+
+}
+
+
+/* =========================================================
+   CAPABILITY / WORK
+========================================================= */
+
+document
+  .getElementById(
+    "clearMessagesButton"
+  )
+  .addEventListener(
+    "click",
+    ()=>{
+
+      clearAllMessages();
+
+      closeDrawer();
+
+    }
+  );
+
+
+document
+  .getElementById(
+    "capabilityButton"
+  )
+  .addEventListener(
+    "click",
+    ()=>{
+
+      location.href = "dark-star-learning-console.html";
+
+    }
+  );
+
+
+document
+  .getElementById(
+    "workHistoryButton"
+  )
+  .addEventListener(
+    "click",
+    ()=>{
+
+      location.href = "dark-star-learning-console.html";
+
+    }
+  );
+
+
+/* =========================================================
+   LARGE TEXT READING MODE
+========================================================= */
+
+(function initLargeTextMode(){
+  const button=document.getElementById("readabilityToggle");
+  if(!button)return;
+  const key="technical-dark-star-large-text-mode";
+  let enabled=false;
+  try{enabled=localStorage.getItem(key)==="1";}catch(error){}
+  function apply(){
+    document.body.classList.toggle("large-text-mode",enabled);
+    button.classList.toggle("active",enabled);
+    button.setAttribute("aria-pressed",String(enabled));
+    button.textContent=enabled?"大字 ✓":"大字";
+    button.title=enabled?"關閉大字閱讀模式":"開啟大字閱讀模式";
+  }
+  button.addEventListener("click",()=>{
+    enabled=!enabled;
+    try{localStorage.setItem(key,enabled?"1":"0");}catch(error){}
+    apply();
+    requestAnimationFrame(()=>{try{messages.scrollTop=messages.scrollHeight;}catch(error){}});
+  });
+  apply();
+})();
+
+/* =========================================================
+   INITIAL
+========================================================= */
+
+if(messagesHistory.length){
+
+  loadConversation();
+
+}else{
+
+  messagesInner.appendChild(
+    createWelcome()
+  );
+
+}
+
+
+renderAttachments();
+
+renderHistory();
+
+resizeInput();
+
+
+/* =========================================================
+   DEMO
+========================================================= */
+
+if(
+  new URLSearchParams(
+    location.search
+  ).get("demo") === "1"
+){
+
+  const demoImage =
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(
+
+      `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360">
+        <defs>
+          <linearGradient id="g"
+            x1="0"
+            y1="0"
+            x2="1"
+            y2="1">
+            <stop offset="0%" stop-color="#111"/>
+            <stop offset="100%" stop-color="#4f46e5"/>
+          </linearGradient>
+        </defs>
+
+        <rect
+          width="640"
+          height="360"
+          fill="url(#g)"/>
+
+        <text
+          x="40"
+          y="180"
+          fill="white"
+          font-size="36"
+          font-family="sans-serif">
+          Technical Dark Star
+        </text>
+
+        <text
+          x="40"
+          y="230"
+          fill="#ddd"
+          font-size="20"
+          font-family="sans-serif">
+          示範圖片預覽
+        </text>
+
+      </svg>`
+
+    );
+
+
+  messagesHistory = [
+
+    {
+
+      role:
+        "user",
+
+      text:
+        "請辨識這張圖，並讀這篇文章。",
+
+      attachments:[
+
+        {
+
+          name:
+            "demo-image.svg",
+
+          type:
+            "image/svg+xml",
+
+          content_type:
+            "image",
+
+          preview:
+            demoImage
+
+        },
+
+        {
+
+          name:
+            "demo-article.txt",
+
+          type:
+            "text/plain",
+
+          content_type:
+            "article",
+
+          content:
+            "暗星示範文章\n\n這段是直接貼上或拖放文書後會顯示的文章區。\n可以放論文段落、會議紀錄或程式說明。"
+
+        }
+
+      ]
+
+    },
+
+    {
+
+      role:
+        "assistant",
+
+      text:
+        "已看到圖片與文章。\n圖片是 Technical Dark Star 示範圖。\n文章內容已讀取。\nhttps://example.com/demo.mp4",
+
+      result:{
+
+        videos:[
+          "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
+        ]
+
+      }
+
+    }
+
+  ];
+
+
+  saveState();
+
+  loadConversation();
+
+}
+
+
+/* =========================================================
+   GLOBAL ERROR
+========================================================= */
+
+window.addEventListener(
+  "unhandledrejection",
+  event=>{
+
+    console.error(
+      "[DarkStar][Unhandled Promise]",
+      event.reason
+    );
+
+  }
+);
+
+
+window.addEventListener(
+  "error",
+  event=>{
+
+    console.error(
+      "[DarkStar][Window Error]",
+      event.error ||
+      event.message
+    );
+
+  }
+);
+
+
+/* =========================================================
+   FINAL DIAGNOSTIC
+========================================================= */
+
+console.info(
+  "[DarkStar] Technical Dark Star loaded.",
+  {
+    engine:
+      ENGINE,
+
+    gateway:
+      AI_GATEWAY_URL,
+
+    singleSendLock:
+      true,
+
+    gatewayFunctionCount:
+      "1",
+
+    getAIReplyFunctionCount:
+      "1",
+
+    topicMemory:
+      true
+
+  }
+);
+
+</script>
+
+<!-- AIVAULT_DARK_STAR_REALTIME_VOICE_V1 -->
+<script>
+(()=>{
+'use strict';
+if(window.__AIVAULT_DARK_STAR_REALTIME_VOICE_V1__) return;
+window.__AIVAULT_DARK_STAR_REALTIME_VOICE_V1__=true;
+const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-voice-v2';
+const SESSION='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-voice-session';
+const VOICE_KEY='darkStarVoice';
+function darkStarLiveVoiceName(){try{return localStorage.getItem(VOICE_KEY)||'Kore'}catch(e){return 'Kore'}}
+const mic=document.getElementById('darkStarLiveButton');
+const input=document.getElementById('composerInput');
+const send=document.getElementById('sendButton');
+const messages=document.getElementById('messages');
+const inner=document.getElementById('messagesInner');
+const status=document.getElementById('voiceStatus');
+if(!mic||!input||!send||!inner) return;
+const state={active:false,starting:false,liveWanted:false,ws:null,stream:null,ctx:null,inputCtx:null,source:null,processor:null,analyser:null,raf:0,sink:null,nextAudioTime:0,sessionId:null,sequence:0,inputText:'',outputText:'',userTextEl:null,assistantTextEl:null,pcmSent:0,micRms:0,retryTimer:0};
+const voiceButton=document.getElementById('darkStarLiveButton');
+function setStatus(text,show=true){if(!status)return;status.textContent=text;status.classList.toggle('show',show)}
+function setMic(on){voiceButton.classList.toggle('recording',on);voiceButton.setAttribute('aria-pressed',String(on));voiceButton.title=on?'結束暗星即時':'開始暗星即時'}
+function syncLiveVoiceChecked(){const on=!!state.liveWanted;window.__AIVAULT_LIVE_VOICE_WANTED__=on;setMic(on);const btn=document.getElementById('darkStarLiveButton');if(btn){btn.textContent=on?'暗星即時 ✓':'暗星即時';btn.setAttribute('aria-pressed',String(on));btn.classList.toggle('active',on);btn.classList.toggle('live-voice-on',on);if('checked' in btn)btn.checked=on}document.querySelectorAll('input[data-live-voice],#liveVoiceToggle,#instantVoiceToggle').forEach(el=>{el.checked=on})}
+function clearLiveVoiceRetry(){if(state.retryTimer){clearTimeout(state.retryTimer);state.retryTimer=0}}
+function scheduleLiveVoiceRetry(){if(!state.liveWanted||state.retryTimer)return;state.retryTimer=setTimeout(()=>{state.retryTimer=0;if(state.liveWanted&&!state.active&&!state.starting)startVoice()},2000)}
+function scrollBottom(){try{messages.scrollTop=messages.scrollHeight}catch{}}
+function makeBubble(role){const welcome=document.getElementById('welcome');if(welcome)welcome.remove();const row=document.createElement('div');row.className='message '+role;if(role==='user')row.setAttribute('data-aivault-live-user','1');const avatar=document.createElement('div');avatar.className='message-avatar';avatar.textContent=role==='user'?'你':'✦';const body=document.createElement('div');body.className='message-body';const text=document.createElement('div');text.className='message-text';body.appendChild(text);if(role==='assistant'){const actions=document.createElement('div');actions.className='message-actions';const copyButton=createCopyButton('');actions.appendChild(copyButton);body.appendChild(actions);row.__copyButton=copyButton;}row.appendChild(avatar);row.appendChild(body);inner.appendChild(row);scrollBottom();return text}
+function b64(bytes){let s='';const u=new Uint8Array(bytes.buffer,bytes.byteOffset,bytes.byteLength);for(let i=0;i<u.length;i+=32768)s+=String.fromCharCode(...u.subarray(i,i+32768));return btoa(s)}
+function u8(base64){const bin=atob(base64),out=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i);return out}
+function floatToPCM16(inputSamples,inputRate,targetRate=16000){let samples=inputSamples;if(inputRate!==targetRate){const ratio=inputRate/targetRate,outLength=Math.max(1,Math.round(inputSamples.length/ratio)),out=new Float32Array(outLength);for(let i=0;i<outLength;i++){const pos=i*ratio,left=Math.floor(pos),frac=pos-left,a=inputSamples[left]||0,b=inputSamples[Math.min(left+1,inputSamples.length-1)]||a;out[i]=a+(b-a)*frac}samples=out}const pcm=new Int16Array(samples.length);for(let i=0;i<samples.length;i++){const v=Math.max(-1,Math.min(1,samples[i]));pcm[i]=v<0?v*32768:v*32767}return pcm}
+async function saveTurn(role,text){text=String(text||'').trim();if(!state.sessionId||!text)return;try{await fetch(SESSION,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'turn',session_id:state.sessionId,sequence_no:++state.sequence,role,content:text})})}catch(e){console.warn('[DarkStar voice] save turn failed',e)}}
+const SUPABASE_PUBLIC_KEY='sb_publishable_1D05YGthBrNGg-5L92TLCw_GiLnInBu';
+function readDarkStarAuthSession(){try{const raw=localStorage.getItem('sb-clcddygkaaqqtsbswgdf-auth-token');if(!raw)return null;const j=JSON.parse(raw);return j&&typeof j==='object'?j:null}catch(e){return null}}
+async function getDarkStarAccessToken(force=false){
+  const j=readDarkStarAuthSession();if(!j)return '';
+  let token=String(j.access_token||(j.currentSession&&j.currentSession.access_token)||'').trim();
+  const refreshToken=String(j.refresh_token||(j.currentSession&&j.currentSession.refresh_token)||'').trim();
+  const expiresAt=Number(j.expires_at||(j.currentSession&&j.currentSession.expires_at)||0);
+  const needsRefresh=Boolean(refreshToken)&&(force||!token||(expiresAt>0&&expiresAt*1000-Date.now()<60000));
+  if(!needsRefresh)return token;
+  try{
+    const res=await fetch('https://clcddygkaaqqtsbswgdf.supabase.co/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_PUBLIC_KEY},body:JSON.stringify({refresh_token:refreshToken})});
+    if(!res.ok)return token;
+    const fresh=await res.json();if(!fresh?.access_token)return token;
+    const merged={...j,...fresh,access_token:fresh.access_token,refresh_token:fresh.refresh_token||refreshToken};
+    try{localStorage.setItem('sb-clcddygkaaqqtsbswgdf-auth-token',JSON.stringify(merged))}catch(e){}
+    return String(fresh.access_token).trim();
+  }catch(e){return token}
+}
+async function getDarkStarLiveConnectParams(){
+  const params=new URLSearchParams();params.set('voice',darkStarLiveVoiceName());params.set('agent_id','technical-dark-star');params.set('model','gemini-3.1-flash');
+  const topic=(typeof getDarkStarTopicId==='function'?getDarkStarTopicId():'')||'';
+  const conv=(typeof conversationId==='string'&&conversationId.trim())?conversationId.trim():'';
+  if(topic)params.set('topic_id',topic);if(conv)params.set('conversation_id',conv);
+  const token=await getDarkStarAccessToken();if(token)params.set('access_token',token);return params;
+}
+async function startSession(){try{const token=await getDarkStarAccessToken();const topic=(typeof getDarkStarTopicId==='function'?getDarkStarTopicId():'')||'';const conv=(typeof conversationId==='string'&&conversationId.trim())?conversationId.trim():'';const headers={'Content-Type':'application/json'};if(token)headers.Authorization='Bearer '+token;const body={action:'start',voice_profile:darkStarLiveVoiceName(),agent_id:'technical-dark-star'};if(topic)body.topic_id=topic;if(conv)body.conversation_id=conv;const r=await fetch(SESSION,{method:'POST',headers,body:JSON.stringify(body)}),j=await r.json();state.sessionId=j?.session?.id||j?.session_id||j?.id||null;const cid=j?.session?.conversation_id||j?.conversation_id;if(cid&&typeof cid==='string'){conversationId=cid;try{localStorage.setItem('technical_dark_star_conversation_id',cid)}catch(e){}}}catch(e){console.warn('[DarkStar voice] session persistence unavailable',e);state.sessionId=null}}
+function showComputeSandbox(result){
+  let overlay=document.getElementById('computeSandboxOverlay');
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.id='computeSandboxOverlay';
+    overlay.className='compute-sandbox-overlay';
+    overlay.innerHTML='<div class="compute-sandbox-window"><div class="compute-sandbox-head"><div class="compute-sandbox-title">⚙️ 暗星｜算力沙盒</div><button class="compute-sandbox-close" type="button">關閉</button></div><div class="compute-sandbox-body"><div class="compute-sandbox-status" data-csb="status">正在使用算力沙盒</div><div class="compute-sandbox-row"><span class="compute-sandbox-label">任務</span><span class="compute-sandbox-value" data-csb="task">—</span></div><div class="compute-sandbox-row"><span class="compute-sandbox-label">操作</span><span class="compute-sandbox-value" data-csb="operation">—</span></div><div class="compute-sandbox-row"><span class="compute-sandbox-label">執行位置</span><span class="compute-sandbox-value" data-csb="execution">Compute Mesh</span></div><div class="compute-sandbox-row"><span class="compute-sandbox-label">Worker</span><span class="compute-sandbox-value" data-csb="worker">等待分配</span></div><div class="compute-sandbox-note" data-csb="note">這個視窗只在暗星實際呼叫 compute_sandbox 時出現。</div></div></div>';
+    document.body.appendChild(overlay);
+    overlay.querySelector('.compute-sandbox-close').onclick=()=>overlay.classList.remove('show');
+  }
+  const set=(key,value)=>{const el=overlay.querySelector('[data-csb="'+key+'"]');if(el)el.textContent=String(value??'—')};
+  const task=result?.task_id||result?.taskId||result?.task?.id||'—';
+  const op=result?.operation||result?.task?.operation||'—';
+  set('task',task);
+  set('operation',op);
+  set('worker',result?.worker_id||result?.workerId||result?.assignment?.worker_id||'等待分配');
+  const done=result?.status==='COMPLETED';
+  set('status',done?'✓ 算力沙盒完成':'⚙️ 正在使用算力沙盒');
+  set('note',done?'真實結果已回傳。':'暗星已將任務送入 Compute Mesh，等待 Worker 執行。');
+  overlay.classList.add('show');
+}
+function playPCM(input){if(!state.ctx)return;if(state.ctx.state!=='running')state.ctx.resume();const bytes=input instanceof ArrayBuffer?new Uint8Array(input):(ArrayBuffer.isView(input)?new Uint8Array(input.buffer,input.byteOffset,input.byteLength):u8(input));if(bytes.byteLength<2)return;const pcm=new Int16Array(bytes.buffer,bytes.byteOffset,Math.floor(bytes.byteLength/2)),f=new Float32Array(pcm.length);for(let i=0;i<pcm.length;i++)f[i]=pcm[i]/32768;const buffer=state.ctx.createBuffer(1,f.length,24000);buffer.copyToChannel(f,0);const source=state.ctx.createBufferSource();source.buffer=buffer;source.connect(state.ctx.destination);const rate=Math.min(1.3,Math.max(0.7,parseFloat(localStorage.getItem('darkStarMyVoiceRate')||'1')||1));source.playbackRate.value=rate;const start=Math.max(state.ctx.currentTime,state.nextAudioTime);source.start(start);state.nextAudioTime=start+buffer.duration/rate}
+function applyLiveSessionIds(msg){if(!msg||typeof msg!=='object')return;const cid=msg.conversation_id||msg.conversationId||(msg.session&&msg.session.conversation_id)||(msg.live_open&&msg.live_open.conversation_id)||(msg.memory&&msg.memory.conversation_id);const topic=msg.topic_id||msg.topicId||(msg.live_open&&msg.live_open.topic_id);if(typeof cid==='string'&&cid.trim()){conversationId=cid.trim();try{localStorage.setItem('technical_dark_star_conversation_id',conversationId)}catch(e){}}if(typeof topic==='string'&&topic.trim()){try{localStorage.setItem('technical-dark-star-topic-id',topic.trim())}catch(e){}}}
+function liveTranscriptText(msg,kind){const c=(msg&&(msg.serverContent||msg.content))||{};const block=kind==='in'?(c.inputTranscription||msg.inputTranscription):(c.outputTranscription||msg.outputTranscription);if(block&&block.text)return String(block.text);if(msg&&msg.type===(kind==='in'?'inputTranscription':'outputTranscription')&&msg.text)return String(msg.text);return ''}
+function startMicMeter(){if(!state.analyser)return;let canvas=document.getElementById('voiceWaveCanvas');if(!canvas){canvas=document.createElement('canvas');canvas.id='voiceWaveCanvas';canvas.width=220;canvas.height=28;canvas.style.display='block';canvas.style.margin='6px auto 0';canvas.style.width='220px';canvas.style.height='28px';if(status)status.appendChild(canvas)}const ctx2d=canvas.getContext('2d');const data=new Uint8Array(state.analyser.fftSize);const tick=()=>{if(!state.active||!state.analyser)return;state.analyser.getByteTimeDomainData(data);let sum=0;for(let i=0;i<data.length;i++){const v=(data[i]-128)/128;sum+=v*v}const rms=Math.sqrt(sum/data.length);state.micRms=rms;voiceButton.style.boxShadow=rms>0.02?('0 0 0 '+Math.round(4+rms*18)+'px rgba(17,17,17,'+Math.min(0.35,rms).toFixed(2)+')'):'none';if(ctx2d){ctx2d.clearRect(0,0,canvas.width,canvas.height);ctx2d.fillStyle='#fff';const bars=24;const step=Math.floor(data.length/bars);for(let b=0;b<bars;b++){let peak=0;for(let k=0;k<step;k++){peak=Math.max(peak,Math.abs((data[b*step+k]-128)/128))}const h=Math.max(2,peak*canvas.height);ctx2d.fillRect(4+b*9,canvas.height-h,6,h)}}if(!state.inputText)setStatus('正在聆聽……',true);state.raf=requestAnimationFrame(tick)};state.raf=requestAnimationFrame(tick)}
+async function stopVoice(endSession=true,keepChecked=false){const wasActive=state.active||state.starting;state.active=false;state.starting=false;if(!keepChecked){state.liveWanted=false;clearLiveVoiceRetry()}if(state.raf){try{cancelAnimationFrame(state.raf)}catch{}}state.raf=0;if(keepChecked)syncLiveVoiceChecked();else setMic(false);voiceButton.style.boxShadow='none';try{state.processor?.disconnect()}catch{}try{state.analyser?.disconnect()}catch{}try{state.source?.disconnect()}catch{}try{state.sink?.disconnect()}catch{}try{state.stream?.getTracks().forEach(t=>t.stop())}catch{}try{state.ws?.close()}catch{}try{await state.inputCtx?.close()}catch{}try{await state.ctx?.close()}catch{}state.processor=null;state.analyser=null;state.source=null;state.sink=null;state.stream=null;state.ws=null;state.inputCtx=null;state.ctx=null;state.nextAudioTime=0;if(endSession&&state.sessionId){try{const token=getDarkStarAccessToken();const headers={'Content-Type':'application/json'};if(token)headers.Authorization='Bearer '+token;await fetch(SESSION,{method:'POST',headers,body:JSON.stringify({action:'end',session_id:state.sessionId})})}catch{}}state.sessionId=null;if(!keepChecked&&wasActive)setStatus('即時語音已結束',false);else if(keepChecked)syncLiveVoiceChecked()}
+async function startVoice(){if(state.active||state.starting)return;state.liveWanted=true;syncLiveVoiceChecked();state.starting=true;setStatus('正在啟動暗星即時……');try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)throw new Error('此瀏覽器不支援音訊');if(!navigator.mediaDevices?.getUserMedia)throw new Error('此瀏覽器不允許麥克風存取');state.stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true,deviceId:{ideal:"dark-star-live"}}});if(!state.liveWanted){try{state.stream.getTracks().forEach(t=>t.stop())}catch(e){}state.stream=null;state.starting=false;return}const track=state.stream.getAudioTracks()[0];if(!track||track.readyState==='ended')throw new Error('沒有取得麥克風音軌');state.ctx=new AC();if(state.ctx.state==='suspended')await state.ctx.resume();const InputAC=window.AudioContext||window.webkitAudioContext;state.inputCtx=new InputAC();if(state.inputCtx.state==='suspended')await state.inputCtx.resume();await startSession();const liveParams=await getDarkStarLiveConnectParams();state.ws=new WebSocket(RELAY+'?'+liveParams.toString());state.ws.binaryType='arraybuffer';state.ws.onopen=()=>{state.active=true;state.starting=false;state.inputText='';state.outputText='';state.userTextEl=null;state.assistantTextEl=null;setMic(true);setStatus('正在聆聽……');if(state.ctx.state==='suspended')state.ctx.resume();const micCtx=state.inputCtx||state.ctx;const src=micCtx.createMediaStreamSource(state.stream),analyser=micCtx.createAnalyser(),processor=micCtx.createScriptProcessor(512,1,1),sink=micCtx.createGain();analyser.fftSize=2048;sink.gain.value=0;state.source=src;state.analyser=analyser;state.processor=processor;state.sink=sink;src.connect(analyser);analyser.connect(sink);src.connect(processor);processor.connect(sink);sink.connect(micCtx.destination);processor.onaudioprocess=event=>{if(!state.active||!state.ws||state.ws.readyState!==WebSocket.OPEN)return;const pcm=floatToPCM16(event.inputBuffer.getChannelData(0),event.inputBuffer.sampleRate,16000);if(!pcm.length)return;try{state.ws.send(JSON.stringify({type:'audio',data:b64(pcm),mimeType:'audio/pcm;rate=16000'}));state.pcmSent=(state.pcmSent||0)+1}catch{}};startMicMeter()};state.ws.onmessage=async event=>{if(event.data instanceof ArrayBuffer){playPCM(event.data);return}let msg;try{msg=JSON.parse(event.data)}catch{return}applyLiveSessionIds(msg);if(msg?.type==='compute_sandbox'){showComputeSandbox(msg.result||msg);}if(msg?.type==='live_close'){setStatus('Gemini Live 已斷線，保持中，準備重連……',true);try{state.ws?.close(1011,'gemini-live-close')}catch{}return}if(msg?.error?.message){console.error('[DarkStar voice]',msg.error.message);setStatus('語音連線錯誤：'+msg.error.message);return}const inText=liveTranscriptText(msg,'in');const outText=liveTranscriptText(msg,'out');const content=msg.serverContent||{};if(inText){state.inputText+=inText;if(!state.userTextEl)state.userTextEl=makeBubble('user');state.userTextEl.textContent=state.inputText;scrollBottom()}}if(outText){state.outputText+=outText;if(!state.assistantTextEl){state.assistantTextEl=makeBubble('assistant')}state.assistantTextEl.textContent=state.outputText;const assistantRow=state.assistantTextEl.parentElement?.parentElement;if(assistantRow?.__copyButton){const copyButton=assistantRow.__copyButton;copyButton.onclick=async event=>{event.preventDefault();event.stopPropagation();const ok=await copyTextToClipboard(state.outputText);if(ok){copyButton.textContent='✓';copyButton.title='已複製';setTimeout(()=>{copyButton.textContent='📋';copyButton.title='複製'},1200)}else{copyButton.title='複製失敗，請長按文字複製'}};copyButton.textContent='📋';copyButton.title='複製'}scrollBottom()}if(content.modelTurn?.parts)for(const part of content.modelTurn.parts)if(part?.inlineData?.data)playPCM(part.inlineData.data);if(content.interrupted)state.nextAudioTime=0;if(content.turnComplete){const u=state.inputText,a=state.outputText;if(u)await saveTurn('user',u);if(a)await saveTurn('assistant',a);state.inputText='';state.outputText='';state.userTextEl=null;state.assistantTextEl=null;if(state.active)setStatus('正在聆聽……')}};state.ws.onerror=()=>{setStatus('即時語音連線發生錯誤');if(state.liveWanted)syncLiveVoiceChecked()};state.ws.onclose=event=>{if(state.liveWanted){const code=event?.code||0;const reason=event?.reason||'';console.warn('[DarkStar voice] WebSocket closed',code,reason);setStatus('即時語音連線中斷（'+code+(reason?'：'+reason:'')+'），保持中，準備重連……',true);stopVoice(false,true);scheduleLiveVoiceRetry()}else if(state.active)stopVoice(false)}}catch(error){state.starting=false;console.error('[DarkStar voice] start failed',error);setStatus(error?.message||'即時語音啟動失敗');if(state.liveWanted){await stopVoice(false,true);syncLiveVoiceChecked();scheduleLiveVoiceRetry()}else await stopVoice(false)}}
+// Bottom composer microphone is reserved for the page's normal zh-TW SpeechRecognition input.
+// Live voice is started only from the top 「即時語音」 control.
+
+// Live voice owns only its dedicated Live microphone channel.
+// The bottom composer and Send button always remain on the normal AI channel.
+setMic(false);
+window.__AIVAULT_DARK_STAR_SEND_LIVE_TEXT__=text=>{const value=String(text||'').trim();if(!value||!state.ws||state.ws.readyState!==WebSocket.OPEN||!state.active)return false;try{state.ws.send(JSON.stringify({type:'text',text:value}));state.inputText=value;state.outputText='';state.userTextEl=makeBubble('user');state.userTextEl.textContent=value;scrollBottom();return true}catch(error){console.warn('[DarkStar live] text send failed',error);return false}};
+window.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__=async()=>{if(state.active||state.starting){state.liveWanted=false;clearLiveVoiceRetry();return stopVoice(true,false)}state.liveWanted=true;syncLiveVoiceChecked();setStatus('正在啟動即時語音……',true);return startVoice()};window.__AIVAULT_DARK_STAR_STOP_LIVE_VOICE__=()=>{state.liveWanted=false;clearLiveVoiceRetry();if(state.active||state.starting)return stopVoice(true,false)};
+})();
+</script>
+<!-- /AIVAULT_DARK_STAR_REALTIME_VOICE_V1 -->
+
+<script src="artifacts/wake-mic-on-live-voice.js?v=4"></script>
+<script src="speech-input-mic.js?v=1"></script>
+<script src="dawn-light-speech-to-text.js?v=7"></script>
+<script src="dark-star-live-speech-to-text.js?v=7"></script>
+<script src="technical-dark-star-realtime-voice-v2.js?v=9"></script>
+<script src="technical-dark-star-my-voice.js?v=10"></script>
+<script src="artifacts/restore-live-controls.js?v=37"></script>
+<script src="technical-dark-star-strip-diagnostic.js?v=1"></script>
+<!-- prior file ended at a truncated script src=tec; closed without inventing that script -->
+<script>window.sendMessage = sendMessage;</script>
+<script src="aivault-agent-voice-router.js?v=4"></script>
+
+<script src="technical-dark-star-live-voice-config.js?v=1"></script>
+<script src="dawn-light-live-voice-config.js?v=1"></script>
+<script src="technical-dark-star-language-own.js?v=1"></script>
+<script src="dawn-light-language-menu.js?v=1"></script>
+<script src="dawn-light-live-voice.js?v=10"></script>
+<script src="aivault-dual-agent-live.js?v=6"></script>
+<script src="artifacts/live-voice-show.js?v=3"></script>
+<script src="dawn-light-dark-star-bridge.js?v=9"></script>
+<script src="technical-dark-star-realtime-voice-v2.js"></script>
+
+
+
+
+<script src="darkstar-orb.js?v=20261016-expr2"></script>
+<script src="darkstar-inpage-live.js?v=20261016-expr2-ic2"></script>
+<script src="darkstar-drawer-live-fix.js?v=20261016-dl1"></script>
+<script src="darkstar-study-books.js?v=20261017-sb9"></script>
+<script src="darkstar-book-qa.js?v=20261017-qa11"></script>
+<script src="darkstar-photo-ask.js?v=20261015-pa5"></script>
+<script src="darkstar-bots.js?v=20261016-bots5"></script>
+
+
+
+
+
 <div id="aivault-darkstar-avatar" data-ds-orb-avatar="2" aria-label="暗星數字人">
   <div class="dsah"><span>🌟 暗星數字人</span><span class="dslink"><i id="dsdot" class="dsdot"></i><span id="dstxt">未連結</span></span></div>
   <div class="dsfacebox" id="dsfacebox">
@@ -16,12 +8619,13 @@ RESTORE_PLACEHOLDE
   const orb=()=>{const el=q('dsorb');if(!el)return null;return el.__dsOrb||(window.DarkStarOrb?window.DarkStarOrb.mount(el,{size:120}):null)};
   const set=(on,text)=>{linked=on;q('dsdot').classList.toggle('on',on);q('dstxt').textContent=text||'未連結'};
   const speak=(v)=>{target=Math.max(0,Math.min(1,v));const st=target>.035?'🗣️ 暗星正在說話':(linked?'👂 暗星正在聆聽':'等待暗星說話');if(target>.035||speak.was){if(q('dsstate').textContent!==st)q('dsstate').textContent=st}speak.was=target>.035};
-  const expr=t=>{const o=orb();if(t==='happy'){q('dsstate').textContent='😊 暗星很開心'}else if(t==='surprise'){q('dsstate').textContent='😮 暗星有點驚訝'}else if(t==='think'){q('dsstate').textContent='🤔 暗星正在思考'}else if(t==='angry'){q('dsstate').textContent='😠 暗星有點生氣'}else if(t==='sad'){q('dsstate').textContent='😢 暗星有點難過'}else if(t==='joy'){q('dsstate').textContent='🤩 暗星好興奮'}
-    const m={surprise:'surprised',surprised:'surprised',think:'curious',happy:'happy',angry:'angry',sad:'sad',joy:'joy'};
-    if(o)o.setExpression(m[t]||'neutral',m[t]?3000:0)};
+  const EXL={happy:'😃 暗星很開心',surprised:'😮 暗星有點驚訝',surprise:'😮 暗星有點驚訝',think:'🤔 暗星正在思考',thinking:'🤔 暗星正在思考',curious:'🤔 暗星正在思考',angry:'😡 暗星生氣了',huffy:'😤 暗星氣呼呼',sad:'😢 暗星有點難過',joy:'🤩 暗星好興奮',love:'😍 暗星好喜歡',sleepy:'😴 暗星想睡了',laughing:'😆 暗星大笑'};
+  // 表情（可指定持續毫秒）；新增：huffy／love／sleepy／laughing／thinking
+  const expr=(t,ms)=>{const o=orb();t=t==='surprise'?'surprised':t==='think'?'thinking':t;{const L=(window.DarkStarOrb&&window.DarkStarOrb.LABELS)||{};if(!EXL[t]&&L[t])EXL[t]=L[t].replace(/^(\S+) /,'$1 暗星');}if(EXL[t])q('dsstate').textContent=EXL[t];
+    if(o)o.setExpression(EXL[t]?t:'neutral',EXL[t]?(ms||3000):0);try{document.dispatchEvent(new CustomEvent('darkstar:expr',{detail:{expr:EXL[t]?t:'neutral',ms:EXL[t]?(ms||3000):0}}))}catch(e){}};
   const loop=()=>{level+=(target-level)*.3;const o=orb();if(o)o.setTalking(level>.02?Math.min(1,level*1.6):0);requestAnimationFrame(loop)};loop();
   // 優先在本頁內連線（darkstar-inpage-live.js）；沒有該模組時維持舊行為（開啟視訊頁）
-  q('dsconnect').onclick=()=>{if(window.AIVAULTDarkStarLive){window.AIVAULTDarkStarLive.toggle();return}set(true,'已連結');q('dsstate').textContent='👂 暗星正在聆聽';window.open('technical-dark-star-live-video-test.html','_blank','noopener');};
+  q('dsconnect').onclick=()=>{if(window.AIVAULTDarkStarLive){window.AIVAULTDarkStarLive.toggle();return}set(true,'已連結');q('dsstate').textContent='👂 暗星正在聆聽';if(window.__AIVAULT_RELEASE_ALL_AUDIO__)window.__AIVAULT_RELEASE_ALL_AUDIO__();window.open('technical-dark-star-live-video-test.html','_blank','noopener');};
   q('dsdemo').onclick=async()=>{set(true,'表情測試');expr('happy');for(let i=0;i<26;i++){speak(Math.abs(Math.sin(i*.72))*.8);await new Promise(r=>setTimeout(r,75))}speak(0);setTimeout(()=>expr('neutral'),500)};
   // 視線：滑鼠／手指位置讓小球眼睛左右看
   document.addEventListener('pointermove',e=>{const o=orb(),b=q('dsorb');if(!o||!b||target>.035)return;const r=b.getBoundingClientRect();o.look((e.clientX-(r.left+r.width/2))/Math.max(200,innerWidth/2))},{passive:true});
@@ -36,5 +8640,16 @@ RESTORE_PLACEHOLDE
 })();
 </script>
 
-<script src="darkstar-orb.js?v=20261014-emo2"></script>
-R
+<script src="darkstar-panel-mini.js?v=20261016-mini1"></script>
+<script src="darkstar-chat-orbs.js?v=20261016-co3"></script>
+<script src="darkstar-duo.js?v=20261016-duo2"></script>
+<script src="darkstar-dawn-live-swap.js?v=20261016-swap4"></script>
+<script src="darkstar-dawn-transcript-merge.js?v=20261016-dm2"></script>
+<script src="darkstar-ai-presence.js?v=20261017-ai1"></script>
+<script src="darkstar-summon-cmd.js?v=20261017-sm1"></script>
+<script src="darkstar-dual-live-etiquette.js?v=20261016-et5"></script>
+<script src="darkstar-mini-duo.js?v=20261016-md1"></script>
+<script src="darkstar-dawn-search.js?v=20261016-ws3"></script>
+<script src="darkstar-duo-talk.js?v=20261016-dt8"></script>
+<script src="aivault-presence.js?v=20261017-pr2" defer></script></body>
+</html>
