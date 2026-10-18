@@ -78,17 +78,23 @@ for i in range(0,len(idle),150):
     for r in rest("aivault_pool_agent_learning?select=agent_id,url&agent_id=in.(%s)&model=like.none*&limit=20000"%ids) or []: seen[r["agent_id"]].add(r["url"])
 recent=set(r["agent_id"] for r in (rest("aivault_pool_agent_learning?select=agent_id&model=like.none*&created_at=gte.%s&limit=5000"%iso(now-6*3600)) or []))
 rows=[]; locks_out=[]; memw=0; memdup=0; MEMDONE=set()
+try:
+    import sys; sys.path.insert(0,os.path.dirname(__file__)); from pool_read import PoolRead; POOLREAD=PoolRead(rest,summarize)
+except Exception as e: print("poolread off",type(e).__name__); POOLREAD=None
 for a in idle:
     d=district(a["domain"]); pool=(CUR.get(d) or [])+[(("即時語音："+v[0]),v[1],v[2]) for v in VOICE[:4]]
     random.seed(a["id"]+time.strftime("%Y%m%d%H")); topic=random.choice(pool)
-    cands=[o for o in sources(topic) if o["url"] not in seen[a["id"]]] or sources(topic)
-    if not cands: continue
-    o=cands[int(hashlib.md5(a["id"].encode()).hexdigest(),16)%len(cands)]
+    pb=POOLREAD.next(a["id"],seen[a["id"]]) if POOLREAD else None  # pb4：先讀協作池書架必讀章節
+    if pb: o,topic=pb
+    else:
+      cands=[o for o in sources(topic) if o["url"] not in seen[a["id"]]] or sources(topic)
+      if not cands: continue
+      o=cands[int(hashlib.md5(a["id"].encode()).hexdigest(),16)%len(cands)]
     locks_out.append({"k":"readlock:"+a["id"],"v":{"until":iso(now+35*60),"mode":"reading","d":d,"topic":topic[0][:24],"url":o["url"],"at":iso(now)}})
     if write_rows and a["id"] not in recent:  # 學習紀錄：每位每 6 小時最多 1 筆（控制 DB 大小）
         rows.append({"agent_id":a["id"],"district":d,"topic":topic[0],"query":topic[1],"url":o["url"],"title":("📖 閱讀(no-LLM)｜"+o["title"])[:200],"http_status":200,"bytes":o["bytes"],"sha256":o["sha"],
                      "excerpt":o["text"][:300],"notes":("［閱讀 no-LLM 抽取式摘要］"+o["summary"]+"｜關鍵字："+", ".join(o["kw"]))[:600],"model":"none(extractive)","usage":{"total":0,"mode":"reading"},"fetched_at":iso(now)})
-    if write_rows and o["sha"] not in MEMDONE:
+    if write_rows and o.get("src")!="poolbook" and o["sha"] not in MEMDONE:
         MEMDONE.add(o["sha"])
         try:
             r=rest("rpc/aivault_mem_write",{"p_agent":a["id"],"p_kind":"note","p_layer":"public","p_title":("閱讀摘要："+o["title"])[:160],"p_body":("來源 "+o["url"]+"\nsha256 "+o["sha"][:16]+"\n"+o["summary"]+"\n關鍵字："+", ".join(o["kw"]))[:900],"p_district":d})

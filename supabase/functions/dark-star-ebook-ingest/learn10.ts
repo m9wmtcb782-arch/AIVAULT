@@ -123,6 +123,18 @@ async function ebookSession(agent: any) {
   await rest("aivault_pool_agent_memory", { method: "POST", body: JSON.stringify({ agent_id: agent.id, kind: "learning", content: `讀《${bk.title}》第 ${start}–${end} 頁：${notes.slice(0, 300)}` }) });
   return { agent: agent.id, kind: "learn", topic: "讀書：" + bk.title, pages: [{ src: "ebook", url }], usage: { total: Number(call.usage?.total) || 0 } };
 }
+// pb6：協作池書架必讀（基礎→入門→專業→資料選輯），讀下一個沒讀過的章節；紀錄 url='poolbook:<book>#ch<n>'。關閉：LEARN_POOLBOOK_OFF=1
+async function poolBookSession(agent: any) {
+  const d = districtOf(agent.domain); const books = await rest("aivault_pool_books?status=eq.published&select=id,title,tier&order=kind.desc,tier_order.asc,sort_order.asc"); if (!books.length) return null;
+  const done = new Set((await rest(`aivault_pool_agent_learning?agent_id=eq.${agent.id}&url=like.poolbook:*&select=url&limit=2000`)).map((x: any) => x.url));
+  const chs = await rest("aivault_pool_book_chapters?select=book_id,chapter_no,title&order=book_id,chapter_no&limit=5000"); let pick: any = null, bk: any = null;
+  for (const b of books) { for (const c of chs.filter((x: any) => x.book_id === b.id)) if (!done.has(`poolbook:${b.id}#ch${c.chapter_no}`)) { pick = c; bk = b; break; } if (pick) break; }
+  if (!pick) return null; const [c] = await rest(`aivault_pool_book_chapters?book_id=eq.${encodeURIComponent(bk.id)}&chapter_no=eq.${pick.chapter_no}&select=title,content`); const text = String(c?.content || "").slice(0, 6000); if (text.length < 200) return null;
+  const call = await callModel(`${agent.persona || ""}\n你是 AIVAULT ${DIST[d]} 的 AI，正在讀協作池書架必讀書《${bk.title}》（${bk.tier}）的「${c.title}」。只能根據這一章內容寫，沒寫的不要編。`, `${text}\n\n只輸出 JSON：{"notes":"200–350 字繁體中文讀書筆記：本章重點、定義、可做的練習或實驗"}`, 1200);
+  const notes = String(call.v?.notes || "").trim(); if (!notes) return null; const url = `poolbook:${bk.id}#ch${pick.chapter_no}`;
+  await rest("aivault_pool_agent_learning", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ agent_id: agent.id, district: d, topic: "讀書：《" + String(bk.title).slice(0, 30) + "》", query: bk.title, url, title: ("📚 協作池書架《" + bk.title + "》" + bk.tier + "｜" + c.title).slice(0, 200), http_status: 200, bytes: text.length, sha256: await sha(text), excerpt: text.slice(0, 600), notes: notes.slice(0, 1000), model: call.model, usage: call.usage, fetched_at: new Date().toISOString(), source_type: "ebook" }) });
+  return { agent: agent.id, kind: "learn", topic: "讀書：" + bk.title, pages: [{ src: "poolbook", url }], usage: { total: Number(call.usage?.total) || 0 } };
+}
 export async function learnRound(b: any, learnOne: (ag: any) => Promise<any>) {
   FORCE_VIDEO = !!b.force_video;
   if (Deno.env.get("LEARN10_OFF") === "1") return { ok: true, off: true, results: [] };
@@ -139,7 +151,8 @@ export async function learnRound(b: any, learnOne: (ag: any) => Promise<any>) {
   // pd2：一次 4 位代理平行學習（各自獨立；遇到限流或預算上限就停）
   const one = async (ag: any): Promise<any> => { if (!(await lock(ag.id))) { skipped++; return null; } const d = districtOf(ag.domain);
     try { const voice = !b.force_ebook && !b.force_selfdev && !b.force_domain && (FORCE_VIDEO || Math.random() < (VW[d] || .4)); let pt: string[] = []; if (!voice && Deno.env.get("PLAN_OFF") !== "1") pt = await approvedTopics(d).catch(() => []);
-      let eb: any = null; if (!voice && Deno.env.get("LEARN_EBOOK_OFF") !== "1" && (b.force_ebook || Math.random() < .25)) eb = await ebookSession(ag);
+      let eb: any = null; if (!voice && Deno.env.get("LEARN_POOLBOOK_OFF") !== "1" && (b.force_poolbook || Math.random() < .3)) eb = await poolBookSession(ag).catch(() => null);
+      if (!eb && !voice && Deno.env.get("LEARN_EBOOK_OFF") !== "1" && (b.force_ebook || Math.random() < .25)) eb = await ebookSession(ag);
       if (eb) results.push({ district: d, voice, ebook: true, ...eb });
       else if (!voice && Deno.env.get("LEARN_DOMAIN_OFF") !== "1" && DOMAIN[d] && (b.force_domain || Math.random() < .5)) { const L = DOMAIN[d]; const t = d === "av" && Math.random() < .7 ? L[Math.floor(Math.random() * 7)] : L[Math.floor(Math.random() * L.length)]; /* vc1：影音區優先研究中文聲音複製 TTS */ results.push({ district: d, voice, domain: true, ...(await session(ag, t, "模型：")) }); }
       else if (!voice && Deno.env.get("LEARN_SELFDEV_OFF") !== "1" && (b.force_selfdev || Math.random() < .2)) { const mine = await rest(`aivault_pool_agent_learning?agent_id=eq.${ag.id}&topic=like.自研*&select=topic&limit=500`); const c: Record<string, number> = {}; mine.forEach((x: any) => c[x.topic] = (c[x.topic] || 0) + 1); const t = [...SELFDEV].sort((a, z) => (c["自研：" + a[0]] || 0) - (c["自研：" + z[0]] || 0) || Math.random() - .5)[0]; results.push({ district: d, voice, selfdev: true, ...(await session(ag, t, "自研：")) }); }
