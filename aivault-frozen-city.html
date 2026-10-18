@@ -44,6 +44,6 @@ function loop(now) { requestAnimationFrame(loop); const dt = Math.min(.05, (now 
   const pa = sg.attributes.position.array; for (let k = 1; k < pa.length; k += 3) { pa[k] -= dt * 6; if (pa[k] < 0) pa[k] = 90; } sg.attributes.position.needsUpdate = true;
   for (let k = 0; k < 3; k++) core.userData['r' + k].rotation.z += dt * core.userData['r' + k].userData.s; ctl.update(); R.render(S, C);
   if (BENCH) { const el = now - t0; if (el > 2000 && el < 12000) fts.push(ft); if (el >= 12000 && !done) { done = stat(); window.__bench = done; }
-    if (Math.floor(now / 1000) !== Math.floor((now - ft) / 1000)) { const s = fts.length ? stat() : null; bx.textContent = done ? '✅ 完成（10 秒）\n' + JSON.stringify(done, null, 1).replace(/[{}"]/g, '') : s ? '測量中 ' + ((el - 2000) / 1000).toFixed(0) + '/10 秒\nFPS ' + s.fps_avg + '  1%low ' + s.fps_1pct_low + '\ndraw ' + s.draw_calls + '  tris ' + s.triangles : '暖機中…'; } } }
+    if (Math.floor(now / 1000) !== Math.floor((now - ft) / 1000)) { const s = fts.length ? stat() : null; bx.textContent = done ? '✅ 完成（10 秒）\nFPS 平均 ' + done.fps_avg + '  最低1% ' + done.fps_1pct_low + '\n' + done.ms_avg + ' ms/幀  draw ' + done.draw_calls + '\n' + done.buildings + ' 棟  雪 ' + done.snow + '  ' + done.quality + ' dpr ' + done.dpr : s ? '測量中 ' + ((el - 2000) / 1000).toFixed(0) + '/10 秒\nFPS ' + s.fps_avg + '  1%low ' + s.fps_1pct_low + '\ndraw ' + s.draw_calls + '  tris ' + s.triangles : '暖機中…'; } } }
 requestAnimationFrame(loop);
 </script></body></html>
