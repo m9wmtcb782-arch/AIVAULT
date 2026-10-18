@@ -54,11 +54,11 @@ SYS=("You answer questions about a 120-second cartoon using ONLY the timestamped
 for name,c in ctx.items():
     ok=co=to=0; rows=[]; t1=time.time()
     for q in Q["questions"]:
-        ids=tok.apply_chat_template([{"role":"system","content":SYS},{"role":"user","content":c[:14000]+"\n\n問題："+q["q"]}],add_generation_prompt=True,return_tensors="pt")
+        ids=tok.apply_chat_template([{"role":"system","content":SYS},{"role":"user","content":c[:int(os.environ.get("CTX_CHARS","14000"))]+"\n\n問題："+q["q"]}],add_generation_prompt=True,return_tensors="pt")
         with torch.no_grad(): o=lm.generate(ids,max_new_tokens=40,do_sample=False)
         ans=tok.decode(o[0][ids.shape[1]:],skip_special_tokens=True).strip().replace("\n"," ")
         m=re.search(r"秒數[:：]\s*(\d+)",ans); t=int(m.group(1)) if m else None; ap=ans.split("秒數")[0].lower()
         cok=any(k.lower() in ap for k in q["kw"]) and "不知道" not in ap; tok_=t is not None and abs(t-q["t"])<=3
         co+=cok; to+=tok_; ok+=cok and tok_; rows.append({"q":q["q"],"expected_t":q["t"],"answer":ans,"content_ok":cok,"time_ok":tok_}); print(name,"%.0fs"%(time.time()-t1),"|",q["t"],"|",ans,"|",cok,tok_)
     print("SCORE",name,"both",ok,"content",co,"time",to,"/10  qa_total_s",round(time.time()-t1,1))
-    rest("aivault_video_learning",{"asset_id":aid,"kind":"qa_eval","payload":{"mode":name,"both_correct":ok,"content_correct":co,"timecode_within_3s":to,"rows":rows,"runner":"github-actions cpu"},"score":ok,"model":lm_id},"POST","return=minimal")
+    rest("aivault_video_learning",{"asset_id":aid,"kind":"qa_eval","payload":{"mode":name+os.environ.get("TRY_TAG",""),"both_correct":ok,"content_correct":co,"timecode_within_3s":to,"rows":rows,"runner":"github-actions cpu"},"score":ok,"model":lm_id},"POST","return=minimal")
