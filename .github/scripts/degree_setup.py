@@ -332,6 +332,17 @@ if "rep2mig" in STEPS:
     b=sql("select (pg_total_relation_size('rep_dry.a')+pg_total_relation_size('rep_dry.l')+pg_total_relation_size('rep_dry.s')+pg_total_relation_size('rep_dry.k'))/1000.0 bytes, (select count(*) from rep_dry.a) n, pg_database_size(current_database())/1048576.0 db")[0]
     sql("drop schema rep_dry cascade"); bpa=float(b["bytes"]); db=float(b["db"]); 
     print("REP2 dry lean offspring bytes/agent=%.0f (n=%s); db now %.1fMB; projected at 100k: +%.1fMB -> %.1fMB (limit 350MB); fits=%s"%(bpa,b["n"],db,bpa*99000/1048576,db+bpa*99000/1048576,db+bpa*99000*1.3/1048576<350))
+if "rep3mig" in STEPS:
+    M="""select pg_database_size(current_database()) db_bytes, (select count(*) from public.aivault_pool_agents) agents, (select count(*) from public.aivault_agent_lineage) lineage,
+      round(public.aivault_agent_bytes()) bpa_core, round((pg_total_relation_size('public.aivault_pool_agents')+pg_total_relation_size('public.aivault_agent_state')+pg_total_relation_size('public.aivault_agent_lineage')+pg_total_relation_size('public.aivault_ancn_skills')+pg_total_relation_size('public.aivault_ancn_edges')+pg_total_relation_size('public.aivault_ancn_neurons'))::numeric/greatest(1,(select count(*) from public.aivault_pool_agents))) bpa_with_edges"""
+    print("REP3 before", sql(M))
+    print("REP3 top tables", sql("select relname, pg_total_relation_size(c.oid) b from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and relkind='r' order by 2 desc limit 12"))
+    sql(open("supabase/migrations/20261018190000_aivault_replication_cap300k.sql").read())
+    m=sql(M)[0]; db=float(m["db_bytes"]); lin=int(m["lineage"])
+    for k in ("bpa_core","bpa_with_edges"):
+        b=max(float(m[k]),1500); fit=int((450*1048576-db)/(b*1.3)); print("REP3 projection %s=%.0fB: guard room=%d more -> max total ~%d (cap 300000)"%(k,b,fit,lin+fit))
+    print("REP3 state", sql("select k,v from public.aivault_floor_state where k like 'replication:%'"), sql("select jobname,schedule from cron.job where jobname='aivault-replicate-daily'"))
+    print("REP3 fn", sql("select position('300000' in prosrc)>0 cap300k, position('450' in prosrc)>0 guard450 from pg_proc where proname='aivault_replicate_daily'"))
 if "countsmig" in STEPS:
     sql(open("supabase/migrations/20261018151000_aivault_counts.sql").read()); print("COUNTS", sql("select public.aivault_city_counts() c"))
 if "memgetmig" in STEPS:
