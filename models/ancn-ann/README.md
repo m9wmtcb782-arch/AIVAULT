@@ -1,25 +1,24 @@
 # AIVAULT ANCN ANN Learning Prototype
 
-Status: IMPLEMENTED (core safety fixes applied).
-Training: SYNTHETIC ONLY. Formal training BLOCKED (insufficient credible verified data).
-Must not claim PRODUCTION_READY.
+Status: IMPLEMENTED (core pipeline complete on construction branch).
+Formal training: BLOCKED (insufficient credible VERIFIED_REAL data with verifier evidence).
+Not PRODUCTION_READY.
 
-## Safety fixes (this commit series)
-- infer.py: no model file or non-ACCEPTED status → always FALLBACK_RULE. Never score with random weights.
-- memory_convert.py: requires verifier_id + evidence_reference + valid 16-dim features + explicit success label. Deduplicates. Isolates synthetic. Missing evidence → BLOCKED.
-- Acceptance / rollback contract: only ACCEPTED model may give formal suggestions. Previous accepted version kept on failure.
-
-## Files
-- model.py: small MLP (input 16, ~1-2k params)
-- features.py: feature contract
-- memory_convert.py: credible verification gate
+## Completed core
+- model.py: small MLP (16 → 32 → 16 → 1)
+- features.py: 16-dim feature contract
+- memory_convert.py: verifier evidence + feature integrity + dedup + synthetic isolation
 - train.py: offline synthetic pipeline only
-- export_onnx.py: ONNX export
-- infer.py: suggestion interface (Dark Star decides)
+- export_onnx.py: ONNX export contract
+- infer.py: no untrained scoring; always FALLBACK_RULE unless ACCEPTED model
 - baseline_compare.py: comparison contract
+- version.py: SHA-256 integrity
+- acceptance.py: ACCEPTED status + rollback
+- dataset.py: train/val/test split
+- test_isolated.py: unit checks
 
-## Data flow
-Dark Star creates task → ANN evaluates (or FALLBACK) → Dark Star decides → ANCN executes → independent verify → common memory → ANN later learning.
+## Learning loop contract
+Dark Star creates task → ANN evaluates (or FALLBACK) → Dark Star decides → ANCN executes → independent verify → common memory → ANN later learning → acceptance → update suggestion model.
 
-## Current limitation
-Credible VERIFIED_REAL samples with verifier evidence are insufficient. Formal training and PRODUCTION_READY remain BLOCKED.
+## Blocked
+Formal training and PRODUCTION_READY remain BLOCKED until credible VERIFIED_REAL samples exist.
