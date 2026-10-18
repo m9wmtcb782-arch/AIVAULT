@@ -440,13 +440,17 @@
       showReadProgress(0, "讀章節");
       try { L.sendRawText("【系統】使用者指定了章節，正在讀取書架原文。請先不要回答，等資料讀到 100% 再回答，不要說看不到書。"); } catch (e) {}
     }
-    var bookAsk = shelf || st0.chapter || st0.part || st0.section || st0.page || st0.toc || (st0.chapters && st0.chapters.length);
+    var locks = (w.AIVAULTSourceLocks && w.AIVAULTSourceLocks.state) ? w.AIVAULTSourceLocks.state() : { ebook: true, order: ["ebook"], on: ["ebook"] };
+    var bookAsk = (locks.ebook !== false) && (shelf || st0.chapter || st0.part || st0.section || st0.page || st0.toc || (st0.chapters && st0.chapters.length));
+    if (!locks.ebook && !(st0.chapter || st0.part || st0.section || st0.page)) bookAsk = false;
     if (!bookAsk) {
       try {
         var wr = await fetch("https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/dark-star-ebook-ingest?feature=web-search", { method: "POST", headers: { "Content-Type": "application/json", apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE", Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE" }, body: JSON.stringify({ q: q, n: 5 }) });
         var wj = await wr.json();
         var rows = (wj && wj.results) || [];
-        if (rows.length) L.sendRawText("【網路資料】使用者問：「" + q + "」\n" + rows.map(function (x, i) { return (i + 1) + ". " + x.title + "（" + x.url + "）" + (x.snippet ? "：" + x.snippet : ""); }).join("\n") + "\n請用網路資料回答並說來源。這不是電子書題，不要硬套書架內容。");
+        var srcs = (locks.order || []).filter(function (id) { return id !== "ebook" && locks[id]; });
+        var srcLabel = srcs.length ? srcs.map(function (id, i) { return (i + 1) + "." + ({baidu:"百度",google:"Google",yahoo:"Yahoo",youtube:"YouTube"})[id]; }).join(" ") : "網路";
+        if (rows.length) L.sendRawText("【網路資料｜鎖定 " + srcLabel + "】使用者問：「" + q + "」\n" + rows.map(function (x, i) { return (i + 1) + ". " + x.title + "（" + x.url + "）" + (x.snippet ? "：" + x.snippet : ""); }).join("\n") + "\n請依鎖定來源優先順序回答並說來源。沒打勾電子書就不要用書架。");
       } catch (e) { console.warn("[BookQA] web", e); }
       return;
     }
