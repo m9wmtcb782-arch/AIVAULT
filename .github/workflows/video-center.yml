@@ -1,0 +1,35 @@
+name: Video learning center (decode once, CPU vision, free)
+# vc1：共享影片學習中心。只用免費資源：GitHub runner CPU＋開源模型（Florence-2-base MIT、Qwen2.5-1.5B-Instruct Apache-2.0）；音訊用既有 Groq Whisper。
+# 關閉：repo var VIDEO_CENTER_OFF=1。不排程，只手動執行。
+on:
+  workflow_dispatch:
+    inputs:
+      mode: { description: "probe | migrate | ingest | accept", required: true, default: "probe" }
+      key: { description: "video_center_list.json key", required: false, default: "bbb" }
+      dur: { description: "clip seconds (override)", required: false, default: "" }
+      every: { description: "frame interval seconds", required: false, default: "5" }
+concurrency: { group: video-center, cancel-in-progress: false }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - if: inputs.mode == 'ingest' || inputs.mode == 'accept'
+        run: sudo apt-get install -y -qq ffmpeg >/dev/null && pip install -q --index-url https://download.pytorch.org/whl/cpu torch==2.5.1 && pip install -q transformers==4.49.0 einops timm pillow accelerate
+      - if: inputs.mode == 'ingest' || inputs.mode == 'accept'
+        uses: actions/cache@v4
+        with: { path: ~/.cache/huggingface, key: hf-video-center-v1 }
+      - env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          MODE: ${{ inputs.mode }}
+          KEY: ${{ inputs.key }}
+          DUR: ${{ inputs.dur }}
+          EVERY: ${{ inputs.every }}
+          OFF: ${{ vars.VIDEO_CENTER_OFF }}
+        run: |
+          if [ "$OFF" = "1" ]; then echo "disabled by VIDEO_CENTER_OFF=1"; exit 0; fi
+          python3 .github/scripts/video_center.py
+      - if: inputs.mode == 'accept'
+        uses: actions/upload-artifact@v4
+        with: { name: accept-result, path: accept_result.json }

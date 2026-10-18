@@ -23,6 +23,15 @@ with tempfile.TemporaryDirectory() as d:
     s,a=y({"action":"watch_asr","audio_b64":base64.b64encode(open(au,"rb").read()).decode(),"name":"a.mp3"}); print("ASR",s,(a.get("language"),a.get("duration"),len(a.get("text","")),a.get("text","")[:200]) if isinstance(a,dict) else a)
     if s!=200: raise SystemExit("asr failed")
     fr=[]; vt=0
+    # vc1：先讀共享影片快取（aivault_video_segments，Florence-2 CPU 描述＋OCR）；有快取就不再逐張送看圖模型。關閉：WATCH_CACHE_OFF=1
+    if os.environ.get("WATCH_CACHE_OFF")!="1":
+        import urllib.parse
+        s0,ca=http(BASE+"/rest/v1/aivault_video_assets?url=eq.%s&select=id,vision_model"%urllib.parse.quote(v["url"],safe=""),headers={"apikey":SR,"Authorization":"Bearer "+SR})
+        if s0==200 and ca:
+            s1,sg=http(BASE+"/rest/v1/aivault_video_segments?asset_id=eq.%d&kind=neq.asr&select=t_s,caption,ocr&order=t_s"%ca[0]["id"],headers={"apikey":SR,"Authorization":"Bearer "+SR})
+            fr=[{"t":"%02d:%02d"%(int(float(x["t_s"]))//60,int(float(x["t_s"]))%60),"desc":(x["caption"] or "")+((" 畫面文字："+x["ocr"]) if (x["ocr"] or "").strip() else "")} for x in (sg if s1==200 else [])]
+            print("CACHE_HIT asset",ca[0]["id"],"frames",len(fr),ca[0]["vision_model"]); frames=[]
+        else: print("CACHE_MISS",s0)
     for i,f in enumerate(frames):
         t="%02d:%02d"%((i*EVERY+EVERY//2)//60,(i*EVERY+EVERY//2)%60) if False else "%02d:%02d"%((i*EVERY)//60,(i*EVERY)%60)
         s,r=y({"action":"watch_frame","image_b64":base64.b64encode(open(f,"rb").read()).decode(),"t":t})
