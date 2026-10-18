@@ -35,8 +35,10 @@ if "cycle" in STEPS:
     end=time.time()+60*float(os.environ.get("MINUTES","1") or 1); k=0; tok=0; mode=os.environ.get("MODE","") or None
     if not mode and os.environ.get("PLACE_AUTO","1")=="1":  # pd1：還有未鑑定就自動只做鑑定（每次排程接著做，直到全部完成）
         un=sql("select count(*) c from public.aivault_pool_agents a where not exists (select 1 from public.aivault_pool_agent_degree d where d.agent_id=a.id)")[0]["c"]
-        if int(un)>0: mode="place"; print("PLACE_AUTO unplaced",un)
-    while True:
+        pc=sql("select (v->>'until')::timestamptz > now()-interval '12 minutes' r from public.aivault_floor_state where k='placecall:lock'")
+        if int(un)>0 and pc and pc[0]["r"]: print("PLACE_AUTO skip: Supabase pg_cron is placing (fallback idle)"); SKIPC=True
+        elif int(un)>0: mode="place"; print("PLACE_AUTO unplaced",un)
+    while not globals().get("SKIPC"):
         k+=1; s,b=y({"action":"cycle","n":N,**({"mode":mode} if mode else {})}); ok=isinstance(b,dict)
         rs=(b.get("results") or []) if ok else []
         for r in rs: tok+=((r.get("usage") or {}).get("total") or 0)
@@ -74,6 +76,24 @@ if "vcorder" in STEPS:  # vc1：使用者 02:34 指定的長期命令（影音�
     ex=sql("select id from public.aivault_standing_orders where text=%s and revoked_at is null"%lit(t))
     if not ex: sql("insert into public.aivault_standing_orders(text,districts,flagged) values (%s,'{av}',false)"%lit(t))
     print("VCORDER",sql("select id,districts,active,flagged from public.aivault_standing_orders where revoked_at is null order by id"))
+if "pgcron" in STEPS:  # pc1：Supabase 內建排程（pg_cron + pg_net）呼叫學習／鑑定；金鑰放 Vault，不寫進排程指令。復原：select cron.unschedule('aivault-learn10'); select cron.unschedule('aivault-place');
+    sql("create extension if not exists pg_cron; create extension if not exists pg_net;")
+    if not sql("select 1 from vault.secrets where name='aivault_cron_sr'"): sql("select vault.create_secret(%s,'aivault_cron_sr','pg_cron 呼叫 dark-star-ebook-ingest 用')"%lit(SR))
+    else: sql("select vault.update_secret((select id from vault.secrets where name='aivault_cron_sr'),%s)"%lit(SR))
+    url=BASE+"/functions/v1/dark-star-ebook-ingest?feature=degree"
+    def job(name,cronexp,body,tmo):
+        cmd="select net.http_post(url:=%s,headers:=jsonb_build_object('Content-Type','application/json','Authorization','Bearer '||(select decrypted_secret from vault.decrypted_secrets where name='aivault_cron_sr'),'apikey',(select decrypted_secret from vault.decrypted_secrets where name='aivault_cron_sr')),body:=%s::jsonb,timeout_milliseconds:=%d) where coalesce((select v->>'off' from public.aivault_floor_state where k='cron:off'),'0')<>'1'"%(lit(url,"$u$"),lit(json.dumps(body),"$b$"),tmo)
+        sql("select cron.schedule(%s,%s,%s)"%(lit(name,"$n$"),lit(cronexp,"$c$"),lit(cmd,"$x$")))
+    job("aivault-learn10","*/10 * * * *",{"action":"learn_round","n":8,"src":"pg_cron"},150000)
+    job("aivault-place","5-59/10 * * * *",{"action":"cycle","mode":"place","n":6,"src":"pg_cron"},150000)
+    print("PGCRON",sql("select jobid,jobname,schedule,active from cron.job order by jobid"))
+if "cronstat" in STEPS:  # 只印排程執行狀態與筆數
+    print("JOBS",sql("select jobid,jobname,schedule,active from cron.job order by jobid"))
+    print("RUNS",sql("select j.jobname,d.status,to_char(d.start_time at time zone 'Asia/Taipei','MM-DD HH24:MI:SS') t,left(d.return_message,60) m from cron.job_run_details d join cron.job j using(jobid) order by d.start_time desc limit 12"))
+    print("NET",sql("select status_code,count(*),max(created) from net._http_response where created>now()-interval '1 hour' group by 1"))
+    print("LEARN_PER_HOUR",sql("select to_char(date_trunc('hour',created_at) at time zone 'Asia/Taipei','MM-DD HH24') h,count(*) rows,count(distinct agent_id) agents from public.aivault_pool_agent_learning where created_at>now()-interval '6 hours' group by 1 order by 1"))
+    print("PLACED",sql("select count(*) from public.aivault_pool_agent_degree"),"UNPLACED",sql("select count(*) c from public.aivault_pool_agents a where not exists (select 1 from public.aivault_pool_agent_degree d where d.agent_id=a.id)"))
+    print("LOCK",sql("select k,v->>'src' src,v->>'at' at from public.aivault_floor_state where k in ('learnround:lock','placecall:lock')"))
 if "smtest" in STEPS:  # sm1 測試：真的召集暗星（只印狀態、模型、任務）
     s,b=y({"action":"summon","id":"darkstar","op":"call","via":"test"}); print("SUMMON",s,{k:b.get(k) for k in ["ok","error","task","model","until"]} if isinstance(b,dict) else str(b)[:200])
 if "rosterdump" in STEPS:  # rm1 備份：加密 artifact（公開日誌只印筆數）

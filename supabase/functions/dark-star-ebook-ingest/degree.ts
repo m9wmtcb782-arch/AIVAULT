@@ -184,6 +184,8 @@ export async function degree(r: Request) {
     if (a === "cycle") { // 排程：學習＋考試交錯，遇到 Groq 限流就停
       const n = Math.min(12, Math.max(1, Number(b.n) || 4)); const results: any[] = []; const now = new Date().toISOString();
       const UNPL = 1000 - (await rest("aivault_pool_agent_degree?select=agent_id&limit=1400")).length;
+      if (b.mode === "place" && b.src === "pg_cron") { const k = "placecall:lock"; const [x] = await rest(`aivault_floor_state?k=eq.${k}&select=v`); if (x && Date.parse(x.v?.until) > Date.now()) return out({ ok: true, skipped_round: true, results: [] });
+        await rest("aivault_floor_state", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ k, v: { until: new Date(Date.now() + 4 * 60e3).toISOString(), src: "pg_cron" }, updated_at: new Date().toISOString() }) }); } // pc1
       if (b.mode === "place") { // pd1：平行鑑定（每位代理仍各自一份考卷、各自閉卷作答；一次呼叫就是一整份 12 題考卷）
         const placed = new Set((await rest("aivault_pool_agent_degree?select=agent_id&limit=1400")).map((x: any) => x.agent_id)); const all = await rest("aivault_pool_agents?select=id,domain,persona&order=id.asc&limit=1400");
         const left = all.filter((x: any) => !placed.has(x.id)).sort(() => Math.random() - .5).slice(0, Math.min(8, n));

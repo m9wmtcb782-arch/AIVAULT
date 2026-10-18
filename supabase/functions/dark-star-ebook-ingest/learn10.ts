@@ -124,6 +124,9 @@ async function ebookSession(agent: any) {
 export async function learnRound(b: any, learnOne: (ag: any) => Promise<any>) {
   FORCE_VIDEO = !!b.force_video;
   if (Deno.env.get("LEARN10_OFF") === "1") return { ok: true, off: true, results: [] };
+  // pc1：整輪鎖，pg_cron 與 GitHub 備援不會重複跑同一輪（8 分鐘內只跑一次）
+  { const k = "learnround:lock"; const [x] = await rest(`aivault_floor_state?k=eq.${k}&select=v`); if (x && Date.parse(x.v?.until) > Date.now() && !b.force_round) return { ok: true, skipped_round: true, by: x.v?.src, results: [] };
+    await rest("aivault_floor_state", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ k, v: { until: new Date(Date.now() + 8 * 60e3).toISOString(), src: String(b.src || "github"), at: new Date().toISOString() }, updated_at: new Date().toISOString() }) }); }
   const budget = Number(Deno.env.get("LEARN10_DAILY_TOKENS") || 400000), used = await tokensToday(); if (used >= budget) return { ok: true, budget_hit: true, used, budget, results: [] };
   const n = Math.min(16, Math.max(1, Number(b.n) || 8)); const PAR = Math.max(1, Math.min(6, Number(Deno.env.get("LEARN10_PAR")) || 4)); const all = await rest("aivault_pool_agents?select=id,domain,persona&order=id.asc&limit=1400");
   const locks = await rest("aivault_floor_state?k=like.learnlock:*&select=k,v&limit=2000"); const busy = new Set(locks.filter((x: any) => Date.parse(x.v?.until) > Date.now()).map((x: any) => x.k.slice(10)));
