@@ -176,8 +176,8 @@
     if (!bothLive()) return "play";
     if (muted(k)) return "mute";
     if (addrOn && !user.addr && now - user.at < 4000 && age < HOLD) return "wait"; // 等點名判斷（只在句首）
-    if (k === "dark" && now - user.at < 2500) return "wait"; // 暗星等開創者說完，不重複插話
-    if (k === "dark" && (busy("dawn") || now - (S.dawn.lastAt || 0) < 2500)) return "wait"; // 曙光在說，暗星等 2.5 秒
+    if (k === "dark" && now - user.at < 3500) return "wait"; // 暗星等開創者說完再延 3.5 秒
+    if (k === "dark" && (busy("dawn") || now - (S.dawn.lastAt || 0) < 3500)) return "wait"; // 曙光在說，暗星等 3.5 秒
     if (!arguing() && ((S[other(k)].utt === "play" && now - (S[other(k)].lastAt || 0) < 1500) || busy(other(k)))) return age < 30000 ? "wait" : "play"; // 對方在說 → 整段等
     return "play";
   }
