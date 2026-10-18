@@ -17,6 +17,7 @@ button:disabled{opacity:.5}
 <p>此頁獨立，不改動暗星／曙光正式頁面。模型來自 Hugging Face <code>onnx-community/Qwen3-0.6B-ONNX</code>（Apache-2.0）。</p>
 <p class="warn">只嘗試官方建議的 WebGPU / q4f16 模型，不會自動切換並下載其他量化版本。下載 100% 後仍須等待 ONNX 初始化；若瀏覽器關閉頁面，可能無法取得錯誤紀錄。</p>
 <button id="btnLoad">同意並載入模型</button>
+<button id="btnClear" type="button">清除上次診斷（不清模型快取）</button>
 <button id="btnGen" disabled>生成中文回答</button>
 <button id="btnUnload" disabled>卸載模型</button>
 <div id="status">狀態：尚未載入</div>
@@ -27,13 +28,23 @@ button:disabled{opacity:.5}
 <button id="btnCopy" type="button">複製診斷紀錄</button>
 <script type="module">
 import { pipeline, TextStreamer } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1';
-const TEST_BUILD = 'qwen3-loader-20261018-d';
+const TEST_BUILD = 'qwen3-loader-20261018-e';
 const $ = id => document.getElementById(id);
 document.title += ' [' + TEST_BUILD + ']';
+const STORE='aivault-qwen3-loader-stage-v1';
+const readStage=()=>{try{return JSON.parse(localStorage.getItem(STORE)||'null')}catch{return null}};
+const saveStage=(phase,detail='')=>{try{localStorage.setItem(STORE,JSON.stringify({phase,detail,at:new Date().toISOString(),build:TEST_BUILD}))}catch{}};
 const log = m => { $('log').textContent += m + '\n'; $('log').scrollTop = $('log').scrollHeight; };
+const previous=readStage();
+if(previous)log('上次持久化階段：'+JSON.stringify(previous));
+if(previous && !['completed','failed','unloaded'].includes(previous.phase)){
+  $('status').textContent='狀態：上次載入未完成，疑似頁面被重新載入；請先複製診斷，暫勿再下載';
+  $('btnLoad').disabled=true;
+}
+$('btnClear').onclick=()=>{try{localStorage.removeItem(STORE)}catch{};$('btnLoad').disabled=false;log('已清除階段紀錄；未清除模型快取。')};
 let generator = null;
 $('status').textContent = '狀態：尚未載入 | 版本：' + TEST_BUILD;
-$('log').textContent = '測試頁版本：' + TEST_BUILD + '\nTransformers.js：3.8.1\n';
+log('測試頁版本：' + TEST_BUILD + ' | Transformers.js：3.8.1');
 let startLoad = 0;
 let activeBackend = '—';
 const modelId = 'onnx-community/Qwen3-0.6B-ONNX';
@@ -64,6 +75,7 @@ $('btnLoad').onclick = async () => {
   $('btnGen').disabled = true;
   $('status').textContent = '狀態：載入中…';
   startLoad = performance.now();
+  saveStage('starting','使用者確認載入');
   const hasGPU = await detectDevice();
   const attempts = hasGPU ? [{ device: 'webgpu', dtype: 'q4f16' }] : [];
   if (!hasGPU) log('未取得 GPUAdapter：不下載 WASM 備援模型。');
@@ -71,27 +83,34 @@ $('btnLoad').onclick = async () => {
   for (const attempt of attempts) {
     $('status').textContent = `狀態：嘗試 ${attempt.device} / ${attempt.dtype}…`;
     log(`載入 ${modelId}：${attempt.device} / ${attempt.dtype}`);
+    saveStage('pipeline-start',attempt.device+'/'+attempt.dtype);
     try {
       log('開始建立 ONNX 推論工作階段（此步可能耗時）。');
       let lastProgress = '';
+      let lastSavedPercent=-1;
       generator = await pipeline('text-generation', modelId, {
         device: attempt.device,
         dtype: attempt.dtype,
         progress_callback: p => {
           if (p.status === 'progress' && Number.isFinite(p.progress)) {
             $('status').textContent = `狀態：${attempt.device} / ${attempt.dtype} 下載 ${p.progress.toFixed(0)}%（完成後仍需初始化）`;
+            const percent=Math.floor(p.progress/10)*10;
+            if(percent!==lastSavedPercent){lastSavedPercent=percent;saveStage('download-progress',`${percent}% ${p.file||''}`)}
           }
           if (p.status === 'done' || p.status === 'ready' || p.status === 'initiate') {
             const info = [p.status, p.file || ''].join(' ');
             if (info !== lastProgress) { log('載入事件：' + info); lastProgress = info; }
+            saveStage('model-event',info);
             if (p.status === 'done') $('status').textContent = '狀態：檔案已下載；等待模型初始化（尚不能回答）';
           }
         },
       });
+      saveStage('pipeline-ready',attempt.device+'/'+attempt.dtype);
       activeBackend = `${attempt.device} / ${attempt.dtype}`;
       loaded = true;
       break;
     } catch(e) {
+      saveStage('failed',describeError(e));
       log(`${attempt.device} / ${attempt.dtype} 失敗：${e?.stack || describeError(e)}`);
       await disposeGenerator();
     }
@@ -101,6 +120,7 @@ $('btnLoad').onclick = async () => {
     $('status').textContent = `狀態：模型已載入（${activeBackend}，${ms} ms）`;
     $('btnGen').disabled = false;
     $('btnUnload').disabled = false;
+    saveStage('completed',activeBackend);
     log('模型載入成功；請按「生成中文回答」驗證實際推論。');
   } else {
     $('status').textContent = '狀態：載入失敗（未下載其他量化版本，請複製下方紀錄）';
@@ -149,13 +169,18 @@ $('btnUnload').onclick = async () => {
   $('btnLoad').disabled = false;
   $('status').textContent = '狀態：已卸載（建議重新整理頁面以釋放記憶體）';
   $('out').textContent = '';
+  saveStage('unloaded');
   log('模型參考已清除。');
 };
 $('btnCopy').onclick = async () => {
-  const report = [$('status').textContent, $('device').textContent, $('metrics').textContent, $('log').textContent].join('\n');
+  const report = [$('status').textContent, $('device').textContent, $('metrics').textContent,'持久化階段：'+JSON.stringify(readStage()),$('log').textContent].join('\n');
   try { await navigator.clipboard.writeText(report); log('診斷紀錄已複製。'); }
   catch(e) { log('無法自動複製，請長按紀錄選取文字：' + describeError(e)); }
 };
+window.addEventListener('pageshow',e=>log('pageshow：persisted='+e.persisted));
+window.addEventListener('pagehide',e=>{const stage=readStage();if(stage&&!['completed','failed','unloaded'].includes(stage.phase))saveStage('pagehide',stage.phase+' | persisted='+e.persisted)});
+window.addEventListener('error',e=>log('頁面錯誤：'+e.message));
+window.addEventListener('unhandledrejection',e=>log('未處理錯誤：'+(e.reason?.stack||describeError(e.reason))));
 detectDevice();
 </script>
 </body>
