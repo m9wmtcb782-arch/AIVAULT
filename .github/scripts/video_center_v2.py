@@ -23,7 +23,11 @@ ctx={}
 if "A" in VAR:
     _,S=rest("aivault_video_segments?asset_id=eq.%d&kind=neq.asr&select=t_s,caption&order=t_s"%aid)
     ctx["A_florence_noocr_qwen3b"]="\n".join("[%ds] %s"%(int(float(x["t_s"])),x["caption"]) for x in S)
-if "B" in VAR:
+if "B" in VAR and os.environ.get("B_CACHE","1")=="1":
+    # vc5b: reuse SmolVLM captions already cached by run 39087652158 (aivault_video_learning kind=note)
+    _,N=rest("aivault_video_learning?asset_id=eq.%d&kind=eq.note&model=eq.HuggingFaceTB/SmolVLM-500M-Instruct&select=payload&order=id.desc&limit=1"%aid)
+    if N: ctx["B_smolvlm_dense_qwen3b"]="\n".join(N[0]["payload"]["captions"]); print("B_CACHE_HIT",len(N[0]["payload"]["captions"]),"per_frame_s",N[0]["payload"]["per_frame_s"])
+if "B" in VAR and "B_smolvlm_dense_qwen3b" not in ctx:
     vm="HuggingFaceTB/SmolVLM-500M-Instruct"; t0=time.time(); vp=AutoProcessor.from_pretrained(vm); vmod=AutoModelForVision2Seq.from_pretrained(vm,torch_dtype=torch.float32).eval(); print("SMOLVLM_LOAD_S",round(time.time()-t0,1))
     with tempfile.TemporaryDirectory() as d:
         src=os.path.join(d,"v"); req=urllib.request.Request(v["url"],headers={"User-Agent":"AIVAULT-video-center/1.0 (https://github.com/m9wmtcb782-arch/AIVAULT; m9wmtcb782@privaterelay.appleid.com)"})
@@ -43,7 +47,7 @@ if "B" in VAR:
         print("SMOLVLM_PER_FRAME_S",round(sum(ms)/len(ms),2),"frames",len(ms),"total_s",round(sum(ms),1))
     ctx["B_smolvlm_dense_qwen3b"]="\n".join(lines); del vmod
     rest("aivault_video_learning",{"asset_id":aid,"kind":"note","payload":{"captions":lines,"per_frame_s":round(sum(ms)/len(ms),2)},"model":vm},"POST","return=minimal")
-lm_id="Qwen/Qwen2.5-3B-Instruct"; t0=time.time(); tok=AutoTokenizer.from_pretrained(lm_id); lm=AutoModelForCausalLM.from_pretrained(lm_id,torch_dtype=torch.bfloat16).eval(); print("QWEN3B_LOAD_S",round(time.time()-t0,1))
+lm_id="Qwen/Qwen2.5-3B-Instruct"; t0=time.time(); tok=AutoTokenizer.from_pretrained(lm_id); lm=AutoModelForCausalLM.from_pretrained(lm_id,torch_dtype=getattr(torch,os.environ.get("QWEN_DTYPE","float32"))).eval(); print("QWEN3B_LOAD_S",round(time.time()-t0,1))
 SYS=("You answer questions about a 120-second cartoon using ONLY the timestamped frame descriptions. Each line starts with [seconds]. "
      "For 'when does X first appear' give the EARLIEST timestamp whose description matches X. Descriptions may misname animals; pick the most plausible match. "
      "Never answer 不知道 if any line is plausibly relevant. Reply in one line exactly: 答案：<short answer>｜秒數：<integer>")
@@ -55,6 +59,6 @@ for name,c in ctx.items():
         ans=tok.decode(o[0][ids.shape[1]:],skip_special_tokens=True).strip().replace("\n"," ")
         m=re.search(r"秒數[:：]\s*(\d+)",ans); t=int(m.group(1)) if m else None; ap=ans.split("秒數")[0].lower()
         cok=any(k.lower() in ap for k in q["kw"]) and "不知道" not in ap; tok_=t is not None and abs(t-q["t"])<=3
-        co+=cok; to+=tok_; ok+=cok and tok_; rows.append({"q":q["q"],"expected_t":q["t"],"answer":ans,"content_ok":cok,"time_ok":tok_}); print(name,"|",q["t"],"|",ans,"|",cok,tok_)
+        co+=cok; to+=tok_; ok+=cok and tok_; rows.append({"q":q["q"],"expected_t":q["t"],"answer":ans,"content_ok":cok,"time_ok":tok_}); print(name,"%.0fs"%(time.time()-t1),"|",q["t"],"|",ans,"|",cok,tok_)
     print("SCORE",name,"both",ok,"content",co,"time",to,"/10  qa_total_s",round(time.time()-t1,1))
     rest("aivault_video_learning",{"asset_id":aid,"kind":"qa_eval","payload":{"mode":name,"both_correct":ok,"content_correct":co,"timecode_within_3s":to,"rows":rows,"runner":"github-actions cpu"},"score":ok,"model":lm_id},"POST","return=minimal")
