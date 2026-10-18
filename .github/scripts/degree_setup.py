@@ -282,6 +282,7 @@ if "memmig" in STEPS:
 if "ancnmig" in STEPS:
     sql(open("supabase/migrations/20261018130000_aivault_ancn.sql").read()); print("ANCNMIG", sql("select neuron_state,count(*) from public.aivault_ancn_neurons group by 1"), sql("select count(*) skills from public.aivault_ancn_skills"))
 if "ancnload" in STEPS:  # an1：合成負載測試（不呼叫模型、不建立真代理）。臨時 schema，測完刪除。模擬 ≠ 真實推理。
+    for x in sql("select nspname from pg_namespace where nspname like 'ancn_load%'"): sql("drop schema %s cascade"%x["nspname"])
     for N in [1000,10000,100000]:
         db=sql("select pg_database_size(current_database())/1048576 mb")[0]["mb"]
         if db>330: print("LOAD skip N=%d db=%sMB (free tier guard)"%(N,db)); continue
@@ -312,7 +313,7 @@ if "ancnload" in STEPS:  # an1：合成負載測試（不呼叫模型、不建�
         qp=sql("""with t as (select clock_timestamp() t0), r as (select target, weight from %(S)s.edges where source=%(X)d and relation='help' order by weight desc limit 3) select (select count(*) from r) n, extract(epoch from clock_timestamp()-(select t0 from t))*1000 ms"""%{"S":S,"X":N//2})[0]
         qi=sql("""with t as (select clock_timestamp() t0), r as (select count(*) c from %(S)s.deliv where agent=%(X)d and status='queued') select (select c from r) n, extract(epoch from clock_timestamp()-(select t0 from t))*1000 ms"""%{"S":S,"X":N//3})[0]
         sz=sql("select sum(pg_total_relation_size(c.oid))/1048576.0 mb from pg_class c join pg_namespace n on n.oid=c.relnamespace where nspname='%s' and c.relkind in ('r','m')"%S)[0]["mb"]
-        def rate(x): return round(x["n"]/max(x["ms"],0.001)*1000)
-        print("LOAD N=%d nodes=%d(%d/s) edges=%d(%d/s) deliveries=%d(%d/s) kb=%d(%d/s) lease2000=%dms(%d/s) fts_top5=%.2fms pick_top3=%.2fms inbox_count=%.2fms storage=%.1fMB db_before=%sMB"%(N,t["n"],rate(t),te["n"],rate(te),tm["n"],rate(tm),tk["n"],rate(tk),tl["ms"],rate(tl),qk["ms"],qp["ms"],qi["ms"],sz,db))
+        def rate(x): return round(float(x["n"])/max(float(x["ms"]),0.001)*1000)
+        print("LOAD N=%d nodes=%d(%d/s) edges=%d(%d/s) deliveries=%d(%d/s) kb=%d(%d/s) lease2000=%dms(%d/s) fts_top5=%.2fms pick_top3=%.2fms inbox_count=%.2fms storage=%.1fMB db_before=%sMB"%(N,t["n"],rate(t),te["n"],rate(te),tm["n"],rate(tm),tk["n"],rate(tk),float(tl["ms"]),rate(tl),float(qk["ms"]),float(qp["ms"]),float(qi["ms"]),float(sz),db))
         sql("drop schema %s cascade"%S)
     print("LOAD cleanup ok; db now", sql("select pg_database_size(current_database())/1048576 mb")[0]["mb"],"MB; schemas left:", sql("select nspname from pg_namespace where nspname like 'ancn_load%'"))
