@@ -3,12 +3,16 @@
 // Search API contract checked against published documentation; live authentication is NOT verified.
 import type { AuthorizedSearchAdapter, SearchHit } from "./free_discovery_worker.ts";
 
+export type TinyFishQuotaLease = (provider: "tinyfish_search") => Promise<boolean>;
+
 export type TinyFishAdapterConfig = {
   enabled: boolean;
   apiKey: string | undefined;
   endpoint: string;
   maxRequestsPerMinute: number;
   termsApproved: boolean;
+  // Must be a database-atomic, account-wide quota lease. No lease = no request.
+  acquireQuotaLease: TinyFishQuotaLease;
 };
 const ALLOWED_HOST = "api.search.tinyfish.ai";
 // TinyFish Search: GET /?query=...&location=... ; X-API-Key authentication.
@@ -28,14 +32,19 @@ export function createTinyFishSearchAdapter(
       config.maxRequestsPerMinute < 1 || config.maxRequestsPerMinute > 5) {
     throw new Error("TINYFISH_RATE_LIMIT_INVALID");
   }
-  // The enclosing worker must enforce a distributed, account-wide quota.
-  // A per-instance limiter would not protect 2,000 workers sharing one key.
+  if (typeof config.acquireQuotaLease !== "function") {
+    throw new Error("TINYFISH_GLOBAL_QUOTA_REQUIRED");
+  }
+  // Fail closed: all workers must acquire one shared atomic quota lease.
   return {
     async search(query: string, region: string, maxResults: number): Promise<SearchHit[]> {
       if (query.length < 5 || query.length > 300 ||
           !/^[a-zA-Z-]{2,20}$/.test(region) ||
           !Number.isSafeInteger(maxResults) || maxResults < 1 || maxResults > 10) {
         throw new Error("INVALID_SEARCH_REQUEST");
+      }
+      if (!(await config.acquireQuotaLease("tinyfish_search"))) {
+        throw new Error("TINYFISH_QUOTA_EXHAUSTED");
       }
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 8000);
