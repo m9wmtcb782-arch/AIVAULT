@@ -229,9 +229,29 @@
     if (!host) return;
     if (d.getElementById("dsStudyBooks")) return;
     var box = d.createElement("div"); box.id = "dsStudyBooks"; box.style.cssText = "margin-top:10px;font-size:13px;border-top:1px solid #eee;padding-top:8px";
-    box.innerHTML = "<b>📚 暗星學習書籍</b><div style=\"font-size:11px;color:#777;margin:4px 0\">含私人書。勾選後會重讀並顯示進度。</div><div id=\"dsStudyOverall\" style=\"margin:6px 0 8px\"><div style=\"height:8px;background:#eee;border-radius:6px;overflow:hidden\"><i data-fill style=\"display:block;height:100%;width:0;background:linear-gradient(90deg,#3b82f6,#10b981)\"></i></div><div data-lab style=\"margin-top:4px;font-size:12px;opacity:.85\">整體學習進度 —</div></div><div data-list style=\"max-height:240px;overflow:auto;margin-top:4px\">載入中…</div>";
+    box.innerHTML = "<div style=\"display:flex;align-items:center;gap:6px\"><b style=\"flex:1\">📚 暗星學習書籍</b><button type=\"button\" id=\"dsStudyRefresh\" title=\"重新檢查未閱讀\" aria-label=\"重新檢查未閱讀\" style=\"border:0;background:#f3f3f3;border-radius:8px;width:28px;height:28px;font-size:15px;line-height:1\">↻</button></div><div style=\"font-size:11px;color:#777;margin:4px 0\">含私人書。勾選後會重讀並顯示進度。</div><div id=\"dsStudyOverall\" style=\"margin:6px 0 8px\"><div style=\"height:8px;background:#eee;border-radius:6px;overflow:hidden\"><i data-fill style=\"display:block;height:100%;width:0;background:linear-gradient(90deg,#3b82f6,#10b981)\"></i></div><div data-lab style=\"margin-top:4px;font-size:12px;opacity:.85\">整體學習進度 —</div></div><div data-list style=\"max-height:240px;overflow:auto;margin-top:4px\">載入中…</div>";
     host.appendChild(box);
     var list = box.querySelector("[data-list]");
+    var refreshBtn = box.querySelector("#dsStudyRefresh");
+    function refreshStudy() {
+      if (refreshBtn) { refreshBtn.disabled = true; refreshBtn.textContent = "…"; }
+      try { if (w.AIVAULTBookQA && w.AIVAULTBookQA.reset) w.AIVAULTBookQA.reset(); } catch (e) {}
+      chunks = null;
+      loadServerIds(true).then(function () { return get(true); }).then(function () {
+        indexing = false;
+        kickIndex();
+        paintAllProgress();
+        var unread = [];
+        if (cache && cache.enabled) Object.keys(cache.enabled).forEach(function (id) {
+          var p = progressOf(id);
+          if (!p || !p.total || p.pct < 100) unread.push(id);
+        });
+        if (refreshBtn) refreshBtn.title = unread.length ? ("未讀完 " + unread.length + " 本") : "全部已讀";
+      }).catch(function () {}).then(function () {
+        if (refreshBtn) { refreshBtn.disabled = false; refreshBtn.textContent = "↻"; }
+      });
+    }
+    if (refreshBtn) refreshBtn.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); refreshStudy(); });
     token(false).then(function (tok) {
       return Promise.all([get(true), fetch(INGEST, { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + (tok || ANON) }, body: JSON.stringify({ action: "list", limit: 100 }) }).then(function (r) { return r.json(); })]);
     }).then(function (res) {
