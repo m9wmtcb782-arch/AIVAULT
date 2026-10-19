@@ -2,6 +2,7 @@
 // Must only run server-side, after owner approves TinyFish terms and creates one key.
 // Search API contract checked against published documentation; live authentication is NOT verified.
 import type { AuthorizedSearchAdapter, SearchHit } from "./free_discovery_worker.ts";
+import { createTinyFishQuotaLease } from "./tinyfish_quota_lease.ts";
 
 export type TinyFishQuotaLease = (provider: "tinyfish_search") => Promise<boolean>;
 
@@ -16,6 +17,19 @@ export type TinyFishAdapterConfig = {
 };
 const ALLOWED_HOST = "api.search.tinyfish.ai";
 // TinyFish Search: GET /?query=...&location=... ; X-API-Key authentication.
+// Server-side construction: quota lease is acquired through Supabase before every search.
+export function createTinyFishServerAdapter(
+  config: Omit<TinyFishAdapterConfig, "acquireQuotaLease">,
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  fetcher: typeof fetch = fetch,
+): AuthorizedSearchAdapter {
+  return createTinyFishSearchAdapter({
+    ...config,
+    acquireQuotaLease: createTinyFishQuotaLease(supabaseUrl, serviceRoleKey, fetcher),
+  }, fetcher);
+}
+
 export function createTinyFishSearchAdapter(
   config: TinyFishAdapterConfig,
   fetcher: typeof fetch = fetch,
