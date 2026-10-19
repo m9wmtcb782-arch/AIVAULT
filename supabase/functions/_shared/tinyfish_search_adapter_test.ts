@@ -206,3 +206,22 @@ Deno.test("multibyte response over byte cap is rejected", async () => {
   }
   if (!rejected) throw Error("UTF-8 response byte cap bypassed");
 });
+
+Deno.test("oversized streamed response is rejected before all chunks arrive", async () => {
+  let chunksSent = 0;
+  const body = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      chunksSent++;
+      controller.enqueue(new Uint8Array(140000));
+      if (chunksSent >= 5) controller.close();
+    },
+  });
+  const adapter = createTinyFishSearchAdapter({
+    ...base, acquireQuotaLease: async () => true,
+  }, async () => new Response(body, { status: 200 }));
+  let rejected = false;
+  try { await adapter.search("free inference API", "tw", 2); } catch (e) {
+    rejected = String(e).includes("SEARCH_RESPONSE_TOO_LARGE");
+  }
+  if (!rejected || chunksSent >= 5) throw Error("streaming byte limit failed");
+});
