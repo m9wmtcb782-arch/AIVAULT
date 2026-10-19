@@ -76,7 +76,10 @@ function validateCard(card, s, getReviewedDigest) {
 function applyCard(card, s, query, getReviewedDigest) {
   // Do not inspect or return private raw text until authorization is established.
   if (!query || query.allowed !== true) return { status: 'BLOCKED', reasons: ['BOOK_NOT_AUTHORIZED'] };
-  const reasons = validateCard(card, s, getReviewedDigest);
+  let reasons;
+  try { reasons = validateCard(card, s, getReviewedDigest); } catch { return { status: 'BLOCKED', reasons: ['INVALID_SOURCE_OR_CARD'] }; }
+  if (reasons.length) return { status: 'BLOCKED', reasons };
+  if ([s.meta.jurisdiction, s.meta.asOf, card.scope].some(v => typeof v !== 'string' || !v.trim() || /未核對|未核对|待核對|待核对|未標示|未标示|unknown|unresolved/iu.test(v))) reasons.push('UNRESOLVED_SOURCE_SCOPE');
   if (query.jurisdiction !== s.meta.jurisdiction || query.asOf !== s.meta.asOf || query.scope !== card.scope) reasons.push('SCOPE_MISMATCH');
   if (!query.facts || typeof query.facts !== 'object' || Array.isArray(query.facts)) reasons.push('FACTS_REQUIRED');
   if (reasons.length) return { status: 'BLOCKED', reasons };
