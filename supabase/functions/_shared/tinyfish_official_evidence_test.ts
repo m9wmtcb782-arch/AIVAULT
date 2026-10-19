@@ -28,3 +28,12 @@ Deno.test("unapproved domain rejected before network request", async () => {
  await assert.rejects(() => collectOfficialEvidence("https://example.org/docs", fake));
  assert.equal(calls, 0);
 });
+
+Deno.test("reject redirected official page response", async () => {
+ const fake = (async () => {
+  const response = new Response("<title>Moved</title>", {headers: {"content-type":"text/html"}});
+  Object.defineProperty(response, "redirected", {value: true});
+  return response;
+ }) as typeof fetch;
+ await assert.rejects(() => collectOfficialEvidence("https://openrouter.ai/docs", fake), /DESTINATION_MISMATCH/);
+});
