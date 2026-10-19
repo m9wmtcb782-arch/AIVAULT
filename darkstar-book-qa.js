@@ -446,7 +446,7 @@
     if (!bookAsk) {
       try {
         var srcs = (locks.order || []).filter(function (id) { return id !== "ebook" && locks[id]; });
-        if (!(locks.order || []).some(function (id) { return locks[id]; })) srcs = ["google"]; // 全部來源未勾選時預設 Google
+        if (!["ebook", "baidu", "google", "yahoo", "youtube"].some(function (id) { return locks[id] === true; })) srcs = ["google"]; // 僅全部未勾選才使用預設
         var site = { baidu: "site:baidu.com ", google: "", yahoo: "site:yahoo.com ", youtube: "site:youtube.com " };
         var name = { baidu: "百度", google: "Google", yahoo: "Yahoo", youtube: "YouTube" };
         var blocks = [];
