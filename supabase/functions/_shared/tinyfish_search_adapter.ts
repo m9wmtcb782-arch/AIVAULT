@@ -34,7 +34,7 @@ export function createTinyFishSearchAdapter(
   config: TinyFishAdapterConfig,
   fetcher: typeof fetch = fetch,
 ): AuthorizedSearchAdapter {
-  const endpoint = new URL(config.endpoint);
+  let endpoint: URL;\n  try { endpoint = new URL(config.endpoint); }\n  catch { throw new Error("TINYFISH_ENDPOINT_NOT_ALLOWED"); }
   if (endpoint.protocol !== "https:" || endpoint.hostname !== ALLOWED_HOST ||
       endpoint.username || endpoint.password || endpoint.search || endpoint.hash || endpoint.pathname !== "/") {
     throw new Error("TINYFISH_ENDPOINT_NOT_ALLOWED");
@@ -52,7 +52,7 @@ export function createTinyFishSearchAdapter(
   // Fail closed: all workers must acquire one shared atomic quota lease.
   return {
     async search(query: string, region: string, maxResults: number): Promise<SearchHit[]> {
-      if (query.length < 5 || query.length > 300 ||
+      if (typeof query !== "string" || typeof region !== "string" ||\n          query.length < 5 || query.length > 300 ||
           !/^[a-zA-Z-]{2,20}$/.test(region) ||
           !Number.isSafeInteger(maxResults) || maxResults < 1 || maxResults > 10) {
         throw new Error("INVALID_SEARCH_REQUEST");
