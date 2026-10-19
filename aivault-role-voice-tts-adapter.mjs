@@ -27,14 +27,29 @@ export function buildSynthesisRequest(dialogue) {
   const clean = validateDialogue(dialogue);
   return { schema_version: 1, model: "Qwen3-TTS", ...clean };
 }
-export function validateAudioResult(result) {
-  if (!result || result.status !== "READY" || !result.audio_blob ||
-      !(result.audio_blob instanceof Blob) ||
-      !result.audio_blob.type.startsWith("audio/") ||
-      result.audio_blob.size === 0) {
-    throw new Error("AUDIO_NOT_VERIFIED");
+/* Inspect actual container bytes: MIME labels alone are not proof of audio. */
+export async function validateAudioResult(result) {
+  const blob = result?.audio_blob;
+  if (result?.status !== "READY" || !(blob instanceof Blob) || blob.size < 16 ||
+      blob.size > 25 * 1024 * 1024) throw new Error("AUDIO_NOT_VERIFIED");
+  const mime = blob.type.toLowerCase().split(";")[0];
+  if (!["audio/wav","audio/x-wav","audio/wave","audio/mpeg","audio/mp3","audio/ogg","audio/webm","audio/mp4","audio/x-m4a"].includes(mime)) {
+    throw new Error("UNSUPPORTED_AUDIO_FORMAT");
   }
-  return result.audio_blob;
+  const h = new Uint8Array(await blob.slice(0, 16).arrayBuffer());
+  const ascii = (from, to) => String.fromCharCode(...h.slice(from, to));
+  const wav = ascii(0, 4) === "RIFF" && ascii(8, 12) === "WAVE";
+  const mp3 = ascii(0, 3) === "ID3" || (h[0] === 255 && (h[1] & 224) === 224);
+  const ogg = ascii(0, 4) === "OggS";
+  const webm = h[0] === 0x1a && h[1] === 0x45 && h[2] === 0xdf && h[3] === 0xa3;
+  const mp4 = ascii(4, 8) === "ftyp";
+  const valid = (mime.includes("wav") && wav) ||
+    ((mime === "audio/mpeg" || mime === "audio/mp3") && mp3) ||
+    (mime === "audio/ogg" && ogg) ||
+    (mime === "audio/webm" && webm) ||
+    ((mime === "audio/mp4" || mime === "audio/x-m4a") && mp4);
+  if (!valid) throw new Error("AUDIO_HEADER_MISMATCH");
+  return blob;
 }
 export async function synthesizeWithWorker(dialogue, worker) {
   if (typeof worker !== "function") throw new Error("TTS_WORKER_NOT_CONNECTED");
