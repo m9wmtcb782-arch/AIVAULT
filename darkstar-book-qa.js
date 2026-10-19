@@ -567,7 +567,8 @@
       return "【指定章節實際取得片段】\\n" + section.text + "\\n僅能引用實際取得的片段，不代表全章已讀完。" + BOOK_ANSWER_RULE;
     }
     var terms = q.match(/比例原[則则]|合理[性]?原[則则]|行政裁量|必要性|妥當性|妥当性|法益相稱性|法益相称性|行政處罰|行政处罚|法律保留|依法行政/g) || [];
-    var hits = search(terms.length ? terms.join(" ") : q.replace(/《[^》]+》/g, " ").slice(0, 140), pool);
+    var hits = search(q.replace(/《[^》]+》/g, " ").slice(0, 180), pool);
+    if (!hits.length && terms.length) hits = search(terms.join(" "), pool);
     if (!hits.length) return "【電子書檢索狀態】未取得" + (selected ? "《" + selected.title + "》" : "書架") + "可引用的正文，請確認學習權限或檢索服務。";
     return "【AIVAULT 電子書實際檢索結果】\n" + hits.slice(0, 4).map(function (h) { return "《" + h.title + "》PDF第" + h.page + "頁：" + h.text.slice(0, 950); }).join("\n") + "\n只能引用以上實際取得的文字，不得編造原文。" + BOOK_ANSWER_RULE;
   }
