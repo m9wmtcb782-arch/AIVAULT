@@ -14,7 +14,7 @@ export function isApprovedOfficialUrl(raw: string): boolean {
  try {
   const u = new URL(raw);
   return u.protocol === "https:" && !u.username && !u.password && !u.port &&
-    approvedHosts.has(u.hostname.toLowerCase()) && !u.hash;
+    approvedHosts.has(u.hostname.toLowerCase()) && !u.hash && u.pathname.length <= 512 && u.search.length <= 512;
  } catch { return false; }
 }
 export async function collectOfficialEvidence(
