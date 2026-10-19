@@ -3351,8 +3351,15 @@ function gatewayToOpenAIMessages(
   // Reserve space for the actual latest question. Earlier implementation
   // could send only the tail of an oversized user message.
   const latest = conversation[conversation.length - 1];
-  const latestBudget = Math.min(conversationBudget, 1000);
-  const latestContent = latest ? latest.content.slice(0, latestBudget) : "";
+  const latestBudget = Math.min(conversationBudget, 1350);
+  // Dark Star appends retrieved book evidence after the question. Keeping
+  // only the beginning silently discarded that evidence on Groq failover.
+  // Preserve the question and a bounded tail containing cited book context.
+  const latestContent = !latest ? "" : latest.content.length <= latestBudget
+    ? latest.content
+    : latest.content.slice(0, Math.min(750, latestBudget)) +
+      "\\n【中間內容因模型窗口限制省略；以下為檢索資料尾段】\\n" +
+      latest.content.slice(-(latestBudget - Math.min(750, latestBudget) - 34));
   const historyBudget = Math.max(0, conversationBudget - latestContent.length);
 
   // Deterministic, zero-provider-call retrieval from canonical history:
@@ -3367,7 +3374,7 @@ function gatewayToOpenAIMessages(
     return { message, index, score };
   }).filter((item) => item.score > 0)
     .sort((a, b) => b.score - a.score || b.index - a.index);
-  const relevantBudget = Math.min(850, Math.floor(historyBudget / 2));
+  const relevantBudget = Math.min(300, Math.floor(historyBudget / 3));
   let relevantUsed = 0;
   const relevant: Array<{role: string; content: string}> = [];
   for (const item of ranked) {
