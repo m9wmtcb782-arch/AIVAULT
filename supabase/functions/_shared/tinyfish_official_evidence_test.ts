@@ -37,3 +37,18 @@ Deno.test("reject redirected official page response", async () => {
  }) as typeof fetch;
  await assert.rejects(() => collectOfficialEvidence("https://openrouter.ai/docs", fake), /DESTINATION_MISMATCH/);
 });
+
+Deno.test("reject evidence whose response URL differs", async () => {
+ const fake = (async () => {
+  const response = new Response("<title>Wrong origin</title>", {headers: {"content-type":"text/html"}});
+  Object.defineProperty(response, "url", {value: "https://other.example/page"});
+  return response;
+ }) as typeof fetch;
+ await assert.rejects(() => collectOfficialEvidence("https://openrouter.ai/docs", fake), /DESTINATION_MISMATCH/);
+});
+Deno.test("overlong official URL rejected before network request", async () => {
+ let calls = 0;
+ const fake = (async () => { calls++; return new Response("ok"); }) as typeof fetch;
+ await assert.rejects(() => collectOfficialEvidence("https://openrouter.ai/docs/" + "a".repeat(600), fake));
+ assert.equal(calls, 0);
+});
