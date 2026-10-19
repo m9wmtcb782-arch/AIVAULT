@@ -4503,6 +4503,20 @@ async function executeLLMGateway(
   let messages =
     memory.messages;
   messages = await cityMemInject(body, messages, memory); memory.messages = messages; // sm2
+  if (darkStarAgent) {
+    const evidenceRules = [
+      "暗星學術推理規則：將自己的推論與外部已核實證據清楚分開。",
+      "提出理論後，須同時尋找支持及反對該理論的證據，不得只選有利資料。",
+      "優先使用教材原文與頁碼、法規判決、正式學術論文、期刊、官方資料。新聞只作事件背景證據。",
+      "引用來源須提供作者、篇名、年份及可核對的頁碼、DOI或網址。未實際查閱的資料標記尚未查證，不得捏造來源。",
+      "沒有外部檢索工具時，明確告知本輪無法查詢最新論文或新聞。",
+      "回答需包含主張、推理、支持證據、反對證據、限制、可信程度。",
+      "兩個模型同意不等於事實正確；缺少獨立證據不可標記為VERIFIED。",
+    ].join("\n");
+    messages = [{ role: "system", content: evidenceRules }, ...messages];
+    memory.messages = messages;
+  }
+
 
   if (
     !Array.isArray(messages) ||
