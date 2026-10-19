@@ -33,8 +33,9 @@ test('an explicit source exception must match the formal rule exception',()=>{
  const e={key:'E',polarity:'positive',text:'有特別規定'};const f=fixture('只要甲類活動，就納入測試範圍，但有特別規定除外。',undefined,undefined,[a,b,e]);f.rule.exceptions=[{fact:'E'}];assert.equal(f.check().status,'DIRECTION_VERIFIED');assert.deepEqual(f.check().applied.exceptions,[{key:'E',polarity:'positive'}]);
 });
 const exceptionTerm={key:'E',polarity:'positive',text:'有特別規定'};
-function runBound(f,factsText){
+function runBound(f,factsText,extraSchemas=[]){
  const card={id:'exception-card',kind:'reviewed_book_case',scope:'book_concept_application',sourceHash:f.snapshot.sourceHash,subjectAliases:['本案活動'],factSchemas:[{key:'A',label:'是否甲類',trueForms:['屬於甲類'],falseForms:['不屬於甲類']},{key:'E',label:'是否有特別規定',trueForms:['有特別規定'],falseForms:['沒有特別規定']}],targetAliases:['測試範圍'],exclusiveGroups:[],ruleBoundaryReviewed:true,review:{method:'extracted_text_comparison',reviewer:'synthetic-fixture',checkedAt:'fixture'},rules:[f.rule]};
+ card.factSchemas.push(...extraSchemas);
  return solve({question:'本案活動是否屬於測試範圍？',factsText},{snapshot:f.snapshot,caseCard:card},{allowedBookIds:['logic-fixture'],getReviewedDigest:()=>digest(card)});
 }
 function unlessFixture(){return fixture('除非有特別規定，否則納入測試範圍。',{not:{fact:'E'}},undefined,[exceptionTerm,b]);}
@@ -58,3 +59,50 @@ test('unless cannot be strengthened into a conclusion negation when its exceptio
  const f=unlessFixture();f.rule.when={fact:'E'};f.rule.conclusion.polarity='negative';f.rule.conclusion.text='本案活動不屬於測試範圍';assert.equal(runBound(f,'本案活動有特別規定。').status,'BLOCKED');
 });
 test('the other type of unless construction is not guessed from matching keywords',()=>assert.throws(()=>fixture('除非有特別規定，才納入測試範圍。',{not:{fact:'E'}},undefined,[exceptionTerm,b]).check(),/OUTSIDE_GRAMMAR/));
+test('a conjunctive source phrase cannot hide inside one atomic binding',()=>{
+ const f=fixture('只要甲類活動且乙類活動，就納入測試範圍。',undefined,undefined,[{...a,text:'甲類活動且乙類活動'},b]);assert.throws(f.check,/INVALID_LOGIC_TERM/);
+});
+test('a bound conjunction must retain both source conditions',()=>{
+ const other={key:'OTHER',polarity:'positive',text:'乙類活動'};const f=fixture('只要甲類活動且乙類活動，就納入測試範圍。',{all:[{fact:'A'},{fact:'OTHER'}]},undefined,[a,other,b]);assert.equal(f.check().status,'DIRECTION_VERIFIED');
+});
+const otherTerm={key:'OTHER',polarity:'positive',text:'乙類活動'};
+const otherSchema={key:'OTHER',label:'是否乙類',trueForms:['屬於乙類'],falseForms:['不屬於乙類']};
+function combined(text,when,exceptions=[]){const f=fixture(text,when,undefined,[a,otherTerm,b,exceptionTerm].filter(t=>text.includes(t.text)));f.rule.exceptions=exceptions;return f;}
+test('conjunction cannot silently become disjunction or lose one requirement',()=>{
+ for(const when of [{fact:'A'},{any:[{fact:'A'},{fact:'OTHER'}]}])assert.throws(()=>combined('只要甲類活動且乙類活動，就納入測試範圍。',when).check(),/DIRECTION_MISMATCH/);
+});
+test('disjunctive premise is matched as a disjunction',()=>{
+ const f=combined('如果甲類活動或者乙類活動，則納入測試範圍。',{any:[{fact:'A'},{fact:'OTHER'}]});assert.equal(f.check().status,'DIRECTION_VERIFIED');
+});
+test('explicit parentheses determine mixed connective grouping',()=>{
+ const f=combined('只要（甲類活動或乙類活動）且有特別規定，就納入測試範圍。',{all:[{any:[{fact:'A'},{fact:'OTHER'}]},{fact:'E'}]});assert.equal(f.check().status,'DIRECTION_VERIFIED');
+});
+test('mixed unparenthesized connectors are not assigned an implicit precedence',()=>assert.throws(()=>combined('只要甲類活動或乙類活動且有特別規定，就納入測試範圍。',{any:[{fact:'A'},{all:[{fact:'OTHER'},{fact:'E'}]}]}).check(),/AMBIGUOUS_SOURCE_PRECEDENCE/));
+test('moving parentheses changes which formalization is accepted',()=>{
+ assert.throws(()=>combined('只要甲類活動或（乙類活動且有特別規定），就納入測試範圍。',{all:[{any:[{fact:'A'},{fact:'OTHER'}]},{fact:'E'}]}).check(),/DIRECTION_MISMATCH/);
+});
+test('condition order may change without changing conjunction meaning',()=>{
+ assert.equal(combined('只要甲類活動且乙類活動，就納入測試範圍。',{all:[{fact:'OTHER'},{fact:'A'}]}).check().status,'DIRECTION_VERIFIED');
+});
+test('a compound source exception must retain its connective',()=>{
+ const f=combined('只要甲類活動，就納入測試範圍，但（乙類活動或有特別規定）除外。',{fact:'A'},[{any:[{fact:'OTHER'},{fact:'E'}]}]);assert.equal(f.check().status,'DIRECTION_VERIFIED');f.rule.exceptions=[{all:[{fact:'OTHER'},{fact:'E'}]}];assert.throws(f.check,/EXCEPTION_MISMATCH/);
+});
+test('unless negates the full compound condition and not just its first term',()=>{
+ const f=combined('除非（甲類活動或乙類活動），否則納入測試範圍。',{not:{any:[{fact:'A'},{fact:'OTHER'}]}});assert.equal(f.check().status,'DIRECTION_VERIFIED');f.rule.when={any:[{not:{fact:'A'}},{fact:'OTHER'}]};assert.throws(f.check,/DIRECTION_MISMATCH/);
+});
+test('excessive nested source parentheses fail within a work limit',()=>assert.throws(()=>combined('只要'+'（'.repeat(8)+'甲類活動'+'）'.repeat(8)+'，就納入測試範圍。',{fact:'A'}).check(),/EXPRESSION_LIMIT/));
+test('end-to-end conjunction requires both facts and does not fill in the second',()=>{
+ const f=combined('只要甲類活動且乙類活動，就納入測試範圍。',{all:[{fact:'A'},{fact:'OTHER'}]});
+ const absent=runBound(f,'本案活動屬於甲類。',[otherSchema]);assert.equal(absent.status,'NEEDS_FACTS');assert.deepEqual(absent.missing,['OTHER']);
+ const complete=runBound(f,'本案活動屬於甲類。本案活動屬於乙類。',[otherSchema]);assert.equal(complete.status,'SUPPORTED_BOOK_CASE');assert.deepEqual(complete.trace.applied.map(p=>p.key),['A','OTHER']);
+});
+test('end-to-end disjunction supports either fact while recording only the decisive branch',()=>{
+ const f=combined('只要甲類活動或乙類活動，就納入測試範圍。',{any:[{fact:'A'},{fact:'OTHER'}]});const r=runBound(f,'本案活動不屬於甲類。本案活動屬於乙類。',[otherSchema]);assert.equal(r.status,'SUPPORTED_BOOK_CASE');assert.deepEqual(r.trace.applied.map(p=>p.key),['OTHER']);
+});
+test('one established member activates a disjunctive source exception',()=>{
+ const f=combined('只要甲類活動，就納入測試範圍，但（乙類活動或有特別規定）除外。',{fact:'A'},[{any:[{fact:'OTHER'},{fact:'E'}]}]);const r=runBound(f,'本案活動屬於甲類。本案活動有特別規定。',[otherSchema]);assert.equal(r.status,'EXCEPTION_APPLIES');assert.equal(r.conclusion,undefined);
+});
+test('unless compound condition remains unknown until the necessary negative facts are explicit',()=>{
+ const f=combined('除非（甲類活動或乙類活動），否則納入測試範圍。',{not:{any:[{fact:'A'},{fact:'OTHER'}]}});const pending=runBound(f,'本案活動不屬於甲類。',[otherSchema]);assert.equal(pending.status,'NEEDS_FACTS');assert.deepEqual(pending.missing,['OTHER']);
+ assert.equal(runBound(f,'本案活動不屬於甲類。本案活動不屬於乙類。',[otherSchema]).status,'SUPPORTED_BOOK_CASE');
+});
