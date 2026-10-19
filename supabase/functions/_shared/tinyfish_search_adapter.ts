@@ -83,9 +83,24 @@ export function createTinyFishSearchAdapter(
         if (!response.ok) throw new Error("SEARCH_HTTP_" + response.status);
         const len = Number(response.headers.get("content-length") || 0);
         if (len > 262144) throw new Error("SEARCH_RESPONSE_TOO_LARGE");
-        const raw = await response.text();
-        if (new TextEncoder().encode(raw).byteLength > 262144) {
-          throw new Error("SEARCH_RESPONSE_TOO_LARGE");
+        // Bound memory even when the server omits or lies about Content-Length.
+        if (!response.body) throw new Error("SEARCH_RESPONSE_UNVERIFIED");
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8", { fatal: true });
+        let totalBytes = 0;
+        let raw = "";
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            totalBytes += value.byteLength;
+            if (totalBytes > 262144) throw new Error("SEARCH_RESPONSE_TOO_LARGE");
+            raw += decoder.decode(value, { stream: true });
+          }
+          raw += decoder.decode();
+        } finally {
+          await reader.cancel().catch(() => {});
+          reader.releaseLock();
         }
         const json: unknown = JSON.parse(raw);
         if (!json || typeof json !== "object" ||
