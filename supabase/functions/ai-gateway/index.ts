@@ -4455,6 +4455,20 @@ async function executeLLMGateway(
       emit,
     );
 
+  // Dark Star must not silently answer without canonical memory when its
+  // conversation store is unavailable; provider/key failover is independent.
+  const darkStarAgent = isRecord(body) &&
+    String(body.agent_id || body.agent || "").trim() === "technical-dark-star";
+  if (darkStarAgent && !memory.enabled) {
+    return json({
+      success: false,
+      error: "DARK_STAR_MEMORY_UNAVAILABLE",
+      message: "暗星的正式對話記憶目前無法讀取，已暫停本輪回答，避免換模型或 API Key 後遺失上下文。請稍後重試。",
+      gateway_version: VERSION,
+      memory: { enabled: false, topic_id: memory.topic_id, reason: memory.reason, error: memory.error || null },
+    }, 503);
+  }
+
   /*
    * If memory failed, use the compatibility-normalized
    * incoming messages.
