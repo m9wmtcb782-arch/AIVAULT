@@ -13,10 +13,12 @@ const mocked = (async (_url: string | URL | Request, init?: RequestInit) => {
 const ok = await runTinyFishJob(valid, config, mocked);
 assert.equal(ok.httpStatus, 200);
 assert.equal(called, 1);
+await runTinyFishJob({...valid, assignedAgentId:"Worker-0200"}, config, mocked);
+assert.equal(called, 2);
 for (const assignedAgentId of ["Worker-0001", "Worker-0100", "Worker-0201", "dark-star"]) {
   await assert.rejects(() => runTinyFishJob({ ...valid, assignedAgentId }, config, mocked), /RUNNER_JOB_DENIED/);
 }
-assert.equal(called, 1);
+assert.equal(called, 2);
 await assert.rejects(() => runTinyFishJob(valid, { ...config, runnerSecret: "" }, mocked), /RUNNER_NOT_CONFIGURED/);
-assert.equal(called, 1);
+assert.equal(called, 2);
 console.log("TinyFish runner offline tests PASS");
