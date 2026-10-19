@@ -1,6 +1,7 @@
 // GitHub Actions only. One explicitly approved TinyFish discovery job per dispatch.
 import { runTinyFishJob, type DiscoveryJob } from "../supabase/functions/_shared/tinyfish_trusted_runner.ts";
 import { triageCandidates, type Candidate } from "../supabase/functions/_shared/tinyfish_resource_triage.ts";
+import { evaluateResourceEvidence, type Evidence } from "../supabase/functions/_shared/tinyfish_resource_evidence.ts";
 const required = (name: string): string => {
   const value = Deno.env.get(name) ?? "";
   if (!value) throw Error("MISSING_" + name);
@@ -36,9 +37,19 @@ const triaged = triageCandidates(candidates as Candidate[]);
 const triageCounts = { officialDocs: triaged.filter(x => x.classification === "OFFICIAL_DOCS").length,
   thirdPartyLeads: triaged.filter(x => x.classification === "THIRD_PARTY_LEAD").length,
   rejected: triaged.filter(x => x.classification === "REJECTED").length };
-console.log(JSON.stringify({ triageCounts, verifiedFreeCapacity: false }));
+const reviews = triaged.map(hit => ({
+  sourceUrl: hit.url,
+  classification: hit.classification,
+  decision: evaluateResourceEvidence({
+    provider: "", officialDocsUrl: hit.classification === "OFFICIAL_DOCS" ? hit.url : "",
+    termsUrl: "", pricingUrl: "", freeTierExplicit: false,
+    allowedForAutomatedUse: null, quotaRequestsPerDay: null,
+    requiresPaymentMethod: null, checkedAt: "", authenticatedAvailabilityTest: false,
+  } satisfies Evidence),
+}));
+console.log(JSON.stringify({ triageCounts, reviewRequired: reviews.length, verifiedFreeCapacity: false }));
 await Deno.mkdir("tinyfish-evidence", { recursive: true });
 await Deno.writeTextFile("tinyfish-evidence/search.json", JSON.stringify({
   jobId: outcome.jobId, agentId: job.assignedAgentId, region: job.region,
-  status: data.status, verifiedFreeCapacity: false, candidates, triage: triaged, triageCounts,
+  status: data.status, verifiedFreeCapacity: false, candidates, triage: triaged, triageCounts, reviews,
 }, null, 2));
