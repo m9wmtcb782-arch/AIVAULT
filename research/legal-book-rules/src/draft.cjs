@@ -1,4 +1,5 @@
 'use strict';
+const { inspectSpans } = require('./source-language.cjs');
 const { scan } = require('./engine.cjs');
 const { source } = require('./argument.cjs');
 const { classifyPage } = require('./section.cjs');
@@ -51,8 +52,11 @@ function draftCards(acquired) {
     // Adjacency is context only, never a supports/opposes relation.
     const ctxStart = Math.max(0, units[Math.max(0, units.indexOf(u) - 1)].start);
     const ctxEnd = units[Math.min(units.length - 1, units.indexOf(u) + 1)].end;
+    let sourceLanguage;
+    try{sourceLanguage=inspectSpans([...evidence,...evidenceFor(ctxStart,ctxEnd)],s);}catch{return{status:'NEEDS_SMALLER_WINDOW',drafts:[],reasons:['SOURCE_LANGUAGE_LIMIT']};}
+    if(sourceLanguage.requiresReview)roles.push('author_stance_needs_review');
     drafts.push({ id: 'draft-' + s.sourceHash.slice(0, 12) + '-' + u.start, status: 'UNREVIEWED', sourceHash: s.sourceHash,
-      raw, roles: roles.length ? roles : ['unclassified'], flags: a.flags, errors: a.errors, evidence,
+      raw, sourceLanguage, roles: roles.length ? roles : ['unclassified'], flags: a.flags, errors: a.errors, evidence,
       adjacentContext: evidenceFor(ctxStart, ctxEnd), crossesPageBoundary: evidence.length > 1,
       speaker: null, stance: null, when: null, exceptions: null, conclusion: null,
       contextComplete: false, textVerified: false, eligibleAsConclusion: false });

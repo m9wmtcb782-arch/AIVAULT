@@ -1,6 +1,7 @@
 'use strict';
 const { source, digest, takeSpan, evaluate } = require('./argument.cjs');
 const { derive, missingLeaves, witness, dependencies } = require('./proof.cjs');
+const { checkRuleLanguage } = require('./source-language.cjs');
 const { scan } = require('./engine.cjs');
 const { classifyPage } = require('./section.cjs');
 const { narrativeClauses, createResolver } = require('./narrative.cjs');
@@ -41,6 +42,7 @@ function validateRule(rule,snapshot){
       const original=takeSpan(snapshot,rule.evidence);const a=scan(original);if(a.errors.length||a.flags.includes('question'))throw Error('INVALID_EVIDENCE');
       const page=snapshot.pages.find(p=>p.pdfPage===rule.evidence.pdfPage);if(['FRONT_MATTER','TABLE_OF_CONTENTS'].includes(classifyPage(page.text).role))throw Error('NON_BODY_RULE');
       if(!Array.isArray(rule.context)||!rule.context.length||rule.context.length>32||!rule.context.some(e=>e.pdfPage===rule.evidence.pdfPage&&e.start<=rule.evidence.start&&e.end>=rule.evidence.end))throw Error('INCOMPLETE_CONTEXT');rule.context.forEach(e=>takeSpan(snapshot,e));
+      checkRuleLanguage(rule,snapshot);
       return original;
 }
 function validateProgram(card,snapshot){
@@ -147,7 +149,7 @@ function answerBookCase(input,card,snapshot,{allowedBookIds,getReviewedDigest}={
     const applied=[...usedKeys].flatMap(k=>(facts.provenance[k]||[]).map(p=>({key:k,...p})));
     const nonDecisiveFacts=Object.keys(facts.provenance).filter(k=>!usedKeys.has(k)).flatMap(k=>facts.provenance[k]);
     return{status:'SUPPORTED_BOOK_CASE',text:'依本書的概念界定，'+chosen.rule.conclusion.text+'。\n\n'+(chosen.rule.explanation?'理由：'+chosen.rule.explanation+'\n\n':'')+'書中原文：\n'+chosen.original+(proofText?'\n\n中間推導：\n'+proofText:'')+(checkedText?'\n\n'+checkedText:'')+'\n\n題目對照：\n'+applied.map(p=>p.text).join('\n')+'\n\n'+(proofRules.length?'上述題目事實經列示規則推導後，符合結論規則的條件；此結論限於題目給定前提。':'上述明示事實符合這項書中規則的條件；此結論限於題目給定前提。')+(nonDecisiveFacts.length?'\n題目中的「'+nonDecisiveFacts.map(p=>p.text).join('；')+'」未單獨作為本次推導的充分條件。':''),
-      conclusion:chosen.rule.conclusion,facts,trace:{targetKey,targetAssessments:assessments,checkedRuleIds:checkedRules.map(r=>r.id),proof:usedProof,excludedCompetingRules,ruleId:chosen.rule.id,sourceHash:snapshot.sourceHash,premise:chosen.premise,exceptions:chosen.exceptions,applied},
+      conclusion:chosen.rule.conclusion,facts,trace:{sourceLanguageChecks:[chosen.rule,...proofRules,...checkedRules].map(r=>({ruleId:r.id,...checkRuleLanguage(r,snapshot)})),targetKey,targetAssessments:assessments,checkedRuleIds:checkedRules.map(r=>r.id),proof:usedProof,excludedCompetingRules,ruleId:chosen.rule.id,sourceHash:snapshot.sourceHash,premise:chosen.premise,exceptions:chosen.exceptions,applied},
       citation:{title:snapshot.meta.title,edition:snapshot.meta.edition,pdfPage:chosen.rule.evidence.pdfPage,pdfPages:[...new Set([...chosen.rule.context,...[...proofRules,...checkedRules].flatMap(r=>r.context)].map(e=>e.pdfPage))]},nonDecisiveFacts,
       limitation:'此為書中概念規則對明示假設事實的適用，不是活動性質的獨立法律認定，也不是現行法或個案合法性判斷。',modelCalls:0};
   }catch{return{status:'BLOCKED',reasons:['INVALID_SOURCE_OR_CASE_RULE']};}
