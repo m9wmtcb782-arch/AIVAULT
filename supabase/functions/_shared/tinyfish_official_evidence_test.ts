@@ -54,6 +54,6 @@ Deno.test("overlong official URL rejected before network request", async () => {
 });
 
 Deno.test("missing content type is not accepted as evidence", async () => {
- const fake = (async () => new Response("ok", {status: 200})) as typeof fetch;
+ const fake = (async () => new Response(null, {status: 200})) as typeof fetch;
  await assert.rejects(() => collectOfficialEvidence("https://openrouter.ai/docs", fake), /UNAVAILABLE/);
 });
