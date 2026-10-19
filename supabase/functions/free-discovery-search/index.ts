@@ -31,15 +31,41 @@ Deno.serve(async (req) => {
       env("AIVAULT_TINYFISH_TERMS_APPROVED") !== "true") {
     return json({ error: "DISCOVERY_DISABLED" }, 503);
   }
-  const length = Number(req.headers.get("content-length") || 0);
-  if (length > 8192) return json({ error: "REQUEST_TOO_LARGE" }, 413);
+  // Never buffer unbounded caller input, even without Content-Length.
+  const lengthHeader = req.headers.get("content-length");
+  if (lengthHeader !== null && (!/^\\d+$/.test(lengthHeader) || Number(lengthHeader) > 8192)) {
+    return json({ error: "REQUEST_TOO_LARGE" }, 413);
+  }
+  if (!req.body) return json({ error: "INVALID_JSON" }, 400);
   let job: SearchJob;
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
   try {
-    const raw = await req.text();
-    if (new TextEncoder().encode(raw).byteLength > 8192) return json({ error: "REQUEST_TOO_LARGE" }, 413);
-    job = JSON.parse(raw);
-    if (!job || typeof job !== "object" || Array.isArray(job)) throw Error("bad job");
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > 8192) return json({ error: "REQUEST_TOO_LARGE" }, 413);
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    const parsed: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw Error("bad job");
+    const value = parsed as Record<string, unknown>;
+    if (typeof value.id !== "string" || typeof value.query !== "string" ||
+        typeof value.region !== "string" || typeof value.assignedAgentId !== "string") {
+      throw Error("invalid fields");
+    }
+    job = { id: value.id, query: value.query, region: value.region,
+      assignedAgentId: value.assignedAgentId };
   } catch { return json({ error: "INVALID_JSON" }, 400); }
+  finally {
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
   const approvedAgentIds = new Set(env("AIVAULT_DISCOVERY_APPROVED_AGENT_IDS").split(",").map(x => x.trim()).filter(Boolean));
   const approvedRegions = new Set(env("AIVAULT_DISCOVERY_APPROVED_REGIONS").split(",").map(x => x.trim()).filter(Boolean));
   try {
