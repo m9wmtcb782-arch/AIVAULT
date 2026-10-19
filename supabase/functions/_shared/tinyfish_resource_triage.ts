@@ -11,7 +11,7 @@ export type Triage = Candidate & {
 const officialHosts = new Set([
   "openrouter.ai", "huggingface.co", "console.groq.com", "groq.com",
   "ai.google.dev", "developers.google.com", "cloudflare.com", "developers.cloudflare.com",
-  "docs.github.com", "github.com"
+  "docs.github.com"
 ]);
 const docsPath = /\/(docs?|api|developers?|pricing|models?|limits|inference|reference)(\/|$|[?#-])/i;
 export function triageCandidate(input: Candidate): Triage {
