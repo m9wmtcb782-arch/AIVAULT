@@ -32,7 +32,9 @@ export async function collectOfficialEvidence(
  const kind = response.headers.get("content-type") ?? "";
  if (!response.ok || !/^(text\/html|text\/plain)(;|$)/i.test(kind))
   throw Error("OFFICIAL_PAGE_UNAVAILABLE");
- const declared = Number(response.headers.get("content-length") ?? 0);
+ const lengthHeader = response.headers.get("content-length");
+ const declared = lengthHeader === null ? 0 : Number(lengthHeader);
+ if (!Number.isSafeInteger(declared) || declared < 0) throw Error("OFFICIAL_INVALID_CONTENT_LENGTH");
  if (declared > 65536) throw Error("OFFICIAL_PAGE_TOO_LARGE");
  const reader = response.body?.getReader();
  if (!reader) throw Error("OFFICIAL_PAGE_EMPTY");
