@@ -1,0 +1,52 @@
+name: TinyFish controlled search
+on:
+  workflow_dispatch:
+    inputs:
+      worker:
+        description: "Registered Worker ID"
+        required: true
+        default: "Worker-0101"
+      region:
+        description: "Approved search region"
+        type: choice
+        options: [TW, US, JP]
+        required: true
+      query:
+        description: "Free AI resource discovery query"
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: tinyfish-controlled-search
+  cancel-in-progress: false
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      AIVAULT_SUPABASE_JWT: ${{ secrets.AIVAULT_SUPABASE_JWT }}
+      AIVAULT_DISCOVERY_RUNNER_SECRET: ${{ secrets.AIVAULT_DISCOVERY_RUNNER_SECRET }}
+      JOB_WORKER: ${{ inputs.worker }}
+      JOB_REGION: ${{ inputs.region }}
+      JOB_QUERY: ${{ inputs.query }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/free-token-resource-pool
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Check runner secrets are present
+        run: |
+          test -n "$AIVAULT_SUPABASE_JWT"
+          test ${#AIVAULT_DISCOVERY_RUNNER_SECRET} -ge 32
+      - name: Execute one TinyFish search
+        run: deno run --allow-net=clcddygkaaqqtsbswgdf.supabase.co --allow-env=AIVAULT_SUPABASE_JWT,AIVAULT_DISCOVERY_RUNNER_SECRET,JOB_WORKER,JOB_REGION,JOB_QUERY --allow-write=tinyfish-evidence scripts/tinyfish_manual_runner.ts
+      - name: Save search evidence
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tinyfish-search-evidence
+          path: tinyfish-evidence/search.json
+          retention-days: 7
+          if-no-files-found: error
