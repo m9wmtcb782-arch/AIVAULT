@@ -42,7 +42,7 @@
         return '<label data-src="' + it.id + '" style="display:flex;align-items:center;gap:8px;padding:7px 2px;font-size:15px">' +
           '<input type="checkbox" style="width:18px;height:18px"> ' + it.label +
           '<span class="src-pri" style="margin-left:auto;min-width:18px;text-align:right;font-weight:700"></span></label>';
-      }).join("");
+      }).join("") + '<div id="dsStudyHost"></div>';
     btn.insertAdjacentElement("afterend", box);
     box.addEventListener("touchmove", function (e) { e.stopPropagation(); }, { passive: true });
     btn.addEventListener("click", function (e) {
