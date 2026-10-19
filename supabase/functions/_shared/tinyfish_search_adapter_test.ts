@@ -50,3 +50,31 @@ Deno.test("quota RPC refuses non-true responses", async () => {
     new Response("false", { status: 200, headers: { "Content-Type": "application/json" } }));
   if (await lease("tinyfish_search")) throw Error("false lease accepted");
 });
+
+Deno.test("HTTP 429 does not trigger retry or a second lease", async () => {
+  let leases = 0;
+  let requests = 0;
+  const adapter = createTinyFishSearchAdapter({
+    ...base, acquireQuotaLease: async () => { leases++; return true; },
+  }, async () => {
+    requests++;
+    return new Response("rate limited", { status: 429 });
+  });
+  let rejected = false;
+  try { await adapter.search("free inference API", "tw", 2); } catch (e) {
+    rejected = String(e).includes("SEARCH_HTTP_429");
+  }
+  if (!rejected || leases !== 1 || requests !== 1) throw Error("unexpected retry");
+});
+
+Deno.test("invalid search input consumes no lease", async () => {
+  let leases = 0;
+  const adapter = createTinyFishSearchAdapter({
+    ...base, acquireQuotaLease: async () => { leases++; return true; },
+  }, async () => { throw Error("unexpected network"); });
+  let rejected = false;
+  try { await adapter.search("bad", "tw", 2); } catch (e) {
+    rejected = String(e).includes("INVALID_SEARCH_REQUEST");
+  }
+  if (!rejected || leases !== 0) throw Error("invalid request consumed quota");
+});
