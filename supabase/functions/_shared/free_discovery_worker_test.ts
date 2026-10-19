@@ -56,3 +56,23 @@ Deno.test("search adapter errors do not expose credentials", async () => {
     throw Error("unsafe error response");
   }
 });
+
+Deno.test("malformed worker query never calls external search", async () => {
+  let calls = 0;
+  const result = await runFreeDiscoveryJob({ ...job, query: null as unknown as string }, policy, {
+    search: async () => { calls++; throw Error("must not search"); },
+  });
+  if (result.status !== "BLOCKED" || calls !== 0) throw Error("invalid job not blocked");
+});
+
+Deno.test("malformed search hits are discarded", async () => {
+  const result = await runFreeDiscoveryJob(job, policy, {
+    search: async () => [
+      null as unknown as { title: string; url: string; snippet: string },
+      { title: "Invalid", url: "https://example.org", snippet: null as unknown as string },
+      { title: "Valid", url: "https://example.org/valid", snippet: "verified URL format only" },
+    ],
+  });
+  if (result.status !== "DISCOVERED" || result.candidates.length !== 1 ||
+      result.candidates[0].title !== "Valid") throw Error("invalid search hit accepted");
+});
