@@ -51,6 +51,7 @@ export function createTinyFishSearchAdapter(
   if (typeof config.acquireQuotaLease !== "function") {
     throw new Error("TINYFISH_GLOBAL_QUOTA_REQUIRED");
   }
+  const authorizedApiKey: string = config.apiKey;
   // Fail closed: all workers must acquire one shared atomic quota lease.
   return {
     async search(query: string, region: string, maxResults: number): Promise<SearchHit[]> {
@@ -74,7 +75,7 @@ export function createTinyFishSearchAdapter(
         const response = await fetcher(searchUrl.href, {
           method: "GET",
           headers: {
-            "X-API-Key": config.apiKey,
+            "X-API-Key": authorizedApiKey,
           },
           signal: controller.signal,
           redirect: "error",
