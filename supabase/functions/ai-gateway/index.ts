@@ -2516,6 +2516,10 @@ async function ensureConversation(
     const conversation =
       existing[0];
 
+    if (agentId && conversation.agent_id && conversation.agent_id !== agentId) {
+      throw new Error('AGENT_MEMORY_SCOPE_CONFLICT');
+    }
+
     if (
       conversation.deleted_at
     ) {
