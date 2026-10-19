@@ -1,0 +1,23 @@
+import { strict as assert } from "node:assert";
+import { collectOfficialEvidence, isApprovedOfficialUrl } from "./tinyfish_official_evidence.ts";
+Deno.test("official host must match exactly",()=>{
+ assert(isApprovedOfficialUrl("https://openrouter.ai/docs"));
+ assert(!isApprovedOfficialUrl("https://openrouter.ai.evil.example/docs"));
+ assert(!isApprovedOfficialUrl("http://openrouter.ai/docs"));
+ assert(!isApprovedOfficialUrl("https://openrouter.ai@evil.example/docs"));
+});
+Deno.test("bounded official page records evidence but never free capacity",async()=>{
+ const fetcher = (async()=>new Response("<title>API docs</title><p>Free models</p>",{
+  status:200,headers:{"content-type":"text/html"}
+ })) as typeof fetch;
+ const result=await collectOfficialEvidence("https://openrouter.ai/docs",fetcher);
+ assert.equal(result.sourceVerified,true);
+ assert.equal(result.freeCapacityVerified,false);
+ assert.equal(result.title,"API docs");
+});
+Deno.test("oversize page is blocked",async()=>{
+ const fetcher=(async()=>new Response("x".repeat(66000),{
+  status:200,headers:{"content-type":"text/plain"}
+ })) as typeof fetch;
+ await assert.rejects(()=>collectOfficialEvidence("https://openrouter.ai/docs",fetcher),/TOO_LARGE/);
+});
