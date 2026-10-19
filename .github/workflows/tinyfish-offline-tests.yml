@@ -1,0 +1,22 @@
+name: TinyFish offline safety tests
+on:
+  push:
+    branches:
+      - feat/free-token-resource-pool
+    paths:
+      - 'supabase/functions/_shared/tinyfish_*.ts'
+      - '.github/workflows/tinyfish-offline-tests.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Run mocked tests without API credentials
+        run: deno test --no-remote --allow-none supabase/functions/_shared/tinyfish_search_adapter_test.ts
