@@ -128,5 +128,5 @@ export function createTinyFishSearchAdapter(
     },
   };
 }
-// NOT PRODUCTION READY: live-test API response,
-// add shared distributed quota lease, and get explicit user activation approval.
+// NOT PRODUCTION READY: shared database quota lease exists; still requires
+// production runner wiring, owner activation approval, and live API verification.
