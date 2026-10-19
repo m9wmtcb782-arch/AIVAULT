@@ -26,6 +26,7 @@ export async function collectOfficialEvidence(
   headers: { accept: "text/html, text/plain" },
   signal: AbortSignal.timeout(6000)
  });
+ if (response.redirected || (response.url && response.url !== url)) throw Error("OFFICIAL_DESTINATION_MISMATCH");
  const kind = response.headers.get("content-type") ?? "";
  if (!response.ok || !/^(text\/html|text\/plain)(;|$)/i.test(kind))
   throw Error("OFFICIAL_PAGE_UNAVAILABLE");
