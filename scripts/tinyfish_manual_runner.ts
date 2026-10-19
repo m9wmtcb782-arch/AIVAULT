@@ -1,0 +1,24 @@
+// GitHub Actions only. One explicitly approved TinyFish discovery job per dispatch.
+import { runTinyFishJob, type DiscoveryJob } from "../supabase/functions/_shared/tinyfish_trusted_runner.ts";
+const required = (name: string): string => {
+  const value = Deno.env.get(name) ?? "";
+  if (!value) throw Error("MISSING_" + name);
+  return value;
+};
+const region = required("JOB_REGION");
+if (!["TW", "US", "JP"].includes(region)) throw Error("REGION_DENIED");
+const job: DiscoveryJob = {
+  id: "manual-" + crypto.randomUUID(),
+  assignedAgentId: required("JOB_WORKER"),
+  region: region as DiscoveryJob["region"],
+  query: required("JOB_QUERY"),
+};
+const outcome = await runTinyFishJob(job, {
+  endpoint: "https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/free-discovery-search",
+  supabaseJwt: required("AIVAULT_SUPABASE_JWT"),
+  runnerSecret: required("AIVAULT_DISCOVERY_RUNNER_SECRET"),
+});
+const data = outcome.body && typeof outcome.body === "object" ? outcome.body as Record<string, unknown> : {};
+// Never print tokens or raw provider payloads to workflow logs.
+console.log(JSON.stringify({ jobId: outcome.jobId, httpStatus: outcome.httpStatus, status: data.status ?? null, candidateCount: Array.isArray(data.candidates) ? data.candidates.length : 0 }));
+if (outcome.httpStatus !== 200 || !["DISCOVERED", "NO_RESULTS"].includes(String(data.status))) Deno.exit(1);
