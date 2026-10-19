@@ -46,3 +46,8 @@ Deno.test("real discovery official provider blog is not official API documentati
  assert.equal(x.verifiedFreeCapacity,false);
  assert.equal(x.usableForInference,false);
 });
+
+Deno.test("provider blog API article is not official documentation", () => {
+ const x=triageCandidate({title:"API guide",url:"https://openrouter.ai/blog/api/free-models",snippet:"free"});
+ assert.equal(x.classification,"THIRD_PARTY_LEAD");
+});
