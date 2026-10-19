@@ -36,9 +36,51 @@
       };
     });
   }
-  function ingest(body) {
-    return fetch(INGEST, { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + qaTok() }, body: JSON.stringify(body) })
-      .then(function (r) { return r.ok ? r.json() : {}; }).catch(function () { return {}; });
+  // Keep private-book requests authenticated; refresh expired member tokens before reading.
+  var authRefreshing = null;
+  async function bookAccessToken(force) {
+    var key = "sb-clcddygkaaqqtsbswgdf-auth-token", sess;
+    try { sess = JSON.parse(localStorage.getItem(key) || "null"); } catch (e) { sess = null; }
+    if (!sess) return ANON;
+    var cur = sess.currentSession || sess, access = cur.access_token || "", refresh = cur.refresh_token || "";
+    var expiry = Number(cur.expires_at || 0);
+    if (!force && access && (!expiry || expiry * 1000 > Date.now() + 60000)) return access;
+    if (!refresh) return access || ANON;
+    if (!authRefreshing) authRefreshing = (async function () {
+      try {
+        var response = await fetch(SUPA + "/auth/v1/token?grant_type=refresh_token", {
+          method: "POST", headers: { "Content-Type": "application/json", apikey: ANON },
+          body: JSON.stringify({ refresh_token: refresh })
+        });
+        if (!response.ok) return access || ANON;
+        var fresh = await response.json();
+        if (!fresh.access_token) return access || ANON;
+        var next = Object.assign({}, cur, fresh);
+        var stored = sess.currentSession ? Object.assign({}, sess, { currentSession: next }) : Object.assign({}, sess, next);
+        try { localStorage.setItem(key, JSON.stringify(stored)); } catch (e) {}
+        return fresh.access_token;
+      } catch (e) { return access || ANON; }
+      finally { authRefreshing = null; }
+    })();
+    return authRefreshing;
+  }
+  async function ingest(body) {
+    async function request(tok) {
+      var r = await fetch(INGEST, { method: "POST", headers: {
+        "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + tok
+      }, body: JSON.stringify(body) });
+      var data = await r.json().catch(function () { return {}; });
+      data.__http = r.status;
+      return data;
+    }
+    try {
+      var token = await bookAccessToken(false), result = await request(token);
+      if (result.__http === 401) {
+        var renewed = await bookAccessToken(true);
+        if (renewed !== token) result = await request(renewed);
+      }
+      return result;
+    } catch (e) { return { ok: false, error: "BOOK_NETWORK_ERROR" }; }
   }
   // 快取放在獨立的 IndexedDB（localStorage 只有約 5MB，裝不下 40 萬字的書）
   var qdb = null;
@@ -497,6 +539,7 @@
       var readable = books.filter(function (bk) { var id = String(bk.id || bk.ebook_id || ""); return !enabled || !!enabled[id]; });
       return "【AIVAULT 書架書目（僅清單，非全文已讀）】" + readable.map(function (bk) { return "《" + bk.title + "》"; }).join("、") + "。不能把書目清單誤稱為已取得正文。";
     }
+    if (!selected && /行政法入門|行政法入门|余凌雲|余凌云/.test(q)) return "【電子書檢索錯誤】書目 API 未列出指定的《行政法入門》，可能是登入授權失效或私人書未對此帳號開放；不得引用其他教材替代。";
     if (selected) {
       var id = String(selected.id || selected.ebook_id || "");
       if (enabled && !enabled[id]) return "【電子書權限】《" + selected.title + "》尚未勾選「讓暗星學習」，請先在學習書籍清單啟用；不得越權讀取。";
