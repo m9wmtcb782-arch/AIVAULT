@@ -17,7 +17,7 @@ export type RunnerResult = {
   body: unknown;
 };
 const validJob = (j: DiscoveryJob) =>
-  /^Worker-(0[1-9][0-9]{2}|1000)$/.test(j.assignedAgentId) &&
+  /^Worker-0[12][0-9]{2}$/.test(j.assignedAgentId) &&
   Number(j.assignedAgentId.slice(7)) >= 101 &&
   Number(j.assignedAgentId.slice(7)) <= 200 &&
   /^[a-zA-Z0-9_-]{1,80}$/.test(j.id) &&
