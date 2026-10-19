@@ -32,7 +32,7 @@ export function evaluateResourceEvidence(e: Evidence): Decision {
   if (!publicHttps(e.officialDocsUrl) || !publicHttps(e.termsUrl) || !publicHttps(e.pricingUrl))
     reasons.push("MISSING_PUBLIC_OFFICIAL_URLS");
   if (!Number.isFinite(Date.parse(e.checkedAt)) || Date.now() - Date.parse(e.checkedAt) > 30 * 86400000 ||
-      Date.parse(e.checkedAt) > Date.now() + 86400000) reasons.push("EVIDENCE_STALE");
+      Date.parse(e.checkedAt) > Date.now()) reasons.push("EVIDENCE_STALE");
   if (!e.freeTierExplicit) reasons.push("FREE_TIER_NOT_ESTABLISHED");
   if (e.allowedForAutomatedUse !== true) reasons.push("AUTOMATION_PERMISSION_UNCONFIRMED");
   if (e.requiresPaymentMethod !== false) reasons.push("PAYMENT_METHOD_UNCONFIRMED");
