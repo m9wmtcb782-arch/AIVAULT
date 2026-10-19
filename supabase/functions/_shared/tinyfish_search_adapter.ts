@@ -1,6 +1,6 @@
 // External-only AIVAULT discovery adapter. Does not call model inference APIs.
 // Must only run server-side, after owner approves TinyFish terms and creates one key.
-// Search API contract checked against published documentation; live authentication is NOT verified.
+// Search GET, X-API-Key and results[] match TinyFish public examples; live authentication is NOT verified.
 import type { AuthorizedSearchAdapter, SearchHit } from "./free_discovery_worker.ts";
 import { createTinyFishQuotaLease } from "./tinyfish_quota_lease.ts";
 
@@ -67,8 +67,8 @@ export function createTinyFishSearchAdapter(
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 8000);
       try {
-        // Contract is deliberately explicit; verify against current official
-        // REST documentation before enabling the adapter in production.
+        // Search GET/query/location/X-API-Key are documented; live auth and response
+        // compatibility must still be verified before production activation.
         const searchUrl = new URL(endpoint.href);
         searchUrl.searchParams.set("query", query);
         searchUrl.searchParams.set("location", region.toUpperCase());
