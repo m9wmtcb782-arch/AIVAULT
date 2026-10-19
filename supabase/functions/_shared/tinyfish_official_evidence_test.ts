@@ -57,3 +57,10 @@ Deno.test("missing content type is not accepted as evidence", async () => {
  const fake = (async () => new Response(null, {status: 200})) as typeof fetch;
  await assert.rejects(() => collectOfficialEvidence("https://openrouter.ai/docs", fake), /UNAVAILABLE/);
 });
+
+Deno.test("official collector rejects provider blog even with API in path", async () => {
+ let calls=0;
+ const fake=(async () => {calls++;return new Response("ok");}) as typeof fetch;
+ await assert.rejects(() => collectOfficialEvidence("https://openrouter.ai/blog/api/free-models",fake),/NOT_APPROVED/);
+ assert.equal(calls,0);
+});
