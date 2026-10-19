@@ -29,3 +29,13 @@ Deno.test("local and numeric hosts cannot enter candidate pool", () => {
   assert.equal(triageCandidate({title:"x",url,snippet:""}).classification,"REJECTED");
  }
 });
+
+Deno.test("mixed discovery candidates remain unverified", () => {
+ const hits = triageCandidates([
+  {title:"Official",url:"https://openrouter.ai/docs",snippet:"free"},
+  {title:"Third party",url:"https://medium.com/example",snippet:"free"},
+  {title:"Local",url:"https://127.0.0.1/docs",snippet:"free"},
+ ]);
+ assert.deepEqual(hits.map(h => h.classification),["OFFICIAL_DOCS","THIRD_PARTY_LEAD","REJECTED"]);
+ assert(hits.every(h => !h.verifiedFreeCapacity && !h.usableForInference));
+});
