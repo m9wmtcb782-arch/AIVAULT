@@ -59,8 +59,10 @@ export async function runOpenRouterFreeInference(
  if (typeof text !== "string") throw Error("INVALID_PROVIDER_RESPONSE");
  const usage = parsed.usage && typeof parsed.usage === "object" ? parsed.usage as Record<string, unknown> : null;
  const reportedCost = usage?.cost;
- if (typeof reportedCost === "number" && (!Number.isFinite(reportedCost) || reportedCost > 0)) throw Error("NONZERO_OR_INVALID_COST_REPORTED");
+ if (reportedCost !== undefined && reportedCost !== null &&
+     !(reportedCost === 0 || reportedCost === "0" || reportedCost === "0.0" || reportedCost === "0.00"))
+  throw Error("NONZERO_OR_INVALID_COST_REPORTED");
  // No cost field is not proof of zero billing; account-side billing still requires independent verification.
  return { text: text.slice(0,10000), model: String(parsed.model ?? "unknown"), usage: parsed.usage ?? null,
-  zeroCostVerified: reportedCost === 0 };
+  zeroCostVerified: reportedCost === 0 || reportedCost === "0" || reportedCost === "0.0" || reportedCost === "0.00" };
 }
