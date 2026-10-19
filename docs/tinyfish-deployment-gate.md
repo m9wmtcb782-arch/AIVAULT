@@ -32,3 +32,9 @@ Disable all activation switches and DB gate; revoke runner and provider secrets 
 - Inspected `aivault-agent-evolution-test` (JWT verified, version 2): it references `Worker-0134` and validates a `[CAUSAL-TEST]` task prefix. Its callers and dependencies have not been proven absent.
 - **No function has been deleted or replaced.** No safe slot has yet been identified.
 - Before freeing any slot: inspect call sites, scheduled triggers and dependencies; export the exact deployed source and settings; obtain owner approval; document rollback.
+
+## Caller audit — 2026-10-19
+- GitHub default-branch code search for `aivault-agent-evolution-test`, `technical-dark-star-voice-clone-test`, and `aivault-ai-avatar-batch-test` returned no matches.
+- Read-only `cron.job` command search for those three slugs returned no matches.
+- This is **not proof of non-use**: branch coverage, remote clients, and invocation logs remain unverified. No function may be deleted on this evidence alone.
+- The function-capacity blocker is still unresolved; live TinyFish remains disabled.
