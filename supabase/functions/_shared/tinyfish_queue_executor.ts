@@ -14,7 +14,7 @@ export async function processDiscoveryQueueItem(
   try {
     const result = await runTinyFishJob(item, config, fetcher);
     if (result.httpStatus === 429 || result.httpStatus >= 500)
-      return { action: "DEFER", status: result.httpStatus };
+      return { action: item.attempts < 2 ? "DEFER" : "REJECT", status: result.httpStatus };
     if (result.httpStatus !== 200)
       return { action: "REJECT", status: result.httpStatus };
     const body = result.body;
@@ -25,7 +25,9 @@ export async function processDiscoveryQueueItem(
     if (status !== "DISCOVERED" && status !== "NO_RESULTS")
       return { action: "REJECT", status: 502 };
     return { action: "COMPLETE", status: 200, result: body };
-  } catch {
-    return { action: "DEFER", status: 503 };
+  } catch (error) {
+    if (error instanceof Error && (error.message === "RUNNER_JOB_DENIED" || error.message === "RUNNER_NOT_CONFIGURED"))
+      return { action: "REJECT", status: 400 };
+    return { action: item.attempts < 2 ? "DEFER" : "REJECT", status: 503 };
   }
 }
