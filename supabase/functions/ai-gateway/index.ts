@@ -4503,6 +4503,57 @@ async function executeLLMGateway(
   let messages =
     memory.messages;
   messages = await cityMemInject(body, messages, memory); memory.messages = messages; // sm2
+  // Wikipedia is a public reference lookup, not a model provider.
+  // Only run for explicit Wikipedia questions or an explicit wiki_query.
+  if (darkStarAgent) {
+    const userText = String(memory.current_user_message || "").trim();
+    const explicitTopic = isRecord(body) ? String(body.wiki_query || "").trim() : "";
+    const wikipediaAsked = /維基百科|wikipedia|wiki百科/i.test(userText);
+    const topic = (explicitTopic || (wikipediaAsked
+      ? userText.replace(/維基百科|wikipedia|wiki百科|請|幫我|查詢|查一下|搜尋|找一下|資料|介紹|關於|是什麼|？|\?/gi, " ").trim()
+      : "")).slice(0, 100);
+    if (topic) {
+      try {
+        const wikiLanguage = isRecord(body) && String(body.wiki_language || "") === "en" ? "en" : "zh";
+        const api = new URL("https://" + wikiLanguage + ".wikipedia.org/w/api.php");
+        api.searchParams.set("action", "query");
+        api.searchParams.set("generator", "search");
+        api.searchParams.set("gsrsearch", topic);
+        api.searchParams.set("gsrlimit", "3");
+        api.searchParams.set("prop", "extracts|info");
+        api.searchParams.set("inprop", "url");
+        api.searchParams.set("explaintext", "1");
+        api.searchParams.set("exintro", "1");
+        api.searchParams.set("exchars", "1400");
+        api.searchParams.set("format", "json");
+        api.searchParams.set("formatversion", "2");
+        const response = await fetch(api.toString(), {
+          headers: { "User-Agent": "AIVAULT-DarkStar/1.0 (Wikipedia research integration; educational use)", "Accept": "application/json" },
+          signal: AbortSignal.timeout(7000),
+        });
+        if (!response.ok) throw new Error("WIKIPEDIA_HTTP_" + response.status);
+        const data = await response.json();
+        const pages = Array.isArray(data?.query?.pages) ? data.query.pages : [];
+        const citations = pages.map((page: any) => ({
+          title: String(page.title || "").slice(0, 180),
+          url: String(page.fullurl || ""),
+          extract: String(page.extract || "").slice(0, 1400),
+        })).filter((page: any) => page.title && page.url && page.extract);
+        if (citations.length) {
+          const wikiContext = citations.map((page: any) =>
+            "條目：" + page.title + "\n來源：" + page.url + "\n摘錄：" + page.extract
+          ).join("\n\n");
+          messages = [{ role: "system", content:
+            "以下為本輪實際查詢的維基百科摘要。這是第三方百科資料，並非學術論文或已獨立驗證的事實；引用時附條目網址，重要主張仍需核對原始來源。\n" + wikiContext
+          }, ...messages];
+        } else {
+          messages = [{ role: "system", content: "本輪維基百科查詢沒有找到可用條目，禁止虛構查詢結果。" }, ...messages];
+        }
+      } catch (_error) {
+        messages = [{ role: "system", content: "本輪維基百科連線或查詢失敗；不得聲稱已查閱維基百科。" }, ...messages];
+      }
+    }
+  }
   if (darkStarAgent) {
     const evidenceRules = [
       "暗星學術推理規則：將自己的推論與外部已核實證據清楚分開。",
