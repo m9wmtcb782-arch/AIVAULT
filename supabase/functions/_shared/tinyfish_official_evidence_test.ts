@@ -21,3 +21,10 @@ Deno.test("oversize page is blocked",async()=>{
  })) as typeof fetch;
  await assert.rejects(()=>collectOfficialEvidence("https://openrouter.ai/docs",fetcher),/TOO_LARGE/);
 });
+
+Deno.test("unapproved domain rejected before network request", async () => {
+ let calls = 0;
+ const fake = (async () => { calls++; return new Response("ok"); }) as typeof fetch;
+ await assert.rejects(() => collectOfficialEvidence("https://example.org/docs", fake));
+ assert.equal(calls, 0);
+});
