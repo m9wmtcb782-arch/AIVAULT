@@ -4504,13 +4504,18 @@ async function executeLLMGateway(
     memory.messages;
   messages = await cityMemInject(body, messages, memory); memory.messages = messages; // sm2
   // Wikipedia is a public reference lookup, not a model provider.
-  // Only run for explicit Wikipedia questions or an explicit wiki_query.
+  // Automatically retrieve for substantive knowledge questions, even without naming Wikipedia.
   if (darkStarAgent) {
-    const userText = String(memory.current_user_message || "").trim();
+    const userText = findCurrentUserMessage(body, messages).trim();
     const explicitTopic = isRecord(body) ? String(body.wiki_query || "").trim() : "";
-    const wikipediaAsked = /維基百科|wikipedia|wiki百科/i.test(userText);
-    const topic = (explicitTopic || (wikipediaAsked
-      ? userText.replace(/維基百科|wikipedia|wiki百科|請|幫我|查詢|查一下|搜尋|找一下|資料|介紹|關於|是什麼|？|\?/gi, " ").trim()
+    // Automatic reference retrieval for substantive knowledge questions.
+    // Do not waste requests on greetings, UI operations or short commands.
+    const substantive = userText.length >= 8 &&
+      !/^(你好|哈囉|謝謝|繼續|好的|收到|早安|晚安|測試|返回|上一頁)[！!。\s]*$/.test(userText) &&
+      !/(修改頁面|部署|commit|git(hub)?|按鈕|css|javascript|typescript|修復程式|幫我寫信)/i.test(userText) &&
+      /(什麼|為何|為什麼|如何|解釋|分析|比較|歷史|定義|概念|原理|理論|制度|研究|學術|教材|法律|法條|判決|憲法|行政法|民法|刑法|比例原則|新聞|事件|證據|維基百科|wikipedia)/i.test(userText);
+    const topic = (explicitTopic || (substantive
+      ? userText.replace(/維基百科|wikipedia|wiki百科|請問|請|幫我|查詢|查一下|搜尋|找一下|資料|介紹|關於|是什麼|什麼是|分析|比較|解釋|？|\?/gi, " ").trim()
       : "")).slice(0, 100);
     if (topic) {
       try {
@@ -4557,7 +4562,7 @@ async function executeLLMGateway(
   // Official Taiwan legal sources: only fetch a URL from a strict
   // allowlist. Never treat an arbitrary user URL as a trusted legal source.
   if (darkStarAgent) {
-    const question = String(memory.current_user_message || "");
+    const question = findCurrentUserMessage(body, messages);
     const explicitUrl = isRecord(body) ? String(body.legal_source_url || "") : "";
     const urlMatch = question.match(/https:\/\/(?:law\.moj\.gov\.tw|judgment\.judicial\.gov\.tw|cons\.judicial\.gov\.tw|lis\.ly\.gov\.tw)\/[^\s<>"'，。]+/i);
     const candidate = explicitUrl || urlMatch?.[0] || "";
