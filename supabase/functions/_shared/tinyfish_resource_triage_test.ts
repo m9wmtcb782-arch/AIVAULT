@@ -23,3 +23,9 @@ Deno.test("duplicates suppressed", () => {
  const x = {title:"x",url:"https://openrouter.ai/docs",snippet:""};
  assert.equal(triageCandidates([x,x]).length,1);
 });
+
+Deno.test("local and numeric hosts cannot enter candidate pool", () => {
+ for (const url of ["https://localhost/docs","https://127.0.0.1/docs","https://192.168.1.10/api","https://service.local/docs","https://[::1]/docs"]) {
+  assert.equal(triageCandidate({title:"x",url,snippet:""}).classification,"REJECTED");
+ }
+});
