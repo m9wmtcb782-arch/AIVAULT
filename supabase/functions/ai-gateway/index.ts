@@ -4600,9 +4600,11 @@ async function executeLLMGateway(
       }
     }
   }
-  if (darkStarAgent) {
+  // Shared research discipline for every agent routed through ai-gateway.
+  // Specialist agents retain their own roles and provider routes.
+  {
     const evidenceRules = [
-      "暗星學術推理規則：將自己的推論與外部已核實證據清楚分開。",
+      "AIVAULT 全體 Agent 共用研究規則：將自己的推論與外部已核實證據清楚分開。",
       "提出理論後，須同時尋找支持及反對該理論的證據，不得只選有利資料。",
       "優先使用教材原文與頁碼、法規判決、正式學術論文、期刊、官方資料。新聞只作事件背景證據。",
       "引用來源須提供作者、篇名、年份及可核對的頁碼、DOI或網址。未實際查閱的資料標記尚未查證，不得捏造來源。",
