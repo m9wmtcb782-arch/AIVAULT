@@ -1,3 +1,4 @@
+import { authorizeExternalEgress, type EgressRequest } from "./aivault_external_egress.ts";
 // Isolated OpenRouter free-only adapter. No production route or automatic execution.
 // Caller must explicitly authorize a controlled test; never fall back to paid models.
 export type FreeInferenceRequest = { prompt: string; model: string };
@@ -10,9 +11,11 @@ export function validateFreeRequest(input: FreeInferenceRequest): void {
 }
 export async function runOpenRouterFreeInference(
  input: FreeInferenceRequest,
- options: { apiKey: string; enabled: boolean; authorized: boolean; fetcher?: typeof fetch }
+ options: { apiKey: string; enabled: boolean; authorized: boolean; egress: EgressRequest; fetcher?: typeof fetch }
 ): Promise<FreeInferenceResult> {
  validateFreeRequest(input);
+ const egress = authorizeExternalEgress(options.egress);
+ if (!egress.allowed || options.egress.payload !== input.prompt) throw Error("EGRESS_DENIED");
  if (!options.enabled || !options.authorized) throw Error("FREE_INFERENCE_DISABLED");
  if (!options.apiKey) throw Error("MISSING_OPENROUTER_KEY");
  const fetcher = options.fetcher ?? fetch;
