@@ -67,8 +67,13 @@ Deno.serve(async (req) => {
     await reader.cancel().catch(() => {});
     reader.releaseLock();
   }
+  // Do not initialize an external adapter or consume a quota lease for unknown agents.
+  // The caller's agent_id is never sufficient authorization on its own.
   const approvedAgentIds = new Set(env("AIVAULT_DISCOVERY_APPROVED_AGENT_IDS").split(",").map(x => x.trim()).filter(Boolean));
   const approvedRegions = new Set(env("AIVAULT_DISCOVERY_APPROVED_REGIONS").split(",").map(x => x.trim()).filter(Boolean));
+  if (!approvedAgentIds.has(job.assignedAgentId) || !approvedRegions.has(job.region)) {
+    return json({ error: "DISCOVERY_NOT_APPROVED" }, 403);
+  }
   try {
     const adapter = createTinyFishServerAdapter({
       enabled: true,
