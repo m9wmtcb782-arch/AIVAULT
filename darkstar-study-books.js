@@ -225,12 +225,16 @@
   }
   // ---- 暗星設定面板 ----
   function decoratePanel() {
-    var panel = d.getElementById("darkStarSettingsPanel"); if (!panel || d.getElementById("dsStudyBooks")) return;
-    var box = d.createElement("div"); box.id = "dsStudyBooks"; box.style.cssText = "margin-top:8px;font-size:13px";
-    box.innerHTML = "<b>📚 暗星學習書籍</b><div id=\"dsStudyOverall\" style=\"margin:6px 0 8px\"><div style=\"height:8px;background:#eee;border-radius:6px;overflow:hidden\"><i data-fill style=\"display:block;height:100%;width:0;background:linear-gradient(90deg,#3b82f6,#10b981)\"></i></div><div data-lab style=\"margin-top:4px;font-size:12px;opacity:.85\">整體學習進度 —</div></div><div data-list style=\"max-height:220px;overflow:auto;margin-top:4px\">載入中…</div>";
-    panel.appendChild(box);
+    var host = d.getElementById("dsStudyHost") || d.getElementById("dsSourceLocks");
+    if (!host) return;
+    if (d.getElementById("dsStudyBooks")) return;
+    var box = d.createElement("div"); box.id = "dsStudyBooks"; box.style.cssText = "margin-top:10px;font-size:13px;border-top:1px solid #eee;padding-top:8px";
+    box.innerHTML = "<b>📚 暗星學習書籍</b><div style=\"font-size:11px;color:#777;margin:4px 0\">含私人書。勾選後會重讀並顯示進度。</div><div id=\"dsStudyOverall\" style=\"margin:6px 0 8px\"><div style=\"height:8px;background:#eee;border-radius:6px;overflow:hidden\"><i data-fill style=\"display:block;height:100%;width:0;background:linear-gradient(90deg,#3b82f6,#10b981)\"></i></div><div data-lab style=\"margin-top:4px;font-size:12px;opacity:.85\">整體學習進度 —</div></div><div data-list style=\"max-height:240px;overflow:auto;margin-top:4px\">載入中…</div>";
+    host.appendChild(box);
     var list = box.querySelector("[data-list]");
-    Promise.all([get(true), fetch(INGEST, { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + ANON }, body: JSON.stringify({ action: "list", limit: 80 }) }).then(function (r) { return r.json(); })]).then(function (res) {
+    token(false).then(function (tok) {
+      return Promise.all([get(true), fetch(INGEST, { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + (tok || ANON) }, body: JSON.stringify({ action: "list", limit: 100 }) }).then(function (r) { return r.json(); })]);
+    }).then(function (res) {
       var c = res[0], books = (res[1] && (res[1].books || res[1].items)) || [];
       if (!c.logged_in) { list.textContent = loginMsg(c); return; }
       list.innerHTML = "";
@@ -245,7 +249,11 @@
         sp.appendChild(title); sp.appendChild(pr);
         lab.appendChild(cb); lab.appendChild(sp); list.appendChild(lab);
       });
-      kickIndex(); paintAllProgress();
+      var yu = books.find(function (bk) { return /行政法入门|行政法入門|余凌雲/.test(bk.title || ""); });
+      if (yu && c.enabled && !c.enabled[yu.id || yu.ebook_id]) {
+        var yid = yu.id || yu.ebook_id;
+        set(yid, true).then(function () { kickIndex(); paintAllProgress(); }).catch(function () { kickIndex(); paintAllProgress(); });
+      } else { kickIndex(); paintAllProgress(); }
     }).catch(function () { list.textContent = "書單載入失敗"; });
   }
   function scan() { decorateCards(); decoratePanel(); }
