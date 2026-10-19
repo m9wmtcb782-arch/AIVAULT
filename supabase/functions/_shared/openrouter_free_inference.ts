@@ -18,8 +18,8 @@ export async function runOpenRouterFreeInference(
  const publicPrompts = [createApprovedPublicTask("PUBLIC_CONNECTIVITY_CHECK").prompt, createApprovedPublicTask("PUBLIC_GENERAL_KNOWLEDGE").prompt];
  if (!publicPrompts.includes(input.prompt)) throw Error("UNAPPROVED_PUBLIC_TASK");
  const egress = authorizeExternalEgress(options.egress);
- if (!egress.allowed || options.egress.payload !== input.prompt) throw Error("EGRESS_DENIED");
- if (!options.enabled || !options.authorized) throw Error("FREE_INFERENCE_DISABLED");
+ if (!egress.allowed || options.egress?.payload !== input.prompt) throw Error("EGRESS_DENIED");
+ if (!options?.enabled || !options?.authorized) throw Error("FREE_INFERENCE_DISABLED");
  if (!options.apiKey) throw Error("MISSING_OPENROUTER_KEY");
  const fetcher = options.fetcher ?? fetch;
  const response = await fetcher("https://openrouter.ai/api/v1/chat/completions", {
