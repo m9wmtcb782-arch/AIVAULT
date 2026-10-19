@@ -119,3 +119,26 @@ Deno.test("server factory denies search if RPC is unavailable", async () => {
   }
   if (!blocked || externalSearches !== 0) throw Error("RPC outage not fail closed");
 });
+
+Deno.test("concurrent calls require distinct quota leases", async () => {
+  let granted = 0;
+  let searched = 0;
+  const adapter = createTinyFishSearchAdapter({
+    ...base,
+    acquireQuotaLease: async () => {
+      // Simulate a shared atomic quota counter with asynchronous contention.
+      await Promise.resolve();
+      return ++granted <= 5;
+    },
+  }, async () => {
+    searched++;
+    return new Response('{"results":[]}', { status: 200 });
+  });
+  const outcomes = await Promise.allSettled(
+    Array.from({ length: 20 }, () => adapter.search("free inference API", "tw", 2)),
+  );
+  const successes = outcomes.filter((x) => x.status === "fulfilled").length;
+  if (successes !== 5 || searched !== 5 || granted !== 20) {
+    throw Error("concurrent lease gating failed");
+  }
+});
