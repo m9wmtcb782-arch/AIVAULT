@@ -25,6 +25,8 @@ export async function runOpenRouterFreeInference(
  if (response.redirected || (response.url && response.url !== "https://openrouter.ai/api/v1/chat/completions"))
   throw Error("DESTINATION_MISMATCH");
  if (!response.ok) throw Error("FREE_PROVIDER_UNAVAILABLE_" + response.status);
+ const contentType = response.headers.get("content-type") ?? "";
+ if (!/^application\/json(?:;|$)/i.test(contentType)) throw Error("INVALID_PROVIDER_CONTENT_TYPE");
  const declared = Number(response.headers.get("content-length") ?? 0);
  if (!Number.isSafeInteger(declared) || declared < 0 || declared > 65536) throw Error("RESPONSE_TOO_LARGE");
  const reader = response.body?.getReader();
