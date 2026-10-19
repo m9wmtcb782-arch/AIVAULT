@@ -38,7 +38,7 @@ export async function validateAudioResult(result) {
   }
   const h = new Uint8Array(await blob.slice(0, 16).arrayBuffer());
   const ascii = (from, to) => String.fromCharCode(...h.slice(from, to));
-  const wav = ascii(0, 4) === "RIFF" && ascii(8, 12) === "WAVE";
+  const wav = ascii(0, 4) === "RIFF" && ascii(8, 12) === "WAVE" && blob.size >= 44 && ascii(12, 16) === "fmt ";
   const mp3 = ascii(0, 3) === "ID3" || (h[0] === 255 && (h[1] & 224) === 224);
   const ogg = ascii(0, 4) === "OggS";
   const webm = h[0] === 0x1a && h[1] === 0x45 && h[2] === 0xdf && h[3] === 0xa3;
