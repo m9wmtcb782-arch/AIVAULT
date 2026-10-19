@@ -27,7 +27,7 @@ export function admitModel(model: ModelRecord, capability: ModelCapability, now 
  if (model.origin === "EXTERNAL_API") {
   if (model.compute !== "EXTERNAL_PROVIDER" || model.costPolicy !== "FREE_ONLY")
    return deny("EXTERNAL_POLICY_MISMATCH");
-  if (!model.endpoint || !model.endpoint.startsWith("https://"))
+  if (model.endpoint !== "https://openrouter.ai/api/v1/chat/completions")
    return deny("EXTERNAL_ENDPOINT_NOT_VERIFIED");
   return {permitted:true,reason:"EXTERNAL_FREE_SERVICE_ONLY_NOT_GPU_CAPACITY"};
  }
