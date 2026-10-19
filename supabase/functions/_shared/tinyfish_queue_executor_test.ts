@@ -12,4 +12,7 @@ assert.equal((await processDiscoveryQueueItem(item, config, response(503, {}))).
 assert.equal((await processDiscoveryQueueItem(item, config, response(403, {}))).action,"REJECT");
 assert.equal((await processDiscoveryQueueItem(item, config, response(200, {status:"BLOCKED"}))).action,"REJECT");
 assert.equal((await processDiscoveryQueueItem({...item,attempts:3},config,response(200,{}))).action,"REJECT");
+assert.equal((await processDiscoveryQueueItem({...item,attempts:2},config,response(429,{}))).action,"REJECT");
+assert.equal((await processDiscoveryQueueItem({...item,assignedAgentId:"Worker-0001"},config,response(200,{}))).action,"REJECT");
+assert.equal((await processDiscoveryQueueItem(item,{...config,runnerSecret:""},response(200,{}))).action,"REJECT");
 console.log("TinyFish queue executor offline tests PASS");
