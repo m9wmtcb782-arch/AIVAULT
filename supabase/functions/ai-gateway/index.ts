@@ -4554,6 +4554,47 @@ async function executeLLMGateway(
       }
     }
   }
+  // Official Taiwan legal sources: only fetch a URL from a strict
+  // allowlist. Never treat an arbitrary user URL as a trusted legal source.
+  if (darkStarAgent) {
+    const question = String(memory.current_user_message || "");
+    const explicitUrl = isRecord(body) ? String(body.legal_source_url || "") : "";
+    const urlMatch = question.match(/https:\/\/(?:law\.moj\.gov\.tw|judgment\.judicial\.gov\.tw|cons\.judicial\.gov\.tw|lis\.ly\.gov\.tw)\/[^\s<>"'，。]+/i);
+    const candidate = explicitUrl || urlMatch?.[0] || "";
+    if (candidate) {
+      try {
+        const legalUrl = new URL(candidate);
+        const hosts = new Set(["law.moj.gov.tw", "judgment.judicial.gov.tw", "cons.judicial.gov.tw", "lis.ly.gov.tw"]);
+        if (legalUrl.protocol !== "https:" || !hosts.has(legalUrl.hostname) || legalUrl.username || legalUrl.password) {
+          throw new Error("OFFICIAL_LEGAL_SOURCE_NOT_ALLOWED");
+        }
+        const response = await fetch(legalUrl.toString(), {
+          redirect: "error",
+          headers: { "Accept": "text/html, text/plain, application/json" },
+          signal: AbortSignal.timeout(7000),
+        });
+        if (!response.ok) throw new Error("LEGAL_SOURCE_HTTP_" + response.status);
+        const type = response.headers.get("content-type") || "";
+        if (!/text\/html|text\/plain|application\/json/i.test(type)) throw new Error("LEGAL_SOURCE_UNSUPPORTED_FORMAT");
+        const html = (await response.text()).slice(0, 180000);
+        const extracted = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+          .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+          .replace(/<[^>]+>/g, " ")
+          .replace(/&nbsp;|&#160;/gi, " ")
+          .replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&amp;/gi, "&")
+          .replace(/\s+/g, " ").trim().slice(0, 5500);
+        if (extracted.length < 100) throw new Error("LEGAL_SOURCE_EMPTY");
+        messages = [{ role: "system", content:
+          "以下是本輪從臺灣官方法律網站取得的文字摘錄。須區分法條、草案與裁判，不得將草案當成現行法。引用時附網址、條號或裁判字號；網站內容可能不完整，不能聲稱已核對全部原文。\n官方網址：" +
+          legalUrl.toString() + "\n擷取內容：" + extracted
+        }, ...messages];
+      } catch (_error) {
+        messages = [{ role: "system", content:
+          "本輪未能取得或驗證指定官方法規／判決頁面。不得編造條文、判決字號或聲稱已讀取官方原文。"
+        }, ...messages];
+      }
+    }
+  }
   if (darkStarAgent) {
     const evidenceRules = [
       "暗星學術推理規則：將自己的推論與外部已核實證據清楚分開。",
