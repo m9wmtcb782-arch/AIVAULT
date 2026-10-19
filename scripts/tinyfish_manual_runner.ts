@@ -2,6 +2,7 @@
 import { runTinyFishJob, type DiscoveryJob } from "../supabase/functions/_shared/tinyfish_trusted_runner.ts";
 import { triageCandidates, type Candidate } from "../supabase/functions/_shared/tinyfish_resource_triage.ts";
 import { evaluateResourceEvidence, type Evidence } from "../supabase/functions/_shared/tinyfish_resource_evidence.ts";
+import { isApprovedOfficialUrl } from "../supabase/functions/_shared/tinyfish_official_evidence.ts";
 const required = (name: string): string => {
   const value = Deno.env.get(name) ?? "";
   if (!value) throw Error("MISSING_" + name);
@@ -47,9 +48,12 @@ const reviews = triaged.map(hit => ({
     requiresPaymentMethod: null, checkedAt: "", authenticatedAvailabilityTest: false,
   } satisfies Evidence),
 }));
-console.log(JSON.stringify({ triageCounts, reviewRequired: reviews.length, verifiedFreeCapacity: false }));
+const officialEvidenceQueue = triaged.filter(hit => hit.classification === "OFFICIAL_DOCS" && isApprovedOfficialUrl(hit.url))
+  .map(hit => ({ url: hit.url, state: "PENDING_APPROVAL", fetched: false, verifiedFreeCapacity: false }));
+console.log(JSON.stringify({ triageCounts, reviewRequired: reviews.length,
+  officialEvidencePending: officialEvidenceQueue.length, verifiedFreeCapacity: false }));
 await Deno.mkdir("tinyfish-evidence", { recursive: true });
 await Deno.writeTextFile("tinyfish-evidence/search.json", JSON.stringify({
   jobId: outcome.jobId, agentId: job.assignedAgentId, region: job.region,
-  status: data.status, verifiedFreeCapacity: false, candidates, triage: triaged, triageCounts, reviews,
+  status: data.status, verifiedFreeCapacity: false, candidates, triage: triaged, triageCounts, reviews, officialEvidenceQueue,
 }, null, 2));
