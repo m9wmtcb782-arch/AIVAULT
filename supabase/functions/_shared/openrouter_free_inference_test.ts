@@ -30,3 +30,9 @@ Deno.test("mocked free-only request enforces model and token ceiling",async()=>{
  assert.equal(payload.max_tokens,128);
  assert.equal(result.text,"ok");
 });
+
+Deno.test("provider must return JSON and no secret appears in errors",async()=>{
+ const fake=(async()=>new Response("<html>gateway error</html>",{headers:{"content-type":"text/html"}})) as typeof fetch;
+ await assert.rejects(()=>runOpenRouterFreeInference({prompt:"hello",model:"openrouter/free"},
+  {apiKey:"SECRET_SENTINEL",enabled:true,authorized:true,fetcher:fake}),/INVALID_PROVIDER_CONTENT_TYPE/);
+});
