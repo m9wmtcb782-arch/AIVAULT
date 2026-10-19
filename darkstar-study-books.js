@@ -236,7 +236,6 @@
     function refreshStudy() {
       if (refreshBtn) { refreshBtn.disabled = true; refreshBtn.textContent = "…"; }
       try { if (w.AIVAULTBookQA && w.AIVAULTBookQA.reset) w.AIVAULTBookQA.reset(); } catch (e) {}
-      chunks = null;
       loadServerIds(true).then(function () { return get(true); }).then(function () {
         indexing = false;
         kickIndex();
