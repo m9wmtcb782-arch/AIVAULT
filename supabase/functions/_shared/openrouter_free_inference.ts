@@ -3,7 +3,7 @@ import { createApprovedPublicTask } from "./aivault_public_task_allowlist.ts";
 // Isolated OpenRouter free-only adapter. No production route or automatic execution.
 // Caller must explicitly authorize a controlled test; never fall back to paid models.
 export type FreeInferenceRequest = { prompt: string; model: string };
-export type FreeInferenceResult = { text: string; model: string; usage: unknown };
+export type FreeInferenceResult = { text: string; model: string; usage: unknown; zeroCostVerified: boolean };
 export function validateFreeRequest(input: FreeInferenceRequest): void {
  if (!input || typeof input.prompt !== "string" || input.prompt.length < 1 || input.prompt.length > 2000)
   throw Error("INVALID_PROMPT");
@@ -54,5 +54,10 @@ export async function runOpenRouterFreeInference(
  const message = choice && typeof choice === "object" ? (choice as Record<string,unknown>).message : null;
  const text = message && typeof message === "object" ? (message as Record<string,unknown>).content : null;
  if (typeof text !== "string") throw Error("INVALID_PROVIDER_RESPONSE");
- return { text: text.slice(0,10000), model: String(parsed.model ?? "unknown"), usage: parsed.usage ?? null };
+ const usage = parsed.usage && typeof parsed.usage === "object" ? parsed.usage as Record<string, unknown> : null;
+ const reportedCost = usage?.cost;
+ if (typeof reportedCost === "number" && (!Number.isFinite(reportedCost) || reportedCost > 0)) throw Error("NONZERO_OR_INVALID_COST_REPORTED");
+ // No cost field is not proof of zero billing; account-side billing still requires independent verification.
+ return { text: text.slice(0,10000), model: String(parsed.model ?? "unknown"), usage: parsed.usage ?? null,
+  zeroCostVerified: reportedCost === 0 };
 }
