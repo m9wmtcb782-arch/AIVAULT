@@ -3348,37 +3348,57 @@ function gatewayToOpenAIMessages(
     }
   }
 
+  // Reserve space for the actual latest question. Earlier implementation
+  // could send only the tail of an oversized user message.
+  const latest = conversation[conversation.length - 1];
+  const latestBudget = Math.min(conversationBudget, 1000);
+  const latestContent = latest ? latest.content.slice(0, latestBudget) : "";
+  const historyBudget = Math.max(0, conversationBudget - latestContent.length);
+
+  // Deterministic, zero-provider-call retrieval from canonical history:
+  // score older messages by terms shared with the current question.
+  const terms = Array.from(new Set((latestContent.toLowerCase().match(/[\\p{Script=Han}]{2,4}|[a-z0-9_]{3,}/gu) || [])))
+    .filter((term) => !["請問", "如何", "什麼", "可以", "我們", "這個", "問題"].includes(term))
+    .slice(0, 32);
+  const previous = conversation.slice(0, -1);
+  const ranked = previous.map((message, index) => {
+    const content = message.content.toLowerCase();
+    const score = terms.reduce((sum, term) => sum + (content.includes(term) ? 1 : 0), 0);
+    return { message, index, score };
+  }).filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score || b.index - a.index);
+  const relevantBudget = Math.min(850, Math.floor(historyBudget / 2));
+  let relevantUsed = 0;
+  const relevant: Array<{role: string; content: string}> = [];
+  for (const item of ranked) {
+    if (relevantUsed >= relevantBudget) break;
+    const excerpt = item.message.content.slice(0, relevantBudget - relevantUsed);
+    if (excerpt) {
+      relevant.push({ role: "system", content: "[歷史相關片段，未經真偽驗證；不可視為已證實事實] " + excerpt });
+      relevantUsed += excerpt.length + 35;
+    }
+  }
+  const recentBudget = Math.max(0, historyBudget - relevantUsed);
   const kept: Array<{role: string; content: string}> = [];
   let conversationUsed = 0;
-
-  for (let i = conversation.length - 1; i >= 0; i--) {
-    const message = conversation[i];
-    const size = message.content.length;
-
-    if (kept.length > 0 && conversationUsed + size > conversationBudget) {
+  for (let i = previous.length - 1; i >= 0; i--) {
+    const message = previous[i];
+    const remaining = recentBudget - conversationUsed;
+    if (remaining <= 0) break;
+    if (message.content.length > remaining) {
+      if (!kept.length) kept.unshift({ role: message.role, content: message.content.slice(-remaining) });
       break;
     }
-
-    if (kept.length === 0 && size > conversationBudget) {
-      kept.push({
-        role: message.role,
-        content: message.content.slice(-conversationBudget),
-      });
-      conversationUsed = conversationBudget;
-      break;
-    }
-
-    kept.push(message);
-    conversationUsed += size;
-
-    if (conversationUsed >= conversationBudget) break;
+    kept.unshift(message);
+    conversationUsed += message.content.length;
   }
-
-  kept.reverse();
+  const current = latestContent ? [{ role: latest.role, content: latestContent }] : [];
 
   return [
     ...compactSystem,
+    ...relevant,
     ...kept,
+    ...current,
   ];
 }
 
