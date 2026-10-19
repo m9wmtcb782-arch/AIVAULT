@@ -54,3 +54,12 @@ Disable all activation switches and DB gate; revoke runner and provider secrets 
 - Other candidate `technical-dark-star-voice-clone-test` uses ElevenLabs credentials and voice clone/delete actions; **do not select** without explicit review.
 - Other candidate `aivault-ai-avatar-batch-test` forwards to avatar generation with an internal secret; **do not select** without explicit review.
 - No changes to deployed functions; preserve JWT setting and test harness source in any eventual rollback. The owner must explicitly approve any production replacement.
+
+## Owner-approved cleanup review — 2026-10-19
+- Owner authorized retiring `aivault-agent-evolution-test` and cleaning genuinely unused tests.
+- Read-only function inventory: **100 active** Edge Functions; six named `*-test` or `magic-hour-test`.
+- Recent 24-hour `function_edge_logs` aggregation returned zero calls for all six test endpoints. **This is only a 24-hour observation.**
+- All six deployed `index.ts` source files are preserved under `docs/tinyfish-backups/` on this feature branch. The original JWT settings and versions must be retained for rollback.
+- **First cleanup candidate:** `aivault-agent-evolution-test` v2, `verify_jwt=true`, owner approved. This is a causal test wrapper for Worker-0134, not the underlying `aivault-agent-evolution` runtime.
+- **Hold:** `magic-hour-test` (provider test), `aivault-compute-worker-test` (compute), `technical-dark-star-vision-test` (vision), `technical-dark-star-voice-clone-test` (voice/provider), and `aivault-ai-avatar-batch-test` (avatar). These are not proven permanently unused; inspect their full callers before further deletion.
+- The connected Supabase integration exposes list/get/deploy but **no Edge Function deletion operation**. Do not claim a production deletion or free slot until confirmed via the Supabase Dashboard or a supported management action.
