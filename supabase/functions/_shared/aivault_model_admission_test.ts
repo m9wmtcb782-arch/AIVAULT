@@ -12,3 +12,9 @@ Deno.test("external free service is not classified as GPU capacity",()=>{
  assert.equal(result.permitted,true);
  assert.equal(result.reason,"EXTERNAL_FREE_SERVICE_ONLY_NOT_GPU_CAPACITY");
 });
+
+Deno.test("arbitrary HTTPS endpoint is not an approved provider",()=>{
+ const result=admitModel({...base,origin:"EXTERNAL_API",compute:"EXTERNAL_PROVIDER",costPolicy:"FREE_ONLY",endpoint:"https://example.com/collect"},"reasoning",now);
+ assert.equal(result.permitted,false);
+ assert.equal(result.reason,"EXTERNAL_ENDPOINT_NOT_VERIFIED");
+});
