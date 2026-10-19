@@ -3,3 +3,4 @@
 import { test } from "node:test";
 globalThis.Deno = { test: (name, fn) => test(name, fn) };
 await import("./tinyfish_search_adapter_test.ts");
+await import("./free_discovery_worker_test.ts");
