@@ -570,7 +570,29 @@
     var hits = search(q.replace(/《[^》]+》/g, " ").slice(0, 180), pool);
     if (!hits.length && terms.length) hits = search(terms.join(" "), pool);
     if (!hits.length) return "【電子書檢索狀態】未取得" + (selected ? "《" + selected.title + "》" : "書架") + "可引用的正文，請確認學習權限或檢索服務。";
-    return "【AIVAULT 電子書實際檢索結果】\n" + hits.slice(0, 4).map(function (h) { return "《" + h.title + "》PDF第" + h.page + "頁：" + h.text.slice(0, 950); }).join("\n") + "\n只能引用以上實際取得的文字，不得編造原文。" + BOOK_ANSWER_RULE;
+    // Expand adjacent pages for legal arguments split by PDF pagination.
+    // Only pages already in the authorised, enabled-book index are eligible.
+    var selectedHits = hits.slice(0, 4), evidence = [], seen = {};
+    function addEvidence(c) {
+      if (!c || !c.text || !c.bid) return;
+      var key = c.bid + ":" + c.page;
+      if (seen[key]) return;
+      seen[key] = true;
+      evidence.push({ title: c.title, page: c.page, text: c.text, bid: c.bid });
+    }
+    selectedHits.forEach(function(h) {
+      addEvidence(h);
+      [-1, 1].forEach(function(delta) {
+        var neighbour = pool.find(function(c) { return c.bid === h.bid && c.page === h.page + delta; });
+        if (neighbour) addEvidence(neighbour);
+      });
+    });
+    evidence.sort(function(a,b) { return a.bid.localeCompare(b.bid) || a.page-b.page; });
+    var excerpts = evidence.slice(0, 10).map(function(h) {
+      return "《" + h.title + "》PDF第" + h.page + "頁：" + h.text.slice(0, 1150);
+    });
+    return "【AIVAULT 電子書跨頁證據｜實際取得的文字】\\n" + excerpts.join("\\n") +
+      "\\n請先從證據確認法律爭點，再區分規範依據、廣義／狹義學說、反對意見及涵攝；不可把未取得的法條或作者主張當成已證實。引用須附書名及 PDF 頁碼。" + BOOK_ANSWER_RULE;
   }
   w.addEventListener("darkstar-live-user-turn", function (ev) { onTurn(ev).catch(function (e) { console.warn("[BookQA] retrieval failed", e); }); });
   w.addEventListener("darkstar-study-changed", function () { chunks = null; });
