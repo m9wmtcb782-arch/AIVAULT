@@ -25,3 +25,10 @@ Status: **NOT DEPLOYED / DISABLED**. No TinyFish requests or paid APIs authorize
 
 ## Rollback
 Disable all activation switches and DB gate; revoke runner and provider secrets if compromised. Retain production functions unchanged.
+
+## Slot audit — 2026-10-19
+- The project still has 100 active functions.
+- Existing `*-test` functions are **not** automatically disposable.
+- Inspected `aivault-agent-evolution-test` (JWT verified, version 2): it references `Worker-0134` and validates a `[CAUSAL-TEST]` task prefix. Its callers and dependencies have not been proven absent.
+- **No function has been deleted or replaced.** No safe slot has yet been identified.
+- Before freeing any slot: inspect call sites, scheduled triggers and dependencies; export the exact deployed source and settings; obtain owner approval; document rollback.
