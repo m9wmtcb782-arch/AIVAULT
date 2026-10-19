@@ -9,9 +9,10 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 const env = (key: string) => Deno.env.get(key) ?? "";
 const authorized = async (req: Request, secret: string): Promise<boolean> => {
   if (!secret || secret.length < 32) return false;
-  const bearer = req.headers.get("authorization");
-  if (!bearer?.startsWith("Bearer ")) return false;
-  const supplied = bearer.slice(7);
+  // Authorization is reserved for Supabase gateway JWT verification.
+  // A separate server-only secret prevents arbitrary valid users from running searches.
+  const supplied = req.headers.get("x-aivault-runner-secret");
+  if (!supplied) return false;
   if (supplied.length !== secret.length) return false;
   const digest = async (s: string) => new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)));
   const [a, b] = await Promise.all([digest(supplied), digest(secret)]);
