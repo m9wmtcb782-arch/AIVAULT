@@ -1,6 +1,7 @@
 'use strict';
 const { scan } = require('./engine.cjs');
 const { source } = require('./argument.cjs');
+const { classifyPage } = require('./section.cjs');
 function draftCards(acquired) {
   if (acquired?.status !== 'DRAFT_SOURCE' || !acquired.snapshot) return { status: 'BLOCKED', drafts: [], reasons: ['SOURCE_REQUIRED'] };
   const s = acquired.snapshot;
@@ -8,6 +9,11 @@ function draftCards(acquired) {
   // No whitespace normalization or inserted page separators in the analysis copy.
   const pages = [...s.pages].sort((a, b) => a.pdfPage - b.pdfPage);
   for (let i = 1; i < pages.length; i++) if (pages[i].pdfPage !== pages[i - 1].pdfPage + 1) return { status: 'BLOCKED', drafts: [], reasons: ['NONCONTIGUOUS_PAGES'] };
+  const pageRoles = pages.map(p => ({ pdfPage: p.pdfPage, ...classifyPage(p.text) }));
+  const excludedPages = pageRoles.filter(p => ['FRONT_MATTER', 'TABLE_OF_CONTENTS'].includes(p.role));
+  // Never stitch across excluded front matter. Caller must acquire a body-only window.
+  if (excludedPages.length) return { status: 'NEEDS_BODY_WINDOW', sourceHash: s.sourceHash, drafts: [], pageRoles, excludedPages, modelCalls: 0,
+    note: '指定頁窗含序言、簡介或目錄，不能當作正文論證；請依目次定位正文。' };
   const ranges = []; let joined = '';
   for (const p of pages) { ranges.push({ page: p.pdfPage, start: joined.length, end: joined.length + p.text.length }); joined += p.text; }
   const evidenceFor = (start, end) => ranges.filter(r => r.end > start && r.start < end).map(r => {
@@ -51,7 +57,7 @@ function draftCards(acquired) {
       speaker: null, stance: null, when: null, exceptions: null, conclusion: null,
       contextComplete: false, textVerified: false, eligibleAsConclusion: false });
   }
-  return { status: 'DRAFTS_ONLY', sourceHash: s.sourceHash, sourceMeta: s.meta, drafts, modelCalls: 0,
+  return { status: 'DRAFTS_ONLY', sourceHash: s.sourceHash, sourceMeta: s.meta, pageRoles, drafts, modelCalls: 0,
     note: '候選角色只是字面線索；未建立條件到結論關係，不能直接交給規則作答。' };
 }
 module.exports = { draftCards };

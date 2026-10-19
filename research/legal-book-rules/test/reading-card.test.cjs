@@ -1,0 +1,16 @@
+'use strict';
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const { source, digest } = require('../src/argument.cjs');
+const { answerReadingCard } = require('../src/reading-card.cjs');
+const s = source({ bookId: 'fixture', title: '合成測試書', author: '測試', edition: 'v1', jurisdiction: '未核對', asOf: '未核對' }, [{ pdfPage: 1, text: '第一章 概念\n甲包含乙，但不限於乙。' }]);
+const text = s.pages[0].text, start = text.indexOf('甲包含');
+const c = { id: 'f', kind: 'reviewed_reading', scope: 'book_view_only', sourceHash: s.sourceHash, questions: ['依本書，甲與乙相同嗎？'], answer: { pdfPage: 1, start, end: text.length, text: text.slice(start) }, context: [{ pdfPage: 1, start: 0, end: text.length, text }], review: { method: 'extracted_text_comparison', reviewer: 'synthetic-fixture', checkedAt: 'fixture-only' } };
+const opts = { allowedBookIds: ['fixture'], getReviewedDigest: () => digest(c) };
+test('reviewed answer returns exact quotation and limitations without model', () => { const r = answerReadingCard(c.questions[0], c, s, opts); assert.equal(r.status, 'REVIEWED_BOOK_PASSAGE'); assert.equal(r.quote, c.answer.text); assert.equal(r.modelCalls, 0); assert(r.limitation.includes('尚未比對')); });
+test('keyword overlap cannot broaden question scope', () => assert.equal(answerReadingCard('甲是否在本案例適用？', c, s, opts).status, 'NO_MATCH'));
+test('current-law question cannot use book-view answer', () => assert.equal(answerReadingCard('現行法律對甲如何規定？', c, s, opts).status, 'NO_MATCH'));
+test('no review registry no answer', () => assert.equal(answerReadingCard(c.questions[0], c, s, { allowedBookIds: ['fixture'] }).status, 'BLOCKED'));
+test('edited question aliases invalidate review', () => { const d = { ...c, questions: [...c.questions, '甲是否合法？'] }; assert.equal(answerReadingCard('甲是否合法？', d, s, opts).status, 'BLOCKED'); });
+test('unselected source never returns raw quotation', () => { const r = answerReadingCard(c.questions[0], c, s, { ...opts, allowedBookIds: [] }); assert(!JSON.stringify(r).includes(c.answer.text)); });
+test('unreviewed draft cannot masquerade as reviewed reading', () => { const d = { ...c, kind: 'draft' }; assert.equal(answerReadingCard(c.questions[0], d, s, { ...opts, getReviewedDigest: () => digest(d) }).status, 'BLOCKED'); });
