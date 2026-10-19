@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
   }
   // Never buffer unbounded caller input, even without Content-Length.
   const lengthHeader = req.headers.get("content-length");
-  if (lengthHeader !== null && (!/^\\d+$/.test(lengthHeader) || Number(lengthHeader) > 8192)) {
+  if (lengthHeader !== null && (!/^[0-9]+$/.test(lengthHeader) || Number(lengthHeader) > 8192)) {
     return json({ error: "REQUEST_TOO_LARGE" }, 413);
   }
   if (!req.body) return json({ error: "INVALID_JSON" }, 400);
