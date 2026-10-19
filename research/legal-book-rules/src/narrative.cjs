@@ -22,11 +22,20 @@ function narrativeClauses(text){
   return rows;
 }
 function createResolver(subjectAliases,roles=[]){
+  if(!Array.isArray(subjectAliases)||!subjectAliases.length||subjectAliases.length>12||subjectAliases.some(a=>typeof a!=='string'||a.length<2||a.length>40)||new Set(subjectAliases).size!==subjectAliases.length)throw Error('INVALID_SUBJECT_ALIASES');
   if(!Array.isArray(roles)||roles.length>8)throw Error('INVALID_NARRATIVE_ROLES');
   const states=roles.map(r=>{
-    if(typeof r.canonical!=='string'||!subjectAliases.includes(r.canonical)||!Array.isArray(r.aliases)||!Array.isArray(r.references)||r.aliases.length>12||r.references.length>12||[...r.aliases,...r.references].some(a=>typeof a!=='string'||a.length<2||a.length>40))throw Error('INVALID_NARRATIVE_ROLE');
+    if(!r||typeof r.canonical!=='string'||!subjectAliases.includes(r.canonical)||!Array.isArray(r.aliases)||!Array.isArray(r.references)||!r.aliases.length||r.aliases.length>12||r.aliases.some(a=>!subjectAliases.includes(a))||r.references.length>12||[...r.aliases,...r.references].some(a=>typeof a!=='string'||a.length<2||a.length>40))throw Error('INVALID_NARRATIVE_ROLE');
     return{...r,active:false,names:new Set(),bindings:[],antecedents:[]};
   });
+  const canonicalIds=new Set(),surfaces=new Map();
+  for(const state of states){
+    if(canonicalIds.has(state.canonical))throw Error('AMBIGUOUS_NARRATIVE_ROLE');canonicalIds.add(state.canonical);
+    for(const surface of [...state.aliases,...state.references]){
+      if(surfaces.has(surface)&&surfaces.get(surface)!==state.canonical)throw Error('AMBIGUOUS_NARRATIVE_ROLE');surfaces.set(surface,state.canonical);
+      if(subjectAliases.includes(surface)&&!state.aliases.includes(surface)&&surface!==state.canonical)throw Error('AMBIGUOUS_NARRATIVE_ROLE');
+    }
+  }
   const esc=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
   function bind(compact,origin){
     if(/不是|並非|并非|不為|不为/u.test(compact))return{matched:false};

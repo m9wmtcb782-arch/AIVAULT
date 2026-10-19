@@ -3,6 +3,7 @@ const { source, digest, takeSpan, evaluate } = require('./argument.cjs');
 const { derive, missingLeaves, witness, dependencies } = require('./proof.cjs');
 const { checkLogicLanguage } = require('./logic-language.cjs');
 const { checkRuleLanguage } = require('./source-language.cjs');
+const { compileFactSchemas } = require('./fact-schema.cjs');
 const { scan } = require('./engine.cjs');
 const { classifyPage } = require('./section.cjs');
 const { narrativeClauses, createResolver } = require('./narrative.cjs');
@@ -10,6 +11,7 @@ function extractFacts(text, schemas, subjectAliases, narrativeRoles=[]) {
   if (typeof text !== 'string' || text.length > 16000 || !Array.isArray(schemas) || schemas.length > 32 || !Array.isArray(subjectAliases) || !subjectAliases.length || subjectAliases.length > 12) throw Error('INVALID_CASE_INPUT');
   const values = Object.create(null), provenance = Object.create(null), unknownClauses = [];
   const resolver=createResolver(subjectAliases,narrativeRoles);
+  const factIndex=compileFactSchemas(schemas,subjectAliases,narrativeRoles);
   let lastSubject=null;
   const chunks = narrativeClauses(text);
   for (const m of chunks) {
@@ -23,16 +25,12 @@ function extractFacts(text, schemas, subjectAliases, narrativeRoles=[]) {
     const subject=resolved?.canonical;
     if(!subject){unknownClauses.push({start:m.start,end:m.end});continue;}
     const predicate = compact.slice(resolved.surface.length); let matched = false;
-    for (const schema of schemas) {
-      if (!/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(schema.key) || !Array.isArray(schema.trueForms) || !Array.isArray(schema.falseForms) || schema.trueForms.length > 20 || schema.falseForms.length > 20 || [...schema.trueForms,...schema.falseForms].some(v => typeof v !== 'string' || v.length < 2 || v.length > 100)) throw Error('INVALID_FACT_SCHEMA');
-      if (schema.subjectAliases && !schema.subjectAliases.includes(subject)) continue;
-      const pos=schema.trueForms.includes(predicate), neg=schema.falseForms.includes(predicate);
-      if(!pos&&!neg)continue;
-      if(pos&&neg)throw Error('AMBIGUOUS_FACT_SCHEMA');
-      const v=pos?'TRUE':'FALSE';
-      if(!provenance[schema.key])provenance[schema.key]=[];
-      provenance[schema.key].push({start:m.start,end:m.end,text:raw,value:v,subjectSurface:resolved.surface,subjectCanonical:subject,resolvedBy:resolved.kind,binding:resolved.binding});
-      values[schema.key]=values[schema.key]&&values[schema.key]!==v?'CONFLICT':v;matched=true;
+    const entry=factIndex.get(subject)?.get(predicate);
+    if(entry){
+      const {key,value:v}=entry;
+      if(!provenance[key])provenance[key]=[];
+      provenance[key].push({start:m.start,end:m.end,text:raw,value:v,subjectSurface:resolved.surface,subjectCanonical:subject,resolvedBy:resolved.kind,binding:resolved.binding});
+      values[key]=values[key]&&values[key]!==v?'CONFLICT':v;matched=true;
     }
     if(!matched){unknownClauses.push({start:m.start,end:m.end});lastSubject=null;}else{const origin={start:m.start,end:m.end,text:raw,canonical:subject};resolved.activate(origin);lastSubject={canonical:subject,sentenceStart:m.sentenceStart,origin};}
   }
@@ -50,6 +48,7 @@ function validateRule(rule,snapshot){
 function validateProgram(card,snapshot){
     const derivations=card.derivations===undefined?[]:card.derivations;
     if(!Array.isArray(derivations)||derivations.length>16||!Array.isArray(card.factSchemas)||card.factSchemas.length>32)throw Error('INVALID_PROGRAM');
+    compileFactSchemas(card.factSchemas,card.subjectAliases,card.narrativeRoles||[]);
     const baseKeys=card.factSchemas.map(f=>f.key),derivedKeys=derivations.map(r=>r.conclusion?.key);
     if(baseKeys.some(k=>typeof k!=='string'||!/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(k))||new Set(baseKeys).size!==baseKeys.length)throw Error('INVALID_FACT_KEYS');
     const known=new Set([...baseKeys,...derivedKeys]);

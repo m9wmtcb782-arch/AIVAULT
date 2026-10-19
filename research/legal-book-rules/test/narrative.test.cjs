@@ -21,3 +21,12 @@ test('same-sentence omitted subject keeps preceding actor and negation',()=>{con
 test('omitted predicate cannot transfer organization facts to activity',()=>{const r=run('本案組織不是國家機關，但屬於公行政。');assert.equal(r.values.PUBLIC,undefined);assert(r.unknownClauses.length);});
 test('omitted subject is not carried across sentence boundary',()=>{const r=run('本案活動屬於公行政。不屬於公行政。');assert.equal(r.values.PUBLIC,'TRUE');assert.equal(r.unknownClauses.length,1);});
 test('even-if clause never supplies unconditional consequent fact',()=>{const r=run('即使本案組織是國家機關，本案活動屬於公行政。');assert.equal(r.values.PUBLIC,undefined);assert(r.unknownClauses.length);});
+test('one predicate cannot silently become two facts for the same actor',()=>{
+ const ambiguous=[...schemas,{key:'OTHER',subjectAliases:['本案活動'],trueForms:['屬於公行政'],falseForms:['不屬於公行政']}];assert.throws(()=>extractFacts('本案活動屬於公行政。',ambiguous,subjects,roles),/AMBIGUOUS_FACT_SCHEMA/);
+});
+test('invalid fact forms are rejected even when no input sentence happens to match',()=>{
+ assert.throws(()=>extractFacts('',[{key:'A',trueForms:['屬於甲類'],falseForms:['屬於甲類']}],subjects,roles),/AMBIGUOUS_FACT_SCHEMA/);
+});
+test('the same predicate cannot change actor through duplicate role aliases',()=>{
+ const bad=[roles[0],{...roles[1],aliases:['本案活動','本案組織']}];assert.throws(()=>extractFacts('本案組織名為甲協會。甲協會屬於公行政。',schemas,subjects,bad),/AMBIGUOUS_NARRATIVE_ROLE/);
+});

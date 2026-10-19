@@ -93,3 +93,9 @@ test('unknown opposite premise disabled by an exception cites the exception fact
  const positive={...card.rules[0],exceptions:[]};const disabled={...positive,id:'disabled',when:{fact:'B'},exceptions:[{fact:'E'}],conclusion:{key:'IN_SCOPE',polarity:'negative',text:'不屬於測試範圍'}};
  const r=runCompeting('本案活動屬於甲類。本案活動具備丁例外。',{rules:[positive,disabled]});assert.equal(r.status,'SUPPORTED_BOOK_CASE');assert.deepEqual(r.trace.applied.map(p=>p.key),['A','E']);assert.deepEqual(r.trace.checkedRuleIds,['disabled']);
 });
+test('ambiguous fact mapping blocks the unified case result instead of manufacturing two premises',()=>{
+ const c={...card.rules[0],exceptions:[],when:{all:[{fact:'A'},{fact:'E'}]}};const s=structuredClone(schemas);s[2].trueForms=['屬於甲類'];const r=runCompeting('本案活動屬於甲類。',{rules:[c],factSchemas:s});assert.equal(r.status,'BLOCKED');assert.equal(r.facts,undefined);assert.equal(r.conclusion,undefined);
+});
+test('invalid form definitions are rejected even with an empty fact input',()=>{
+ const bad=structuredClone(schemas);bad[0].falseForms=[...bad[0].trueForms];assert.equal(runCompeting('',{factSchemas:bad}).status,'BLOCKED');
+});
