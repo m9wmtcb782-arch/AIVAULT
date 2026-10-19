@@ -10,14 +10,14 @@ export type TinyFishAdapterConfig = {
   maxRequestsPerMinute: number;
   termsApproved: boolean;
 };
-const ALLOWED_HOST = "agent.tinyfish.ai";
+const ALLOWED_HOST = "api.search.tinyfish.ai";
 export function createTinyFishSearchAdapter(
   config: TinyFishAdapterConfig,
   fetcher: typeof fetch = fetch,
 ): AuthorizedSearchAdapter {
   const endpoint = new URL(config.endpoint);
   if (endpoint.protocol !== "https:" || endpoint.hostname !== ALLOWED_HOST ||
-      endpoint.username || endpoint.password || endpoint.search || endpoint.hash) {
+      endpoint.username || endpoint.password || endpoint.search || endpoint.hash || endpoint.pathname !== "/") {
     throw new Error("TINYFISH_ENDPOINT_NOT_ALLOWED");
   }
   if (!config.enabled || !config.termsApproved || !config.apiKey) {
