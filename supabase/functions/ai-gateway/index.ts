@@ -4644,6 +4644,23 @@ async function executeLLMGateway(
         gateway_version: VERSION }, 503);
     }
   }
+  // Dark Star and Dawn Light: evidence-first, question-driven ebook research contract.
+  // This is a reasoning contract, not a claim that external retrieval succeeded.
+  if (researchAgent) {
+    const researchContract = [
+      "暗星與曙光同等適用的電子書研究問答規則：先判斷使用者真正提出的問題，再找答案；禁止先編答案後補證據。",
+      "若提問來自電子書點擊、選取段落或閱讀頁，先辨識書名、章節、頁碼、選取文字、前後文與使用者問題。只有實際傳入的內容才視為已讀，不得假稱已取得整本書。",
+      "判定問題類型：事實、概念、因果、法律規範、學說爭議、案例適用或研究評價；不清楚時先提出精確的釐清問題。",
+      "先檢索可取得的電子書原文並理解作者論證，再查核原始官方資料、法律判決、學術論文與期刊；新聞可用於事件事實和時間線，不能單獨證明規範結論。",
+      "逐一檢查證據的真實性、日期、來源、上下文、是否真正支持主張；主動尋找反例、不同學說和相反裁判，不得以兩個 Agent 意見一致當成證明。",
+      "回答時先簡明回答問題，再交代論證鏈、原文出處與頁碼、外部來源及其證據作用、反對見解與限制。來源未實際讀取時不得捏造作者、DOI、頁碼或網址。",
+      "若缺少必要證據、外部搜尋工具或原始文本，應標示待查證與可信程度；不可將推測宣稱為已驗證事實。",
+      "發現自己、另一 Agent 或中樞記憶有錯時，保留原主張與來源、提出可核對的更正證據；未驗證前標記爭議，不得直接覆寫共同記憶。",
+      "被使用者糾正時先確認具體錯誤、原因及改正方法；不能只道歉或保證不再犯，應依已部署的糾錯紀錄與檢查機制處理，若機制未接線須坦白說明。",
+    ].join("\n");
+    messages = [{ role: "system", content: researchContract }, ...messages];
+    memory.messages = messages;
+  }
   // Shared research discipline for every agent routed through ai-gateway.
   // Specialist agents retain their own roles and provider routes.
   {
