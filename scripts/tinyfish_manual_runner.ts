@@ -30,8 +30,8 @@ if (outcome.httpStatus !== 200 || !["DISCOVERED", "NO_RESULTS"].includes(String(
 const candidates = Array.isArray(data.candidates) ? data.candidates.slice(0, 5).flatMap((hit: unknown) => {
   if (!hit || typeof hit !== "object") return [];
   const h = hit as Record<string, unknown>;
-  if (typeof h.url !== "string" || !h.url.startsWith("https://")) return [];
-  return [{ title: String(h.title ?? "").slice(0, 200), url: h.url.slice(0, 2000),
+  if (typeof h.url !== "string" || h.url.length > 2000) return [];
+  return [{ title: String(h.title ?? "").slice(0, 200), url: h.url,
     snippet: String(h.snippet ?? "").slice(0, 600) }];
 }) : [];
 const triaged = triageCandidates(candidates as Candidate[]);
