@@ -525,12 +525,15 @@
     var q = String(question || ""), nq = toS(norm(q));
     var listing = await ingest({ action: "list", limit: 100 });
     var books = (listing && (listing.books || listing.items)) || [];
+    if (listing && (listing.__http >= 400 || listing.error)) return "【電子書讀取失敗】書目服務 HTTP " + (listing.__http || "未知") + "：" + String(listing.error || "授權或服務錯誤") + "。請確認登入，不能引用其他教材。";
     if (!books.length) return "【電子書檢索錯誤】書目 API 沒有回傳可讀書籍；不能冒稱讀到原文。";
     var selected = null, score = 0;
     books.forEach(function (bk) {
       var title = toS(norm(bk.title || "")), stem = title.split(/[（(｜|]/)[0];
       var candidate = stem.slice(0, Math.min(6, stem.length));
-      if (candidate.length >= 3 && nq.indexOf(candidate) >= 0 && candidate.length > score) { selected = bk; score = candidate.length; }
+      var knownYu = String(bk.id || bk.ebook_id || "") === "c8743d50-bad5-4ec8-b675-5e64fe7985a9";
+      var requestedYu = /行政法入门|余凌云/.test(nq);
+      if ((candidate.length >= 3 && nq.indexOf(candidate) >= 0 && candidate.length > score) || (knownYu && requestedYu)) { selected = bk; score = knownYu && requestedYu ? 100 : candidate.length; }
     });
     var study = null;
     try { if (w.AIVAULTStudyBooks) study = await w.AIVAULTStudyBooks.get(); } catch (e) {}
@@ -551,7 +554,7 @@
           var n = pages[i], res = await ingest({ action: "context", ebook_id: id, page_number: n, radius: 0 });
           var p = ((res && res.pages) || []).find(function (x) { return Number(x.page_number) === n && x.content; });
           if (p) excerpts.push("《" + selected.title + "》PDF第" + n + "頁：" + String(p.content).slice(0, 4200));
-          else excerpts.push("PDF第" + n + "頁：未取得原文（不可編造）。");
+          else excerpts.push("PDF第" + n + "頁：未取得原文（HTTP " + (res && res.__http || "未知") + "；" + String(res && res.error || "無正文") + "），不可編造。");
         }
         return "【指定書籍逐頁查詢結果】\n" + excerpts.join("\n") + "\n僅依取得的頁面作答，原書印刷頁碼與 PDF 頁碼須區分。";
       }
