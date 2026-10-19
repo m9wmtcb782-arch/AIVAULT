@@ -30,7 +30,8 @@ export function triageCandidate(input: Candidate): Triage {
       verifiedFreeCapacity: false, usableForInference: false, reasons: ["INVALID_HTTPS_URL"] };
   }
   // A GitHub repository is not automatically the provider's official documentation.
-  const official = officialHosts.has(host) && host !== "github.com" && docsPath.test(path);
+  const official = officialHosts.has(host) && docsPath.test(path) &&
+    !/(^|\/)blog(\/|$)/i.test(path);
   if (official) reasons.push("OFFICIAL_DOCUMENTATION_CANDIDATE");
   else reasons.push("REQUIRES_OFFICIAL_PROVIDER_SOURCE");
   reasons.push("NO_AUTHENTICATED_QUOTA_OR_INFERENCE_TEST");
