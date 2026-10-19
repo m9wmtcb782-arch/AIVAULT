@@ -1,0 +1,50 @@
+// Isolated OpenRouter free-only adapter. No production route or automatic execution.
+// Caller must explicitly authorize a controlled test; never fall back to paid models.
+export type FreeInferenceRequest = { prompt: string; model: string };
+export type FreeInferenceResult = { text: string; model: string; usage: unknown };
+export function validateFreeRequest(input: FreeInferenceRequest): void {
+ if (!input || typeof input.prompt !== "string" || input.prompt.length < 1 || input.prompt.length > 2000)
+  throw Error("INVALID_PROMPT");
+ // Only the provider's explicitly free router is accepted; no caller-selected paid model.
+ if (input.model !== "openrouter/free") throw Error("FREE_MODEL_ONLY");
+}
+export async function runOpenRouterFreeInference(
+ input: FreeInferenceRequest,
+ options: { apiKey: string; enabled: boolean; authorized: boolean; fetcher?: typeof fetch }
+): Promise<FreeInferenceResult> {
+ validateFreeRequest(input);
+ if (!options.enabled || !options.authorized) throw Error("FREE_INFERENCE_DISABLED");
+ if (!options.apiKey) throw Error("MISSING_OPENROUTER_KEY");
+ const fetcher = options.fetcher ?? fetch;
+ const response = await fetcher("https://openrouter.ai/api/v1/chat/completions", {
+  method: "POST", redirect: "error", signal: AbortSignal.timeout(12000),
+  headers: { authorization: "Bearer " + options.apiKey, "content-type": "application/json" },
+  body: JSON.stringify({ model: "openrouter/free", messages: [{ role: "user", content: input.prompt }],
+   max_tokens: 128, stream: false })
+ });
+ if (response.redirected || (response.url && response.url !== "https://openrouter.ai/api/v1/chat/completions"))
+  throw Error("DESTINATION_MISMATCH");
+ if (!response.ok) throw Error("FREE_PROVIDER_UNAVAILABLE_" + response.status);
+ const declared = Number(response.headers.get("content-length") ?? 0);
+ if (!Number.isSafeInteger(declared) || declared < 0 || declared > 65536) throw Error("RESPONSE_TOO_LARGE");
+ const reader = response.body?.getReader();
+ if (!reader) throw Error("EMPTY_RESPONSE");
+ const chunks: Uint8Array[] = []; let total = 0;
+ try {
+  while (true) { const part = await reader.read(); if (part.done) break;
+   total += part.value.byteLength; if (total > 65536) throw Error("RESPONSE_TOO_LARGE");
+   chunks.push(part.value); }
+ } finally { await reader.cancel().catch(() => {}); reader.releaseLock(); }
+ const bytes = new Uint8Array(total); let pos = 0;
+ for (const chunk of chunks) { bytes.set(chunk,pos); pos += chunk.byteLength; }
+ let data: unknown;
+ try { data = JSON.parse(new TextDecoder().decode(bytes)); } catch { throw Error("INVALID_PROVIDER_JSON"); }
+ if (!data || typeof data !== "object") throw Error("INVALID_PROVIDER_RESPONSE");
+ const parsed = data as Record<string, unknown>;
+ const choices = parsed.choices;
+ const choice = Array.isArray(choices) ? choices[0] : null;
+ const message = choice && typeof choice === "object" ? (choice as Record<string,unknown>).message : null;
+ const text = message && typeof message === "object" ? (message as Record<string,unknown>).content : null;
+ if (typeof text !== "string") throw Error("INVALID_PROVIDER_RESPONSE");
+ return { text: text.slice(0,10000), model: String(parsed.model ?? "unknown"), usage: parsed.usage ?? null };
+}
