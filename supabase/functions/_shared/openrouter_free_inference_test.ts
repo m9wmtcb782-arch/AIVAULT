@@ -92,3 +92,13 @@ Deno.test("paid model substitution is rejected",async()=>{
   {apiKey:"dummy",enabled:true,authorized:true,egress:{classification:"PUBLIC",purpose:"PUBLIC_QA",payload:"Reply with the single word OK.",approvedByPolicy:true},fetcher:fake}
  ),/UNEXPECTED_PROVIDER_MODEL/);
 });
+
+Deno.test("string billing cost cannot bypass positive cost check",async()=>{
+ const fake=(async()=>new Response(JSON.stringify({
+  model:"example/free-model:free",choices:[{message:{content:"OK"}}],usage:{cost:"0.001"}
+ }),{headers:{"content-type":"application/json"}})) as typeof fetch;
+ await assert.rejects(()=>runOpenRouterFreeInference(
+  {prompt:"Reply with the single word OK.",model:"openrouter/free"},
+  {apiKey:"dummy",enabled:true,authorized:true,egress:{classification:"PUBLIC",purpose:"PUBLIC_QA",payload:"Reply with the single word OK.",approvedByPolicy:true},fetcher:fake}
+ ),/NONZERO_OR_INVALID_COST_REPORTED/);
+});
