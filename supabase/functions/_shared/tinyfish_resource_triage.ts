@@ -20,7 +20,9 @@ export function triageCandidate(input: Candidate): Triage {
   let path = "";
   try {
     const u = new URL(input.url);
-    if (u.protocol !== "https:" || u.username || u.password || u.port || u.hostname.endsWith(".")) throw Error("bad url");
+    if (u.protocol !== "https:" || u.username || u.password || u.port || u.hostname.endsWith(".") ||
+      u.hostname === "localhost" || u.hostname.endsWith(".local") || u.hostname.endsWith(".internal") ||
+      /^[0-9.]+$/.test(u.hostname) || u.hostname.startsWith("[") || !u.hostname.includes(".")) throw Error("bad url");
     host = u.hostname.toLowerCase();
     path = u.pathname;
   } catch {
