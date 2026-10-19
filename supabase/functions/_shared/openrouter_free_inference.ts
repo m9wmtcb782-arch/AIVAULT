@@ -1,4 +1,5 @@
 import { authorizeExternalEgress, type EgressRequest } from "./aivault_external_egress.ts";
+import { createApprovedPublicTask } from "./aivault_public_task_allowlist.ts";
 // Isolated OpenRouter free-only adapter. No production route or automatic execution.
 // Caller must explicitly authorize a controlled test; never fall back to paid models.
 export type FreeInferenceRequest = { prompt: string; model: string };
@@ -14,6 +15,8 @@ export async function runOpenRouterFreeInference(
  options: { apiKey: string; enabled: boolean; authorized: boolean; egress: EgressRequest; fetcher?: typeof fetch }
 ): Promise<FreeInferenceResult> {
  validateFreeRequest(input);
+ const publicPrompts = [createApprovedPublicTask("PUBLIC_CONNECTIVITY_CHECK").prompt, createApprovedPublicTask("PUBLIC_GENERAL_KNOWLEDGE").prompt];
+ if (!publicPrompts.includes(input.prompt)) throw Error("UNAPPROVED_PUBLIC_TASK");
  const egress = authorizeExternalEgress(options.egress);
  if (!egress.allowed || options.egress.payload !== input.prompt) throw Error("EGRESS_DENIED");
  if (!options.enabled || !options.authorized) throw Error("FREE_INFERENCE_DISABLED");
