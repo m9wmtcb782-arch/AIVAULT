@@ -4484,8 +4484,11 @@ async function executeLLMGateway(
 
   // Dark Star must not silently answer without canonical memory when its
   // conversation store is unavailable; provider/key failover is independent.
-  const darkStarAgent = isRecord(body) &&
-    String(body.agent_id || body.agent || "").trim() === "technical-dark-star";
+  const agentId = isRecord(body) ? String(body.agent_id || body.agent || "").trim() : "";
+  const darkStarAgent = agentId === "technical-dark-star";
+  const dawnLightAgent = agentId === "dawn-light";
+  // Equal research privileges for Dark Star and Dawn Light.
+  const researchAgent = darkStarAgent || dawnLightAgent;
   if (darkStarAgent && !memory.enabled) {
     return json({
       success: false,
@@ -4505,7 +4508,7 @@ async function executeLLMGateway(
   messages = await cityMemInject(body, messages, memory); memory.messages = messages; // sm2
   // Wikipedia is a public reference lookup, not a model provider.
   // Automatically retrieve for substantive knowledge questions, even without naming Wikipedia.
-  if (darkStarAgent) {
+  if (researchAgent) {
     const userText = findCurrentUserMessage(body, messages).trim();
     const explicitTopic = isRecord(body) ? String(body.wiki_query || "").trim() : "";
     // Automatic reference retrieval for substantive knowledge questions.
@@ -4561,7 +4564,7 @@ async function executeLLMGateway(
   }
   // Official Taiwan legal sources: only fetch a URL from a strict
   // allowlist. Never treat an arbitrary user URL as a trusted legal source.
-  if (darkStarAgent) {
+  if (researchAgent) {
     const question = findCurrentUserMessage(body, messages);
     const explicitUrl = isRecord(body) ? String(body.legal_source_url || "") : "";
     const urlMatch = question.match(/https:\/\/(?:law\.moj\.gov\.tw|judgment\.judicial\.gov\.tw|cons\.judicial\.gov\.tw|lis\.ly\.gov\.tw)\/[^\s<>"'，。]+/i);
