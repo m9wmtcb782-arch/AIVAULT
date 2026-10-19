@@ -468,6 +468,7 @@
     if (sv && sv.st && (sv.st.chapter || sv.st.part || sv.st.section)) setReadTarget(100);
     var msg = sv ? "【書架資料】使用者剛才的題目：「" + q + "」\n" + sv.text + "\n章節資料已讀到 100%。請現在根據以上書架資料回答，說出書名與頁碼。" + EXCERPT_NOTE
       : hits.length ? compose(q, hits) : shelf ? "【書架資料】使用者在問書架本身：「" + q + "」。" : "";
+    if (!msg && shelf) msg = "【書架檢索結果】目前沒有取得可引用的書籍頁面或書目。請如實告知尚未取得原文，不要假裝已讀過。";
     if (!msg) return;
     if (shelf && list.length) msg += "\n已實際索引的書目：" + bookTitles(list).join("、") + "。只能說明已成功讀取的內容，不得宣稱看過未取得的書。";
     msg = withLinHint(withZhangHint(withJiangHint(msg, hits, sv && sv.bid), hits, sv && sv.bid), hits, sv && sv.bid);
