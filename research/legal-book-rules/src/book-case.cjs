@@ -1,6 +1,6 @@
 'use strict';
 const { source, digest, takeSpan, evaluate } = require('./argument.cjs');
-const { derive, dependencies, missingLeaves } = require('./proof.cjs');
+const { derive, missingLeaves, witness } = require('./proof.cjs');
 const { scan } = require('./engine.cjs');
 const { classifyPage } = require('./section.cjs');
 const { narrativeClauses, createResolver } = require('./narrative.cjs');
@@ -66,6 +66,8 @@ function answerBookCase(input,card,snapshot,{allowedBookIds,getReviewedDigest}={
     const proof=derive(derivations,facts.values,card.factSchemas.map(f=>f.key));
     if(proof.conflicts.length)return{status:'MULTIPLE_VIEWS',text:'中間推導出現相反結果，不能沿用它作成結論。',facts,proof,modelCalls:0};
     const reasoningValues=proof.values;
+    const inconsistentGroups=card.exclusiveGroups.filter(group=>group.filter(k=>reasoningValues[k]==='TRUE').length>1);
+    if(inconsistentGroups.length)return{status:'INCONSISTENT_PROOF',text:'書中規則推得的命題與已知事實違反互斥關係，不能繼續下結論。',facts,proof,inconsistentGroups,modelCalls:0};
     const matched=[],pending=[],missing=new Set(),exceptionRules=[];
     for(const rule of card.rules){
       const original=validateRule(rule,snapshot);
@@ -97,21 +99,25 @@ function answerBookCase(input,card,snapshot,{allowedBookIds,getReviewedDigest}={
       return{status:'NEEDS_FACTS',text:'已有規則支持一個方向，但相反規則的條件或例外尚未釐清，現在不能作成單一結論。需要核對：'+missing.map(k=>card.factSchemas.find(f=>f.key===k)?.label||k).join('、')+'。',missing,pendingRuleIds:unresolvedOpposite.map(r=>r.ruleId),facts,modelCalls:0};
     }
     const chosen=matched[0],usedKeys=new Set();
-    const collect=e=>{if(e.fact)usedKeys.add(e.fact);if(e.not)collect(e.not);for(const x of e.all||e.any||[])collect(x);};collect(chosen.rule.when);chosen.rule.exceptions.forEach(collect);
+    for(const key of witness(chosen.rule.when,reasoningValues).dependencies)usedKeys.add(key);
+    for(const e of chosen.rule.exceptions)for(const key of witness(e,reasoningValues).dependencies)usedKeys.add(key);
     const usedProof=[];
     function expand(key){
       const node=proof.nodes.find(n=>n.key===key);if(!node||usedProof.includes(node))return;
-      for(const r of node.rules.filter(r=>r.status==='APPLIED'||r.status==='INACTIVE'))for(const dep of r.dependencies){usedKeys.add(dep);expand(dep);}
+      if(!node.witness)throw Error('UNPROVEN_INTERMEDIATE');
+      for(const dep of node.witness.dependencies){usedKeys.add(dep);expand(dep);}
       usedProof.push(node);
     }
     [...usedKeys].forEach(expand);
-    const proofRules=usedProof.flatMap(n=>n.rules.filter(r=>r.status==='APPLIED').map(r=>derivations.find(d=>d.id===r.ruleId)));
+    const proofRules=usedProof.map(n=>derivations.find(d=>d.id===n.witness.supportRuleId));
+    const checkedRules=usedProof.flatMap(n=>n.witness.checkedOppositeRuleIds.map(id=>derivations.find(d=>d.id===id)));
     const proofText=proofRules.map(r=>'書中規則：'+takeSpan(snapshot,r.evidence)+'\n推得：'+r.conclusion.text).join('\n');
+    const checkedText=checkedRules.map(r=>'已核對並排除的相反規則：'+takeSpan(snapshot,r.evidence)).join('\n');
     const applied=[...usedKeys].flatMap(k=>(facts.provenance[k]||[]).map(p=>({key:k,...p})));
     const nonDecisiveFacts=Object.keys(facts.provenance).filter(k=>!usedKeys.has(k)).flatMap(k=>facts.provenance[k]);
-    return{status:'SUPPORTED_BOOK_CASE',text:'依本書的概念界定，'+chosen.rule.conclusion.text+'。\n\n'+(chosen.rule.explanation?'理由：'+chosen.rule.explanation+'\n\n':'')+'書中原文：\n'+chosen.original+(proofText?'\n\n中間推導：\n'+proofText:'')+'\n\n題目對照：\n'+applied.map(p=>p.text).join('\n')+'\n\n'+(proofRules.length?'上述題目事實經列示規則推導後，符合結論規則的條件；此結論限於題目給定前提。':'上述明示事實符合這項書中規則的條件；此結論限於題目給定前提。')+(nonDecisiveFacts.length?'\n題目中的「'+nonDecisiveFacts.map(p=>p.text).join('；')+'」未單獨作為本次推導的充分條件。':''),
-      conclusion:chosen.rule.conclusion,facts,trace:{proof:usedProof,excludedCompetingRules,ruleId:chosen.rule.id,sourceHash:snapshot.sourceHash,premise:chosen.premise,exceptions:chosen.exceptions,applied},
-      citation:{title:snapshot.meta.title,edition:snapshot.meta.edition,pdfPage:chosen.rule.evidence.pdfPage,pdfPages:[...new Set([...chosen.rule.context,...proofRules.flatMap(r=>r.context)].map(e=>e.pdfPage))]},nonDecisiveFacts,
+    return{status:'SUPPORTED_BOOK_CASE',text:'依本書的概念界定，'+chosen.rule.conclusion.text+'。\n\n'+(chosen.rule.explanation?'理由：'+chosen.rule.explanation+'\n\n':'')+'書中原文：\n'+chosen.original+(proofText?'\n\n中間推導：\n'+proofText:'')+(checkedText?'\n\n'+checkedText:'')+'\n\n題目對照：\n'+applied.map(p=>p.text).join('\n')+'\n\n'+(proofRules.length?'上述題目事實經列示規則推導後，符合結論規則的條件；此結論限於題目給定前提。':'上述明示事實符合這項書中規則的條件；此結論限於題目給定前提。')+(nonDecisiveFacts.length?'\n題目中的「'+nonDecisiveFacts.map(p=>p.text).join('；')+'」未單獨作為本次推導的充分條件。':''),
+      conclusion:chosen.rule.conclusion,facts,trace:{checkedRuleIds:checkedRules.map(r=>r.id),proof:usedProof,excludedCompetingRules,ruleId:chosen.rule.id,sourceHash:snapshot.sourceHash,premise:chosen.premise,exceptions:chosen.exceptions,applied},
+      citation:{title:snapshot.meta.title,edition:snapshot.meta.edition,pdfPage:chosen.rule.evidence.pdfPage,pdfPages:[...new Set([...chosen.rule.context,...[...proofRules,...checkedRules].flatMap(r=>r.context)].map(e=>e.pdfPage))]},nonDecisiveFacts,
       limitation:'此為書中概念規則對明示假設事實的適用，不是活動性質的獨立法律認定，也不是現行法或個案合法性判斷。',modelCalls:0};
   }catch{return{status:'BLOCKED',reasons:['INVALID_SOURCE_OR_CASE_RULE']};}
 }

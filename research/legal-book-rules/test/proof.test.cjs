@@ -24,3 +24,15 @@ test('three-step chain carries missing base exception through every intermediate
  const pending=derive(rs,{A:'TRUE'},['A','E']);assert.equal(pending.values.D,'UNKNOWN');assert.deepEqual(missingLeaves(['D'],pending),['E']);
  const complete=derive(rs,{A:'TRUE',E:'FALSE'},['A','E']);assert.equal(complete.values.D,'TRUE');assert.equal(complete.nodes.length,3);
 });
+test('conclusive disjunction does not depend on an unknown alternative',()=>{
+ const p=derive([rule('choice','B',{any:[{fact:'A'},{fact:'E'}]})],{A:'TRUE'},['A','E']);assert.deepEqual(p.nodes[0].witness.dependencies,['A']);
+});
+test('one false conjunct suffices to exclude an opposing rule',()=>{
+ const p=derive([rule('yes','B',{fact:'A'}),rule('no','B',{all:[{fact:'E'},{fact:'F'}]},'negative')],{A:'TRUE',E:'FALSE'},['A','E','F']);assert.equal(p.values.B,'TRUE');assert.deepEqual(p.nodes[0].witness.checkedOppositeRuleIds,['no']);assert.deepEqual(p.nodes[0].witness.dependencies,['A','E']);
+});
+test('a true exception can exclude an opposing rule without establishing its premise',()=>{
+ const p=derive([rule('yes','B',{fact:'A'}),rule('no','B',{fact:'E'},'negative',[{fact:'F'}])],{A:'TRUE',F:'TRUE'},['A','E','F']);assert.equal(p.values.B,'TRUE');assert.deepEqual(p.nodes[0].witness.dependencies,['A','F']);
+});
+test('a negative disjunction witness requires both alternatives to be false',()=>{
+ const p=derive([rule('yes','B',{fact:'A'}),rule('no','B',{any:[{fact:'E'},{fact:'F'}]},'negative')],{A:'TRUE',E:'FALSE',F:'FALSE'},['A','E','F']);assert.equal(p.values.B,'TRUE');assert.deepEqual(p.nodes[0].witness.dependencies,['A','E','F']);
+});

@@ -16,3 +16,30 @@ test('intermediate evidence mutation blocks the complete answer',()=>{const c=st
 test('intermediate rules still require the package review digest',()=>{assert.equal(run('本案活動屬於甲類。',card,{getReviewedDigest:()=>null}).status,'BLOCKED');});
 test('contradictory intermediate rules stop before downstream conclusion',()=>{const c=structuredClone(card);c.derivations.push({...c.derivations[0],id:'negative-b',conclusion:{key:'B',polarity:'negative',text:'本案活動不屬於乙類'}});const r=run('本案活動屬於甲類。',c);assert.equal(r.status,'MULTIPLE_VIEWS');assert.equal(r.conclusion,undefined);});
 test('unparsed facts are not discarded just because a chain can answer',()=>assert.equal(run('本案活動屬於甲類，但另有特殊規定。').status,'NEEDS_FACT_REVIEW'));
+test('mutual exclusion applies to derived and stated facts even when only one target rule exists',()=>{
+ const c=structuredClone(card);c.factSchemas.push({key:'OTHER',label:'丙類',trueForms:['屬於丙類'],falseForms:['不屬於丙類']});c.exclusiveGroups=[['B','OTHER']];
+ const r=run('本案活動屬於甲類。本案活動屬於丙類。',c);assert.equal(r.status,'INCONSISTENT_PROOF');assert.equal(r.conclusion,undefined);
+});
+test('a true disjunction cites the sufficient branch, not an unrelated false branch',()=>{
+ const c=structuredClone(card);c.factSchemas.push({key:'OTHER',label:'丙類',trueForms:['屬於丙類'],falseForms:['不屬於丙類']});c.rules[0].when={any:[{fact:'B'},{fact:'OTHER'}]};
+ const r=run('本案活動屬於甲類。本案活動不屬於丙類。',c);assert.equal(r.status,'SUPPORTED_BOOK_CASE');assert.deepEqual(r.trace.applied.map(p=>p.key),['A']);assert.equal(r.nonDecisiveFacts.length,1);
+});
+test('inactive same-direction derivation is not presented as support for the chosen proof',()=>{
+ const c=structuredClone(card);c.factSchemas.push({key:'OTHER',label:'丙類',trueForms:['屬於丙類'],falseForms:['不屬於丙類']});c.derivations.push({...c.derivations[0],id:'other-to-b',when:{fact:'OTHER'}});
+ const r=run('本案活動屬於甲類。本案活動不屬於丙類。',c);assert.equal(r.status,'SUPPORTED_BOOK_CASE');assert.deepEqual(r.trace.applied.map(p=>p.key),['A']);assert.equal(r.nonDecisiveFacts.length,1);assert.deepEqual(r.trace.proof[0].witness.supportRuleId,'a-to-b');
+});
+test('a false conjunct excludes a competing intermediate rule without unrelated facts in support',()=>{
+ const c=structuredClone(card);
+ c.factSchemas.push({key:'E',label:'丙類',trueForms:['屬於丙類'],falseForms:['不屬於丙類']},{key:'F',label:'丁類',trueForms:['屬於丁類'],falseForms:['不屬於丁類']});
+ c.derivations.push({...c.derivations[0],id:'opposite-b',when:{all:[{fact:'E'},{fact:'F'}]},conclusion:{key:'B',polarity:'negative',text:'本案活動不屬於乙類'}});
+ const r=run('本案活動屬於甲類。本案活動不屬於丙類。',c);assert.equal(r.status,'SUPPORTED_BOOK_CASE');assert.deepEqual(r.trace.applied.map(p=>p.key),['A','E']);assert.deepEqual(r.trace.checkedRuleIds,['opposite-b']);assert(r.text.includes('已核對並排除的相反規則'));assert(!r.trace.applied.some(p=>p.key==='F'));
+});
+test('removing an unused alternative keeps the proof while removing its decisive leaf destroys it',()=>{
+ const c=structuredClone(card);c.factSchemas.push({key:'OTHER',label:'丙類',trueForms:['屬於丙類'],falseForms:['不屬於丙類']});c.rules[0].when={any:[{fact:'B'},{fact:'OTHER'}]};
+ const full=run('本案活動屬於甲類。本案活動不屬於丙類。',c),pruned=run('本案活動屬於甲類。',c),withoutSupport=run('本案活動不屬於丙類。',c);
+ assert.equal(pruned.status,'SUPPORTED_BOOK_CASE');assert.deepEqual(full.conclusion,pruned.conclusion);assert.notEqual(withoutSupport.status,'SUPPORTED_BOOK_CASE');assert.equal(withoutSupport.conclusion,undefined);
+});
+test('removing a counterrule exclusion prevents an answer even when the supporting chain is unchanged',()=>{
+ const c=structuredClone(card);c.factSchemas.push({key:'E',label:'丙類',trueForms:['屬於丙類'],falseForms:['不屬於丙類']});c.derivations.push({...c.derivations[0],id:'opposite-b',when:{fact:'E'},conclusion:{key:'B',polarity:'negative',text:'本案活動不屬於乙類'}});
+ assert.equal(run('本案活動屬於甲類。本案活動不屬於丙類。',c).status,'SUPPORTED_BOOK_CASE');const missing=run('本案活動屬於甲類。',c);assert.equal(missing.status,'NEEDS_FACTS');assert.deepEqual(missing.missing,['E']);
+});
