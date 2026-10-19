@@ -45,3 +45,11 @@ jobs:
           test ${#AIVAULT_DISCOVERY_RUNNER_SECRET} -ge 32
       - name: Execute exactly one approved job
         run: deno run --allow-net=clcddygkaaqqtsbswgdf.supabase.co --allow-env=AIVAULT_SUPABASE_JWT,AIVAULT_DISCOVERY_RUNNER_SECRET,JOB_WORKER,JOB_REGION,JOB_QUERY scripts/tinyfish_manual_runner.ts
+      - name: Upload sanitized search evidence
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tinyfish-search-evidence
+          path: tinyfish-evidence/search.json
+          retention-days: 7
+          if-no-files-found: error
