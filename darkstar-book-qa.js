@@ -500,8 +500,8 @@
     if (selected) {
       var id = String(selected.id || selected.ebook_id || "");
       if (enabled && !enabled[id]) return "【電子書權限】《" + selected.title + "》尚未勾選「讓暗星學習」，請先在學習書籍清單啟用；不得越權讀取。";
-      var pages = [], matches = q.match(/第\\s*(\\d{1,4})\\s*(?:頁|页)/g) || [];
-      matches.forEach(function (m) { var n = Number((m.match(/\\d+/) || [0])[0]); if (n && pages.indexOf(n) < 0) pages.push(n); });
+      var pages = [], matches = q.match(/第\s*(\d{1,4})\s*(?:頁|页)/g) || [];
+      matches.forEach(function (m) { var n = Number((m.match(/\d+/) || [0])[0]); if (n && pages.indexOf(n) < 0) pages.push(n); });
       if (pages.length) {
         var excerpts = [];
         for (var i = 0; i < Math.min(4, pages.length); i++) {
@@ -510,7 +510,7 @@
           if (p) excerpts.push("《" + selected.title + "》PDF第" + n + "頁：" + String(p.content).slice(0, 4200));
           else excerpts.push("PDF第" + n + "頁：未取得原文（不可編造）。");
         }
-        return "【指定書籍逐頁查詢結果】\\n" + excerpts.join("\\n") + "\\n僅依取得的頁面作答，原書印刷頁碼與 PDF 頁碼須區分。";
+        return "【指定書籍逐頁查詢結果】\n" + excerpts.join("\n") + "\n僅依取得的頁面作答，原書印刷頁碼與 PDF 頁碼須區分。";
       }
     }
     var list = await build(), pool = selected ? list.filter(function (c) { return c.bid === String(selected.id || selected.ebook_id); }) : list;
@@ -518,7 +518,7 @@
     var terms = q.match(/比例原[則则]|合理[性]?原[則则]|行政裁量|必要性|妥當性|妥当性|法益相稱性|法益相称性|行政處罰|行政处罚|法律保留|依法行政/g) || [];
     var hits = search(terms.length ? terms.join(" ") : q.replace(/《[^》]+》/g, " ").slice(0, 140), pool);
     if (!hits.length) return "【電子書檢索狀態】未取得" + (selected ? "《" + selected.title + "》" : "書架") + "可引用的正文，請確認學習權限或檢索服務。";
-    return "【AIVAULT 電子書實際檢索結果】\\n" + hits.slice(0, 4).map(function (h) { return "《" + h.title + "》PDF第" + h.page + "頁：" + h.text.slice(0, 950); }).join("\\n") + "\\n只能引用以上實際取得的文字，不得編造原文。";
+    return "【AIVAULT 電子書實際檢索結果】\n" + hits.slice(0, 4).map(function (h) { return "《" + h.title + "》PDF第" + h.page + "頁：" + h.text.slice(0, 950); }).join("\n") + "\n只能引用以上實際取得的文字，不得編造原文。";
   }
   w.addEventListener("darkstar-live-user-turn", onTurn);
   w.AIVAULTBookQA = { getContextForQuery: getContextForQuery, build: build, search: search, isQuestion: isQuestion, compose: compose, structural: structural, coverage: coverage, progress: progressOf, parseStruct: parseStruct, intro: intro, bookTitles: bookTitles, reset: function () { chunks = null; } };
