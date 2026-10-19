@@ -62,3 +62,23 @@ Deno.test("missing egress metadata blocks network without leaking secrets",async
  ),/EGRESS_DENIED/);
  assert.equal(calls,0);
 });
+
+Deno.test("reported positive cost blocks result",async()=>{
+ const fake=(async()=>new Response(JSON.stringify({
+  choices:[{message:{content:"OK"}}],usage:{cost:0.001}
+ }),{headers:{"content-type":"application/json"}})) as typeof fetch;
+ await assert.rejects(()=>runOpenRouterFreeInference(
+  {prompt:"Reply with the single word OK.",model:"openrouter/free"},
+  {apiKey:"dummy",enabled:true,authorized:true,egress:{classification:"PUBLIC",purpose:"PUBLIC_QA",payload:"Reply with the single word OK.",approvedByPolicy:true},fetcher:fake}
+ ),/NONZERO_OR_INVALID_COST_REPORTED/);
+});
+Deno.test("missing billing metadata is not proof of zero cost",async()=>{
+ const fake=(async()=>new Response(JSON.stringify({
+  choices:[{message:{content:"OK"}}]
+ }),{headers:{"content-type":"application/json"}})) as typeof fetch;
+ const result=await runOpenRouterFreeInference(
+  {prompt:"Reply with the single word OK.",model:"openrouter/free"},
+  {apiKey:"dummy",enabled:true,authorized:true,egress:{classification:"PUBLIC",purpose:"PUBLIC_QA",payload:"Reply with the single word OK.",approvedByPolicy:true},fetcher:fake}
+ );
+ assert.equal(result.zeroCostVerified,false);
+});
