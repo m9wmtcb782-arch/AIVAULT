@@ -1,6 +1,6 @@
 // External-only AIVAULT discovery adapter. Does not call model inference APIs.
 // Must only run server-side, after owner approves TinyFish terms and creates one key.
-// API endpoint/response mapping requires live verification before production deployment.
+// Search API contract checked against published documentation; live authentication is NOT verified.
 import type { AuthorizedSearchAdapter, SearchHit } from "./free_discovery_worker.ts";
 
 export type TinyFishAdapterConfig = {
@@ -25,7 +25,7 @@ export function createTinyFishSearchAdapter(
     throw new Error("TINYFISH_NOT_AUTHORIZED");
   }
   if (!Number.isSafeInteger(config.maxRequestsPerMinute) ||
-      config.maxRequestsPerMinute < 1 || config.maxRequestsPerMinute > 30) {
+      config.maxRequestsPerMinute < 1 || config.maxRequestsPerMinute > 5) {
     throw new Error("TINYFISH_RATE_LIMIT_INVALID");
   }
   // The enclosing worker must enforce a distributed, account-wide quota.
@@ -42,13 +42,14 @@ export function createTinyFishSearchAdapter(
       try {
         // Contract is deliberately explicit; verify against current official
         // REST documentation before enabling the adapter in production.
-        const response = await fetcher(endpoint.href, {
-          method: "POST",
+        const searchUrl = new URL(endpoint.href);
+        searchUrl.searchParams.set("query", query);
+        searchUrl.searchParams.set("location", region.toUpperCase());
+        const response = await fetcher(searchUrl.href, {
+          method: "GET",
           headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + config.apiKey,
+            "X-API-Key": config.apiKey,
           },
-          body: JSON.stringify({ query, region, max_results: maxResults }),
           signal: controller.signal,
           redirect: "error",
         });
@@ -83,5 +84,5 @@ export function createTinyFishSearchAdapter(
     },
   };
 }
-// NOT PRODUCTION READY: verify API endpoint and payload against TinyFish docs,
+// NOT PRODUCTION READY: live-test API response,
 // add shared distributed quota lease, and get explicit user activation approval.
