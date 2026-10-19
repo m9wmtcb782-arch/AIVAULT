@@ -52,3 +52,13 @@ Deno.test("forged PUBLIC classification cannot send arbitrary prompt",async()=>{
   {apiKey:"dummy",enabled:true,authorized:true,egress:{classification:"PUBLIC",purpose:"PUBLIC_QA",payload:"AIVAULT internal architecture",approvedByPolicy:true},fetcher:fake}),/UNAPPROVED_PUBLIC_TASK/);
  assert.equal(calls,0);
 });
+
+Deno.test("missing egress metadata blocks network without leaking secrets",async()=>{
+ let calls=0;
+ const fake=(async()=>{calls++;return new Response("{}");}) as typeof fetch;
+ await assert.rejects(()=>runOpenRouterFreeInference(
+  {prompt:"Reply with the single word OK.",model:"openrouter/free"},
+  {apiKey:"SECRET_SENTINEL",enabled:true,authorized:true,egress:undefined as never,fetcher:fake}
+ ),/EGRESS_DENIED/);
+ assert.equal(calls,0);
+});
