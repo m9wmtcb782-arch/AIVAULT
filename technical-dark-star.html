@@ -6618,6 +6618,18 @@ async function callAIVAULT(
   const learningContext =
     await getDarkStarLearningContext(userMessage);
 
+  // 書架來源鎖：僅電子書勾選時，將實際檢索到的原文送入本輪 Gateway。
+  // 只增加當輪上下文，不改動使用者原文、歷史記憶或對話 ID。
+  let ebookContext = "";
+  try {
+    if (window.AIVAULTBookQA && typeof window.AIVAULTBookQA.getContextForQuery === "function") {
+      ebookContext = await window.AIVAULTBookQA.getContextForQuery(userMessage);
+    }
+  } catch (ebookError) {
+    console.warn("[DarkStar][BOOK RETRIEVAL]", ebookError);
+    ebookContext = "【電子書檢索狀態】檢索發生錯誤，沒有取得可引用原文；不得聲稱已讀取。";
+  }
+
 
   const payload = {
 
@@ -6629,7 +6641,7 @@ async function callAIVAULT(
         userMessage,
         safeFiles,
         learningContext
-      ),
+      ) + (ebookContext ? "\n\n" + ebookContext : ""),
 
     conversation_id:
       conversationId || null,
@@ -8598,7 +8610,7 @@ window.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__=async()=>{if(state.active||state.
 <script src="darkstar-drawer-live-fix.js?v=20261016-dl1"></script>
 <script src="darkstar-study-books.js?v=20261019-rf1"></script>
 <script src="darkstar-source-locks.js?v=20261019-yu1"></script>
-<script src="darkstar-book-qa.js?v=20261019-set1"></script>
+<script src="darkstar-book-qa.js?v=20261019-ebookfix2"></script>
 <script src="darkstar-photo-ask.js?v=20261015-pa5"></script>
 <script src="darkstar-bots.js?v=20261016-bots5"></script>
 
