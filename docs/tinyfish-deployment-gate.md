@@ -46,3 +46,11 @@ Disable all activation switches and DB gate; revoke runner and provider secrets 
   - `/functions/v1/aivault-ai-avatar-batch-test`
 - Absence in a 24-hour log window does **not** establish long-term disuse, and does not justify automatic deletion.
 - These are candidate slots only. Confirm dependencies and secure full source/settings backup, then obtain owner approval before retiring any.
+
+## Candidate preservation — 2026-10-19
+- Preferred *candidate for owner review*, **not approved for retirement**: `aivault-agent-evolution-test`, deployed version 2, JWT verification enabled.
+- Exact deployed `index.ts` was preserved on this feature branch as `docs/tinyfish-backups/aivault-agent-evolution-test-v2.index.ts`.
+- Its code accepts only POST, requires a Bearer token and a `[CAUSAL-TEST]` prefix, and forwards to `aivault-agent-evolution` with fixed `Worker-0134`. Removing the wrapper could break causal testing even if the downstream runtime remains.
+- Other candidate `technical-dark-star-voice-clone-test` uses ElevenLabs credentials and voice clone/delete actions; **do not select** without explicit review.
+- Other candidate `aivault-ai-avatar-batch-test` forwards to avatar generation with an internal secret; **do not select** without explicit review.
+- No changes to deployed functions; preserve JWT setting and test harness source in any eventual rollback. The owner must explicitly approve any production replacement.
