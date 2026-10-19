@@ -475,7 +475,36 @@
     msg = withLinHint(withZhangHint(withJiangHint(msg, hits, sv && sv.bid), hits, sv && sv.bid), hits, sv && sv.bid);
     if (L.sendRawText(msg)) { if (hits.length || sv) bubble(hits, sv && sv.bid); }
   }
+  // 文字聊天與即時語音共用真實書頁檢索；僅在電子書勾選時提供資料。
+  async function getContextForQuery(question) {
+    var locks = w.AIVAULTSourceLocks && w.AIVAULTSourceLocks.state ? w.AIVAULTSourceLocks.state() : { ebook: false };
+    if (!locks.ebook || !isQuestion(question)) return "";
+    var list = await build();
+    if (!list.length) return "【電子書檢索狀態】已勾選電子書，但目前沒有取得可引用的書頁；不得宣稱已閱讀原文。";
+    var q = String(question || "");
+    // 明確指定書名時只在該書搜尋，避免其他書的相似內容搶走結果。
+    var bookId = "", title = "";
+    var books = {};
+    list.forEach(function (c) { if (c.bid && !books[c.bid]) books[c.bid] = c.title; });
+    Object.keys(books).forEach(function (id) {
+      var t = toS(norm(books[id])).replace(/[（(｜|].*$/, "");
+      if (t.length >= 4 && toS(norm(q)).indexOf(t.slice(0, Math.min(6, t.length))) >= 0) { bookId = id; title = books[id]; }
+    });
+    var pool = bookId ? list.filter(function (c) { return c.bid === bookId; }) : list;
+    pool.idf = list.idf;
+    // 去掉長題幹、書名及命令詞，保留可檢索的核心法學概念。
+    var terms = [];
+    var patterns = [/比例原[則则]/, /合理[性]?原[則则]/, /行政裁量/, /自由裁量/, /必要性/, /妥當性|妥当性/, /法益相稱性|法益相称性/, /正當程序|正当程序/, /行政處罰|行政处罚/, /行政強制|行政强制/, /信賴保護|信赖保护/, /法律保留/, /依法行政/];
+    patterns.forEach(function (re) { var m = q.match(re); if (m) terms.push(m[0]); });
+    var query = terms.length ? terms.join(" ") : q.slice(0, 130).replace(/《[^》]+》/g, " ");
+    var hits = search(query, pool);
+    if (!hits.length && terms.length) hits = search(terms[0], pool);
+    if (!hits.length) return "【電子書檢索狀態】已查詢" + (title ? "《" + title + "》" : "書架") + "，但沒有找到可引用的正文段落。請如實說明，不能編造頁碼。";
+    return "【AIVAULT 電子書實際檢索結果｜僅可引用以下已取得段落】\\n" +
+      hits.slice(0, 4).map(function (h) { return "《" + h.title + "》PDF第" + h.page + "頁：" + h.text.slice(0, 950); }).join("\\n") +
+      "\\n請依上列真實段落回答，區分作者原意與自己的推論；頁碼為 PDF 頁碼，若原書頁碼不同不得混稱。";
+  }
   w.addEventListener("darkstar-live-user-turn", onTurn);
-  w.AIVAULTBookQA = { build: build, search: search, isQuestion: isQuestion, compose: compose, structural: structural, coverage: coverage, progress: progressOf, parseStruct: parseStruct, intro: intro, bookTitles: bookTitles, reset: function () { chunks = null; } };
+  w.AIVAULTBookQA = { getContextForQuery: getContextForQuery, build: build, search: search, isQuestion: isQuestion, compose: compose, structural: structural, coverage: coverage, progress: progressOf, parseStruct: parseStruct, intro: intro, bookTitles: bookTitles, reset: function () { chunks = null; } };
   setTimeout(function () { build().catch(function () {}); }, 4000); // 預先建索引
 })(window, document);
