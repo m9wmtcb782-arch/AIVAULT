@@ -31,3 +31,5 @@ Case continuation: `book-case.cjs` now binds explicit case-fact clauses to revie
 Narrative continuation: `narrative.cjs` tracks explicitly named case roles, unique antecedents, contrast clauses and same-sentence omitted subjects without changing source offsets. Conditional/quoted scope and ambiguous references cannot become unconditional facts. 186 engineering tests pass. Original 8 plus 13 narrative cases match expected behavior; 8 produce book-concept conclusions and 13 require review or more facts. This remains developer evaluation in one narrow domain. See `NARRATIVE-FACTS.md`.
 
 2026-10-19 後續修正：案例求解現在會檢查尚未釐清的相反規則，避免因一條充分規則已成立就過早下結論。互斥約束的推導獨立留痕，不冒充明示事實。194 項工程測試通過；教材 21 案例維持原預期行為。詳見 BOOK-CASE-APPLICATION.md；這仍是有限範圍研究模組，不代表已達通用法律推理能力。
+
+2026-10-19 多步推導：新增可選 derivations，已接入原有 solve → book_case 入口，分開保存明示事實與推導命題，拒絕循環、相反中間結果及未知例外。221 項工程測試通過；以私有教材第 51–52 頁建立的兩步實驗卡，9 個對照案例符合預期（4 項作答、5 項未決／矛盾）。不代表任意章節自動理解或模型能力相當。詳見 MULTISTEP-PROOFS.md。

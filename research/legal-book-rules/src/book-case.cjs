@@ -1,5 +1,6 @@
 'use strict';
 const { source, digest, takeSpan, evaluate } = require('./argument.cjs');
+const { derive, dependencies, missingLeaves } = require('./proof.cjs');
 const { scan } = require('./engine.cjs');
 const { classifyPage } = require('./section.cjs');
 const { narrativeClauses, createResolver } = require('./narrative.cjs');
@@ -35,6 +36,13 @@ function extractFacts(text, schemas, subjectAliases, narrativeRoles=[]) {
   }
   return{values,provenance,unknownClauses,bindings:resolver.bindings()};
 }
+function validateRule(rule,snapshot){
+      if(rule.direction!=='sufficient'||rule.exceptionsComplete!==true||!Array.isArray(rule.exceptions)||rule.exceptions.length>16||!rule.conclusion||typeof rule.conclusion.key!=='string'||!['positive','negative'].includes(rule.conclusion.polarity)||typeof rule.conclusion.text!=='string'||rule.conclusion.text.length>300||(rule.explanation!==undefined&&(typeof rule.explanation!=='string'||rule.explanation.length>1500)))throw Error('INVALID_RULE');
+      const original=takeSpan(snapshot,rule.evidence);const a=scan(original);if(a.errors.length||a.flags.includes('question'))throw Error('INVALID_EVIDENCE');
+      const page=snapshot.pages.find(p=>p.pdfPage===rule.evidence.pdfPage);if(['FRONT_MATTER','TABLE_OF_CONTENTS'].includes(classifyPage(page.text).role))throw Error('NON_BODY_RULE');
+      if(!Array.isArray(rule.context)||!rule.context.length||rule.context.length>32||!rule.context.some(e=>e.pdfPage===rule.evidence.pdfPage&&e.start<=rule.evidence.start&&e.end>=rule.evidence.end))throw Error('INCOMPLETE_CONTEXT');rule.context.forEach(e=>takeSpan(snapshot,e));
+      return original;
+}
 function answerBookCase(input,card,snapshot,{allowedBookIds,getReviewedDigest}={}){
   if(!snapshot||!allowedBookIds?.includes(snapshot.meta?.bookId))return{status:'BLOCKED',reasons:['BOOK_NOT_AUTHORIZED']};
   try{
@@ -51,26 +59,30 @@ function answerBookCase(input,card,snapshot,{allowedBookIds,getReviewedDigest}={
     if(conflicts.length)return{status:'CONFLICTING_FACTS',text:'題目事實有矛盾，尚不能下結論。',conflicts:[...new Set(conflicts)],facts,modelCalls:0};
     // Unknown clauses may contain a qualifier or different actor. Never discard them.
     if(facts.unknownClauses.length)return{status:'NEEDS_FACT_REVIEW',text:'題目有尚未解析的敘述，可能影響條件或例外；本輪先不下結論。',facts,modelCalls:0};
+    const derivations=card.derivations===undefined?[]:card.derivations;
+    if(!Array.isArray(derivations)||derivations.length>16)throw Error('INVALID_DERIVATIONS');
+    derivations.forEach(r=>validateRule(r,snapshot));
+    if(new Set([...derivations,...card.rules].map(r=>r.id)).size!==derivations.length+card.rules.length)throw Error('DUPLICATE_RULE_ID');
+    const proof=derive(derivations,facts.values,card.factSchemas.map(f=>f.key));
+    if(proof.conflicts.length)return{status:'MULTIPLE_VIEWS',text:'中間推導出現相反結果，不能沿用它作成結論。',facts,proof,modelCalls:0};
+    const reasoningValues=proof.values;
     const matched=[],pending=[],missing=new Set(),exceptionRules=[];
     for(const rule of card.rules){
-      if(rule.direction!=='sufficient'||rule.exceptionsComplete!==true||!Array.isArray(rule.exceptions)||rule.exceptions.length>16||!rule.conclusion||typeof rule.conclusion.key!=='string'||!['positive','negative'].includes(rule.conclusion.polarity)||typeof rule.conclusion.text!=='string'||rule.conclusion.text.length>300||(rule.explanation!==undefined&&(typeof rule.explanation!=='string'||rule.explanation.length>1500)))throw Error('INVALID_RULE');
-      const original=takeSpan(snapshot,rule.evidence);const a=scan(original);if(a.errors.length||a.flags.includes('question'))throw Error('INVALID_EVIDENCE');
-      const page=snapshot.pages.find(p=>p.pdfPage===rule.evidence.pdfPage);if(['FRONT_MATTER','TABLE_OF_CONTENTS'].includes(classifyPage(page.text).role))throw Error('NON_BODY_RULE');
-      if(!Array.isArray(rule.context)||!rule.context.length||rule.context.length>32||!rule.context.some(e=>e.pdfPage===rule.evidence.pdfPage&&e.start<=rule.evidence.start&&e.end>=rule.evidence.end))throw Error('INCOMPLETE_CONTEXT');rule.context.forEach(e=>takeSpan(snapshot,e));
-      const premise=evaluate(rule.when,facts.values),exceptions=rule.exceptions.map(e=>evaluate(e,facts.values));
+      const original=validateRule(rule,snapshot);
+      const premise=evaluate(rule.when,reasoningValues),exceptions=rule.exceptions.map(e=>evaluate(e,reasoningValues));
       if(premise.value==='FALSE')continue;
       if(exceptions.some(e=>e.value==='TRUE')){exceptionRules.push(rule.id);continue;}
-      if(premise.value==='UNKNOWN'||exceptions.some(e=>e.value==='UNKNOWN')){[...premise.missing,...exceptions.flatMap(e=>e.missing)].forEach(k=>missing.add(k));pending.push({rule,premise,exceptions});continue;}
+      if(premise.value==='UNKNOWN'||exceptions.some(e=>e.value==='UNKNOWN')){missingLeaves([...premise.missing,...exceptions.flatMap(e=>e.missing)],proof).forEach(k=>missing.add(k));pending.push({rule,premise,exceptions});continue;}
       matched.push({rule,original,premise,exceptions});
     }
-    if(!matched.length){const labels=[...missing].map(k=>card.factSchemas.find(f=>f.key===k)?.label||k);return{status:exceptionRules.length?'EXCEPTION_APPLIES':missing.size?'NEEDS_FACTS':'NO_APPLICABLE_RULE',text:exceptionRules.length?'已命中書中規則的例外，不能沿用一般結論。':missing.size?'目前不能判定。需要題目明示：'+labels.join('、')+'。':'本次已核對規則不能推出結論；前提不成立也不能直接推出相反答案。',missing:[...missing],exceptionRules,facts,modelCalls:0};}
+    if(!matched.length){const labels=[...missing].map(k=>card.factSchemas.find(f=>f.key===k)?.label||k);return{status:exceptionRules.length?'EXCEPTION_APPLIES':missing.size?'NEEDS_FACTS':'NO_APPLICABLE_RULE',text:exceptionRules.length?'已命中書中規則的例外，不能沿用一般結論。':missing.size?'目前不能判定。需要題目明示：'+labels.join('、')+'。':'本次已核對規則不能推出結論；前提不成立也不能直接推出相反答案。',missing:[...missing],exceptionRules,facts,proof,modelCalls:0};}
     const conclusions=new Map();for(const r of matched){const k=r.rule.conclusion.key;if(!conclusions.has(k))conclusions.set(k,new Set());conclusions.get(k).add(r.rule.conclusion.polarity);}
     if([...conclusions.values()].some(v=>v.size>1))return{status:'MULTIPLE_VIEWS',text:'目前有相反的規則結果，應保留差異，不合併為單一結論。',facts,modelCalls:0};
     // Unknown facts cannot be ignored when they could activate an opposite rule.
     // Reviewed exclusivity constrains possibility; it never becomes an asserted fact.
-    const possibleFacts=Object.assign(Object.create(null),facts.values),exclusions=[];
+    const possibleFacts=Object.assign(Object.create(null),reasoningValues),exclusions=[];
     for(const group of card.exclusiveGroups){
-      const established=group.find(k=>facts.values[k]==='TRUE');
+      const established=group.find(k=>reasoningValues[k]==='TRUE');
       if(established)for(const key of group)if(key!==established&&possibleFacts[key]===undefined){possibleFacts[key]='FALSE';exclusions.push({key,because:established,group:[...group]});}
     }
     const unresolvedOpposite=[],excludedCompetingRules=[];
@@ -78,7 +90,7 @@ function answerBookCase(input,card,snapshot,{allowedBookIds,getReviewedDigest}={
       if(!matched.some(m=>m.rule.conclusion.key===candidate.rule.conclusion.key&&m.rule.conclusion.polarity!==candidate.rule.conclusion.polarity))continue;
       const premise=evaluate(candidate.rule.when,possibleFacts),exceptions=candidate.rule.exceptions.map(e=>evaluate(e,possibleFacts));
       if(premise.value==='FALSE'||exceptions.some(e=>e.value==='TRUE')){excludedCompetingRules.push({ruleId:candidate.rule.id,premise,exceptions,exclusions});continue;}
-      unresolvedOpposite.push({ruleId:candidate.rule.id,missing:[...new Set([...premise.missing,...exceptions.flatMap(e=>e.missing)])]});
+      unresolvedOpposite.push({ruleId:candidate.rule.id,missing:missingLeaves([...premise.missing,...exceptions.flatMap(e=>e.missing)],proof)});
     }
     if(unresolvedOpposite.length){
       const missing=[...new Set(unresolvedOpposite.flatMap(r=>r.missing))];
@@ -86,11 +98,20 @@ function answerBookCase(input,card,snapshot,{allowedBookIds,getReviewedDigest}={
     }
     const chosen=matched[0],usedKeys=new Set();
     const collect=e=>{if(e.fact)usedKeys.add(e.fact);if(e.not)collect(e.not);for(const x of e.all||e.any||[])collect(x);};collect(chosen.rule.when);chosen.rule.exceptions.forEach(collect);
+    const usedProof=[];
+    function expand(key){
+      const node=proof.nodes.find(n=>n.key===key);if(!node||usedProof.includes(node))return;
+      for(const r of node.rules.filter(r=>r.status==='APPLIED'||r.status==='INACTIVE'))for(const dep of r.dependencies){usedKeys.add(dep);expand(dep);}
+      usedProof.push(node);
+    }
+    [...usedKeys].forEach(expand);
+    const proofRules=usedProof.flatMap(n=>n.rules.filter(r=>r.status==='APPLIED').map(r=>derivations.find(d=>d.id===r.ruleId)));
+    const proofText=proofRules.map(r=>'書中規則：'+takeSpan(snapshot,r.evidence)+'\n推得：'+r.conclusion.text).join('\n');
     const applied=[...usedKeys].flatMap(k=>(facts.provenance[k]||[]).map(p=>({key:k,...p})));
     const nonDecisiveFacts=Object.keys(facts.provenance).filter(k=>!usedKeys.has(k)).flatMap(k=>facts.provenance[k]);
-    return{status:'SUPPORTED_BOOK_CASE',text:'依本書的概念界定，'+chosen.rule.conclusion.text+'。\n\n'+(chosen.rule.explanation?'理由：'+chosen.rule.explanation+'\n\n':'')+'書中原文：\n'+chosen.original+'\n\n題目對照：\n'+applied.map(p=>p.text).join('\n')+'\n\n上述明示事實符合這項書中規則的條件；此結論限於題目給定前提。'+(nonDecisiveFacts.length?'\n題目中的「'+nonDecisiveFacts.map(p=>p.text).join('；')+'」未單獨作為本次推導的充分條件。':''),
-      conclusion:chosen.rule.conclusion,facts,trace:{excludedCompetingRules,ruleId:chosen.rule.id,sourceHash:snapshot.sourceHash,premise:chosen.premise,exceptions:chosen.exceptions,applied},
-      citation:{title:snapshot.meta.title,edition:snapshot.meta.edition,pdfPage:chosen.rule.evidence.pdfPage,pdfPages:[...new Set(chosen.rule.context.map(e=>e.pdfPage))]},nonDecisiveFacts,
+    return{status:'SUPPORTED_BOOK_CASE',text:'依本書的概念界定，'+chosen.rule.conclusion.text+'。\n\n'+(chosen.rule.explanation?'理由：'+chosen.rule.explanation+'\n\n':'')+'書中原文：\n'+chosen.original+(proofText?'\n\n中間推導：\n'+proofText:'')+'\n\n題目對照：\n'+applied.map(p=>p.text).join('\n')+'\n\n'+(proofRules.length?'上述題目事實經列示規則推導後，符合結論規則的條件；此結論限於題目給定前提。':'上述明示事實符合這項書中規則的條件；此結論限於題目給定前提。')+(nonDecisiveFacts.length?'\n題目中的「'+nonDecisiveFacts.map(p=>p.text).join('；')+'」未單獨作為本次推導的充分條件。':''),
+      conclusion:chosen.rule.conclusion,facts,trace:{proof:usedProof,excludedCompetingRules,ruleId:chosen.rule.id,sourceHash:snapshot.sourceHash,premise:chosen.premise,exceptions:chosen.exceptions,applied},
+      citation:{title:snapshot.meta.title,edition:snapshot.meta.edition,pdfPage:chosen.rule.evidence.pdfPage,pdfPages:[...new Set([...chosen.rule.context,...proofRules.flatMap(r=>r.context)].map(e=>e.pdfPage))]},nonDecisiveFacts,
       limitation:'此為書中概念規則對明示假設事實的適用，不是活動性質的獨立法律認定，也不是現行法或個案合法性判斷。',modelCalls:0};
   }catch{return{status:'BLOCKED',reasons:['INVALID_SOURCE_OR_CASE_RULE']};}
 }
