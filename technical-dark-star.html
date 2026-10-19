@@ -6631,6 +6631,21 @@ async function callAIVAULT(
   }
 
 
+  // Text Gateway reasoning contract: grounded reading, application, and counterexamples.
+  // This is not sent to the realtime voice channel.
+  const darkStarReasoningContract = [
+    "【暗星文字問答：研究生級分析與舉一反三規則】",
+    "先回答使用者真正的問題，不要用冗長格式代替推理。",
+    "涉及指定教材時，先核對本輪電子書檢索結果；只有明確取得的原文才能稱為教材記載。",
+    "區分三層：①教材可核對的主張與頁碼；②從原文推導的理由、前提與限制；③自行設計的假設案例與推論。",
+    "需要解釋概念時，說明概念、成立條件、因果或法律論證鏈，並指出可能的反例或例外。",
+    "需要舉一反三時，至少提出一個與原例不同的情境，逐步套用相同原理，並說明何種條件改變會使結論不同。",
+    "若是法律問題，應先辨識適用法域與法規時間點；不能把中國法與臺灣法混為一談。",
+    "遇到教材未提供的事實、法律條文或判決，不可虛構引文；可提出明確標記為假設的分析。",
+    "如資料不足，清楚指出缺少什麼，仍可在不冒稱引用的前提下解釋一般原理。",
+    "回答以有用、清晰、具體為主，不必每題固定列出所有步驟。"
+  ].join("\\n");
+
   const payload = {
 
     engine:
@@ -6641,7 +6656,7 @@ async function callAIVAULT(
         userMessage,
         safeFiles,
         learningContext
-      ) + (ebookContext ? "\n\n" + ebookContext : ""),
+      ) + "\n\n" + darkStarReasoningContract + (ebookContext ? "\n\n" + ebookContext : ""),
 
     conversation_id:
       conversationId || null,
