@@ -30,3 +30,9 @@ Deno.test("missing live availability prevents eligibility",()=>{
  const d=evaluateResourceEvidence({...example,authenticatedAvailabilityTest:false});
  assert.equal(d.status,"REQUIRES_REVIEW");
 });
+
+Deno.test("future-dated official evidence cannot pass eligibility",()=>{
+ const d=evaluateResourceEvidence({...example,checkedAt:new Date(Date.now()+3600000).toISOString()});
+ assert.equal(d.status,"REQUIRES_REVIEW");
+ assert(d.reasons.includes("EVIDENCE_STALE"));
+});
