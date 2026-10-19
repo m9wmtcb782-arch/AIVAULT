@@ -471,6 +471,7 @@
     return need ? (msg + "\n" + LIN_HINT) : msg;
   }
 
+  var BOOK_ANSWER_RULE = "\\n【暗星電子書證據式問答】先判斷使用者真正問題（概念、事實、因果、規範、爭議、案例）；只依本次實際取得的書頁論證，先回答問題，再說明作者觀點、支持段落與可核對的書名及PDF頁碼。不得把摘要當成全文、不得編造引文或頁碼；區分書中主張、模型推論與已核實外部事實。若書頁不足，明確說明缺少哪些證據並要求繼續檢索，不可聲稱已證實。不得將自己的舊答案當作證據。";
   var EXCERPT_NOTE = "注意：以上只是從整本書中擷取的片段，書中還有更多內容；若片段不足以回答，請請使用者說得更具體（例如哪一章、哪一節或關鍵詞），不要說書裡沒有這些內容。";
   async function onTurn(ev) {
     var q = ev && ev.detail && ev.detail.text;
@@ -514,7 +515,7 @@
     if (!msg && shelf) msg = "【書架檢索結果】目前沒有取得可引用的書籍頁面或書目。請如實告知尚未取得原文，不要假裝已讀過。";
     if (!msg) return;
     if (shelf && list.length) msg += "\n已實際索引的書目：" + bookTitles(list).join("、") + "。只能說明已成功讀取的內容，不得宣稱看過未取得的書。";
-    msg = withLinHint(withZhangHint(withJiangHint(msg, hits, sv && sv.bid), hits, sv && sv.bid), hits, sv && sv.bid);
+    msg = withLinHint(withZhangHint(withJiangHint(msg, hits, sv && sv.bid), hits, sv && sv.bid), hits, sv && sv.bid) + BOOK_ANSWER_RULE;
     if (L.sendRawText(msg)) { if (hits.length || sv) bubble(hits, sv && sv.bid); }
   }
   // 文字聊天與即時語音共用真實書頁檢索；僅在電子書勾選時提供資料。
@@ -561,7 +562,7 @@
           if (p) excerpts.push("《" + selected.title + "》PDF第" + n + "頁" + (yu ? "（原書第" + (n - 15) + "頁）" : "") + "：" + String(p.content).slice(0, 4200));
           else excerpts.push("PDF第" + n + "頁：未取得原文（HTTP " + (res && res.__http || "未知") + "；" + String(res && res.error || "無正文") + "），不可編造。");
         }
-        return "【指定書籍逐頁查詢結果】\n" + excerpts.join("\n") + "\n僅依取得的頁面作答，原書印刷頁碼與 PDF 頁碼須區分。";
+        return "【指定書籍逐頁查詢結果】\n" + excerpts.join("\n") + "\n僅依取得的頁面作答，原書印刷頁碼與 PDF 頁碼須區分。" + BOOK_ANSWER_RULE;
       }
     }
     var list = await build(), pool = selected ? list.filter(function (c) { return c.bid === String(selected.id || selected.ebook_id); }) : list;
@@ -569,7 +570,7 @@
     var terms = q.match(/比例原[則则]|合理[性]?原[則则]|行政裁量|必要性|妥當性|妥当性|法益相稱性|法益相称性|行政處罰|行政处罚|法律保留|依法行政/g) || [];
     var hits = search(terms.length ? terms.join(" ") : q.replace(/《[^》]+》/g, " ").slice(0, 140), pool);
     if (!hits.length) return "【電子書檢索狀態】未取得" + (selected ? "《" + selected.title + "》" : "書架") + "可引用的正文，請確認學習權限或檢索服務。";
-    return "【AIVAULT 電子書實際檢索結果】\n" + hits.slice(0, 4).map(function (h) { return "《" + h.title + "》PDF第" + h.page + "頁：" + h.text.slice(0, 950); }).join("\n") + "\n只能引用以上實際取得的文字，不得編造原文。";
+    return "【AIVAULT 電子書實際檢索結果】\n" + hits.slice(0, 4).map(function (h) { return "《" + h.title + "》PDF第" + h.page + "頁：" + h.text.slice(0, 950); }).join("\n") + "\n只能引用以上實際取得的文字，不得編造原文。" + BOOK_ANSWER_RULE;
   }
   w.addEventListener("darkstar-live-user-turn", onTurn);
   w.AIVAULTBookQA = { getContextForQuery: getContextForQuery, build: build, search: search, isQuestion: isQuestion, compose: compose, structural: structural, coverage: coverage, progress: progressOf, parseStruct: parseStruct, intro: intro, bookTitles: bookTitles, reset: function () { chunks = null; } };
