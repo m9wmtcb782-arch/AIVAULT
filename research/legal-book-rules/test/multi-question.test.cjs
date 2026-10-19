@@ -1,0 +1,13 @@
+'use strict';
+const {test}=require('node:test');const assert=require('node:assert/strict');const {splitQuestions,answerMultiple}=require('../src/multi-question.cjs');
+const fake=({question})=>question.includes('甲')?{status:'SUPPORTED_FIXTURE',text:'原有已核對答案',modelCalls:0}:{status:'UNSUPPORTED',modelCalls:0};
+test('multiple questions retain exact original question offsets',()=>{const q='甲問題？\n乙問題?';const parts=splitQuestions(q);assert.equal(parts.length,2);for(const p of parts)assert.equal(q.slice(p.start,p.end),p.text);});
+test('questions inside quotes do not become independent tasks',()=>assert.equal(splitQuestions('「甲問題？乙問題？」').length,0));
+test('questions inside parentheses are not split',()=>assert.equal(splitQuestions('甲問題（內文？）？乙問題？').length,2));
+test('malformed quotes and mismatched parentheses refuse decomposition',()=>{for(const q of ['甲？「乙？','甲（乙]？丙？','甲？"乙？'])assert.equal(splitQuestions(q).length,0);});
+test('decomposition has a hard subquestion limit',()=>assert.equal(splitQuestions('甲？乙？丙？丁？戊？').length,0));
+test('supported parts do not make an unknown part appear answered',()=>{const r=answerMultiple({question:'甲？乙？'}, {},{},fake);assert.equal(r.status,'PARTIAL_BOOK_ANSWER');assert.deepEqual(r.unanswered,[2]);assert(r.text.includes('尚無足夠'));});
+test('all independently supported parts form a complete composite response',()=>{const r=answerMultiple({question:'甲一？甲二？'}, {},{},fake);assert.equal(r.status,'SUPPORTED_MULTIPART_BOOK_ANSWER');assert.deepEqual(r.unanswered,[]);assert.equal(r.parts.length,2);});
+test('case facts prevent decomposition rather than being discarded',()=>{let calls=0;assert.equal(answerMultiple({question:'甲？乙？',factsText:'有特殊條件'}, {},{},()=>{calls++;return{};}),null);assert.equal(calls,0);});
+test('a blocked source child prevents partial disclosure through another answer',()=>{const r=answerMultiple({question:'甲？乙？'}, {},{},({question})=>question.includes('甲')?fake({question}):{status:'BLOCKED'});assert.equal(r.status,'BLOCKED');assert.equal(r.parts,undefined);});
+test('child answers cannot recursively decompose again',()=>{answerMultiple({question:'甲？乙？'}, {},{},(_i,_k,c)=>{assert.equal(c.allowCompoundQuestions,false);return{status:'SUPPORTED_FIXTURE',text:'x'};});});
