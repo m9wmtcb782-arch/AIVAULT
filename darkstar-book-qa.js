@@ -441,12 +441,12 @@
       try { L.sendRawText("【系統】使用者指定了章節，正在讀取書架原文。請先不要回答，等資料讀到 100% 再回答，不要說看不到書。"); } catch (e) {}
     }
     var locks = (w.AIVAULTSourceLocks && w.AIVAULTSourceLocks.state) ? w.AIVAULTSourceLocks.state() : { ebook: true, order: ["ebook"], on: ["ebook"] };
-    var bookAsk = (locks.ebook !== false) && (shelf || st0.chapter || st0.part || st0.section || st0.page || st0.toc || (st0.chapters && st0.chapters.length));
-    if (!locks.ebook && !(st0.chapter || st0.part || st0.section || st0.page)) bookAsk = false;
+    // 勾選電子書時，所有有意義的提問都可以查書；未勾選時不得讀書。
+    var bookAsk = locks.ebook === true;
     if (!bookAsk) {
       try {
         var srcs = (locks.order || []).filter(function (id) { return id !== "ebook" && locks[id]; });
-        if (!srcs.length) srcs = ["google"];
+        if (!srcs.length) return; // 未勾選任何網站，不得自動搜尋 Google
         var site = { baidu: "site:baidu.com ", google: "", yahoo: "site:yahoo.com ", youtube: "site:youtube.com " };
         var name = { baidu: "百度", google: "Google", yahoo: "Yahoo", youtube: "YouTube" };
         var blocks = [];
@@ -469,7 +469,7 @@
     var msg = sv ? "【書架資料】使用者剛才的題目：「" + q + "」\n" + sv.text + "\n章節資料已讀到 100%。請現在根據以上書架資料回答，說出書名與頁碼。" + EXCERPT_NOTE
       : hits.length ? compose(q, hits) : shelf ? "【書架資料】使用者在問書架本身：「" + q + "」。" : "";
     if (!msg) return;
-    if (shelf) msg += "\n書架書目：" + bookTitles(list).join("、") + "。請回答你看得到這些書。";
+    if (shelf && list.length) msg += "\n已實際索引的書目：" + bookTitles(list).join("、") + "。只能說明已成功讀取的內容，不得宣稱看過未取得的書。";
     msg = withLinHint(withZhangHint(withJiangHint(msg, hits, sv && sv.bid), hits, sv && sv.bid), hits, sv && sv.bid);
     if (L.sendRawText(msg)) { if (hits.length || sv) bubble(hits, sv && sv.bid); }
   }
