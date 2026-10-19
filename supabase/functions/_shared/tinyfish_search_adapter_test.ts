@@ -169,3 +169,29 @@ Deno.test("runtime non-string query is rejected without quota", async () => {
   }
   if (!rejected || leases !== 0) throw Error("non-string input consumed quota");
 });
+
+Deno.test("quota configuration below shared DB cap is rejected", () => {
+  let rejected = false;
+  try {
+    createTinyFishSearchAdapter({
+      ...base, maxRequestsPerMinute: 1,
+      acquireQuotaLease: async () => true,
+    });
+  } catch (e) {
+    rejected = String(e).includes("TINYFISH_RATE_LIMIT_INVALID");
+  }
+  if (!rejected) throw Error("local quota mismatch was accepted");
+});
+
+Deno.test("nonstandard HTTPS port is rejected", () => {
+  let rejected = false;
+  try {
+    createTinyFishSearchAdapter({
+      ...base, endpoint: "https://api.search.tinyfish.ai:8443/",
+      acquireQuotaLease: async () => true,
+    });
+  } catch (e) {
+    rejected = String(e).includes("TINYFISH_ENDPOINT_NOT_ALLOWED");
+  }
+  if (!rejected) throw Error("custom port accepted");
+});
