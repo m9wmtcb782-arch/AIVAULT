@@ -523,6 +523,8 @@
     var locks = w.AIVAULTSourceLocks && w.AIVAULTSourceLocks.state ? w.AIVAULTSourceLocks.state() : { ebook: false };
     if (!locks.ebook || !isQuestion(question)) return "";
     var q = String(question || ""), nq = toS(norm(q));
+    // Distinguish printed page numbering from PDF page numbering for the verified Yu textbook.
+    var yuBookId = "c8743d50-bad5-4ec8-b675-5e64fe7985a9";
     var listing = await ingest({ action: "list", limit: 100 });
     var books = (listing && (listing.books || listing.items)) || [];
     if (listing && (listing.__http >= 400 || listing.error)) return "【電子書讀取失敗】書目服務 HTTP " + (listing.__http || "未知") + "：" + String(listing.error || "授權或服務錯誤") + "。請確認登入，不能引用其他教材。";
@@ -549,11 +551,14 @@
       var pages = [], matches = q.match(/第\s*(\d{1,4})\s*(?:頁|页)/g) || [];
       matches.forEach(function (m) { var n = Number((m.match(/\d+/) || [0])[0]); if (n && pages.indexOf(n) < 0) pages.push(n); });
       if (pages.length) {
+        var yu = id === yuBookId;
+        var printed = /原書|印刷|書本頁碼/.test(q) && !/PDF/.test(q);
+        if (yu && printed) pages = pages.map(function (n) { return n + 15; });
         var excerpts = [];
         for (var i = 0; i < Math.min(4, pages.length); i++) {
           var n = pages[i], res = await ingest({ action: "context", ebook_id: id, page_number: n, radius: 0 });
           var p = ((res && res.pages) || []).find(function (x) { return Number(x.page_number) === n && x.content; });
-          if (p) excerpts.push("《" + selected.title + "》PDF第" + n + "頁：" + String(p.content).slice(0, 4200));
+          if (p) excerpts.push("《" + selected.title + "》PDF第" + n + "頁" + (yu ? "（原書第" + (n - 15) + "頁）" : "") + "：" + String(p.content).slice(0, 4200));
           else excerpts.push("PDF第" + n + "頁：未取得原文（HTTP " + (res && res.__http || "未知") + "；" + String(res && res.error || "無正文") + "），不可編造。");
         }
         return "【指定書籍逐頁查詢結果】\n" + excerpts.join("\n") + "\n僅依取得的頁面作答，原書印刷頁碼與 PDF 頁碼須區分。";
