@@ -84,7 +84,9 @@ export function createTinyFishSearchAdapter(
         const len = Number(response.headers.get("content-length") || 0);
         if (len > 262144) throw new Error("SEARCH_RESPONSE_TOO_LARGE");
         const raw = await response.text();
-        if (raw.length > 262144) throw new Error("SEARCH_RESPONSE_TOO_LARGE");
+        if (new TextEncoder().encode(raw).byteLength > 262144) {
+          throw new Error("SEARCH_RESPONSE_TOO_LARGE");
+        }
         const json: unknown = JSON.parse(raw);
         if (!json || typeof json !== "object" ||
             !("results" in json) || !Array.isArray(json.results)) {
