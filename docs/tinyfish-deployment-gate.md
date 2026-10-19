@@ -38,3 +38,11 @@ Disable all activation switches and DB gate; revoke runner and provider secrets 
 - Read-only `cron.job` command search for those three slugs returned no matches.
 - This is **not proof of non-use**: branch coverage, remote clients, and invocation logs remain unverified. No function may be deleted on this evidence alone.
 - The function-capacity blocker is still unresolved; live TinyFish remains disabled.
+
+## Live invocation-log audit — 2026-10-19
+- Supabase unified logs have `function_edge_logs` request paths. A read-only aggregation over the **default recent 24-hour window** found **zero records** for:
+  - `/functions/v1/aivault-agent-evolution-test`
+  - `/functions/v1/technical-dark-star-voice-clone-test`
+  - `/functions/v1/aivault-ai-avatar-batch-test`
+- Absence in a 24-hour log window does **not** establish long-term disuse, and does not justify automatic deletion.
+- These are candidate slots only. Confirm dependencies and secure full source/settings backup, then obtain owner approval before retiring any.
