@@ -39,6 +39,7 @@ export async function runFreeDiscoveryJob(
       !policy.approvedRegions.has(job.region) ||
       !Number.isSafeInteger(policy.maxResults) ||
       policy.maxResults < 1 || policy.maxResults > 10 ||
+      typeof job.query !== "string" ||
       job.query.length < 5 || job.query.length > 200) {
     return blocked("POLICY_DENIED");
   }
@@ -48,8 +49,11 @@ export async function runFreeDiscoveryJob(
     const hits = await adapter.search(query, job.region, policy.maxResults);
     const candidates: SearchHit[] = [];
     const seen = new Set<string>();
+    if (!Array.isArray(hits)) return blocked("SEARCH_RESPONSE_INVALID");
     for (const hit of hits.slice(0, policy.maxResults)) {
       try {
+        if (!hit || typeof hit.url !== "string" ||
+            typeof hit.title !== "string" || typeof hit.snippet !== "string") continue;
         const url = new URL(hit.url);
         if (url.protocol !== "https:" || url.username || url.password ||
             !url.hostname || seen.has(url.href)) continue;
