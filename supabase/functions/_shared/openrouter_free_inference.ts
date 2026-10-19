@@ -51,7 +51,7 @@ export async function runOpenRouterFreeInference(
  const parsed = data as Record<string, unknown>;
  // A free-only request is not proof that the provider honored the requested model.
  // Reject any explicitly reported different model; never silently accept a fallback.
- if (typeof parsed.model !== "string" || parsed.model !== "openrouter/free") throw Error("UNEXPECTED_PROVIDER_MODEL");
+ if (typeof parsed.model !== "string" || parsed.model !== "openrouter/free" && !parsed.model.endsWith(":free")) throw Error("UNEXPECTED_PROVIDER_MODEL");
  const choices = parsed.choices;
  const choice = Array.isArray(choices) ? choices[0] : null;
  const message = choice && typeof choice === "object" ? (choice as Record<string,unknown>).message : null;
