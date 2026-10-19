@@ -65,3 +65,10 @@ Deno.test("five real TinyFish discovery leads are not verified official API docs
  assert(results.every(hit=>hit.classification==="THIRD_PARTY_LEAD"));
  assert(results.every(hit=>!hit.verifiedFreeCapacity && !hit.usableForInference));
 });
+
+Deno.test("official pricing source remains unverified until account availability check", () => {
+ const hit=triageCandidate({title:"OpenRouter pricing",url:"https://openrouter.ai/pricing",snippet:"Free tier 50 requests per day"});
+ assert.equal(hit.classification,"OFFICIAL_DOCS");
+ assert.equal(hit.verifiedFreeCapacity,false);
+ assert.equal(hit.usableForInference,false);
+});
