@@ -10,6 +10,7 @@ Deno.test("third-party posts are leads, never capacity", () => {
  for (const url of ["https://medium.com/example","https://github.com/example/free-ai","https://youtube.com/watch?v=abc"]) {
   const x = triageCandidate({title:"Free AI",url,snippet:"free"});
   assert.equal(x.classification,"THIRD_PARTY_LEAD");
+  assert.equal(x.verifiedFreeCapacity,false);
   assert.equal(x.usableForInference,false);
  }
 });
