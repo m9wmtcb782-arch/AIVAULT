@@ -22,3 +22,30 @@ test('scope authorization checked before processing case text',()=>assert.equal(
 test('case text limits',()=>assert.throws(()=>extractFacts('甲'.repeat(16001),schemas,['本案活動'])));
 test('subject-specific predicate does not migrate to an organization',()=>{const r=extractFacts('本案組織屬於甲類。',[{...schemas[0],subjectAliases:['本案活動']}],['本案活動','本案組織']);assert.equal(r.values.A,undefined);assert.equal(r.unknownClauses.length,1);});
 test('removing exception review invalidates card',()=>{const d={...card,rules:[{...card.rules[0],exceptionsComplete:false}]};assert.equal(answerBookCase({question:q,factsText:'本案活動屬於甲類。本案活動沒有丁例外。'},d,s,{...opts,getReviewedDigest:()=>digest(d)}).status,'BLOCKED');});
+
+function runCompeting(factsText,change={}) {
+ const d={...card,exclusiveGroups:[],rules:[{...card.rules[0],exceptions:[]},{...card.rules[0],id:'rule-b',when:{fact:'B'},exceptions:[],evidence:span('乙類活動不納入測試範圍。'),context:[span('乙類活動不納入測試範圍。')],conclusion:{key:'IN_SCOPE',polarity:'negative',text:'不屬於測試範圍'}}],...change};
+ return answerBookCase({question:q,factsText},d,s,{...opts,getReviewedDigest:()=>digest(d)});
+}
+test('unresolved opposite sufficient rule prevents premature conclusion',()=>{
+ const r=runCompeting('本案活動屬於甲類。');assert.equal(r.status,'NEEDS_FACTS');assert.deepEqual(r.missing,['B']);assert.equal(r.conclusion,undefined);assert.deepEqual(r.pendingRuleIds,['rule-b']);
+});
+test('explicitly false opposing premise permits supported conclusion',()=>assert.equal(runCompeting('本案活動屬於甲類。本案活動不屬於乙類。').status,'SUPPORTED_BOOK_CASE'));
+test('reviewed mutual exclusion rules out competing premise without pretending it was stated',()=>{
+ const r=runCompeting('本案活動屬於甲類。',{exclusiveGroups:[['A','B']]});assert.equal(r.status,'SUPPORTED_BOOK_CASE');assert.equal(r.facts.values.B,undefined);assert.equal(r.trace.excludedCompetingRules[0].ruleId,'rule-b');
+});
+test('two established opposite rules retain disagreement',()=>assert.equal(runCompeting('本案活動屬於甲類。本案活動屬於乙類。').status,'MULTIPLE_VIEWS'));
+test('unknown same-direction rule does not block sufficient proof',()=>{
+ const base={...card.rules[0],exceptions:[]};const r=runCompeting('本案活動屬於甲類。',{rules:[base,{...base,id:'another-positive',when:{fact:'B'}}]});assert.equal(r.status,'SUPPORTED_BOOK_CASE');
+});
+test('unknown exception on an otherwise applicable opposite rule requires clarification',()=>{
+ const base={...card.rules[0],exceptions:[]};const opposite={...base,id:'opposite',when:{fact:'A'},exceptions:[{fact:'E'}],conclusion:{key:'IN_SCOPE',polarity:'negative',text:'不屬於測試範圍'}};
+ const r=runCompeting('本案活動屬於甲類。',{rules:[base,opposite]});assert.equal(r.status,'NEEDS_FACTS');assert.deepEqual(r.missing,['E']);
+});
+test('established exception disables an opposite rule',()=>{
+ const base={...card.rules[0],exceptions:[]};const opposite={...base,id:'opposite',exceptions:[{fact:'E'}],conclusion:{key:'IN_SCOPE',polarity:'negative',text:'不屬於測試範圍'}};
+ assert.equal(runCompeting('本案活動屬於甲類。本案活動具備丁例外。',{rules:[base,opposite]}).status,'SUPPORTED_BOOK_CASE');
+});
+test('mutual exclusion does not invent a positive classification from two negative facts',()=>{
+ const r=runCompeting('本案活動不屬於甲類。本案活動不屬於乙類。',{exclusiveGroups:[['A','B']]});assert.equal(r.status,'NO_APPLICABLE_RULE');assert.equal(r.conclusion,undefined);
+});
