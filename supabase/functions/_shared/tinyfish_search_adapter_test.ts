@@ -195,3 +195,14 @@ Deno.test("nonstandard HTTPS port is rejected", () => {
   }
   if (!rejected) throw Error("custom port accepted");
 });
+
+Deno.test("multibyte response over byte cap is rejected", async () => {
+  const adapter = createTinyFishSearchAdapter({
+    ...base, acquireQuotaLease: async () => true,
+  }, async () => new Response("中".repeat(90000), { status: 200 }));
+  let rejected = false;
+  try { await adapter.search("free inference API", "tw", 2); } catch (e) {
+    rejected = String(e).includes("SEARCH_RESPONSE_TOO_LARGE");
+  }
+  if (!rejected) throw Error("UTF-8 response byte cap bypassed");
+});
