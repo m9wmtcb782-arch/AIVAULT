@@ -39,3 +39,10 @@ Deno.test("mixed discovery candidates remain unverified", () => {
  assert.deepEqual(hits.map(h => h.classification),["OFFICIAL_DOCS","THIRD_PARTY_LEAD","REJECTED"]);
  assert(hits.every(h => !h.verifiedFreeCapacity && !h.usableForInference));
 });
+
+Deno.test("real discovery official provider blog is not official API documentation", () => {
+ const x=triageCandidate({title:"Free LLM APIs compared",url:"https://openrouter.ai/blog/tutorials/free-llm-apis-compared/",snippet:"free access"});
+ assert.equal(x.classification,"THIRD_PARTY_LEAD");
+ assert.equal(x.verifiedFreeCapacity,false);
+ assert.equal(x.usableForInference,false);
+});
