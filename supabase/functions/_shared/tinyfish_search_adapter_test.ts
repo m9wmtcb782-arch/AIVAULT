@@ -142,3 +142,30 @@ Deno.test("concurrent calls require distinct quota leases", async () => {
     throw Error("concurrent lease gating failed");
   }
 });
+
+Deno.test("malformed endpoint fails before any network activity", () => {
+  let calls = 0;
+  let rejected = false;
+  try {
+    createTinyFishSearchAdapter({
+      ...base, endpoint: "not a URL", acquireQuotaLease: async () => true,
+    }, async () => { calls++; throw Error("must not fetch"); });
+  } catch (e) {
+    rejected = String(e).includes("TINYFISH_ENDPOINT_NOT_ALLOWED");
+  }
+  if (!rejected || calls !== 0) throw Error("malformed endpoint not rejected");
+});
+
+Deno.test("runtime non-string query is rejected without quota", async () => {
+  let leases = 0;
+  const adapter = createTinyFishSearchAdapter({
+    ...base, acquireQuotaLease: async () => { leases++; return true; },
+  }, async () => { throw Error("must not fetch"); });
+  let rejected = false;
+  try {
+    await adapter.search(null as unknown as string, "tw", 2);
+  } catch (e) {
+    rejected = String(e).includes("INVALID_SEARCH_REQUEST");
+  }
+  if (!rejected || leases !== 0) throw Error("non-string input consumed quota");
+});
