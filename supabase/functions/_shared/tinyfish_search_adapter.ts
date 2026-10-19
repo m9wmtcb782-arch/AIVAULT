@@ -38,14 +38,14 @@ export function createTinyFishSearchAdapter(
   try { endpoint = new URL(config.endpoint); }
   catch { throw new Error("TINYFISH_ENDPOINT_NOT_ALLOWED"); }
   if (endpoint.protocol !== "https:" || endpoint.hostname !== ALLOWED_HOST ||
-      endpoint.username || endpoint.password || endpoint.search || endpoint.hash || endpoint.pathname !== "/") {
+      endpoint.username || endpoint.password || endpoint.port || endpoint.search || endpoint.hash || endpoint.pathname !== "/") {
     throw new Error("TINYFISH_ENDPOINT_NOT_ALLOWED");
   }
   if (!config.enabled || !config.termsApproved || !config.apiKey) {
     throw new Error("TINYFISH_NOT_AUTHORIZED");
   }
   if (!Number.isSafeInteger(config.maxRequestsPerMinute) ||
-      config.maxRequestsPerMinute < 1 || config.maxRequestsPerMinute > 5) {
+      config.maxRequestsPerMinute !== 5) {
     throw new Error("TINYFISH_RATE_LIMIT_INVALID");
   }
   if (typeof config.acquireQuotaLease !== "function") {
