@@ -7,14 +7,14 @@ Deno.test("disabled gate prevents all network calls",async()=>{
  let calls=0;
  const fake=(async()=>{calls++;return new Response("{}");}) as typeof fetch;
  await assert.rejects(()=>runOpenRouterFreeInference({prompt:"hello",model:"openrouter/free"},
-  {apiKey:"dummy",enabled:false,authorized:true,fetcher:fake}),/DISABLED/);
+  {apiKey:"dummy",egress:{classification:"PUBLIC",purpose:"PUBLIC_QA",payload:"hello",approvedByPolicy:true},enabled:false,authorized:true,fetcher:fake}),/DISABLED/);
  assert.equal(calls,0);
 });
 Deno.test("unauthorized gate prevents all network calls",async()=>{
  let calls=0;
  const fake=(async()=>{calls++;return new Response("{}");}) as typeof fetch;
  await assert.rejects(()=>runOpenRouterFreeInference({prompt:"hello",model:"openrouter/free"},
-  {apiKey:"dummy",enabled:true,authorized:false,fetcher:fake}),/DISABLED/);
+  {apiKey:"dummy",egress:{classification:"PUBLIC",purpose:"PUBLIC_QA",payload:"hello",approvedByPolicy:true},enabled:true,authorized:false,fetcher:fake}),/DISABLED/);
  assert.equal(calls,0);
 });
 Deno.test("mocked free-only request enforces model and token ceiling",async()=>{
@@ -25,7 +25,7 @@ Deno.test("mocked free-only request enforces model and token ceiling",async()=>{
    {headers:{"content-type":"application/json"}});
  }) as typeof fetch;
  const result=await runOpenRouterFreeInference({prompt:"hello",model:"openrouter/free"},
-  {apiKey:"dummy",enabled:true,authorized:true,fetcher:fake});
+  {apiKey:"dummy",egress:{classification:"PUBLIC",purpose:"PUBLIC_QA",payload:"hello",approvedByPolicy:true},enabled:true,authorized:true,fetcher:fake});
  assert.equal(payload.model,"openrouter/free");
  assert.equal(payload.max_tokens,128);
  assert.equal(result.text,"ok");
@@ -34,5 +34,13 @@ Deno.test("mocked free-only request enforces model and token ceiling",async()=>{
 Deno.test("provider must return JSON and no secret appears in errors",async()=>{
  const fake=(async()=>new Response("<html>gateway error</html>",{headers:{"content-type":"text/html"}})) as typeof fetch;
  await assert.rejects(()=>runOpenRouterFreeInference({prompt:"hello",model:"openrouter/free"},
-  {apiKey:"SECRET_SENTINEL",enabled:true,authorized:true,fetcher:fake}),/INVALID_PROVIDER_CONTENT_TYPE/);
+  {apiKey:"SECRET_SENTINEL",egress:{classification:"PUBLIC",purpose:"PUBLIC_QA",payload:"hello",approvedByPolicy:true},enabled:true,authorized:true,fetcher:fake}),/INVALID_PROVIDER_CONTENT_TYPE/);
+});
+
+Deno.test("internal prompt never reaches provider",async()=>{
+ let calls=0;
+ const fake=(async()=>{calls++;return new Response("{}");}) as typeof fetch;
+ await assert.rejects(()=>runOpenRouterFreeInference({prompt:"internal architecture",model:"openrouter/free"},
+  {apiKey:"dummy",enabled:true,authorized:true,egress:{classification:"INTERNAL",purpose:"PUBLIC_QA",payload:"internal architecture",approvedByPolicy:true},fetcher:fake}),/EGRESS_DENIED/);
+ assert.equal(calls,0);
 });
