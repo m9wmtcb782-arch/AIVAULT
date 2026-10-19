@@ -64,3 +64,8 @@ Deno.test("official collector rejects provider blog even with API in path", asyn
  await assert.rejects(() => collectOfficialEvidence("https://openrouter.ai/blog/api/free-models",fake),/NOT_APPROVED/);
  assert.equal(calls,0);
 });
+
+Deno.test("malformed content length is rejected", async () => {
+ const fake=(async () => new Response("ok", {headers:{"content-type":"text/plain","content-length":"invalid"}})) as typeof fetch;
+ await assert.rejects(() => collectOfficialEvidence("https://openrouter.ai/docs",fake),/INVALID_CONTENT_LENGTH/);
+});
