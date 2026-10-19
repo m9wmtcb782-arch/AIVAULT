@@ -155,7 +155,7 @@ const MAX_KEYS_PER_PROVIDER = 50;
 const REQUEST_TIMEOUT_MS = 45000;
 
 const DEFAULT_COOLDOWN_MS = 60000;
-const MAX_COOLDOWN_MS = 15 * 60 * 1000;
+const MAX_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 const CONFIGURED_GEMINI_MODEL =
   Deno.env.get("DEFAULT_GEMINI_MODEL")?.trim() ||
@@ -778,27 +778,17 @@ function calculateCooldown(
   status: number | null,
   errorText: string,
 ) {
-  const match =
-    String(errorText || "")
-      .match(
-        /retry in\s+([\d.]+)\s*s/i,
-      );
-
-  if (match) {
-    const seconds =
-      Number(match[1]);
-
-    if (
-      Number.isFinite(seconds) &&
-      seconds > 0
-    ) {
-      return Math.min(
-        Math.ceil(
-          seconds * 1000,
-        ) + 1000,
-        MAX_COOLDOWN_MS,
-      );
+  // Provider retry hints can be composite durations, e.g. "19h15m59.5s".
+  const retryText = String(errorText || "").match(/retry in\\s+((?:[\\d.]+\\s*[dhms]\\s*)+)/i);
+  if (retryText) {
+    let totalSeconds = 0;
+    const units = /([\\d.]+)\\s*([dhms])/gi;
+    for (const match of retryText[1].matchAll(units)) {
+      const value = Number(match[1]);
+      const factor = { d: 86400, h: 3600, m: 60, s: 1 }[match[2].toLowerCase() as "d" | "h" | "m" | "s"];
+      if (Number.isFinite(value)) totalSeconds += value * factor;
     }
+    if (totalSeconds > 0) return Math.min(Math.ceil(totalSeconds * 1000) + 1000, MAX_COOLDOWN_MS);
   }
 
   if (status === 429) {
