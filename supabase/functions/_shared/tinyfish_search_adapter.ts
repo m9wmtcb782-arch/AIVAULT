@@ -11,6 +11,7 @@ export type TinyFishAdapterConfig = {
   termsApproved: boolean;
 };
 const ALLOWED_HOST = "api.search.tinyfish.ai";
+// TinyFish Search: GET /?query=...&location=... ; X-API-Key authentication.
 export function createTinyFishSearchAdapter(
   config: TinyFishAdapterConfig,
   fetcher: typeof fetch = fetch,
@@ -65,9 +66,14 @@ export function createTinyFishSearchAdapter(
           if (!entry || typeof entry !== "object") return [];
           const item = entry as Record<string, unknown>;
           if (typeof item.url !== "string") return [];
+          const candidateUrl = item.url.startsWith("https://") || item.url.startsWith("http://")
+            ? item.url : "https://" + item.url;
+          let parsedUrl: URL;
+          try { parsedUrl = new URL(candidateUrl); } catch { return []; }
+          if (!["http:", "https:"].includes(parsedUrl.protocol) || !parsedUrl.hostname) return [];
           return [{
             title: typeof item.title === "string" ? item.title.slice(0, 200) : "",
-            url: item.url,
+            url: parsedUrl.href,
             snippet: typeof item.snippet === "string" ? item.snippet.slice(0, 600) : "",
           }];
         });
