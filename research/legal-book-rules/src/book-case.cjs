@@ -2,16 +2,24 @@
 const { source, digest, takeSpan, evaluate } = require('./argument.cjs');
 const { scan } = require('./engine.cjs');
 const { classifyPage } = require('./section.cjs');
-function extractFacts(text, schemas, subjectAliases) {
+const { narrativeClauses, createResolver } = require('./narrative.cjs');
+function extractFacts(text, schemas, subjectAliases, narrativeRoles=[]) {
   if (typeof text !== 'string' || text.length > 16000 || !Array.isArray(schemas) || schemas.length > 32 || !Array.isArray(subjectAliases) || !subjectAliases.length || subjectAliases.length > 12) throw Error('INVALID_CASE_INPUT');
   const values = Object.create(null), provenance = Object.create(null), unknownClauses = [];
-  const chunks = text.matchAll(/[^。；;\n]+[。；;\n]?/gu);
+  const resolver=createResolver(subjectAliases,narrativeRoles);
+  let lastSubject=null;
+  const chunks = narrativeClauses(text);
   for (const m of chunks) {
-    const raw = m[0], compact = raw.replace(/\s+/gu, '').replace(/[。；;]+$/u, '');
+    const raw = m.text, compact = raw.replace(/\s+/gu, '').replace(/[。；;，,]+$/u, '').replace(/^(?:但是|然而|不過|不过|而且|並且|并且|但)/u,'');
     if (!compact) continue;
-    const subject = subjectAliases.filter(a => typeof a === 'string' && a.length >= 2 && a.length <= 40).sort((a,b)=>b.length-a.length).find(a => compact.startsWith(a));
-    if (!subject || /[?？「」『』“”"！!]|是否|能否|可能|也許|也许|據說|据说|假如|如果|除非|未必|不一定/u.test(compact)) { unknownClauses.push({start:m.index,end:m.index+raw.length}); continue; }
-    const predicate = compact.slice(subject.length); let matched = false;
+    if(m.guarded||/[?？「」『』“”"！!]|是否|能否|可能|也許|也许|據說|据说|假如|如果|除非|未必|不一定/u.test(compact)){unknownClauses.push({start:m.start,end:m.end});lastSubject=null;continue;}
+    const bound=resolver.bind(compact,{start:m.start,end:m.end,text:raw});
+    if(bound.matched){if(bound.ambiguous)unknownClauses.push({start:m.start,end:m.end});lastSubject=null;continue;}
+    let resolved=resolver.resolve(compact);
+    if(!resolved&&lastSubject?.sentenceStart===m.sentenceStart)resolved={surface:'',canonical:lastSubject.canonical,kind:'elliptic_subject',binding:lastSubject.origin,activate:()=>{}};
+    const subject=resolved?.canonical;
+    if(!subject){unknownClauses.push({start:m.start,end:m.end});continue;}
+    const predicate = compact.slice(resolved.surface.length); let matched = false;
     for (const schema of schemas) {
       if (!/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(schema.key) || !Array.isArray(schema.trueForms) || !Array.isArray(schema.falseForms) || schema.trueForms.length > 20 || schema.falseForms.length > 20 || [...schema.trueForms,...schema.falseForms].some(v => typeof v !== 'string' || v.length < 2 || v.length > 100)) throw Error('INVALID_FACT_SCHEMA');
       if (schema.subjectAliases && !schema.subjectAliases.includes(subject)) continue;
@@ -20,12 +28,12 @@ function extractFacts(text, schemas, subjectAliases) {
       if(pos&&neg)throw Error('AMBIGUOUS_FACT_SCHEMA');
       const v=pos?'TRUE':'FALSE';
       if(!provenance[schema.key])provenance[schema.key]=[];
-      provenance[schema.key].push({start:m.index,end:m.index+raw.length,text:raw,value:v});
+      provenance[schema.key].push({start:m.start,end:m.end,text:raw,value:v,subjectSurface:resolved.surface,subjectCanonical:subject,resolvedBy:resolved.kind,binding:resolved.binding});
       values[schema.key]=values[schema.key]&&values[schema.key]!==v?'CONFLICT':v;matched=true;
     }
-    if(!matched)unknownClauses.push({start:m.index,end:m.index+raw.length});
+    if(!matched){unknownClauses.push({start:m.start,end:m.end});lastSubject=null;}else{const origin={start:m.start,end:m.end,text:raw,canonical:subject};resolved.activate(origin);lastSubject={canonical:subject,sentenceStart:m.sentenceStart,origin};}
   }
-  return{values,provenance,unknownClauses};
+  return{values,provenance,unknownClauses,bindings:resolver.bindings()};
 }
 function answerBookCase(input,card,snapshot,{allowedBookIds,getReviewedDigest}={}){
   if(!snapshot||!allowedBookIds?.includes(snapshot.meta?.bookId))return{status:'BLOCKED',reasons:['BOOK_NOT_AUTHORIZED']};
@@ -37,7 +45,7 @@ function answerBookCase(input,card,snapshot,{allowedBookIds,getReviewedDigest}={
     const compact=input.question.replace(/\s+/gu,'').replace(/[?？。]+$/u,'').replace(/^(?:依本書|依本书)[，,]?/u,'');
     const target=card.targetAliases.some(a=>compact===`本案活動是否屬於${a}`||compact===`本案活动是否属于${a}`);
     if(!target)return{status:'UNSUPPORTED',reasons:['QUESTION_OUTSIDE_REVIEWED_CASE_TARGET']};
-    const facts=extractFacts(input.factsText,card.factSchemas,card.subjectAliases);
+    const facts=extractFacts(input.factsText,card.factSchemas,card.subjectAliases,card.narrativeRoles||[]);
     const conflicts=Object.keys(facts.values).filter(k=>facts.values[k]==='CONFLICT');
     for(const group of card.exclusiveGroups){if(!Array.isArray(group)||group.length>32)throw Error('INVALID_GROUP');if(group.filter(k=>facts.values[k]==='TRUE').length>1)conflicts.push(...group);}
     if(conflicts.length)return{status:'CONFLICTING_FACTS',text:'題目事實有矛盾，尚不能下結論。',conflicts:[...new Set(conflicts)],facts,modelCalls:0};
