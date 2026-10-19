@@ -10,11 +10,13 @@ export type PageEvidence = {
  freeCapacityVerified: false;
 };
 const approvedHosts = new Set(["openrouter.ai","huggingface.co","ai.google.dev","developers.cloudflare.com"]);
+const documentationPath = /\/(docs?|api|developers?|pricing|models?|limits|inference|reference)(\/|$|[?#-])/i;
 export function isApprovedOfficialUrl(raw: string): boolean {
  try {
   const u = new URL(raw);
   return u.protocol === "https:" && !u.username && !u.password && !u.port &&
-    approvedHosts.has(u.hostname.toLowerCase()) && !u.hash && u.pathname.length <= 512 && u.search.length <= 512;
+    approvedHosts.has(u.hostname.toLowerCase()) && !u.hash && u.pathname.length <= 512 && u.search.length <= 512 &&
+    documentationPath.test(u.pathname) && !/(^|\/)blog(\/|$)/i.test(u.pathname);
  } catch { return false; }
 }
 export async function collectOfficialEvidence(
