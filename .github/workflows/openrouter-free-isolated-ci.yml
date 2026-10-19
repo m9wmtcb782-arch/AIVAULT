@@ -1,0 +1,36 @@
+name: OpenRouter isolated offline safety tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/free-token-resource-pool
+    paths:
+      - ".github/workflows/openrouter-free-isolated-ci.yml"
+      - "supabase/functions/aivault-openrouter-free-isolated/**"
+      - "supabase/functions/_shared/openrouter_free_inference*"
+      - "supabase/functions/_shared/aivault_external_egress*"
+      - "supabase/functions/_shared/aivault_public_task_allowlist*"
+
+permissions:
+  contents: read
+
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Offline safety and contract tests (no API credentials)
+        env:
+          OPENROUTER_API_KEY: ""
+          AIVAULT_OPENROUTER_FREE_ENABLED: "false"
+        run: |
+          deno test --no-check --no-remote --allow-read \
+            supabase/functions/_shared/openrouter_free_inference_test.ts \
+            supabase/functions/_shared/aivault_external_egress_test.ts \
+            supabase/functions/_shared/aivault_public_task_allowlist_test.ts \
+            supabase/functions/aivault-openrouter-free-isolated/index_test.ts
