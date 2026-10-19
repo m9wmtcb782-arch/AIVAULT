@@ -1,0 +1,47 @@
+# TinyFish trusted runner — controlled manual invocation
+# This workflow never runs on a schedule and never exposes credentials to browsers.
+# It requires the operator to configure repository secrets separately.
+name: TinyFish controlled search
+on:
+  workflow_dispatch:
+    inputs:
+      worker:
+        description: "Registered Worker ID (Worker-0101 through Worker-0200)"
+        required: true
+        default: "Worker-0101"
+      region:
+        description: "Approved region"
+        type: choice
+        options: [TW, US, JP]
+        required: true
+      query:
+        description: "One official free AI resource search query"
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: tinyfish-controlled-search
+  cancel-in-progress: false
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      AIVAULT_SUPABASE_JWT: ${{ secrets.AIVAULT_SUPABASE_JWT }}
+      AIVAULT_DISCOVERY_RUNNER_SECRET: ${{ secrets.AIVAULT_DISCOVERY_RUNNER_SECRET }}
+      JOB_WORKER: ${{ inputs.worker }}
+      JOB_REGION: ${{ inputs.region }}
+      JOB_QUERY: ${{ inputs.query }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/free-token-resource-pool
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Fail closed if credentials missing
+        run: |
+          test -n "$AIVAULT_SUPABASE_JWT"
+          test ${#AIVAULT_DISCOVERY_RUNNER_SECRET} -ge 32
+      - name: Execute exactly one approved job
+        run: deno run --allow-net=clcddygkaaqqtsbswgdf.supabase.co --allow-env=AIVAULT_SUPABASE_JWT,AIVAULT_DISCOVERY_RUNNER_SECRET,JOB_WORKER,JOB_REGION,JOB_QUERY scripts/tinyfish_manual_runner.ts
