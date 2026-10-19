@@ -1,4 +1,4 @@
-import { createTinyFishSearchAdapter } from "./tinyfish_search_adapter.ts";
+import { createTinyFishSearchAdapter, createTinyFishServerAdapter } from "./tinyfish_search_adapter.ts";
 import { createTinyFishQuotaLease } from "./tinyfish_quota_lease.ts";
 
 const base = {
@@ -77,4 +77,45 @@ Deno.test("invalid search input consumes no lease", async () => {
     rejected = String(e).includes("INVALID_SEARCH_REQUEST");
   }
   if (!rejected || leases !== 0) throw Error("invalid request consumed quota");
+});
+
+Deno.test("server factory routes RPC before search", async () => {
+  const sequence: string[] = [];
+  const adapter = createTinyFishServerAdapter(
+    base, "https://example.supabase.co", "dummy-service-key",
+    async (input, init) => {
+      const url = new URL(String(input));
+      if (url.hostname === "example.supabase.co") {
+        sequence.push("lease");
+        if (url.pathname !== "/rest/v1/rpc/aivault_tinyfish_acquire_lease" ||
+            init?.method !== "POST") throw Error("wrong RPC");
+        return new Response("true", { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+      sequence.push("search");
+      return new Response('{"results":[]}', { status: 200 });
+    },
+  );
+  const hits = await adapter.search("free inference API", "tw", 2);
+  if (hits.length !== 0 || sequence.join(",") !== "lease,search") {
+    throw Error("quota must precede search");
+  }
+});
+
+Deno.test("server factory denies search if RPC is unavailable", async () => {
+  let externalSearches = 0;
+  const adapter = createTinyFishServerAdapter(
+    base, "https://example.supabase.co", "dummy-service-key",
+    async (input) => {
+      if (new URL(String(input)).hostname === "example.supabase.co") {
+        return new Response("unavailable", { status: 503 });
+      }
+      externalSearches++;
+      throw Error("search must not be sent");
+    },
+  );
+  let blocked = false;
+  try { await adapter.search("free inference API", "tw", 2); } catch (e) {
+    blocked = String(e).includes("TINYFISH_QUOTA_EXHAUSTED");
+  }
+  if (!blocked || externalSearches !== 0) throw Error("RPC outage not fail closed");
 });
