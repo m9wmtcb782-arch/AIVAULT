@@ -1,0 +1,39 @@
+name: AIVAULT learning status snapshot
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Collect verified task counts
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python3 - <<'PY'
+          import json,os,urllib.request,datetime
+          url=os.environ.get("SUPABASE_URL","").rstrip("/")
+          key=os.environ.get("SUPABASE_SERVICE_ROLE_KEY","")
+          if not url or not key: raise SystemExit("BLOCKED: configure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY repository secrets")
+          endpoint=url+"/rest/v1/aivault_pool_agent_tasks?select=agent_id,status,source,steps,updated_at&source=eq.reasoner-curriculum-20261020-v1&limit=5000"
+          req=urllib.request.Request(endpoint,headers={"apikey":key,"Authorization":"Bearer "+key})
+          with urllib.request.urlopen(req,timeout=45) as res: rows=json.load(res)
+          from collections import Counter
+          statuses=Counter(x.get("status","unknown") for x in rows)
+          indexed=sum(x.get("steps",{}).get("reader_version")=="sql-content-index-v1" for x in rows if isinstance(x.get("steps"),dict))
+          active=[x for x in rows if x.get("status") in ("running","in_progress") and x.get("steps",{}).get("execution_evidence")]
+          out={"captured_at":datetime.datetime.now(datetime.timezone.utc).isoformat(),"tasks":len(rows),"unique_agent_ids":len({x["agent_id"] for x in rows}),"statuses":statuses,"indexed":indexed,"verified_running":len(active),"note":"Indexing is not inference. Only evidenced execution counts as running."}
+          os.makedirs("learning-status",exist_ok=True)
+          with open("learning-status/latest.json","w") as f: json.dump(out,f,ensure_ascii=False,indent=2)
+          PY
+      - name: Publish snapshot
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add learning-status/latest.json
+          if ! git diff --cached --quiet; then git commit -m 'chore: refresh learning evidence snapshot'; git push; fi
