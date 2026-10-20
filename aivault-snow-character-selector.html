@@ -1,0 +1,48 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>AIVAULT｜冰雪人物選角室</title><style>
+*{box-sizing:border-box}body{margin:0;background:#091a2c;color:#edf6ff;font:14px system-ui}#stage{position:fixed;inset:0}#panel{position:fixed;top:calc(env(safe-area-inset-top) + 8px);left:10px;right:10px;background:#0c2536ed;border:1px solid #7298af;border-radius:14px;padding:10px;z-index:2}h1{font-size:17px;margin:0 0 4px}#status{font-size:12px;color:#c9e4ee}#picker{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 8px);left:0;right:0;z-index:3;padding:8px;background:#092239eb}#choices{display:flex;gap:8px;overflow-x:auto;padding:5px 2px;scroll-snap-type:x mandatory}button{cursor:pointer;border-radius:10px;border:1px solid #668da6;color:#fff;background:#183c54;padding:9px 11px;flex-shrink:0}button.selected{border:2px solid #ffdf8a;background:#42617a}#actions{display:flex;gap:7px;margin-bottom:5px;justify-content:space-between}#actions button{flex:1}small{color:#bbd4e1}</style></head><body><div id="stage"></div><section id="panel"><h1>❄️ AIVAULT 冰雪人物選角室</h1><div id="name">請選擇角色</div><div id="status">載入真正骨架模型中……</div><small>12 種造型配色預覽｜共用同一套 Soldier 骨架，不是 12 個獨立精緻模型</small></section><section id="picker"><div id="actions"><button id="pause">暫停走路</button><button id="reset">重設視角</button></div><div id="choices"></div></section><script type="module">
+import * as THREE from 'https://esm.sh/three@0.160.1';
+import {OrbitControls} from 'https://esm.sh/three@0.160.1/examples/jsm/controls/OrbitControls.js';
+import {GLTFLoader} from 'https://esm.sh/three@0.160.1/examples/jsm/loaders/GLTFLoader.js';
+const profiles=[
+['冰雪學者','#305b87','#d6c7ae'],['極地探險家','#b86b34','#efe4c9'],['霜衛隊長','#3b465f','#e4e5df'],
+['雪原醫師','#d4e7e8','#7db3c7'],['冬城工匠','#88634c','#e5d5b6'],['冰晶研究員','#7d83b6','#d9d1ef'],
+['北境信使','#45765d','#e1c29a'],['雪狐斥候','#b8b7ad','#8d514d'],['冰川守護者','#4d8291','#dfedf1'],
+['冬夜指揮官','#403d52','#b99a6c'],['晨曦巡守','#b45c58','#ead2bd'],['極光旅人','#536f9a','#b7dfcd']];
+const scene=new THREE.Scene();scene.background=new THREE.Color('#a6c4d6');
+const camera=new THREE.PerspectiveCamera(38,innerWidth/innerHeight,.1,100);camera.position.set(3,2.3,5);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;document.querySelector('#stage').appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xffffff,0x50647c,2));const light=new THREE.DirectionalLight(0xffe7c8,2);light.position.set(3,8,4);scene.add(light);
+const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,1,0);controls.enableDamping=true;controls.minDistance=1.5;controls.maxDistance=12;controls.update();
+const status=document.querySelector('#status'),name=document.querySelector('#name'),choices=document.querySelector('#choices');
+let character=null,mixer=null,playing=true,meshes=[],originals=new Map(),active=0;
+profiles.forEach((p,i)=>{const b=document.createElement('button');b.textContent=(i+1)+' · '+p[0];b.onclick=()=>select(i);b.id='role-'+i;choices.appendChild(b)});
+function select(i){
+ active=i;name.textContent='角色 '+String(i+1).padStart(2,'0')+'｜'+profiles[i][0];
+ document.querySelectorAll('#choices button').forEach((b,j)=>b.classList.toggle('selected',i===j));
+ if(!character)return;
+ const primary=new THREE.Color(profiles[i][1]),accent=new THREE.Color(profiles[i][2]);
+ for(const mesh of meshes){
+  const base=originals.get(mesh);if(!base)continue;
+  const n=mesh.name.toLowerCase();
+  const skin=/skin|face|head|hand|eye|hair/.test(n);
+  const trim=/boot|shoe|belt|strap|glove|armor|detail/.test(n);
+  const target=skin?null:(trim?accent:primary);
+  mesh.material=base.map((m)=>{const clone=m.clone();if(target&&clone.color)clone.color.copy(target);return clone});
+  if(mesh.material.length===1)mesh.material=mesh.material[0];
+ }
+ status.textContent='已選擇配色 '+(i+1)+'/12｜骨架與走路動畫共用；非獨立角色模型。';
+}
+new GLTFLoader().load('https://threejs.org/examples/models/gltf/Soldier.glb',g=>{
+ character=g.scene;const bones=[];character.traverse(o=>{if(o.isBone)bones.push(o);if(o.isMesh||o.isSkinnedMesh){meshes.push(o);originals.set(o,(Array.isArray(o.material)?o.material:[o.material]).map(m=>m.clone()))}});
+ if(!bones.length){status.textContent='BLOCKED：模型無骨架';return}
+ scene.add(character);const box=new THREE.Box3().setFromObject(character),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());
+ character.position.sub(new THREE.Vector3(center.x,box.min.y,center.z));character.scale.setScalar(2/Math.max(.01,size.y));
+ const walk=g.animations.find(a=>/walk|locomotion/i.test(a.name));
+ if(walk){mixer=new THREE.AnimationMixer(character);mixer.clipAction(walk).play()}else status.textContent='NOT VERIFIED：沒有走路動畫';
+ select(0);
+},undefined,e=>status.textContent='BLOCKED：模型載入失敗 '+(e?.message||e));
+document.querySelector('#pause').onclick=()=>{playing=!playing;document.querySelector('#pause').textContent=playing?'暫停走路':'繼續走路'};
+document.querySelector('#reset').onclick=()=>{camera.position.set(3,2.3,5);controls.target.set(0,1,0);controls.update()};
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+const clock=new THREE.Clock();renderer.setAnimationLoop(()=>{const dt=clock.getDelta();if(playing&&mixer)mixer.update(dt);controls.update();renderer.render(scene,camera)});
+</script></body></html>
