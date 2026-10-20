@@ -1,0 +1,10 @@
+import { strict as assert } from "node:assert";
+import {researchWorker0001} from "./worker-0001.ts";
+const doc={url:"https://example.org/article",title:"Research",retrievedAt:"2026-10-20T00:00:00Z",sourceId:"src-1",extractionVerified:true,content:"[CLAIM:+] A\n[CLAIM:-] B"};
+const output=researchWorker0001(doc,[{id:"r",premises:["A"],conclusion:"C",supports:true,sourceUrl:doc.url,verified:true}]);
+assert.equal(output.status,"EVIDENCE_READY");
+assert.equal(output.findings.facts.find(f=>f.proposition==="C")?.truth,"PROVEN");
+assert.equal(researchWorker0001({...doc,extractionVerified:false}).status,"NEEDS_REVIEW");
+assert.equal(researchWorker0001({...doc,content:"ordinary text without explicit claims"}).status,"NEEDS_REVIEW");
+assert.equal(researchWorker0001({...doc,url:"file:///secret"}).status,"BLOCKED");
+console.log("Worker-0001 V0.4 tests passed");
