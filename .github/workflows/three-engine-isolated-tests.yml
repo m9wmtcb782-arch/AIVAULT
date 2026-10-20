@@ -1,0 +1,19 @@
+name: Three-engine isolated tests
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run pure offline tests (no API credentials)
+        run: |
+          node --experimental-strip-types engine-foundations/three-engine-coordinator.test.ts
+          node --experimental-strip-types engine-foundations/three-engine-runtime.test.ts
+          node --experimental-strip-types engine-foundations/worker-0001-three-engine.test.ts
