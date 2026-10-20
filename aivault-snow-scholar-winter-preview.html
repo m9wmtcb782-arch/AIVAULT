@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>AIVAULT 冰雪學者｜骨架模型驗證</title>
+<style>body{margin:0;background:#12243a;color:#eaf5ff;font:14px system-ui}#stage{position:fixed;inset:0}#panel{position:fixed;top:env(safe-area-inset-top);left:12px;right:12px;max-width:440px;background:#10263bdc;border:1px solid #769bb9;border-radius:14px;padding:14px;line-height:1.6}button{background:#29587d;color:white;border:1px solid #86a9c5;border-radius:9px;padding:9px;margin:4px}#controls{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom));left:12px;right:12px;text-align:center}#status{white-space:pre-wrap;font-size:12px}</style></head>
+<body><div id="stage"></div><div id="panel"><strong>❄ AIVAULT｜冰雪學者骨架技術預覽</strong><div>獨立測試頁・不連協作池・不使用付費 API</div><div id="status">等待載入模型。沒有真實模型時絕不顯示假人物。</div></div><div id="controls"><button id="pause">暫停動畫</button><button id="reset">重設視角</button></div>
+<script type="module">
+import * as THREE from 'https://esm.sh/three@0.160.1';
+import {OrbitControls} from 'https://esm.sh/three@0.160.1/examples/jsm/controls/OrbitControls.js';
+import {GLTFLoader} from 'https://esm.sh/three@0.160.1/examples/jsm/loaders/GLTFLoader.js';
+const status=document.querySelector('#status');
+const scene=new THREE.Scene();scene.background=new THREE.Color('#9ab9d2');
+const camera=new THREE.PerspectiveCamera(38,innerWidth/innerHeight,.1,100);camera.position.set(3,2.3,5);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;document.querySelector('#stage').appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xffffff,0x556b85,2));const sun=new THREE.DirectionalLight(0xffe7c9,2);sun.position.set(3,8,4);scene.add(sun);
+const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,1,0);controls.enableDamping=true;controls.minDistance=1.5;controls.maxDistance=12;controls.maxPolarAngle=Math.PI*.9;controls.update();
+const clock=new THREE.Clock();let mixer=null,playing=true;
+const modelUrl=new URLSearchParams(location.search).get('model') || 'https://threejs.org/examples/models/gltf/Soldier.glb';
+const loader=new GLTFLoader();
+const outfit={
+ coat:new THREE.MeshStandardMaterial({color:0x315a79,roughness:.91,side:THREE.DoubleSide}),
+ fur:new THREE.MeshStandardMaterial({color:0xe6e0d0,roughness:1}),
+ scarf:new THREE.MeshStandardMaterial({color:0xa34849,roughness:.94}),
+ boots:new THREE.MeshStandardMaterial({color:0x392e35,roughness:.98})
+};
+function dressRiggedScholar(root){
+ const skinned=[];root.traverse(o=>{if(o.isSkinnedMesh)skinned.push(o)});
+ if(!skinned.length)return {ok:false,reason:'找不到蒙皮網格'};
+ const names=skinned.map(m=>m.name);
+ // Non-destructive material preview: original skinned geometry, weights and animations are preserved.
+ for(const mesh of skinned){
+  const name=mesh.name.toLowerCase();
+  if(/body|uniform|shirt|jacket|coat|torso|suit|soldier/.test(name))mesh.material=outfit.coat;
+  else if(/boot|shoe/.test(name))mesh.material=outfit.boots;
+ }
+ return {ok:true,names};
+}
+
+loader.load(modelUrl,gltf=>{
+const bones=[];gltf.scene.traverse(o=>{if(o.isBone)bones.push(o.name)});
+if(!bones.length){status.textContent='BLOCKED：模型沒有可確認的骨架。拒絕宣稱成功。';return}
+const dressed=dressRiggedScholar(gltf.scene);\nscene.add(gltf.scene);
+const bounds=new THREE.Box3().setFromObject(gltf.scene),size=bounds.getSize(new THREE.Vector3()),center=bounds.getCenter(new THREE.Vector3());
+gltf.scene.position.sub(new THREE.Vector3(center.x,bounds.min.y,center.z));
+const scale=2/Math.max(size.y,.01);gltf.scene.scale.setScalar(scale);
+const clips=gltf.animations||[];const walk=clips.find(c=>/walk|locomotion/i.test(c.name));
+if(walk){mixer=new THREE.AnimationMixer(gltf.scene);mixer.clipAction(walk).play()}
+status.textContent='CONFIRMED：模型載入成功，骨架 '+bones.length+' 根。\n'+(walk?'CONFIRMED：找到並播放 '+walk.name:'NOT VERIFIED：模型沒有內建 Walk 動畫，尚未取得自然走路證據。')+'\n冬裝材質預覽：'+(dressed.ok?'已保留蒙皮網格與原動畫，替換符合名稱的服裝材質':'未找到可換裝蒙皮網格')+'。精緻冬裝網格、毛領與圍巾仍未製作，不能宣稱完成。';
+},undefined,e=>{status.textContent='BLOCKED：未能載入真實 GLB 模型：'+modelUrl+'\n'+(e?.message||e)+'\n請先放入已驗證授權的模型，絕不以球體方塊冒充。'});
+document.querySelector('#pause').onclick=()=>{playing=!playing;document.querySelector('#pause').textContent=playing?'暫停動畫':'繼續動畫'};
+document.querySelector('#reset').onclick=()=>{camera.position.set(3,2.3,5);controls.target.set(0,1,0);controls.update()};
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+renderer.setAnimationLoop(()=>{const dt=clock.getDelta();if(playing&&mixer)mixer.update(dt);controls.update();renderer.render(scene,camera)});
+</script></body></html>
