@@ -13,6 +13,16 @@ if [ ! -s "$MODEL_FILE" ]; then
   echo "BLOCKED: no real GGUF weights at $MODEL_FILE" >&2
   exit 2
 fi
-echo "MODEL_SHA256: $(sha256sum "$MODEL_FILE" | cut -d' ' -f1)"
+EXPECTED_SHA256="${AIVAULT_MODEL_SHA256:-}"
+if [[ ! "$EXPECTED_SHA256" =~ ^[a-fA-F0-9]{64}$ ]]; then
+  echo "BLOCKED: independently verified AIVAULT_MODEL_SHA256 is required" >&2
+  exit 2
+fi
+ACTUAL_SHA256="$(sha256sum "$MODEL_FILE" | awk '{print $1}')"
+if [ "${ACTUAL_SHA256,,}" != "${EXPECTED_SHA256,,}" ]; then
+  echo "BLOCKED: model checksum mismatch" >&2
+  exit 2
+fi
+echo "MODEL_SHA256_VERIFIED: $ACTUAL_SHA256"
 echo "Launching local-only CPU model server. No paid API calls."
 exec "$SERVER_BIN" --model "$MODEL_FILE" --alias SmolLM2-135M-Instruct --host 127.0.0.1 --port 8080 --ctx-size 1024 --parallel 1
