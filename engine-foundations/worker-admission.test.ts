@@ -1,0 +1,12 @@
+import {strict as assert} from "node:assert";
+import {admit,selectWorkers,summarizeWorkers} from "./worker-admission.ts";
+const now=1000000;
+const ready=(id:string)=>({id,enabled:true,modelReady:true,runtimeReady:true,capabilities:["reasoning"],lastSeenAt:now});
+assert.equal(admit(ready("Worker-0001"),now).status,"READY");
+assert.equal(admit({...ready("Worker-0001"),modelReady:false},now).reason,"MODEL_NOT_READY");
+assert.equal(admit({...ready("Worker-0001"),lastSeenAt:0},now).reason,"STALE_HEARTBEAT");
+assert.equal(admit({...ready("Worker-0001"),capabilities:[]},now).reason,"REASONING_CAPABILITY_MISSING");
+const workers=[ready("Worker-0003"),ready("Worker-0001"),ready("Worker-0002")];
+assert.deepEqual(selectWorkers(workers,now,2),["Worker-0001","Worker-0002"]);
+assert.deepEqual(summarizeWorkers(workers,now,2),{registered:3,ready:3,blocked:0,selected:2});
+console.log("worker admission tests passed");
