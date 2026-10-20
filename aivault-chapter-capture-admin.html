@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AIVAULT 教材擷取管理</title><style>body{font-family:system-ui,-apple-system,sans-serif;background:#101827;color:#f2f5fb;margin:0;padding:24px;line-height:1.65}main{max-width:620px;margin:auto}button{background:#2463eb;color:white;border:0;border-radius:12px;padding:15px 22px;font-size:17px}button:disabled{opacity:.5}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#1b2b41;padding:14px;border-radius:12px}small{color:#b5c5d8}</style></head><body><main><h1>AIVAULT 教材擷取</h1><p>僅限已授權管理員。擷取三份 Python 官方教材，免費執行，不呼叫 AI 模型。</p><p id="status">檢查登入狀態中……</p><button id="go" disabled>開始擷取三份教材</button><pre id="result" aria-live="polite">尚未執行。</pre><small>不儲存或顯示登入憑證；若無 AIVAULT 登入工作階段，請先在 AIVAULT 登入，再返回本頁。</small></main><script>
+const status=document.getElementById('status'),btn=document.getElementById('go'),out=document.getElementById('result');
+const storageKey='sb-clcddygkaaqqtsbswgdf-auth-token';
+function token(){try{const j=JSON.parse(localStorage.getItem(storageKey)||'null');return String(j?.access_token||j?.currentSession?.access_token||'')}catch{return ''}}
+function validJwt(t){try{const p=JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));return p.exp*1000>Date.now()+30000&&p.iss?.includes('clcddygkaaqqtsbswgdf')}catch{return false}}
+const t=token();
+if(validJwt(t)){status.textContent='找到有效的 AIVAULT 登入工作階段；仍須由後端驗證管理員白名單。';btn.disabled=false}
+else status.textContent='找不到有效的 AIVAULT 登入工作階段。請先登入 AIVAULT；Dashboard 登入不等於 AIVAULT 登入。';
+btn.onclick=async()=>{const jwt=token();if(!validJwt(jwt)){status.textContent='登入已過期，請重新登入 AIVAULT。';btn.disabled=true;return}btn.disabled=true;status.textContent='正在擷取……';out.textContent='等待後端回應';try{const r=await fetch('https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/source-verification',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+jwt},body:JSON.stringify({action:'capture_chapters'})});const data=await r.json();out.textContent=JSON.stringify(data,null,2);status.textContent=r.ok&&data.success?'已收到擷取結果；請核對各章節狀態。':'請查看後端回傳的錯誤代碼。'}catch(e){out.textContent='請求失敗：'+String(e);status.textContent='連線失敗，未確認擷取結果。'}finally{btn.disabled=false}};
+</script></body></html>
