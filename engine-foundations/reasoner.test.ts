@@ -1,0 +1,13 @@
+import { reason, LocalResearchScheduler, normalizeResearchUrl } from "./reasoner.ts";
+import { strict as assert } from "node:assert";
+assert.equal(reason("P", []).truth,"UNKNOWN");
+assert.equal(reason("P",[{id:"a",proposition:"P",supports:true,sourceUrl:"https://example.org",verified:true}]).truth,"PROVEN");
+assert.equal(reason("P",[{id:"a",proposition:"P",supports:false,sourceUrl:"https://example.org",verified:true}]).truth,"REFUTED");
+assert.equal(reason("P",[{id:"a",proposition:"P",supports:true,sourceUrl:"https://example.org",verified:true},{id:"b",proposition:"P",supports:false,sourceUrl:"https://other.org",verified:true}]).truth,"CONFLICT");
+assert.equal(reason("P",[{id:"a",proposition:"P",supports:true,sourceUrl:"https://example.org",verified:false}]).truth,"UNKNOWN");
+assert.equal(normalizeResearchUrl("https://EXAMPLE.org/?utm_source=x&a=1#test"),"https://example.org/?a=1");
+const scheduler = new LocalResearchScheduler();
+for(let i=0;i<5;i++) assert.ok(scheduler.acquire("https://example.org",String(i),0,100));
+assert.equal(scheduler.acquire("https://example.org","6",0,100),null);
+assert.ok(scheduler.acquire("https://example.org","6",101,100));
+console.log("reasoner v0.1 tests passed");
