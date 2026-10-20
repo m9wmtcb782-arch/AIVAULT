@@ -7,7 +7,7 @@ import json, os, secrets, urllib.request, urllib.error
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 MODEL = os.environ.get("AIVAULT_WORKER_MODEL", "SmolLM2-135M-Instruct")
-UPSTREAM = "http://127.0.0.1:8080/v1/chat/completions"
+UPSTREAM = os.environ.get("AIVAULT_WORKER_UPSTREAM", "http://127.0.0.1:8080/v1/chat/completions")
 KEY = os.environ.get("AIVAULT_WORKER_BRIDGE_TOKEN", "")
 if len(KEY) < 32:
     raise SystemExit("BLOCKED: set a random AIVAULT_WORKER_BRIDGE_TOKEN (32+ chars)")
