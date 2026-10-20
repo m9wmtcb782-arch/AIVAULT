@@ -1,0 +1,51 @@
+name: Worker-001 REAL CPU inference (manual only)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install CPU inference libraries
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch
+          python -m pip install 'transformers>=4.46,<5' safetensors sentencepiece
+      - name: Download official model and run genuine token generation
+        env:
+          HF_HUB_DISABLE_TELEMETRY: "1"
+          HF_HUB_DISABLE_XET: "1"
+        run: |
+          python - <<'PY'
+          import json, time, torch
+          from transformers import AutoTokenizer, AutoModelForCausalLM
+          model_id = "HuggingFaceTB/SmolLM2-135M-Instruct"
+          print("MODEL_LOADING", model_id, flush=True)
+          tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=False)
+          model = AutoModelForCausalLM.from_pretrained(model_id, trust_remote_code=False, torch_dtype=torch.float32)
+          model.eval()
+          messages = [{"role":"user","content":"Reply with one short sentence: what is the purpose of a library?"}]
+          prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+          inputs = tokenizer(prompt, return_tensors="pt")
+          start = time.monotonic()
+          with torch.inference_mode():
+              output = model.generate(**inputs, max_new_tokens=48, do_sample=False, pad_token_id=tokenizer.eos_token_id)
+          generated = output[0][inputs["input_ids"].shape[-1]:]
+          answer = tokenizer.decode(generated, skip_special_tokens=True).strip()
+          if not answer or len(generated) == 0:
+              raise RuntimeError("BLOCKED: no model-generated tokens")
+          print("REAL_MODEL_INFERENCE_COMPLETED", json.dumps({
+              "model": model_id, "generated_tokens": int(len(generated)),
+              "duration_seconds": round(time.monotonic()-start, 2),
+              "answer": answer, "worker": "Worker-001",
+              "scope": "ephemeral GitHub Actions CPU only; NOT production worker"
+          }, ensure_ascii=False), flush=True)
+          PY
+# This workflow is deliberately manual. No external paid inference provider,
+# no credentials, no deployment, no database ACTIVE flag, and no persistent hosting.
