@@ -1,0 +1,13 @@
+import {strict as assert} from "node:assert";
+import {coordinateThreeEngines} from "./three-engine-coordinator.ts";
+const now=1000000;
+const worker={id:"Worker-0001",enabled:true,modelReady:true,runtimeReady:true,capabilities:["reasoning"],lastSeenAt:now};
+const base={worker,now,ann:{status:"FALLBACK_RULE" as const,score:null,reason:"no_accepted_model"},rules:{truth:"PROVEN" as const,evidenceIds:["e1"]},executionVerified:true,taskAuthorized:true};
+const fallback=coordinateThreeEngines(base);
+assert.equal(fallback.status,"READY_FOR_DISPATCH");
+assert.equal(fallback.annUsed,false);
+assert.equal(coordinateThreeEngines({...base,rules:{truth:"UNKNOWN",evidenceIds:[]}}).status,"BLOCKED");
+assert.equal(coordinateThreeEngines({...base,executionVerified:false}).status,"BLOCKED");
+assert.equal(coordinateThreeEngines({...base,ann:{status:"ACCEPTED",score:0.9,reason:"mlp_score"}}).annUsed,true);
+assert.equal(coordinateThreeEngines({...base,ann:{status:"ACCEPTED",score:0.1,reason:"mlp_score"}}).status,"BLOCKED");
+console.log("three-engine coordinator tests passed");
