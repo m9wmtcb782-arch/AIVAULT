@@ -6,7 +6,7 @@ This service binds to localhost only; use an authenticated reverse proxy separat
 import json, os, secrets, urllib.request, urllib.error
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-MODEL = "SmolLM2-135M-Instruct"
+MODEL = os.environ.get("AIVAULT_WORKER_MODEL", "SmolLM2-135M-Instruct")
 UPSTREAM = "http://127.0.0.1:8080/v1/chat/completions"
 KEY = os.environ.get("AIVAULT_WORKER_BRIDGE_TOKEN", "")
 if len(KEY) < 32:
@@ -32,10 +32,13 @@ class Handler(BaseHTTPRequestHandler):
             }).encode(), headers={"Content-Type": "application/json"})
             with urllib.request.urlopen(req, timeout=90) as r:
                 data = json.load(r)
+            returned_model = data.get("model")
+            if not returned_model or returned_model != MODEL:
+                raise ValueError("model identity mismatch or missing: inference not verified")
             answer = data["choices"][0]["message"]["content"]
             if not isinstance(answer, str) or not answer.strip():
                 raise ValueError("empty model answer")
-            self.reply(200, {"status":"MODEL_RESPONSE_UNVERIFIED", "model":MODEL, "answer":answer,
+            self.reply(200, {"status":"MODEL_RESPONSE_RECEIVED_NOT_INDEPENDENTLY_VERIFIED", "model":returned_model, "answer":answer,
                              "usage":data.get("usage"), "source":"local-llama-cpp"})
         except Exception as e:
             self.reply(503, {"status":"MODEL_UNAVAILABLE", "error":str(e)[:200]})
