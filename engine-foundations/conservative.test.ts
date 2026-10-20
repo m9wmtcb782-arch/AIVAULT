@@ -1,0 +1,15 @@
+import {strict as assert} from "node:assert";
+import {inferConservatively} from "./conservative.ts";
+const E=(id:string,p:string,supports:boolean)=>({id,proposition:p,supports,sourceUrl:"https://example.org/"+id,verified:true});
+const R=(id:string,premises:string[],conclusion:string)=>({id,premises,conclusion,supports:true,sourceUrl:"https://example.org/"+id,verified:true});
+const rules=[R("r1",["A"],"B"),R("r2",["B"],"C")];
+const good=inferConservatively([E("e1","A",true)],rules);
+assert.equal(good.facts.find(f=>f.proposition==="C")?.truth,"PROVEN");
+const conflict=inferConservatively([E("e1","A",true),E("e2","A",false)],rules);
+assert.equal(conflict.facts.find(f=>f.proposition==="A")?.truth,"CONFLICT");
+assert.equal(conflict.facts.some(f=>f.proposition==="B"),false);
+const stale=inferConservatively([{...E("e1","A",true),expiresAt:"2020-01-01"}],rules);
+assert.equal(stale.facts.length,0);
+const bounded=inferConservatively([E("e1","A",true)],rules,{maxFacts:1});
+assert.equal(bounded.truncated,true);
+console.log("conservative v0.3 tests passed");
