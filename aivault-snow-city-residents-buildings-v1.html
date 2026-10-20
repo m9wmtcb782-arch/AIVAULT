@@ -1,0 +1,65 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>AIVAULT 冰雪城｜建築與居民 V1</title><style>
+*{box-sizing:border-box}body{margin:0;background:#182d48;color:white;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif;overflow:hidden}canvas{display:block}#ui{position:fixed;top:env(safe-area-inset-top,0px);left:8px;right:8px;pointer-events:none}#hud{display:inline-block;margin-top:8px;background:#102a4cd9;border:1px solid #83bfe8;border-radius:12px;padding:9px 12px;max-width:80vw;font-size:12px;line-height:1.55}#hud strong{font-size:16px}#controls{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);left:50%;transform:translateX(-50%);display:flex;gap:6px;max-width:98vw}button{background:#163e65ed;color:white;border:1px solid #9bcfff;border-radius:11px;padding:10px;font-size:12px}#error{display:none;position:fixed;top:35%;left:6%;right:6%;background:#742e35;color:white;border-radius:12px;padding:16px;white-space:pre-wrap;font-size:13px}</style></head><body>
+<div id="ui"><div id="hud"><strong>❄ AIVAULT 冰雪協作城</strong><div>建築與冬裝居民展示 V1 · 無霧</div><div id="state">正在載入 3D 場景……</div><div>冬裝居民：程序化展示模型｜AI 衛士：獨立巡邏</div><div>展示人口不代表協作池真實在線人數</div></div></div><div id="controls"><button id="wide">🏰 全景</button><button id="houses">🏠 建築</button><button id="residents">🧣 居民</button><button id="guards">🛡️ 衛士</button><button id="pause">⏸ 暫停</button></div><div id="error"></div>
+<script>window.addEventListener('error',e=>{const n=document.getElementById('error');n.style.display='block';n.textContent='載入錯誤：'+e.message});window.addEventListener('unhandledrejection',e=>{const n=document.getElementById('error');n.style.display='block';n.textContent='資源錯誤：'+String(e.reason)});</script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
+<script type="module">
+import * as T from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {clone as cloneSkinned} from 'three/addons/utils/SkeletonUtils.js';
+const state=document.getElementById('state'),scene=new T.Scene();scene.background=new T.Color(0x9ec8e6);scene.fog=null;
+const camera=new T.PerspectiveCamera(46,innerWidth/innerHeight,.1,400);
+let renderer;try{renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});}catch(e){document.getElementById('error').style.display='block';document.getElementById('error').textContent='WebGL 無法啟動：'+e.message;throw e}
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;document.body.appendChild(renderer.domElement);
+scene.add(new T.HemisphereLight(0xeaf7ff,0x61728a,2.5));const sun=new T.DirectionalLight(0xffe4c0,2.8);sun.position.set(-24,42,30);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-80;sun.shadow.camera.right=80;sun.shadow.camera.top=80;sun.shadow.camera.bottom=-80;scene.add(sun);
+const material=(c,roughness=.88)=>new T.MeshStandardMaterial({color:c,roughness});
+const snow=material(0xf3faff),snowShade=material(0xdceefa),stone=material(0x7b8d9f),stoneLight=material(0xaab6be),wood=material(0x644a3e),woodLight=material(0x956c4d),slate=material(0x375777),navy=material(0x263e61),gold=new T.MeshStandardMaterial({color:0xffce7d,emissive:0xff7c20,emissiveIntensity:.9}),blue=new T.MeshStandardMaterial({color:0x8df5ff,emissive:0x1684cc,emissiveIntensity:1.5}),red=material(0x9e4f52),green=material(0x487568);
+function part(g,m,x,y,z,parent=scene){const o=new T.Mesh(g,m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o}
+function box(x,y,z,w,h,d,m,p=scene){return part(new T.BoxGeometry(w,h,d),m,x,y,z,p)}
+function sphere(x,y,z,r,m,p=scene){return part(new T.SphereGeometry(r,14,10),m,x,y,z,p)}
+function cone(x,y,z,r,h,m,n=8,p=scene){return part(new T.ConeGeometry(r,h,n),m,x,y,z,p)}
+function cylinder(x,y,z,rt,rb,h,m,p=scene){return part(new T.CylinderGeometry(rt,rb,h,10),m,x,y,z,p)}
+box(0,-.5,0,130,1,130,snow);for(let i=-5;i<=5;i++){box(i*10,-.03,0,3.5,.07,120,snowShade);box(0,-.025,i*10,120,.07,3.5,snowShade)}
+function roof(x,y,z,w,d,rise,roofMat=slate){const length=Math.hypot(w/2,rise),theta=Math.atan2(rise,w/2);for(let s of [-1,1]){const r=box(x+s*w/4,y+rise/2,z,length,.34,d+.8,roofMat);r.rotation.z=-s*theta;const cap=box(x+s*w/4,y+rise/2+.19,z,length+.12,.2,d+1,snow);cap.rotation.z=-s*theta}box(x,y+rise+.2,z,.5,.3,d+1.2,snow)}
+function window(x,y,z,w=1,h=1.2){box(x,y,z,w,h,.13,gold);box(x,y,z+.12,w+.18,.14,.19,wood);box(x,y,z+.13,.13,h+.18,.2,wood);box(x,y-h/2-.12,z+.16,w+.38,.2,.38,snow)}
+function home(x,z,style=0,s=1){const g=new T.Group();g.position.set(x,0,z);scene.add(g);const W=(style===1?7.4:6.6)*s,D=(style===2?7.2:6.2)*s,H=(style===3?5.2:4.4)*s;
+box(0,.4*s,0,W+1.3*s,.8*s,D+1.3*s,stone,g);box(0,H/2+.5*s,0,W,H,D,style===2?stoneLight:woodLight,g);
+for(const a of [-1,1]){box(a*(W/2-.25*s),H/2+.5*s,D/2+.12*s,.43*s,H,.4*s,wood,g);box(a*(W/2-.1*s),1.5*s,0,.55*s,2.9*s,D+.25*s,stone,g)}
+box(0,H-.25*s,D/2+.15*s,W,.27*s,.35*s,wood,g);roof(0,H+.55*s,0,W+1.65*s,D+1.6*s,3.1*s,style===2?navy:slate);
+window(-1.8*s,2.6*s,D/2+.12*s,1*s,1.35*s);window(1.8*s,2.6*s,D/2+.12*s,1*s,1.35*s);
+box(0,1.2*s,D/2+.18*s,1.55*s,2.35*s,.22*s,wood,g);sphere(.5*s,1.2*s,D/2+.38*s,.1*s,gold,g);
+for(const a of [-1,1])box(a*1.4*s,1.65*s,D/2+1.35*s,.23*s,3*s,.23*s,wood,g);
+box(0,3.2*s,D/2+1.25*s,3.7*s,.25*s,2.6*s,slate,g);box(0,3.45*s,D/2+1.25*s,3.95*s,.22*s,2.85*s,snow,g);
+box(0,.14*s,D/2+1.2*s,4*s,.28*s,2.7*s,stone,g);
+box(W*.25,H+1.85*s,-D*.25,.95*s,2.2*s,.95*s,stone,g);box(W*.25,H+3*s,-D*.25,1.2*s,.35*s,1.2*s,snow,g);
+if(style===1){box(W*.55,1.7*s,-.6*s,2.5*s,3.4*s,3*s,woodLight,g);roof(W*.55,3.4*s,-.6*s,3*s,3.5*s,1.4*s)}
+if(style===2){box(-W*.57,2.7*s,0,2.1*s,5.4*s,2.1*s,stone,g);cone(-W*.57,6.3*s,0,1.8*s,3*s,slate,8,g);cone(-W*.57,6.8*s,0,1.45*s,2.5*s,snow,8,g)}
+if(style===3){box(0,H+1.5*s,D/2+.4*s,1.5*s,1.4*s,.65*s,woodLight,g);roof(0,H+2.2*s,D/2+.4*s,2.1*s,1.4*s,.9*s);window(0,H+1.6*s,D/2+.85*s,.7*s,.75*s)}
+return g}
+for(let ix=-4;ix<=4;ix++)for(let iz=-4;iz<=4;iz++){if(Math.abs(ix)<=1&&Math.abs(iz)<=1)continue;if((ix*3+iz*5+100)%3===0)home(ix*11,iz*11,Math.abs(ix*7+iz)%4),.9)}
+function castle(){const x=0,z=-7;box(x,1,z,13,2,13,stone);box(x,7,z,10,12,10,stoneLight);for(const dx of [-4.6,4.6])for(const dz of [-4.6,4.6]){box(x+dx,8,z+dz,2,16,2,stone);cone(x+dx,18,z+dz,2.2,6,navy,8);cone(x+dx,18.8,z+dz,1.75,5,snow,8)}roof(x,13.4,z,11,11,6,navy);for(const dx of [-2.6,0,2.6])window(x+dx,8,z+5.15,1,2);box(x,1.7,z+5.2,3,3.4,.35,wood);cone(x,22,z,2.1,6,blue,6);sphere(x,25.4,z,1.2,blue)}
+castle();
+function tree(x,z,s){cylinder(x,.8*s,z,.2*s,.3*s,1.6*s,wood);for(let j=0;j<3;j++){cone(x,(1.8+j*.95)*s,z,(2.1-j*.5)*s,2.6*s,green,8);cone(x,(2.1+j*.95)*s,z,(1.5-j*.4)*s,.55*s,snow,8)}}
+for(let i=0;i<65;i++){let x=Math.sin(i*9.17)*56,z=Math.cos(i*12.51)*56;if(Math.abs(x)<7||Math.abs(z)<7)continue;tree(x,z,.7+i%3*.12)}
+function lamp(x,z){cylinder(x,1.5,z,.12,.16,3,wood);sphere(x,3.25,z,.5,gold)}for(let i=-4;i<=4;i++){lamp(i*10,3.8);lamp(i*10,-3.8)}
+const residents=[];const skin=[material(0xf2c5a2),material(0xe3ac8e)],coats=[material(0x487aa5),red,green,material(0x9372a0),material(0x9d704b),material(0x5c8192)];
+function resident(x,z,female,i){const g=new T.Group();g.position.set(x,0,z);scene.add(g);const coat=coats[i%coats.length],face=skin[i%2],boots=wood,trim=snow;
+sphere(0,2.55,0,.54,face,g);sphere(0,2.86,-.05,.56,styleHair(female,i),g);
+const hood=sphere(0,2.63,.12,.65,coat,g);hood.scale.set(1.07,1.1,.7);
+sphere(0,2.57,-.35,.51,face,g);
+for(const dx of [-.19,.19])sphere(dx,2.62,-.79,.055,wood,g);
+sphere(0,2.41,-.84,.07,red,g);
+const torso=cylinder(0,1.54,0,.48,.62,1.23,coat, g);sphere(0,2.1,0,.55,trim,g);
+for(const s of [-1,1]){const arm=cylinder(s*.64,1.62,0,.18,.24,.9,coat,g);arm.rotation.z=s*.2;sphere(s*.69,1.13,-.03,.22,wood,g);box(s*.25,.46,-.05,.35,.85,.44,boots,g)}
+box(0,1.2,-.5,.9,.14,.13,trim,g);
+if(female){const skirt=cone(0,.92,0,.6,.78,coat,10,g);skirt.rotation.z=Math.PI;g.userData.gender='女'}else{g.userData.gender='男'}
+g.scale.setScalar(.9);residents.push({root:g,baseX:x,baseZ:z,phase:i*1.3});return g}
+function styleHair(f,i){return material(f?0x68433d:(i%2?0x44312f:0x72533a))}
+const loc=[[-20,9],[-13,9],[15,9],[24,9],[-21,18],[20,18],[-10,20],[10,20],[-24,-8],[23,-9],[-12,-20],[14,-20]];
+loc.forEach((p,i)=>resident(p[0],p[1],i%2===0,i));
+const guards=[],mixers=[];new GLTFLoader().load('https://threejs.org/examples/models/gltf/Soldier.glb',g=>{const walk=g.animations.find(a=>/walk/i.test(a.name));if(!walk)return;const routes=[[[32,0],[43,0]], [[-43,0],[-32,0]]];for(let i=0;i<2;i++){const root=cloneSkinned(g.scene);root.scale.setScalar(1.35);root.position.set(routes[i][0][0],0,routes[i][0][1]);scene.add(root);const mixer=new T.AnimationMixer(root),action=mixer.clipAction(walk);action.play();mixers.push(mixer);guards.push({root,route:routes[i],dest:1,action})}state.textContent='建築、12 位冬裝居民、2 位 AI 衛士已載入（衛士為動畫展示）';},undefined,()=>{state.textContent='建築與 12 位居民已載入；AI 衛士素材載入失敗'});
+let distance=115,angle=.72,focus=new T.Vector3(0,0,0),running=true;function view(){camera.position.set(focus.x+Math.sin(angle)*distance,focus.y+distance*.72,focus.z+Math.cos(angle)*distance);camera.lookAt(focus)}view();
+document.getElementById('wide').onclick=()=>{distance=115;focus.set(0,0,0);view()};document.getElementById('houses').onclick=()=>{distance=35;focus.set(22,2,22);view()};document.getElementById('residents').onclick=()=>{distance=18;focus.set(15,1,9);view()};document.getElementById('guards').onclick=()=>{distance=25;focus.set(36,1,0);view()};document.getElementById('pause').onclick=e=>{running=!running;e.target.textContent=running?'⏸ 暫停':'▶ 播放'};
+let dragging=false,px=0,py=0;renderer.domElement.addEventListener('pointerdown',e=>{dragging=true;px=e.clientX;py=e.clientY});window.addEventListener('pointerup',()=>dragging=false);window.addEventListener('pointermove',e=>{if(!dragging)return;angle-=(e.clientX-px)*.007;distance=Math.max(12,Math.min(155,distance+(e.clientY-py)*.2));px=e.clientX;py=e.clientY;view()});window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+const clock=new T.Clock();function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.06);if(running){for(const m of mixers)m.update(dt);for(const guard of guards){const [tx,tz]=guard.route[guard.dest],dx=tx-guard.root.position.x,dz=tz-guard.root.position.z,d=Math.hypot(dx,dz);if(d<.15){guard.dest=1-guard.dest;continue}const desired=Math.atan2(-dx,-dz),diff=Math.atan2(Math.sin(desired-guard.root.rotation.y),Math.cos(desired-guard.root.rotation.y));guard.root.rotation.y+=Math.max(-dt*5,Math.min(dt*5,diff));if(Math.abs(diff)>.13){guard.action.timeScale=0;continue}guard.action.timeScale=.95;guard.root.position.x+=dx/d*Math.min(d,dt*1.7);guard.root.position.z+=dz/d*Math.min(d,dt*1.7)}}renderer.render(scene,camera)}animate();state.textContent='3D 建築與 12 位冬裝居民已載入；AI 衛士載入中……';
+</script></body></html>
