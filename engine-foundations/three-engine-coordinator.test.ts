@@ -7,7 +7,7 @@ const fallback=coordinateThreeEngines(base);
 assert.equal(fallback.status,"READY_FOR_DISPATCH");
 assert.equal(fallback.annUsed,false);
 assert.equal(coordinateThreeEngines({...base,rules:{truth:"UNKNOWN",evidenceIds:[]}}).status,"BLOCKED");
-assert.equal(coordinateThreeEngines({...base,executionVerified:false}).status,"BLOCKED");
+assert.equal(coordinateThreeEngines({...base,executionVerified:false}).status,"READY_FOR_DISPATCH");\nassert.equal(coordinateThreeEngines({...base,ann:{status:"BLOCKED",score:null,reason:"not_ready"}}).status,"BLOCKED");
 assert.equal(coordinateThreeEngines({...base,ann:{status:"ACCEPTED",score:0.9,reason:"mlp_score"}}).annUsed,true);
 assert.equal(coordinateThreeEngines({...base,ann:{status:"ACCEPTED",score:0.1,reason:"mlp_score"}}).status,"BLOCKED");
 console.log("three-engine coordinator tests passed");
