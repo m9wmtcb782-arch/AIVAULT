@@ -19,11 +19,11 @@ export function coordinateThreeEngines(input:{
  if(admission.status!=="READY")reasons.push(admission.reason);
  if(!input.taskAuthorized)reasons.push("TASK_NOT_AUTHORIZED");
  if(input.rules.truth!=="PROVEN"||input.rules.evidenceIds.length===0)reasons.push("RULE_EVIDENCE_NOT_PROVEN");
- if(!input.executionVerified)reasons.push("EXECUTION_NOT_VERIFIED");
+ // Pre-dispatch must not require a future execution receipt.\n // This legacy flag is intentionally ignored; use runThreeEngines for post-execution verification.
  const annUsed=input.ann.status==="ACCEPTED" && typeof input.ann.score==="number" &&
  Number.isFinite(input.ann.score)&&input.ann.score>=0&&input.ann.score<=1;
  if(input.ann.status==="ACCEPTED"&&!annUsed)reasons.push("ANN_SCORE_INVALID");
- if(annUsed&&input.ann.score!<=0.5)reasons.push("ANN_ADVISES_AVOID");
+ if(input.ann.status==="BLOCKED")reasons.push("ANN_BLOCKED");\n if(annUsed&&input.ann.score!<=0.5)reasons.push("ANN_ADVISES_AVOID");
  // Fallback rule route is allowed, but must never claim ANN participated.
  return {status:reasons.length?"BLOCKED":"READY_FOR_DISPATCH",
  workerId:reasons.length?null:input.worker.id,annUsed,
