@@ -258,7 +258,8 @@
     }
   }
   function build() {
-    if (chunks) return Promise.resolve(chunks);
+    if (chunks && !lastRemoteError) return Promise.resolve(chunks);
+    if (chunks && lastRemoteError) chunks = null;
     if (building) return building;
     building = (async function () {
       var list = [];
@@ -578,7 +579,7 @@
     return "【AIVAULT 電子書實際檢索結果】\n" + hits.slice(0, 4).map(function (h) { return "《" + h.title + "》PDF第" + h.page + "頁：" + h.text.slice(0, 950); }).join("\n") + (lastRemoteError ? "\n【檢索完整性警告】" + lastRemoteError.slice(0,250) + "。這次僅取得部分書頁，不得聲稱完整檢索或原書沒有其他論述。" : "") + "\n只能引用以上實際取得的文字，不得編造原文。" + BOOK_ANSWER_RULE;
   }
   w.addEventListener("darkstar-live-user-turn", function (ev) { onTurn(ev).catch(function (e) { console.warn("[BookQA] retrieval failed", e); }); });
-  w.addEventListener("darkstar-study-changed", function () { chunks = null; });
+  w.addEventListener("darkstar-study-changed", function () { chunks = null; lastRemoteError = ""; });
   w.AIVAULTBookQA = { getContextForQuery: getContextForQuery, build: build, search: search, isQuestion: isQuestion, compose: compose, structural: structural, coverage: coverage, progress: progressOf, parseStruct: parseStruct, intro: intro, bookTitles: bookTitles, reset: function () { chunks = null; } };
   setTimeout(function () { build().catch(function () {}); }, 4000); // 預先建索引
 })(window, document);
