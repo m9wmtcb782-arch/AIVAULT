@@ -4791,6 +4791,9 @@ async function executeLLMGateway(
     GeminiModelResolution | null =
     null;
 
+  // A Groq organization-level TPD limit is shared across its API keys.
+  // Stop trying sibling keys after a confirmed organization-wide exhaustion.
+  let groqOrganizationQuotaExhausted = false;
   for (
     const provider
     of providerOrder
@@ -4822,6 +4825,7 @@ async function executeLLMGateway(
       const providerKey
       of candidates
     ) {
+      if (provider === "groq" && groqOrganizationQuotaExhausted) break;
       attempts++;
 
       attemptedProviders.push(
@@ -5347,6 +5351,10 @@ async function executeLLMGateway(
             started,
         ),
       );
+      if (provider === "groq" && result.status === 429 &&
+          /in organization\s+[^\s]+[\s\S]*tokens per day\s*\(TPD\)/i.test(String(result.error || ""))) {
+        groqOrganizationQuotaExhausted = true;
+      }
     }
   }
 
