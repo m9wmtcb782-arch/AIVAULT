@@ -575,7 +575,7 @@
     var terms = q.match(/比例原[則则]|合理[性]?原[則则]|行政裁量|必要性|妥當性|妥当性|法益相稱性|法益相称性|行政處罰|行政处罚|法律保留|依法行政/g) || [];
     var hits = search(terms.length ? terms.join(" ") : q.replace(/《[^》]+》/g, " ").slice(0, 140), pool);
     if (!hits.length) return "【電子書檢索狀態】目前索引有 " + pool.length + " 段，但本題未找到足夠相符的正文" + (lastRemoteError ? "；遠端抓取另有錯誤：" + lastRemoteError.slice(0,120) : "") + "。不能推斷原書沒有相關論述，也不能編造引用。";
-    return "【AIVAULT 電子書實際檢索結果】\n" + hits.slice(0, 4).map(function (h) { return "《" + h.title + "》PDF第" + h.page + "頁：" + h.text.slice(0, 950); }).join("\n") + "\n只能引用以上實際取得的文字，不得編造原文。" + BOOK_ANSWER_RULE;
+    return "【AIVAULT 電子書實際檢索結果】\n" + hits.slice(0, 4).map(function (h) { return "《" + h.title + "》PDF第" + h.page + "頁：" + h.text.slice(0, 950); }).join("\n") + (lastRemoteError ? "\n【檢索完整性警告】" + lastRemoteError.slice(0,250) + "。這次僅取得部分書頁，不得聲稱完整檢索或原書沒有其他論述。" : "") + "\n只能引用以上實際取得的文字，不得編造原文。" + BOOK_ANSWER_RULE;
   }
   w.addEventListener("darkstar-live-user-turn", function (ev) { onTurn(ev).catch(function (e) { console.warn("[BookQA] retrieval failed", e); }); });
   w.addEventListener("darkstar-study-changed", function () { chunks = null; });
