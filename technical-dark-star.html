@@ -6675,8 +6675,9 @@ async function callAIVAULT(
     provider:
       "gemini",
 
+    // Let the gateway discover a supported model for the selected key.
     model:
-      "gemini-3.6-flash",
+      null,
 
     files:
       safeFiles,
@@ -6731,7 +6732,8 @@ async function callAIVAULT(
   updateDarkStarWorkLocation("📍 AIVAULT → AI Gateway → 等待真實回應");
 
   if(!payload.action){
-    payload.stream = !window.__dsGatewayNoStream;
+    // iOS Safari: avoid unstable SSE connections for regular chat.
+    payload.stream = false;
   }
 
   const response =
