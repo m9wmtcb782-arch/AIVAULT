@@ -2154,7 +2154,23 @@
         try { dhVid.stopWaiting(); } catch {}
         wsState = '未連線'; dbg(); renderChat();
       }
-      return { start, stop, toggleCam: () => setCam(!camOn), get active() { return active; } };
+      async function sendTyped(text) {
+        if (!active || !ws || ws.readyState !== WebSocket.OPEN) return false;
+        const q = String(text || '').trim();
+        if (!q) return false;
+        let evidence = null;
+        if (window.DHKnow && DHKnow.wantsLookup(q)) {
+          try { evidence = await DHKnow.lookup(q); } catch (e) { console.warn('[DigitalHuman] lookup failed', e); }
+        }
+        if (!active || !ws || ws.readyState !== WebSocket.OPEN) return false;
+        const context = evidence && evidence.prompt ? '\n' + evidence.prompt : '\n若需要查資料但沒有取得檢索結果，請明確告知尚未查到，不要聲稱已讀取書籍或網站。';
+        try {
+          ws.send(JSON.stringify({ type: 'text', text: q + context }));
+          if (evidence && evidence.chip) { liveChip = evidence.chip; liveChipUsed = false; }
+          return true;
+        } catch (e) { console.warn('[DigitalHuman] live text send failed', e); return false; }
+      }
+      return { start, stop, sendTyped, toggleCam: () => setCam(!camOn), get active() { return active; } };
     })();
 
     function emotionLabel(e) {
@@ -2420,6 +2436,12 @@
       try { dhCommand(text); } catch {}
       chatLog.push({ role: 'user', text });
       renderChat();
+      // When Live is running, the composer belongs to the same live conversation.
+      // Do not independently call the text gateway and generate a conflicting reply.
+      if (dhLive.active) {
+        const delivered = await dhLive.sendTyped(text);
+        if (delivered) return;
+      }
       const h = current || {};
       const lang = h.persona_lang === 'en' ? 'English' : h.persona_lang === 'zh-Hans' ? '简体中文' : '繁體中文';
       let systemPrompt = singing
