@@ -197,6 +197,7 @@
       while (k < starts.length) {
         var sp = starts[k++], r = null;
         for (var t = 0; t < 3 && !(r && r.pages && r.pages.length); t++) r = await ingest({ action: "context", ebook_id: id, page_number: sp, radius: 10 });
+        if (r && (r.__http >= 400 || r.error)) { lastRemoteError = "BOOK_PAGE_FETCH_FAILED HTTP " + (r.__http || "unknown"); continue; }
         ((r && r.pages) || []).forEach(function (x) { var n = Number(x.page_number || 0); if (n && x.content != null) into[n] = String(x.content || ""); });
         if (total) setCoverage(id, Object.keys(into).length, total);
         if (fetchPages._onPct) fetchPages._onPct(Object.keys(into).length, need.length);
@@ -223,7 +224,7 @@
       var done = Object.keys(have).length;
       cachePut({ key: key, id: id, t: b.title || "未命名", h: have, complete: !need.length });
       setCoverage(id, done, total);
-      if (need.length) console.warn("[BookQA] 《" + b.title + "》尚缺 " + need.length + " 頁，下次會補抓");
+      if (need.length) { lastRemoteError = (lastRemoteError ? lastRemoteError + "；" : "") + "《" + b.title + "》尚缺 " + need.length + " 頁"; console.warn("[BookQA] " + lastRemoteError); }
       out.push({ id: id, title: b.title || "未命名", pages: Object.keys(have).map(function (n) { return [+n, have[n]]; }).sort(function (x, y) { return x[0] - y[0]; }) });
       if (local[id]) local[id].used = 1;
     }
