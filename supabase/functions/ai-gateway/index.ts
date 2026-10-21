@@ -129,6 +129,8 @@ const SUPABASE_SERVICE_ROLE_KEY =
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
 const CHAT_CONTEXT_MAX_CHARS = 500000;
+// Bound provider history without deleting canonical Supabase conversation records.
+const MAX_PROVIDER_HISTORY_MESSAGES = 40;
 const OPENAI_COMPATIBLE_MAX_CHARS = 6000;
 const OPENAI_COMPATIBLE_MAX_COMPLETION_TOKENS = 384;
 const MEMORY_PAGE_SIZE = 1000;
@@ -2926,7 +2928,7 @@ function buildBoundedContext(
   for (
     let i =
       history.length - 1;
-    i >= 0;
+    i >= 0 && selected.length < MAX_PROVIDER_HISTORY_MESSAGES;
     i--
   ) {
     const message =
@@ -3769,7 +3771,7 @@ async function callOpenAICompatible(
         success: false,
         status: 502,
         error:
-          emptyError,
+          `${emptyError}: finish_reason=${String(data?.choices?.[0]?.finish_reason || "unknown")}; reasoning_present=${Boolean(data?.choices?.[0]?.message?.reasoning)}; content_type=${typeof data?.choices?.[0]?.message?.content}`,
       };
     }
 
@@ -4789,6 +4791,9 @@ async function executeLLMGateway(
     GeminiModelResolution | null =
     null;
 
+  // A Groq organization-level TPD limit is shared across its API keys.
+  // Stop trying sibling keys after a confirmed organization-wide exhaustion.
+  let groqOrganizationQuotaExhausted = false;
   for (
     const provider
     of providerOrder
@@ -4820,6 +4825,7 @@ async function executeLLMGateway(
       const providerKey
       of candidates
     ) {
+      if (provider === "groq" && groqOrganizationQuotaExhausted) break;
       attempts++;
 
       attemptedProviders.push(
@@ -5345,6 +5351,10 @@ async function executeLLMGateway(
             started,
         ),
       );
+      if (provider === "groq" && result.status === 429 &&
+          /in organization\s+[^\s]+[\s\S]*tokens per day\s*\(TPD\)/i.test(String(result.error || ""))) {
+        groqOrganizationQuotaExhausted = true;
+      }
     }
   }
 
