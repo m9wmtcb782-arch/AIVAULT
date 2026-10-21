@@ -34,16 +34,29 @@
       return { kind: 'web', rows: rows, text: rows.map(function (x, i) { return (i + 1) + '. ' + (x.title || '') + '：' + String(x.snippet || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 220) + (x.url ? '（' + x.url + '）' : ''); }).join('\n') };
     } catch (e) { return null; }
   }
-  // 回傳 { kind:'book'|'web'|'', prompt, chip }
+  // Return evidence from both sources when available; never claim Google official API.
   async function lookup(q) {
     if (!wantsLookup(q)) return { kind: '', prompt: '', chip: '' };
-    var b = null; try { b = await books(q); } catch (e) {}
-    if (b) return { kind: 'book', chip: '📚 ' + b.titles.slice(0, 2).map(function (t) { return t.slice(0, 18); }).join('、'),
-      prompt: '【參考資料（內部用，勿唸出此標題）】\n' + b.text + '\n只在心裡參考以上資料回答使用者目前這個問題，用自然聊天口吻一次講完。不要說「查到的資料」「根據電子書」之類的話，也不要主動提電子書或書名；除非使用者問來源，才說出書名。資料不足就用一般知識自然補充。' };
-    var wb = await web(q);
-    if (wb) return { kind: 'web', chip: '🌐 網路',
-      prompt: '【參考資料（內部用，勿唸出此標題）】\n' + wb.text + '\n只在心裡參考以上資料回答使用者目前這個問題，用自然聊天口吻一次講完。不要說「查到的資料」或提到書架、電子書；除非使用者問來源，才簡單說是網路上的資訊。' };
-    return { kind: '', prompt: '', chip: '' };
+    var results = await Promise.allSettled([books(q), web(q)]);
+    var b = results[0].status === 'fulfilled' ? results[0].value : null;
+    var wb = results[1].status === 'fulfilled' ? results[1].value : null;
+    var parts = [], chips = [];
+    if (b) {
+      parts.push('【AIVAULT 電子書摘錄】\n' + b.text);
+      chips.push('📚 ' + b.titles.slice(0, 2).map(function(t){ return t.slice(0, 18); }).join('、'));
+    }
+    if (wb) {
+      parts.push('【網路搜尋結果（非 Google 官方搜尋 API）】\n' + wb.text);
+      chips.push('🌐 網路');
+    }
+    if (!parts.length) return { kind: '', prompt: '', chip: '' };
+    return {
+      kind: b && wb ? 'both' : b ? 'book' : 'web',
+      chip: chips.join(' ＋ '),
+      prompt: '【參考資料（內部用，不要逐字唸標題）】\n' + parts.join('\n\n') +
+        '\n請根據使用者問題自然回答。引用書籍時提供真實書名與 PDF 頁碼；引用網路時提供來源名稱與網址。' +
+        '不得將搜尋摘要當成已查證的網頁全文；不得編造引用、法條或頁碼。若只有一種來源成功，明確說明另一來源未取得資料。'
+    };
   }
   w.DHKnow = { init: function (o) { cfg.url = o.url || ''; cfg.anon = o.anon || ''; }, lookup: lookup, isQuestion: isQuestion, wantsLookup: wantsLookup, warm: function () { try { w.AIVAULTBookQA && w.AIVAULTBookQA.build(); } catch (e) {} } };
 })(window);
