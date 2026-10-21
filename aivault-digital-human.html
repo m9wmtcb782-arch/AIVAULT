@@ -2037,6 +2037,9 @@
         clearTimeout(drainT); try { dhLip.clearSchedule(); } catch {} setSpeaking(false);
       }
       function upsert(role, text) {
+        // A typed message already exists in chatLog; do not create a second user bubble
+        // when the Live relay echoes its transcript.
+        if (role === 'user' && lastTypedLive && String(text || '').trim() === lastTypedLive) { lastTypedLive = ''; return; }
         if (role === 'user') { if (userIdx < 0 || chatLog[userIdx]?.role !== 'user' || userIdx !== chatLog.length - 1) { chatLog.push({ role: 'user', text: '' }); userIdx = chatLog.length - 1; } chatLog[userIdx].text = text; }
         else { if (aiIdx < 0 || chatLog[aiIdx]?.role !== 'assistant' || aiIdx !== chatLog.length - 1) { chatLog.push({ role: 'assistant', text: '' }); aiIdx = chatLog.length - 1; } chatLog[aiIdx].text = text; }
         lastSpoken = chatLog.length - 1;
@@ -2154,6 +2157,7 @@
         try { dhVid.stopWaiting(); } catch {}
         wsState = '未連線'; dbg(); renderChat();
       }
+      let lastTypedLive = '';
       async function sendTyped(text) {
         if (!active || !ws || ws.readyState !== WebSocket.OPEN) return false;
         const q = String(text || '').trim();
@@ -2166,6 +2170,7 @@
         const context = evidence && evidence.prompt ? '\n' + evidence.prompt : '\n若需要查資料但沒有取得檢索結果，請明確告知尚未查到，不要聲稱已讀取書籍或網站。';
         try {
           ws.send(JSON.stringify({ type: 'text', text: q + context }));
+          lastTypedLive = q;
           if (evidence && evidence.chip) { liveChip = evidence.chip; liveChipUsed = false; }
           return true;
         } catch (e) { console.warn('[DigitalHuman] live text send failed', e); return false; }
