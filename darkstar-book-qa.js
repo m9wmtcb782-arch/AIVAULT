@@ -197,7 +197,7 @@
       while (k < starts.length) {
         var sp = starts[k++], r = null;
         for (var t = 0; t < 3 && !(r && r.pages && r.pages.length); t++) r = await ingest({ action: "context", ebook_id: id, page_number: sp, radius: 10 });
-        if (r && (r.__http >= 400 || r.error)) { lastRemoteError = "BOOK_PAGE_FETCH_FAILED HTTP " + (r.__http || "unknown"); continue; }
+        if (!r || r.ok === false || r.__http >= 400 || r.error) { lastRemoteError = "BOOK_PAGE_FETCH_FAILED HTTP " + ((r && r.__http) || "unknown") + ": " + String((r && r.error) || "service error"); continue; }
         ((r && r.pages) || []).forEach(function (x) { var n = Number(x.page_number || 0); if (n && x.content != null) into[n] = String(x.content || ""); });
         if (total) setCoverage(id, Object.keys(into).length, total);
         if (fetchPages._onPct) fetchPages._onPct(Object.keys(into).length, need.length);
@@ -209,7 +209,7 @@
     var out = [];
     var list = await ingest({ action: "list", limit: 80 });
     var books = ((list && (list.books || list.items)) || []).slice();
-    if (list && (list.__http >= 400 || list.error)) throw new Error("BOOK_LIST_FAILED HTTP " + (list.__http || "unknown") + ": " + String(list.error || "service error"));
+    if (!list || list.ok === false || list.__http >= 400 || list.error) throw new Error("BOOK_LIST_FAILED HTTP " + (list.__http || "unknown") + ": " + String(list.error || "service error"));
     if (!books.length) throw new Error("書目清單取得失敗");
     books.sort(function (a, b) { return (PRIORITY[String(b.id || b.ebook_id)] || 0) - (PRIORITY[String(a.id || a.ebook_id)] || 0); });
     for (var i = 0; i < books.length; i++) {
