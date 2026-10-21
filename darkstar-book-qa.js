@@ -209,7 +209,8 @@
     var out = [];
     var list = await ingest({ action: "list", limit: 80 });
     var books = ((list && (list.books || list.items)) || []).slice();
-    if (!list || list.ok === false || list.__http >= 400 || list.error) throw new Error("BOOK_LIST_FAILED HTTP " + (list.__http || "unknown") + ": " + String(list.error || "service error"));
+    if (!list) throw new Error("BOOK_LIST_NO_RESPONSE");
+    if (list.ok === false || list.__http >= 400 || list.error) throw new Error("BOOK_LIST_FAILED HTTP " + (list.__http || "unknown") + ": " + String(list.error || "service error"));
     if (!books.length) throw new Error("書目清單取得失敗");
     books.sort(function (a, b) { return (PRIORITY[String(b.id || b.ebook_id)] || 0) - (PRIORITY[String(a.id || a.ebook_id)] || 0); });
     for (var i = 0; i < books.length; i++) {
