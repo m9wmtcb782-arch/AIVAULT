@@ -281,6 +281,7 @@
       list.idf = function (k) { return Math.log(1 + list.length / (1 + (df[k] || 0))); };
       chunks = list; building = null; return list;
     })();
+    building = building.catch(function (err) { building = null; throw err; });
     return building;
   }
   var QWORDS = /(請問|请问|什麼是|什么是|是什麼|是什么|為什麼|为什么|怎麼|怎么|如何|哪些|甚麼|嗎|吗|呢|一下|告訴我|告诉我|根據書上|书上|書上|書架|书架|這本書|这本书|暗星)/g;
