@@ -99,7 +99,7 @@
   async function cachePut(row) { var db = await cacheDb(); if (!db) return; try { db.transaction("books", "readwrite").objectStore("books").put(row); } catch (e) {} }
 
   // 每本書：以伺服器 total_pages 為準驗證完整度；本機（閱讀器快取／索引快取）只當作起點，缺的頁一律補抓
-  var studyInfo = null;
+  var studyInfo = null, lastRemoteError = "";
   w.addEventListener("darkstar-study-changed", function () { chunks = null; building = null; lastBid = ""; });
   var CVER = "v2", coverage = {}, PROG_KEY = "aivault_bookqa_progress_v1"; // coverage[bid] = [已有頁數, 全書頁數]
   function loadProg() { try { return JSON.parse(localStorage.getItem(PROG_KEY) || "{}"); } catch (e) { return {}; } }
@@ -208,6 +208,7 @@
     var out = [];
     var list = await ingest({ action: "list", limit: 80 });
     var books = ((list && (list.books || list.items)) || []).slice();
+    if (list && (list.__http >= 400 || list.error)) throw new Error("BOOK_LIST_FAILED HTTP " + (list.__http || "unknown") + ": " + String(list.error || "service error"));
     if (!books.length) throw new Error("書目清單取得失敗");
     books.sort(function (a, b) { return (PRIORITY[String(b.id || b.ebook_id)] || 0) - (PRIORITY[String(a.id || a.ebook_id)] || 0); });
     for (var i = 0; i < books.length; i++) {
@@ -266,7 +267,8 @@
       var byBid = {}; Object.keys(local).forEach(function (k) { byBid[local[k].bid] = local[k]; });
       var study = null; try { if (w.AIVAULTStudyBooks) study = await w.AIVAULTStudyBooks.get(); } catch (e) {}
       var en = study && study.enabled; studyInfo = study;
-      try { (await remoteBooks(byBid, en)).forEach(function (b) { b.pages.forEach(function (p) { addChunks(list, b.title, p[0], p[1], PRIORITY[b.id], b.id); }); }); } catch (e) { console.warn("[BookQA] remote", e); }
+      lastRemoteError = "";
+      try { (await remoteBooks(byBid, en)).forEach(function (b) { b.pages.forEach(function (p) { addChunks(list, b.title, p[0], p[1], PRIORITY[b.id], b.id); }); }); } catch (e) { lastRemoteError = String(e && e.message || e); console.warn("[BookQA] remote", e); }
       // 只存在本機（未上傳伺服器）的書，或伺服器暫時連不上時：用本機頁面
       Object.keys(byBid).forEach(function (bid) { var o = byBid[bid]; if (o.used || en) return; var n = 0; for (var pg in o.pages) { addChunks(list, o.title, +pg, o.pages[pg], PRIORITY[bid], bid); n++; } if (!coverage[bid]) coverage[bid] = [n, n]; });
       var df = {}; list.forEach(function (c) { for (var k in c.g) df[k] = (df[k] || 0) + 1; });
@@ -314,7 +316,7 @@
   }
   function compose(q, hits) {
     var msg = "【書架資料】使用者剛才的題目：「" + q + "」\n" + hits.map(function (h, i) { return (i + 1) + ". 《" + h.title + "》p." + h.page + "：" + h.text; }).join("\n") +
-      "\n請根據以上書架資料回答題目，並說出書名與頁碼。若你剛才已開始回答，請以書架資料修正或補充剛才的回答。" + EXCERPT_NOTE;
+      "\n請根據以上書架資料回答題目，並說出書名與頁碼。若你剛才已開始回答，請以書架資料修正或補充剛才的回答。" + BOOK_ANSWER_RULE + EXCERPT_NOTE;
     return withLinHint(withZhangHint(withJiangHint(msg, hits), hits), hits);
   }
   // 書架介紹：每次連線後只送一次，併在第一題的【書架資料】裡（避免開場時讓暗星無故開口）
@@ -471,7 +473,7 @@
     return need ? (msg + "\n" + LIN_HINT) : msg;
   }
 
-  var BOOK_ANSWER_RULE = "\\n【暗星電子書證據式問答】先判斷使用者真正問題（概念、事實、因果、規範、爭議、案例）；只依本次實際取得的書頁論證，先回答問題，再說明作者觀點、支持段落與可核對的書名及PDF頁碼。不得把摘要當成全文、不得編造引文或頁碼；區分書中主張、模型推論與已核實外部事實。若書頁不足，明確說明缺少哪些證據並要求繼續檢索，不可聲稱已證實。不得將自己的舊答案當作證據。";
+  var BOOK_ANSWER_RULE = "\n【暗星證據式口語法律解題規則】用自然、清楚的繁體中文口語完整回答，保留逗號、句號、頓號、分號、冒號、問號及引號等正常標點。不要輸出 Markdown 井號標題、星號粗體、破折號清單、表格、分隔線或特殊裝飾符號。先直接回答核心問題，再用連貫段落說明法律依據、不同見解、具體涵攝與結論。書籍引文只能引用本次實際取得的段落，附真實書名及 PDF 頁碼；PDF 頁碼不得冒充原書印刷頁碼。區分臺灣與中國大陸法，區分法律違法與無效，不能把一般推論當成書中原文。資料不足時說明未取得何種證據，不得虛構法條、裁判、章節或頁碼。";
   var EXCERPT_NOTE = "注意：以上只是從整本書中擷取的片段，書中還有更多內容；若片段不足以回答，請請使用者說得更具體（例如哪一章、哪一節或關鍵詞），不要說書裡沒有這些內容。";
   async function onTurn(ev) {
     var q = ev && ev.detail && ev.detail.text;
@@ -555,7 +557,10 @@
         return "【指定書籍逐頁查詢結果】\n" + excerpts.join("\n") + "\n僅依取得的頁面作答，原書印刷頁碼與 PDF 頁碼須區分。" + BOOK_ANSWER_RULE;
       }
     }
-    var list = await build(), pool = selected ? list.filter(function (c) { return c.bid === String(selected.id || selected.ebook_id); }) : list;
+    var list;
+    try { list = await build(); } catch (e) { return "【電子書檢索失敗】建立正文索引時發生錯誤：" + String(e && e.message || e).slice(0,150) + "。不得推論書籍沒有相關內容。"; }
+    if (!list.length && lastRemoteError) return "【電子書讀取失敗】遠端正文無法讀取：" + lastRemoteError.slice(0,150) + "。這不是書籍查無內容，請檢查授權與書頁服務。";
+    var pool = selected ? list.filter(function (c) { return c.bid === String(selected.id || selected.ebook_id); }) : list;
     pool.idf = list.idf;
     // Never reuse excerpts from a book that has since been unchecked.
     if (enabled) { pool = pool.filter(function (c) { return !!enabled[c.bid]; }); pool.idf = list.idf; }
@@ -568,7 +573,7 @@
     }
     var terms = q.match(/比例原[則则]|合理[性]?原[則则]|行政裁量|必要性|妥當性|妥当性|法益相稱性|法益相称性|行政處罰|行政处罚|法律保留|依法行政/g) || [];
     var hits = search(terms.length ? terms.join(" ") : q.replace(/《[^》]+》/g, " ").slice(0, 140), pool);
-    if (!hits.length) return "【電子書檢索狀態】未取得" + (selected ? "《" + selected.title + "》" : "書架") + "可引用的正文，請確認學習權限或檢索服務。";
+    if (!hits.length) return "【電子書檢索狀態】目前索引有 " + pool.length + " 段，但本題未找到足夠相符的正文" + (lastRemoteError ? "；遠端抓取另有錯誤：" + lastRemoteError.slice(0,120) : "") + "。不能推斷原書沒有相關論述，也不能編造引用。";
     return "【AIVAULT 電子書實際檢索結果】\n" + hits.slice(0, 4).map(function (h) { return "《" + h.title + "》PDF第" + h.page + "頁：" + h.text.slice(0, 950); }).join("\n") + "\n只能引用以上實際取得的文字，不得編造原文。" + BOOK_ANSWER_RULE;
   }
   w.addEventListener("darkstar-live-user-turn", function (ev) { onTurn(ev).catch(function (e) { console.warn("[BookQA] retrieval failed", e); }); });
