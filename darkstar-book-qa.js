@@ -196,7 +196,10 @@
     await Promise.all([0, 1, 2, 3].map(async function () {
       while (k < starts.length) {
         var sp = starts[k++], r = null;
-        for (var t = 0; t < 3 && !(r && r.pages && r.pages.length); t++) r = await ingest({ action: "context", ebook_id: id, page_number: sp, radius: 10 });
+        for (var t = 0; t < 3 && !(r && r.pages && r.pages.length); t++) {
+          r = await ingest({ action: "context", ebook_id: id, page_number: sp, radius: 10 });
+          if (r && (r.__http === 401 || r.__http === 403 || r.__http === 404 || r.ok === false && r.error && r.error !== "BOOK_NETWORK_ERROR")) break;
+        }
         if (!r || r.ok === false || r.__http >= 400 || r.error) { lastRemoteError = "BOOK_PAGE_FETCH_FAILED HTTP " + ((r && r.__http) || "unknown") + ": " + String((r && r.error) || "service error"); continue; }
         ((r && r.pages) || []).forEach(function (x) { var n = Number(x.page_number || 0); if (n && x.content != null) into[n] = String(x.content || ""); });
         if (total) setCoverage(id, Object.keys(into).length, total);
