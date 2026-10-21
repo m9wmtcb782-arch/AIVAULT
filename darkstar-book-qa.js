@@ -521,7 +521,7 @@
     var yuBookId = "c8743d50-bad5-4ec8-b675-5e64fe7985a9";
     var listing = await ingest({ action: "list", limit: 100 });
     var books = (listing && (listing.books || listing.items)) || [];
-    if (listing && (listing.__http >= 400 || listing.error)) return "【電子書讀取失敗】書目服務 HTTP " + (listing.__http || "未知") + "：" + String(listing.error || "授權或服務錯誤") + "。請確認登入，不能引用其他教材。";
+    if (!listing || listing.ok === false || listing.__http >= 400 || listing.error) return "【電子書讀取失敗】書目服務 HTTP " + (listing.__http || "未知") + "：" + String(listing.error || "授權或服務錯誤") + "。請確認登入，不能引用其他教材。";
     if (!books.length) return "【電子書檢索錯誤】書目 API 沒有回傳可讀書籍；不能冒稱讀到原文。";
     var selected = null, score = 0;
     books.forEach(function (bk) {
