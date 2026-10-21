@@ -490,11 +490,11 @@
     var locks = (w.AIVAULTSourceLocks && w.AIVAULTSourceLocks.state) ? w.AIVAULTSourceLocks.state() : { ebook: true, order: ["ebook"], on: ["ebook"] };
     // 勾選電子書時，所有有意義的提問都可以查書；未勾選時不得讀書。
     var bookAsk = locks.ebook === true;
-    if (!bookAsk) {
+    {
       try {
         var srcs = (locks.order || []).filter(function (id) { return id !== "ebook" && locks[id]; });
         // 僅使用使用者明確勾選的網站；Google 不得自動加入。
-        if (!srcs.length) return;
+        if (!srcs.length) { /* No selected websites; continue to the ebook below. */ } else {
         var site = { baidu: "site:baidu.com ", google: "", yahoo: "site:yahoo.com ", youtube: "site:youtube.com " };
         var name = { baidu: "百度", google: "Google", yahoo: "Yahoo", youtube: "YouTube" };
         var blocks = [];
@@ -507,9 +507,10 @@
         }
         var srcLabel = srcs.map(function (id, i) { return (i + 1) + "." + name[id]; }).join(" ");
         if (blocks.length) L.sendRawText("【網路資料｜優先 " + srcLabel + "】使用者問：「" + q + "」\n" + blocks.join("\n") + "\n請嚴格依 1、2、3 優先順序採用資料並說來源。沒打勾電子書就不要用書架。");
+        }
       } catch (e) { console.warn("[BookQA] web", e); }
-      return;
     }
+    if (!bookAsk) return;
     // Use the same authenticated, selection-checked retrieval as text chat.
     var msg = await getContextForQuery(q);
     if (!msg) return;
