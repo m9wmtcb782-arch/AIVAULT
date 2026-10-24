@@ -143,6 +143,14 @@ if any(s in STEPS for s in ("seed","cycle","test")):
         s,b=y({"action":"ledger","limit":12})
         for t in (b.get("rows") or []): print("\n=== ",t.get("agent_id"),t.get("agent_name"),t.get("zone_label"),t.get("kind"),t.get("status"),t.get("review_status"),t.get("model"),t.get("usage"),t.get("finished_at"),t.get("source_url"),"|",t["task"][:70],"\n",str(t.get("result",""))[:900])
 
+
+if "univbatch1" in STEPS:  # University Batch-1 Base1 only (construction). Enqueue 20 free notes + cycle n. No paid. No dual-city.
+    import runpy, pathlib
+    os.environ.setdefault("REPORT_DIR", "univ-batch1-out")
+    os.environ.setdefault("N_LEARN", os.environ.get("N_LEARN") or "8")
+    os.environ.setdefault("N_FLOOR", str(N))
+    runpy.run_path(str(pathlib.Path(".github/scripts/univ_batch1_run.py")), run_name="__main__")
+
 if "dump" in STEPS:  # 第一本小說全文 → 用私有頁金鑰加密成 artifact（公開 repo 的日誌不印內容）
     bk=sql("select id,title,genre,status,approved,outline,arcs,outline_agent,chapters_done,chars from public.aivault_novel_books order by created_at limit 1")
     out={"book":bk[0] if bk else None,"chapters":[],"tasks":[]}
