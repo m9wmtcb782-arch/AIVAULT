@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>AIVAULT Stage (c) Compute Node — nn-infer</title>
+  <style>
+    :root{--bg:#0b0f14;--card:#141b24;--line:#243041;--text:#e8eef6;--muted:#8ea0b5;--ok:#3dd68c;--bad:#ff6b6b;--warn:#f5c542;--btn:#16342a}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    .wrap{max-width:780px;margin:0 auto;padding:20px 16px 48px}h1{font-size:1.1rem}
+    .sub{color:var(--muted);font-size:.85rem;line-height:1.5}
+    button{width:100%;border:0;border-radius:12px;padding:13px;font-weight:700;background:var(--btn);color:#fff;margin-top:8px}
+    button.secondary{background:#334155}button:disabled{opacity:.55}
+    .card{margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
+    .row{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:.86rem}
+    .k{color:var(--muted);flex:0 0 40%}.v{flex:1;text-align:right;word-break:break-all}
+    .ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+    pre{white-space:pre-wrap;word-break:break-all;font-size:.72rem;color:var(--muted)}
+    select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0b1220;color:var(--text);margin-top:6px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Stage (c) 算力池節點：執行 nn-infer</h1>
+    <div class="sub">領取協作池下發的 <code>nn-infer</code>，用本機 <b>owned-micro-mlp-v1</b> 權重推論（WebGPU 優先）。不呼叫 LLM。請與桌面的 dispatch 頁同時開著。</div>
+    <select id="mode"><option value="local" selected>local bus</option><option value="live">live coordinator</option></select>
+    <button id="start">開始節點（註冊／輪詢）</button>
+    <button id="stop" class="secondary">停止</button>
+    <div class="card" id="summary"></div>
+    <pre id="log"></pre>
+  </div>
+  <script src="assets/compute-pool/nn-dispatch-bus.js"></script>
+  <script src="assets/compute-pool/nn-micro-engine.js"></script>
+  <script>
+    const COORD='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/aivault-compute-coordinator';
+    const FORBIDDEN=[/groq/i,/openai/i,/anthropic/i,/googleapis/i,/generativelanguage/i,/ai-gateway/i,/openrouter/i];
+    const NODE_KEY='aivault_nn_infer_node_id';
+    let nodeId=localStorage.getItem(NODE_KEY)||crypto.randomUUID();
+    localStorage.setItem(NODE_KEY,nodeId);
+    let timer=null, running=false, runner=null;
+    const $=id=>document.getElementById(id);
+    function log(m){$('log').textContent+=m+'\n'}
+    function row(k,v,c){return `<div class="row"><div class="k">${k}</div><div class="v${c?' '+c:''}">${v}</div></div>`}
+
+    const _f=window.fetch.bind(window);
+    window.fetch=function(input,init){
+      const url=String(input&&input.url?input.url:input);
+      if(FORBIDDEN.some(r=>r.test(url))) return Promise.reject(new Error('禁止 LLM: '+url));
+      try{
+        const u=new URL(url,location.href);
+        const mode=$('mode').value;
+        if(mode==='local' && u.origin!==location.origin) return Promise.reject(new Error('local 禁止跨域 '+url));
+        if(mode==='live' && u.origin!==location.origin && !u.href.startsWith(COORD)) return Promise.reject(new Error('live 只允許 coordinator/同源'));
+      }catch(_){}
+      return _f(input,init);
+    };
+
+    async function api(body){
+      const r=await fetch(COORD,{method:'POST',headers:{'content-type':'application/json','x-aivault-compute-worker':'nn-infer-v1'},body:JSON.stringify(body)});
+      const j=await r.json(); if(!r.ok) throw new Error(JSON.stringify(j)); return j;
+    }
+
+    async function ensureRunner(){
+      if(runner) return runner;
+      runner=await AivaultNnMicro.createRunner({preferGpu:true});
+      log('model loaded backend='+runner.backend.executed_on);
+      return runner;
+    }
+
+    async function buildResult(job){
+      const r=await ensureRunner();
+      // Local verify vs host pack (maxAbs / top1). Report host-pack digests only after PASS
+      // so coordinator can check constants without re-running the MLP (no LLM).
+      const report=await r.runReferenceBatch();
+      const ref=r.pack.manifest.reference;
+      return {
+        model_id:'owned-micro-mlp-v1',
+        neural_network:'micro-mlp-only',
+        capability:'micro-nn-inference',
+        input_ref: job.input_ref||'packaged-ref-100',
+        executed_on: report.executed_on,
+        gpu: report.gpu===true,
+        verified: report.verified===true,
+        weights_sha256: report.weights_sha256,
+        inputs_sha256: ref.inputs_sha256,
+        logits_sha256: ref.logits_sha256,
+        top1_sha256: ref.top1_sha256,
+        n: report.n,
+        max_abs_error_vs_host: report.max_abs_error_vs_host,
+        top1_agreement: report.top1_agreement,
+        inference_ms_batch: report.inference_ms_batch,
+        llm_called: false,
+        external_api: false,
+        stage:'c',
+        hash_contract:'host-pack-after-local-verify',
+        adapter_info: report.adapter_info||null
+      };
+    }
+
+    async function handleLocal(){
+      if(running) return;
+      const job=AivaultNnDispatchBus.claim(nodeId);
+      if(!job) return;
+      running=true;
+      $('summary').innerHTML=row('狀態','RUNNING '+job.task_id,'warn');
+      log('claimed '+job.task_id);
+      try{
+        const result=await buildResult(job);
+        if(result.executed_on==='CPU' && job.allow_cpu!==true){
+          result.verified=false;
+          AivaultNnDispatchBus.complete(job.task_id, result);
+          throw new Error('需要 WebGPU（或請 dispatcher 勾選允許 CPU）');
+        }
+        AivaultNnDispatchBus.complete(job.task_id, result);
+        $('summary').innerHTML=row('狀態','COMPLETED','ok')+row('executed_on',result.executed_on,'ok')+row('maxAbs',String(result.max_abs_error_vs_host))+row('LLM','ZERO','ok');
+        log('completed '+JSON.stringify({executed_on:result.executed_on,maxAbs:result.max_abs_error_vs_host}));
+      }catch(e){
+        try{AivaultNnDispatchBus.complete(job.task_id,{verified:false,error:e.message,llm_called:false,external_api:false})}catch(_){}
+        $('summary').innerHTML=row('狀態','FAILED','bad')+row('錯誤',e.message,'bad');
+        log('FAIL '+e.message);
+      }finally{running=false}
+    }
+
+    async function handleLive(){
+      if(running) return;
+      // register with nn-infer capability
+      await api({type:'node.register', node:{node_id:nodeId, status:'READY', available:true, gpu:true, webgpu:true, runtime:'webgpu',
+        capability:{supported_task_types:['nn-infer','micro-mlp-infer','gpu-u32-mix'], gpu:true, webgpu:true}}});
+      const data=await api({type:'task.request', nodeId, node_id:nodeId, gpu_available:true});
+      if(!data.success || !data.task) return;
+      const task=data.task;
+      if(task.type!=='nn-infer' && task.type!=='micro-mlp-infer' && task.task_type!=='nn-infer'){
+        log('skip non-nn task '+task.type); return;
+      }
+      running=true;
+      const assignmentId=data.assignment_id||data.assignmentId;
+      try{
+        await api({type:'task.progress', task_id:task.task_id||task.id, node_id:nodeId, assignment_id:assignmentId, progress:10, status:'RUNNING'});
+        const result=await buildResult(task);
+        await api({type:'task.result', task_id:task.task_id||task.id, node_id:nodeId, assignment_id:assignmentId, status:'COMPLETED', progress:100, result});
+        $('summary').innerHTML=row('狀態','COMPLETED live','ok')+row('executed_on',result.executed_on)+row('LLM','ZERO','ok');
+        log('live completed');
+      }catch(e){
+        try{await api({type:'task.failure', task_id:task.task_id||task.id, node_id:nodeId, assignment_id:assignmentId, status:'FAILED', result:{verified:false,error:e.message,llm_called:false}})}catch(_){}
+        log('live FAIL '+e.message);
+      }finally{running=false}
+    }
+
+    $('start').onclick=async()=>{
+      if(AivaultNnDispatchBus.isOff() && $('mode').value==='local'){log('OFF');return}
+      clearInterval(timer);
+      log('node '+nodeId+' mode='+$('mode').value);
+      try{await ensureRunner()}catch(e){log('model load FAIL '+e.message);return}
+      const tick=()=>$('mode').value==='local'?handleLocal():handleLive().catch(e=>log(e.message));
+      tick();
+      timer=setInterval(tick, 2000);
+    };
+    $('stop').onclick=()=>{clearInterval(timer);timer=null;log('stopped'); try{runner&&runner.destroy()}catch(_){}; runner=null};
+  </script>
+</body>
+</html>

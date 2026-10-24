@@ -3,6 +3,7 @@
 import { verifyTensorStage, tensorPipelineStart, tensorPipelineStatus, enqueueTensorNext, recoverTensorLeases } from "./tensor-pipeline.ts";
 import { compatibleGpuTask, verifyPortableGpuResult, poolGpuRating } from "./gpu-benchmark.ts";
 import { checkPoolTaskAccess } from "./task-access.ts";
+import { isNnInferType, verifyNnInferResult, NN_MODEL_ID } from "./nn-infer-verify.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const CORS = {
@@ -181,6 +182,15 @@ async function createTask(body: Record<string, unknown>) {
   const elements = Number(task.elements ?? ((task.payload as Record<string, unknown> | undefined)?.elements ?? 0));
   const iterations = Number(task.iterations ?? task.iters ?? 1);
   if ((task.type || task.task_type) === "gpu-u32-mix" && (!Number.isInteger(elements) || elements < 1 || elements > 4096 || !Number.isInteger(iterations) || iterations < 1 || iterations > 16)) return json({success:false,error:"PORTABLE_GPU_WORKLOAD_OUT_OF_RANGE"},400);
+  const taskType = String(task.type || task.task_type || "compute");
+  if (isNnInferType(taskType)) {
+    const mid = String(task.model_id || (task.payload as any)?.model_id || "");
+    if (mid !== NN_MODEL_ID) return json({success:false,error:"NN_INFER_MODEL_NOT_WHITELISTED"},403);
+    task.model_id = mid;
+    task.input_ref = String(task.input_ref || "packaged-ref-100");
+    // Forbid embedding weight blobs in the task (must load same-origin Stage b assets on the node).
+    if ((task as any).weights || (task.payload as any)?.weights) return json({success:false,error:"NN_INFER_NO_INLINE_WEIGHTS"},400);
+  }
   const row = {
     task_id: taskId,
     name: String(task.name || task.title || taskId),
@@ -392,7 +402,7 @@ async function taskResult(body: Record<string, unknown>) {
 
   let verified = resultVerified(result);
   let tensorTask: any=null;
-  if (result.executed_on === "WebGL2" || result.executed_on === "WebGPU" || taskId.startsWith("tensor-chain-")) {
+  if (result.executed_on === "WebGL2" || result.executed_on === "WebGPU" || result.executed_on === "CPU" || taskId.startsWith("tensor-chain-") || isNnInferType((body as any).task_type)) {
     const { data: storedTask, error: loadError } = await db.from("compute_mesh_tasks").select("task_id,type,elements,iterations,payload,status,updated_at").eq("task_id",taskId).maybeSingle();
     if (loadError) return json({success:false,error:"TASK_VERIFICATION_UNAVAILABLE"},503);
     if(storedTask?.type==="gpu-tensor-stage"){
@@ -404,6 +414,7 @@ async function taskResult(body: Record<string, unknown>) {
         return json({success:true,verified:true,taskStatus:"COMPLETED",taskId,idempotent:true});
       }
     }else if (storedTask?.type === "gpu-u32-mix") verified = verifyPortableGpuResult(storedTask,result);
+    else if (storedTask && isNnInferType(storedTask.type)) verified = verifyNnInferResult(storedTask,result);
     else if (result.executed_on === "WebGL2") verified = false;
   }
   const ok = body.status !== "FAILED" && verified;

@@ -15,6 +15,12 @@ export async function checkPoolTaskAccess(task: Record<string, unknown>, modelAl
   scan(task);
   if (externalArtifact) return { allowed: false, reason: 'EXTERNAL_MODEL_ACCESS_CLOSED' };
   if (ids.size > 1) return { allowed: false, reason: 'MODEL_REFERENCE_MISMATCH' };
+  const type = String(task.type || task.task_type || 'compute').toLowerCase();
+  // Stage (b) attested micro MLP — builtin allowlist for Stage (c) nn-infer only.
+  const BUILTIN_NN = new Set(['owned-micro-mlp-v1']);
+  if (ids.size === 1 && ['nn-infer', 'micro-mlp-infer'].includes(type) && BUILTIN_NN.has([...ids][0])) {
+    return { allowed: true, reason: 'APPROVED_STAGE_B_MICRO_MLP' };
+  }
   if (ids.size === 1) {
     try {
       return await modelAllowed([...ids][0]) === true
@@ -22,8 +28,9 @@ export async function checkPoolTaskAccess(task: Record<string, unknown>, modelAl
         : { allowed: false, reason: 'MODEL_NOT_APPROVED_FOR_POOL' };
     } catch { return { allowed: false, reason: 'MODEL_AUTHORIZATION_UNAVAILABLE' }; }
   }
-  const type = String(task.type || task.task_type || 'compute').toLowerCase();
-  return ['compute', 'compute_test', 'webgpu-compute', 'gpu-u32-mix', 'gpu-tensor-stage'].includes(type)
-    ? { allowed: true, reason: 'FIXED_POOL_VALIDATION' }
+  return ['compute', 'compute_test', 'webgpu-compute', 'gpu-u32-mix', 'gpu-tensor-stage', 'nn-infer', 'micro-mlp-infer'].includes(type)
+    ? (['nn-infer', 'micro-mlp-infer'].includes(type)
+        ? { allowed: false, reason: 'MODEL_ID_REQUIRED' }
+        : { allowed: true, reason: 'FIXED_POOL_VALIDATION' })
     : { allowed: false, reason: 'MODEL_ID_REQUIRED' };
 }

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AIVAULT Stage (c) Collab Worker → nn-infer dispatch</title>
+  <style>
+    :root{--bg:#0b0f14;--card:#141b24;--line:#243041;--text:#e8eef6;--muted:#8ea0b5;--ok:#3dd68c;--bad:#ff6b6b;--warn:#f5c542;--btn:#3b82f6}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    .wrap{max-width:780px;margin:0 auto;padding:20px 16px 48px}h1{font-size:1.15rem;margin:0 0 8px}
+    .sub{color:var(--muted);font-size:.85rem;line-height:1.55;margin-bottom:12px}
+    .badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:.7rem;font-weight:700;margin:0 6px 8px 0;border:1px solid #355}
+    .ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+    button{width:100%;border:0;border-radius:12px;padding:13px;font-weight:700;background:var(--btn);color:#fff;margin-top:8px;cursor:pointer}
+    button.secondary{background:#334155}button:disabled{opacity:.55}
+    .card{margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+    .row{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:.88rem}
+    .row:last-child{border-bottom:0}.k{color:var(--muted);flex:0 0 40%}.v{flex:1;text-align:right;word-break:break-all}
+    pre{white-space:pre-wrap;word-break:break-all;font-size:.72rem;color:var(--muted)}
+    select,input{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0b1220;color:var(--text);margin-top:6px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Stage (c)：協作池 Worker 調度 micro-MLP 推論</h1>
+    <span class="badge">nn-infer / owned-micro-mlp-v1</span>
+    <span class="badge">NOT LLM</span>
+    <span class="badge">NOT Qwen</span>
+    <span class="badge">NOT Stage d–e</span>
+    <div class="sub">
+      本頁扮演<strong>協作池 Worker</strong>：只建立 <code>nn-infer</code> 任務，<strong>不呼叫</strong> Groq／Gemini／ai-gateway。
+      算力池節點請另開 <a href="aivault-compute-nn-node.html" style="color:#7dd3fc">aivault-compute-nn-node.html</a>（手機）。
+      預設 <b>local bus</b>（同源分頁，可立即驗證）。Live coordinator 需已部署含 Stage (c) 的 edge 程式。
+      關閉：<code>?COMPUTE_NN_DISPATCH_OFF=1</code>。
+    </div>
+    <label class="k">通道</label>
+    <select id="mode">
+      <option value="local" selected>local bus（推薦／可離線模擬）</option>
+      <option value="live">live coordinator（需部署）</option>
+    </select>
+    <label><input type="checkbox" id="allowCpu" /> 允許節點以 CPU 回報（預設要求 WebGPU）</label>
+    <button id="enqueue">建立 nn-infer 任務（無 LLM）</button>
+    <button id="copy" class="secondary">複製結果</button>
+    <div class="card" id="summary"></div>
+    <div class="card"><div class="row"><div class="k">外部／LLM 監控</div><div class="v" id="net">監聽中</div></div><pre id="netLog">（尚無）</pre></div>
+    <pre id="log"></pre>
+  </div>
+  <script src="assets/compute-pool/nn-dispatch-bus.js"></script>
+  <script>
+    const COORD='https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/aivault-compute-coordinator';
+    const FORBIDDEN=[/groq/i,/openai/i,/anthropic/i,/googleapis/i,/generativelanguage/i,/ai-gateway/i,/openrouter/i];
+    const hits=[]; let last=null; let pollTimer=null;
+    const $=id=>document.getElementById(id);
+    function log(m){$('log').textContent+=m+'\n'}
+    function row(k,v,c){return `<div class="row"><div class="k">${k}</div><div class="v${c?' '+c:''}">${v}</div></div>`}
+
+    try{new PerformanceObserver(list=>{for(const e of list.getEntries()){hits.push(e.name);if(FORBIDDEN.some(r=>r.test(e.name))){$('net').textContent='FAIL 禁止網域';$('net').className='v bad'}$('netLog').textContent=hits.join('\n')}}).observe({type:'resource',buffered:true})}catch(_){}
+    const _f=window.fetch.bind(window);
+    window.fetch=function(input,init){
+      const url=String(input&&input.url?input.url:input);
+      if(FORBIDDEN.some(r=>r.test(url))) return Promise.reject(new Error('Stage(c) 禁止 LLM/外部推理 API: '+url));
+      // local mode: only same-origin. live: allow coordinator host only.
+      try{
+        const u=new URL(url,location.href);
+        const mode=$('mode').value;
+        if(mode==='local' && u.origin!==location.origin) return Promise.reject(new Error('local 模式禁止跨域: '+url));
+        if(mode==='live' && u.origin!==location.origin && !u.href.startsWith(COORD)) return Promise.reject(new Error('live 模式只允許 coordinator: '+url));
+      }catch(_){}
+      hits.push(url); $('netLog').textContent=hits.join('\n');
+      return _f(input,init);
+    };
+
+    if(AivaultNnDispatchBus.isOff()){$('enqueue').disabled=true;$('enqueue').textContent='已關閉 COMPUTE_NN_DISPATCH_OFF';}
+
+    async function liveCreate(task){
+      const r=await fetch(COORD,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({type:'task.create',task})});
+      const j=await r.json(); if(!r.ok||!j.success) throw new Error(JSON.stringify(j)); return j;
+    }
+    async function liveEvidence(taskId){
+      const r=await fetch(COORD,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({type:'mesh.evidence',task_id:taskId})});
+      return r.json();
+    }
+
+    function renderJob(job){
+      const res=job.result||{};
+      const llm=hits.some(h=>FORBIDDEN.some(r=>r.test(h))) || res.llm_called===true || res.external_api===true;
+      const pass=job.status==='COMPLETED' && res.verified===true && !llm;
+      $('summary').innerHTML=
+        row('總評', pass?'PASS — Stage (c) dispatch':'… '+job.status, pass?'ok':'warn')+
+        row('task_id', job.task_id)+
+        row('node_id', job.node_id||'—')+
+        row('executed_on', res.executed_on||'—', res.executed_on==='WebGPU'?'ok':'warn')+
+        row('logits maxAbs', res.max_abs_error_vs_host ?? '—')+
+        row('top1', res.top1_agreement ?? '—')+
+        row('LLM 呼叫', llm?'偵測到':'ZERO','ok')+
+        row('通道', $('mode').value);
+      last={pass, job, llm_hits:hits.filter(h=>FORBIDDEN.some(r=>r.test(h))), stage:'c'};
+      if(pass) log('PASS '+JSON.stringify({task_id:job.task_id,executed_on:res.executed_on,maxAbs:res.max_abs_error_vs_host}));
+    }
+
+    $('enqueue').onclick=async()=>{
+      if(AivaultNnDispatchBus.isOff())return;
+      clearInterval(pollTimer);
+      const mode=$('mode').value;
+      const allowCpu=$('allowCpu').checked;
+      const task_id='nn-'+Date.now().toString(36);
+      const task={
+        id:task_id, task_id, type:'nn-infer', name:'Stage(c) micro-mlp infer',
+        model_id:'owned-micro-mlp-v1', input_ref:'packaged-ref-100',
+        allow_cpu:allowCpu, gpu_required:!allowCpu, elements:100, iterations:1,
+        backend:'micro-mlp', execution:'remote', llm:false
+      };
+      try{
+        log('enqueue mode='+mode+' task='+task_id+' (no LLM)');
+        if(mode==='local'){
+          const job=AivaultNnDispatchBus.enqueue({task_id, type:'nn-infer', model_id:'owned-micro-mlp-v1', allow_cpu:allowCpu});
+          renderJob(job);
+          pollTimer=setInterval(()=>{
+            const j=AivaultNnDispatchBus.get(task_id);
+            if(j) renderJob(j);
+            if(j && (j.status==='COMPLETED'||j.status==='FAILED')) clearInterval(pollTimer);
+          },500);
+        }else{
+          await liveCreate(task);
+          renderJob({task_id,status:'WAITING',result:{}});
+          pollTimer=setInterval(async()=>{
+            const ev=await liveEvidence(task_id);
+            const t=(ev.tasks||[])[0];
+            const a=(ev.assignments||[]).find(x=>x.task_id===task_id);
+            if(t) renderJob({task_id, status:t.status, node_id:a&&a.node_id, result:a&&a.result||{}});
+            if(t && (t.status==='COMPLETED'||t.status==='FAILED')) clearInterval(pollTimer);
+          },2000);
+        }
+      }catch(e){log('FAIL '+e.message); $('summary').innerHTML=row('錯誤',e.message,'bad')}
+    };
+    $('copy').onclick=async()=>{try{await navigator.clipboard.writeText(JSON.stringify(last,null,2))}catch(_){}};
+  </script>
+</body>
+</html>
