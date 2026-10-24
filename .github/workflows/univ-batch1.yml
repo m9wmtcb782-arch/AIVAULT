@@ -1,0 +1,25 @@
+name: University Batch-1 (Base1 learn/enqueue, capped)
+on:
+  workflow_dispatch:
+    inputs:
+      n_learn: { description: "learn agents this run (max 8)", required: false, default: "8" }
+      n_floor: { description: "floor tasks this cycle (max 3)", required: false, default: "3" }
+concurrency: { group: univ-batch1, cancel-in-progress: false }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          N_LEARN: ${{ inputs.n_learn || '8' }}
+          N_FLOOR: ${{ inputs.n_floor || '3' }}
+          REPORT_DIR: univ-batch1-out
+          OFF: ${{ vars.UNIV_BATCH1_OFF }}
+        run: |
+          if [ "$OFF" = "1" ]; then echo "disabled UNIV_BATCH1_OFF=1"; exit 0; fi
+          python3 .github/scripts/univ_batch1_run.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: univ-batch1-out, path: univ-batch1-out, retention-days: 7, if-no-files-found: warn }
