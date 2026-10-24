@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark light" />
+  <!-- Stage (a): local-only. No LLM endpoints. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'" />
+  <title>AIVAULT Stage (a) GPU GEMM — matmul only</title>
+  <style>
+    :root {
+      --bg: #0b0f14; --card: #141b24; --line: #243041; --text: #e8eef6;
+      --muted: #8ea0b5; --ok: #3dd68c; --bad: #ff6b6b; --warn: #f5c542; --btn: #3b82f6;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif; }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 20px 16px 48px; }
+    h1 { font-size: 1.2rem; margin: 0 0 6px; }
+    .sub { color: var(--muted); font-size: 0.85rem; margin-bottom: 12px; line-height: 1.55; }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; margin: 0 6px 10px 0; }
+    .badge-nn { background: #3a1d1d; color: var(--bad); border: 1px solid #6b3030; }
+    .badge-mm { background: #1a2e22; color: var(--ok); border: 1px solid #2f5a40; }
+    button { width: 100%; border: 0; border-radius: 12px; padding: 14px 16px; font-size: 1rem;
+      font-weight: 700; background: var(--btn); color: #fff; cursor: pointer; margin-top: 8px; }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+    button.secondary { background: #334155; }
+    .card { margin-top: 14px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+    .row { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0;
+      border-bottom: 1px solid var(--line); font-size: 0.88rem; }
+    .row:last-child { border-bottom: 0; }
+    .k { color: var(--muted); flex: 0 0 40%; }
+    .v { flex: 1; text-align: right; word-break: break-all; font-variant-numeric: tabular-nums; }
+    .ok { color: var(--ok); } .bad { color: var(--bad); } .warn { color: var(--warn); }
+    pre { margin: 10px 0 0; white-space: pre-wrap; word-break: break-all; font-size: 0.72rem; color: var(--muted); }
+    .off { border-color: var(--bad); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>AIVAULT Stage (a)：單機 GPU 矩陣乘法</h1>
+    <span class="badge badge-nn">神經網路：NOT AVAILABLE</span>
+    <span class="badge badge-mm">能力：tiled GEMM（matmul only）</span>
+    <div class="sub">
+      本頁在手機本機用 WebGPU compute shader 做 16×16 tiled GEMM（共享記憶體），
+      再以本機 JS Float32 參考值校驗。尺寸 256／512／1024。不呼叫任何外部 API、不載入權重、不是推論。
+      iPhone 需要 <b>iOS 26+／Safari 26+</b> 才有 WebGPU。關閉：網址加 <code>?COMPUTE_GEMM_OFF=1</code>。
+    </div>
+    <button id="runBtn" type="button">開始 Stage (a) GEMM 測試</button>
+    <button id="copyBtn" class="secondary" type="button">複製完整結果</button>
+    <div class="card" id="summary" hidden></div>
+    <div class="card" id="networkCard">
+      <div class="row"><div class="k">外部請求監控</div><div class="v" id="netStatus">監聽中…</div></div>
+      <pre id="netLog">（尚無 resource 請求）</pre>
+    </div>
+    <pre id="log"></pre>
+  </div>
+  <script src="assets/compute-pool/gemm-engine.js"></script>
+  <script>
+    const runBtn = document.getElementById('runBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const summary = document.getElementById('summary');
+    const logEl = document.getElementById('log');
+    const netLog = document.getElementById('netLog');
+    const netStatus = document.getElementById('netStatus');
+    const resourceHits = [];
+    const FORBIDDEN = [/groq/i, /gemini/i, /openai/i, /anthropic/i, /googleapis/i, /huggingface\.co\/.*inference/i, /openrouter/i, /together\.xyz/i];
+
+    function log(msg) {
+      logEl.textContent += msg + '\n';
+    }
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function row(k, v, cls) {
+      return `<div class="row"><div class="k">${esc(k)}</div><div class="v${cls ? ' ' + cls : ''}">${esc(v)}</div></div>`;
+    }
+
+    // Prove local-only: observe every resource fetch.
+    try {
+      const po = new PerformanceObserver((list) => {
+        for (const e of list.getEntries()) {
+          const name = e.name || '';
+          resourceHits.push({ name, type: e.initiatorType, t: Date.now() });
+          const bad = FORBIDDEN.some((re) => re.test(name));
+          if (bad) {
+            netStatus.textContent = 'FAIL：偵測到禁止網域';
+            netStatus.className = 'v bad';
+          }
+          netLog.textContent = resourceHits.map((h) => h.type + ' ' + h.name).join('\n') || '（尚無）';
+        }
+      });
+      po.observe({ type: 'resource', buffered: true });
+    } catch (e) {
+      netStatus.textContent = 'PerformanceObserver 不可用：' + e;
+    }
+
+    // Also patch fetch/XHR to refuse LLM endpoints even if CSP missed.
+    const origFetch = window.fetch.bind(window);
+    window.fetch = function (input, init) {
+      const url = String(input && input.url ? input.url : input);
+      if (FORBIDDEN.some((re) => re.test(url))) {
+        return Promise.reject(new Error('Stage (a) 禁止外部 API：' + url));
+      }
+      resourceHits.push({ name: url, type: 'fetch-guard', t: Date.now() });
+      return origFetch(input, init);
+    };
+
+    if (AivaultGemm.isOff()) {
+      document.getElementById('networkCard').classList.add('off');
+      runBtn.disabled = true;
+      runBtn.textContent = '已關閉（COMPUTE_GEMM_OFF=1）';
+      summary.hidden = false;
+      summary.innerHTML = row('狀態', 'OFF — 未執行任何 GPU 運算', 'warn') +
+        row('神經網路', 'NOT AVAILABLE', 'bad') +
+        row('說明', '移除網址參數或 localStorage COMPUTE_GEMM_OFF 後重新整理');
+      log('Off switch active. No GEMM run.');
+    }
+
+    let lastReport = null;
+    copyBtn.onclick = async () => {
+      const text = lastReport ? JSON.stringify(lastReport, null, 2) : logEl.textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        netStatus.textContent = '已複製結果';
+      } catch (_) {
+        netStatus.textContent = '請長按下方文字手動複製';
+      }
+    };
+
+    runBtn.onclick = async () => {
+      if (AivaultGemm.isOff()) return;
+      runBtn.disabled = true;
+      summary.hidden = false;
+      summary.innerHTML = row('狀態', '執行中…', 'warn');
+      logEl.textContent = '';
+      let runner = null;
+      const started = new Date().toISOString();
+      try {
+        log('Stage (a) start ' + started);
+        log('UA=' + navigator.userAgent);
+        log('secureContext=' + isSecureContext + ' navigator.gpu=' + !!navigator.gpu);
+        log('kernel=' + AivaultGemm.KERNEL_ID + ' tile=' + AivaultGemm.TILE);
+        log('neural_network=NOT_AVAILABLE (matmul only)');
+
+        if (!isSecureContext) throw new Error('需要 HTTPS 或 localhost（Secure Context）');
+        runner = await AivaultGemm.createRunner();
+        log('adapter_info=' + JSON.stringify(runner.adapter_info || {}));
+        log('limits=' + JSON.stringify(runner.adapter_limits || {}));
+        log('shader-f16=' + runner.shader_f16);
+
+        const results = await runner.runSuite({ sizes: [256, 512, 1024], repeats: 5, tryFp16: true });
+        const fp32 = results.filter((r) => r.precision === 'fp32' && r.verified);
+        const allFp32Ok = [256, 512, 1024].every((n) => fp32.some((r) => r.n === n));
+        const forbiddenHit = resourceHits.some((h) => FORBIDDEN.some((re) => re.test(h.name)));
+
+        // Summarize best (last repeat) per size
+        let html = '';
+        html += row('總評', allFp32Ok && !forbiddenHit ? 'PASS — Stage (a) GPU matmul' : 'FAIL', allFp32Ok && !forbiddenHit ? 'ok' : 'bad');
+        html += row('神經網路', 'NOT AVAILABLE', 'bad');
+        html += row('能力標籤', 'matmul-only / tiled-GEMM', 'ok');
+        html += row('executed_on', 'WebGPU', 'ok');
+        html += row('外部 API', forbiddenHit ? '偵測到禁止請求' : '無（local-only）', forbiddenHit ? 'bad' : 'ok');
+        html += row('resource 筆數', String(resourceHits.length));
+        html += row('shader-f16', String(runner.shader_f16));
+
+        for (const n of [256, 512, 1024]) {
+          const reps = fp32.filter((r) => r.n === n);
+          if (!reps.length) continue;
+          const last = reps[reps.length - 1];
+          const times = reps.map((r) => r.gpu_time_ms);
+          const med = times.slice().sort((a, b) => a - b)[Math.floor(times.length / 2)];
+          html += row(`fp32 ${n}² maxAbs`, last.max_abs_error.toExponential(3) + ` (tol ${last.abs_tol})`, last.pass_abs || last.pass_rel ? 'ok' : 'bad');
+          html += row(`fp32 ${n}² median ms`, med.toFixed(2));
+          html += row(`fp32 ${n}² GFLOPS`, last.gflops.toFixed(2));
+          html += row(`fp32 ${n}² sha256`, last.output_sha256.slice(0, 16) + '…');
+          html += row(`fp32 ${n}² 5× hash`, reps.every((r) => r.output_sha256 === reps[0].output_sha256) ? '一致' : '不一致', 'ok');
+          log(`PASS fp32 n=${n} maxAbs=${last.max_abs_error} gflops=${last.gflops.toFixed(2)} hash=${last.output_sha256.slice(0, 16)}`);
+        }
+
+        const f16s = results.filter((r) => r.precision === 'fp16');
+        for (const r of f16s) {
+          if (r.verified) {
+            html += row(`fp16 ${r.n}² maxAbs`, r.max_abs_error.toExponential(3), 'ok');
+            log(`PASS fp16 n=${r.n} maxAbs=${r.max_abs_error}`);
+          } else {
+            html += row(`fp16 ${r.n}²`, r.error || 'fail', 'warn');
+            log(`SKIP/FAIL fp16 n=${r.n}: ${r.error || ''}`);
+          }
+        }
+
+        summary.innerHTML = html;
+        lastReport = {
+          stage: 'a',
+          started,
+          finished: new Date().toISOString(),
+          neural_network: 'NOT_AVAILABLE',
+          capability: 'matmul-only',
+          kernel: AivaultGemm.KERNEL_ID,
+          pass: allFp32Ok && !forbiddenHit,
+          external_api_forbidden_hit: forbiddenHit,
+          resource_hits: resourceHits,
+          adapter_info: runner.adapter_info,
+          adapter_limits: runner.adapter_limits,
+          shader_f16: runner.shader_f16,
+          results,
+          ua: navigator.userAgent,
+        };
+        log('DONE pass=' + lastReport.pass);
+        if (!allFp32Ok) throw new Error('部分尺寸未通過');
+        if (forbiddenHit) throw new Error('偵測到外部 API 請求');
+      } catch (e) {
+        const msg = e && e.message ? e.message : String(e);
+        log('FAIL: ' + msg);
+        summary.innerHTML =
+          row('總評', 'FAIL', 'bad') +
+          row('神經網路', 'NOT AVAILABLE', 'bad') +
+          row('錯誤', msg, 'bad') +
+          row('提示', 'iPhone 需 iOS 26+；或改用支援 WebGPU 的 Android Chrome');
+        lastReport = { stage: 'a', pass: false, error: msg, neural_network: 'NOT_AVAILABLE', resource_hits: resourceHits };
+      } finally {
+        try { runner && runner.destroy(); } catch (_) {}
+        runBtn.disabled = false;
+      }
+    };
+  </script>
+</body>
+</html>
