@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark light" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'" />
+  <title>AIVAULT Stage (b) micro NN — NOT Qwen</title>
+  <style>
+    :root { --bg:#0b0f14; --card:#141b24; --line:#243041; --text:#e8eef6; --muted:#8ea0b5; --ok:#3dd68c; --bad:#ff6b6b; --warn:#f5c542; --btn:#3b82f6; }
+    *{box-sizing:border-box} html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC",sans-serif}
+    .wrap{max-width:760px;margin:0 auto;padding:20px 16px 48px}
+    h1{font-size:1.15rem;margin:0 0 6px}
+    .sub{color:var(--muted);font-size:.85rem;margin-bottom:12px;line-height:1.55}
+    .badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:.72rem;font-weight:700;margin:0 6px 8px 0}
+    .b-nn{background:#1a2e22;color:var(--ok);border:1px solid #2f5a40}
+    .b-no{background:#3a1d1d;color:var(--bad);border:1px solid #6b3030}
+    button{width:100%;border:0;border-radius:12px;padding:14px 16px;font-size:1rem;font-weight:700;background:var(--btn);color:#fff;cursor:pointer;margin-top:8px}
+    button:disabled{opacity:.55;cursor:not-allowed} button.secondary{background:#334155}
+    .card{margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+    .row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line);font-size:.88rem}
+    .row:last-child{border-bottom:0} .k{color:var(--muted);flex:0 0 42%} .v{flex:1;text-align:right;word-break:break-all;font-variant-numeric:tabular-nums}
+    .ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+    pre{margin:10px 0 0;white-space:pre-wrap;word-break:break-all;font-size:.72rem;color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>AIVAULT Stage (b)：單機微型神經網路推論</h1>
+    <span class="badge b-nn">micro NN：owned-micro-mlp-v1</span>
+    <span class="badge b-no">NOT Qwen</span>
+    <span class="badge b-no">NOT cross-device</span>
+    <span class="badge b-no">Stage c–e：未開始</span>
+    <div class="sub">
+      載入主機以 numpy 訓練的真實權重（64→48→32→5，ReLU），在本機做前向傳播並與打包的 100 筆參考 logits 比對
+      （max abs ≤ 1e-4、top-1 100% 一致）。優先 WebGPU；若無則標成 <b>CPU</b>。不呼叫 LLM API。
+      關閉：<code>?COMPUTE_NN_MICRO_OFF=1</code>。飛航模式可在頁面與模型快取後使用。Stage (a) GEMM 頁未改動。
+    </div>
+    <button id="runBtn" type="button">開始 Stage (b) micro NN 測試</button>
+    <button id="copyBtn" class="secondary" type="button">複製完整結果</button>
+    <div class="card" id="summary" hidden></div>
+    <div class="card">
+      <div class="row"><div class="k">外部請求監控</div><div class="v" id="netStatus">監聽中…</div></div>
+      <pre id="netLog">（尚無 resource 請求）</pre>
+    </div>
+    <pre id="log"></pre>
+  </div>
+  <script src="assets/compute-pool/nn-micro-engine.js"></script>
+  <script>
+    const runBtn=document.getElementById('runBtn');
+    const copyBtn=document.getElementById('copyBtn');
+    const summary=document.getElementById('summary');
+    const logEl=document.getElementById('log');
+    const netLog=document.getElementById('netLog');
+    const netStatus=document.getElementById('netStatus');
+    const resourceHits=[];
+    const FORBIDDEN=[/groq/i,/openai/i,/anthropic/i,/googleapis/i,/openrouter/i,/together\.xyz/i,/generativelanguage/i];
+    let lastReport=null;
+
+    function log(m){logEl.textContent+=m+'\n'}
+    function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+    function row(k,v,cls){return `<div class="row"><div class="k">${esc(k)}</div><div class="v${cls?' '+cls:''}">${esc(v)}</div></div>`}
+
+    try{
+      const po=new PerformanceObserver((list)=>{
+        for(const e of list.getEntries()){
+          resourceHits.push({name:e.name,type:e.initiatorType});
+          if(FORBIDDEN.some(re=>re.test(e.name||''))){netStatus.textContent='FAIL：禁止網域';netStatus.className='v bad'}
+          netLog.textContent=resourceHits.map(h=>h.type+' '+h.name).join('\n')||'（尚無）';
+        }
+      });
+      po.observe({type:'resource',buffered:true});
+    }catch(e){netStatus.textContent='PerformanceObserver 不可用'}
+
+    const origFetch=window.fetch.bind(window);
+    window.fetch=function(input,init){
+      const url=String(input&&input.url?input.url:input);
+      if(FORBIDDEN.some(re=>re.test(url))) return Promise.reject(new Error('Stage (b) 禁止外部 API：'+url));
+      // allow only same-origin model assets
+      try{
+        const u=new URL(url, location.href);
+        if(u.origin!==location.origin) return Promise.reject(new Error('Stage (b) 只允許同源：'+url));
+      }catch(_){}
+      return origFetch(input,init);
+    };
+
+    if(AivaultNnMicro.isOff()){
+      runBtn.disabled=true; runBtn.textContent='已關閉（COMPUTE_NN_MICRO_OFF=1）';
+      summary.hidden=false;
+      summary.innerHTML=row('狀態','OFF','warn')+row('神經網路標籤','micro-mlp-only（未執行）','warn');
+    }
+
+    copyBtn.onclick=async()=>{
+      const t=lastReport?JSON.stringify(lastReport,null,2):logEl.textContent;
+      try{await navigator.clipboard.writeText(t);netStatus.textContent='已複製'}catch(_){netStatus.textContent='請手動複製'}
+    };
+
+    runBtn.onclick=async()=>{
+      if(AivaultNnMicro.isOff())return;
+      runBtn.disabled=true; summary.hidden=false; summary.innerHTML=row('狀態','執行中…','warn'); logEl.textContent='';
+      let runner=null;
+      try{
+        log('Stage (b) start '+new Date().toISOString());
+        log('UA='+navigator.userAgent);
+        log('navigator.gpu='+!!navigator.gpu+' secure='+isSecureContext);
+        runner=await AivaultNnMicro.createRunner({preferGpu:true});
+        log('weights_sha256='+runner.pack.weights_sha256);
+        log('backend='+runner.backend.executed_on+(runner.backend.gpu_error?' gpu_error='+runner.backend.gpu_error:''));
+        const report=await runner.runReferenceBatch();
+        const forbidden=resourceHits.some(h=>FORBIDDEN.some(re=>re.test(h.name||'')));
+        report.external_api_forbidden_hit=forbidden;
+        report.resource_hits=resourceHits;
+        report.pass=report.verified && !forbidden;
+        lastReport=report;
+
+        let html='';
+        html+=row('總評', report.pass?'PASS — Stage (b) micro NN':'FAIL', report.pass?'ok':'bad');
+        html+=row('executed_on', report.executed_on, report.gpu?'ok':'warn');
+        html+=row('標籤', 'micro-mlp-only / NOT Qwen / NOT cross-device', 'ok');
+        html+=row('權重已載入', report.weights_sha256.slice(0,16)+'…', 'ok');
+        html+=row('參數數量', String(report.param_count));
+        html+=row('logits maxAbs vs host', report.max_abs_error_vs_host.toExponential(3)+' (≤'+report.tol_logits_abs+')', report.pass_abs?'ok':'bad');
+        html+=row('top-1 一致率', (report.top1_agreement*100).toFixed(1)+'%', report.pass_top1?'ok':'bad');
+        html+=row('CPU vs host abs', report.cpu_vs_host_abs.toExponential(3));
+        html+=row('device vs CPU abs', report.device_vs_cpu_abs.toExponential(3));
+        html+=row('批次耗時', report.inference_ms_batch.toFixed(2)+' ms ('+report.ms_per_sample.toFixed(3)+' ms/樣本)');
+        html+=row('外部 API', forbidden?'偵測到禁止請求':'無（同源 only）', forbidden?'bad':'ok');
+        summary.innerHTML=html;
+        log(JSON.stringify({pass:report.pass, executed_on:report.executed_on, maxAbs:report.max_abs_error_vs_host, top1:report.top1_agreement},null,2));
+        if(!report.pass) throw new Error('驗證未通過');
+      }catch(e){
+        const msg=e&&e.message?e.message:String(e);
+        log('FAIL '+msg);
+        summary.innerHTML=row('總評','FAIL','bad')+row('錯誤',msg,'bad')+row('提示','無 WebGPU 時應仍可走 CPU；iPhone GPU 需 iOS 26+');
+        lastReport={pass:false,error:msg,stage:'b',neural_network:'micro-mlp-only'};
+      }finally{
+        try{runner&&runner.destroy()}catch(_){}
+        runBtn.disabled=false;
+      }
+    };
+  </script>
+</body>
+</html>
