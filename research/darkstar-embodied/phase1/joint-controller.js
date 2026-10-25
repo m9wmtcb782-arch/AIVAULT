@@ -52,7 +52,6 @@ export function createJointController(ctx) {
         y: radToDeg(b.rotation.y + (m.neck.y || 0)),
         z: radToDeg(b.rotation.z + (m.neck.z || 0))
       };
-      const angleCheck = safety.evaluateAngles(b.name || 'neck', next);
       const gated = safety.safetyGate({
         jointName: b.name || 'neck',
         angles: next
