@@ -75,3 +75,5 @@ npm test   # 僅單元測試（假資料）
 | `THIRD_PARTY_EVAL.md` | tronclass-api 評估 |
 | `E2E_ACCEPTANCE.md` | 端到端驗收清單（BLOCKED） |
 | `SYNC_TEST_REPORT.md` | 真實同步報告（尚未執行） |
+
+> **帳號說明**：無法為 AIVAULT 另設 TronClass 帳密（學校 SSO 單一身分）；禁止假／共用帳號。合法路徑見 [SESSION_HANDOFF_DESIGN.md](./SESSION_HANDOFF_DESIGN.md) 附錄。

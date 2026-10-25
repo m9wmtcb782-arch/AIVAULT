@@ -56,3 +56,19 @@
 
 - `revokeAuth()`／`SyncEngine.revokeAuthorization()`：清除本地 opaque ref。  
 - 不呼叫 TronClass 突變 API；不修改平台任何資料。
+
+---
+
+## 附錄：能否為 AIVAULT 另設一組 TronClass 帳號密碼？（使用者提問 2026-10-25）
+
+**結論：不行，也不應該。**
+
+1. **身分來源**：東吳 TronClass（https://tronclass.scu.edu.tw/）以學校身分登入——學生用**學號**、教職員用**人事代碼**，搭配**電子化校園密碼**（SSO 式單一身分）。學生一般**無法**為 AIVAULT 另外註冊一個獨立的 TronClass 帳號。
+2. **禁止事項**：建立假帳號、共用帳號、借用他人憑證，或任何繞過「本人登入」的作法，一律禁止；亦不得繞過驗證碼或登入保護。
+3. **支援路徑（須待學校允許自動化／唯讀同步，即 `SCHOOL_AUTH_CONFIRMED` 之後）**：
+   - 使用者**本人**於官方 https://tronclass.scu.edu.tw/ 登入。
+   - AIVAULT 僅使用**短效、經授權的 session handoff**（瀏覽器 cookie／session 匯出，必須由使用者主動操作）。
+   - **絕不**在 GitHub／repo 存放明文密碼；若真的要保存憑證，只能放在 repo 以外的使用者私人保管庫（vault），且在 `SCHOOL_AUTH_CONFIRMED` 前**不得**用於自動登入，任何時候都不得用於繞過驗證碼。
+   - 同步為**唯讀**；session 過期即**暫停**並提示使用者重新登入，不續命過期 token。
+4. **未來選項（優先）**：若學校日後為學生核發**專屬 API token 或 service account**，這是首選的非密碼機制，Connector 將改走該授權並可撤銷。
+5. **公開來源 ≠ TronClass 同步**：衛福部（MOHW）公開 PDF 屬 PublicSource，從公開網址取得；不代表 TronClass 同步成功，也不計入 TronClass E2E。
