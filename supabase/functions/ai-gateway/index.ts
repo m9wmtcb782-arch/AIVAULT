@@ -6755,7 +6755,7 @@ Deno.serve(
     // Research-only creator-policy preview. Does not execute any requested action.
     // JWT is checked with Supabase Auth; never trust owner flags in body.
     if (isRecord(body) && body.action === "dark_star_creator_policy_preview") {
-      const token = (req.headers.get("authorization") || "").replace(/^Bearer\\s+/i, "").trim();
+      const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
       let principal = { authenticated: false, isOwner: false, subject: "" };
       if (token && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
         try {
