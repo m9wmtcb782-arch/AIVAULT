@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>暗星具身｜Phase1 骨骼控制測試（研發隔離）</title>
+  <style>
+    *{box-sizing:border-box} body{margin:0;background:#050812;color:#e8eef8;font-family:-apple-system,"Noto Sans TC",sans-serif}
+    .banner{background:#3b1d1d;color:#ffd6d6;padding:8px 12px;font-size:13px;border-bottom:1px solid #7a3030}
+    main{max-width:1100px;margin:auto;padding:12px}
+    .stage{height:56vh;min-height:320px;background:#090d16;border:1px solid #29466f;border-radius:16px;overflow:hidden;position:relative}
+    canvas{width:100%;height:100%;display:block}
+    #status{position:absolute;left:10px;top:10px;padding:6px 10px;border-radius:8px;background:#07101dcc;border:1px solid #31558f;font-size:12px}
+    .panel{margin-top:12px;background:#0b1220;border:1px solid #29466f;border-radius:16px;padding:12px}
+    .row{display:flex;flex-wrap:wrap;gap:8px}
+    button{border:0;border-radius:10px;padding:10px 12px;background:#31558f;color:#fff;font-size:14px}
+    button.warn{background:#8a4b1a}
+    .small{font-size:12px;color:#9fb1cb;line-height:1.5}
+    #log{margin-top:8px;max-height:180px;overflow:auto;white-space:pre-wrap;font:11px ui-monospace,monospace;color:#a9c1df;background:#07101c;border-radius:10px;padding:8px}
+    .ok{color:#63e6be}.err{color:#ff6b81}.warnc{color:#ffd166}
+  </style>
+</head>
+<body>
+  <div class="banner">⚠️ 研發隔離頁 · Dark Star Embodied Phase1 · <b>開發中</b> · 非正式入口 · 禁止當正式產品宣稱完成</div>
+  <main>
+    <div class="stage">
+      <canvas id="c"></canvas>
+      <div id="status" class="warnc">載入中…</div>
+    </div>
+    <div class="panel">
+      <b>Phase1｜可控制骨骼（GLB，非 MP4）</b>
+      <div class="small">資產：<code>assets/dark-star/technical-dark-star-avatar.glb</code> · 安全層：<code>body-safety-layer.js</code> · 協定：<code>protocol/control-intent.schema.json</code></div>
+      <div class="row" style="margin-top:10px">
+        <button type="button" id="btnIdle">站立還原</button>
+        <button type="button" id="btnSmile">微笑</button>
+        <button type="button" id="btnBlink">眨眼</button>
+        <button type="button" id="btnMouth">張嘴</button>
+        <button type="button" id="btnHead">轉頭</button>
+        <button type="button" id="btnGreet" class="warn">示範 greet intent（非自主）</button>
+        <button type="button" id="btnSkel">骨架開關</button>
+      </div>
+      <div class="small" id="fps">FPS：—</div>
+      <div id="log"></div>
+    </div>
+  </main>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "../../../vendor/three/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+    import { createJointController, demoGreetIntent } from './joint-controller.js';
+
+    const MODEL = '../../../assets/dark-star/technical-dark-star-avatar.glb';
+    const statusEl = document.getElementById('status');
+    const logEl = document.getElementById('log');
+    const fpsEl = document.getElementById('fps');
+
+    function msg(t, cls) {
+      statusEl.textContent = t;
+      statusEl.className = cls || 'warnc';
+    }
+    function log(x) {
+      const line = typeof x === 'string' ? x : JSON.stringify(x, null, 2);
+      logEl.textContent = (new Date().toLocaleTimeString('zh-TW', { hour12: false }) + ' ' + line + '\n') + logEl.textContent;
+    }
+
+    let scene, camera, renderer, controls, avatar, bones = [], morphMap = new Map();
+    let original = [], lines = [], showSkel = false, frames = 0, t0 = performance.now(), fps = 0;
+    let controller = null;
+    const bonesByHint = {};
+
+    function setMorph(name, v) {
+      const arr = morphMap.get(name);
+      if (!arr) return;
+      arr.forEach(({ mesh, index }) => {
+        mesh.morphTargetInfluences[index] = THREE.MathUtils.clamp(v, 0, 1);
+      });
+    }
+
+    function collect(root) {
+      root.traverse((x) => {
+        if (x.isMesh && x.morphTargetDictionary && x.morphTargetInfluences) {
+          Object.entries(x.morphTargetDictionary).forEach(([n, i]) => {
+            if (!morphMap.has(n)) morphMap.set(n, []);
+            morphMap.get(n).push({ mesh: x, index: i });
+          });
+        }
+        if (x.isBone) {
+          bones.push(x);
+          const n = (x.name || '').toLowerCase();
+          if (!bonesByHint.neck && /neck|head/.test(n)) bonesByHint.neck = x;
+          if (!bonesByHint.head && /head/.test(n)) bonesByHint.head = x;
+        }
+      });
+    }
+
+    function savePose() {
+      original = bones.map((b) => ({ b, q: b.quaternion.clone(), p: b.position.clone(), s: b.scale.clone() }));
+    }
+    function resetPose() {
+      original.forEach((x) => {
+        x.b.quaternion.copy(x.q);
+        x.b.position.copy(x.p);
+        x.b.scale.copy(x.s);
+      });
+      morphMap.forEach((arr) => arr.forEach(({ mesh, index }) => { mesh.morphTargetInfluences[index] = 0; }));
+      if (avatar) avatar.updateMatrixWorld(true);
+    }
+
+    function buildSkeletonLines() {
+      const m = new THREE.LineBasicMaterial({ color: 0x48a9ff, transparent: true, opacity: 0.55 });
+      bones.forEach((b) => {
+        if (!b.parent?.isBone) return;
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 0, 1, 0], 3));
+        const l = new THREE.Line(g, m);
+        l.userData.bone = b;
+        l.visible = showSkel;
+        scene.add(l);
+        lines.push(l);
+      });
+    }
+    function updateLines() {
+      lines.forEach((l) => {
+        const b = l.userData.bone;
+        const a = b.parent.getWorldPosition(new THREE.Vector3());
+        const c = b.getWorldPosition(new THREE.Vector3());
+        const p = l.geometry.attributes.position;
+        p.setXYZ(0, a.x, a.y, a.z);
+        p.setXYZ(1, c.x, c.y, c.z);
+        p.needsUpdate = true;
+      });
+    }
+
+    function intentFromUi(partial) {
+      return {
+        agent: 'dark-star',
+        schema: 'aivault.darkstar.control_intent.v0.1',
+        id: 'ui-' + Date.now(),
+        ts: Date.now(),
+        intent: partial.intent || 'ui_pose',
+        target: 'operator',
+        confidence: 1,
+        priority: 40,
+        motion: partial.motion || {},
+        speech: { enabled: false },
+        source: { decision: 'ui_manual', note: 'NOT autonomous' }
+      };
+    }
+
+    async function init() {
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x090d16);
+      const canvas = document.getElementById('c');
+      camera = new THREE.PerspectiveCamera(35, 1, 0.01, 100);
+      camera.position.set(0, 1.4, 3.2);
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+      renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      controls = new OrbitControls(camera, canvas);
+      controls.enableDamping = true;
+      scene.add(new THREE.HemisphereLight(0xffffff, 0x223355, 2));
+      const light = new THREE.DirectionalLight(0xffffff, 2);
+      light.position.set(2, 3, 4);
+      scene.add(light);
+
+      msg('下載 GLB…', 'warnc');
+      const loader = new GLTFLoader();
+      loader.setMeshoptDecoder(MeshoptDecoder);
+      const buf = await (await fetch(MODEL, { cache: 'no-store' })).arrayBuffer();
+      const gltf = await loader.parseAsync(buf, new URL('../../../assets/dark-star/', location.href).href);
+      avatar = gltf.scene;
+      scene.add(avatar);
+      collect(avatar);
+      savePose();
+      buildSkeletonLines();
+
+      controller = createJointController({
+        avatar,
+        bonesByHint,
+        setMorph,
+        getFps: () => fps,
+        log
+      });
+
+      log({
+        phase: 1,
+        bones: bones.length,
+        morphs: morphMap.size,
+        controller: controller.version,
+        note: 'GLB loaded — MP4 not used as body'
+      });
+      msg('Phase1 待命｜骨骼 ' + bones.length + '｜Morph ' + morphMap.size, 'ok');
+
+      function tick() {
+        requestAnimationFrame(tick);
+        frames++;
+        const now = performance.now();
+        if (now - t0 >= 1000) {
+          fps = Math.round((frames * 1000) / (now - t0));
+          fpsEl.textContent = 'FPS：' + fps + '（實測）';
+          frames = 0;
+          t0 = now;
+        }
+        updateLines();
+        controls.update();
+        renderer.render(scene, camera);
+      }
+      tick();
+    }
+
+    document.getElementById('btnIdle').onclick = () => {
+      resetPose();
+      log(controller.execute(intentFromUi({ intent: 'reset_pose', motion: { legs: 'idle_stand' } })));
+    };
+    document.getElementById('btnSmile').onclick = () => {
+      log(controller.execute(intentFromUi({ intent: 'express', motion: { expression: 'smile' } })));
+    };
+    document.getElementById('btnBlink').onclick = async () => {
+      log(controller.execute(intentFromUi({ intent: 'blink', motion: { expression: 'blink' } })));
+      await new Promise((r) => setTimeout(r, 140));
+      setMorph('h_expressions.LeyeClose_h', 0);
+      setMorph('h_expressions.ReyeClose_h', 0);
+    };
+    document.getElementById('btnMouth').onclick = () => {
+      log(controller.execute(intentFromUi({ intent: 'mouth', motion: { expression: 'mouth_open' } })));
+    };
+    document.getElementById('btnHead').onclick = () => {
+      log(controller.execute(intentFromUi({ intent: 'look', motion: { head: 'turn_toward_target', gaze: 'target_face' } })));
+    };
+    document.getElementById('btnGreet').onclick = () => {
+      log(controller.execute(demoGreetIntent()));
+    };
+    document.getElementById('btnSkel').onclick = () => {
+      showSkel = !showSkel;
+      lines.forEach((l) => { l.visible = showSkel; });
+    };
+
+    addEventListener('resize', () => {
+      const c = document.getElementById('c');
+      camera.aspect = c.clientWidth / c.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(c.clientWidth, c.clientHeight, false);
+    });
+
+    init().catch((e) => {
+      msg('載入失敗：' + e.message, 'err');
+      log(String(e.stack || e));
+    });
+  </script>
+</body>
+</html>
