@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ENGINE-01 視覺感知最小 Demo（研發隔離）</title>
+  <style>
+    *{box-sizing:border-box} body{margin:0;background:#070b14;color:#e8eef8;font-family:-apple-system,"Noto Sans TC",sans-serif}
+    .banner{background:#3b1d1d;color:#ffd6d6;padding:8px 12px;font-size:13px}
+    main{max-width:960px;margin:auto;padding:14px}
+    .row{display:flex;flex-wrap:wrap;gap:12px}
+    .stage{flex:1;min-width:280px}
+    video,canvas{width:100%;max-width:420px;border-radius:12px;background:#111;transform:scaleX(-1)}
+    button{border:0;border-radius:10px;padding:10px 14px;background:#31558f;color:#fff;font-size:14px;margin:4px 4px 0 0}
+    button.g{background:#334155} button.warn{background:#8a4b1a}
+    label{font-size:13px;color:#9fb1cb;display:inline-flex;align-items:center;gap:6px;margin:8px 0}
+    .small{font-size:12px;color:#9fb1cb;line-height:1.5}
+    .panel{background:#0b1220;border:1px solid #29466f;border-radius:14px;padding:12px;margin-top:10px}
+    #events{max-height:280px;overflow:auto;font:11px ui-monospace,monospace;white-space:pre-wrap;color:#a9c1df}
+    #intents{max-height:160px;overflow:auto;font:11px ui-monospace,monospace;white-space:pre-wrap;color:#c9b8ff}
+    .ok{color:#63e6be}.warnc{color:#ffd166}.err{color:#ff6b81}
+    .metrics span{display:inline-block;margin-right:12px}
+  </style>
+</head>
+<body>
+  <div class="banner">⚠️ ENGINE-01 研發隔離 · <b>開發中</b> · 畫面只在本機處理、不上傳 · 示範映射≠自主決策</div>
+  <main>
+    <h1 style="font-size:18px;margin:8px 0">即時視覺感知（微笑／轉頭／揮手）</h1>
+    <p class="small">依賴 MediaPipe Tasks Vision（CDN）。不呼叫 AI Gateway／LLM。無相機時用「Mock 模式」產生帶真實時間戳的 mock 事件（source=mock）。</p>
+    <div class="row">
+      <div class="stage">
+        <video id="v" playsinline muted></video>
+        <div>
+          <button type="button" id="btnCam">開始攝影機（需授權）</button>
+          <button type="button" id="btnMock" class="g">Mock 模式（無相機）</button>
+          <button type="button" id="btnStop" class="g">停止</button>
+        </div>
+        <label><input type="checkbox" id="autoMap" /> 自動映射 → control_intent（<b>示範映射，非自主決策引擎</b>）</label>
+        <div class="metrics small" id="metrics">frames: — · last: — ms · events: 0</div>
+        <div class="small" id="status">待命</div>
+      </div>
+      <div class="stage" style="flex:1.2">
+        <div class="panel">
+          <b>視覺事件</b>
+          <div id="events">（尚無）</div>
+        </div>
+        <div class="panel">
+          <b>示範映射 intents</b>
+          <div class="small">僅當勾選自動映射；不是 ENGINE-04。</div>
+          <div id="intents">（無）</div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <script type="module">
+    import { createVisualEngine } from './visual-engine.js';
+    import { visualEventToControlIntent } from './map-to-intent.js';
+    import { validateVisualEvent } from './mock-feed.js';
+
+    const statusEl = document.getElementById('status');
+    const eventsEl = document.getElementById('events');
+    const intentsEl = document.getElementById('intents');
+    const metricsEl = document.getElementById('metrics');
+    const video = document.getElementById('v');
+    const autoMap = document.getElementById('autoMap');
+
+    let engine = null;
+    let mockHandle = null;
+
+    function setStatus(t, cls) {
+      statusEl.textContent = t;
+      statusEl.className = 'small ' + (cls || '');
+    }
+
+    function prepend(el, obj) {
+      const line = typeof obj === 'string' ? obj : JSON.stringify(obj);
+      el.textContent = line + '\n' + el.textContent;
+    }
+
+    async function ensureEngine() {
+      if (engine) return engine;
+      engine = await createVisualEngine();
+      engine.bus.on('*', (ev) => {
+        const errs = validateVisualEvent(ev);
+        prepend(eventsEl, errs.length ? { invalid: errs, ev } : ev);
+        if (autoMap.checked) {
+          const intent = visualEventToControlIntent(ev);
+          if (intent) prepend(intentsEl, intent);
+        }
+        window.__engine01LastEvent = ev;
+        window.__engine01Events = engine.bus.history();
+      });
+      window.__engine01 = engine;
+      return engine;
+    }
+
+    document.getElementById('btnCam').onclick = async () => {
+      try {
+        setStatus('載入 MediaPipe 模型＋請求相機…', 'warnc');
+        const eng = await ensureEngine();
+        if (mockHandle) { mockHandle.stop(); mockHandle = null; }
+        eng.stop();
+        await eng.start({ videoEl: video, mock: false });
+        setStatus('攝影機運行中（本機推論，不上傳）', 'ok');
+        window.__engine01Mode = 'camera';
+      } catch (e) {
+        setStatus('失敗：' + e.message, 'err');
+        console.error(e);
+      }
+    };
+
+    document.getElementById('btnMock').onclick = async () => {
+      const eng = await ensureEngine();
+      eng.stop();
+      if (mockHandle) mockHandle.stop();
+      setStatus('Mock 模式播放中（source=mock）', 'warnc');
+      const r = await eng.start({ mock: true });
+      mockHandle = r.feed;
+      window.__engine01Mode = 'mock';
+      mockHandle.done.then(() => setStatus('Mock 序列結束', 'ok'));
+    };
+
+    document.getElementById('btnStop').onclick = () => {
+      if (engine) engine.stop();
+      if (mockHandle) { mockHandle.stop(); mockHandle = null; }
+      setStatus('已停止', 'warnc');
+    };
+
+    setInterval(() => {
+      if (!engine) return;
+      const s = engine.getStats();
+      metricsEl.textContent = `frames: ${s.frames} · last: ${s.lastMs.toFixed?.(1) ?? s.lastMs} ms · events: ${engine.bus.history().length}`;
+    }, 500);
+
+    // Auto-mock if ?mock=1 (CI / headless without camera)
+    if (new URLSearchParams(location.search).has('mock')) {
+      document.getElementById('btnMock').click();
+    }
+    window.__engine01Ready = true;
+  </script>
+</body>
+</html>

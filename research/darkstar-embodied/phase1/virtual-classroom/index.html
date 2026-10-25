@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>暗星虛擬教室｜第一期骨架（開發中）</title>
+  <style>
+    :root { --bg:#0d1117; --panel:#161b22; --fg:#e6edf3; --muted:#8b949e; --ok:#3fb950; --bad:#f85149; --accent:#58a6ff; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--fg); }
+    header { padding:10px 14px; background:var(--panel); border-bottom:1px solid #30363d; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+    header strong { color:var(--accent); }
+    .badge { font-size:12px; padding:2px 8px; border-radius:999px; background:#21262d; color:var(--muted); }
+    .badge.warn { color:#d29922; border:1px solid #d29922; }
+    main { display:grid; grid-template-columns: 1fr 320px; gap:0; height: calc(100vh - 52px); }
+    #view { position:relative; background:#000; }
+    canvas { display:block; width:100%; height:100%; }
+    aside { background:var(--panel); border-left:1px solid #30363d; padding:12px; overflow:auto; font-size:13px; }
+    button, .btn { background:#21262d; color:var(--fg); border:1px solid #30363d; border-radius:6px; padding:8px 10px; cursor:pointer; width:100%; margin:4px 0; text-align:left; }
+    button:hover { border-color:var(--accent); }
+    button:disabled { opacity:0.5; cursor:not-allowed; }
+    pre { background:#0d1117; padding:8px; border-radius:6px; overflow:auto; max-height:220px; font-size:11px; }
+    .ok { color:var(--ok); } .bad { color:var(--bad); }
+    #camBox { margin-top:8px; }
+    video#camPreview { width:100%; max-height:120px; background:#000; border-radius:6px; display:none; }
+    h3 { margin:12px 0 6px; font-size:14px; color:var(--muted); }
+    @media (max-width: 900px) { main { grid-template-columns: 1fr; height:auto; } #view { height:50vh; } }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>虛擬教室骨架</strong>
+    <span class="badge warn">開發中 · 第一期</span>
+    <span class="badge">Shared Body Core · 非 MP4 自主動作</span>
+    <span class="badge">ENGINE-11 混合實境＝未實作</span>
+    <span class="badge" id="fpsBadge">FPS —</span>
+  </header>
+  <main>
+    <div id="view"></div>
+    <aside>
+      <h3>身體自我認知 ENGINE-02</h3>
+      <pre id="bodyState">載入中…</pre>
+      <h3>測試一｜坐虛擬椅</h3>
+      <button id="btnSit">判斷並坐下 sit_on_virtual_chair</button>
+      <div id="sitResult"></div>
+      <h3>測試二｜擦虛擬黑板</h3>
+      <button id="btnEraseV">判斷並擦虛擬黑板</button>
+      <div id="bbText"></div>
+      <div id="eraseVResult"></div>
+      <h3>測試三｜擦現實黑板（必須拒絕）</h3>
+      <button id="btnEraseR">要求擦現實教室黑板</button>
+      <div id="eraseRResult"></div>
+      <h3>測試四｜相機（占位・第四期／ENGINE-06）</h3>
+      <button id="btnCam">授權攝影機（開發中／第四期）</button>
+      <div id="camBox">
+        <video id="camPreview" playsinline muted></video>
+        <p class="badge warn" style="display:block;margin-top:6px">去背／同框／姿態驅動＝未完成，不得宣稱</p>
+      </div>
+      <h3>日誌</h3>
+      <pre id="log"></pre>
+    </aside>
+  </main>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.180.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.180.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { createBodyAwareness } from '../../engines/ENGINE-02-body-awareness/body-awareness.js';
+    import { createCapabilityEngine } from '../../engines/ENGINE-05-capability/capability-engine.js';
+    import { createJointController } from '../joint-controller.js';
+    import { buildClassroom } from './classroom-scene.js';
+    import { createSitController } from './sit-controller.js';
+
+    const logEl = document.getElementById('log');
+    const log = (...a) => {
+      const line = a.map((x) => (typeof x === 'string' ? x : JSON.stringify(x))).join(' ');
+      logEl.textContent = (line + '\n' + logEl.textContent).slice(0, 4000);
+      console.log('[classroom]', ...a);
+    };
+
+    const view = document.getElementById('view');
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(view.clientWidth, view.clientHeight);
+    view.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1f2a);
+    const camera = new THREE.PerspectiveCamera(45, view.clientWidth / view.clientHeight, 0.1, 100);
+    camera.position.set(2.8, 1.8, 4.2);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 1, 0);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+    const dir = new THREE.DirectionalLight(0xffffff, 1.1);
+    dir.position.set(3, 6, 4);
+    scene.add(dir);
+
+    const classroom = buildClassroom(scene);
+    const bbUi = () => {
+      const st = classroom.blackboard.getState();
+      document.getElementById('bbText').innerHTML =
+        `<span class="${st.isBlank ? 'ok' : ''}">黑板文字：${st.isBlank ? '（空白）' : st.text.replace(/\n/g, ' ⏎ ')}</span>`;
+    };
+    bbUi();
+
+    let frames = 0, last = performance.now(), fps = 0;
+    function getFps() { return fps; }
+
+    let avatar = null;
+    let bones = [];
+    let bonesByHint = {};
+    let controller = null;
+    let body = null;
+    let cap = null;
+    let sitCtl = null;
+
+    function refreshBodyPanel() {
+      if (!body) return;
+      const s = body.getBodyState();
+      document.getElementById('bodyState').textContent = JSON.stringify(
+        {
+          embodiment: s.embodiment,
+          pose: s.pose,
+          skills: { learned: s.skills.learned, stub: s.skills.stub, unlearned: s.skills.unlearned },
+          controller: s.controller,
+          scene: s.scene,
+          asset: s.asset.path
+        },
+        null,
+        2
+      );
+    }
+
+    function showResult(el, r) {
+      el.className = r.can || r.ok ? 'ok' : 'bad';
+      el.textContent = JSON.stringify(r, null, 2);
+    }
+
+    const loader = new GLTFLoader();
+    const glbUrl = '../../../assets/dark-star/technical-dark-star-avatar.glb';
+    loader.load(
+      glbUrl,
+      (gltf) => {
+        avatar = gltf.scene;
+        avatar.position.set(0.2, 0, 0.6);
+        avatar.scale.setScalar(1);
+        scene.add(avatar);
+        bones = [];
+        avatar.traverse((o) => {
+          if (o.isBone) bones.push(o);
+        });
+        const find = (re) => bones.find((b) => re.test(b.name || '')) || null;
+        bonesByHint = {
+          neck: find(/neck/i),
+          hips: find(/hip|pelvis/i)
+        };
+        const morphMeshes = [];
+        avatar.traverse((o) => {
+          if (o.isMesh && o.morphTargetDictionary) morphMeshes.push(o);
+        });
+        function setMorph(name, v) {
+          morphMeshes.forEach((m) => {
+            const i = m.morphTargetDictionary[name];
+            if (i != null && m.morphTargetInfluences) m.morphTargetInfluences[i] = v;
+          });
+        }
+        controller = createJointController({
+          avatar,
+          bones,
+          bonesByHint,
+          setMorph,
+          getFps,
+          log,
+          onSafety: (s) => log('safety', s)
+        });
+        sitCtl = createSitController({ avatar, sitY: 0.5 });
+        body = createBodyAwareness({
+          controller,
+          avatar,
+          bones,
+          bonesByHint,
+          scene: classroom.sceneDescriptor,
+          getFps
+        });
+        cap = createCapabilityEngine({ bodyAwareness: body });
+        refreshBodyPanel();
+        log('GLB loaded bones=', bones.length, 'controller', controller.version);
+      },
+      undefined,
+      (err) => {
+        log('GLB load failed', String(err));
+        // Still allow capability tests with mock
+        body = createBodyAwareness({
+          controller: {
+            version: 'fallback-mock',
+            macros: ['wave'],
+            getLastFeedback: () => null,
+            inspectArms: () => null
+          },
+          scene: classroom.sceneDescriptor,
+          mockState: { boneCount: 0, pose: { standing: true, sitting: false }, skeleton: { boneCount: 0 } }
+        });
+        cap = createCapabilityEngine({ bodyAwareness: body });
+        refreshBodyPanel();
+      }
+    );
+
+    document.getElementById('btnSit').onclick = async () => {
+      const gate = cap.canPerform('sit_on_virtual_chair');
+      if (!gate.can) {
+        showResult(document.getElementById('sitResult'), gate);
+        return;
+      }
+      const chair = classroom.objects.chair;
+      const r = sitCtl
+        ? await sitCtl.sit(chair)
+        : { ok: false, reason: 'sit_controller_unavailable' };
+      body.setMockState({ sitting: true, pose: { sitting: true, standing: false } });
+      if (avatar) avatar.userData.sitting = true;
+      showResult(document.getElementById('sitResult'), { ...gate, exec: r });
+      refreshBodyPanel();
+      log('sit', r);
+    };
+
+    document.getElementById('btnEraseV').onclick = () => {
+      const gate = cap.canPerform('erase_virtual_blackboard');
+      if (!gate.can) {
+        showResult(document.getElementById('eraseVResult'), gate);
+        return;
+      }
+      const before = classroom.blackboard.getState();
+      const after = classroom.blackboard.erase();
+      showResult(document.getElementById('eraseVResult'), {
+        ...gate,
+        exec: { ok: true, before: before.text, after: after.text, stateChanged: after.isBlank }
+      });
+      bbUi();
+      refreshBodyPanel();
+      log('erase virtual', after);
+    };
+
+    document.getElementById('btnEraseR').onclick = () => {
+      const gate = cap.canPerform('erase_real_classroom_blackboard');
+      showResult(document.getElementById('eraseRResult'), gate);
+      log('erase real denied', gate);
+      // Must NOT mutate virtual blackboard
+      bbUi();
+    };
+
+    document.getElementById('btnCam').onclick = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        const v = document.getElementById('camPreview');
+        v.srcObject = stream;
+        v.style.display = 'block';
+        await v.play();
+        log('camera authorized — preview only; ENGINE-06/11 未完成');
+      } catch (e) {
+        log('camera denied/error', String(e));
+      }
+    };
+
+    window.addEventListener('resize', () => {
+      const w = view.clientWidth, h = view.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    });
+
+    function loop(t) {
+      frames++;
+      if (t - last >= 500) {
+        fps = Math.round((frames * 1000) / (t - last));
+        frames = 0;
+        last = t;
+        document.getElementById('fpsBadge').textContent = 'FPS ' + fps;
+      }
+      controls.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
