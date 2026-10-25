@@ -112,6 +112,7 @@ node research/darkstar-embodied/phase1/neuro-state-lab/test-neuro-state.mjs
 node research/darkstar-embodied/phase1/neuro-state-lab/test-realtime-coupling.mjs
 node research/darkstar-embodied/physiology-core/test-physiology-core.mjs
 node research/darkstar-embodied/physiology-core/test-core-coupling-sync.mjs
+node research/darkstar-embodied/physiology-core/test-core-sensory-sync.mjs
 node research/darkstar-embodied/embodiment-interfaces/test-embodiment-interfaces.mjs
 ```
 

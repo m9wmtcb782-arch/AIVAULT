@@ -17,6 +17,7 @@ const ARM_LOAD_ACTIONS = new Set([
 
 export function createSensoryMemory(opts = {}) {
   const stimuli = [];
+  const dangerLog = [];
   const injuryIds = new Set();
   const avoidStimuli = new Set(); // e.g. 'temperature:hot'
   let injuryEngine = opts.injuryEngine || null;
@@ -51,6 +52,31 @@ export function createSensoryMemory(opts = {}) {
 
   function recordInjury(injury) {
     if (injury && injury.id) injuryIds.add(injury.id);
+  }
+
+  /**
+   * Danger / protection memory — not expression-only.
+   * Fed by sensory-nerve-bus nociception + injury dual-write adapter.
+   */
+  function recordDanger(entry) {
+    if (!entry) return null;
+    const row = {
+      ...entry,
+      ts: entry.ts || Date.now(),
+      notExpressionOnly: true,
+      feedsProtection: entry.feedsProtection !== false
+    };
+    dangerLog.push(row);
+    if (dangerLog.length > 200) dangerLog.shift();
+    if ((entry.intensity || 0) >= 0.5 && entry.modality === 'nociception') {
+      avoidStimuli.add('temperature:hot');
+    }
+    if (opts.onDanger) opts.onDanger(row);
+    return row;
+  }
+
+  function getDangerLog(limit = 50) {
+    return dangerLog.slice(-limit);
   }
 
   function getMotionRestrictions() {
@@ -108,14 +134,17 @@ export function createSensoryMemory(opts = {}) {
       version: SENSORY_MEMORY_VERSION,
       disclaimer: DISCLAIMER,
       stimulusCount: stimuli.length,
+      dangerCount: dangerLog.length,
       injuryIds: [...injuryIds],
       restrictions: getMotionRestrictions(),
-      recent: stimuli.slice(-20)
+      recent: stimuli.slice(-20),
+      recentDanger: dangerLog.slice(-20)
     };
   }
 
   function reset() {
     stimuli.length = 0;
+    dangerLog.length = 0;
     injuryIds.clear();
     avoidStimuli.clear();
     lastReflex = null;
@@ -129,6 +158,8 @@ export function createSensoryMemory(opts = {}) {
     recordStimulus,
     recordReflex,
     recordInjury,
+    recordDanger,
+    getDangerLog,
     getMotionRestrictions,
     blocksAction,
     getState,
