@@ -18,3 +18,18 @@ All privileged actions require separate real authorization and audit logging.
 Integration TODO: map validated event data into Situation; connect existing memory
 and embodied state via read-only adapters; run scenario tests; require code review
 and permission gates before production use.
+
+## Creator bond formal integration (Gateway-aligned)
+
+Additional modules:
+- `creator_bond_obedience.py` / `gateway_policy_adapter.py`: verified command following.
+- `creator_memory_isolation.py`: creator-private memory scope keys.
+- `creator_task_router.py`: ordinary FOLLOW commands enter an execution queue (not ack-only).
+
+TypeScript twin: `supabase/functions/_shared/dark_star_creator_policy.ts` wired into
+`supabase/functions/ai-gateway/index.ts` actions:
+- `dark_star_creator_policy_preview` (read-only)
+- `dark_star_creator_command` (ordinary tasks → `accepted_for_execution`)
+
+Identity is resolved only from Supabase Auth (+ `owner_identities` / `AIVAULT_CREATOR_USER_IDS`).
+Client `isOwner` / `verified_identity` / `explicitApproval` are ignored.
