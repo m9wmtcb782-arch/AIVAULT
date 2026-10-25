@@ -1,0 +1,23 @@
+name: Import public ebook JSON (manual)
+on:
+  workflow_dispatch:
+    inputs:
+      src:
+        description: "JSON path under repo"
+        required: true
+        default: "private/ebooks/zhongyao-food-bundle.json"
+      template:
+        description: "template ebook id"
+        required: true
+        default: "c22c6a4a-4339-4143-a1e9-e48a430ce823"
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Import
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SRC: ${{ inputs.src }}
+          TEMPLATE: ${{ inputs.template }}
+        run: python3 .github/scripts/import_public_ebook_json.py
