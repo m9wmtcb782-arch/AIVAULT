@@ -72,3 +72,16 @@
    - 同步為**唯讀**；session 過期即**暫停**並提示使用者重新登入，不續命過期 token。
 4. **未來選項（優先）**：若學校日後為學生核發**專屬 API token 或 service account**，這是首選的非密碼機制，Connector 將改走該授權並可撤銷。
 5. **公開來源 ≠ TronClass 同步**：衛福部（MOHW）公開 PDF 屬 PublicSource，從公開網址取得；不代表 TronClass 同步成功，也不計入 TronClass E2E。
+
+---
+
+## 附錄二：「在 AIVAULT 設好 TronClass 帳號密碼，就有權限了？」（2026-10-25）
+
+**結論：不會。存了帳密 ≠ 學校允許自動同步。**
+
+1. **權限的定義**：權限 = **學校政策允許自動化／唯讀存取**（`SCHOOL_AUTH_CONFIRMED`）＋ **使用者本人於官方頁登入後的有效 session**。兩者缺一不可；把學號／密碼放進 AIVAULT 或 GitHub，兩者都不會因此成立。
+2. **禁止事項**：
+   - 明文學號／密碼寫入 repo（任何檔案、`.env`、config）並 commit 到 git。
+   - 出現在 GitHub Pages、Issue／PR 留言、commit 訊息、log 或聊天紀錄。
+3. **可選的未來路徑**：使用者私人保管庫（vault，**位於 repo 之外**）僅作「個人登入輔助」；仍受 `SCHOOL_AUTH_CONFIRMED` 閘控，未確認前不得自動登入；**任何時候都不得繞過驗證碼或登入保護**。
+4. **目前狀態**：真實同步仍 BLOCKED；不收集密碼、不做 live login。

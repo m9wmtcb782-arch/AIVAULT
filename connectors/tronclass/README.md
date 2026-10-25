@@ -77,3 +77,4 @@ npm test   # 僅單元測試（假資料）
 | `SYNC_TEST_REPORT.md` | 真實同步報告（尚未執行） |
 
 > **帳號說明**：無法為 AIVAULT 另設 TronClass 帳密（學校 SSO 單一身分）；禁止假／共用帳號。合法路徑見 [SESSION_HANDOFF_DESIGN.md](./SESSION_HANDOFF_DESIGN.md) 附錄。
+> **帳密≠權限**：在 AIVAULT／GitHub 存學號密碼不等於學校授權；權限 = 學校政策 + 官方登入後有效 session。見 [附錄二](./SESSION_HANDOFF_DESIGN.md)。
