@@ -14,39 +14,52 @@
     .panel{margin-top:12px;background:#0b1220;border:1px solid #29466f;border-radius:16px;padding:12px}
     .row{display:flex;flex-wrap:wrap;gap:8px}
     button{border:0;border-radius:10px;padding:10px 12px;background:#31558f;color:#fff;font-size:14px}
+    button:disabled{opacity:.45}
     button.warn{background:#8a4b1a}
+    button.wave{background:#1f7a5a}
     .small{font-size:12px;color:#9fb1cb;line-height:1.5}
-    #log{margin-top:8px;max-height:180px;overflow:auto;white-space:pre-wrap;font:11px ui-monospace,monospace;color:#a9c1df;background:#07101c;border-radius:10px;padding:8px}
+    .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:10px}
+    .card{background:#07101c;border:1px solid #20334f;border-radius:10px;padding:8px 10px}
+    .card .v{font-size:18px;font-weight:700}
+    #log{margin-top:8px;max-height:200px;overflow:auto;white-space:pre-wrap;font:11px ui-monospace,monospace;color:#a9c1df;background:#07101c;border-radius:10px;padding:8px}
     .ok{color:#63e6be}.err{color:#ff6b81}.warnc{color:#ffd166}
   </style>
 </head>
 <body>
-  <div class="banner">⚠️ 研發隔離頁 · Dark Star Embodied Phase1 · <b>開發中</b> · 非正式入口 · 禁止當正式產品宣稱完成</div>
+  <div class="banner">⚠️ 研發隔離頁 · Dark Star Embodied Phase1 · <b>開發中</b> · 非正式入口 · UI 驅動≠自主決策</div>
   <main>
     <div class="stage">
       <canvas id="c"></canvas>
       <div id="status" class="warnc">載入中…</div>
     </div>
     <div class="panel">
-      <b>Phase1｜可控制骨骼（GLB，非 MP4）</b>
-      <div class="small">資產：<code>assets/dark-star/technical-dark-star-avatar.glb</code> · 安全層：<code>body-safety-layer.js</code> · 協定：<code>protocol/control-intent.schema.json</code></div>
+      <b>Phase1｜可控制骨骼（GLB，非 MP4）＋手臂 IK 揮手</b>
+      <div class="small">資產 <code>assets/dark-star/technical-dark-star-avatar.glb</code> · IK 移植自 Body Brain Lab V33 · 安全層 <code>body-safety-layer.js</code></div>
       <div class="row" style="margin-top:10px">
         <button type="button" id="btnIdle">站立還原</button>
+        <button type="button" id="btnWave" class="wave">揮手（右臂 wave）</button>
         <button type="button" id="btnSmile">微笑</button>
         <button type="button" id="btnBlink">眨眼</button>
         <button type="button" id="btnMouth">張嘴</button>
         <button type="button" id="btnHead">轉頭</button>
         <button type="button" id="btnGreet" class="warn">示範 greet intent（非自主）</button>
         <button type="button" id="btnSkel">骨架開關</button>
+        <button type="button" id="btnInspect">分析手臂 IK</button>
       </div>
-      <div class="small" id="fps">FPS：—</div>
+      <div class="metrics">
+        <div class="card"><div class="small">FPS（實測）</div><div class="v" id="fpsVal">—</div></div>
+        <div class="card"><div class="small">手臂鏈</div><div class="v" id="armVal">—</div></div>
+        <div class="card"><div class="small">Safety</div><div class="v" id="safeVal">待命</div></div>
+        <div class="card"><div class="small">最後狀態</div><div class="v" id="statVal">—</div></div>
+      </div>
+      <div class="small" id="safeDetail">安全層尚未觸發。</div>
       <div id="log"></div>
     </div>
   </main>
   <script type="importmap">
   {
     "imports": {
-      "three": "../../../vendor/three/three.module.js",
+      "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
       "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
     }
   }
@@ -61,7 +74,11 @@
     const MODEL = '../../../assets/dark-star/technical-dark-star-avatar.glb';
     const statusEl = document.getElementById('status');
     const logEl = document.getElementById('log');
-    const fpsEl = document.getElementById('fps');
+    const fpsVal = document.getElementById('fpsVal');
+    const armVal = document.getElementById('armVal');
+    const safeVal = document.getElementById('safeVal');
+    const safeDetail = document.getElementById('safeDetail');
+    const statVal = document.getElementById('statVal');
 
     function msg(t, cls) {
       statusEl.textContent = t;
@@ -70,6 +87,26 @@
     function log(x) {
       const line = typeof x === 'string' ? x : JSON.stringify(x, null, 2);
       logEl.textContent = (new Date().toLocaleTimeString('zh-TW', { hour12: false }) + ' ' + line + '\n') + logEl.textContent;
+    }
+    function showSafety(info) {
+      const blocked = (info && info.blocked) || (info && info.safety && info.safety.blocked) || [];
+      const warnings = (info && info.warnings) || (info && info.safety && info.safety.warnings) || [];
+      if (blocked.length) {
+        safeVal.textContent = '阻擋 ' + blocked.length;
+        safeVal.style.color = '#ff6b81';
+        safeDetail.textContent = 'Safety 觸發：' + JSON.stringify(blocked).slice(0, 280);
+      } else if (warnings.length) {
+        safeVal.textContent = '警告';
+        safeVal.style.color = '#ffd166';
+        safeDetail.textContent = 'Safety 警告：' + warnings.join('; ');
+      } else if (info && info.event) {
+        safeVal.textContent = String(info.event);
+        safeVal.style.color = '#ffd166';
+        safeDetail.textContent = JSON.stringify(info).slice(0, 280);
+      } else {
+        safeVal.textContent = '通過';
+        safeVal.style.color = '#63e6be';
+      }
     }
 
     let scene, camera, renderer, controls, avatar, bones = [], morphMap = new Map();
@@ -156,6 +193,21 @@
       };
     }
 
+    async function runIntent(intent) {
+      const buttons = ['btnWave', 'btnGreet'];
+      buttons.forEach((id) => { const el = document.getElementById(id); if (el) el.disabled = true; });
+      try {
+        const fb = await controller.execute(intent);
+        statVal.textContent = fb.status;
+        showSafety(fb.safety);
+        log(fb);
+        msg(fb.status === 'completed' ? '動作完成（非自主）' : '狀態：' + fb.status, fb.status === 'blocked' ? 'err' : 'ok');
+        return fb;
+      } finally {
+        buttons.forEach((id) => { const el = document.getElementById(id); if (el) el.disabled = false; });
+      }
+    }
+
     async function init() {
       scene = new THREE.Scene();
       scene.background = new THREE.Color(0x090d16);
@@ -186,20 +238,32 @@
 
       controller = createJointController({
         avatar,
+        bones,
         bonesByHint,
         setMorph,
         getFps: () => fps,
-        log
+        log,
+        onSafety: (s) => showSafety(s)
       });
+
+      const arms = controller.inspectArms();
+      armVal.textContent = arms && arms.R ? 'R✓' : 'R✗';
+      if (arms && arms.R) {
+        armVal.textContent = 'R ' + arms.R.upper.name.split('.').pop();
+        log({ armChainR: arms.R.upper.name + '→' + arms.R.fore.name + '→' + arms.R.wrist.name, candidates: arms.candidates });
+      }
 
       log({
         phase: 1,
         bones: bones.length,
         morphs: morphMap.size,
         controller: controller.version,
-        note: 'GLB loaded — MP4 not used as body'
+        armIk: controller.armIkVersion,
+        note: 'GLB loaded — wave drives joints via arm-ik.js'
       });
       msg('Phase1 待命｜骨骼 ' + bones.length + '｜Morph ' + morphMap.size, 'ok');
+      window.__phase1Ready = true;
+      window.__phase1 = { controller, bones, avatar };
 
       function tick() {
         requestAnimationFrame(tick);
@@ -207,7 +271,7 @@
         const now = performance.now();
         if (now - t0 >= 1000) {
           fps = Math.round((frames * 1000) / (now - t0));
-          fpsEl.textContent = 'FPS：' + fps + '（實測）';
+          fpsVal.textContent = String(fps);
           frames = 0;
           t0 = now;
         }
@@ -220,29 +284,38 @@
 
     document.getElementById('btnIdle').onclick = () => {
       resetPose();
-      log(controller.execute(intentFromUi({ intent: 'reset_pose', motion: { legs: 'idle_stand' } })));
+      runIntent(intentFromUi({ intent: 'reset_pose', motion: { legs: 'idle_stand' } }));
+    };
+    document.getElementById('btnWave').onclick = () => {
+      runIntent(intentFromUi({ intent: 'wave_ui', motion: { right_arm: 'wave' } }));
     };
     document.getElementById('btnSmile').onclick = () => {
-      log(controller.execute(intentFromUi({ intent: 'express', motion: { expression: 'smile' } })));
+      runIntent(intentFromUi({ intent: 'express', motion: { expression: 'smile' } }));
     };
     document.getElementById('btnBlink').onclick = async () => {
-      log(controller.execute(intentFromUi({ intent: 'blink', motion: { expression: 'blink' } })));
+      await runIntent(intentFromUi({ intent: 'blink', motion: { expression: 'blink' } }));
       await new Promise((r) => setTimeout(r, 140));
       setMorph('h_expressions.LeyeClose_h', 0);
       setMorph('h_expressions.ReyeClose_h', 0);
     };
     document.getElementById('btnMouth').onclick = () => {
-      log(controller.execute(intentFromUi({ intent: 'mouth', motion: { expression: 'mouth_open' } })));
+      runIntent(intentFromUi({ intent: 'mouth', motion: { expression: 'mouth_open' } }));
     };
     document.getElementById('btnHead').onclick = () => {
-      log(controller.execute(intentFromUi({ intent: 'look', motion: { head: 'turn_toward_target', gaze: 'target_face' } })));
+      runIntent(intentFromUi({ intent: 'look', motion: { head: 'turn_toward_target', gaze: 'target_face' } }));
     };
     document.getElementById('btnGreet').onclick = () => {
-      log(controller.execute(demoGreetIntent()));
+      runIntent(demoGreetIntent());
     };
     document.getElementById('btnSkel').onclick = () => {
       showSkel = !showSkel;
       lines.forEach((l) => { l.visible = showSkel; });
+    };
+    document.getElementById('btnInspect').onclick = () => {
+      const arms = controller.inspectArms();
+      log(arms);
+      armVal.textContent = arms && arms.R ? 'R✓' : 'R✗';
+      msg(arms && arms.R ? '已找到右臂鏈' : '未找到右臂鏈', arms && arms.R ? 'ok' : 'err');
     };
 
     addEventListener('resize', () => {
@@ -255,6 +328,8 @@
     init().catch((e) => {
       msg('載入失敗：' + e.message, 'err');
       log(String(e.stack || e));
+      window.__phase1Ready = false;
+      window.__phase1Error = String(e);
     });
   </script>
 </body>

@@ -18,3 +18,8 @@
 - VRM（無現成資產；後續可評估）
 - 付費 Avatar API（HeyGen／D-ID／Magic Hour）
 - 修改正式暗星／數字人 HTML
+
+
+## Phase1 實測備註（2026-10-25）
+
+本機 `vendor/three/three.module.js` 會再 import 不存在的 `three.core.js`，Phase1 測試頁改用 CDN `three@0.180.0`（與 Body Brain Lab 一致）。GLB／safety 仍走倉庫相對路徑。

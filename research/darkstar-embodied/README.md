@@ -40,6 +40,7 @@ research/darkstar-embodied/
   protocol/CONTROL-PROTOCOL.md
   engines/ENGINE-0N-*/README.md
   phase1/index.html          ← 第一階段可控制骨骼測試頁
+  phase1/arm-ik.js           ← 手臂鏈／two-bone IK／wave
   phase1/ACCEPTANCE.md
   phase1/joint-controller.js
   deps.md
