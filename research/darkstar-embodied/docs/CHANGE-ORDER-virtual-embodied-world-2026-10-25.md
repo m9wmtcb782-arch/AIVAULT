@@ -225,3 +225,17 @@ MP4 數字人**保留為回退**，禁止刪除正式數字人資產。
 | 真實臨床校準／實機 WebRTC 行為驗證 | **未完成** |
 
 **免責：** 虛擬模擬｜不得宣稱真實意識、真實疾病或臨床中毒診斷。
+
+## 即時耦合｜ENGINE-23～27 → 15／16／03（2026-10-25）
+
+**狀態：開發中**  
+**路徑：** `shared/realtime-neuro-coupling.js` · `phase1/neuro-state-lab/`（瀏覽器即時）
+
+| 要求 | 本輪 |
+|------|------|
+| 疲勞↑ → blink↑／eyelidDroop／reactionDelay↑ | ✅ |
+| 禁疲倦視覺＋全速反應 | ✅ |
+| 危急／昏迷：UI＋motor `walkToward`／`requestAction` 同時拒絕 | ✅ |
+| gaze／head `setNeuroCoupling` 即時驅動 | ✅ |
+| 正式頁／MP4 | 未掛載／未用 |
+| 完整 GLB 蒙皮表情＋Playwright CI | **未完成**（Node 自動化已證） |

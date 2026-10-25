@@ -32,6 +32,16 @@ export function createMotorController(opts = {}) {
   let lastFeedback = null;
   let sitting = false;
 
+  /** ENGINE-26 neuro-motor gate (dev) */
+  let neuroGate = {
+    allowWalk: true,
+    allowTalk: true,
+    allowComplexAutonomy: true,
+    reactionDelayMs: 0,
+    consciousness: 'awake',
+    critical: false
+  };
+
   function resolveBones() {
     const hint = opts.bonesByHint || {};
     return {
@@ -183,6 +193,9 @@ export function createMotorController(opts = {}) {
    * Short walk stub toward a target position (multi-frame root XZ).
    */
   async function walkToward(target, runOpts = {}) {
+    if (!neuroGate.allowWalk) {
+      return feedbackBlocked(`neuro_gate_walk:${neuroGate.consciousness}`);
+    }
     if (busy) return feedbackBlocked('motor_busy');
     if (!avatar) return feedbackBlocked('no_avatar');
     if (isSitting()) return feedbackBlocked('cannot_walk_while_sitting');
@@ -293,9 +306,72 @@ export function createMotorController(opts = {}) {
       ok: false,
       status: 'blocked',
       reason,
+      consciousness: neuroGate.consciousness,
       motor: MOTOR_CONTROLLER_VERSION
     };
     return lastFeedback;
+  }
+
+  function setNeuroCoupling(mod = {}, bundle = null) {
+    const b = bundle || {};
+    const loc = b.locomotion || {};
+    const beh = b.behavior || {};
+    neuroGate = {
+      allowWalk: mod.allowWalk != null ? !!mod.allowWalk : (loc.allowWalk != null ? !!loc.allowWalk : neuroGate.allowWalk),
+      allowTalk: mod.allowTalk != null ? !!mod.allowTalk : (beh.allowTalk != null ? !!beh.allowTalk : neuroGate.allowTalk),
+      allowComplexAutonomy:
+        mod.allowComplexAutonomy != null
+          ? !!mod.allowComplexAutonomy
+          : beh.allowComplexAutonomy != null
+            ? !!beh.allowComplexAutonomy
+            : neuroGate.allowComplexAutonomy,
+      reactionDelayMs:
+        mod.reactionDelayMs != null
+          ? mod.reactionDelayMs
+          : beh.reactionDelayMs != null
+            ? beh.reactionDelayMs
+            : neuroGate.reactionDelayMs,
+      consciousness: mod.consciousness || b.consciousness || neuroGate.consciousness,
+      critical: mod.critical != null ? !!mod.critical : !!b.critical
+    };
+    return { ...neuroGate };
+  }
+
+  function getNeuroCoupling() {
+    return { ...neuroGate };
+  }
+
+  /**
+   * Unified action gate used by lab / decision — applies delay metadata.
+   * speak/talk/complex_autonomy are logical (no skeletal yet) but gated.
+   */
+  function requestAction(action, payload = {}) {
+    if (action === 'walk_to' || action === 'walk') {
+      if (!neuroGate.allowWalk) {
+        return feedbackBlocked(`neuro_gate_walk:${neuroGate.consciousness}`);
+      }
+      return {
+        ok: true,
+        deferred: true,
+        action: 'walk_to',
+        reactionDelayMs: neuroGate.reactionDelayMs,
+        gate: { ...neuroGate },
+        note: 'caller should await delay then walkToward'
+      };
+    }
+    if (action === 'talk' || action === 'speak') {
+      if (!neuroGate.allowTalk) {
+        return feedbackBlocked(`neuro_gate_talk:${neuroGate.consciousness}`);
+      }
+      return { ok: true, action: 'talk', reactionDelayMs: neuroGate.reactionDelayMs, gate: { ...neuroGate } };
+    }
+    if (action === 'complex_autonomy' || action === 'complex') {
+      if (!neuroGate.allowComplexAutonomy) {
+        return feedbackBlocked(`neuro_gate_complex:${neuroGate.consciousness}`);
+      }
+      return { ok: true, action: 'complex_autonomy', reactionDelayMs: neuroGate.reactionDelayMs, gate: { ...neuroGate } };
+    }
+    return { ok: true, action, reactionDelayMs: neuroGate.reactionDelayMs, gate: { ...neuroGate }, payload };
   }
 
   return {
@@ -304,6 +380,9 @@ export function createMotorController(opts = {}) {
     standUp,
     walkToward,
     eraseVirtualBlackboard,
+    setNeuroCoupling,
+    getNeuroCoupling,
+    requestAction,
     isSitting,
     isBusy: () => busy,
     getLastFeedback: () => lastFeedback,

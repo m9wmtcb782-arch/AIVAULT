@@ -45,6 +45,9 @@ export function createHeadNeckController(opts = {}) {
   let frames = 0;
   const yawSamples = [];
 
+  /** ENGINE-26 coupling */
+  let neuro = { headSway: 0, headDroop: 0, control: 1, reactionDelayMs: 0 };
+
   const HEAD_YAW_LIM = 55 * DEG;
   const HEAD_PITCH_LIM = 28 * DEG;
   const HEAD_ROLL_LIM = 18 * DEG;
@@ -127,7 +130,14 @@ export function createHeadNeckController(opts = {}) {
 
     // Micro tilt (slow, irregular — not a fixed loop amp)
     const t = frames * dt;
+    const sway = clamp(neuro.headSway || 0, 0, 1);
+    const droop = clamp(neuro.headDroop || 0, 0, 1);
+    const ctrl = clamp(neuro.control != null ? neuro.control : 1, 0.08, 1.2);
     targetRoll += Math.sin(t * 0.35 + 0.7) * 2.2 * DEG * (0.4 + 0.3 * Math.sin(t * 0.11));
+    // Impaired: extra sway + pitch droop (fatigue/alcohol) — continuous, not fixed anim
+    targetYaw += Math.sin(t * (1.3 + sway * 2.1)) * sway * 8 * DEG;
+    targetRoll += Math.sin(t * (1.7 + sway)) * sway * 6 * DEG;
+    targetPitch -= droop * 12 * DEG;
 
     // Listening subtle nod (low amplitude, not metronome)
     if (listening) {
@@ -143,15 +153,18 @@ export function createHeadNeckController(opts = {}) {
     }
 
     // Acceleration toward target + damping (inertia; no instant turn)
-    const ay = clamp((targetYaw - yaw) * ACCEL, -14, 14);
-    const ap = clamp((targetPitch - pitch) * ACCEL, -12, 12);
-    const ar = clamp((targetRoll - roll) * (ACCEL * 0.7), -8, 8);
-    yawVel = (yawVel + ay * dt) * Math.exp(-DAMP * dt);
-    pitchVel = (pitchVel + ap * dt) * Math.exp(-DAMP * dt);
-    rollVel = (rollVel + ar * dt) * Math.exp(-DAMP * dt);
+    // ctrl<1 → slower / less stable head (impaired)
+    const accelEff = ACCEL * ctrl;
+    const dampEff = DAMP * (0.7 + 0.3 * ctrl);
+    const ay = clamp((targetYaw - yaw) * accelEff, -14, 14);
+    const ap = clamp((targetPitch - pitch) * accelEff, -12, 12);
+    const ar = clamp((targetRoll - roll) * (accelEff * 0.7), -8, 8);
+    yawVel = (yawVel + ay * dt) * Math.exp(-dampEff * dt);
+    pitchVel = (pitchVel + ap * dt) * Math.exp(-dampEff * dt);
+    rollVel = (rollVel + ar * dt) * Math.exp(-dampEff * dt);
 
-    // Speed limit — prevents snap
-    const maxSpeed = 2.8; // rad/s
+    // Speed limit — prevents snap; reduced when control low
+    const maxSpeed = 2.8 * ctrl; // rad/s
     yawVel = clamp(yawVel, -maxSpeed, maxSpeed);
     pitchVel = clamp(pitchVel, -maxSpeed * 0.8, maxSpeed * 0.8);
     rollVel = clamp(rollVel, -maxSpeed * 0.5, maxSpeed * 0.5);
@@ -218,6 +231,7 @@ export function createHeadNeckController(opts = {}) {
       frames,
       eyeLead: true,
       headCover: HEAD_COVER,
+      neuroCoupling: { ...neuro },
       sharedBodyCore: true,
       status: 'dev'
     };
@@ -237,6 +251,20 @@ export function createHeadNeckController(opts = {}) {
       lagDeg: (headTarget - yaw) * RAD,
       eyesLead: Math.abs(eyeYaw) >= Math.abs(yaw) - 1e-4 || Math.abs(eyeYaw) > 0.01
     };
+  }
+
+  function setNeuroCoupling(mod = {}) {
+    neuro = {
+      headSway: mod.headSway != null ? mod.headSway : (mod.sway != null ? mod.sway : neuro.headSway),
+      headDroop: mod.headDroop != null ? mod.headDroop : (mod.droop != null ? mod.droop : neuro.headDroop),
+      control: mod.control != null ? mod.control : (mod.headPostureControl != null ? mod.headPostureControl : neuro.control),
+      reactionDelayMs: mod.reactionDelayMs != null ? mod.reactionDelayMs : neuro.reactionDelayMs
+    };
+    return { ...neuro };
+  }
+
+  function getNeuroCoupling() {
+    return { ...neuro };
   }
 
   function isInstantSnap(thresholdDeg = 25) {
@@ -268,6 +296,8 @@ export function createHeadNeckController(opts = {}) {
     bindGaze,
     setListening,
     setSpeaking,
+    setNeuroCoupling,
+    getNeuroCoupling,
     update,
     getPose,
     measureHeadLagVsEye,

@@ -73,6 +73,7 @@
 | 27 | `ENGINE-27-persistent-physio` | **開發中**（持久＋時鐘） |
 
 另：`shared/conversation-target-tracking.js` 供 15／16／08 共用。
+`shared/realtime-neuro-coupling.js`：23～27 → 15／16／03 瀏覽器即時耦合（開發中）。
 
 舊 `engines/ENGINE-0N-*` 目錄保留並附 `REDIRECT.md`，勿刪已有程式。
 
@@ -99,6 +100,7 @@ node research/darkstar-embodied/engines/ENGINE-12-soft-tissue/test-soft-tissue.m
 node research/darkstar-embodied/engines/ENGINE-15-autonomous-gaze/test-gaze-head.mjs
 node research/darkstar-embodied/phase1/sensory-physio-lab/test-sensory-physio.mjs
 node research/darkstar-embodied/phase1/neuro-state-lab/test-neuro-state.mjs
+node research/darkstar-embodied/phase1/neuro-state-lab/test-realtime-coupling.mjs
 ```
 
 ## 既有可重用（摘要）

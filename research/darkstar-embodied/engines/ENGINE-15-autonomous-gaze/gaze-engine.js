@@ -70,6 +70,15 @@ export function createGazeEngine(opts = {}) {
   let appliedFrames = 0;
   const history = []; // recent target ids for anti-loop check
 
+  /** ENGINE-26 neuro coupling (dev) — blink / focus / eyelid */
+  let neuro = {
+    blinkRateMul: 1,
+    eyelidDroop: 0,
+    trackingScale: 1,
+    reactionDelayMs: 0,
+    tiredExpression: false
+  };
+
   const EYE_YAW_LIM = 28 * DEG;
   const EYE_PITCH_LIM = 18 * DEG;
   const STARE_BREAK_MS = 3200;
@@ -157,9 +166,11 @@ export function createGazeEngine(opts = {}) {
 
     // Micro saccades — irregular timing (not fixed cycle)
     if (nowMs >= nextSaccadeAt) {
-      saccadeYaw = (Math.random() - 0.5) * 3.5 * DEG;
-      saccadePitch = (Math.random() - 0.5) * 2.2 * DEG;
-      nextSaccadeAt = nowMs + 450 + Math.random() * 1600;
+      const track = clamp(neuro.trackingScale != null ? neuro.trackingScale : 1, 0.05, 1.5);
+      saccadeYaw = (Math.random() - 0.5) * 3.5 * DEG * track;
+      saccadePitch = (Math.random() - 0.5) * 2.2 * DEG * track;
+      const saccBase = 450 + (neuro.reactionDelayMs || 0) * 0.5;
+      nextSaccadeAt = nowMs + saccBase + Math.random() * 1600;
     } else {
       saccadeYaw *= Math.exp(-dt * 4);
       saccadePitch *= Math.exp(-dt * 4);
@@ -168,8 +179,9 @@ export function createGazeEngine(opts = {}) {
     const desiredYaw = clamp(ang.yaw + saccadeYaw, -EYE_YAW_LIM * 1.2, EYE_YAW_LIM * 1.2);
     const desiredPitch = clamp(ang.pitch + saccadePitch, -EYE_PITCH_LIM * 1.2, EYE_PITCH_LIM * 1.2);
 
-    // Eyes lead: fast approach (no snap)
-    const eyeFollow = 1 - Math.exp(-dt * 14);
+    // Eyes lead: fast approach (no snap); trackingScale slows when impaired
+    const trackFollow = clamp(neuro.trackingScale != null ? neuro.trackingScale : 1, 0.08, 1.5);
+    const eyeFollow = 1 - Math.exp(-dt * (14 * trackFollow));
     eyeYaw = lerp(eyeYaw, desiredYaw, eyeFollow);
     eyePitch = lerp(eyePitch, desiredPitch, eyeFollow);
 
@@ -182,18 +194,23 @@ export function createGazeEngine(opts = {}) {
     });
 
     // Blink — irregular
+    const blinkMul = Math.max(0.4, neuro.blinkRateMul || 1);
+    const droop = clamp(neuro.eyelidDroop || 0, 0, 0.85);
     if (blinkT > 0) {
       blinkT += dt;
       const phase = blinkT / 0.14;
       if (phase >= 1) {
         blinkT = 0;
-        doBlink(0);
-        nextBlinkAt = nowMs + 1200 + Math.random() * 3200;
+        doBlink(droop); // rest at droop, not fully open when fatigued
+        const gap = (1200 + Math.random() * 3200) / blinkMul;
+        nextBlinkAt = nowMs + gap;
       } else {
-        doBlink(phase);
+        doBlink(Math.max(phase, droop));
       }
     } else if (nowMs >= nextBlinkAt) {
       blinkT = 0.001;
+    } else if (droop > 0.02) {
+      doBlink(droop); // sustained eyelid heaviness
     }
 
     const snap = getGazeState();
@@ -215,6 +232,7 @@ export function createGazeEngine(opts = {}) {
       stareMs,
       lookAwayActive: Date.now() < lookAwayUntil,
       blinkActive: blinkT > 0,
+      neuroCoupling: { ...neuro },
       conversation: tracker.getState(),
       calibration: {
         speakToFriendUses: 'virtual_camera',
@@ -248,6 +266,21 @@ export function createGazeEngine(opts = {}) {
     tracker.setMode('listening_friend', extra);
   }
 
+  function setNeuroCoupling(mod = {}) {
+    neuro = {
+      blinkRateMul: mod.blinkRateMul != null ? mod.blinkRateMul : neuro.blinkRateMul,
+      eyelidDroop: mod.eyelidDroop != null ? mod.eyelidDroop : neuro.eyelidDroop,
+      trackingScale: mod.trackingScale != null ? mod.trackingScale : (mod.gazeSaccadeScale != null ? mod.gazeSaccadeScale : neuro.trackingScale),
+      reactionDelayMs: mod.reactionDelayMs != null ? mod.reactionDelayMs : neuro.reactionDelayMs,
+      tiredExpression: mod.tiredExpression != null ? !!mod.tiredExpression : neuro.tiredExpression
+    };
+    return { ...neuro };
+  }
+
+  function getNeuroCoupling() {
+    return { ...neuro };
+  }
+
   function isMechanicalLoop(window = 90) {
     // Detect if last N targets are a strict ABAB... fixed cycle with no away/saccade variety
     const slice = history.slice(-window);
@@ -271,6 +304,8 @@ export function createGazeEngine(opts = {}) {
     speakToFriend,
     listenUser,
     listenFriend,
+    setNeuroCoupling,
+    getNeuroCoupling,
     lookAnglesToward,
     getHistory: () => history.slice(),
     isMechanicalLoop,
