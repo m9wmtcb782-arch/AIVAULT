@@ -1,9 +1,11 @@
 # AIVAULT Virtual Embodied World（虛擬具身智慧世界）
 
-**狀態：開發中（第一～二期＋E12／E15～27）｜不得部署正式入口｜不得宣稱工程完成**  
+**狀態：開發中（第一～二期＋E12／E15～27＋統一生理核心骨架）｜不得部署正式入口｜不得宣稱工程完成**  
 **倉庫／帳號：** m9wmtcb782-arch/AIVAULT（第一基地）  
 **分支：** `research/darkstar-embodied-intelligence`  
-**變更令：** `docs/CHANGE-ORDER-virtual-embodied-world-2026-10-25.md`
+**變更令：** `docs/CHANGE-ORDER-virtual-embodied-world-2026-10-25.md`  
+**最高規範（優先於各引擎簡化實作）：** `docs/HIGHEST-NORM-virtual-human-physiology.md`  
+**統一生理核心：** `physiology-core/`（Virtual Human Physiology Core｜骨架可測｜引擎逐步遷移）
 
 ## 方向（正式）
 
@@ -16,7 +18,10 @@
 ## Shared Body Core（唯一大腦／身體控制）
 
 ```
-        Shared Body Core
+   Virtual Human Physiology Core（最高層狀態真相）
+   physiology-core/  ← 連續向量＋動態＋證據分級＋同意閘
+              │
+        Shared Body Core（讀核心／逐步遷移）
    ENGINE-02 身體自我認知
    ENGINE-03 運動控制
    ENGINE-08 具身決策
@@ -33,7 +38,9 @@
  虛擬教室／物件      原影像＋入鏡＋WebRTC
 ```
 
-**禁止**做兩套互不相干的暗星 AI。虛擬場景與現實合成只是不同 renderer／compositor。
+**最高規範優先於各引擎簡化實作**；既有引擎逐步改為讀 `physiology-core`，避免互相矛盾的寫死規則。  
+**禁止**做兩套互不相干的暗星 AI。虛擬場景與現實合成只是不同 renderer／compositor。  
+未完成生理槽位標 `pending_research`，**不得從模型刪除**。
 
 ## 雙模式
 
@@ -101,6 +108,7 @@ node research/darkstar-embodied/engines/ENGINE-15-autonomous-gaze/test-gaze-head
 node research/darkstar-embodied/phase1/sensory-physio-lab/test-sensory-physio.mjs
 node research/darkstar-embodied/phase1/neuro-state-lab/test-neuro-state.mjs
 node research/darkstar-embodied/phase1/neuro-state-lab/test-realtime-coupling.mjs
+node research/darkstar-embodied/physiology-core/test-physiology-core.mjs
 ```
 
 ## 既有可重用（摘要）

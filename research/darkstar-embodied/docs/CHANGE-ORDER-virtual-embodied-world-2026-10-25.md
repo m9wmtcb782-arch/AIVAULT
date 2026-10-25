@@ -239,3 +239,27 @@ MP4 數字人**保留為回退**，禁止刪除正式數字人資產。
 | gaze／head `setNeuroCoupling` 即時驅動 | ✅ |
 | 正式頁／MP4 | 未掛載／未用 |
 | 完整 GLB 蒙皮表情＋Playwright CI | **未完成**（Node 自動化已證） |
+
+## 最高規範｜Virtual Human Physiology Core（2026-10-25）
+
+**狀態：開發中（骨架可測）｜正式頁未掛載**  
+**規範：** `docs/HIGHEST-NORM-virtual-human-physiology.md`  
+**核心：** `physiology-core/`
+
+本規範**優先於**各引擎為交付速度採用的簡化實作。既有 ENGINE-01～27 及後續引擎須逐步遷移為讀取統一生理核心，避免引擎間互相矛盾的寫死規則。
+
+| 要求 | 本輪 |
+|------|------|
+| 最高原則：完整模擬真實成年女性生理／神經／情緒／內分泌／自然反應；禁任意刪限 | ✅ 入規範 |
+| 未完成標 `pending_research`，不得從模型刪除 | ✅ state-vector |
+| 禁固定劇本取代真實反應 | ✅ 規範＋測試 |
+| 連續變數＋動態系統；多狀態並存 | ✅ dynamics |
+| 證據分級 supported／approximation／hypothesis；禁虛報器官／意識 | ✅ evidence-tiers |
+| 親密槽位保留＋同意閘約束輸出（非刪模型） | ✅ consent-context |
+| 適配遷移說明（02／12／15～27） | ✅ adapters/README |
+| Node 耦合測試 | ✅ test-physiology-core.mjs |
+| 引擎全面改接核心 | **待研發／進行中** |
+| 完整內分泌週期閉環／臨床校準／蒙皮血流視覺 | **pending_research** |
+
+**免責：** 虛擬模擬｜不得宣稱生物器官、主觀意識、真實痛覺或臨床診斷。
+
