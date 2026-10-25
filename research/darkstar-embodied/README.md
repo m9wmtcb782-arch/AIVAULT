@@ -35,7 +35,7 @@
 
 | 模式 | 狀態 |
 |------|------|
-| 虛擬世界模式 | 第一期教室骨架進行中 |
+| 虛擬世界模式 | 第二期 Shared Motor＋教室進行中 |
 | 真人視訊混合實境模式 | ENGINE-11 **開發中／stub**；完整合成未做 |
 
 ## 新十＋一引擎
@@ -44,7 +44,7 @@
 |---|------|------|
 | 01 | `ENGINE-01-human-pose` | 開發中（種子：舊 visual） |
 | 02 | `ENGINE-02-body-awareness` | **第一期核心・實作中** |
-| 03 | `ENGINE-03-motor-control` | 開發中（phase1 arm-ik 種子） |
+| 03 | `ENGINE-03-motor-control` | **第二期進行中**（連續 sit／erase state／walk stub） |
 | 04 | `ENGINE-04-world-perception` | 開發中 |
 | 05 | `ENGINE-05-capability` | 第一期委派 02 |
 | 06 | `ENGINE-06-human-to-virtual` | 第四期；相機占位 |
@@ -66,10 +66,11 @@ python3 -m http.server 8765 --bind 127.0.0.1
 - Phase1 骨骼：`http://127.0.0.1:8765/research/darkstar-embodied/phase1/index.html`
 - **虛擬教室：** `http://127.0.0.1:8765/research/darkstar-embodied/phase1/virtual-classroom/index.html`
 
-## 能力測試（Node）
+## 能力／運動測試（Node）
 
 ```bash
 node research/darkstar-embodied/engines/ENGINE-02-body-awareness/test-capability.mjs
+node research/darkstar-embodied/engines/ENGINE-03-motor-control/test-motor.mjs
 ```
 
 ## 既有可重用（摘要）

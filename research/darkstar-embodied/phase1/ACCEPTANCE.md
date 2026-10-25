@@ -63,3 +63,7 @@ python3 -m http.server 8765 --bind 127.0.0.1
 - `RightHand` 在 safety layer 被歸成 finger，靜止即 blocked → 揮手安全檢查只看 upper+fore。
 - 揮手抬臂以 **local kinematic（limits 內）為主**；world IK `wave_ready` 常超過 shoulder soft limit，僅作備援。
 - **非自主決策**：按鈕／demo greet intent 才觸發。
+
+## Phase2 延伸（虛擬教室）
+
+見 `virtual-classroom/ACCEPTANCE.md` — 連續坐下過渡＋黑板 state diff。

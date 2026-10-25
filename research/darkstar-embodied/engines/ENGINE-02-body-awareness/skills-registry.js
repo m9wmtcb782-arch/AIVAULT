@@ -49,19 +49,19 @@ export const SKILLS = Object.freeze({
   },
   sit_on_virtual_chair: {
     id: 'sit_on_virtual_chair',
-    status: 'stub',
+    status: 'learned',
     domain: 'virtual',
     requires: ['scene:chair'],
-    description: 'Sit on a virtual chair object (simplified hip/root motion)',
-    executor: 'phase1/virtual-classroom/sit-controller.js'
+    description: 'Sit on virtual chair via ENGINE-03 multi-frame hip/knee/spine tween (Phase2)',
+    executor: 'engines/ENGINE-03-motor-control/motor-controller.js'
   },
   erase_virtual_blackboard: {
     id: 'erase_virtual_blackboard',
-    status: 'stub',
+    status: 'learned',
     domain: 'virtual',
     requires: ['scene:blackboard', 'scene:eraser', 'skill:hold_virtual_eraser'],
-    description: 'Clear virtual blackboard text state via eraser object',
-    executor: 'phase1/virtual-classroom/blackboard-state.js'
+    description: 'Clear virtual blackboard state (dirty/text) via ENGINE-03 erase + board API',
+    executor: 'engines/ENGINE-03-motor-control/motor-controller.js'
   },
   hold_virtual_eraser: {
     id: 'hold_virtual_eraser',
@@ -72,9 +72,9 @@ export const SKILLS = Object.freeze({
   },
   walk_to: {
     id: 'walk_to',
-    status: 'unlearned',
+    status: 'stub',
     domain: 'virtual',
-    description: 'Locomotion not implemented in Phase1'
+    description: 'Short root translation toward target (Phase2 stub; no foot IK)'
   },
   erase_real_classroom_blackboard: {
     id: 'erase_real_classroom_blackboard',

@@ -30,7 +30,7 @@
 <body>
   <header>
     <strong>虛擬教室骨架</strong>
-    <span class="badge warn">開發中 · 第一期</span>
+    <span class="badge warn">開發中 · 第二期 Shared Motor</span>
     <span class="badge">Shared Body Core · 非 MP4 自主動作</span>
     <span class="badge">ENGINE-11 混合實境＝未實作</span>
     <span class="badge" id="fpsBadge">FPS —</span>
@@ -40,10 +40,11 @@
     <aside>
       <h3>身體自我認知 ENGINE-02</h3>
       <pre id="bodyState">載入中…</pre>
-      <h3>測試一｜坐虛擬椅</h3>
+      <h3>測試一｜坐虛擬椅（多幀過渡）</h3>
+      <button id="btnWalk">可選｜朝椅子短走 walk stub</button>
       <button id="btnSit">判斷並坐下 sit_on_virtual_chair</button>
       <div id="sitResult"></div>
-      <h3>測試二｜擦虛擬黑板</h3>
+      <h3>測試二｜擦虛擬黑板（改 state）</h3>
       <button id="btnEraseV">判斷並擦虛擬黑板</button>
       <div id="bbText"></div>
       <div id="eraseVResult"></div>
@@ -77,6 +78,7 @@
     import { createJointController } from '../joint-controller.js';
     import { buildClassroom } from './classroom-scene.js';
     import { createSitController } from './sit-controller.js';
+    import { createMotorController } from '../../engines/ENGINE-03-motor-control/motor-controller.js';
 
     const logEl = document.getElementById('log');
     const log = (...a) => {
@@ -107,7 +109,7 @@
     const bbUi = () => {
       const st = classroom.blackboard.getState();
       document.getElementById('bbText').innerHTML =
-        `<span class="${st.isBlank ? 'ok' : ''}">黑板文字：${st.isBlank ? '（空白）' : st.text.replace(/\n/g, ' ⏎ ')}</span>`;
+        `<span class="${st.isBlank ? 'ok' : ''}">黑板文字：${st.isBlank ? '（空白）' : st.text.replace(/\n/g, ' ⏎ ')} | dirty=${st.dirty}</span>`;
     };
     bbUi();
 
@@ -181,7 +183,8 @@
           log,
           onSafety: (s) => log('safety', s)
         });
-        sitCtl = createSitController({ avatar, sitY: 0.5 });
+        sitCtl = createSitController({ avatar, bones, bonesByHint, sitY: 0.5 });
+        motor = sitCtl.getMotor();
         body = createBodyAwareness({
           controller,
           avatar,
@@ -213,6 +216,17 @@
       }
     );
 
+    let motor = null;
+
+    document.getElementById('btnWalk').onclick = async () => {
+      if (!sitCtl) { log('motor not ready'); return; }
+      const chair = classroom.objects.chair;
+      const r = await sitCtl.walkToward(chair.position, { frames: 20, maxStep: 0.7 });
+      showResult(document.getElementById('sitResult'), { walk: r });
+      refreshBodyPanel();
+      log('walk', r);
+    };
+
     document.getElementById('btnSit').onclick = async () => {
       const gate = cap.canPerform('sit_on_virtual_chair');
       if (!gate.can) {
@@ -220,38 +234,58 @@
         return;
       }
       const chair = classroom.objects.chair;
+      document.getElementById('btnSit').disabled = true;
       const r = sitCtl
-        ? await sitCtl.sit(chair)
+        ? await sitCtl.sit(chair, { frames: 30, frameMs: 20 })
         : { ok: false, reason: 'sit_controller_unavailable' };
+      document.getElementById('btnSit').disabled = false;
       body.setMockState({ sitting: true, pose: { sitting: true, standing: false } });
-      if (avatar) avatar.userData.sitting = true;
-      showResult(document.getElementById('sitResult'), { ...gate, exec: r });
+      showResult(document.getElementById('sitResult'), {
+        ...gate,
+        exec: {
+          ok: r.ok,
+          status: r.status,
+          multiFrame: r.multiFrame,
+          frames: r.frames,
+          uniqueRootY: r.uniqueRootY,
+          teleport: r.teleport,
+          jointsUsed: r.jointsUsed,
+          timelineSample: r.timelineSample
+        }
+      });
       refreshBodyPanel();
       log('sit', r);
     };
 
-    document.getElementById('btnEraseV').onclick = () => {
+    document.getElementById('btnEraseV').onclick = async () => {
       const gate = cap.canPerform('erase_virtual_blackboard');
       if (!gate.can) {
         showResult(document.getElementById('eraseVResult'), gate);
         return;
       }
       const before = classroom.blackboard.getState();
-      const after = classroom.blackboard.erase();
+      const r = sitCtl
+        ? await sitCtl.eraseVirtualBlackboard(classroom.blackboard, { frames: 12, frameMs: 16 })
+        : null;
+      const after = classroom.blackboard.getState();
+      const diff = classroom.blackboard.diff(before, after);
       showResult(document.getElementById('eraseVResult'), {
         ...gate,
-        exec: { ok: true, before: before.text, after: after.text, stateChanged: after.isBlank }
+        exec: r,
+        diff,
+        stateChanged: diff.cleared && diff.textChanged
       });
       bbUi();
       refreshBodyPanel();
-      log('erase virtual', after);
+      log('erase virtual', r, diff);
     };
 
     document.getElementById('btnEraseR').onclick = () => {
+      const before = classroom.blackboard.getState();
       const gate = cap.canPerform('erase_real_classroom_blackboard');
       showResult(document.getElementById('eraseRResult'), gate);
-      log('erase real denied', gate);
-      // Must NOT mutate virtual blackboard
+      const after = classroom.blackboard.getState();
+      log('erase real denied', gate, { boardUnchanged: before.text === after.text });
       bbUi();
     };
 
