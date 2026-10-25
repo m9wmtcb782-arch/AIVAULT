@@ -2,9 +2,13 @@
  * Event stubs: Dark Star KB notify + ebook shelf classify enqueue.
  * Isolation: no import of Dark Star core / dark-star-ebook.html.
  * Classify failures must NEVER roll back or block private storage.
+ *
+ * Contract aligned with ebook/classify/tronclass-iface.md (copied under docs/).
+ * Payload fields: fileId, fileName, courseId, courseCode, academicYear,
+ * semester, sha256, privatePath.
  */
 
-import type { DarkStarNotifyEvent, MaterialMeta, StoredFileRecord } from './types.ts';
+import type { DarkStarNotifyEvent, MaterialMeta, StoredFileRecord } from './types.js';
 
 export type NotifyHandler = (event: DarkStarNotifyEvent) => void | Promise<void>;
 
@@ -22,6 +26,12 @@ export type ClassifyEnqueueHandler = (
 
 const handlers: NotifyHandler[] = [];
 const classifyHandlers: ClassifyEnqueueHandler[] = [];
+
+/** Test helper — clear handlers between cases. */
+export function resetNotifyHandlersForTests(): void {
+  handlers.length = 0;
+  classifyHandlers.length = 0;
+}
 
 export function onDarkStarNotify(handler: NotifyHandler): void {
   handlers.push(handler);
@@ -64,8 +74,12 @@ export async function enqueueClassify(
     console.info('[tronclass-classify:stub] enqueueClassify', {
       type: 'tronclass.material.stored',
       fileId: materialMeta.fileId,
-      courseCode: materialMeta.courseCode,
       fileName: materialMeta.fileName,
+      courseId: materialMeta.courseId,
+      courseCode: materialMeta.courseCode,
+      academicYear: materialMeta.academicYear,
+      semester: materialMeta.semester,
+      sha256: stored.sha256,
       privatePath: stored.privatePath,
     });
   }

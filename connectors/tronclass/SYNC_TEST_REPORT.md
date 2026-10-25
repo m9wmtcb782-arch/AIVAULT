@@ -17,13 +17,13 @@
 
 原因：施工令要求「未確認學校授權前，不啟用自動登入或背景抓取」；官方學生端 API 文件調查結果為 NOT FOUND（見 `RESEARCH.md`）。
 
-## 單元測試（假資料）— 與真實同步分開
+## 離線 mock／單元測試 — 與真實同步分開
 
 | 項目 | 結果 |
 |------|------|
 | 命令 | `cd connectors/tronclass && npm test` |
-| 範圍 | allowlist、dedup、動態 diff、來源檔存在性 |
-| 結果 | 以 CI／本地最近一次 `node --test` 為準（骨架提交時 7 passed） |
+| 範圍 | allowlist、dedup、動態 diff、AuthSessionProvider、MaterialQueue、Provenance、PublicSourceAdapter≠E2E、discover→provision→sync mock、classify hook、stop／revoke／retry |
 | 是否等於真實同步 | **否** |
+| `tronclassE2eSuccess` | mock／public 路徑恒為 **false** |
 
-授權確認並完成一課一檔 E2E 後，請更新本檔「真實同步」表，勿與單元測試混報。
+授權確認並完成一課一檔 E2E 後，請更新本檔「真實同步」表，勿與單元／mock 測試混報。

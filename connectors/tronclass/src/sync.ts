@@ -1,17 +1,33 @@
 /**
- * Sync pipeline (scaffold): discoverCourses → diff → provision → sync materials.
+ * Sync pipeline: discoverCourses → diff → provision → sync materials.
  *
  * Goal: auto-sync course materials only (read-only).
  * Gated: no live TronClass I/O until schoolAuthorizationConfirmed.
  * Dynamic courses: never a permanent fixed five-course list.
+ * Offline tests inject MockTronClassClient — never claim that as real E2E.
  */
 
-import { filterByAllowlist } from './allowlist.ts';
-import { SchoolAuthGateError, type AuthProvider } from './auth.ts';
-import type { TronClassClient } from './client.ts';
-import { buildDedupKey, isDuplicate, sha256Hex } from './dedup.ts';
-import { enqueueClassify, notifyDarkStarIndexed } from './notify.ts';
-import type { PrivateStorage } from './storage.ts';
+import { filterByAllowlist } from './allowlist.js';
+import {
+  SchoolAuthGateError,
+  SessionInvalidError,
+  type AuthProvider,
+  type AuthSessionProvider,
+} from './auth.js';
+import type { TronClassClient } from './client.js';
+import {
+  createSyncControls,
+  ErrorLog,
+  revokeAuth,
+  stopSync,
+  withRetry,
+  type SyncControls,
+} from './controls.js';
+import { buildDedupKey, isDuplicate, sha256Hex } from './dedup.js';
+import { MaterialQueue } from './material-queue.js';
+import { enqueueClassify, notifyDarkStarIndexed } from './notify.js';
+import { buildTronClassProvenance } from './provenance.js';
+import type { PrivateStorage } from './storage.js';
 import type {
   ConnectorConfig,
   CourseDiff,
@@ -20,7 +36,8 @@ import type {
   MaterialMeta,
   StoredFileRecord,
   SyncLogEntry,
-} from './types.ts';
+  SyncRunResult,
+} from './types.js';
 
 export interface CourseRepository {
   listKnown(): Promise<CourseRecord[]>;
@@ -29,22 +46,12 @@ export interface CourseRepository {
   markInactive?(courseId: string): Promise<void>;
 }
 
-export interface SyncControls {
-  stop(): void;
-  isStopped(): boolean;
-}
+export { createSyncControls, stopSync, revokeAuth, withRetry };
+export type { SyncControls };
 
-export function createSyncControls(): SyncControls {
-  let stopped = false;
-  return {
-    stop: () => {
-      stopped = true;
-    },
-    isStopped: () => stopped,
-  };
-}
-
-export function courseIdentityKey(c: Pick<DiscoveredCourse, 'academicYear' | 'semester' | 'courseCode' | 'courseId'>): string {
+export function courseIdentityKey(
+  c: Pick<DiscoveredCourse, 'academicYear' | 'semester' | 'courseCode' | 'courseId'>,
+): string {
   return `${c.academicYear}|${c.semester}|${c.courseCode}|${c.courseId}`;
 }
 
@@ -68,7 +75,7 @@ export function diffCourses(
 }
 
 export class SyncEngine {
-  #log: SyncLogEntry[] = [];
+  #errors = new ErrorLog();
   #controls = createSyncControls();
 
   constructor(
@@ -80,12 +87,17 @@ export class SyncEngine {
   ) {}
 
   get syncLog(): readonly SyncLogEntry[] {
-    return this.#log;
+    return this.#errors.entries;
   }
 
   stop(): void {
-    this.#controls.stop();
-    this.log('info', '同步已停止（stop flag）');
+    stopSync(this.#controls);
+    this.#errors.push('info', '同步已停止（stop flag）');
+  }
+
+  async revokeAuthorization(): Promise<void> {
+    await revokeAuth(this.auth);
+    this.#errors.push('info', '已撤銷授權 session（本地 opaque ref）');
   }
 
   private log(
@@ -93,12 +105,7 @@ export class SyncEngine {
     message: string,
     extra?: Partial<SyncLogEntry>,
   ): void {
-    this.#log.push({
-      at: new Date().toISOString(),
-      level,
-      message,
-      ...extra,
-    });
+    this.#errors.push(level, message, extra);
   }
 
   private assertGate(): void {
@@ -112,9 +119,24 @@ export class SyncEngine {
     }
   }
 
+  private async assertSession(): Promise<void> {
+    const probe = this.auth as AuthSessionProvider;
+    if (typeof probe.isSessionValid === 'function') {
+      const ok = await probe.isSessionValid();
+      if (!ok) {
+        throw new SessionInvalidError(
+          '授權 session 失效 — 已暫停同步，請於東吳 TronClass 官方頁重新登入後再 handoff',
+        );
+      }
+    } else if (!this.auth.hasSession()) {
+      throw new SessionInvalidError('無有效授權 session');
+    }
+  }
+
   /** Step 1 — fetch latest course list via school-allowed auth interface. */
   async discoverCourses(): Promise<DiscoveredCourse[]> {
     this.assertGate();
+    await this.assertSession();
     const list = await this.client.listCourses();
     this.log('info', `發現 ${list.length} 門課程（動態）`);
     return list;
@@ -168,12 +190,32 @@ export class SyncEngine {
    */
   async syncCourseMaterials(course: CourseRecord): Promise<StoredFileRecord[]> {
     this.assertGate();
+    await this.assertSession();
     if (!course.syncEnabled) return [];
     const stored: StoredFileRecord[] = [];
     let materials: MaterialMeta[];
     try {
-      materials = await this.client.listMaterials(course.courseId);
+      materials = await withRetry(
+        () => this.client.listMaterials(course.courseId),
+        {
+          maxRetries: this.config.maxRetries,
+          backoffMs: this.config.retryBackoffMs,
+          sleepMs: async () => undefined,
+          onAttemptError: (err, attempt) => {
+            this.log('warn', `列出教材重試 ${attempt}: ${(err as Error).message}`, {
+              courseId: course.courseId,
+              attempt,
+            });
+          },
+        },
+      );
     } catch (err) {
+      if (err instanceof SessionInvalidError) {
+        const probe = this.auth as AuthSessionProvider;
+        if (typeof probe.markInvalid === 'function') {
+          await probe.markInvalid(err.message);
+        }
+      }
       this.log('error', `列出教材失敗：${(err as Error).message}`, {
         courseId: course.courseId,
         courseCode: course.courseCode,
@@ -184,20 +226,46 @@ export class SyncEngine {
       (m) => m.downloadAllowed,
     );
     const existing = await this.storage.readIndex(course);
-    for (const meta of allowed) {
-      if (this.#controls.isStopped()) break;
+    const queue = new MaterialQueue({ maxRetries: this.config.maxRetries });
+    queue.enqueueAll(allowed);
+    queue.applySoftDedup(existing);
+
+    for (const item of queue.pending()) {
+      if (this.#controls.isStopped()) {
+        queue.markStopped();
+        break;
+      }
+      const meta = item.meta;
       try {
-        const bytes = await this.client.downloadMaterial(meta);
+        const bytes = await withRetry(
+          () => this.client.downloadMaterial(meta),
+          {
+            maxRetries: this.config.maxRetries,
+            backoffMs: this.config.retryBackoffMs,
+            sleepMs: async () => undefined,
+            onAttemptError: (err, attempt) => {
+              this.log('warn', `下載重試 ${attempt}: ${(err as Error).message}`, {
+                courseId: course.courseId,
+                fileId: meta.fileId,
+                attempt,
+              });
+            },
+          },
+        );
         const sha = sha256Hex(bytes);
         const key = buildDedupKey(meta.fileId, meta.updatedAt, sha);
-        if (isDuplicate(key, existing)) {
+        if (isDuplicate(key, existing) || queue.shouldSkipAfterHash(meta, sha, existing)) {
+          item.status = 'skipped_dedup';
+          item.sha256 = sha;
           this.log('info', '去重略過（已下載）', {
             courseId: course.courseId,
             fileId: meta.fileId,
           });
           continue;
         }
-        const record = await this.storage.storeMaterial(meta, bytes, sha);
+        const provenance = buildTronClassProvenance(meta);
+        const record = await this.storage.storeMaterial(meta, bytes, sha, provenance);
+        queue.markStored(item, sha);
         stored.push(record);
         existing.push(record);
         // Dual-classify hook (feat/ebook-shelf-dual-classify-v1): never blocks/rolls back storage
@@ -223,26 +291,90 @@ export class SyncEngine {
           }
         }
       } catch (err) {
+        if (err instanceof SessionInvalidError) {
+          const probe = this.auth as AuthSessionProvider;
+          if (typeof probe.markInvalid === 'function') {
+            await probe.markInvalid(err.message);
+          }
+          queue.markStopped();
+          this.log('error', `session 失效，暫停同步：${err.message}`, {
+            courseId: course.courseId,
+            fileId: meta.fileId,
+          });
+          break;
+        }
+        const retrying = queue.markFailed(item, (err as Error).message);
         this.log('error', `下載／儲存失敗：${(err as Error).message}`, {
           courseId: course.courseId,
           fileId: meta.fileId,
         });
+        void retrying;
       }
     }
     return stored;
   }
 
-  /** Full poll cycle — for gated background scheduler only. */
-  async runOnce(): Promise<void> {
-    this.assertGate();
-    const discovered = await this.discoverCourses();
-    const diff = await this.diffWithDb(discovered);
-    await this.provisionNewCourses(diff.added);
-    const known = await this.courses.listKnown();
-    for (const course of known) {
-      if (this.#controls.isStopped()) break;
-      if (!course.syncEnabled || !course.accessAuthorized) continue;
-      await this.syncCourseMaterials(course);
+  /** Full poll cycle — for gated background scheduler only. Offline mock OK; live = BLOCKED. */
+  async runOnce(): Promise<SyncRunResult> {
+    const result: SyncRunResult = {
+      ok: false,
+      storedCount: 0,
+      skippedDedup: 0,
+      errors: [],
+      tronclassE2eSuccess: false, // NEVER flipped by mock / public source
+      publicSourceSuccess: false,
+      stopped: false,
+      sessionInvalid: false,
+    };
+    try {
+      this.assertGate();
+      await this.assertSession();
+    } catch (err) {
+      result.errors.push((err as Error).message);
+      if (err instanceof SessionInvalidError) result.sessionInvalid = true;
+      return result;
     }
+    try {
+      const discovered = await this.discoverCourses();
+      const diff = await this.diffWithDb(discovered);
+      await this.provisionNewCourses(diff.added);
+      const known = await this.courses.listKnown();
+      for (const course of known) {
+        if (this.#controls.isStopped()) {
+          result.stopped = true;
+          break;
+        }
+        if (!course.syncEnabled || !course.accessAuthorized) continue;
+        const stored = await this.syncCourseMaterials(course);
+        result.storedCount += stored.length;
+      }
+      result.ok = result.errors.length === 0 && !result.sessionInvalid;
+      result.stopped = this.#controls.isStopped();
+      // Collect error messages from log
+      for (const e of this.#errors.errors()) {
+        result.errors.push(e.message);
+      }
+      // Explicit: offline mock success is NOT TronClass E2E
+      result.tronclassE2eSuccess = false;
+      return result;
+    } catch (err) {
+      result.errors.push((err as Error).message);
+      if (err instanceof SessionInvalidError) result.sessionInvalid = true;
+      result.tronclassE2eSuccess = false;
+      return result;
+    }
+  }
+}
+
+/** In-memory course repo for offline tests. */
+export class MemoryCourseRepository implements CourseRepository {
+  #map = new Map<string, CourseRecord>();
+
+  async listKnown(): Promise<CourseRecord[]> {
+    return [...this.#map.values()];
+  }
+
+  async upsert(course: CourseRecord): Promise<void> {
+    this.#map.set(courseIdentityKey(course), course);
   }
 }

@@ -1,11 +1,12 @@
 /**
- * TronClass Connector — shared types (scaffold only).
+ * Shared types for the isolated TronClass connector (scaffold only).
  * Dynamic semester/course model. No live credentials.
  */
 
 export type AuthMode =
   | 'disabled'
   | 'school_allowed_token_or_session_handoff'
+  | 'browser_handoff'
   | 'oauth'
   | 'unknown';
 
@@ -37,7 +38,8 @@ export interface ConnectorConfig {
   pollIntervalHours: number;
   courseDiscovery: {
     mode: 'dynamic';
-    fixedCourseListForbidden: true;
+    /** Runtime MUST keep this true — permanent fixed course lists are forbidden */
+    fixedCourseListForbidden: boolean;
     compareFields: string[];
     autoProvisionNewCourses: boolean;
     retainHistoricalMaterials: boolean;
@@ -78,12 +80,30 @@ export interface MaterialMeta {
   downloadAllowed: boolean;
   downloadUrl?: string;
   contentType?: string;
+  /** Optional course display name for private path layout */
+  courseTitle?: string;
 }
 
 export interface DedupKey {
   fileId: string;
   updatedAt: string;
   sha256: string;
+}
+
+/** Provenance — who/where/when the file came from (private shelf metadata). */
+export interface MaterialProvenance {
+  school: string;
+  source: 'tronclass' | 'public_source' | 'manual';
+  sourceSystem: string;
+  courseId: string;
+  courseCode: string;
+  courseTitle?: string;
+  academicYear: string;
+  semester: string;
+  sourceFileId: string;
+  retrievedAt: string;
+  /** Never true for public-source retrieval */
+  tronclassE2eSuccess: false | boolean;
 }
 
 export interface StoredFileRecord {
@@ -97,6 +117,7 @@ export interface StoredFileRecord {
   sha256: string;
   privatePath: string;
   storedAt: string;
+  provenance?: MaterialProvenance;
 }
 
 export interface SyncLogEntry {
@@ -106,6 +127,7 @@ export interface SyncLogEntry {
   courseId?: string;
   courseCode?: string;
   fileId?: string;
+  attempt?: number;
 }
 
 export interface DarkStarNotifyEvent {
@@ -120,13 +142,34 @@ export interface DarkStarNotifyEvent {
   sourceLabel: string;
 }
 
+/**
+ * Opaque session handoff — NO student ID / password fields.
+ * opaqueCredentialRef points at vault/secret store outside git.
+ */
 export interface AuthSessionHandoff {
+  kind: 'browser_handoff' | 'school_token' | 'opaque';
   opaqueCredentialRef: string;
   expiresAt?: string;
+  /** Optional label for UI (never a secret) */
+  sessionLabel?: string;
 }
 
 export interface CourseDiff {
   added: DiscoveredCourse[];
   unchanged: DiscoveredCourse[];
   removedOrInactive: CourseRecord[];
+}
+
+/** Sync run outcome flags — public success MUST NOT set tronclassE2eSuccess. */
+export interface SyncRunResult {
+  ok: boolean;
+  storedCount: number;
+  skippedDedup: number;
+  errors: string[];
+  /** Only true after real authorized TronClass one-course-one-file E2E */
+  tronclassE2eSuccess: false;
+  /** True when a PublicSourceAdapter retrieved something (separate channel) */
+  publicSourceSuccess: boolean;
+  stopped: boolean;
+  sessionInvalid: boolean;
 }

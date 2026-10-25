@@ -1,3 +1,4 @@
+<!-- Issue #38 scaffold hardening: see GAP_ANALYSIS.md, SESSION_HANDOFF_DESIGN.md -->
 # TronClass Connector（隔離骨架）
 
 **唯一目標：** 在學校允許的授權方式下，自動、唯讀地同步課程教材至 AIVAULT **私人**儲存。

@@ -1,67 +1,38 @@
 /**
- * UNIT TESTS ONLY — fake data.
+ * UNIT TESTS — import compiled dist/ (fake data only).
  * Does NOT constitute a real TronClass sync / download test.
  * See SYNC_TEST_REPORT.md and E2E_ACCEPTANCE.md (BLOCKED).
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
-import { readFileSync, existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  isAllowedExtension,
+  filterByAllowlist,
+} from '../dist/allowlist.js';
+import { sha256Hex, buildDedupKey, isDuplicate } from '../dist/dedup.js';
+import { diffCourses, courseIdentityKey } from '../dist/sync.js';
+import { rejectPasswordLogin, rejectCaptchaOcr } from '../dist/auth.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const srcDir = path.join(__dirname, '..', 'src');
 
-function sha256Hex(data) {
-  const buf = typeof data === 'string' ? Buffer.from(data, 'utf8') : Buffer.from(data);
-  return createHash('sha256').update(buf).digest('hex');
-}
-function buildDedupKey(fileId, updatedAt, sha256) {
-  return { fileId, updatedAt, sha256 };
-}
-function dedupKeyString(key) {
-  return `${key.fileId}|${key.updatedAt}|${key.sha256}`;
-}
-function isDuplicate(candidate, existing) {
-  const target = dedupKeyString(candidate);
-  for (const row of existing) {
-    const key = buildDedupKey(row.fileId, row.updatedAt, row.sha256);
-    if (dedupKeyString(key) === target) return true;
-  }
-  return false;
-}
-const DEFAULT_ALLOWLIST = ['.pdf', '.ppt', '.pptx', '.doc', '.docx'];
-function isAllowedExtension(fileName, allowlist = DEFAULT_ALLOWLIST) {
-  const lower = fileName.trim().toLowerCase();
-  const base = lower.split(/[/\\]/).pop() ?? '';
-  return allowlist.some((ext) => base.endsWith(ext.toLowerCase()));
-}
-function filterByAllowlist(items, allowlist = DEFAULT_ALLOWLIST) {
-  return items.filter((item) => isAllowedExtension(item.fileName, allowlist));
-}
-function courseIdentityKey(c) {
-  return `${c.academicYear}|${c.semester}|${c.courseCode}|${c.courseId}`;
-}
-function diffCourses(discovered, known) {
-  const knownMap = new Map(known.map((k) => [courseIdentityKey(k), k]));
-  const seen = new Set();
-  const added = [];
-  const unchanged = [];
-  for (const d of discovered) {
-    const key = courseIdentityKey(d);
-    seen.add(key);
-    if (knownMap.has(key)) unchanged.push(d);
-    else added.push(d);
-  }
-  const removedOrInactive = known.filter((k) => !seen.has(courseIdentityKey(k)));
-  return { added, unchanged, removedOrInactive };
-}
-
-test('source modules exist (allowlist/dedup/sync/auth)', () => {
-  for (const f of ['allowlist.ts', 'dedup.ts', 'sync.ts', 'auth.ts', 'client.ts', 'storage.ts']) {
+test('source modules exist', () => {
+  for (const f of [
+    'allowlist.ts',
+    'dedup.ts',
+    'sync.ts',
+    'auth.ts',
+    'client.ts',
+    'storage.ts',
+    'material-queue.ts',
+    'provenance.ts',
+    'public-source.ts',
+    'controls.ts',
+  ]) {
     assert.equal(existsSync(path.join(srcDir, f)), true, f);
-    assert.ok(readFileSync(path.join(srcDir, f), 'utf8').length > 20);
   }
 });
 
@@ -127,13 +98,12 @@ test('diffCourses discovers new term/course dynamically', () => {
   assert.equal(d.unchanged.length, 1);
   assert.equal(d.added.length, 1);
   assert.equal(d.added[0].courseCode, 'LAW201');
+  assert.equal(courseIdentityKey(d.added[0]), '114|1|LAW201|9');
 });
 
-test('auth.ts rejects password login pattern in source', () => {
-  const src = readFileSync(path.join(srcDir, 'auth.ts'), 'utf8');
-  assert.match(src, /rejectPasswordLogin/);
-  assert.match(src, /SchoolAuthGateError/);
-  assert.match(src, /禁止明文密碼/);
+test('auth rejects password login and captcha OCR', () => {
+  assert.throws(() => rejectPasswordLogin('u', 'p'), /拒絕學號/);
+  assert.throws(() => rejectCaptchaOcr(), /驗證碼 OCR/);
 });
 
 test('enqueueClassify source documents non-blocking contract', () => {
@@ -143,5 +113,12 @@ test('enqueueClassify source documents non-blocking contract', () => {
   assert.match(notify, /NEVER roll back|non-blocking/i);
   const sync = readFileSync(path.join(srcDir, 'sync.ts'), 'utf8');
   assert.match(sync, /enqueueClassify\(meta, record\)/);
-  assert.match(sync, /不回滾儲存|Dual-classify hook/);
+});
+
+test('config.example.json has no password fields', () => {
+  const cfg = readFileSync(path.join(__dirname, '..', 'config.example.json'), 'utf8');
+  assert.doesNotMatch(cfg, /"password"/i);
+  assert.doesNotMatch(cfg, /"username"/i);
+  assert.doesNotMatch(cfg, /"studentId"/i);
+  assert.match(cfg, /schoolAuthorizationConfirmed/);
 });

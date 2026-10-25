@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { DedupKey, StoredFileRecord } from './types.ts';
+import type { DedupKey, StoredFileRecord } from './types.js';
 
 /** SHA-256 hex digest of raw bytes. */
 export function sha256Hex(data: Uint8Array | Buffer | string): string {
