@@ -1,0 +1,36 @@
+{
+  "$schema_comment": "範例設定。勿填入學號、密碼或真實 token。courses 採動態發現，禁止永久固定五門課清單。schoolAuthorizationConfirmed 與環境變數 SCHOOL_AUTH_CONFIRMED 皆須為真，才允許啟用排程骨架以外的行為。",
+  "schoolAuthorizationConfirmed": false,
+  "baseUrl": "https://tronclass.scu.edu.tw",
+  "mediaBaseUrl": "https://tcmedia.scu.edu.tw",
+  "pollIntervalHours": 6,
+  "courseDiscovery": {
+    "mode": "dynamic",
+    "fixedCourseListForbidden": true,
+    "compareFields": ["academicYear", "semester", "courseCode", "courseId"],
+    "autoProvisionNewCourses": true,
+    "retainHistoricalMaterials": true
+  },
+  "courses": [],
+  "allowlistExtensions": [".pdf", ".ppt", ".pptx", ".doc", ".docx"],
+  "privateStorageRoot": "/var/aivault-private/tronclass/",
+  "storageLayout": "{privateStorageRoot}/{academicYear}/{semester}/{courseCode}/",
+  "maxRetries": 3,
+  "retryBackoffMs": 5000,
+  "auth": {
+    "mode": "school_allowed_token_or_session_handoff",
+    "plaintextPasswordStorage": false,
+    "captchaBypass": false,
+    "autoLoginEnabled": false
+  },
+  "scheduler": {
+    "enabled": false,
+    "requiresEnv": "SCHOOL_AUTH_CONFIRMED=true",
+    "kind": "github_actions_or_worker_gated",
+    "note": "預設 disabled；未確認學校授權前不得對 TronClass 發請求"
+  },
+  "darkStarNotify": {
+    "enabled": false,
+    "hook": "event_stub_only"
+  }
+}
