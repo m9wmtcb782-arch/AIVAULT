@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ENGINE-12 全身軟組織物理｜開發中</title>
+  <style>
+    :root { --bg:#0d1117; --panel:#161b22; --fg:#e6edf3; --muted:#8b949e; --accent:#58a6ff; --ok:#3fb950; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:system-ui,sans-serif; background:var(--bg); color:var(--fg); }
+    header { padding:10px 14px; background:var(--panel); border-bottom:1px solid #30363d; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+    .badge { font-size:12px; padding:2px 8px; border-radius:999px; background:#21262d; color:var(--muted); }
+    .badge.warn { color:#d29922; border:1px solid #d29922; }
+    main { display:grid; grid-template-columns:1fr 340px; height:calc(100vh - 48px); }
+    #view { position:relative; background:#000; }
+    canvas { display:block; width:100%; height:100%; }
+    aside { background:var(--panel); border-left:1px solid #30363d; padding:12px; overflow:auto; font-size:13px; }
+    label { display:block; margin:8px 0 2px; color:var(--muted); }
+    input[type=range] { width:100%; }
+    button { width:100%; margin:6px 0; padding:8px; background:#21262d; color:var(--fg); border:1px solid #30363d; border-radius:6px; cursor:pointer; }
+    button:hover { border-color:var(--accent); }
+    pre { background:#0d1117; padding:8px; border-radius:6px; font-size:11px; max-height:200px; overflow:auto; }
+    table { width:100%; border-collapse:collapse; font-size:11px; }
+    td, th { border-bottom:1px solid #30363d; padding:4px; text-align:left; }
+    @media (max-width:900px){ main{grid-template-columns:1fr; height:auto;} #view{height:45vh;} }
+  </style>
+</head>
+<body>
+  <header>
+    <strong style="color:var(--accent)">ENGINE-12 Soft Tissue</strong>
+    <span class="badge warn">開發中</span>
+    <span class="badge">Shared Body Core · soft-tissue 層</span>
+    <span class="badge">禁止整塊 scale 冒充</span>
+    <span class="badge" id="fps">FPS —</span>
+    <span class="badge" id="lat">step —</span>
+  </header>
+  <main>
+    <div id="view"></div>
+    <aside>
+      <p>以<strong>可控制虛擬肩膀碰撞體</strong>擠壓胸部等區域；攝影機肩膀追蹤＝stub。</p>
+      <label>肩膀 X <span id="vx"></span></label>
+      <input id="sx" type="range" min="-0.45" max="0.45" step="0.005" value="-0.09" />
+      <label>肩膀 Y <span id="vy"></span></label>
+      <input id="sy" type="range" min="0.7" max="1.7" step="0.005" value="1.22" />
+      <label>肩膀 Z <span id="vz"></span></label>
+      <input id="sz" type="range" min="-0.2" max="0.55" step="0.005" value="0.28" />
+      <label>碰撞半徑（接觸面積） <span id="vr"></span></label>
+      <input id="sr" type="range" min="0.03" max="0.14" step="0.005" value="0.08" />
+      <button id="btnPress">按住擠壓（mousedown）</button>
+      <button id="btnPresetFront">預設｜正面靠胸</button>
+      <button id="btnPresetSide">預設｜側面角度</button>
+      <button id="btnReset">重置形變</button>
+      <button id="btnCamStub">攝影機肩膀追蹤（stub）</button>
+      <h3 style="color:var(--muted);font-size:13px">區域峰值位移</h3>
+      <table id="metrics"><thead><tr><th>區域</th><th>max</th><th>接觸</th></tr></thead><tbody></tbody></table>
+      <h3 style="color:var(--muted);font-size:13px">變形狀態摘要</h3>
+      <pre id="state">—</pre>
+      <p class="badge warn" style="display:block;margin-top:8px">非完整 FEM；本輪＝碰撞＋局部 sample 場＋彈簧阻尼。正式頁未掛載。</p>
+    </aside>
+  </main>
+  <script type="importmap">
+  { "imports": {
+      "three": "https://unpkg.com/three@0.180.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.180.0/examples/jsm/"
+  }}
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { createSoftTissueSim, REGION_PARAMS } from '../soft-tissue-sim.js';
+    import { createShoulderCollider } from '../shoulder-collider.js';
+    import { createCameraShoulderTracker } from '../camera-shoulder-stub.js';
+
+    const view = document.getElementById('view');
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(view.clientWidth, view.clientHeight);
+    view.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x111820);
+    const camera = new THREE.PerspectiveCamera(45, view.clientWidth / view.clientHeight, 0.05, 50);
+    camera.position.set(0.55, 1.35, 1.1);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 1.15, 0);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+    const dir = new THREE.DirectionalLight(0xffffff, 1.0);
+    dir.position.set(1.5, 3, 2);
+    scene.add(dir);
+    // Ground ref
+    const ground = new THREE.Mesh(
+      new THREE.CircleGeometry(0.8, 48),
+      new THREE.MeshStandardMaterial({ color: 0x1c2430, roughness: 1 })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+
+    // Torso proxy (not the soft tissue — visual guide only)
+    const torso = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.16, 0.55, 6, 12),
+      new THREE.MeshStandardMaterial({ color: 0x3a4658, transparent: true, opacity: 0.35 })
+    );
+    torso.position.set(0, 1.05, 0);
+    scene.add(torso);
+    const head = new THREE.Mesh(
+      new THREE.SphereGeometry(0.1, 24, 16),
+      new THREE.MeshStandardMaterial({ color: 0x3a4658, transparent: true, opacity: 0.35 })
+    );
+    head.position.set(0, 1.55, 0);
+    scene.add(head);
+
+    const sim = createSoftTissueSim({ samplesPerAxis: 3 });
+    const shoulder = createShoulderCollider({ x: -0.09, y: 1.22, z: 0.28, radius: 0.08 });
+    const camStub = createCameraShoulderTracker({ shoulderCollider: shoulder });
+
+    // Visual soft lobes: one sphere per region, vertices displaced by nearest samples
+    const lobeMeshes = {};
+    Object.values(REGION_PARAMS).forEach((p) => {
+      const geo = new THREE.SphereGeometry(1, 18, 14);
+      // unit sphere → ellipsoid by halfExtents
+      const mat = new THREE.MeshStandardMaterial({
+        color: p.id.startsWith('chest') ? 0xe8a0b0 : p.id.startsWith('cheek') ? 0xf0c4b0 : p.id.startsWith('buttock') ? 0xd090a0 : 0xc8a090,
+        roughness: 0.55,
+        metalness: 0.05
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(...p.restCenter);
+      mesh.scale.set(p.halfExtents[0], p.halfExtents[1], p.halfExtents[2]);
+      mesh.userData.regionId = p.id;
+      mesh.userData.baseScale = mesh.scale.clone();
+      mesh.userData.restPos = new THREE.Vector3(...p.restCenter);
+      // Store rest positions of vertices in local unit space
+      const pos = geo.attributes.position;
+      const rest = new Float32Array(pos.array.length);
+      rest.set(pos.array);
+      mesh.userData.restAttr = rest;
+      scene.add(mesh);
+      lobeMeshes[p.id] = mesh;
+    });
+
+    const shoulderMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 20, 16),
+      new THREE.MeshStandardMaterial({ color: 0x58a6ff, transparent: true, opacity: 0.55 })
+    );
+    scene.add(shoulderMesh);
+
+    function syncSliders() {
+      const st = shoulder.getState();
+      document.getElementById('sx').value = st.x;
+      document.getElementById('sy').value = st.y;
+      document.getElementById('sz').value = st.z;
+      document.getElementById('sr').value = st.radius;
+      document.getElementById('vx').textContent = st.x.toFixed(3);
+      document.getElementById('vy').textContent = st.y.toFixed(3);
+      document.getElementById('vz').textContent = st.z.toFixed(3);
+      document.getElementById('vr').textContent = st.radius.toFixed(3);
+    }
+    syncSliders();
+
+    ['sx','sy','sz','sr'].forEach((id) => {
+      document.getElementById(id).addEventListener('input', () => {
+        shoulder.setPosition(
+          +document.getElementById('sx').value,
+          +document.getElementById('sy').value,
+          +document.getElementById('sz').value
+        );
+        shoulder.setRadius(+document.getElementById('sr').value);
+        syncSliders();
+      });
+    });
+
+    const btn = document.getElementById('btnPress');
+    btn.addEventListener('mousedown', () => shoulder.startPress());
+    btn.addEventListener('mouseup', () => shoulder.endPress());
+    btn.addEventListener('mouseleave', () => shoulder.endPress());
+    btn.addEventListener('touchstart', (e) => { e.preventDefault(); shoulder.startPress(); });
+    btn.addEventListener('touchend', () => shoulder.endPress());
+
+    document.getElementById('btnPresetFront').onclick = () => {
+      shoulder.setPosition(-0.09, 1.22, 0.22);
+      shoulder.setRadius(0.085);
+      syncSliders();
+    };
+    document.getElementById('btnPresetSide').onclick = () => {
+      shoulder.setPosition(-0.22, 1.2, 0.1);
+      shoulder.setRadius(0.085);
+      syncSliders();
+    };
+    document.getElementById('btnReset').onclick = () => sim.resetAll();
+    document.getElementById('btnCamStub').onclick = async () => {
+      const r = await camStub.start();
+      alert(JSON.stringify(r, null, 2));
+    };
+
+    function applyLobeDeform(regionId, regionState) {
+      const mesh = lobeMeshes[regionId];
+      if (!mesh || !regionState) return;
+      const p = REGION_PARAMS[regionId];
+      const pos = mesh.geometry.attributes.position;
+      const rest = mesh.userData.restAttr;
+      const samples = regionState.samples;
+      // For each vertex, find influence from samples — LOCAL displace, keep baseScale fixed
+      mesh.scale.copy(mesh.userData.baseScale); // never use contact to change uniform scale as fake soft body
+      for (let i = 0; i < pos.count; i++) {
+        const lx = rest[i * 3];
+        const ly = rest[i * 3 + 1];
+        const lz = rest[i * 3 + 2];
+        // world-ish rest of vertex
+        const wx = p.restCenter[0] + lx * p.halfExtents[0];
+        const wy = p.restCenter[1] + ly * p.halfExtents[1];
+        const wz = p.restCenter[2] + lz * p.halfExtents[2];
+        let dx = 0, dy = 0, dz = 0, wsum = 0;
+        for (const s of samples) {
+          const ddx = wx - s.rest.x;
+          const ddy = wy - s.rest.y;
+          const ddz = wz - s.rest.z;
+          const d2 = ddx * ddx + ddy * ddy + ddz * ddz;
+          const w = Math.exp(-d2 / 0.004);
+          dx += s.disp.x * w;
+          dy += s.disp.y * w;
+          dz += s.disp.z * w;
+          wsum += w;
+        }
+        if (wsum > 1e-6) {
+          dx /= wsum; dy /= wsum; dz /= wsum;
+        }
+        // convert world disp back to local unit sphere space
+        pos.setXYZ(
+          i,
+          lx + dx / p.halfExtents[0],
+          ly + dy / p.halfExtents[1],
+          lz + dz / p.halfExtents[2]
+        );
+      }
+      pos.needsUpdate = true;
+      mesh.geometry.computeVertexNormals();
+    }
+
+    let frames = 0, last = performance.now(), fps = 0;
+    let stepMs = 0;
+
+    function loop(t) {
+      frames++;
+      if (t - last >= 500) {
+        fps = Math.round((frames * 1000) / (t - last));
+        frames = 0; last = t;
+        document.getElementById('fps').textContent = 'FPS ' + fps;
+      }
+      const t0 = performance.now();
+      const col = shoulder.tick(Date.now());
+      shoulderMesh.position.set(col.x, col.y, col.z);
+      shoulderMesh.scale.setScalar(col.radius);
+      const snap = sim.step(1 / 60, [col]);
+      stepMs = performance.now() - t0;
+      document.getElementById('lat').textContent = 'step ' + stepMs.toFixed(2) + 'ms';
+
+      const def = sim.getDeformationState();
+      Object.keys(lobeMeshes).forEach((id) => applyLobeDeform(id, def.regions[id]));
+
+      // metrics table
+      const tb = document.querySelector('#metrics tbody');
+      tb.innerHTML = Object.entries(snap.metrics)
+        .map(([id, m]) => `<tr><td>${id}</td><td>${m.maxDisplacement.toFixed(4)}</td><td>${m.inContact ? 'Y' : ''}</td></tr>`)
+        .join('');
+      document.getElementById('state').textContent = JSON.stringify(
+        {
+          frame: def.frame,
+          mode: 'local_sample_field',
+          uniformScale: null,
+          chest_L: snap.metrics.chest_L,
+          consumers: def.consumers
+        },
+        null,
+        2
+      );
+
+      controls.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+
+    window.addEventListener('resize', () => {
+      const w = view.clientWidth, h = view.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    });
+  </script>
+</body>
+</html>

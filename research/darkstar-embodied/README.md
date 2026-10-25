@@ -21,6 +21,7 @@
    ENGINE-03 運動控制
    ENGINE-08 具身決策
    ENGINE-05 可行性閘門
+   ENGINE-12 soft-tissue（形變狀態共用）
               │
      ┌────────┴────────┐
      ▼                 ▼
@@ -53,6 +54,7 @@
 | 09 | `ENGINE-09-motor-learning` | 第六期未做 |
 | 10 | `ENGINE-10-closed-loop-feedback` | 開發中 |
 | 11 | `ENGINE-11-realworld-compositor` | **stub／規格** |
+| 12 | `ENGINE-12-soft-tissue` | **開發中**（肩膀碰撞擠壓測試頁） |
 
 舊 `engines/ENGINE-0N-*` 目錄保留並附 `REDIRECT.md`，勿刪已有程式。
 
@@ -65,12 +67,14 @@ python3 -m http.server 8765 --bind 127.0.0.1
 
 - Phase1 骨骼：`http://127.0.0.1:8765/research/darkstar-embodied/phase1/index.html`
 - **虛擬教室：** `http://127.0.0.1:8765/research/darkstar-embodied/phase1/virtual-classroom/index.html`
+- **軟組織 demo：** `http://127.0.0.1:8765/research/darkstar-embodied/engines/ENGINE-12-soft-tissue/demo/index.html`
 
 ## 能力／運動測試（Node）
 
 ```bash
 node research/darkstar-embodied/engines/ENGINE-02-body-awareness/test-capability.mjs
 node research/darkstar-embodied/engines/ENGINE-03-motor-control/test-motor.mjs
+node research/darkstar-embodied/engines/ENGINE-12-soft-tissue/test-soft-tissue.mjs
 ```
 
 ## 既有可重用（摘要）
