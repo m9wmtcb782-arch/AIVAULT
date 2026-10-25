@@ -273,7 +273,18 @@
     } else {
       $("catBar").hidden = true;
     }
-    if (q) {
+    if (window.AivaultDualClassify && window.AivaultDualClassify.enabled()) {
+      try {
+        window.AivaultDualClassify.renderBars();
+        books = window.AivaultDualClassify.filterBooks(books);
+      } catch (e) {
+        if (q) {
+          books = books.filter(function (b) {
+            return (b.title || "").toLowerCase().indexOf(q) >= 0 || (b.author || "").toLowerCase().indexOf(q) >= 0;
+          });
+        }
+      }
+    } else if (q) {
       books = books.filter(function (b) {
         return (b.title || "").toLowerCase().indexOf(q) >= 0 || (b.author || "").toLowerCase().indexOf(q) >= 0;
       });
@@ -1233,6 +1244,7 @@
     });
   }
 
+  window.__aivaultRenderShelf = function () { renderShelf(); };
   function bindShelf() {
     $("shelfTabs").querySelectorAll("[data-tab]").forEach(function (btn) {
       btn.onclick = function () {
