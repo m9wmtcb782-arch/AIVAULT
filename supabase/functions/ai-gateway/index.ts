@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { paidAllowed, PAID_DENIED } from "../_shared/paid_gate.ts";
+import { evaluateCreatorCommand } from "../_shared/dark_star_creator_policy.ts";
 
 /**
  * AIVAULT AI GATEWAY v3.1
@@ -6749,6 +6750,49 @@ Deno.serve(
         },
         400,
       );
+    }
+
+    // Research-only creator-policy preview. Does not execute any requested action.
+    // JWT is checked with Supabase Auth; never trust owner flags in body.
+    if (isRecord(body) && body.action === "dark_star_creator_policy_preview") {
+      const token = (req.headers.get("authorization") || "").replace(/^Bearer\\s+/i, "").trim();
+      let principal = { authenticated: false, isOwner: false, subject: "" };
+      if (token && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+        try {
+          const authResp = await fetch(SUPABASE_URL + "/auth/v1/user", {
+            headers: {
+              apikey: SUPABASE_SERVICE_ROLE_KEY,
+              Authorization: "Bearer " + token,
+            },
+            signal: AbortSignal.timeout(4000),
+          });
+          if (authResp.ok) {
+            const u = await authResp.json();
+            principal = {
+              authenticated: !!u?.id,
+              isOwner: !!u?.id && u?.app_metadata?.role === "owner",
+              subject: String(u?.id || ""),
+            };
+          }
+        } catch (_) { /* fail closed */ }
+      }
+      const command = {
+        action: typeof body.command_action === "string" ? body.command_action.slice(0, 100) : "",
+        ordinaryTask: body.ordinary_task === true,
+        explicitApproval: false, // preview cannot authorize privileged actions
+        unsafeOrIllegal: body.unsafe_or_illegal === true,
+        coercionDetected: body.coercion_detected === true,
+        romanticStyleOptIn: body.romantic_style_opt_in === true,
+      };
+      const decision = evaluateCreatorCommand(principal, command);
+      return json({
+        success: true,
+        action: "dark_star_creator_policy_preview",
+        research_only: true,
+        executed: false,
+        decision,
+        gateway_version: VERSION,
+      });
     }
 
     if (
