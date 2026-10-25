@@ -7001,6 +7001,55 @@ Deno.serve(
       );
     }
 
+    // Personal memory recall preview: isolated, read-only, owner-authenticated.
+    // Disabled until schema and privacy tests are verified in staging.
+    if (isRecord(body) && body.action === "dark_star_memory_recall_preview") {
+      if (Deno.env.get("DARK_STAR_PERSONAL_MEMORY_PREVIEW") !== "1") {
+        return json({ success: false, error: "FEATURE_DISABLED" }, 404);
+      }
+      if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+        return json({ success: false, error: "MEMORY_BACKEND_UNAVAILABLE" }, 503);
+      }
+      const principal = await resolveCreatorPrincipal(req);
+      if (!principal.authenticated || !principal.isOwner || !principal.subject) {
+        return json({ success: false, error: "OWNER_REQUIRED" }, 403);
+      }
+      const tier = typeof body.tier === "string" &&
+        ["working", "short", "episodic", "long", "self"].includes(body.tier)
+        ? body.tier : "short";
+      const limit = typeof body.limit === "number" && Number.isInteger(body.limit)
+        ? Math.max(1, Math.min(10, body.limit)) : 5;
+      const params = new URLSearchParams({
+        select: "id,tier,kind,content,summary,importance,confidence,occurred_at,protected",
+        owner_uid: "eq." + principal.subject,
+        tier: "eq." + tier,
+        deleted_at: "is.null",
+        order: "importance.desc,occurred_at.desc",
+        limit: String(limit),
+      });
+      try {
+        const response = await fetch(
+          SUPABASE_URL + "/rest/v1/dark_star_personal_memories?" + params,
+          {
+            headers: {
+              apikey: SUPABASE_SERVICE_ROLE_KEY,
+              Authorization: "Bearer " + SUPABASE_SERVICE_ROLE_KEY,
+            },
+            signal: AbortSignal.timeout(4000),
+          },
+        );
+        if (!response.ok) return json({ success: false, error: "MEMORY_READ_FAILED" }, 503);
+        const records = await response.json();
+        const now = Date.now();
+        const memories = (Array.isArray(records) ? records : [])
+          .filter((m) => !m.expires_at || Date.parse(m.expires_at) > now)
+          .map((m) => ({ ...m, content: String(m.content || "").slice(0, 2000) }));
+        return json({ success: true, research_only: true, executed: false, tier, memories });
+      } catch (_) {
+        return json({ success: false, error: "MEMORY_BACKEND_UNAVAILABLE" }, 503);
+      }
+    }
+
     // Creator policy preview (read-only) + formal command path.
     // JWT via Supabase Auth; owner from app_metadata / owner_identities / env allowlist.
     // NEVER trust isOwner / verified_identity / explicitApproval from body.
