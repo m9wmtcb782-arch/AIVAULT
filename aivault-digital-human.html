@@ -253,7 +253,7 @@
     // ===== 數字人外觀設定（資料驅動）：digital-human-real/avatars.json，?avatar=id 選擇，預設第一個（暗星）=====
     const AVATAR = await (async () => {
       const want = new URLSearchParams(location.search).get('avatar');
-      try { const j = await (await fetch('digital-human-real/avatars.json?v=202610161623&t=' + Date.now(), { cache: 'no-store' })).json(); const L = (j && j.avatars) || []; return L.find(a => a.id === want) || L[0] || null; }
+      try { const j = await (await fetch('digital-human-real/avatars.json?v=202610251200&t=' + Date.now(), { cache: 'no-store' })).json(); const L = (j && j.avatars) || []; return L.find(a => a.id === want) || L[0] || null; }
       catch { return null; }
     })() || { id: 'darkstar', name: '暗星', title: 'Technical Dark Star 暗星', tagline: '你的 AI 夥伴，會聽、會看、會聊天', lang: 'zh-Hant', liveVoice: 'Aoede', brain: { provider: 'groq', model: 'openai/gpt-oss-120b' } };
     window.__dhAvatar = AVATAR;
@@ -1214,9 +1214,23 @@
       const fem = zh.filter(v => DH_FEMALE_RE.test(v.name));
       return (fem.length ? fem : zh).sort((a, b) => (/tw|hant/i.test(b.lang) ? 1 : 0) - (/tw|hant/i.test(a.lang) ? 1 : 0));
     }
-    // Gemini Live 預設女聲（prebuilt voices）
-    const DH_LIVE_VOICES = [['Aoede','Aoede · 輕快'],['Kore','Kore · 堅定'],['Leda','Leda · 年輕'],['Zephyr','Zephyr · 明亮'],['Callirrhoe','Callirrhoe · 隨和'],['Despina','Despina · 柔順'],['Autonoe','Autonoe · 明亮'],['Erinome','Erinome · 清晰'],['Laomedeia','Laomedeia · 開朗'],['Achernar','Achernar · 柔和'],['Gacrux','Gacrux · 成熟'],['Pulcherrima','Pulcherrima · 直率'],['Vindemiatrix','Vindemiatrix · 溫柔'],['Sulafat','Sulafat · 溫暖']];
-    function dhLiveVoice() { try { return localStorage.getItem('dh_live_voice') || AVATAR.liveVoice || 'Aoede'; } catch { return AVATAR.liveVoice || 'Aoede'; } }
+    // Gemini Live prebuilt voices（依數字人性別分鍵，避免暗星女聲蓋掉曙光男聲）
+    const DH_LIVE_VOICES = [['Aoede','Aoede · 女·輕快'],['Kore','Kore · 女·堅定'],['Leda','Leda · 女·年輕'],['Zephyr','Zephyr · 女·明亮'],['Callirrhoe','Callirrhoe · 女·隨和'],['Despina','Despina · 女·柔順'],['Autonoe','Autonoe · 女·明亮'],['Erinome','Erinome · 女·清晰'],['Laomedeia','Laomedeia · 女·開朗'],['Achernar','Achernar · 女·柔和'],['Gacrux','Gacrux · 女·成熟'],['Pulcherrima','Pulcherrima · 女·直率'],['Vindemiatrix','Vindemiatrix · 女·溫柔'],['Sulafat','Sulafat · 女·溫暖'],['Puck','Puck · 男·活潑'],['Fenrir','Fenrir · 男·低沉'],['Charon','Charon · 男·沉穩'],['Orus','Orus · 男·穩重'],['Enceladus','Enceladus · 男·氣音'],['Iapetus','Iapetus · 男·清晰'],['Umbriel','Umbriel · 男·柔和'],['Algenib','Algenib · 男·粗獷'],['Algieba','Algieba · 男·沉穩'],['Rasalgethi','Rasalgethi · 男·資訊'],['Schedar','Schedar · 男·均勻'],['Zubenelgenubi','Zubenelgenubi · 男·隨意'],['Sadachbia','Sadachbia · 男·活潑'],['Sadaltager','Sadaltager · 男·知識'],['Achird','Achird · 男·友善']];
+    const DH_FEMALE_VOICES = new Set(['Aoede','Kore','Leda','Zephyr','Callirrhoe','Despina','Autonoe','Erinome','Laomedeia','Achernar','Gacrux','Pulcherrima','Vindemiatrix','Sulafat']);
+    const DH_MALE_VOICES = new Set(['Puck','Fenrir','Charon','Orus','Enceladus','Iapetus','Umbriel','Algenib','Algieba','Rasalgethi','Schedar','Zubenelgenubi','Sadachbia','Sadaltager','Achird']);
+    function dhVoiceStorageKey() { return 'dh_live_voice_' + (AVATAR && AVATAR.id ? AVATAR.id : 'default'); }
+    function dhLiveVoice() {
+      const fallback = (AVATAR && AVATAR.liveVoice) || ((AVATAR && AVATAR.gender === 'male') ? 'Charon' : 'Aoede');
+      try {
+        const keyed = localStorage.getItem(dhVoiceStorageKey());
+        const legacy = localStorage.getItem('dh_live_voice');
+        let v = keyed || legacy || fallback;
+        if (AVATAR && AVATAR.gender === 'male' && DH_FEMALE_VOICES.has(v)) v = fallback;
+        if (AVATAR && AVATAR.gender === 'female' && DH_MALE_VOICES.has(v) && !keyed) v = fallback;
+        if (!keyed) try { localStorage.setItem(dhVoiceStorageKey(), v); } catch {}
+        return v;
+      } catch { return fallback; }
+    }
 
     function pickTalkVoice(langHint) {
       const voices = window.speechSynthesis?.getVoices?.() || [];
@@ -1772,7 +1786,33 @@
         if (el.parentNode !== head) { head.appendChild(el); if (V[clip]) V[clip].play().catch(() => {}); }
         update();
       }
-      return { attach, update, drink, petCat, cmd, waitIdle, cancelAction, startWaiting, stopWaiting, setStatus, flash, get clip() { return clip; }, video: n => V[n], el, get failed() { return failed; } };
+
+      // 雪茄儀式：依 avatars.json ritualOrder 依序播放（閉環）
+      let ritualBusy = false;
+      async function playRitual() {
+        if (failed || ritualBusy) return false;
+        const order = (AVATAR && AVATAR.ritualOrder) || [];
+        const steps = order.filter(n => V[n]);
+        if (!steps.length) { toast('此數字人尚未設定儀式片段'); return false; }
+        ritualBusy = true; cancelAction(); phase = 'main';
+        setStatus('雪茄儀式…');
+        try {
+          for (const name of steps) {
+            if (isSpeaking || dhVoice.voiced) break;
+            const v = V[name];
+            const ms = Math.min(12000, Math.max(1800, ((v && v.duration) || 4) * 1000 + 200));
+            filler = ''; drinking = petting = false; moodOnce = '';
+            flash(name, ms);
+            await new Promise(r => setTimeout(r, ms));
+            await waitIdle();
+          }
+        } finally { ritualBusy = false; setStatus(''); show('idle', 120); }
+        return true;
+      }
+      // ritual clips play once
+      ((AVATAR && AVATAR.ritualOrder) || []).forEach(n => { if (V[n]) { ONCE[n] = 1; V[n].loop = false; } });
+      return { attach, update, drink, petCat, cmd, waitIdle, cancelAction, startWaiting, stopWaiting, setStatus, flash, playRitual, get clip() { return clip; }, video: n => V[n], el, get failed() { return failed; } };
+
     })();
 
 
@@ -1788,6 +1828,7 @@
       ['petcat', /摸貓|摸猫|貓咪|猫咪/],
       ['hair', /撥頭髮|拨头发|撥頭发|撩頭髮|撩头发/],
       ['stretch', /伸懶腰|伸懒腰/],
+      ['ritual', /雪茄儀式|開始儀式|點雪茄|雪茄儀式開始/],
       ['screen', /看螢幕|看屏幕|看荧幕/],
       ['blink', /眨眼|眨眨眼|眨一下/],
     ];
@@ -1798,6 +1839,7 @@
         if (fired) fired.add(name);
         try {
           if (name === 'blink') { try { blinkOnce(() => blinkOnce(() => {})); } catch {} }
+          else if (name === 'ritual') { dhVid.playRitual?.(); }
           else dhVid.cmd(name);
         } catch {}
         return name;
@@ -1933,7 +1975,7 @@
         try { return (session && session.access_token) || ''; } catch { return ''; }
       }
       // 獨立頻道：數字人用自己的 agent id 與 aivault-dh- 命名空間；後端若不接受自訂 agent，才退回暗星 agent（但 topic/conversation 仍是數字人專用 key，不碰暗星/曙光的 key）
-      const DH_AGENT = 'aivault-digital-human';
+      const DH_AGENT = 'aivault-digital-human-' + ((AVATAR && AVATAR.id) || 'darkstar');
       function agentId() { try { const v = localStorage.getItem('aivault-dh-live-agent'); const t = +localStorage.getItem('aivault-dh-live-agent-at') || 0; if (v && v !== DH_AGENT && Date.now() - t > 6 * 3600e3) { localStorage.removeItem('aivault-dh-live-agent'); return DH_AGENT; } return v || DH_AGENT; } catch { return DH_AGENT; } }
       function nsKey(base) { return base + (agentId() === DH_AGENT ? '-v2' : ''); }
       function topicId() {
@@ -2264,7 +2306,7 @@
       document.getElementById('btnLiveCam').onclick = () => dhLive.toggleCam();
       dhFillTtsSelect();
       document.getElementById('selTtsVoice').onchange = e => { try { localStorage.setItem('dh_tts_voice', e.target.value); } catch {} };
-      document.getElementById('selLiveVoice').onchange = e => { try { localStorage.setItem('dh_live_voice', e.target.value); } catch {} if (dhLive.active) toast('下次開啟視訊時套用'); };
+      document.getElementById('selLiveVoice').onchange = e => { try { localStorage.setItem(dhVoiceStorageKey(), e.target.value); localStorage.setItem('dh_live_voice', e.target.value); } catch {} if (dhLive.active) toast('下次開啟即時語音時套用'); else toast('已選 ' + e.target.value + '（男聲請選 Charon／Puck／Fenrir）'); };
       document.getElementById('btnDlClip')?.addEventListener('click', downloadChatClip);
       if (current && current.id === 'showcase') decorateShowcase();
       const last = chatLog[chatLog.length - 1];
@@ -2864,7 +2906,17 @@
       }
       const live = document.getElementById('btnLive'); if (live) live.classList.add('sc-live');
       if (!app.querySelector('.sc-manage')) app.insertAdjacentHTML('beforeend', `<div class="sc-manage"><a href="#/manage">⚙ 管理數位人</a></div>`);
-      const m = document.getElementById('msgs'); if (m && !chatLog.length) m.innerHTML = `<div class="muted">按「▶ 開始即時語音」直接跟${esc(A.name)}聊天，或在下方打字。試試說「笑一笑」「喝口水」「摸摸貓」。</div>`;
+      if (!app.querySelector('.sc-avatar-switch')) {
+        const male = (A.gender === 'male');
+        app.insertAdjacentHTML('afterbegin', `<div class="sc-avatar-switch" style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 12px 0;align-items:center;">
+          <a class="pill ${male?'ghost':''}" href="?avatar=darkstar" style="text-decoration:none;">暗星 · 女</a>
+          <a class="pill ${male?'':'ghost'}" href="?avatar=dawn-male" style="text-decoration:none;">曙光 · 男</a>
+          ${(A.ritualOrder && A.ritualOrder.length) ? '<button type="button" class="pill" id="btnRitual">▶ 雪茄儀式</button>' : ''}
+          <span class="muted" style="font-size:12px;">即時語音：${esc(dhLiveVoice())}${male?'（男聲）':'（女聲）'}</span>
+        </div>`);
+        document.getElementById('btnRitual')?.addEventListener('click', () => { dhVid.playRitual?.() || toast('儀式無法播放'); });
+      }
+      const m = document.getElementById('msgs'); if (m && !chatLog.length) m.innerHTML = `<div class="muted">按「▶ 開始即時語音」直接跟${esc(A.name)}聊天（${A.gender==='male'?'Gemini 男聲 Charon':'Gemini 女聲'}）。或在下方打字。${A.gender!=='male'?'試試說「笑一笑」「喝口水」「摸摸貓」。':'可按「雪茄儀式」播放整套動作。'}</div>`;
     }
     async function render() {
       document.body.classList.remove('chat-on', 'showcase');
