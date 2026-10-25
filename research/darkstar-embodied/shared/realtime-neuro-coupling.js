@@ -1,8 +1,9 @@
 /**
  * Realtime bridge: ENGINE-23～27 → ENGINE-15／16／03（開發中）
+ * Physiology Core = source of truth（經 neuro-physio-stack 雙寫適配）。
  * 同一 Shared Body Core；非第二套暗星；非 MP4。
  */
-export const REALTIME_NEURO_COUPLING_VERSION = '0.1.0-dev';
+export const REALTIME_NEURO_COUPLING_VERSION = '0.2.0-dev';
 export const REALTIME_NEURO_STATUS = '開發中';
 
 /**
@@ -22,21 +23,28 @@ export function createRealtimeNeuroCoupling(opts = {}) {
   let frames = 0;
 
   /**
-   * Pull stack state and push modifiers into gaze/head/motor.
-   * Call every animation frame (or test tick).
+   * Pull stack state (core SoT via adapter) and push modifiers into gaze/head/motor.
    */
   function syncFromStack() {
     frames++;
     const snap = stack.recomputeAll();
     const eff = snap.effectors;
     const bundle = snap.coupling;
+    // Prefer live core effectors if stack exposes physiologyCore (belt-and-suspenders)
+    let coreEff = null;
+    if (stack.physiologyCore && typeof stack.physiologyCore.getEffectors === 'function') {
+      coreEff = stack.physiologyCore.getEffectors();
+    }
+
+    const reactionDelayMs =
+      coreEff && coreEff.reactionDelayMs != null ? coreEff.reactionDelayMs : eff.reactionDelayMs;
 
     const gazeMod = {
       blinkRateMul: eff.blinkRateMul,
-      eyelidDroop: eff.eyelidDroop,
+      eyelidDroop: coreEff && coreEff.eyelidDroop != null ? coreEff.eyelidDroop : eff.eyelidDroop,
       trackingScale: eff.gazeSaccadeScale,
       gazeSaccadeScale: eff.gazeSaccadeScale,
-      reactionDelayMs: eff.reactionDelayMs,
+      reactionDelayMs,
       tiredExpression: eff.tiredExpression
     };
     const headMod = {
@@ -46,7 +54,7 @@ export function createRealtimeNeuroCoupling(opts = {}) {
       droop: eff.headDroop,
       control: snap.neuro.headPostureControl,
       headPostureControl: snap.neuro.headPostureControl,
-      reactionDelayMs: eff.reactionDelayMs
+      reactionDelayMs
     };
     const motorMod = {
       allowWalk: bundle.locomotion.allowWalk,
@@ -68,19 +76,19 @@ export function createRealtimeNeuroCoupling(opts = {}) {
     }
 
     last = {
-      schema: 'aivault.darkstar.realtime_neuro_coupling.v0.1',
+      schema: 'aivault.darkstar.realtime_neuro_coupling.v0.2',
       version: REALTIME_NEURO_COUPLING_VERSION,
       status: REALTIME_NEURO_STATUS,
+      sourceOfTruth: snap.sourceOfTruth || stack.sourceOfTruth || 'physiology-core',
       ts: Date.now(),
       frames,
       consciousness: snap.neuro.consciousness,
       fatigue: snap.neuro.fatigue,
-      reactionDelayMs: eff.reactionDelayMs,
+      reactionDelayMs,
       gazeFocus: snap.neuro.gazeFocus,
       reactionSpeed: snap.neuro.reactionSpeed,
-      // Proof: not tired-eyes + full-speed
       tiredEyesFullSpeedForbidden:
-        (eff.eyelidDroop > 0.35 || snap.sleep.forbidTiredEyesFullSpeed) &&
+        (gazeMod.eyelidDroop > 0.35 || snap.sleep.forbidTiredEyesFullSpeed) &&
         snap.neuro.reactionSpeed <= snap.neuro.gazeFocus + 0.15 + 1e-6,
       applied: {
         gaze: gaze ? gazeMod : null,
@@ -93,7 +101,10 @@ export function createRealtimeNeuroCoupling(opts = {}) {
         complex: motorMod.allowComplexAutonomy
       },
       alcoholBand: snap.alcohol.band,
-      disclaimer: '虛擬模擬｜瀏覽器即時耦合｜開發中'
+      physiologyPendingResearch: snap.physiology
+        ? snap.physiology.pendingResearchCount
+        : null,
+      disclaimer: '虛擬模擬｜瀏覽器即時耦合｜Physiology Core SoT｜開發中'
     };
     return last;
   }
@@ -102,7 +113,6 @@ export function createRealtimeNeuroCoupling(opts = {}) {
     return last;
   }
 
-  /** Lab/UI helper: try gated actions */
   function tryWalk() {
     syncFromStack();
     if (!motor || !motor.requestAction) {

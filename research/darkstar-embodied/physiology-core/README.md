@@ -60,3 +60,7 @@ node research/darkstar-embodied/physiology-core/test-physiology-core.mjs
 
 見 `state-vector.js` 中 `status === 'pending_research'` 的槽位，以及 `adapters/README.md` 遷移清單。  
 完整內分泌週期閉環、臨床級酒精／藥物交互、蒙皮級皮膚血流視覺等均標待研發。
+
+## 相關
+
+- 可遷移身體介面：`../docs/EMBODIMENT-AGNOSTIC-CORE.md`、`../embodiment-interfaces/`

@@ -5,7 +5,8 @@
 **分支：** `research/darkstar-embodied-intelligence`  
 **變更令：** `docs/CHANGE-ORDER-virtual-embodied-world-2026-10-25.md`  
 **最高規範（優先於各引擎簡化實作）：** `docs/HIGHEST-NORM-virtual-human-physiology.md`  
-**統一生理核心：** `physiology-core/`（Virtual Human Physiology Core｜骨架可測｜引擎逐步遷移）
+**統一生理核心：** `physiology-core/`（Virtual Human Physiology Core｜骨架可測｜引擎逐步遷移）  
+**可遷移身體介面：** `docs/EMBODIMENT-AGNOSTIC-CORE.md` ＋ `embodiment-interfaces/`（虛擬 stub｜實體技能預設 locked）
 
 ## 方向（正式）
 
@@ -81,6 +82,7 @@
 
 另：`shared/conversation-target-tracking.js` 供 15／16／08 共用。
 `shared/realtime-neuro-coupling.js`：23～27 → 15／16／03 瀏覽器即時耦合（開發中）。
+`physiology-core/adapters/neuro-stack-adapter.js`：**正式適配**；`neuro-physio-stack` 雙寫，**Physiology Core 為真相**（遷移進行中）。
 
 舊 `engines/ENGINE-0N-*` 目錄保留並附 `REDIRECT.md`，勿刪已有程式。
 
@@ -109,6 +111,8 @@ node research/darkstar-embodied/phase1/sensory-physio-lab/test-sensory-physio.mj
 node research/darkstar-embodied/phase1/neuro-state-lab/test-neuro-state.mjs
 node research/darkstar-embodied/phase1/neuro-state-lab/test-realtime-coupling.mjs
 node research/darkstar-embodied/physiology-core/test-physiology-core.mjs
+node research/darkstar-embodied/physiology-core/test-core-coupling-sync.mjs
+node research/darkstar-embodied/embodiment-interfaces/test-embodiment-interfaces.mjs
 ```
 
 ## 既有可重用（摘要）

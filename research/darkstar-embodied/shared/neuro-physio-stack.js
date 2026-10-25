@@ -1,5 +1,6 @@
 /**
  * Shared Body Core — Neuro / Physio stack (ENGINE-23～27)
+ * Physiology Core = source of truth；本堆疊為薄適配＋雙寫同步。
  * 與 sensory-physio-stack（17～22）並列，同一暗星身體，不另建第二套。
  */
 import { createNeuroState } from '../engines/ENGINE-23-neurobehavioral-state/neuro-state.js';
@@ -10,8 +11,14 @@ import {
   createPersistentPhysio,
   createMemoryStorage
 } from '../engines/ENGINE-27-persistent-physio/persistent-physio.js';
+import {
+  createCoreForNeuroStack,
+  dualWriteRecompute,
+  NEURO_STACK_ADAPTER_VERSION,
+  SOURCE_OF_TRUTH
+} from '../physiology-core/adapters/neuro-stack-adapter.js';
 
-export const NEURO_PHYSIO_STACK_VERSION = '0.1.0-dev';
+export const NEURO_PHYSIO_STACK_VERSION = '0.2.0-dev';
 
 export function createNeuroPhysioStack(opts = {}) {
   const neuro = createNeuroState();
@@ -23,6 +30,10 @@ export function createNeuroPhysioStack(opts = {}) {
     testMode: opts.testMode !== false,
     timeScale: opts.timeScale != null ? opts.timeScale : 60
   });
+  const physiologyCore = createCoreForNeuroStack({
+    individualSeed: opts.individualSeed != null ? opts.individualSeed : 23,
+    overrides: opts.coreOverrides
+  });
 
   let illnessLoad = 0;
   let painLoad = 0;
@@ -33,27 +44,20 @@ export function createNeuroPhysioStack(opts = {}) {
   }
 
   function recomputeAll() {
-    const sp = sleep.getState();
-    const al = alcohol.getImpairment();
-    const st = neuro.recompute({
-      fatigue: sp.fatigue,
-      sleepDebt: sp.sleepDebt01,
-      alcoholImpairment: al.impairment01,
-      criticalIntoxication: al.criticalIntoxication,
+    return dualWriteRecompute({
+      core: physiologyCore,
+      sleep,
+      alcohol,
+      neuro,
+      coupling,
       illnessLoad,
       painLoad
     });
-    const effectors = neuro.getEffectorModifiers();
-    // Enforce forbid tired eyes + full speed (already in recompute; double-check effectors)
-    if (sp.forbidTiredEyesFullSpeed && effectors.reactionDelayMs < 80 && effectors.eyelidDroop > 0.35) {
-      effectors.reactionDelayMs = Math.max(effectors.reactionDelayMs, 120);
-    }
-    const bundle = coupling.sync(st, effectors);
-    return { neuro: st, sleep: sp, alcohol: al, coupling: bundle, effectors };
   }
 
   /**
    * Advance simulated time (minutes) — alcohol metabolism + sleep/fatigue + persist clock
+   * Then dual-write into Physiology Core (SoT).
    */
   function tickMinutes(deltaMin, ctx = {}) {
     persist.advanceSimMinutes(deltaMin);
@@ -63,6 +67,12 @@ export function createNeuroPhysioStack(opts = {}) {
       illnessLoad,
       painLoad,
       resting: ctx.resting
+    });
+    // Also advance core clock (seconds) for continuity — domain models remain primary inputs
+    physiologyCore.step((deltaMin * 60) * 0.0, {
+      // domain engines own fatigue/bac this tick; rest flag only
+      rest: ctx.resting ? 1 : 0,
+      illnessPulse: 0
     });
     const out = recomputeAll();
     if (ctx.autosave !== false) {
@@ -75,6 +85,11 @@ export function createNeuroPhysioStack(opts = {}) {
           illness: illnessLoad,
           alcoholBac: out.alcohol.bac,
           injuryFatigueMul: 1 + painLoad * 0.3
+        },
+        physiologyCore: {
+          sourceOfTruth: SOURCE_OF_TRUTH,
+          pendingResearchCount: out.physiology.pendingResearchCount,
+          simTimeSec: out.physiology.simTimeSec
         }
       });
     }
@@ -117,28 +132,40 @@ export function createNeuroPhysioStack(opts = {}) {
     alcohol.reset();
     illnessLoad = 0;
     painLoad = 0;
+    physiologyCore.safeReset('soft');
+    physiologyCore.state.set('fatigue', 0.1);
+    physiologyCore.state.set('sleepDebt', 0);
+    physiologyCore.state.set('eyelidDroop', 0.05);
+    physiologyCore.state.set('bac', 0);
+    physiologyCore.state.set('consciousness', 1);
+    physiologyCore.step(0, {});
     persist.safeReset();
     return recomputeAll();
   }
 
-  // initial
+  // initial dual-write
   recomputeAll();
 
   return {
     version: NEURO_PHYSIO_STACK_VERSION,
     status: '開發中',
-    disclaimer: '虛擬神經／生理堆疊｜Shared Body Core｜非真實意識／中毒',
+    disclaimer: '虛擬神經／生理堆疊｜Physiology Core 為真相來源｜非真實意識／中毒',
+    sourceOfTruth: SOURCE_OF_TRUTH,
+    adapterVersion: NEURO_STACK_ADAPTER_VERSION,
     neuro,
     sleep,
     alcohol,
     coupling,
     persist,
+    physiologyCore,
     setExternalLoads,
     recomputeAll,
     tickMinutes,
     ingestDrink,
     restoreFromStorage,
-    safeReset
+    safeReset,
+    getPhysiologySnapshot: () => physiologyCore.readSnapshot(),
+    listPendingResearch: () => physiologyCore.listPendingResearch()
   };
 }
 

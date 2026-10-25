@@ -263,3 +263,18 @@ MP4 數字人**保留為回退**，禁止刪除正式數字人資產。
 
 **免責：** 虛擬模擬｜不得宣稱生物器官、主觀意識、真實痛覺或臨床診斷。
 
+## 遷移進度｜neuro-stack → Physiology Core（2026-10-25）
+
+**狀態：開發中（雙寫適配已接）｜正式頁未掛載**  
+**Adapter：** `physiology-core/adapters/neuro-stack-adapter.js`  
+**Stack：** `shared/neuro-physio-stack.js` v0.2（`sourceOfTruth: physiology-core`）
+
+| 要求 | 本輪 |
+|------|------|
+| Core 為真相；舊 lab API 保留 | ✅ |
+| sleep／alcohol 雙寫入 core；effectors／gates 自 core 讀回 | ✅ |
+| realtime-coupling 標 SoT＋延遲同步 | ✅ |
+| pending_research 槽不刪 | ✅（sync 測試） |
+| 迴歸 physiology／neuro／realtime + core-coupling-sync | ✅ |
+| sensory-physio-stack 遷入 | **待研發** |
+

@@ -5,7 +5,8 @@
 **狀態：** 正式寫入隔離研發分支｜不得部署正式入口｜不得宣稱工程完成  
 **分支：** `research/darkstar-embodied-intelligence`  
 **基地：** 第一基地 m9wmtcb782-arch/AIVAULT  
-**關聯核心：** `research/darkstar-embodied/physiology-core/`（AIVAULT Virtual Human Physiology Core）
+**關聯核心：** `research/darkstar-embodied/physiology-core/`（AIVAULT Virtual Human Physiology Core）  
+**可遷移身體：** `docs/EMBODIMENT-AGNOSTIC-CORE.md` ＋ `embodiment-interfaces/`（虛擬架構｜不連真機）
 
 ---
 
@@ -152,7 +153,13 @@
 
 ---
 
-## 10. 命令來源（摘要入庫）
+## 10. 可遷移自主核心（交叉引用）
+
+AI 決策／記憶／世界模型／Physiology Core 與**虛擬身體渲染器分離**。  
+統一感覺神經介面與身體控制介面見 `EMBODIMENT-AGNOSTIC-CORE.md`；換身須校準（ENGINE-02）；實體技能預設 locked。  
+本階段僅虛擬 stub，不購買、不連接實體機器人。
+
+## 11. 命令來源（摘要入庫）
 
 本文件納入下列施工令精神（全文精神，非逐字劇本）：
 
