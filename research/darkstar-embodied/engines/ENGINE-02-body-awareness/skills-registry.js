@@ -76,6 +76,13 @@ export const SKILLS = Object.freeze({
     domain: 'virtual',
     description: 'Short root translation toward target (Phase2 stub; no foot IK)'
   },
+  lift_heavy: {
+    id: 'lift_heavy',
+    status: 'learned',
+    domain: 'virtual',
+    description: 'Raise / hold heavy virtual load (ENGINE-22 gate: blocked when arm fractured)',
+    executor: 'engines/ENGINE-03-motor-control/motor-controller.js'
+  },
   erase_real_classroom_blackboard: {
     id: 'erase_real_classroom_blackboard',
     status: 'unlearned',

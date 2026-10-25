@@ -169,3 +169,32 @@ MP4 數字人**保留為回退**，禁止刪除正式數字人資產。
 遠端朋友端實際眼神體感＝須 WebRTC 實測後才能宣稱。
 
 施工順序：可與第二期運動／ENGINE-12 並行於隔離目錄；三畫面 WebRTC 仍屬 ENGINE-11 獨立階段。
+
+## ENGINE-17～22｜仿生感覺神經與虛擬生理（2026-10-25 追加）
+
+**狀態：開發中（第一階段隔離實驗室通過 A～G）**  
+**路徑：**
+- `engines/ENGINE-17-somatosensory/`
+- `engines/ENGINE-18-virtual-injury/`
+- `engines/ENGINE-19-virtual-recovery/`
+- `engines/ENGINE-20-virtual-illness/`
+- `engines/ENGINE-21-taste-olfactory/`
+- `engines/ENGINE-22-sensory-memory/`
+- `shared/sensory-physio-stack.js`
+- `phase1/sensory-physio-lab/`
+
+掛在 **Shared Body Core**（與 02／03／12／15／16 **同一**身體）。禁止另建第二套暗星。
+
+| 要求 | 本輪 |
+|------|------|
+| 皮膚感覺／冷熱／虛擬痛覺／保護縮手先於決策 | ✅ ENGINE-17 |
+| 傷害僅由物理規則（禁對話生傷） | ✅ ENGINE-18 |
+| 可調 timeScale 復原 | ✅ ENGINE-19 |
+| 虛擬感冒可見材質／粒子／morph 鉤子（禁稱真病毒） | ✅ ENGINE-20 |
+| 味覺嗅覺推論＋來源可信度（推測≠測量） | ✅ ENGINE-21 |
+| 感覺記憶＋骨折禁 lift_heavy／接 canPerform | ✅ ENGINE-22＋02 閘門 |
+| Lab A～G 自動化 | ✅ `test-sensory-physio.mjs` |
+| 正式頁 | 未掛載 |
+| 真實蒙皮 UV／Three 材質即時連動 | **未完成** |
+
+**免責：** 虛擬模擬｜不得宣稱真實主觀痛覺、真實感染或已證實生理疾病。

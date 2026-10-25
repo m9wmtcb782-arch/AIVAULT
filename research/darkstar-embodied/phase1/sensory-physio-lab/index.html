@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>暗星感覺／生理 Lab｜ENGINE-17～22（開發中）</title>
+  <style>
+    :root { --bg:#0d1117; --panel:#161b22; --fg:#e6edf3; --muted:#8b949e; --accent:#58a6ff; --ok:#3fb950; --warn:#d29922; --danger:#f85149; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:system-ui,sans-serif; background:var(--bg); color:var(--fg); }
+    header { padding:10px 14px; background:var(--panel); border-bottom:1px solid #30363d; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+    .badge { font-size:12px; padding:2px 8px; border-radius:999px; background:#21262d; color:var(--muted); }
+    .badge.warn { color:var(--warn); border:1px solid var(--warn); }
+    .badge.ok { color:var(--ok); border:1px solid var(--ok); }
+    .badge.danger { color:var(--danger); border:1px solid var(--danger); }
+    main { display:grid; grid-template-columns:1fr 380px; height:calc(100vh - 48px); }
+    #view { position:relative; background:#0a0e14; display:flex; align-items:center; justify-content:center; }
+    canvas { max-width:100%; max-height:100%; background:#111; border-radius:8px; }
+    aside { background:var(--panel); border-left:1px solid #30363d; padding:12px; overflow:auto; font-size:13px; }
+    button { width:100%; margin:4px 0; padding:8px; background:#21262d; color:var(--fg); border:1px solid #30363d; border-radius:6px; cursor:pointer; text-align:left; }
+    button:hover { border-color:var(--accent); }
+    h3 { margin:12px 0 6px; font-size:13px; color:var(--muted); }
+    pre { background:#0d1117; padding:8px; border-radius:6px; font-size:11px; max-height:280px; overflow:auto; white-space:pre-wrap; }
+    .disc { color:var(--warn); font-size:12px; line-height:1.4; }
+    @media (max-width:900px){ main{grid-template-columns:1fr; height:auto;} #view{height:42vh;} }
+  </style>
+</head>
+<body>
+  <header>
+    <strong style="color:var(--accent)">Sensory / Physio Lab</strong>
+    <span class="badge warn">開發中｜虛擬模擬</span>
+    <span class="badge">ENGINE-17～22 · Shared Body Core</span>
+    <span class="badge danger">禁宣稱真實痛覺／真感染</span>
+    <span class="badge" id="fps">—</span>
+  </header>
+  <main>
+    <div id="view"><canvas id="c" width="640" height="480"></canvas></div>
+    <aside>
+      <p class="disc">本頁為隔離實驗室。保護反射先於決策；傷害僅由虛擬物理參數決定。正式頁未掛載。非 MP4。</p>
+      <h3>驗收 A～G</h3>
+      <button id="tA">A｜右手碰高溫板 → 縮手＋皮膚</button>
+      <button id="tB">B｜左手碰低溫 → 冷刺激</button>
+      <button id="tC">C｜前臂碰撞障礙 → 瘀青</button>
+      <button id="tD">D｜右臂骨折 → 禁舉重 → 加速復原</button>
+      <button id="tE">E｜視覺檸檬 → 推測酸</button>
+      <button id="tF">F｜文字「煙霧氣味」→ user_report</button>
+      <button id="tG">G｜虛擬感冒可見 → 清除</button>
+      <button id="tReset">重置全部</button>
+      <h3>狀態</h3>
+      <pre id="state">待命</pre>
+      <h3>日誌</h3>
+      <pre id="log"></pre>
+    </aside>
+  </main>
+  <script type="module">
+    import { createSensoryPhysioStack } from '../../shared/sensory-physio-stack.js';
+    import { createBodyAwareness } from '../../engines/ENGINE-02-body-awareness/body-awareness.js';
+
+    const logEl = document.getElementById('log');
+    const stateEl = document.getElementById('state');
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+
+    const vis = {
+      handR: { x: 420, y: 260, tone: 'neutral', withdrawn: false },
+      handL: { x: 220, y: 260, tone: 'neutral', withdrawn: false },
+      armR: { bruise: 0, fracture: false },
+      noseDrip: 0,
+      tear: 0,
+      coughFlash: 0,
+      label: ''
+    };
+
+    const motorLog = [];
+    const stack = createSensoryPhysioStack({
+      timeScale: 20,
+      motor: {
+        executeReflex(r) {
+          motorLog.push(r);
+          if (r.kind === 'withdraw_hand') {
+            if (r.side === 'L') vis.handL.withdrawn = true;
+            else vis.handR.withdrawn = true;
+          }
+          log('REFLEX→motor', r.kind, r.reason);
+        }
+      }
+    });
+
+    const awareness = createBodyAwareness({
+      sensoryMemory: stack.memory,
+      mockState: { boneCount: 1, pose: { standing: true }, skeleton: { boneCount: 1 } },
+      controller: { version: 'lab-mock', macros: ['wave', 'lift_heavy'], getLastFeedback: () => ({}) }
+    });
+
+    function log(...a) {
+      const line = a.map((x) => (typeof x === 'string' ? x : JSON.stringify(x))).join(' ');
+      logEl.textContent = (line + '\n' + logEl.textContent).slice(0, 5000);
+    }
+
+    function toneColor(tone) {
+      if (tone === 'burned') return '#c44a2a';
+      if (tone === 'flushed') return '#e08070';
+      if (tone === 'pale') return '#b8c8d8';
+      return '#e8b896';
+    }
+
+    function draw() {
+      ctx.fillStyle = '#0e1420';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // torso
+      ctx.fillStyle = '#2a3344';
+      ctx.fillRect(270, 160, 100, 160);
+      // head
+      ctx.fillStyle = '#e8b896';
+      ctx.beginPath();
+      ctx.arc(320, 110, 42, 0, Math.PI * 2);
+      ctx.fill();
+      // nose drip / tear (illness mock — visible materials)
+      if (vis.noseDrip > 0) {
+        ctx.fillStyle = 'rgba(200,220,216,0.7)';
+        ctx.fillRect(318, 118, 4, 10 + vis.noseDrip * 20);
+      }
+      if (vis.tear > 0) {
+        ctx.fillStyle = 'rgba(168,200,232,0.8)';
+        ctx.beginPath();
+        ctx.ellipse(300, 105 + vis.tear * 15, 3, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (vis.coughFlash > 0) {
+        ctx.strokeStyle = `rgba(255,255,255,${vis.coughFlash})`;
+        ctx.beginPath();
+        ctx.arc(320, 125, 20, 0.2, Math.PI - 0.2);
+        ctx.stroke();
+      }
+      // arms / hands
+      for (const side of ['L', 'R']) {
+        const h = side === 'L' ? vis.handL : vis.handR;
+        const ax = side === 'L' ? 250 : 390;
+        const ay = h.withdrawn ? 200 : 240;
+        const hx = h.withdrawn ? (side === 'L' ? 260 : 380) : h.x;
+        const hy = h.withdrawn ? 180 : h.y;
+        ctx.strokeStyle = '#8899aa';
+        ctx.lineWidth = 10;
+        ctx.beginPath();
+        ctx.moveTo(ax, 180);
+        ctx.lineTo(hx, hy);
+        ctx.stroke();
+        if (side === 'R' && vis.armR.bruise > 0) {
+          ctx.fillStyle = `rgba(80,40,120,${0.3 + vis.armR.bruise * 0.5})`;
+          ctx.beginPath();
+          ctx.arc((ax + hx) / 2, (180 + hy) / 2, 14, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        if (side === 'R' && vis.armR.fracture) {
+          ctx.strokeStyle = '#f85149';
+          ctx.lineWidth = 2;
+          ctx.strokeRect((ax + hx) / 2 - 12, (180 + hy) / 2 - 8, 24, 16);
+        }
+        ctx.fillStyle = toneColor(h.tone);
+        ctx.beginPath();
+        ctx.arc(hx, hy, 22, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = '11px sans-serif';
+        ctx.fillText(side === 'L' ? 'L' : 'R', hx - 4, hy + 4);
+      }
+      ctx.fillStyle = '#8b949e';
+      ctx.font = '13px sans-serif';
+      ctx.fillText(vis.label || 'Sensory Physio Lab（非 MP4）', 16, 24);
+      // hot plate / ice props
+      ctx.fillStyle = '#552222';
+      ctx.fillRect(480, 300, 80, 16);
+      ctx.fillStyle = '#88aacc';
+      ctx.fillRect(80, 300, 80, 16);
+    }
+
+    let last = performance.now();
+    let frames = 0;
+    let fpsT = performance.now();
+    function loop(now) {
+      const dt = now - last;
+      last = now;
+      const t = stack.tick(dt);
+      if (t.illness && t.illness.bursts) {
+        for (const b of t.illness.bursts) {
+          if (b.symptom === 'cough') vis.coughFlash = 1;
+          log('illness burst', b.symptom);
+        }
+      }
+      const hv = stack.illness.getVisuals();
+      vis.noseDrip = hv.active.includes('runny_nose') ? 0.8 : Math.max(0, vis.noseDrip - 0.02);
+      vis.tear = hv.active.includes('tear') ? 0.7 : Math.max(0, vis.tear - 0.02);
+      vis.coughFlash = Math.max(0, vis.coughFlash - 0.04);
+      // sync skin from somato
+      const rs = stack.somato.getAllRegionStates();
+      if (rs.hand_R) vis.handR.tone = rs.hand_R.skinTone;
+      if (rs.hand_L) vis.handL.tone = rs.hand_L.skinTone;
+      draw();
+      frames++;
+      if (now - fpsT > 1000) {
+        document.getElementById('fps').textContent = `FPS ${frames}`;
+        frames = 0;
+        fpsT = now;
+      }
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+
+    function show(obj) {
+      stateEl.textContent = JSON.stringify(obj, null, 2);
+    }
+
+    document.getElementById('tA').onclick = () => {
+      vis.handR.withdrawn = false;
+      const r = stack.processStimulus({
+        region: 'hand_R', type: 'temperature', temperatureC: 80, intensity: 1, source: 'virtual_hot_plate'
+      });
+      vis.label = 'A 高溫縮手';
+      show({ test: 'A', protectiveFirst: r.protectiveFirst, reflexes: r.reflexes, sensation: r.sensation, injury: r.injury });
+      log('A', r.reflexes?.[0]?.kind, r.sensation?.skinTone, r.injury?.kind);
+    };
+    document.getElementById('tB').onclick = () => {
+      const r = stack.processStimulus({
+        region: 'hand_L', type: 'temperature', temperatureC: -5, intensity: 0.9, source: 'virtual_ice'
+      });
+      vis.label = 'B 低溫';
+      show({ test: 'B', cold: r.sensation.cold, skinTone: r.sensation.skinTone, sensation: r.sensation });
+      log('B cold', r.sensation.cold);
+    };
+    document.getElementById('tC').onclick = () => {
+      const r = stack.processStimulus({
+        region: 'forearm_R', type: 'collision', impactForce: 40, intensity: 0.5, source: 'obstacle'
+      });
+      vis.armR.bruise = (r.injury && r.injury.visual && r.injury.visual.bruise) || 0.5;
+      vis.label = 'C 碰撞瘀青';
+      show({ test: 'C', injury: r.injury, memory: stack.memory.getState() });
+      log('C', r.injury?.kind);
+    };
+    document.getElementById('tD').onclick = () => {
+      stack.reset();
+      vis.handR.withdrawn = false;
+      const r = stack.processStimulus({
+        region: 'upper_arm_R', type: 'collision', impactForce: 100, intensity: 1, source: 'fall'
+      });
+      vis.armR.fracture = true;
+      vis.armR.bruise = 0.8;
+      const blocked = awareness.canPerform('lift_heavy', { side: 'R' });
+      show({ test: 'D-injure', injury: r.injury, lift_heavy: blocked });
+      log('D blocked', blocked.can, blocked.reason);
+      // accelerate heal demo
+      setTimeout(() => {
+        stack.recovery.setTimeScale(80);
+        const id = setInterval(() => {
+          stack.tick(200);
+          const inj = stack.injury.get(r.injury.id);
+          if (!inj || inj.status === 'healed') {
+            clearInterval(id);
+            vis.armR.fracture = false;
+            vis.armR.bruise = 0;
+            const ok = awareness.canPerform('lift_heavy', { side: 'R' });
+            show({ test: 'D-healed', injury: inj, lift_heavy: ok });
+            log('D healed lift_heavy', ok.can);
+          }
+        }, 100);
+      }, 600);
+    };
+    document.getElementById('tE').onclick = () => {
+      const r = stack.tasteOlf.inferFromVision('檸檬');
+      vis.label = 'E 檸檬視覺推論';
+      show({ test: 'E', record: r });
+      log('E', r.qualities, r.isInference, 'tasted?', r.actuallyTasted);
+    };
+    document.getElementById('tF').onclick = () => {
+      const r = stack.tasteOlf.recordUserDescription('這附近有煙霧氣味，很刺鼻');
+      vis.label = 'F 使用者氣味描述';
+      show({ test: 'F', record: r });
+      log('F', r.source, r.actuallySmelled, r.claimAllowed);
+    };
+    document.getElementById('tG').onclick = () => {
+      const start = stack.illness.startIllness('cold', 0.75);
+      vis.noseDrip = 0.8;
+      vis.tear = 0.5;
+      vis.label = 'G 虛擬感冒（可見材質／粒子鉤子）';
+      show({ test: 'G-start', health: start.health, visuals: start.visuals });
+      log('G start', start.visuals.active, 'viralClaim', start.health.viralClaim);
+      setTimeout(() => {
+        const clr = stack.illness.clearIllness();
+        vis.noseDrip = 0;
+        vis.tear = 0;
+        show({ test: 'G-clear', health: clr.health, visuals: clr.visuals });
+        log('G cleared');
+      }, 3500);
+    };
+    document.getElementById('tReset').onclick = () => {
+      stack.reset();
+      vis.handR = { x: 420, y: 260, tone: 'neutral', withdrawn: false };
+      vis.handL = { x: 220, y: 260, tone: 'neutral', withdrawn: false };
+      vis.armR = { bruise: 0, fracture: false };
+      vis.noseDrip = 0; vis.tear = 0; vis.label = '';
+      show({ reset: true });
+      log('reset');
+    };
+  </script>
+</body>
+</html>

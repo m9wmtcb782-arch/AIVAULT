@@ -39,6 +39,7 @@ export function createBodyAwareness(opts = {}) {
   const controller = opts.controller || null;
   let scene = opts.scene || { id: null, objects: {} };
   let mockState = opts.mockState || null;
+  let sensoryMemory = opts.sensoryMemory || null;
   const learnedOverrides = new Set(); // skills marked available beyond registry stub→runtime
 
   function bindController(c) {
@@ -55,6 +56,10 @@ export function createBodyAwareness(opts = {}) {
 
   function grantSkillRuntime(id) {
     learnedOverrides.add(id);
+  }
+
+  function bindSensoryMemory(mem) {
+    sensoryMemory = mem || null;
   }
 
   function sceneHas(key) {
@@ -187,6 +192,7 @@ export function createBodyAwareness(opts = {}) {
         objects: Object.keys((scene && scene.objects) || {})
       },
       fps: opts.getFps ? opts.getFps() : null,
+      sensoryMemory: sensoryMemory && sensoryMemory.getState ? sensoryMemory.getState() : null,
       status: '開發中'
     };
   }
@@ -349,6 +355,22 @@ export function createBodyAwareness(opts = {}) {
       };
     }
 
+    // ENGINE-22 sensory / injury gate (fracture arm cannot lift, etc.)
+    if (sensoryMemory && typeof sensoryMemory.blocksAction === 'function') {
+      const gate = sensoryMemory.blocksAction(skill.id, ctx);
+      checks.sensoryMemory = !gate.blocked;
+      if (gate.blocked) {
+        return {
+          can: false,
+          reason: gate.reason,
+          domain: 'virtual',
+          action: skill.id,
+          checks,
+          restrictions: gate.restrictions
+        };
+      }
+    }
+
     return {
       can: true,
       reason:
@@ -374,6 +396,7 @@ export function createBodyAwareness(opts = {}) {
     setMockState,
     bindController,
     grantSkillRuntime,
+    bindSensoryMemory,
     safetyVersion: safety.version || BODY_SAFETY_VERSION,
     skillsRegistryVersion: SKILLS_REGISTRY_VERSION
   };
