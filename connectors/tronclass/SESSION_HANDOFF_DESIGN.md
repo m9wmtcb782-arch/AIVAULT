@@ -1,5 +1,8 @@
 # Session Handoff 設計（使用者官方頁自行登入）
 
+> **授權狀態（2026-10-25，Asia/Taipei）：`SCHOOL_AUTH_CONFIRMED=false`（未確認）** — 目前尚未取得東吳／智園對自動化唯讀存取的明確許可，故預設關閉（非因使用者撤銷）。真實同步、自動登入、背景抓取**一律停用**；真實一課一檔 E2E 維持 **BLOCKED**。僅續做離線骨架／mock。不收集學號密碼。須取得學校書面授權證據後才可重新評估。
+
+
 狀態：**設計文件** — 實作受 `SCHOOL_AUTH_CONFIRMED`／`schoolAuthorizationConfirmed` 雙閘。  
 禁止：學號／密碼寫入 GitHub、自動登入、CAPTCHA OCR、解碼／續命過期媒體 token。
 
