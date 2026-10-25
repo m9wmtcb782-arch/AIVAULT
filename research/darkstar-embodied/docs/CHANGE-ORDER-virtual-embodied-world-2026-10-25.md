@@ -198,3 +198,30 @@ MP4 數字人**保留為回退**，禁止刪除正式數字人資產。
 | 真實蒙皮 UV／Three 材質即時連動 | **未完成** |
 
 **免責：** 虛擬模擬｜不得宣稱真實主觀痛覺、真實感染或已證實生理疾病。
+
+## ENGINE-23～27｜虛擬神經行為／睡眠疲勞／酒精損傷／耦合／持久狀態（2026-10-25 追加）
+
+**狀態：開發中（第一階段 neuro-state-lab 通過 A～F）**  
+**路徑：**
+- `engines/ENGINE-23-neurobehavioral-state/`
+- `engines/ENGINE-24-sleep-fatigue/`
+- `engines/ENGINE-25-alcohol-impairment/`
+- `engines/ENGINE-26-neuro-motor-coupling/`
+- `engines/ENGINE-27-persistent-physio/`
+- `shared/neuro-physio-stack.js`
+- `phase1/neuro-state-lab/`
+
+掛在 **Shared Body Core**（與 02／03／15／16／17～22 **同一**暗星）。**禁止另建第二套暗星 AI。**
+
+| 要求 | 本輪 |
+|------|------|
+| 清醒／注意力／疲勞／反應／協調／平衡／肌張力／聚焦／頭姿／虛擬健康 | ✅ 23 |
+| 睡眠債／眨眼眼皮／哈欠頭垂；禁疲倦眼神＋全速反應 | ✅ 24＋23 規則 |
+| ABV／容量／時間／代謝連續模型；嚴重中毒獨立；禁固定動畫 | ✅ 25 |
+| 狀態→gaze／head／motor 耦合；危急禁走／複雜自主 | ✅ 26 |
+| localStorage（或注入 storage）持久化＋模擬時鐘＋safeReset＋testMode | ✅ 27 |
+| Lab A～F 自動化 | ✅ |
+| 正式頁 | 未掛載 |
+| 真實臨床校準／實機 WebRTC 行為驗證 | **未完成** |
+
+**免責：** 虛擬模擬｜不得宣稱真實意識、真實疾病或臨床中毒診斷。

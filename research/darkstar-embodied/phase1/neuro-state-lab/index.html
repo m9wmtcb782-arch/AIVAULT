@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>暗星神經狀態 Lab｜ENGINE-23～27（開發中）</title>
+  <style>
+    :root { --bg:#0d1117; --panel:#161b22; --fg:#e6edf3; --muted:#8b949e; --accent:#58a6ff; --ok:#3fb950; --warn:#d29922; --danger:#f85149; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:system-ui,sans-serif; background:var(--bg); color:var(--fg); }
+    header { padding:10px 14px; background:var(--panel); border-bottom:1px solid #30363d; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+    .badge { font-size:12px; padding:2px 8px; border-radius:999px; background:#21262d; color:var(--muted); }
+    .badge.warn { color:var(--warn); border:1px solid var(--warn); }
+    .badge.danger { color:var(--danger); border:1px solid var(--danger); }
+    main { display:grid; grid-template-columns:1fr 400px; height:calc(100vh - 48px); }
+    #view { padding:16px; overflow:auto; }
+    .bars { display:grid; gap:8px; max-width:640px; }
+    .bar { background:#21262d; border-radius:6px; overflow:hidden; height:22px; position:relative; }
+    .bar > i { display:block; height:100%; background:linear-gradient(90deg,#238636,#58a6ff); }
+    .bar > span { position:absolute; left:8px; top:2px; font-size:12px; }
+    aside { background:var(--panel); border-left:1px solid #30363d; padding:12px; overflow:auto; font-size:13px; }
+    button { width:100%; margin:4px 0; padding:8px; background:#21262d; color:var(--fg); border:1px solid #30363d; border-radius:6px; cursor:pointer; text-align:left; }
+    button:hover { border-color:var(--accent); }
+    h3 { margin:12px 0 6px; font-size:13px; color:var(--muted); }
+    pre { background:#0d1117; padding:8px; border-radius:6px; font-size:11px; max-height:320px; overflow:auto; white-space:pre-wrap; }
+    label { display:block; margin:6px 0 2px; color:var(--muted); font-size:12px; }
+    input { width:100%; padding:6px; background:#0d1117; border:1px solid #30363d; color:var(--fg); border-radius:4px; }
+    .disc { color:var(--warn); font-size:12px; }
+    @media (max-width:900px){ main{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <header>
+    <strong style="color:var(--accent)">Neuro State Lab</strong>
+    <span class="badge warn">開發中｜虛擬模擬</span>
+    <span class="badge">ENGINE-23～27 · Shared Body Core</span>
+    <span class="badge danger">非真實意識／疾病／中毒</span>
+    <span class="badge" id="clock">sim —</span>
+  </header>
+  <main>
+    <div id="view">
+      <p class="disc">狀態條由連續模型驅動，非預錄 MP4／固定醉酒動畫。正式頁未掛載。</p>
+      <div class="bars" id="bars"></div>
+      <h3>耦合輸出</h3>
+      <pre id="couple">—</pre>
+    </div>
+    <aside>
+      <h3>驗收快捷</h3>
+      <button id="tA">A｜長清醒累積疲勞</button>
+      <button id="tB">B｜睡 6 小時恢復</button>
+      <button id="tC">C｜啤酒＋烈酒（連續 BAC）</button>
+      <button id="tD">D｜危急 BAC（禁走／自主）</button>
+      <button id="tE">E｜顯示耦合修飾</button>
+      <button id="tF">F｜存檔／載入／重置</button>
+      <h3>飲酒參數（可調）</h3>
+      <label>ABV %</label>
+      <input id="abv" type="number" value="40" min="0" max="80" step="0.5" />
+      <label>容量 ml</label>
+      <input id="vol" type="number" value="50" min="0" max="2000" step="10" />
+      <button id="drink">飲用並推進 40 分</button>
+      <button id="tick1h">推進模擬 1 小時</button>
+      <button id="reset">安全重置</button>
+      <h3>狀態日誌</h3>
+      <pre id="log"></pre>
+    </aside>
+  </main>
+  <script type="module">
+    import { createNeuroPhysioStack } from '../../shared/neuro-physio-stack.js';
+
+    const stack = createNeuroPhysioStack({ testMode: true, timeScale: 60 });
+    // use real localStorage when available
+    const logEl = document.getElementById('log');
+    const barsEl = document.getElementById('bars');
+    const coupleEl = document.getElementById('couple');
+
+    function log(...a) {
+      logEl.textContent = (a.map(String).join(' ') + '\n' + logEl.textContent).slice(0, 4000);
+    }
+
+    const KEYS = [
+      ['wakefulness', '清醒'],
+      ['attention', '注意力'],
+      ['fatigue', '疲勞'],
+      ['reactionSpeed', '反應'],
+      ['coordination', '協調'],
+      ['balance', '平衡'],
+      ['gazeFocus', '眼神聚焦'],
+      ['headPostureControl', '頭姿'],
+      ['virtualHealth', '虛擬健康']
+    ];
+
+    function render() {
+      const s = stack.recomputeAll();
+      barsEl.innerHTML = KEYS.map(([k, label]) => {
+        const v = s.neuro[k] != null ? s.neuro[k] : (k === 'fatigue' ? s.neuro.fatigue : 0);
+        const pct = Math.round(Math.max(0, Math.min(1, v)) * 100);
+        return `<div class="bar"><i style="width:${pct}%"></i><span>${label} ${pct}% · ${s.neuro.consciousness}</span></div>`;
+      }).join('');
+      // BAC bar
+      const bac = s.alcohol.bac;
+      barsEl.innerHTML += `<div class="bar"><i style="width:${Math.min(100, bac / 0.35 * 100)}%;background:linear-gradient(90deg,#d29922,#f85149)"></i><span>BAC ${bac.toFixed(3)} · ${s.alcohol.band}</span></div>`;
+      coupleEl.textContent = JSON.stringify({
+        consciousness: s.neuro.consciousness,
+        effectors: s.effectors,
+        coupling: {
+          gaze: s.coupling.gaze,
+          headNeck: s.coupling.headNeck,
+          locomotion: s.coupling.locomotion,
+          behavior: s.coupling.behavior
+        },
+        sleep: { fatigue: s.sleep.fatigue, debt: s.sleep.sleepHoursDebt, forbid: s.sleep.forbidTiredEyesFullSpeed },
+        clock: stack.persist.getSimClock()
+      }, null, 2);
+      document.getElementById('clock').textContent = stack.persist.getSimClock().isoHint;
+    }
+
+    document.getElementById('tA').onclick = () => {
+      stack.tickMinutes(18 * 60);
+      render();
+      log('A long awake', 'fatigue', stack.sleep.getState().fatigue.toFixed(2));
+    };
+    document.getElementById('tB').onclick = () => {
+      stack.sleep.startSleep();
+      stack.tickMinutes(6 * 60);
+      stack.sleep.wake();
+      render();
+      log('B slept 6h', 'fatigue', stack.sleep.getState().fatigue.toFixed(2));
+    };
+    document.getElementById('tC').onclick = () => {
+      stack.ingestDrink({ abvPercent: 5, volumeMl: 350, label: 'beer' });
+      stack.tickMinutes(40);
+      stack.ingestDrink({ abvPercent: 40, volumeMl: 60, label: 'spirit' });
+      stack.tickMinutes(50);
+      render();
+      log('C bac', stack.alcohol.getImpairment().bac);
+    };
+    document.getElementById('tD').onclick = () => {
+      stack.alcohol.hydrateBac(0.32);
+      render();
+      const g = stack.coupling.canPerformMotor('walk_to');
+      log('D critical', stack.neuro.getState().consciousness, 'walk', g.can, g.reason);
+    };
+    document.getElementById('tE').onclick = () => {
+      render();
+      log('E coupling dumped');
+    };
+    document.getElementById('tF').onclick = () => {
+      stack.tickMinutes(10, { autosave: true });
+      const loaded = stack.persist.load();
+      log('F saved', loaded.ok, 'sim', loaded.doc && loaded.doc.simMinutes);
+      stack.restoreFromStorage();
+      render();
+    };
+    document.getElementById('drink').onclick = () => {
+      const abv = Number(document.getElementById('abv').value);
+      const vol = Number(document.getElementById('vol').value);
+      stack.ingestDrink({ abvPercent: abv, volumeMl: vol });
+      stack.tickMinutes(40);
+      render();
+      log('drink', abv, vol, 'bac', stack.alcohol.getImpairment().bac);
+    };
+    document.getElementById('tick1h').onclick = () => {
+      stack.tickMinutes(60);
+      render();
+      log('tick 1h');
+    };
+    document.getElementById('reset').onclick = () => {
+      stack.safeReset();
+      render();
+      log('safeReset');
+    };
+    render();
+  </script>
+</body>
+</html>

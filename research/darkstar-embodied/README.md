@@ -1,6 +1,6 @@
 # AIVAULT Virtual Embodied World（虛擬具身智慧世界）
 
-**狀態：開發中（第一～二期＋E12／E15～22）｜不得部署正式入口｜不得宣稱工程完成**  
+**狀態：開發中（第一～二期＋E12／E15～27）｜不得部署正式入口｜不得宣稱工程完成**  
 **倉庫／帳號：** m9wmtcb782-arch/AIVAULT（第一基地）  
 **分支：** `research/darkstar-embodied-intelligence`  
 **變更令：** `docs/CHANGE-ORDER-virtual-embodied-world-2026-10-25.md`
@@ -24,6 +24,7 @@
    ENGINE-12 soft-tissue（形變狀態共用）
    ENGINE-15 自主視線 ＋ ENGINE-16 自然頭頸
    ENGINE-17～22 感覺／創傷／復原／疾病／味嗅／記憶
+   ENGINE-23～27 神經狀態／睡眠／酒精／耦合／持久
               │
      ┌────────┴────────┐
      ▼                 ▼
@@ -65,6 +66,11 @@
 | 20 | `ENGINE-20-virtual-illness` | **開發中**（虛擬感冒可見表現） |
 | 21 | `ENGINE-21-taste-olfactory` | **開發中**（推論＋可信度） |
 | 22 | `ENGINE-22-sensory-memory` | **開發中**（限制閘門） |
+| 23 | `ENGINE-23-neurobehavioral-state` | **開發中**（神經行為狀態） |
+| 24 | `ENGINE-24-sleep-fatigue` | **開發中**（睡眠／疲勞） |
+| 25 | `ENGINE-25-alcohol-impairment` | **開發中**（連續 BAC 模型） |
+| 26 | `ENGINE-26-neuro-motor-coupling` | **開發中**（接 15／16／03） |
+| 27 | `ENGINE-27-persistent-physio` | **開發中**（持久＋時鐘） |
 
 另：`shared/conversation-target-tracking.js` 供 15／16／08 共用。
 
@@ -82,6 +88,7 @@ python3 -m http.server 8765 --bind 127.0.0.1
 - **軟組織 demo：** `http://127.0.0.1:8765/research/darkstar-embodied/engines/ENGINE-12-soft-tissue/demo/index.html`
 - **視線／頭頸 Lab：** `http://127.0.0.1:8765/research/darkstar-embodied/phase1/gaze-head-lab/index.html`
 - **感覺／生理 Lab：** `http://127.0.0.1:8765/research/darkstar-embodied/phase1/sensory-physio-lab/index.html`
+- **神經狀態 Lab：** `http://127.0.0.1:8765/research/darkstar-embodied/phase1/neuro-state-lab/index.html`
 
 ## 能力／運動測試（Node）
 
@@ -91,6 +98,7 @@ node research/darkstar-embodied/engines/ENGINE-03-motor-control/test-motor.mjs
 node research/darkstar-embodied/engines/ENGINE-12-soft-tissue/test-soft-tissue.mjs
 node research/darkstar-embodied/engines/ENGINE-15-autonomous-gaze/test-gaze-head.mjs
 node research/darkstar-embodied/phase1/sensory-physio-lab/test-sensory-physio.mjs
+node research/darkstar-embodied/phase1/neuro-state-lab/test-neuro-state.mjs
 ```
 
 ## 既有可重用（摘要）
