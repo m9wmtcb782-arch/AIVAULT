@@ -1,6 +1,6 @@
 # AIVAULT Virtual Embodied World（虛擬具身智慧世界）
 
-**狀態：開發中（第一期）｜不得部署正式入口｜不得宣稱工程完成**  
+**狀態：開發中（第一～二期＋E12／E15／E16）｜不得部署正式入口｜不得宣稱工程完成**  
 **倉庫／帳號：** m9wmtcb782-arch/AIVAULT（第一基地）  
 **分支：** `research/darkstar-embodied-intelligence`  
 **變更令：** `docs/CHANGE-ORDER-virtual-embodied-world-2026-10-25.md`
@@ -22,6 +22,7 @@
    ENGINE-08 具身決策
    ENGINE-05 可行性閘門
    ENGINE-12 soft-tissue（形變狀態共用）
+   ENGINE-15 自主視線 ＋ ENGINE-16 自然頭頸
               │
      ┌────────┴────────┐
      ▼                 ▼
@@ -55,6 +56,10 @@
 | 10 | `ENGINE-10-closed-loop-feedback` | 開發中 |
 | 11 | `ENGINE-11-realworld-compositor` | **stub／規格** |
 | 12 | `ENGINE-12-soft-tissue` | **開發中**（肩膀碰撞擠壓測試頁） |
+| 15 | `ENGINE-15-autonomous-gaze` | **開發中**（自主視線＋對話對象追蹤） |
+| 16 | `ENGINE-16-natural-head-neck` | **開發中**（頭跟隨眼／慣性） |
+
+另：`shared/conversation-target-tracking.js` 供 15／16／08 共用。
 
 舊 `engines/ENGINE-0N-*` 目錄保留並附 `REDIRECT.md`，勿刪已有程式。
 
@@ -68,6 +73,7 @@ python3 -m http.server 8765 --bind 127.0.0.1
 - Phase1 骨骼：`http://127.0.0.1:8765/research/darkstar-embodied/phase1/index.html`
 - **虛擬教室：** `http://127.0.0.1:8765/research/darkstar-embodied/phase1/virtual-classroom/index.html`
 - **軟組織 demo：** `http://127.0.0.1:8765/research/darkstar-embodied/engines/ENGINE-12-soft-tissue/demo/index.html`
+- **視線／頭頸 Lab：** `http://127.0.0.1:8765/research/darkstar-embodied/phase1/gaze-head-lab/index.html`
 
 ## 能力／運動測試（Node）
 
@@ -75,6 +81,7 @@ python3 -m http.server 8765 --bind 127.0.0.1
 node research/darkstar-embodied/engines/ENGINE-02-body-awareness/test-capability.mjs
 node research/darkstar-embodied/engines/ENGINE-03-motor-control/test-motor.mjs
 node research/darkstar-embodied/engines/ENGINE-12-soft-tissue/test-soft-tissue.mjs
+node research/darkstar-embodied/engines/ENGINE-15-autonomous-gaze/test-gaze-head.mjs
 ```
 
 ## 既有可重用（摘要）

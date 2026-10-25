@@ -142,3 +142,30 @@ MP4 數字人**保留為回退**，禁止刪除正式數字人資產。
 | 正式頁 | 未掛載 |
 
 施工順序：可與第二期運動並行於隔離目錄；蒙皮到正式 GLB／衣物碰撞列後續。
+
+
+## ENGINE-15／16｜自主視線與自然頭頸（2026-10-25 追加）
+
+**狀態：開發中**  
+**路徑：** `engines/ENGINE-15-autonomous-gaze/` · `engines/ENGINE-16-natural-head-neck/` · `shared/conversation-target-tracking.js` · `phase1/gaze-head-lab/`
+
+掛在 **Shared Body Core**（與 ENGINE-02／03／12 **同一** GLB 數字人）。禁止另建只會動眼睛的第二套假人物。
+
+| 要求 | 本輪 |
+|------|------|
+| 對話對象追蹤（speaker／listener／answer／gaze target） | ✅ |
+| 對使用者 → user_eyes；對朋友說話 → **virtual_camera** | ✅ |
+| 雙眼協調＋saccade＋不規則眨眼＋anti-stare | ✅ |
+| 眼球先轉、頭跟隨（慣性／禁瞬間轉向） | ✅ |
+| 獨立測試頁 gaze-head-lab（mock A／C／D） | ✅ |
+| 接入決策／姿態／骨骼／表情／三畫面／ENGINE-02（介面） | ✅ 文件＋`reportToDecision` |
+| Test B WebRTC 遠端朋友眼神驗證 | **未完成** |
+| 正式頁 | 未掛載 |
+
+### 視線校準（重申）
+
+實體攝影機／螢幕位置與合成畫面中暗星位置可能不同。  
+暗星對遠端朋友說話時必須看向**虛擬視訊鏡頭**（`virtual_camera`），而非手機螢幕上的朋友影像座標。  
+遠端朋友端實際眼神體感＝須 WebRTC 實測後才能宣稱。
+
+施工順序：可與第二期運動／ENGINE-12 並行於隔離目錄；三畫面 WebRTC 仍屬 ENGINE-11 獨立階段。
