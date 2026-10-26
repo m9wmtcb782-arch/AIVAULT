@@ -43,3 +43,9 @@ anon 對既有表仍是 permission denied（42501）。缺少：
 - `ebook/aivault-ebook-lib.js` 共用 ingest + IndexedDB + 匯入
 - `ebook/aivault-flipbook-app.js` 翻頁／工具列
 - 暗星解說走既有 `ai-gateway`，請求帶 book_id、page_number、頁面原文、章節
+
+## 檔案上架教戰（2026-10-26）
+
+- 人類：編輯頁「文件匯入」選 PDF／Office，勿以貼全文為主。
+- 代理：見 `ebook/LETTER-TO-DARK-STAR-EBOOK-FILE-INGEST.md`。聊天室 PDF 附件目前只有檔名，無位元組／全文；一鍵從聊天 ingest 尚未接通。
+- 《當行政遇上科學》正式 `ebook_id`：`2837c534-3cc4-4e3d-bc12-4b770c196b30`（勿用幽靈 `88b895c3-…`）。

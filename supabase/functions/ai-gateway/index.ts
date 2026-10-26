@@ -140,6 +140,7 @@ const DARK_STAR_GITHUB_API = "https://api.github.com";
 const DARK_STAR_RAW_BASE = "https://raw.githubusercontent.com/m9wmtcb782-arch/AIVAULT/main";
 const DARK_STAR_STARTUP_FILES = [
   "ebook/LETTER-TO-DARK-STAR-EBOOK-AND-SPEECH.md",
+  "ebook/LETTER-TO-DARK-STAR-EBOOK-FILE-INGEST.md",
   "ebook/LETTER-TO-DARK-STAR-GITHUB-PERMISSION.md",
   "ebooks/RULES-DARK-STAR.md",
   "ebooks/README.md",

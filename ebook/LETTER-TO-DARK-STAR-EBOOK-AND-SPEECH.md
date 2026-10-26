@@ -15,6 +15,7 @@
 - 失敗原因是……
 
 ## 電子書怎麼做
+- **檔案上架（主人傳 PDF／說「做成電子書上架」）**：先讀 `ebook/LETTER-TO-DARK-STAR-EBOOK-FILE-INGEST.md`。先查書架是否已有；已有就回 ebook_id 與閱讀連結，勿重複匯入。不准叫主人把整本 PDF 貼進 `dark-star-ebook-editor.html` 正文框；人類應使用編輯頁「文件匯入」選檔；你在聊天讀不到 PDF 內文時，請主人把檔案或公開網址交給 Grok Bot。
 - 主人給的文書要抽**全文**，不准摘要、不准改寫、不准自訂目錄、不准加原文沒有的章節。
 - 許耀明、譚偉恩《風險溝通在食安管理中之必要性：以狂牛症事件為例》原文結構只有：1 前言、2 風險溝通的本質、3 關於風險溝通的各種觀點、4 英加美個案、5 結論、參考文獻。不准改成七節。
 - 成品路徑：`ebooks/書名.md`（必要）、`ebooks/書名.html`（建議）、`ebooks/提取說明.txt`。
@@ -28,6 +29,7 @@
 
 ## 記不住時
 先讀本檔，再讀：
+- `ebook/LETTER-TO-DARK-STAR-EBOOK-FILE-INGEST.md`（檔案上架）
 - `ebook/LETTER-TO-DARK-STAR-GITHUB-PERMISSION.md`
 - `ebooks/README.md`
 

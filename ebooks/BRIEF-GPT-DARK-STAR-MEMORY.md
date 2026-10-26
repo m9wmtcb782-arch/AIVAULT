@@ -4,7 +4,7 @@
 
 ## 背景
 - 專案：GitHub `m9wmtcb782-arch/AIVAULT`
-- 規則檔已在庫裡，必須沿用：`ebook/LETTER-TO-DARK-STAR-EBOOK-AND-SPEECH.md`、`ebook/LETTER-TO-DARK-STAR-GITHUB-PERMISSION.md`、`ebooks/RULES-DARK-STAR.md`、`ebooks/README.md`
+- 規則檔已在庫裡，必須沿用：`ebook/LETTER-TO-DARK-STAR-EBOOK-AND-SPEECH.md`、`ebook/LETTER-TO-DARK-STAR-EBOOK-FILE-INGEST.md`、`ebook/LETTER-TO-DARK-STAR-GITHUB-PERMISSION.md`、`ebooks/RULES-DARK-STAR.md`、`ebooks/README.md`
 - 書放 `ebooks/`；`ebook/` 是閱讀器
 - 瀏覽器不准帶 GitHub Token；後端密鑰名 `ANXING_GITHUB_TOKEN`
 - 對主人只准繁體中文短句
