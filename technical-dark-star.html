@@ -5383,7 +5383,7 @@ function isHardJpgVisualRequest(text, files){
   if(!value || isExplicitSvgIntent(value) || hasImageAttachment(files)) return false;
   return (
     /(?:生成|產生|畫|繪製|做|製作|給我|來一張|来一张|傳|传)/i.test(value) &&
-    /(?:圖片|图|照片|相片|女性|女人|女生|男性|男人|人物|肖像|旗袍|漢服|汉服|狗|貓|猫|風景|风景|街頭|街头|上海|夜景|霓虹|建築|建筑|汽車|汽车|場景|场景)/i.test(value)
+    /(?:圖片|图|圖|照片|相片|美女|美人|女性|女人|女生|男性|男人|人物|肖像|旗袍|漢服|汉服|狗|貓|猫|風景|风景|街頭|街头|上海|夜景|霓虹|建築|建筑|汽車|汽车|場景|场景)/i.test(value)
   ) || (
     /(?:旗袍|漢服|汉服|女性|女人|女生|男性|男人|人物|肖像|上海街頭|上海街头|夜景|霓虹|街頭|街头|風景|风景)/i.test(value)
   );
@@ -5402,8 +5402,14 @@ function isJpgImageIntent(text, files){
     return false;
   }
 
+  // Natural short forms must not fall through to text + ebook retrieval.
+  // Example: 製作性感誘惑的美女圖. Provider content checks remain unchanged.
+  if(/美女[圖图]|美人[圖图]|人物[圖图]|人像[圖图]|(?:製作|制作|生成|繪製|绘制|畫|画|做)\s*[^。！？!?\n]{0,80}[圖图]/i.test(value)){
+    return true;
+  }
+
   /*
-    AIVAULT_JPG_DEFAULT_ROUTER_V5
+    AIVAULT_JPG_DEFAULT_ROUTER_V6
 
     自然語言視覺描述也屬於真正圖片任務。
     不要求使用者說「生成圖片」或「JPG」。
