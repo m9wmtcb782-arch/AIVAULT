@@ -120,18 +120,19 @@
         created_at: "2026-09-23T07:04:00+08:00"
       });
     }
-    const newBookId = "88b895c3-c7c9-49b8-aac2-d57edc9bae20";
-    if (!map.has(newBookId)) {
-      map.set(newBookId, {
-        id: newBookId,
-        ebook_id: newBookId,
-        title: "當行政遇上科學：從風險評估談起－以美國法為例",
+    // Canonical remote id (88b895c3-… is a ghost BOOK_NOT_FOUND; do not reintroduce).
+    const adminScienceId = "2837c534-3cc4-4e3d-bc12-4b770c196b30";
+    if (!map.has(adminScienceId)) {
+      map.set(adminScienceId, {
+        id: adminScienceId,
+        ebook_id: adminScienceId,
+        title: "當行政遇上科學：從風險評估談起——以美國法為例",
         author: "宮文祥",
-        page_count: 19,
-        total_pages: 19,
+        page_count: 38,
+        total_pages: 38,
         source: "remote",
         category: "法律",
-        created_at: "2026-09-24T00:00:00+08:00"
+        created_at: "2026-09-25T20:10:00+08:00"
       });
     }
     const constitutionId = "aivault-prc-constitution-2018";
