@@ -5186,9 +5186,8 @@ function buildImageTaskState(previousTask, userMessage, continuation){
   if(/纖細|苗條|瘦|修長/i.test(text)){
     task.body="成人身體比例較纖細、自然修長；肩、腰、臀與四肢比例協調，保持自然人體結構。";
   }
-  if(/近距離|近景|特寫/i.test(text)) task.camera="中近景構圖；完整頭部與臉部可見，不裁切臉或頭。";
-  if(/上半身|半身/i.test(text)) task.camera="上半身／半身構圖；完整頭部、完整臉部與雙肩可見，不裁切臉或頭。";
-  if(/全身/i.test(text)) task.camera="全身構圖；從頭到腳完整入鏡，不裁切頭部或腳部。";
+  const framing = getRequestedImageFraming(text);
+  if(framing) task.camera = getImageFramingContract(framing);
   if(/背景/i.test(text)) task.background=text;
   if(/光線|柔光|逆光|燈光/i.test(text)) task.lighting=text;
   if(/姿勢|動作/i.test(text)) task.pose=text;
@@ -5277,15 +5276,38 @@ function getLatestImageTask(){
 }
 
 
-function getRequestedImageAspectRatio(text){
+function getRequestedImageFraming(text){
+  // Last non-negated framing wins: 不要全身，改半身 -> half.
+  const value = String(text || "").replace(
+    /(?:不要|不是|別|别|不做|取消|不想要|不需要|不要再|not|no)\s*(?:再|用|做|畫|画|的|一張|一张)?\s*(?:全身照|全身|完整全身|從頭到腳|从头到脚|上半身|半身照|半身|腰部以上|腰以上|臉部特寫|脸部特写|頭部特寫|头部特写|特寫|特写|近景|full[ -]?body|waist[ -]?up|headshot|close[ -]?up)/gi, "");
+  const tokens = value.match(/從頭到腳|从头到脚|完整全身|全身照|全身|上半身|半身照|半身|腰部以上|腰以上|臉部特寫|脸部特写|頭部特寫|头部特写|大頭照|大头照|頭像|头像|近距離|近距离|近景|特寫|特写|full[ -]?body|waist[ -]?up|headshot|close[ -]?up/gi);
+  if(!tokens?.length) return "";
+  const last = tokens[tokens.length - 1];
+  if(/全身|頭到腳|头到脚|full[ -]?body/i.test(last)) return "full";
+  if(/半身|腰|waist[ -]?up/i.test(last)) return "half";
+  return "close";
+}
+
+function getImageFramingContract(kind){
+  if(kind === "full") return "全身構圖：從頭頂到雙腳與鞋子完整入鏡，上下保留少量空間；不裁頭、不裁腳，不改成半身或臉部特寫。FULL BODY, head to toe, feet visible.";
+  if(kind === "half") return "半身構圖：從頭頂到腰部附近，完整頭部、雙肩、手臂與上半身自然入鏡；不展示膝蓋與雙腳，不改成全身，也不縮成只有臉或胸部的特寫。WAIST-UP portrait.";
+  if(kind === "close") return "近景／臉部特寫：以完整頭部、臉與少量肩部為主；不改成腰部半身或全身，不裁掉頭頂。HEAD AND SHOULDERS portrait.";
+  return "";
+}
+
+function getRequestedImageAspectRatio(text, previousCamera = ""){
   const value=String(text||"").trim();
-  if(/(?:手機直式|直式|豎版|豎直|9[:：]16|9／16)/i.test(value)) return "9:16";
-  if(/(?:橫式|橫向|寬幅|橫幅|16[:：]9|16／9)/i.test(value)) return "16:9";
-  if(/(?:全身|站立全身|從頭到腳|完整全身)/i.test(value)) return "2:3";
-  if(/(?:上半身|半身)/i.test(value)) return "3:4";
-  if(/(?:近距離|近景|特寫|頭像|頭部特寫)/i.test(value)) return "4:5";
-  if(/(?:正方形|方形|1[:：]1|1／1)/i.test(value)) return "1:1";
-  return "3:4";
+  // Explicit aspect ratio always outranks inferred framing.
+  const explicit=value.match(/(?:9[:：／/]16|16[:：／/]9|1[:：／/]1|2[:：／/]3|3[:：／/]4|4[:：／/]5|4[:：／/]3|3[:：／/]2)/g);
+  if(explicit?.length) return explicit[explicit.length-1].replace(/[：／/]/g,":");
+  if(/正方形|方形/i.test(value)) return "1:1";
+  if(/手機直式|直式|豎版|豎直/i.test(value)) return "9:16";
+  if(/橫式|橫向|寬幅|橫幅/i.test(value)) return "16:9";
+  const inherited = /^全身構圖/.test(previousCamera) ? "full" :
+    /^半身構圖/.test(previousCamera) ? "half" :
+    /^近景/.test(previousCamera) ? "close" : getRequestedImageFraming(previousCamera);
+  const kind=getRequestedImageFraming(value)||inherited;
+  return kind==="full" ? "2:3" : kind==="close" ? "4:5" : "3:4";
 }
 
 function getRequestedImageAppearanceGuidance(text){
@@ -5305,6 +5327,11 @@ function getRequestedImageAppearanceGuidance(text){
   const matches = groups.filter(([pattern]) => pattern.test(value)).map(([,description]) => description);
   if (!matches.length && /亞洲|亚洲|亞裔|亚裔|Asian/i.test(value)) {
     matches.push("亞洲：範圍涵蓋多種族群與外貌；細節依具體要求，不直接等同東亞");
+  }
+  if (!matches.length &&
+      /成人|成年|女性|女人|男性|男人|肖像|人像|美女|美人|portrait|adult/i.test(value) &&
+      !/兒童|儿童|未成年|男孩|女孩|少女|child|minor/i.test(value)) {
+    matches.push("未指定人物背景時，依使用者偏好優先呈現亞洲成人的多樣自然外貌；這是可覆寫的創作預設，不代表亞洲只有單一長相");
   }
   if (!matches.length) return "";
   return "人物背景與外觀指引：" + matches.join("；") +
@@ -5780,13 +5807,13 @@ async function makeJpgImageWithDarkStar(
 ){
 
   updateDarkStarWorkLocation(
-    "📍 AIVAULT → Image Generation → Gemini 3.1 Flash Image"
+    "📍 AIVAULT → JPG 圖片生成 → 等待後端確認模型"
   );
 
   const latestImageTask = getLatestImageTask();
   const continuation = isImageContinuationIntent(userMessage, files);
   const imageTask = buildImageTaskState(latestImageTask, userMessage, continuation);
-  const imagePrompt =
+  const taskPrompt =
     continuation && latestImageTask?.prompt
       ? (
           "你正在修改上一張實際生成的 JPG 圖片，不是在重新創造一個新人物。\\n" +
@@ -5808,6 +5835,16 @@ async function makeJpgImageWithDarkStar(
           getRequestedImageAppearanceGuidance(userMessage) + "\\n" +
           String(userMessage || "").trim()
         );
+
+
+  // AIVAULT_IMAGE_COMPOSITION_FIDELITY_V1
+  const compositionRequest = String(userMessage || "").replace(/(?:不要|避免|禁止|不得|無需|无需|no|without)\s*(?:拼貼|拼贴|多格|多圖|多图|對照|对照|collage|contact sheet)/gi, "");
+  const compositionContract = /拼貼|拼贴|多格|多圖|多图|對照|对照|三視圖|三视图|聯畫|联画|collage|contact sheet|triptych/i.test(compositionRequest)
+    ? ""
+    : "構圖要求：只輸出一張連貫的單一場景；不要拼貼、縮圖、對照小窗、人物分身或重複人物。多人場景依使用者明確指定的人數呈現。";
+  const imagePrompt = taskPrompt + "\\n\\n" + compositionContract +
+    "\\n本輪有效構圖要求（優先於歷史圖片描述）：" + (imageTask.camera || "依使用者原始要求") +
+    "\\n請完整保留使用者指定的服裝、表情、視線、姿勢、鏡頭與光線要求，不得用普通站姿或其他服裝自行替代。";
 
 
   const response =
@@ -5840,7 +5877,7 @@ async function makeJpgImageWithDarkStar(
               "image/jpeg",
 
             aspect_ratio:
-              getRequestedImageAspectRatio(userMessage),
+              getRequestedImageAspectRatio(userMessage, imageTask.camera),
 
             image_size:
               "1K",
