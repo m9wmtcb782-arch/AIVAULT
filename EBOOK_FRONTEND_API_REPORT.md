@@ -49,3 +49,4 @@ anon 對既有表仍是 permission denied（42501）。缺少：
 - 人類：編輯頁「文件匯入」選 PDF／Office，勿以貼全文為主。
 - 代理：見 `ebook/LETTER-TO-DARK-STAR-EBOOK-FILE-INGEST.md`。聊天室 PDF 附件目前只有檔名，無位元組／全文；一鍵從聊天 ingest 尚未接通。
 - 《當行政遇上科學》正式 `ebook_id`：`2837c534-3cc4-4e3d-bc12-4b770c196b30`（勿用幽靈 `88b895c3-…`）。
+- **查重只提醒不拒絕**：已有同一本時回報連結／id，不准因重複而拒絕協助；主人堅持重做仍須協助。
