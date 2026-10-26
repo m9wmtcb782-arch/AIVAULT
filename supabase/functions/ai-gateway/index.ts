@@ -141,6 +141,7 @@ const DARK_STAR_RAW_BASE = "https://raw.githubusercontent.com/m9wmtcb782-arch/AI
 const DARK_STAR_STARTUP_FILES = [
   "ebook/LETTER-TO-DARK-STAR-EBOOK-AND-SPEECH.md",
   "ebook/LETTER-TO-DARK-STAR-EBOOK-FILE-INGEST.md",
+  "ebook/LETTER-TO-DARK-STAR-CHARACTER-JPG-BODY-ART.md",
   "ebook/LETTER-TO-DARK-STAR-GITHUB-PERMISSION.md",
   "ebooks/RULES-DARK-STAR.md",
   "ebooks/README.md",
