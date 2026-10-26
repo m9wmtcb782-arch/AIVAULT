@@ -1,0 +1,165 @@
+# Ebook shelf dual-classify AUDIT
+
+- Seed books in `dark-star-ebook.html`: **4**
+- Plain private JSON: **1** (zhongyao-food-bundle.json)
+- Encrypted private JSON (.gpg): **1** (content not decrypted here)
+- Supabase live `dark_star_ebooks` count: **BLOCKED** — No service-role credentials in this agent run; did not invent live DB totals. Seed + private/ JSON only.
+
+## Seed list
+
+- `8a7104ed-c1b2-4781-8b34-835ec61c8d97` · 中藥材食品原料法規彙編｜認定基準草案＋37項品項表 · category=`法規／中藥食安` · pages=40
+- `9a3a2a12-66c6-4864-9ee3-753c1b1a329a` · 食品安全管理措施限制食品業者基本權利之正當性探討——德國司法實務之觀察 · category=`教材` · pages=76
+- `2837c534-3cc4-4e3d-bc12-4b770c196b30` · 當行政遇上科學：從風險評估談起——以美國法為例 · category=`教材` · pages=38
+- `65d955cf-9dce-402c-a938-5a762acafdf1` · 第八章　国家机构体系 · category=`教材` · pages=26
+
+## Auto subject (rules+keywords on title+private body)
+
+- **中藥材食品原料法規彙編｜認定基準草案＋37項品項表** → primary=`食品與藥物管制法` conf=0.849 secondary=['其他法律專題', '食品安全', '中藥食安'] body=yes
+  - rationale: secondary:食品安全←食品安全,食安; secondary:中藥食安←中藥材,中藥,食品原料; title_keyword_boost; primary:食品與藥物管制法 score=21.5 hits=中藥材,健康食品,食品原料,食品安全,食品安全衛生管理法,食安 in=title,chapters,body
+- **食品安全管理措施限制食品業者基本權利之正當性探討——德國司法實務之觀察** → primary=`食品與藥物管制法` conf=0.925 secondary=['行政法', '憲法', '其他法律專題', '食品安全', '德國法'] body=no
+  - rationale: secondary:食品安全←食品安全; secondary:德國法←德國; title_keyword_boost; primary:食品與藥物管制法 score=33.0 hits=基本權利,管理措施,食品安全,食品安全管理,食品業者 in=title
+- **當行政遇上科學：從風險評估談起——以美國法為例** → primary=`行政法` conf=0.549 secondary=['風險評估', '美國法'] body=no
+  - rationale: secondary:風險評估←風險評估; secondary:美國法←美國; title_keyword_boost; primary:行政法 score=6.0 hits=風險評估 in=title
+- **第八章　国家机构体系** → primary=`憲法` conf=0.549 secondary=[] body=no
+  - rationale: title_keyword_boost; primary:憲法 score=6.0 hits=国家机构 in=title
+
+## Subject primary counts
+
+```json
+{
+  "食品與藥物管制法": 2,
+  "+其他法律專題": 0,
+  "+食品安全": 0,
+  "+中藥食安": 0,
+  "+行政法": 0,
+  "+憲法": 0,
+  "+德國法": 0,
+  "行政法": 1,
+  "+風險評估": 0,
+  "+美國法": 0,
+  "憲法": 1
+}
+```
+
+## Pending / unclassifiable
+
+(none at primary level)
+
+## Raw JSON
+
+```json
+{
+  "audit_time_zone": "Asia/Taipei",
+  "seed_count": 4,
+  "private_json_count": 1,
+  "private_gpg_count": 1,
+  "supabase_live_count": "BLOCKED",
+  "supabase_live_reason": "No service-role credentials in this agent run; did not invent live DB totals. Seed + private/ JSON only.",
+  "format_stats_from_seed_assumption": {
+    "pdf": 4
+  },
+  "format_note": "Seed catalog has no binary files. Current 4 shelf books are remote legal/food texts historically ingested from PDF; binary sniff tests use /workspace sample PDFs separately.",
+  "subject_primary_counts": {
+    "食品與藥物管制法": 2,
+    "+其他法律專題": 0,
+    "+食品安全": 0,
+    "+中藥食安": 0,
+    "+行政法": 0,
+    "+憲法": 0,
+    "+德國法": 0,
+    "行政法": 1,
+    "+風險評估": 0,
+    "+美國法": 0,
+    "憲法": 1
+  },
+  "pending_or_unclassified": [],
+  "results": [
+    {
+      "ebook_id": "8a7104ed-c1b2-4781-8b34-835ec61c8d97",
+      "title": "中藥材食品原料法規彙編｜認定基準草案＋37項品項表",
+      "seed_category": "法規／中藥食安",
+      "format_bucket_assumed": "pdf",
+      "primary": "食品與藥物管制法",
+      "secondary": [
+        "其他法律專題",
+        "食品安全",
+        "中藥食安"
+      ],
+      "confidence": 0.849,
+      "pending": false,
+      "rationale": [
+        "secondary:食品安全←食品安全,食安",
+        "secondary:中藥食安←中藥材,中藥,食品原料",
+        "title_keyword_boost",
+        "primary:食品與藥物管制法 score=21.5 hits=中藥材,健康食品,食品原料,食品安全,食品安全衛生管理法,食安 in=title,chapters,body",
+        "secondary_subject:其他法律專題 score=5.5 hits=法規"
+      ],
+      "has_private_body": true
+    },
+    {
+      "ebook_id": "9a3a2a12-66c6-4864-9ee3-753c1b1a329a",
+      "title": "食品安全管理措施限制食品業者基本權利之正當性探討——德國司法實務之觀察",
+      "seed_category": "教材",
+      "format_bucket_assumed": "pdf",
+      "primary": "食品與藥物管制法",
+      "secondary": [
+        "行政法",
+        "憲法",
+        "其他法律專題",
+        "食品安全",
+        "德國法"
+      ],
+      "confidence": 0.925,
+      "pending": false,
+      "rationale": [
+        "secondary:食品安全←食品安全",
+        "secondary:德國法←德國",
+        "title_keyword_boost",
+        "primary:食品與藥物管制法 score=33.0 hits=基本權利,管理措施,食品安全,食品安全管理,食品業者 in=title",
+        "secondary_subject:行政法 score=9.0 hits=正當性,食品業者",
+        "secondary_subject:憲法 score=6.0 hits=基本權利",
+        "secondary_subject:其他法律專題 score=3.0 hits=司法"
+      ],
+      "has_private_body": false
+    },
+    {
+      "ebook_id": "2837c534-3cc4-4e3d-bc12-4b770c196b30",
+      "title": "當行政遇上科學：從風險評估談起——以美國法為例",
+      "seed_category": "教材",
+      "format_bucket_assumed": "pdf",
+      "primary": "行政法",
+      "secondary": [
+        "風險評估",
+        "美國法"
+      ],
+      "confidence": 0.549,
+      "pending": false,
+      "rationale": [
+        "secondary:風險評估←風險評估",
+        "secondary:美國法←美國",
+        "title_keyword_boost",
+        "primary:行政法 score=6.0 hits=風險評估 in=title"
+      ],
+      "has_private_body": false
+    },
+    {
+      "ebook_id": "65d955cf-9dce-402c-a938-5a762acafdf1",
+      "title": "第八章　国家机构体系",
+      "seed_category": "教材",
+      "format_bucket_assumed": "pdf",
+      "primary": "憲法",
+      "secondary": [],
+      "confidence": 0.549,
+      "pending": false,
+      "rationale": [
+        "title_keyword_boost",
+        "primary:憲法 score=6.0 hits=国家机构 in=title"
+      ],
+      "has_private_body": false
+    }
+  ],
+  "gpg_encrypted_bodies": [
+    "c8743d50.json.gpg"
+  ]
+}
+```
