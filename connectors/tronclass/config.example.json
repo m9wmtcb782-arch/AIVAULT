@@ -1,0 +1,54 @@
+{
+  "$schema_comment": "範例設定。勿填入學號、密碼或真實 token。courses 採動態發現，禁止永久固定五門課清單。schoolAuthorizationConfirmed 與環境變數 SCHOOL_AUTH_CONFIRMED 皆須為真，才允許啟用排程骨架以外的行為。無 username/password/studentId 欄位。",
+  "schoolAuthorizationStatus": {
+    "SCHOOL_AUTH_CONFIRMED": false,
+    "status": "unconfirmed",
+    "reason": "尚未取得東吳／智園對自動化唯讀存取的明確許可（研究未找到肯定授權）；非使用者撤銷",
+    "effect": "真實同步、自動登入、背景抓取一律停用；僅離線骨架/mock 可續做",
+    "enableRequires": "使用者提供學校書面授權證據"
+  },
+  "schoolAuthorizationConfirmed": false,
+  "baseUrl": "https://tronclass.scu.edu.tw",
+  "mediaBaseUrl": "https://tcmedia.scu.edu.tw",
+  "pollIntervalHours": 6,
+  "courseDiscovery": {
+    "mode": "dynamic",
+    "fixedCourseListForbidden": true,
+    "compareFields": [
+      "academicYear",
+      "semester",
+      "courseCode",
+      "courseId"
+    ],
+    "autoProvisionNewCourses": true,
+    "retainHistoricalMaterials": true
+  },
+  "courses": [],
+  "allowlistExtensions": [
+    ".pdf",
+    ".ppt",
+    ".pptx",
+    ".doc",
+    ".docx"
+  ],
+  "privateStorageRoot": "/var/aivault-private/tronclass/",
+  "storageLayout": "{privateStorageRoot}/{academicYear}/{semester}/{courseCode}/",
+  "maxRetries": 3,
+  "retryBackoffMs": 5000,
+  "auth": {
+    "mode": "browser_handoff",
+    "plaintextPasswordStorage": false,
+    "captchaBypass": false,
+    "autoLoginEnabled": false
+  },
+  "scheduler": {
+    "enabled": false,
+    "requiresEnv": "SCHOOL_AUTH_CONFIRMED=true",
+    "kind": "github_actions_or_worker_gated",
+    "note": "預設 disabled；未確認學校授權前不得對 TronClass 發請求"
+  },
+  "darkStarNotify": {
+    "enabled": false,
+    "hook": "event_stub_only"
+  }
+}
