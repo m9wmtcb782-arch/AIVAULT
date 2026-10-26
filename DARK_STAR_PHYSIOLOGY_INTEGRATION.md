@@ -1,0 +1,9 @@
+# Dark Star text chat physiology integration
+
+Source: bot branch research/darkstar-embodied-intelligence, commit 4e52007ab48ced7e79919d8f5df7acb8082b7ee9. Four core modules are copied without edits; unfinished endocrine/cycle/intimacy fields retain pending_research. User authorized connecting bot work to the production Dark Star page on 2026-10-26, superseding the research branch's isolation instruction for this scoped integration.
+
+Text callAIVAULT awaits the browser bridge and appends a computed snapshot. This is client-side context, never authorization. Storage is browser-local, scoped by account and topic. No offline execution or sensor claims. Structured virtual events use aivault:darkstar:virtual-stimulus; plain chat text is never treated as sensor input. Snapshot can be inspected with AIVAULTDarkStarPhysiology.snapshot(). Active time advances only on updates, capped at one model second per update because the source coefficients are research approximations. No timers, API calls or fees are added. Realtime voice, renderer, nerve bus danger memory and other research engines remain unconnected.
+
+Appearance guidance distinguishes East/Southeast/South/West Asian, Chinese, European, African, Latin American and mixed background; preserves explicit gender and reference identity, avoids treating nationality as a unique face. Does not change image safety settings.
+
+Checks: node research/darkstar-embodied/physiology-core/test-physiology-core.mjs (31 passed); node test-darkstar-physiology-chat.mjs (coupling, persistence, account isolation, virtual event validation, appearance routing and actual page payload mock passed). baseline-voice-script.txt records the exact unchanged inline voice script with an existing syntax error; the regression test rejects any new or modified invalid script. No live model requests were made. Live conversation and visual quality require verification.

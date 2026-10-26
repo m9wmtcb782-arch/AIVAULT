@@ -1189,6 +1189,12 @@ a.brand-home:hover,
 @media(max-width:700px){#aivault-darkstar-avatar{right:9px;top:auto;bottom:92px;width:164px}#aivault-darkstar-avatar .dsfacebox{height:166px}#aivault-darkstar-avatar .dsfacebox .ds-orb{width:100px!important;height:100px!important}#aivault-darkstar-avatar .dsah{padding:7px 9px}.dsbtn{padding:5px 3px}}
 </style>
 
+<script>
+// AIVAULT_PHYSIOLOGY_CHAT_BOOT_V1: local-only; failures never block ordinary chat.
+window.AIVAULTDarkStarPhysiologyReady = import("./darkstar-physiology-chat.js?v=20261026-p1")
+  .then(module => module.installPhysiologyChatBridge(window))
+  .catch(error => { console.warn("[DarkStar][PHYSIOLOGY BOOT]", error); return null; });
+</script>
 </head>
 
 <body>
@@ -5166,16 +5172,10 @@ function buildImageTaskState(previousTask, userMessage, continuation){
     breast_anatomy: previous.breast_anatomy || ""
   };
   if(!continuation){
-    if(/亞洲|亞裔|東亞|中國人|華人|日本人|韓國人|台灣人|東南亞/i.test(text)){
-      task.ethnicity="亞洲／東亞成人女性面部外觀；維持自然一致的亞洲面部結構。";
-      task.face="自然亞洲成人女性五官與臉型；眼睛、眉骨、鼻部、嘴唇與整體面部結構保持一致。";
-    }else if(/白人|歐美人|歐洲人|西方人|高加索|Caucasian|European/i.test(text)){
-      task.ethnicity="歐美／白人成年人面部外觀；維持一致的歐美面部結構。";
-      task.face="自然一致的歐美成人五官與臉型。";
-    }else if(/非裔|黑人|African/i.test(text)){
-      task.ethnicity="非洲裔成人面部外觀；維持自然一致的面部結構。";
-    }else if(/南亞|印度人|印度裔|South Asian|Indian/i.test(text)){
-      task.ethnicity="南亞成人面部外觀；維持自然一致的面部結構。";
+    const appearance = getRequestedImageAppearanceGuidance(text);
+    if(appearance){
+      task.ethnicity = appearance;
+      task.face = "保持使用者指定或參考圖中的人物五官與身份，不自行指定性別或套用單一族群臉型。";
     }
     if(/黑髮|黑色頭髮|黑長髮|長髮/i.test(text)) task.hair="黑色長髮";
     if(/性感/i.test(text)) task.style="性感成人肖像風格";
@@ -5290,19 +5290,27 @@ function getRequestedImageAspectRatio(text){
 
 function getRequestedImageAppearanceGuidance(text){
   const value = String(text || "").trim();
-  if(/亞洲|亞裔|東亞|中國人|華人|日本人|韓國人|台灣人|東南亞/i.test(value)){
-    return "人物族群外觀要求：請維持明確的亞洲／東亞面部外觀與自然的亞洲成人五官比例；不要自動轉成歐美白人面部結構。這不是單純膚色要求，還包括臉型、眼睛、眉骨、鼻部、嘴唇與整體面部結構的協調一致。";
+  // AIVAULT_APPEARANCE_DIVERSITY_V1: nationalities are not a single face or skin tone.
+  const groups = [
+    [/中國人|中国人|中國男性|中国男性|中國女性|中国女性|中國籍|中国籍|華人|华人|漢族|汉族|Chinese/i, "中國／華人：中國有多民族與多種外貌；若未指定民族，使用自然、多樣的東亞成人肖像作創作起點，不宣稱所有中國人都長這樣；有明確民族、外觀或參考圖時以其為準"],
+    [/東南亞|东南亚|越南|泰國|泰国|菲律賓|菲律宾|印尼|馬來|马来|Southeast Asian/i, "東南亞：保留使用者指定地區及人物特徵，不套用單一東亞模板"],
+    [/南亞|南亚|印度|巴基斯坦|孟加拉|斯里蘭卡|斯里兰卡|South Asian|Indian/i, "南亞：依指定地區、具體外觀與參考圖呈現多樣成人肖像"],
+    [/西亞|西亚|中東|中东|阿拉伯|波斯|West Asian|Middle Eastern|Arab/i, "西亞／中東：依具體地區與外觀呈現，不與南亞或歐洲一概混用"],
+    [/東亞|东亚|日本|韓國|韩国|台灣|臺灣|台湾|East Asian|Japanese|Korean/i, "東亞：依使用者指定背景與具體五官呈現自然成人肖像，不因改姿勢或光線而換臉"],
+    [/歐洲|欧洲|歐美|欧美|白人|European|Caucasian/i, "歐洲／歐洲裔：保留指定背景；膚色、髮色、眼色與五官依具體要求，不把所有歐洲人當同一外貌"],
+    [/非洲|非裔|黑人|African|Black person/i, "非洲／非洲裔：尊重各地區與人物外貌的多樣性；膚色深淺、髮質與五官依具體要求，不使用誇張刻板印象"],
+    [/拉丁|拉美|Latino|Latina|Latin American/i, "拉丁美洲背景：不是單一種族；依具體祖源、外觀或參考圖呈現"],
+    [/混血|多族裔|mixed ancestry|multiracial/i, "混合祖源：依使用者指定組合與外觀呈現，不自行套固定比例"]
+  ];
+  const matches = groups.filter(([pattern]) => pattern.test(value)).map(([,description]) => description);
+  if (!matches.length && /亞洲|亚洲|亞裔|亚裔|Asian/i.test(value)) {
+    matches.push("亞洲：範圍涵蓋多種族群與外貌；細節依具體要求，不直接等同東亞");
   }
-  if(/白人|歐美人|歐洲人|西方人|高加索|Caucasian|European/i.test(value)){
-    return "人物族群外觀要求：請維持明確的歐美／白人成年人面部外觀與自然一致的面部結構；不要在未要求時改成亞洲面部外觀。";
-  }
-  if(/非裔|黑人|African/i.test(value)){
-    return "人物族群外觀要求：請維持明確且自然一致的非洲裔成人面部外觀；不要在未要求時改成其他族群的面部外觀。";
-  }
-  if(/南亞|印度人|印度裔|South Asian|Indian/i.test(value)){
-    return "人物族群外觀要求：請維持明確且自然一致的南亞成人面部外觀；不要在未要求時改成其他族群的面部外觀。";
-  }
-  return "";
+  if (!matches.length) return "";
+  return "人物背景與外觀指引：" + matches.join("；") +
+    "。保留人物性別與年齡要求，不把國籍或族群自動改成女性；不由外貌推斷真實人物國籍。" +
+    "參考圖與使用者具體描述優先，不強迫改變膚色、眼型、鼻型；各人物描述分別套用，不將多人合成單一族群。" +
+    "新任務可使用新身份；延續任務只改明確指定項目。";
 }
 
 function isImageContinuationIntent(text, files){
@@ -6618,6 +6626,15 @@ async function callAIVAULT(
   const learningContext =
     await getDarkStarLearningContext(userMessage);
 
+  let physiologyContext = "";
+  try {
+    const physiology = await window.AIVAULTDarkStarPhysiologyReady;
+    if(physiology) physiologyContext = physiology.getContext();
+  } catch(error) {
+    console.warn("[DarkStar][PHYSIOLOGY] unavailable; chat continues", error);
+  }
+
+
   // 書架來源鎖：僅電子書勾選時，將實際檢索到的原文送入本輪 Gateway。
   // 只增加當輪上下文，不改動使用者原文、歷史記憶或對話 ID。
   let ebookContext = "";
@@ -6658,7 +6675,7 @@ async function callAIVAULT(
         userMessage,
         safeFiles,
         learningContext
-      ) + "\n\n" + darkStarReasoningContract + (ebookContext ? "\n\n" + ebookContext : ""),
+      ) + "\n\n" + darkStarReasoningContract + (ebookContext ? "\n\n" + ebookContext : "") + physiologyContext,
 
     conversation_id:
       conversationId || null,
