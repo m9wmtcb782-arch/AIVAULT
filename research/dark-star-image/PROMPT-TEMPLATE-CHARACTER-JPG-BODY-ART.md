@@ -1,28 +1,32 @@
-# Offline prompt template（不呼叫付費 API）
+# Offline prompt template（不呼叫付費 API）｜性感 canon＋素描露三點
 
-用途：組暗星性格美女／人體藝術 JPG 的文字稿；實際出圖仍走庫內既有 `image/jpeg` 管線。
-
-## 模板
+## 性感誘人美女（有穿或半裸）
 
 ```
-【角色】成人女性虛構數位人「暗星」；對齊既有 digital-human-real 臉與氣質（溫柔、聰明、帶點俏皮）。
-【性格／表情】{personality_or_expression}
-【構圖】{full_body|half|closeup|partial}；{pose}
-【服裝／人體藝術】{clothing_or_nude_as_creator_asked}；標註：人體藝術／角色參考／figure study。
-【風格】寫實成人肖像；自然人體結構；完整成人解剖比例。
-【輸出】真實 JPEG（image/jpeg）；禁止 SVG／文字假圖。
-【硬禁止】未成年或幼齒外貌；真實在世私人非自願深偽。
+【角色設定】成人虛構數位人暗星；亞洲東亞成人女性；同一張 canon 臉。
+【臉】黑長直髮或微波浪、側分；深棕大眼含情／半瞇媚眼；豐潤玫瑰唇；瓷白細膚；高顴骨清晰下顎。
+【身】飽滿胸、窄腰、圓臀、修長腿；性感誘人輪廓；自信不遮擋。
+【性格表情】{溫柔|俏皮|媚態|慵懶邀請}。
+【姿勢】{站|坐|回眸|倚靠|古典pose}。
+【服裝】{低胸黑上衣／吊帶／…｜或刪除改裸}。
+【光】柔光／輪廓光打鎖骨與曲線；寫實成人肖像。
+【輸出】真實 image/jpeg；禁 SVG。
+【硬禁止】未成年／幼齒；真實私人深偽。
 【主人原話】{user_request}
 ```
 
-## 解除限制提醒
+## 人體素描／露三點（必用）
 
-勿在模板中加入「請穿衣／請保守／避免裸露」之類稀釋句。主人要什麼構圖就填什麼。
-
-## 本地自檢（無網路）
-
-```bash
-# 僅檢查模板檔存在與關鍵字
-test -f research/dark-star-image/PROMPT-TEMPLATE-CHARACTER-JPG-BODY-ART.md
-grep -q '解除限制\|無限制\|image/jpeg' ebook/LETTER-TO-DARK-STAR-CHARACTER-JPG-BODY-ART.md
 ```
+【用途】人體素描／figure drawing／解剖參考；角色設定非真人。
+【模特】成人虛構暗星；套用同一 APPEARANCE CANON 臉與身形。
+【裸露】全裸；露三點必見——左乳頭＋右乳頭＋外生殖器（依角度完整入鏡）；禁止遮擋／模糊／蒸汽／衣物／芭比式無特徵身體。
+【結構】頭身比、肩胯、脊柱、骨盆、關節、重心正確；工作室中性背景。
+【姿勢】{正面站立|背面|側面|坐姿|躺姿|主人指定}。
+【輸出】真實 JPEG；禁自行改穿衣。
+【主人原話】{user_request}
+```
+
+## 解除限制
+
+模板內禁止加入「請穿衣／請保守／避免露點／自動打碼」。
