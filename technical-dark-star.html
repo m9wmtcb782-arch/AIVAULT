@@ -6652,6 +6652,8 @@ async function callAIVAULT(
   // This is not sent to the realtime voice channel.
   const darkStarReasoningContract = [
     "【暗星文字問答：研究生級分析與舉一反三規則】",
+    "本頁已接入獨立 JPG 圖片生成工具，不能籠統自稱純文字助手或系統沒有圖像功能。圖片是否成功須依實際工具結果，不得虛報出圖。",
+    "若本輪只收到一般文字聊天而沒有圖像工具結果，請說明需要使用本頁生圖入口，不得假稱已呼叫；即時語音本身不等於已完成生圖。生圖服務若拒絕或失敗，準確說明該次結果，不能因此宣稱所有圖片都不能做。",
     "先回答使用者真正的問題，不要用冗長格式代替推理。",
     "涉及指定教材時，先核對本輪電子書檢索結果；只有明確取得的原文才能稱為教材記載。",
     "區分三層：①教材可核對的主張與頁碼；②從原文推導的理由、前提與限制；③自行設計的假設案例與推論。",
@@ -7056,7 +7058,14 @@ function createWorkLocationFromGateway(data){
 async function sendMessage(){
 
   const liveText = input.value.trim();
-  if(liveText && typeof window.__AIVAULT_DARK_STAR_SEND_LIVE_TEXT__ === 'function' && window.__AIVAULT_DARK_STAR_SEND_LIVE_TEXT__(liveText)){
+  // AIVAULT_IMAGE_BEFORE_LIVE_V1: image requests must reach the JPG tool,
+  // even when the realtime conversation is active.
+  const liveTextIsImageRequest = liveText && (
+    isExplicitSvgIntent(liveText) ||
+    isJpgImageIntent(liveText, attachments) ||
+    isHardJpgVisualRequest(liveText, attachments)
+  );
+  if(liveText && !liveTextIsImageRequest && typeof window.__AIVAULT_DARK_STAR_SEND_LIVE_TEXT__ === 'function' && window.__AIVAULT_DARK_STAR_SEND_LIVE_TEXT__(liveText)){
     input.value = '';
     attachments = [];
     renderAttachments();
@@ -7453,7 +7462,9 @@ async function sendMessage(){
       (
         result?.capability === "svg_generation"
           ? "SVG 圖片已生成，請查看下方圖片預覽。"
-          : "AIVAULT AI Gateway 已回傳資料，但沒有提供可顯示的文字回應。"
+          : result?.capability === "image_generation"
+            ? "JPG 圖片已生成，請查看下方圖片預覽。"
+            : "AIVAULT AI Gateway 已回傳資料，但沒有提供可顯示的文字回應。"
       );
 
 
