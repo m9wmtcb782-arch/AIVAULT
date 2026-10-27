@@ -15,7 +15,8 @@ for(const name of ['coronal suture','sagittal suture','lambdoid suture','frontal
 for(const name of ['temporomandibular'])bilateral('head',name,'synovial-complex',['opening','translation','lateral']);
 add('spine','atlanto-occipital','midline','synovial',['flexion','lateral']);
 add('spine','atlanto-axial','midline','synovial',['rotation']);
-for(let i=2;i<=7;i++)add('spine',`cervical C${i}-C${i+1} segment`,'midline','composite',['flexion','lateral','rotation']);
+for(let i=2;i<=6;i++)add('spine',`cervical C${i}-C${i+1} segment`,'midline','composite',['flexion','lateral','rotation']);
+add('spine','cervicothoracic C7-T1 segment','midline','composite',['flexion','lateral','rotation']);
 for(let i=1;i<=11;i++)add('spine',`thoracic T${i}-T${i+1} segment`,'midline','composite',['flexion','lateral','rotation']);
 for(let i=1;i<=4;i++)add('spine',`lumbar L${i}-L${i+1} segment`,'midline','composite',['flexion','lateral','rotation']);
 add('spine','lumbosacral L5-S1','midline','composite',['flexion','lateral','rotation']);
