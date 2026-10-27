@@ -1,0 +1,15 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createWorld} from '../modules/darkstar-physics/world.js';
+import {auditRig} from '../modules/darkstar-rig-audit.js';
+import {validateTissueParameters,auditTissueCoverage} from '../modules/darkstar-tissue-calibration.js';
+test('free fall moves down under gravity',()=>{const w=createWorld();w.addBody({id:'ball',position:{x:0,y:0,z:3}});const b=w.step(10)[0];assert.ok(b.position.z<3);assert.ok(b.velocity.z<0)});
+test('ground prevents sphere penetration',()=>{const w=createWorld();w.addBody({id:'ball',position:{x:0,y:0,z:1},radius:.2});assert.ok(w.step(500)[0].position.z>=.2-1e-9)});
+test('horizontal friction dissipates sliding velocity',()=>{const w=createWorld();w.addBody({id:'ball',position:{x:0,y:0,z:.1},velocity:{x:2,y:0,z:0},friction:1});assert.ok(w.step(100)[0].velocity.x<2)});
+test('external force changes horizontal momentum',()=>{const w=createWorld({gravity:0});w.addBody({id:'ball',position:{x:0,y:0,z:1}});w.force('ball',{x:12,y:0,z:0});assert.ok(w.step()[0].velocity.x>0)});
+test('constraint pulls stretched bodies toward each other',()=>{const w=createWorld({gravity:0,dt:1/240});w.addBody({id:'a',position:{x:0,y:0,z:1}});w.addBody({id:'b',position:{x:2,y:0,z:1}});w.link({a:'a',b:'b',restLength:1,stiffness:10,damping:1});const s=w.step(1);assert.ok(s[0].velocity.x>0&&s[1].velocity.x<0)});
+test('world refuses human-actuation validation',()=>assert.equal(createWorld().validatedForHumanActuation,false));
+test('GLTF rig audit rejects empty or skinless scenes',()=>{assert.equal(auditRig({nodes:[]}).status,'NO_SKINNED_RIG');assert.equal(auditRig(null).status,'NO_RIG')});
+test('GLTF rig audit detects a skinned model without authorizing it',()=>{const r=auditRig({nodes:[{name:'Hips'}],skins:[{joints:[0]}]},['Hips','Head']);assert.equal(r.status,'SKINNED_RIG_FOUND');assert.deepEqual(r.missing,['Head']);assert.equal(r.actuationAllowed,false)});
+test('tissue calibration rejects unverified records',()=>assert.equal(validateTissueParameters({id:'m1',type:'muscle',source:'demo',reviewer:'demo',units:'SI',parameters:{force:100},verified:false}).status,'UNVERIFIED'));
+test('tissue coverage exposes missing joints',()=>assert.deepEqual(auditTissueCoverage([{id:'a'},{id:'b'}],[{jointId:'a'}]).missing,['b']));
