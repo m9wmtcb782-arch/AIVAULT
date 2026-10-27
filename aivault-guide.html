@@ -462,10 +462,9 @@ const bridge=createVoiceMotionBridge({sink(frame){
 }});
 window.__darkstarMotionVoice=bridge;
 const director=createSilentMotionDirector({emit(command){
- bridge.onTranscript('',{source:'internal'}); // no spoken-command trigger
  window.dispatchEvent(new CustomEvent('darkstar:motion-intent',{detail:command}));
  // Only feed the motion sampler; no speech output or synthetic voice text.
- bridge.triggerInternal?.(command.name);
+ bridge.triggerInternal(command.name);
 }});
 window.__darkstarSilentMotion=director;
 function tick(){if(bridge.getState().active)bridge.tick();requestAnimationFrame(tick)}
