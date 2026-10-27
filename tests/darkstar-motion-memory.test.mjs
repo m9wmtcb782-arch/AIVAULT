@@ -1,0 +1,13 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {MOTION_PROGRAMS,validateMotionProgram,sampleMotion,inertialFollow,MOTION_MEMORY_STATUS} from '../modules/darkstar-motion-memory.js';
+test('all motion primitives are valid',()=>{for(const p of Object.values(MOTION_PROGRAMS))assert.equal(validateMotionProgram(p).valid,true)});
+test('greeting has zero resting position',()=>{const p=MOTION_PROGRAMS.greet;assert.equal(sampleMotion(p,0).pose['right.elbow.flexion'],0);assert.equal(sampleMotion(p,p.duration).pose['right.elbow.flexion'],0)});
+test('greeting raises elbow in middle',()=>assert.ok(sampleMotion(MOTION_PROGRAMS.greet,.9).pose['right.elbow.flexion']>50));
+test('blink closes both eyes symmetrically',()=>{const p=sampleMotion(MOTION_PROGRAMS.blink,.12).pose;assert.equal(p['face.eyelidCloseLeft'],p['face.eyelidCloseRight']);assert.ok(p['face.eyelidCloseLeft']>.9)});
+test('sampling clamps beyond duration',()=>assert.equal(sampleMotion(MOTION_PROGRAMS.nod,99).pose['midline.upperNeck.flexion'],0));
+test('invalid keyframes rejected',()=>assert.equal(validateMotionProgram({duration:1,channels:{a:[[0,0],[0,1],[1,0]]}}).valid,false));
+test('inertial filter moves towards target',()=>{const x=inertialFollow(0,90,1/60);assert.ok(x>0&&x<90)});
+test('speed is limited',()=>assert.ok(inertialFollow(0,1000,.01,{maxSpeed:50})<=.5+1e-9));
+test('invalid dt rejected',()=>assert.throws(()=>inertialFollow(0,1,-1),/INVALID_INERTIA_INPUT/));
+test('preview cannot actuate avatar',()=>assert.equal(MOTION_MEMORY_STATUS.actuationAllowed,false));
