@@ -1,0 +1,39 @@
+name: Build Dark Star real-person MP4 edits
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Maximum edited clips (not new movements)"
+        required: true
+        default: "100"
+        type: choice
+        options: ["10", "30", "100"]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+      - name: Build edited real-person clips
+        run: python3 scripts/build-darkstar-real-mp4-edits.py --limit "${{ inputs.limit }}"
+      - name: Verify produced manifest
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('artifacts/darkstar-real-motion-edits/manifest.json')
+          d=json.loads(p.read_text())
+          assert d['count']>0
+          assert all(not x['new_joint_action'] for x in d['clips'])
+          assert all((p.parent/x['file']).is_file() for x in d['clips'])
+          print('Verified',d['count'],'original-person edits')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: darkstar-original-real-mp4-edits
+          path: artifacts/darkstar-real-motion-edits/
+          retention-days: 7
