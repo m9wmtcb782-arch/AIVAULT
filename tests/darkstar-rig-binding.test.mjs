@@ -1,0 +1,13 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {verifyRigBinding,createBindingTemplate} from '../modules/darkstar-rig-binding.js';
+const rig={nodes:[{name:'LeftElbow'},{name:'RightElbow'}],skins:[{joints:[0,1]}]};
+const atlas=[{id:'left.elbow',axes:[{name:'flexion'}]},{id:'right.elbow',axes:[{name:'flexion'}]}];
+const binding=(jointId,nodeIndex)=>({jointId,nodeIndex,axes:{flexion:[1,0,0]},bindRotation:[0,0,0,1],bindPosition:[0,0,0],reviewed:true,source:'manual-review'});
+test('missing GLTF skin is rejected',()=>assert.equal(verifyRigBinding({nodes:[]},[],{atlas}).status,'BLOCKED_NO_SKINNED_RIG'));
+test('empty binding is incomplete and cannot actuate',()=>{const r=verifyRigBinding(rig,[],{atlas});assert.equal(r.missing.length,2);assert.equal(r.actuationAllowed,false)});
+test('one bone cannot represent two joints',()=>{const r=verifyRigBinding(rig,[binding('left.elbow',0),binding('right.elbow',0)],{atlas});assert.ok(r.errors.includes('NODE_REUSED:0'))});
+test('axes must be normalized',()=>{const b=binding('left.elbow',0);b.axes.flexion=[2,0,0];assert.ok(verifyRigBinding(rig,[b],{atlas}).errors.some(x=>x.startsWith('BAD_AXIS')))});
+test('unreviewed bindings are rejected',()=>{const b=binding('left.elbow',0);b.reviewed=false;assert.ok(verifyRigBinding(rig,[b],{atlas}).errors.some(x=>x.startsWith('NOT_REVIEWED')))});
+test('fully mapped mock rig remains non-actuating',()=>{const r=verifyRigBinding(rig,[binding('left.elbow',0),binding('right.elbow',1)],{atlas});assert.equal(r.status,'STRUCTURE_REVIEWED_ONLY');assert.equal(r.actuationAllowed,false)});
+test('template never guesses node indexes',()=>{const t=createBindingTemplate(rig,atlas);assert.equal(t.joints[0].nodeIndex,null);assert.equal(t.actuationAllowed,false)});
