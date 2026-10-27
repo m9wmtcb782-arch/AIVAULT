@@ -28,6 +28,13 @@ export function createVoiceMotionBridge({sink,clock=()=>performance.now()}={}){
   active={name:cmd.name,start:now};lastName=cmd.name;lastStart=now;lastTick=null;
   return {accepted:true,name:cmd.name,mode:'PREVIEW_ONLY'};
  }
+ function triggerInternal(name){
+  if(!Object.prototype.hasOwnProperty.call(MOTION_PROGRAMS,name))return {accepted:false,reason:'UNKNOWN_PROGRAM'};
+  const now=clock();
+  if(lastName===name&&now-lastStart<1000)return {accepted:false,reason:'DEBOUNCED'};
+  active={name,start:now};lastName=name;lastStart=now;lastTick=null;
+  return {accepted:true,name,mode:'PREVIEW_ONLY',source:'internal-motor'};
+ }
  function tick(){
   if(!active)return {active:false};
   const now=clock(),seconds=Math.max(0,(now-active.start)/1000),program=MOTION_PROGRAMS[active.name];
@@ -40,5 +47,5 @@ export function createVoiceMotionBridge({sink,clock=()=>performance.now()}={}){
   return {active:!!active,frame};
  }
  function stop(){active=null;pose={};lastTick=null;}
- return {onTranscript,tick,stop,getState:()=>({active:active?.name??null,previewOnly:true})};
+ return {onTranscript,triggerInternal,tick,stop,getState:()=>({active:active?.name??null,previewOnly:true})};
 }
