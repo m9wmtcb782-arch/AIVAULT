@@ -1,0 +1,10 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {recognizeMotionCommand,createVoiceMotionBridge} from '../modules/darkstar-voice-motion-bridge.js';
+test('Chinese spoken wave maps to cached gesture',()=>assert.equal(recognizeMotionCommand('暗星，跟我揮手').name,'greet'));
+test('nod blink smile voice commands recognized',()=>{for(const [s,n] of [['點頭','nod'],['眨眼','blink'],['微笑','smile']])assert.equal(recognizeMotionCommand(s).name,n)});
+test('unrecognized speech does not trigger gesture',()=>assert.equal(recognizeMotionCommand('今天的天氣如何'),null));
+test('assistant speech cannot retrigger motion',()=>{const b=createVoiceMotionBridge({sink:()=>{}});assert.equal(b.onTranscript('揮手',{source:'assistant'}).accepted,false)});
+test('interim transcript cannot trigger',()=>{const b=createVoiceMotionBridge({sink:()=>{}});assert.equal(b.onTranscript('揮手',{final:false}).accepted,false)});
+test('recognized speech generates non-actuating pose frames',()=>{let time=0,frame;const b=createVoiceMotionBridge({sink:f=>frame=f,clock:()=>time});assert.equal(b.onTranscript('揮手').accepted,true);b.tick();time=900;b.tick();assert.ok(frame.pose['right.elbow.flexion']>=0);assert.equal(frame.actuationAllowed,false)});
+test('repeat commands are debounced',()=>{let time=100;const b=createVoiceMotionBridge({sink:()=>{},clock:()=>time});assert.equal(b.onTranscript('點頭').accepted,true);time=200;assert.equal(b.onTranscript('點頭').reason,'DEBOUNCED')});
+test('stop clears active motion',()=>{const b=createVoiceMotionBridge({sink:()=>{}});b.onTranscript('微笑');b.stop();assert.equal(b.getState().active,null)});
