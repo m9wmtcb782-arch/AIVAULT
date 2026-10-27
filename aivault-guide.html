@@ -303,7 +303,7 @@ function stopRec(){if(rec){try{rec.abort();}catch(e){}rec=null;}$('micBtn').clas
 if(!SR)$('micBtn').style.display='none';
 function syncMic(){$('micBtn').style.display=(SR||voiceMode==='live')?'':'none';}
 $('micBtn').onclick=()=>{if(voiceMode==='live'&&live.ready()){if(paused||!qaMode)return;live.toggleMic();return;}if(rec){stopRec();return;}if(paused||!qaMode||!SR)return;rec=new SR();rec.lang='zh-TW';rec.interimResults=false;$('micBtn').classList.add('rec');
- rec.onresult=e=>{const t=e.results[0][0].transcript;stopRec();if(!paused&&qaMode){$('askBox').value=t;ask(t);}};rec.onend=rec.onerror=()=>stopRec();try{rec.start();}catch(e){stopRec();}};
+ rec.onresult=e=>{const t=e.results[0][0].transcript;if(window.__darkstarMotionVoice)window.__darkstarMotionVoice.onTranscript(t,{source:'user',final:true});stopRec();if(!paused&&qaMode){$('askBox').value=t;ask(t);}};rec.onend=rec.onerror=()=>stopRec();try{rec.start();}catch(e){stopRec();}};
 function go(d){const base=queued!==null?queued:page,np=Math.min(slides.length-1,Math.max(0,base+d));if(stopped){page=np;showSlide();return;}
  if(inSlide){queued=np;$('skipBtn').style.display='block';status('這頁講完後會換到第 '+(np+1)+' 頁');return;}jump=np;if(nextWait)nextWait();}
 $('skipBtn').onclick=()=>{if(queued===null)return;jump=queued;queued=null;$('skipBtn').style.display='none';stopSpeech();};
@@ -353,7 +353,9 @@ const live=(()=>{const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v
   else((sc.modelTurn&&sc.modelTurn.parts)||[]).forEach(p=>{const id=p&&p.inlineData;if(id&&id.data&&String(id.mimeType||'').indexOf('audio')===0)playB64(id.data,id.mimeType);});
   try{const cid=d.conversation_id||d.conversationId||(d.live_open&&d.live_open.conversation_id),tp=d.topic_id||d.topicId||(d.live_open&&d.live_open.topic_id);if(typeof cid==='string'&&cid.trim())localStorage.setItem(nsKey('aivault-guide-live-conversation-id'),cid.trim());if(typeof tp==='string'&&tp.trim())localStorage.setItem(nsKey('aivault-guide-live-topic-id'),tp.trim());}catch(e){}
   if(d.type==='live_open'||d.setupComplete){gotSetup=true;retry=0;}
-  const out=(sc.outputTranscription&&sc.outputTranscription.text)||(d.type==='outputTranscription'?d.text:'');
+  const userSpeech=(sc.inputTranscription&&sc.inputTranscription.text)||(d.type==='inputTranscription'?d.text:'');
+   if(userSpeech&&window.__darkstarMotionVoice)window.__darkstarMotionVoice.onTranscript(userSpeech,{source:'user',final:!!(sc.inputTranscription?.finished||d.final||d.isFinal||d.type==='inputTranscriptionFinal')});
+   const out=(sc.outputTranscription&&sc.outputTranscription.text)||(d.type==='outputTranscription'?d.text:'');
   if(out&&!dropping){outBuf+=out;const ss=splitSent(outBuf);if(ss.length&&!qaPend)$('sub').textContent=ss[ss.length-1].slice(-40);if(qaPend)$('sub').textContent=outBuf.slice(-40);}
   if(sc.turnComplete||d.turnComplete||d.type==='turnComplete'){const said=outBuf;outBuf='';if(dropping){dropping=false;return;}if(turnWait){const w=turnWait;turnWait=null;w(said);}else if(micOn&&said){qaLog('a',said);}}
   if(d.type==='error'||d.error){const m=String(d.message||(d.error&&d.error.message)||'');if(/AUTH_REQUIRED|INVALID_AUTH/.test(m)){authFail=m;}
@@ -451,4 +453,15 @@ const lip2=(()=>{const ON=!/[?&]lip=0/.test(location.search),cv=$('lipCv'),cx=cv
   const[,ex,ey,ed,ro]=f,k=ed/(J.sprite.eyeDist*J.sprite.scale)*sc,[OX,OY]=J.sprite.origin;
   cx.save();cx.globalAlpha=alpha;cx.translate(ox+ex*sc,oy+ey*sc);cx.rotate(ro*Math.PI/180);cx.scale(k,k);cx.drawImage(img,-OX,-OY);cx.restore();}
  requestAnimationFrame(frame);return{pulse};})();
-</script></body></html>
+</script><script type="module">
+// Preview-only: existing Dark Star guide videos, voice and controls are untouched.
+import {createVoiceMotionBridge} from './modules/darkstar-voice-motion-bridge.js';
+const bridge=createVoiceMotionBridge({sink(frame){
+ window.dispatchEvent(new CustomEvent('darkstar:motion-preview',{detail:frame}));
+}});
+window.__darkstarMotionVoice=bridge;
+function tick(){if(bridge.getState().active)bridge.tick();requestAnimationFrame(tick)}
+requestAnimationFrame(tick);
+window.addEventListener('pagehide',()=>bridge.stop());
+</script>
+</body></html>
