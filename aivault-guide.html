@@ -291,7 +291,7 @@ async function ask(q){q=q.trim();if(!q||paused||!qaMode)return;if(voiceMode==='l
   const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||d.message||('HTTP '+r.status));
   ans=String(d.content||d.response||d.text||d.message||(d.choices&&d.choices[0]&&d.choices[0].message&&d.choices[0].message.content)||'').replace(/\[表情:[^\]]*\]/g,'').trim()||'這個問題很好，我們可以再一起看看簡報的內容。';}
  catch(e){ans='抱歉，我現在連不上，等一下再問我一次好嗎？';console.warn(e);}
- qaHist.push({role:'assistant',content:ans});qaLog('a',ans);
+ qaHist.push({role:'assistant',content:ans});if(window.__darkstarSilentMotion)window.__darkstarSilentMotion.decide({assistantText:ans,userText:q,phase:'speaking'});qaLog('a',ans);
  await waitPause();if(!qaMode){$('askSend').disabled=false;return;}
  const ss=splitSent(ans);for(let i=0;i<ss.length&&qaMode;i++){if(i===0)oneShot('explain');await sayP(ss[i]);}
  if(!paused)playClip('idle',true);$('askSend').disabled=!qaMode;}
@@ -356,7 +356,7 @@ const live=(()=>{const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v
   const userSpeech=(sc.inputTranscription&&sc.inputTranscription.text)||(d.type==='inputTranscription'?d.text:'');
    if(userSpeech&&window.__darkstarMotionVoice)window.__darkstarMotionVoice.onTranscript(userSpeech,{source:'user',final:!!(sc.inputTranscription?.finished||d.final||d.isFinal||d.type==='inputTranscriptionFinal')});
    const out=(sc.outputTranscription&&sc.outputTranscription.text)||(d.type==='outputTranscription'?d.text:'');
-  if(out&&!dropping){outBuf+=out;const ss=splitSent(outBuf);if(ss.length&&!qaPend)$('sub').textContent=ss[ss.length-1].slice(-40);if(qaPend)$('sub').textContent=outBuf.slice(-40);}
+  if(out&&!dropping){if(window.__darkstarSilentMotion)window.__darkstarSilentMotion.decide({assistantText:out,phase:'speaking'});outBuf+=out;const ss=splitSent(outBuf);if(ss.length&&!qaPend)$('sub').textContent=ss[ss.length-1].slice(-40);if(qaPend)$('sub').textContent=outBuf.slice(-40);}
   if(sc.turnComplete||d.turnComplete||d.type==='turnComplete'){const said=outBuf;outBuf='';if(dropping){dropping=false;return;}if(turnWait){const w=turnWait;turnWait=null;w(said);}else if(micOn&&said){qaLog('a',said);}}
   if(d.type==='error'||d.error){const m=String(d.message||(d.error&&d.error.message)||'');if(/AUTH_REQUIRED|INVALID_AUTH/.test(m)){authFail=m;}
    if(/TOPIC_ID_REQUIRED|IDENTITY_MISMATCH/.test(m)){localStorage.removeItem(nsKey('aivault-guide-live-topic-id'));localStorage.removeItem(nsKey('aivault-guide-live-conversation-id'));}}}
@@ -456,10 +456,18 @@ const lip2=(()=>{const ON=!/[?&]lip=0/.test(location.search),cv=$('lipCv'),cx=cv
 </script><script type="module">
 // Preview-only: existing Dark Star guide videos, voice and controls are untouched.
 import {createVoiceMotionBridge} from './modules/darkstar-voice-motion-bridge.js';
+import {createSilentMotionDirector} from './modules/darkstar-silent-motion-director.js';
 const bridge=createVoiceMotionBridge({sink(frame){
  window.dispatchEvent(new CustomEvent('darkstar:motion-preview',{detail:frame}));
 }});
 window.__darkstarMotionVoice=bridge;
+const director=createSilentMotionDirector({emit(command){
+ bridge.onTranscript('',{source:'internal'}); // no spoken-command trigger
+ window.dispatchEvent(new CustomEvent('darkstar:motion-intent',{detail:command}));
+ // Only feed the motion sampler; no speech output or synthetic voice text.
+ bridge.triggerInternal?.(command.name);
+}});
+window.__darkstarSilentMotion=director;
 function tick(){if(bridge.getState().active)bridge.tick();requestAnimationFrame(tick)}
 requestAnimationFrame(tick);
 window.addEventListener('pagehide',()=>bridge.stop());
