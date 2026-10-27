@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {MUSCLES,createNeuromuscularState,stepNeuromuscular,facialControlSignals,NEUROMUSCULAR_STATUS} from '../modules/darkstar-neuromuscular.js';
+test('both eyes have six extraocular muscles',()=>{for(const side of ['L','R'])for(const n of ['superior_rectus','inferior_rectus','medial_rectus','lateral_rectus','superior_oblique','inferior_oblique'])assert.ok(MUSCLES.some(m=>m.id===n+'_'+side))});
+test('mouth and eyelids represented',()=>{for(const n of ['orbicularis_oris','orbicularis_oculi_L','orbicularis_oculi_R','masseter_L','digastric_R','genioglossus'])assert.ok(MUSCLES.some(m=>m.id===n))});
+test('neural drive activates muscle gradually',()=>{const s=createNeuromuscularState();const r=stepNeuromuscular(s,{orbicularis_oris:1},.01);assert.ok(r.state.orbicularis_oris.activation>0&&r.state.orbicularis_oris.activation<1)});
+test('zero drive relaxes previously activated muscle',()=>{const s=createNeuromuscularState();s.orbicularis_oris.activation=1;const r=stepNeuromuscular(s,{},.01);assert.ok(r.state.orbicularis_oris.activation<1)});
+test('facial eyelid closure is antagonistic',()=>{const s=createNeuromuscularState();s.orbicularis_oculi_L.activation=.9;s.levator_palpebrae_L.activation=.3;assert.ok(Math.abs(facialControlSignals(s).eyelidCloseLeft-.6)<1e-9)});
+test('jaw opening opposes masseter',()=>{const s=createNeuromuscularState();s.digastric_L.activation=1;s.digastric_R.activation=1;s.masseter_L.activation=.5;s.masseter_R.activation=.5;assert.equal(facialControlSignals(s).jawOpen,.5)});
+test('invalid neural drive fails closed',()=>assert.throws(()=>stepNeuromuscular(createNeuromuscularState(),{masseter_L:2},.01),/INVALID_NEURAL_DRIVE/));
+test('invalid timestep fails closed',()=>assert.throws(()=>stepNeuromuscular(createNeuromuscularState(),{},1),/INVALID_TIMESTEP/));
+test('prototype does not actuate production face',()=>assert.equal(NEUROMUSCULAR_STATUS.actuationAllowed,false));
