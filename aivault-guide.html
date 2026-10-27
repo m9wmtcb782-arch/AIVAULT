@@ -111,7 +111,17 @@ async function oneShot(n){if(paused)return;await playClip(n,false);if(!paused&&(
 // ---- lip ----
 fetch(G+'lip/guide_lip.json').then(r=>r.json()).then(j=>{lip=j;['closed','half','open','round'].forEach(k=>{const i=new Image();i.src=G+'lip/mouth_'+k+'.png';mouthImgs[k]=i;});});
 const LIP_ON=false; // 舊版 lip/ 疊加停用，改用下方 lip2（臉部偵測、只在正臉時）
-let speaking=false,vis='closed',visT=0;const SEQ=['half','open','half','closed','round','half','open','closed'];
+let speaking=false,vis='closed',visT=0;
+ // Real-person motion playback: existing original MP4 only; never replace Dark Star identity.
+ // Enabled only in Q&A idle moments; does not interrupt guide narration or live speech.
+ let lastRealMotionAt=0,realMotionBusy=false;
+ window.__darkstarPlayRealMotion=async function(clip){
+  if(!qaMode||paused||speaking||realMotionBusy||curClip!=='idle'||Date.now()-lastRealMotionAt<7000)return false;
+  if(!['intro','point','explain','ask','bow'].includes(clip))return false;
+  realMotionBusy=true;lastRealMotionAt=Date.now();
+  try{await oneShot(clip);return true;}finally{realMotionBusy=false;}
+ };
+const SEQ=['half','open','half','closed','round','half','open','closed'];
 function lipLoop(t){requestAnimationFrame(lipLoop);const m=$('mouth'),v=vids[cur];
  // 離線合成檢查（guide-lip-check）顯示頭部轉動時會出現雙嘴，guide_talk 本身已有自然嘴動 → 預設關閉疊加；?lip=1 只在正臉、非淡入淡出時試用
  if(!LIP_ON||!lip||!speaking||curClip!=='talk'||v.readyState<2||!v.classList.contains('on')||vids[1-cur].classList.contains('on')){m.style.display='none';return;}
@@ -457,12 +467,20 @@ const lip2=(()=>{const ON=!/[?&]lip=0/.test(location.search),cv=$('lipCv'),cx=cv
 // Preview-only: existing Dark Star guide videos, voice and controls are untouched.
 import {createVoiceMotionBridge} from './modules/darkstar-voice-motion-bridge.js';
 import {createSilentMotionDirector} from './modules/darkstar-silent-motion-director.js';
+import {chooseRealDarkStarClip} from './modules/darkstar-real-video-selector.js';
+const recentRealClips=[];
 const bridge=createVoiceMotionBridge({sink(frame){
  window.dispatchEvent(new CustomEvent('darkstar:motion-preview',{detail:frame}));
 }});
 window.__darkstarMotionVoice=bridge;
 const director=createSilentMotionDirector({emit(command){
  window.dispatchEvent(new CustomEvent('darkstar:motion-intent',{detail:command}));
+ const clip=chooseRealDarkStarClip(command.context,{recent:recentRealClips});
+ if(clip&&window.__darkstarPlayRealMotion){
+  Promise.resolve(window.__darkstarPlayRealMotion(clip)).then(ok=>{
+   if(ok){recentRealClips.push(clip);if(recentRealClips.length>2)recentRealClips.shift();}
+  }).catch(()=>{});
+ }
  // Only feed the motion sampler; no speech output or synthetic voice text.
  bridge.triggerInternal(command.name);
 }});
