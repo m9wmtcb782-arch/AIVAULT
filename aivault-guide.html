@@ -145,4 +145,348 @@ async function kv(k,v){const db=await idb;if(!db)return;return new Promise(r=>{c
 const settings=JSON.parse(localStorage.getItem('aivault-guide-settings')||'{}');
 function saveSet(){localStorage.setItem('aivault-guide-settings',JSON.stringify(settings));}
 function splitSent(t){return (t.match(/[^。！？!?\n]+[。！？!?]?/g)||[]).map(s=>s.trim()).filter(Boolean);}
-// 講稿對應：有「## 第N頁」就照頁碼放；沒有頁碼且段數比投影片少
+// 講稿對應：有「## 第N頁」就照頁碼放；沒有頁碼且段數比投影片少 → 預設從最後一頁往前對齊（可在預覽調整起始頁）；缺的頁保持空白（不念投影片文字）
+let scriptInfo={numbered:false,count:0};
+function mapScript(text,n){const re=/^\s*#{1,3}\s*第\s*(\d+)\s*頁.*$|^\s*---+\s*$/gm;const out=Array.from({length:n},()=>[]);let m,last=0,curNo=null,parts=[],numbered=false;
+ while((m=re.exec(text))){const body=text.slice(last,m.index).trim();if(body)parts.push({no:curNo,body});curNo=m[1]?+m[1]:null;if(m[1])numbered=true;last=re.lastIndex;}
+ const tail=text.slice(last).trim();if(tail)parts.push({no:curNo,body:tail});
+ if(numbered){parts.forEach(p=>{if(p.no&&p.no<=n)out[p.no-1]=splitSent(p.body);});scriptInfo={numbered:true,count:parts.length};return out;}
+ if(parts.length<2){const ss=splitSent(text),per=Math.ceil(ss.length/Math.max(1,n));scriptInfo={numbered:false,count:1,even:true};return Array.from({length:n},(_,i)=>ss.slice(i*per,(i+1)*per));}
+ let off=settings.scriptOffset;if(typeof off!=='number')off=Math.max(0,n-parts.length);off=Math.max(-parts.length+1,Math.min(n-1,off));
+ parts.forEach((p,k)=>{const i=k+off;if(i>=0&&i<n)out[i]=splitSent(p.body);});scriptInfo={numbered:false,count:parts.length,offset:off};return out;}
+function renderMap(){const el=$('mapList');if(!el)return;el.innerHTML=slides.map((src,i)=>{const t=(script[i]||[]).join('');return`<div class="map-row"><img src="${src}"><div><b>第 ${i+1} 頁</b> <span>${t?t.slice(0,46).replace(/</g,'&lt;')+(t.length>46?'…':''):'<i>（無講稿，靜默帶過）</i>'}</span></div></div>`;}).join('');
+ const canShift=!scriptInfo.numbered&&scriptInfo.count>1&&!scriptInfo.even;$('mapShift').style.display=canShift?'flex':'none';
+ $('mapInfo').textContent=scriptInfo.numbered?'講稿依「第N頁」頁碼對應':(canShift?`講稿 ${scriptInfo.count} 段，從第 ${scriptInfo.offset+1} 頁開始`:'');}
+async function shiftScript(d){const t=await kv('scriptText');if(!t)return;settings.scriptOffset=(scriptInfo.offset||0)+d;saveSet();script=mapScript(t,slides.length);renderMap();}
+function showSlide(){$('slide').src=slides[page]||'';$('pageNo').textContent=(page+1)+' / '+slides.length;}
+function status(t){$('status').textContent=t;}
+function statusLogin(t){$('status').innerHTML=t.replace(/</g,'&lt;')+' <a href="aivault-login.html?next='+encodeURIComponent(location.pathname.split('/').pop())+'" style="color:#7dd3fc">前往登入</a>';}
+function fromSections(sec,n){return Array.from({length:n},(_,i)=>splitSent(sec[i]||''));}
+async function loadScript(){scriptInfo={numbered:false,count:0};await loadScript0();renderMap();}
+async function loadScript0(){const sec=await kv('sections');if(sec)script=fromSections(sec,slides.length);else{const t=await kv('scriptText');script=t?mapScript(t,slides.length):(slides===DEMO_SLIDES?DEMO_SCRIPT:slides.map(()=>[]));}}
+(async()=>{const s=await kv('slides');if(s&&s.length){slides=s;status('已載入你上傳的簡報（'+s.length+' 頁）');}await loadScript();showSlide();})();
+// ---- uploads ----
+function loadScriptTag(src){return new Promise((r,j)=>{const s=document.createElement('script');s.src=src;s.onload=r;s.onerror=j;document.head.appendChild(s);});}
+const fileURL=f=>new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(f);});
+async function pdfToImgs(f){await pdfLib();
+ const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise,out=[];for(let i=1;i<=pdf.numPages;i++){const p=await pdf.getPage(i),vp=p.getViewport({scale:1}),sc=1280/vp.width,v2=p.getViewport({scale:sc}),c=document.createElement('canvas');c.width=v2.width;c.height=v2.height;await p.render({canvasContext:c.getContext('2d'),viewport:v2}).promise;out.push(c.toDataURL('image/jpeg',.85));$('upMsg').textContent='轉換中… '+i+'/'+pdf.numPages;}return out;}
+async function jszip(){if(!window.JSZip)await loadScriptTag('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');}
+// ---- PPTX：依 presentation.xml 的投影片順序；背景（slide→layout→master）、文字框與圖片照實際位置繪製 ----
+const PNS={p:'http://schemas.openxmlformats.org/presentationml/2006/main',a:'http://schemas.openxmlformats.org/drawingml/2006/main',r:'http://schemas.openxmlformats.org/officeDocument/2006/relationships'};
+const pxml=s=>new DOMParser().parseFromString(s,'application/xml');
+const kids=(el,ns,name)=>el?[...el.children].filter(c=>c.namespaceURI===PNS[ns]&&c.localName===name):[];
+const kid=(el,ns,name)=>kids(el,ns,name)[0]||null;
+const desc=(el,ns,name)=>el?el.getElementsByTagNameNS(PNS[ns],name)[0]||null:null;
+function relPath(base,target){if(target.startsWith('/'))return target.slice(1);const parts=base.split('/');parts.pop();for(const t of target.split('/')){if(t==='..')parts.pop();else if(t!=='.')parts.push(t);}return parts.join('/');}
+async function pRels(z,path){const i=path.lastIndexOf('/'),rp=path.slice(0,i)+'/_rels/'+path.slice(i+1)+'.rels',f=z.file(rp),m={};if(!f)return m;const d=pxml(await f.async('string'));for(const r of d.getElementsByTagName('Relationship'))m[r.getAttribute('Id')]={target:relPath(path,r.getAttribute('Target')),type:r.getAttribute('Type')||''};return m;}
+async function pptxOrder(z){const pres='ppt/presentation.xml',d=pxml(await z.file(pres).async('string')),rels=await pRels(z,pres);const sz=desc(d,'p','sldSz');
+ const ids=[...d.getElementsByTagNameNS(PNS.p,'sldId')].map(e=>e.getAttributeNS(PNS.r,'id')||e.getAttribute('r:id'));let list=ids.map(id=>rels[id]&&rels[id].target).filter(t=>t&&z.file(t));
+ if(!list.length)list=Object.keys(z.files).filter(n=>/^ppt\/slides\/slide\d+\.xml$/.test(n)).sort((a,b)=>parseInt(a.match(/(\d+)\.xml/)[1])-parseInt(b.match(/(\d+)\.xml/)[1]));
+ return{list,cx:sz?+sz.getAttribute('cx'):12192000,cy:sz?+sz.getAttribute('cy'):6858000};}
+function pColor(el){if(!el)return null;const s=desc(el,'a','srgbClr');if(s)return'#'+s.getAttribute('val');const sc=desc(el,'a','schemeClr');if(sc){const v=sc.getAttribute('val');return({bg1:'#ffffff',lt1:'#ffffff',tx1:'#000000',dk1:'#000000',bg2:'#e7e6e6',tx2:'#44546a',accent1:'#4472c4',accent2:'#ed7d31'})[v]||null;}return null;}
+async function pImg(z,path){const f=z.file(path);if(!f)return null;const ext=(path.split('.').pop()||'').toLowerCase();if(!/png|jpe?g|gif|bmp|webp/.test(ext))return null;const b=await f.async('base64');const im=new Image();im.src='data:image/'+(ext==='jpg'?'jpeg':ext)+';base64,'+b;try{await im.decode();}catch(e){return null;}return im;}
+async function pBg(z,path,rels){const d=pxml(await z.file(path).async('string')),bg=desc(d,'p','bg');if(bg){const bp=desc(bg,'p','bgPr');if(bp){const blip=desc(bp,'a','blip');if(blip){const r=rels[blip.getAttributeNS(PNS.r,'embed')];const im=r&&await pImg(z,r.target);if(im)return{img:im};}const c=pColor(kid(bp,'a','solidFill'));if(c)return{color:c};}}return null;}
+async function pptxRender(z,path,cx,cy){const W=1280,H=Math.round(W*cy/cx),S=W/cx,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.fillStyle='#ffffff';x.fillRect(0,0,W,H);
+ const rels=await pRels(z,path);let bg=await pBg(z,path,rels);const lay=Object.values(rels).find(r=>/slideLayout/.test(r.type));const chain=[];
+ if(lay){chain.push(lay.target);const lr=await pRels(z,lay.target);const ms=Object.values(lr).find(r=>/slideMaster/.test(r.type));if(ms)chain.push(ms.target);}
+ for(const p of chain){if(bg)break;if(z.file(p))bg=await pBg(z,p,await pRels(z,p));}
+ if(bg&&bg.color){x.fillStyle=bg.color;x.fillRect(0,0,W,H);}if(bg&&bg.img)x.drawImage(bg.img,0,0,W,H);
+ const d=pxml(await z.file(path).async('string')),tree=desc(d,'p','spTree');
+ async function draw(el){for(const ch of el.children){const n=ch.localName;if(n==='grpSp'){await draw(ch);continue;}
+  const xf=desc(ch,'a','xfrm'),off=xf&&kid(xf,'a','off'),ext=xf&&kid(xf,'a','ext');if(!off||!ext)continue;
+  const bx=+off.getAttribute('x')*S,by=+off.getAttribute('y')*S,bw=+ext.getAttribute('cx')*S,bh=+ext.getAttribute('cy')*S;
+  if(n==='pic'){const blip=desc(ch,'a','blip'),r=blip&&rels[blip.getAttributeNS(PNS.r,'embed')],im=r&&await pImg(z,r.target);if(im)x.drawImage(im,bx,by,bw,bh);continue;}
+  if(n!=='sp')continue;const spPr=kid(ch,'p','spPr'),fill=spPr&&pColor(kid(spPr,'a','solidFill'));if(fill){x.fillStyle=fill;x.fillRect(bx,by,bw,bh);}
+  const tb=kid(ch,'p','txBody');if(!tb)continue;const body=kid(tb,'a','bodyPr'),anchor=(body&&body.getAttribute('anchor'))||'t',pad=7*S*12700/9.5;
+  const lines=[];for(const p of kids(tb,'a','p')){const pPr=kid(p,'a','pPr'),algn=(pPr&&pPr.getAttribute('algn'))||'l';let txt='',sz=1800,col='#000000',b=false;
+   for(const r of kids(p,'a','r')){const rp=kid(r,'a','rPr');if(rp){if(rp.getAttribute('sz'))sz=+rp.getAttribute('sz');if(rp.getAttribute('b')==='1')b=true;col=pColor(kid(rp,'a','solidFill'))||col;}txt+=(kid(r,'a','t')||{}).textContent||'';}
+   const fpx=Math.max(8,sz/100*12700*S);x.font=(b?'bold ':'')+fpx+'px "PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif';
+   const maxW=Math.max(10,bw-pad*2);let cur='';const wrap=[];for(const chh of txt){if(x.measureText(cur+chh).width>maxW&&cur){wrap.push(cur);cur=chh;}else cur+=chh;}wrap.push(cur);
+   wrap.forEach(t=>lines.push({t,fpx,font:x.font,col,algn}));}
+  const totH=lines.reduce((a,l)=>a+l.fpx*1.25,0);let y=anchor==='ctr'?by+(bh-totH)/2:anchor==='b'?by+bh-totH-pad:by+pad;
+  x.save();x.beginPath();x.rect(bx,by-2,bw,Math.max(bh,totH)+4);x.clip();x.textBaseline='top';
+  for(const l of lines){x.font=l.font;x.fillStyle=l.col;const w=x.measureText(l.t).width;const tx=l.algn==='ctr'?bx+(bw-w)/2:l.algn==='r'?bx+bw-pad-w:bx+pad;x.fillText(l.t,tx,y+l.fpx*0.1);y+=l.fpx*1.25;}x.restore();}}
+ if(tree)await draw(tree);return c.toDataURL('image/jpeg',.88);}
+let pptxNotesPending=null;
+async function pptxToImgs(f){await jszip();const z=await JSZip.loadAsync(f),o=await pptxOrder(z),out=[];for(let i=0;i<o.list.length;i++){$('upMsg').textContent='轉換 PPTX… '+(i+1)+'/'+o.list.length;out.push(await pptxRender(z,o.list[i],o.cx,o.cy));}
+ try{const n=await pptxNotes(z);if(n.some(Boolean))pptxNotesPending=n;}catch(e){}return out;}
+async function pptxNotes(z){const o=await pptxOrder(z),out=[];for(const path of o.list){const rels=await pRels(z,path),nr=Object.values(rels).find(r=>/notesSlide/.test(r.type));let notes='';
+  if(nr&&z.file(nr.target)){const d=pxml(await z.file(nr.target).async('string'));for(const sp of d.getElementsByTagNameNS(PNS.p,'sp')){const ph=desc(sp,'p','ph');if(ph&&ph.getAttribute('type')!=='body')continue;
+    const t=kids(kid(sp,'p','txBody'),'a','p').map(p=>[...p.getElementsByTagNameNS(PNS.a,'t')].map(e=>e.textContent).join('')).join('\n').trim();if(t)notes+=(notes?'\n':'')+t;}}
+  // 沒有備忘稿就留空：暗星絕不照念投影片上的文字
+  out.push(notes);}return out;}
+$('slideFile').onchange=async e=>{const fs=[...e.target.files];if(!fs.length)return;$('upMsg').textContent='處理中…';try{let out=[];
+ for(const f of fs){if(/\.ppt$/i.test(f.name))throw new Error('舊版 .ppt 無法讀取，請另存成 PPTX 或 PDF');if(/\.pdf$/i.test(f.name))out=out.concat(await pdfToImgs(f));else if(/\.pptx$/i.test(f.name)){out=out.concat(await pptxToImgs(f));$('upMsg').textContent='PPTX 已轉換，並以備忘稿作為暗星講稿（不念投影片文字）；版面若有差異，請改傳 PDF。';}else if(f.type.startsWith('image/'))out.push(await fileURL(f));}
+ if(!out.length)throw new Error('沒有可用的頁面');slides=out;page=0;await kv('slides',out);if(pptxNotesPending&&pptxNotesPending.length===out.length){await kv('sections',pptxNotesPending);await kv('scriptText',null);}pptxNotesPending=null;await loadScript();showSlide();status('已載入簡報 '+out.length+' 頁');if(!/PPTX/.test($('upMsg').textContent))$('upMsg').textContent='簡報已儲存（'+out.length+' 頁）';}catch(err){$('upMsg').textContent='上傳失敗：'+err.message;}};
+async function pdfLib(){if(!window.pdfjsLib){await loadScriptTag('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js');pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';}}
+const xmlText=x=>[...x.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map(m=>m[1]).join(' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();
+async function scriptSections(f){
+ if(/\.ppt$/i.test(f.name))throw new Error('舊版 .ppt 無法讀取，請另存成 PPTX 或 PDF');
+ if(/\.pdf$/i.test(f.name)){await pdfLib();const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise,out=[];for(let i=1;i<=pdf.numPages;i++){const c=await (await pdf.getPage(i)).getTextContent();out.push(c.items.map(t=>t.str).join('').trim());}return out;}
+ if(/\.pptx$/i.test(f.name)){await jszip();return await pptxNotes(await JSZip.loadAsync(f));}
+ let t;if(/\.docx$/i.test(f.name)){await jszip();const z=await JSZip.loadAsync(f);const x=await z.file('word/document.xml').async('string');t=x.split(/<\/w:p>/).map(p=>[...p.matchAll(/<w:t[^>]*>([^<]*)<\/w:t>/g)].map(m=>m[1]).join('')).join('\n');}else t=await f.text();
+ delete settings.scriptOffset;saveSet();return{text:t};}
+$('scriptFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;$('upMsg').textContent='讀取講稿中…';try{const r=await scriptSections(f);
+ if(Array.isArray(r)){await kv('sections',r);await kv('scriptText',null);}else{await kv('scriptText',r.text);await kv('sections',null);}await loadScript();
+ const empty=script.map((x,i)=>x.length?0:i+1).filter(Boolean);$('upMsg').textContent='講稿已儲存，共 '+script.flat().length+' 句'+(empty.length?'；無講稿的頁：'+empty.join('、')+'（會靜默帶過）':'');status('講稿已載入');}catch(err){$('upMsg').textContent='講稿讀取失敗：'+err.message;}e.target.value='';};
+$('editBtn').onclick=()=>{$('edList').innerHTML=slides.map((src,i)=>`<div class="ed-row"><img src="${src}"><textarea data-i="${i}" placeholder="第 ${i+1} 頁要講的話…"></textarea></div>`).join('');
+ $('edList').querySelectorAll('textarea').forEach(t=>t.value=(script[t.dataset.i]||[]).join(''));$('editor').style.display='flex';};
+$('edClose').onclick=()=>$('editor').style.display='none';
+$('edSave').onclick=async()=>{const sec=[...$('edList').querySelectorAll('textarea')].map(t=>t.value.trim());await kv('sections',sec);script=fromSections(sec,slides.length);renderMap();$('editor').style.display='none';$('upMsg').textContent='口語表達已儲存（'+script.flat().length+' 句）';};
+$('resetBtn').onclick=async()=>{await kv('slides',null);await kv('scriptText',null);await kv('sections',null);slides=DEMO_SLIDES;script=DEMO_SCRIPT;page=0;scriptInfo={numbered:false,count:0};showSlide();renderMap();status('目前使用內建示範簡報');$('upMsg').textContent='已恢復示範';};
+// ---- voice ----
+let voices=[];function loadVoices(){voices=speechSynthesis.getVoices().filter(v=>/^zh|cmn/i.test(v.lang));const sel=$('voiceSel');sel.innerHTML=voices.map((v,i)=>`<option value="${i}">${v.name}（${v.lang}）</option>`).join('')||'<option>系統預設</option>';
+ let i=voices.findIndex(v=>v.name===settings.voice);if(i<0)i=Math.max(0,voices.findIndex(v=>/TW|Hant/i.test(v.lang)));sel.value=i;}
+if('speechSynthesis'in window){loadVoices();speechSynthesis.onvoiceschanged=loadVoices;}
+$('voiceSel').onchange=e=>{settings.voice=(voices[e.target.value]||{}).name;saveSet();};
+$('rate').value=settings.rate||1;$('rateVal').textContent=(+$('rate').value).toFixed(1);$('rate').oninput=e=>{settings.rate=+e.target.value;$('rateVal').textContent=settings.rate.toFixed(1);saveSet();};
+$('auto').checked=settings.auto!==false;$('auto').onchange=e=>{settings.auto=e.target.checked;saveSet();};
+const utterRefs=[];let ttsPrimed=false;
+function primeTTS(){try{heel.unlock();}catch(e){}if(!('speechSynthesis'in window))return;try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;u.lang='zh-TW';utterRefs.push(u);speechSynthesis.speak(u);speechSynthesis.resume();ttsPrimed=true;}catch(e){}}
+function say(text){if(voiceMode==='live'&&live.ready())return live.sayLine(text);return new Promise(async res=>{if('speechSynthesis'in window&&(speechSynthesis.speaking||speechSynthesis.pending)){speechSynthesis.cancel();await new Promise(r=>setTimeout(r,150));}$('sub').textContent=text;if(!('speechSynthesis'in window)){const g=pauseGen;setTimeout(()=>res(pauseGen!==g),text.length*220);return;}
+ const u=new SpeechSynthesisUtterance(text),v=voices[$('voiceSel').value];if(v)u.voice=v;u.lang=v?v.lang:'zh-TW';u.rate=+$('rate').value||1;
+ let done=false;const gen=pauseGen;const fin=()=>{if(done)return;done=true;speaking=false;res(pauseGen!==gen);};
+ u.onstart=()=>{speaking=true;if(curClip!=='talk'&&curClip!=='point'&&curClip!=='explain')playClip('talk',true);};
+ u.onboundary=e=>{try{lip2.pulse();}catch(_){}if(e.charIndex>0){const rest=text.slice(e.charIndex);$('sub').textContent=text.length>40?rest.slice(0,40):text;}};
+ u.onend=fin;u.onerror=fin;utterRefs.push(u);if(utterRefs.length>20)utterRefs.splice(0,10);speechSynthesis.speak(u);setTimeout(()=>{if(!speaking&&!done)speaking=true;},600);const est=text.length*320/(u.rate||1);let wd=setTimeout(function chk(){if(done)return;if(speechSynthesis.speaking||speechSynthesis.pending||paused){wd=setTimeout(chk,500);}else fin();},est*1.5+3000);});}
+// ---- flow ----
+let stopped=true,paused=false,jump=null;
+let pauseGen=0;
+// 說一句；若被暫停打斷，等繼續後從同一句重講
+async function sayP(text){for(;;){await waitPause();if(stopped&&!qaMode)return;const intr=await say(text);if(!intr&&!paused)return;}}
+const waitPause=()=>new Promise(r=>{const t=()=>paused?setTimeout(t,200):r();t();});
+async function speakSentence(s,i){if(stopped)return;await waitPause();
+ if(/圖|表|這裡|看/.test(s)){oneShot('point');}else if(i%3===2){oneShot('explain');}
+ await sayP(s);await waitPause();}
+async function run(){if(voiceMode==='live')await live.ensure();stopped=false;queued=null;jump=null;$('skipBtn').style.display='none';paused=false;$('ask').style.display='none';
+ await playClip('intro',false);if(stopped)return;playClip('talk',true);await sayP('大家好，我是 Technical Dark Star 暗星，接下來由我為你導讀。');
+ for(;page<slides.length&&!stopped;){showSlide();inSlide=true;const ss=script[page]||[];if((page===0||page%2===0)&&!stopped&&!paused){await playClip('walk',false);if(!paused)playClip('idle',true);}
+  if(voiceMode==='live'&&live.ready()){if(ss.length)await live.speakBlock(ss);}else for(let i=0;i<ss.length&&!stopped&&jump===null;i++)await speakSentence(ss[i],i);
+  if(stopped)break;if(jump!==null){page=jump;jump=null;continue;}
+  playClip('idle',true);if(!ss.length)$('sub').textContent='（這一頁沒有講稿）';
+  await waitPause();if(stopped)break;inSlide=false;$('skipBtn').style.display='none';if(queued!==null){page=queued;queued=null;continue;}
+  if(!$('auto').checked){status('按「下一頁」繼續');await new Promise(r=>{nextWait=r;});nextWait=null;if(stopped)break;if(jump!==null){page=jump;jump=null;continue;}}
+  page++;}
+ if(stopped)return;page=Math.max(0,slides.length-1);
+ await waitPause();playClip('ask',false).then(()=>!stopped&&!paused&&playClip('idle',true));await sayP('今天的導讀就到這裡，大家有什麼問題嗎？');
+ if(stopped)return;stopped=true;openQA();}
+function openQA(){qaMode=true;$('ask').style.display='block';$('askBox').disabled=false;$('askSend').disabled=false;$('askBox').placeholder='輸入問題，或按麥克風說出來';status('問答時間：可以問暗星關於這次導讀的問題');$('startBtn').textContent='▶ 重新導讀';}
+async function endGuide(){qaMode=false;stopRec();$('askBox').disabled=true;$('askSend').disabled=true;await waitPause();playClip('talk',true);await say('謝謝大家的聆聽，我們下次見。');await playClip('bow',false);playClip('idle',true);status('導讀結束');}
+let qaMode=false,nextWait=null,inSlide=false,queued=null;
+function stopSpeech(){try{speechSynthesis.cancel();}catch(e){}speaking=false;}
+$('startBtn').onclick=()=>{primeTTS();if(voiceMode==='live'){live.unlock();live.ensure();}if(paused)setPaused(false);qaMode=false;stopRec();$('askBox').disabled=true;$('askSend').disabled=true;stopSpeech();const wasRunning=!stopped;stopped=true;setTimeout(()=>{if(!wasRunning&&$('startBtn').textContent.includes('重新'))page=0;$('startBtn').textContent='▶ 開始導讀';status('導讀中…');run();},wasRunning?300:0);};
+function setPaused(on){if(on===paused)return;paused=on;document.body.classList.toggle('paused',on);
+ const lbl=on?'▶ 繼續':'⏸ 暫停';$('pauseBtn').textContent=lbl;$('fsPause').textContent=lbl;
+ if(on){pauseGen++;stopRec();live.halt();try{speechSynthesis.cancel();}catch(e){}speaking=false;playClip('idle',true);status('已暫停，按繼續恢復');}
+ else status(qaMode?'問答時間':(stopped?'':'導讀中…'));}
+$('pauseBtn').onclick=$('fsPause').onclick=e=>{e.stopPropagation();if(paused)primeTTS();setPaused(!paused);showCtl();};
+document.addEventListener('keydown',e=>{if(e.code==='Space'&&!/TEXTAREA|INPUT|SELECT/.test(e.target.tagName)){e.preventDefault();setPaused(!paused);}});
+// ---- fullscreen ----
+const fsEl=$('fsWrap');let ctlT=0;
+function showCtl(){document.body.classList.remove('ctlhide');clearTimeout(ctlT);ctlT=setTimeout(()=>document.body.classList.add('ctlhide'),3000);}
+function enterFS(){document.body.classList.add('fs');showCtl();const f=fsEl.requestFullscreen||fsEl.webkitRequestFullscreen;if(f){try{const p=f.call(fsEl);p&&p.catch&&p.catch(()=>{});}catch(e){}}try{screen.orientation.lock('landscape').catch(()=>{});}catch(e){}}
+function exitFS(){document.body.classList.remove('fs','ctlhide');if(document.fullscreenElement||document.webkitFullscreenElement){(document.exitFullscreen||document.webkitExitFullscreen).call(document);}}
+['fullscreenchange','webkitfullscreenchange'].forEach(ev=>document.addEventListener(ev,()=>{if(!(document.fullscreenElement||document.webkitFullscreenElement))document.body.classList.remove('fs','ctlhide');}));
+$('fsBtn').onclick=enterFS;$('fsExit').onclick=e=>{e.stopPropagation();exitFS();};fsEl.addEventListener('click',()=>{if(document.body.classList.contains('fs'))showCtl();});
+// ---- Q&A（同數位人頁文字聊天：Supabase ai-gateway）----
+const SB='https://clcddygkaaqqtsbswgdf.supabase.co',ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE';
+function sbToken(){try{const j=JSON.parse(localStorage.getItem('sb-clcddygkaaqqtsbswgdf-auth-token')||'null');const t=j&&(j.access_token||(j.currentSession&&j.currentSession.access_token));if(t)return t;}catch(e){}return ANON;}
+let persona='',qaHist=[];fetch('digital-human-real/avatars.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(j=>{const a=(j.avatars||[]).find(x=>x.id==='darkstar')||{};persona=a.persona||'';}).catch(()=>{});
+function deckContext(){return script.map((ss,i)=>'第'+(i+1)+'頁：'+ss.join('')).join('\n').slice(0,6000);}
+function qaLog(cls,t){const d=document.createElement('div');d.className=cls;d.textContent=(cls==='q'?'你：':'暗星：')+t;$('qaLog').appendChild(d);$('qaLog').scrollTop=1e9;}
+async function ask(q){q=q.trim();if(!q||paused||!qaMode)return;if(voiceMode==='live'&&live.ready()){$('askBox').value='';qaLog('q',q);$('askSend').disabled=true;const a=await live.askQ(q);if(a)qaLog('a',a);$('askSend').disabled=!qaMode;if(!paused)playClip('idle',true);return;}$('askBox').value='';qaLog('q',q);$('askSend').disabled=true;$('sub').textContent='暗星思考中…';
+ const sys=(persona?persona+'\n':'')+'你現在是 AIVAULT 的導讀主講人「暗星」，剛講完一場電子書導讀，正在回答聽眾提問。用繁體中文口語回答 2 到 4 句，友善、支持、鼓勵。絕對不要反駁、質疑或否定老師（簡報與講稿作者）的內容；若問題超出內容，就溫和地補充或建議再看相關頁面。不要條列、不要加表情標籤。\n\n本次導讀內容：\n'+deckContext();
+ qaHist.push({role:'user',content:q});let ans;
+ try{const r=await fetch(SB+'/functions/v1/ai-gateway',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+sbToken(),apikey:ANON},body:JSON.stringify({provider:'groq',model:'openai/gpt-oss-120b',agent:'暗星導讀',systemPrompt:sys,messages:[{role:'system',content:sys},...qaHist.slice(-8)]})});
+  const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||d.message||('HTTP '+r.status));
+  ans=String(d.content||d.response||d.text||d.message||(d.choices&&d.choices[0]&&d.choices[0].message&&d.choices[0].message.content)||'').replace(/\[表情:[^\]]*\]/g,'').trim()||'這個問題很好，我們可以再一起看看簡報的內容。';}
+ catch(e){ans='抱歉，我現在連不上，等一下再問我一次好嗎？';console.warn(e);}
+ qaHist.push({role:'assistant',content:ans});if(window.__darkstarSilentMotion)window.__darkstarSilentMotion.decide({assistantText:ans,userText:q,phase:'speaking'});qaLog('a',ans);
+ await waitPause();if(!qaMode){$('askSend').disabled=false;return;}
+ const ss=splitSent(ans);for(let i=0;i<ss.length&&qaMode;i++){if(i===0)oneShot('explain');await sayP(ss[i]);}
+ if(!paused)playClip('idle',true);$('askSend').disabled=!qaMode;}
+$('askSend').onclick=()=>{primeTTS();ask($('askBox').value);};$('askBox').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();ask($('askBox').value);}});
+$('endBtn').onclick=()=>{if(qaMode||stopped)endGuide();};
+// 語音輸入（暫停時一律不聽）
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;let rec=null;
+function stopRec(){if(rec){try{rec.abort();}catch(e){}rec=null;}$('micBtn').classList.remove('rec');}
+if(!SR)$('micBtn').style.display='none';
+function syncMic(){$('micBtn').style.display=(SR||voiceMode==='live')?'':'none';}
+$('micBtn').onclick=()=>{if(voiceMode==='live'&&live.ready()){if(paused||!qaMode)return;live.toggleMic();return;}if(rec){stopRec();return;}if(paused||!qaMode||!SR)return;rec=new SR();rec.lang='zh-TW';rec.interimResults=false;$('micBtn').classList.add('rec');
+ rec.onresult=e=>{const t=e.results[0][0].transcript;if(window.__darkstarMotionVoice)window.__darkstarMotionVoice.onTranscript(t,{source:'user',final:true});stopRec();if(!paused&&qaMode){$('askBox').value=t;ask(t);}};rec.onend=rec.onerror=()=>stopRec();try{rec.start();}catch(e){stopRec();}};
+function go(d){const base=queued!==null?queued:page,np=Math.min(slides.length-1,Math.max(0,base+d));if(stopped){page=np;showSlide();return;}
+ if(inSlide){queued=np;$('skipBtn').style.display='block';status('這頁講完後會換到第 '+(np+1)+' 頁');return;}jump=np;if(nextWait)nextWait();}
+$('skipBtn').onclick=()=>{if(queued===null)return;jump=queued;queued=null;$('skipBtn').style.display='none';stopSpeech();};
+$('prevBtn').onclick=()=>go(-1);$('nextBtn').onclick=()=>go(1);
+$('setBtn').onclick=()=>$('panel').style.display='flex';$('closeBtn').onclick=()=>$('panel').style.display='none';$('panel').onclick=e=>{if(e.target.id==='panel')$('panel').style.display='none';};
+playClip('idle',true);showSlide();
+['intro','talk','walk'].forEach(n=>{const l=document.createElement('link');l.rel='preload';l.as='video';l.href=G+CLIPS[n]+'.mp4';document.head.appendChild(l);});
+
+// ===== 即時語音（複製自數位人頁的 relay 協定；導讀專用 agent 與 key）=====
+let voiceMode=localStorage.getItem('aivault-guide-voice-mode')||'tts';
+const LIVE_VOICES=[['Aoede','Aoede · 輕快'],['Kore','Kore · 堅定'],['Leda','Leda · 年輕'],['Zephyr','Zephyr · 明亮'],['Callirrhoe','Callirrhoe · 隨和'],['Despina','Despina · 柔順'],['Autonoe','Autonoe · 明亮'],['Erinome','Erinome · 清晰'],['Laomedeia','Laomedeia · 開朗'],['Achernar','Achernar · 柔和'],['Gacrux','Gacrux · 成熟'],['Pulcherrima','Pulcherrima · 直率'],['Vindemiatrix','Vindemiatrix · 溫柔'],['Sulafat','Sulafat · 溫暖']];
+$('liveVoiceSel').innerHTML=LIVE_VOICES.map(v=>`<option value="${v[0]}">${v[1]}</option>`).join('');$('liveVoiceSel').value=localStorage.getItem('aivault-guide-live-voice')||'Aoede';
+$('liveVoiceSel').onchange=e=>{localStorage.setItem('aivault-guide-live-voice',e.target.value);live.close();};
+function setMode(m,notice){voiceMode=m;try{live.reset();}catch(e){}localStorage.setItem('aivault-guide-voice-mode',m);$('modeSel').value=m;$('modeBtn').textContent=m==='live'?'⚡ 即時語音':'🔊 手機語音';syncMic();if(m!=='live')live.close();if(notice)status(notice);}
+$('modeSel').onchange=e=>{live.unlock();primeTTS();setMode(e.target.value);};
+$('modeBtn').onclick=()=>{const m=voiceMode==='live'?'tts':'live';live.unlock();primeTTS();setMode(m,m==='live'?'已切換為即時語音':'已切換為手機語音');};
+const live=(()=>{const RELAY='wss://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/technical-dark-star-live-voice-v2',AC=window.AudioContext||window.webkitAudioContext,MY='aivault-guide';
+ let lastWhy='',downUntil=0,everConnected=false,ws=null,gotSetup=false,customFails=0,retry=0,playCtx=null,outGain=null,outEl=null,nextPlay=0,sources=[],dropping=false,outBuf='',turnWait=null,connecting=null,buffering=false;
+ let inCtx=null,stream=null,micNode=null,micOn=false,qaPend=null,shared=false,frameT=0,cv=null;
+ function startFrames(){clearInterval(frameT);frameT=setInterval(()=>{const v=$('pip');if(!camOn||paused||!ws||ws.readyState!==1||!gotSetup||v.readyState<2||!v.videoWidth)return;cv=cv||document.createElement('canvas');const w=320,h=Math.round(v.videoHeight*w/v.videoWidth);cv.width=w;cv.height=h;cv.getContext('2d').drawImage(v,0,0,w,h);try{ws.send(JSON.stringify({type:'video',data:cv.toDataURL('image/jpeg',0.6).split(',')[1],mimeType:'image/jpeg'}));}catch(e){}},1000);}
+ startFrames();
+ const AUTHK='sb-clcddygkaaqqtsbswgdf-auth-token';
+ function readSess(){try{const j=JSON.parse(localStorage.getItem(AUTHK)||'null');return j&&typeof j==='object'?j:null;}catch(e){return null;}}
+ // 同 technical-dark-star-live-session.js：過期（或強制）時用 refresh_token 換新 access_token，寫回同一個 key
+ async function token(force){const j=readSess();if(!j)return'';const cs=j.currentSession||{};let tk=String(j.access_token||cs.access_token||'').trim();const rt=String(j.refresh_token||cs.refresh_token||'').trim(),exp=Number(j.expires_at||cs.expires_at||0);
+  if(!rt||!(force||!tk||(exp>0&&exp*1000-Date.now()<60000)))return tk;
+  try{const r=await fetch(SB+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{'Content-Type':'application/json',apikey:ANON},body:JSON.stringify({refresh_token:rt})});if(!r.ok)return force?'':tk;const f=await r.json();if(!f||!f.access_token)return tk;
+   localStorage.setItem(AUTHK,JSON.stringify({...j,...f,access_token:f.access_token,refresh_token:f.refresh_token||rt}));return String(f.access_token).trim();}catch(e){return tk;}}
+ let authFail='',forceRefresh=false;
+ function agentId(){try{const v=localStorage.getItem('aivault-guide-live-agent'),t=+localStorage.getItem('aivault-guide-live-agent-at')||0;if(v&&v!==MY&&Date.now()-t>6*3600e3){localStorage.removeItem('aivault-guide-live-agent');return MY;}return v||MY;}catch(e){return MY;}}
+ const nsKey=b=>b+(agentId()===MY?'-v2':'');
+ function topicId(){const k=nsKey('aivault-guide-live-topic-id'),pre=agentId()===MY?'aivault-guide-':'technical-dark-star-';let v=localStorage.getItem(k);if(!v){v=pre+(crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random().toString(36).slice(2));localStorage.setItem(k,v);}return v;}
+ function unlock(){try{if(navigator.audioSession)navigator.audioSession.type='playback';}catch(e){}try{heel.unlock();}catch(e){}
+  if(!playCtx||playCtx.state==='closed'){playCtx=new AC();outGain=playCtx.createGain();
+   if(playCtx.createMediaStreamDestination){const d=playCtx.createMediaStreamDestination();outGain.connect(d);outEl=document.createElement('audio');outEl.setAttribute('playsinline','');outEl.autoplay=true;outEl.style.display='none';document.body.appendChild(outEl);outEl.srcObject=d.stream;outEl.play().catch(()=>{try{outGain.disconnect();}catch(e){}outGain.connect(playCtx.destination);});}
+   else outGain.connect(playCtx.destination);}
+  try{playCtx.resume();}catch(e){}try{const b=playCtx.createBuffer(1,1,22050),n=playCtx.createBufferSource();n.buffer=b;n.connect(outGain);n.start(0);}catch(e){}if(outEl)outEl.play().catch(()=>{});}
+ function playPCM(u8,rate){if(!playCtx||dropping||paused)return;rate=rate||24000;const n=Math.floor(u8.byteLength/2);if(!n)return;const dv=new DataView(u8.buffer,u8.byteOffset,n*2),buf=playCtx.createBuffer(1,n,rate),ch=buf.getChannelData(0);
+  for(let i=0;i<n;i++)ch[i]=dv.getInt16(i*2,true)/32768;if(playCtx.state!=='running')playCtx.resume().catch(()=>{});
+  const src=playCtx.createBufferSource();src.buffer=buf;src.connect(outGain);const t0=nextPlay>playCtx.currentTime+0.01?nextPlay:playCtx.currentTime+0.12;src.start(t0);nextPlay=t0+buf.duration;
+  sources.push(src);src.onended=()=>{sources=sources.filter(x=>x!==src);if(!sources.length)speaking=false;};
+  if(!speaking){speaking=true;if(curClip!=='talk'&&curClip!=='explain'&&curClip!=='point')playClip('talk',true);}}
+ function playB64(b,mime){const m=/rate=(\d+)/.exec(String(mime||''));try{const bin=atob(b),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);playPCM(u,m?+m[1]:24000);}catch(e){}}
+ function stopAudio(){sources.forEach(x=>{try{x.stop();}catch(e){}});sources=[];nextPlay=0;speaking=false;}
+ function onMsg(raw){if(raw instanceof ArrayBuffer){playPCM(new Uint8Array(raw),24000);return;}let d;try{d=JSON.parse(raw);}catch(e){return;}const sc=d.serverContent||d;
+  if(d.audio&&d.audio.data)playB64(d.audio.data,d.audio.mimeType);else if(d.data&&String(d.mimeType||'').indexOf('audio')===0)playB64(d.data,d.mimeType);
+  else((sc.modelTurn&&sc.modelTurn.parts)||[]).forEach(p=>{const id=p&&p.inlineData;if(id&&id.data&&String(id.mimeType||'').indexOf('audio')===0)playB64(id.data,id.mimeType);});
+  try{const cid=d.conversation_id||d.conversationId||(d.live_open&&d.live_open.conversation_id),tp=d.topic_id||d.topicId||(d.live_open&&d.live_open.topic_id);if(typeof cid==='string'&&cid.trim())localStorage.setItem(nsKey('aivault-guide-live-conversation-id'),cid.trim());if(typeof tp==='string'&&tp.trim())localStorage.setItem(nsKey('aivault-guide-live-topic-id'),tp.trim());}catch(e){}
+  if(d.type==='live_open'||d.setupComplete){gotSetup=true;retry=0;}
+  const userSpeech=(sc.inputTranscription&&sc.inputTranscription.text)||(d.type==='inputTranscription'?d.text:'');
+   if(userSpeech&&window.__darkstarMotionVoice)window.__darkstarMotionVoice.onTranscript(userSpeech,{source:'user',final:!!(sc.inputTranscription?.finished||d.final||d.isFinal||d.type==='inputTranscriptionFinal')});
+   const out=(sc.outputTranscription&&sc.outputTranscription.text)||(d.type==='outputTranscription'?d.text:'');
+  if(out&&!dropping){if(window.__darkstarSilentMotion)window.__darkstarSilentMotion.decide({assistantText:out,phase:'speaking'});outBuf+=out;const ss=splitSent(outBuf);if(ss.length&&!qaPend)$('sub').textContent=ss[ss.length-1].slice(-40);if(qaPend)$('sub').textContent=outBuf.slice(-40);}
+  if(sc.turnComplete||d.turnComplete||d.type==='turnComplete'){const said=outBuf;outBuf='';if(dropping){dropping=false;return;}if(turnWait){const w=turnWait;turnWait=null;w(said);}else if(micOn&&said){qaLog('a',said);}}
+  if(d.type==='error'||d.error){const m=String(d.message||(d.error&&d.error.message)||'');if(/AUTH_REQUIRED|INVALID_AUTH/.test(m)){authFail=m;}
+   if(/TOPIC_ID_REQUIRED|IDENTITY_MISMATCH/.test(m)){localStorage.removeItem(nsKey('aivault-guide-live-topic-id'));localStorage.removeItem(nsKey('aivault-guide-live-conversation-id'));}}}
+ function bufferOn(t,walk){status(t);if(walk&&!buffering){buffering=true;playClip('walk',true);}}
+ function bufferOff(){if(buffering){buffering=false;playClip('idle',true);}}
+ function failAll(msg){close();downUntil=Date.now()+45000;status(msg);if(turnWait){const w=turnWait;turnWait=null;w({closed:true,said:''});}}   // 不改使用者的模式設定
+ async function openOnce(){const tok=await token(forceRefresh);forceRefresh=false;authFail='';return new Promise((res,rej)=>{const q=new URLSearchParams();q.set('voice',$('liveVoiceSel').value||'Aoede');q.set('agent_id',agentId());q.set('client','aivault-guide');q.set('topic_id',topicId());
+  const conv=localStorage.getItem(nsKey('aivault-guide-live-conversation-id'));if(conv)q.set('conversation_id',conv);if(!tok){rej(new Error('NOAUTH'));return;}q.set('access_token',tok);
+  gotSetup=false;const sock=new WebSocket(RELAY+'?'+q);sock.binaryType='arraybuffer';ws=sock;let t=setTimeout(()=>{try{sock.close();}catch(e){}rej(new Error('timeout'));},10000);
+  sock.onmessage=e=>{onMsg(e.data);if(gotSetup&&t){clearTimeout(t);t=0;res();}};sock.onerror=()=>{};
+  sock.onopen=()=>{setTimeout(()=>{if(t&&ws===sock&&sock.readyState===1){clearTimeout(t);t=0;gotSetup=true;res();}},2500);};
+  sock.onclose=ev=>{if(ws===sock)ws=null;if(t){clearTimeout(t);t=0;if(authFail){rej(new Error(authFail));return;}if(agentId()===MY&&++customFails>=2&&!/AUTH/.test(String(ev&&ev.reason))){localStorage.setItem('aivault-guide-live-agent','technical-dark-star');localStorage.setItem('aivault-guide-live-agent-at',String(Date.now()));}rej(new Error('closed'));}
+   else{dropping=false;stopAudio();if(turnWait){const w=turnWait;turnWait=null;w({closed:true,said:outBuf});outBuf='';}}};});}
+ function ensure(){if(ws&&ws.readyState===1&&gotSetup)return Promise.resolve(true);if(Date.now()<downUntil)return Promise.resolve(false);if(connecting)return connecting;
+  connecting=(async()=>{let triedRefresh=false;for(retry=0;retry<4;retry++){if(voiceMode!=='live')return false;bufferOn(retry||everConnected?'重新連線中…':'連線中…',(retry>0||everConnected)&&!stopped&&!paused);
+    try{await openOnce();bufferOff();if(!everConnected)status('即時語音已連線');everConnected=true;return true;}catch(e){
+     if(e.message==='INVALID_AUTH'&&!triedRefresh){triedRefresh=true;forceRefresh=true;retry--;continue;}   // 登入過期：換新 token 再試一次
+     if(e.message==='NOAUTH'||/AUTH/.test(e.message)){bufferOff();close();downUntil=Date.now()+45000;statusLogin(e.message==='INVALID_AUTH'?'登入已過期，即時語音需要重新登入 AIVAULT，這段先用手機語音。':'即時語音需要先登入 AIVAULT，這段先用手機語音。');if(turnWait){const w=turnWait;turnWait=null;w({closed:true,said:''});}return false;}
+     lastWhy=e.message;await new Promise(r=>setTimeout(r,800*2**retry));}}
+   bufferOff();downUntil=Date.now()+45000;status('即時語音暫時連不上（'+(lastWhy==='timeout'?'連線逾時':lastWhy==='closed'?'伺服器關閉連線':lastWhy)+'），這段先用手機語音，稍後自動再試');return false;})().finally(()=>{connecting=null;});return connecting;}
+ function send(txt){dropping=false;try{ws.send(JSON.stringify({type:'text',text:txt}));return true;}catch(e){return false;}}
+ function waitTurn(chars){return new Promise(res=>{turnWait=async said=>{if(said!==null){while(playCtx&&nextPlay>playCtx.currentTime+0.05&&!paused)await new Promise(r=>setTimeout(r,100));}res(said);};
+  const lim=Date.now()+chars*450+20000;(function chk(){if(!turnWait)return;if(Date.now()>lim&&!paused){const w=turnWait;turnWait=null;w('');return;}setTimeout(chk,500);})();});}
+ // 唸一段（整頁講稿）；暫停時丟棄音訊，繼續後從沒唸完的那句重送
+ async function speakBlock(sents){let idx=0;while(idx<sents.length){await waitPause();if(stopped&&!qaMode)return;if(!(await ensure())){for(;idx<sents.length&&!paused;idx++)await sayP(sents[idx]);if(idx>=sents.length)return;continue;}
+   const rest=sents.slice(idx),txt=rest.join('');$('sub').textContent=rest[0];const g=pauseGen;
+   if(!send('（導讀講稿，請用自然的中文口語把下面這段完整唸出來，不要加入反對、質疑或額外評論，唸完就停）\n'+txt)){ws=null;continue;}
+   let said=await waitTurn(txt.length);const closed=said&&typeof said==='object';if(closed)said=said.said;if(pauseGen===g&&!paused&&!closed)return;
+   // 被暫停：依已轉寫字數估算唸到第幾句
+   let n=(said||'').replace(/[\s，。！？、,.!?]/g,'').length,acc=0;for(const s0 of rest){acc+=s0.replace(/[\s，。！？、,.!?]/g,'').length;if(acc<=n)idx++;else break;}}}
+ async function sayLine(t){await speakBlock([t]);return false;}
+ async function askQ(q){if(!(await ensure()))return null;qaPend=true;const ctx=deckContext().slice(0,3000);
+  send('（聽眾在導讀後提問。請以暗星的身分，用繁體中文口語回答 2 到 4 句，友善、支持，絕不反駁或質疑老師的內容。導讀內容如下）\n'+ctx+'\n\n聽眾問題：'+q);oneShot('explain');let a=await waitTurn(200);if(a&&typeof a==='object')a=a.said;qaPend=false;return a||'';}
+ function halt(){if(turnWait||sources.length)dropping=!!turnWait;stopAudio();micStop();if(turnWait){const w=turnWait;turnWait=null;w(outBuf);outBuf='';}}
+ async function toggleMic(){if(micOn){micStop();return;}unlock();try{inCtx=new AC();try{inCtx.resume();}catch(e){}
+   shared=!!(camStream&&camStream.getAudioTracks().some(t=>t.readyState==='live'));stream=shared?new MediaStream(camStream.getAudioTracks()):await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});if(paused||!qaMode){micStop();return;}
+   if(!(await ensure()))return micStop();try{inCtx.resume();}catch(e){}const src=inCtx.createMediaStreamSource(stream);micNode=inCtx.createScriptProcessor(2048,1,1);
+   micNode.onaudioprocess=ev=>{if(!micOn||paused||!ws||ws.readyState!==1)return;let f=ev.inputBuffer.getChannelData(0);const r=inCtx.sampleRate/16000;if(r!==1){const n=Math.floor(f.length/r),o=new Float32Array(n);for(let i=0;i<n;i++)o[i]=f[Math.floor(i*r)];f=o;}
+    const pcm=new Int16Array(f.length);for(let i=0;i<f.length;i++)pcm[i]=Math.max(-1,Math.min(1,f[i]))*32767;const u=new Uint8Array(pcm.buffer);let s2='';for(let i=0;i<u.length;i+=0x8000)s2+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));try{ws.send(JSON.stringify({type:'audio',data:btoa(s2),mimeType:'audio/pcm;rate=16000'}));}catch(e){}};
+   const sink=inCtx.createGain();sink.gain.value=0;src.connect(micNode);micNode.connect(sink);sink.connect(inCtx.destination);micOn=true;$('micBtn').classList.add('rec');status('正在聽你的問題（再按一次停止）');}catch(e){micStop();const n=(e&&e.name)||'';status(n==='NotAllowedError'?'麥克風權限被拒絕：請到 iPhone 設定 › Safari › 麥克風 改為允許，再重新整理':'無法開啟麥克風（'+(n||e)+'），可先打字提問');}}
+ function micStop(){micOn=false;try{micNode&&micNode.disconnect();}catch(e){}micNode=null;try{if(!shared)stream&&stream.getTracks().forEach(t=>t.stop());}catch(e){}stream=null;shared=false;try{inCtx&&inCtx.close();}catch(e){}inCtx=null;$('micBtn').classList.remove('rec');}
+ function close(){micStop();stopAudio();const w=ws;ws=null;gotSetup=false;try{w&&w.close();}catch(e){}}
+ return{reset(){downUntil=0;},unlock,ensure,ready:()=>voiceMode==='live'&&Date.now()>downUntil,speakBlock,sayLine,askQ,halt,toggleMic,close};})();
+setMode(voiceMode);
+$('mapL').onclick=()=>shiftScript(-1);$('mapR').onclick=()=>shiftScript(1);
+// ===== 鏡頭＋麥克風（在點擊當下請求權限，iOS 才會跳出詢問）=====
+let camStream=null,camOn=false;
+function camUI(){document.body.classList.toggle('camon',camOn);['camBtn','fsCam'].forEach(id=>$(id).classList.toggle('on',camOn));$('camLbl').textContent=camOn?'鏡頭／麥克風已開啟（導讀時麥克風靜音）':'開啟鏡頭／麥克風';}
+function camStop(){camOn=false;try{camStream&&camStream.getTracks().forEach(t=>t.stop());}catch(e){}camStream=null;$('pip').srcObject=null;camUI();}
+function camToggle(e){if(e)e.stopPropagation();if(camOn){camStop();return;}live.unlock();
+ if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){status('此瀏覽器不支援鏡頭');return;}
+ navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:{echoCancellation:true,noiseSuppression:true}}).then(st=>{camStream=st;camOn=true;
+  st.getAudioTracks().forEach(t=>t.enabled=true);const v=$('pip');v.srcObject=new MediaStream(st.getVideoTracks());v.play().catch(()=>{});camUI();status(voiceMode==='live'?'暗星看得到你了（即時語音）':'鏡頭已開啟；手機語音模式不會傳送畫面');})
+ .catch(err=>{camStop();status('無法開啟鏡頭／麥克風：'+(err.name==='NotAllowedError'?'請到設定允許權限':err.message));});}
+$('camBtn').onclick=camToggle;$('fsCam').onclick=camToggle;
+
+// ===== 高跟鞋腳步聲：依 guide_walk 落地時間（walk_steps.json）同步 =====
+// iOS：聲音在 JS 內直接合成（不用 fetch/decode），經 MediaStreamDestination → 隱藏 <audio> 播放，避免被靜音鍵/未解鎖擋掉
+// ===== 高跟鞋聲：真實腳步取樣（guide/sfx/heel1-6.mp3），依 guide_walk 落地時間（walk_steps.json）同步 =====
+const heel=(()=>{const AC=window.AudioContext||window.webkitAudioContext;let ctx=null,out=null,el=null,bufs=[],steps=[],lastT=-1,fired=new Set(),loading=false;
+ window.__heelLog=[];const enabled=()=>settings.heel!==false;
+ fetch(G+'walk_steps.json').then(r=>r.json()).then(j=>{steps=j.steps||[];}).catch(()=>{});
+ function load(){if(loading)return;loading=true;for(let i=1;i<=6;i++)fetch(G+'sfx/heel'+i+'.mp3').then(r=>r.arrayBuffer()).then(b=>{ctx.decodeAudioData(b,d=>bufs.push(d),()=>{});}).catch(()=>{});}
+ function unlock(){try{if(!ctx){ctx=new AC();out=ctx.createGain();
+   if(ctx.createMediaStreamDestination&&'ontouchend'in document&&/iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent)){const d=ctx.createMediaStreamDestination();out.connect(d);el=document.createElement('audio');el.setAttribute('playsinline','');el.autoplay=true;el.style.display='none';document.body.appendChild(el);el.srcObject=d.stream;}
+   else out.connect(ctx.destination);load();}
+  ctx.resume&&ctx.resume();if(el){const p=el.play();p&&p.catch&&p.catch(()=>{try{out.disconnect();}catch(e){}out.connect(ctx.destination);el=null;});}
+  const b=ctx.createBuffer(1,1,22050),n=ctx.createBufferSource();n.buffer=b;n.connect(out);n.start(0);}catch(e){}}
+ function click(at,st){if(!ctx||!bufs.length)return;if(ctx.state!=='running'){try{ctx.resume();}catch(e){}}const s=ctx.createBufferSource(),g=ctx.createGain();s.buffer=bufs[(Math.random()*bufs.length)|0];
+  s.playbackRate.value=0.95+Math.random()*0.1;g.gain.value=(speaking?0.45:0.85)*(0.85+Math.random()*0.3);s.connect(g);g.connect(out);s.start(Math.max(ctx.currentTime,at-0.012));
+  window.__heelLog.push({step:st,video:+vids[cur].currentTime.toFixed(3)});}
+ function tick(){const v=vids[cur];if(!enabled()||curClip!=='walk'||paused||v.paused||v.readyState<2){lastT=-1;fired.clear();return;}
+  const t=v.currentTime,rate=v.playbackRate||1;if(lastT>=0&&t<lastT-0.5)fired.clear();lastT=t;
+  for(const st of steps){if(fired.has(st))continue;const dt=(st-t)/rate;if(dt<=0.06&&dt>-0.05){fired.add(st);click(ctx?ctx.currentTime+Math.max(0,dt):0,st);}}}
+ setInterval(tick,16);return{unlock};})();
+$('heelChk').checked=settings.heel!==false;$('heelChk').onchange=e=>{settings.heel=e.target.checked;saveSet();if(e.target.checked)heel.unlock();};
+
+// ===== 對嘴（lip3 半臉替換；舊 lip2 嘴型檔保留未用）：離線臉部偵測軌跡（guide/lip2/guide_lip2.json），只在正臉、不歪頭、說話時疊上暗星自己的嘴型；?lip=0 關閉 =====
+const lip2=(()=>{const ON=!/[?&]lip=0/.test(location.search),cv=$('lipCv'),cx=cv.getContext('2d');let J=null,S={},alpha=0,vis='closed',visT=0,pulseT=0,lastTs=0;
+ if(ON)fetch(G+'lip3/guide_lip3.json').then(r=>r.json()).then(j=>{J=j;for(const[k,f]of Object.entries(j.sprite.files)){const im=new Image();im.src=G+'lip3/'+f;S[k]=im;}}).catch(()=>{});
+ const NAME={idle:'idle',intro:'intro',point:'point',walk:'walk',explain:'explain',ask:'ask',bow:'bow',talk:'talk'};
+ function pulse(){pulseT=performance.now();}
+ function pick(now){if(now-visT<110)return vis;visT=now;const recent=now-pulseT<260,r=Math.random();
+  vis=recent?(r<0.55?'open':r<0.9?'half':'closed'):(r<0.35?'half':r<0.6?'open':'closed');return vis;}
+ function frame(now){requestAnimationFrame(frame);const dt=Math.min(100,now-(lastTs||now));lastTs=now;
+  const W=cv.clientWidth,H=cv.clientHeight;if(!W)return;const dpr=Math.min(2,window.devicePixelRatio||1);if(cv.width!==Math.round(W*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);}
+  const v=vids[cur],tr=J&&J.clips[NAME[curClip]];let want=false,f=null;
+  if(ON&&J&&tr&&speaking&&!paused&&v.readyState>=2&&v.classList.contains('on')&&!vids[1-cur].classList.contains('on')){const i=Math.min(tr.f.length-1,Math.floor(v.currentTime*tr.fps));f=tr.f[i];want=!!(f&&f[0]);}
+  alpha+=(want?1:-1)*dt/120;alpha=Math.max(0,Math.min(1,alpha));cx.clearRect(0,0,cv.width,cv.height);
+  if(alpha<=0||!f)return;const img=S[pick(now)];if(!img||!img.complete||!img.naturalWidth)return;
+  // object-fit:cover 對應：影片像素 → 畫布像素
+  const vw=v.videoWidth||854,vh=v.videoHeight||480,sc=Math.max(cv.width/vw,cv.height/vh),ox=(cv.width-vw*sc)/2,oy=(cv.height-vh*sc)/2;
+  // lip3：整個下半臉（鼻樑到下巴）用真實畫面替換，依兩眼中心/眼距/歪頭角度定位，鼻子不變形
+  const[,ex,ey,ed,ro]=f,k=ed/(J.sprite.eyeDist*J.sprite.scale)*sc,[OX,OY]=J.sprite.origin;
+  cx.save();cx.globalAlpha=alpha;cx.translate(ox+ex*sc,oy+ey*sc);cx.rotate(ro*Math.PI/180);cx.scale(k,k);cx.drawImage(img,-OX,-OY);cx.restore();}
+ requestAnimationFrame(frame);return{pulse};})();
+</script><script type="module">
+// Preview-only: existing Dark Star guide videos, voice and controls are untouched.
+import {createVoiceMotionBridge} from './modules/darkstar-voice-motion-bridge.js';
+import {createSilentMotionDirector} from './modules/darkstar-silent-motion-director.js';
+import {chooseRealDarkStarClip} from './modules/darkstar-real-video-selector.js';
+const recentRealClips=[];
+const bridge=createVoiceMotionBridge({sink(frame){
+ window.dispatchEvent(new CustomEvent('darkstar:motion-preview',{detail:frame}));
+}});
+window.__darkstarMotionVoice=bridge;
+const director=createSilentMotionDirector({emit(command){
+ window.dispatchEvent(new CustomEvent('darkstar:motion-intent',{detail:command}));
+ const clip=chooseRealDarkStarClip(command.context,{recent:recentRealClips});
+ if(clip&&window.__darkstarPlayRealMotion){
+  Promise.resolve(window.__darkstarPlayRealMotion(clip)).then(ok=>{
+   if(ok){recentRealClips.push(clip);if(recentRealClips.length>2)recentRealClips.shift();}
+  }).catch(()=>{});
+ }
+ // Only feed the motion sampler; no speech output or synthetic voice text.
+ bridge.triggerInternal(command.name);
+}});
+window.__darkstarSilentMotion=director;
+function tick(){if(bridge.getState().active)bridge.tick();requestAnimationFrame(tick)}
+requestAnimationFrame(tick);
+window.addEventListener('pagehide',()=>bridge.stop());
+</script>
+</body></html>
