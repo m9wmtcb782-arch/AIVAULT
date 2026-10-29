@@ -1,1 +1,148 @@
-PLACEHOLDER
+<!DOCTYPE html>
+<html lang="zh-Hant"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Technical Dark Star 暗星 · 導讀</title>
+<style>
+:root{--bg:#050b1f;--panel:#0d1b3d;--line:rgba(96,165,250,.35);--acc:#38bdf8;--tx:#e2e8f0}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#0c2550,var(--bg) 60%);color:var(--tx);font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;min-height:100vh}
+header{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;gap:6px;height:40px}
+header a{color:#93c5fd;text-decoration:none;font-size:14px}h1{font-size:13px;margin:0;flex:1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header .icon-btn{padding:4px 10px;font-size:13px}.icon-btn{background:rgba(30,58,138,.5);border:1px solid var(--line);color:var(--tx);border-radius:999px;padding:7px 12px;font-size:14px}
+#stage{position:relative;width:100%;max-width:1100px;margin:0 auto;aspect-ratio:16/9;overflow:hidden;background:#000 url(digital-human-real/guide/guide_idle.jpg) center/cover;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+#stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .35s}#stage video.on{opacity:1}
+#slide{position:absolute;left:45%;top:6%;width:44%;height:57%;object-fit:contain;background:#081633;border:1px solid rgba(125,211,252,.35);box-shadow:0 0 18px rgba(56,189,248,.25);transition:opacity .4s;z-index:3}
+#slide.dim{opacity:.15}
+#mouth{position:absolute;z-index:4;pointer-events:none;display:none;
+ -webkit-mask-image:radial-gradient(ellipse at center,#000 45%,transparent 72%);mask-image:radial-gradient(ellipse at center,#000 45%,transparent 72%)}
+#sub{position:absolute;left:4%;right:4%;bottom:3%;z-index:5;background:rgba(3,10,30,.78);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:clamp(12px,2.6vw,20px);line-height:1.4;text-align:center;min-height:1.6em}
+#pageNo{position:absolute;right:11%;top:64%;z-index:5;font-size:clamp(10px,1.8vw,14px);color:#bae6fd}
+.ctrl{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding:14px}
+.ctrl button{background:linear-gradient(135deg,#0ea5e9,#6366f1);border:0;color:#fff;border-radius:999px;padding:10px 16px;font-size:15px;font-weight:700}
+.ctrl button.sec{background:rgba(30,58,138,.6);border:1px solid var(--line)}
+main{max-width:560px;margin:0 auto;padding:0 12px 40px}
+.card{background:rgba(15,23,42,.7);border:1px solid rgba(148,163,184,.18);border-radius:18px;padding:12px;margin-top:12px}
+.badge{display:inline-block;font-size:11px;letter-spacing:.08em;padding:3px 10px;border-radius:999px;background:rgba(99,102,241,.15);color:#a5b4fc;border:1px solid rgba(129,140,248,.3)}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.tile{background:rgba(15,23,42,.7);border:1px solid rgba(148,163,184,.18);border-radius:14px;padding:10px 4px;text-align:center;font-size:12px;color:#cbd5e1;line-height:1.3;cursor:pointer}
+.tile b{display:block;font-size:22px;margin-bottom:3px}.tile input{display:none}
+.ctrl{padding:4px 0}.ctrl button{flex:1 1 28%;padding:10px 6px}
+#startBtn{background:linear-gradient(90deg,#6366f1,#a855f7);box-shadow:0 6px 20px rgba(139,92,246,.4);flex-basis:100%}
+#skipBtn{display:none;background:#f59e0b;flex-basis:100%}
+#editor .box{max-width:640px}.ed-row{display:flex;gap:8px;margin:10px 0}.ed-row img{width:96px;height:54px;object-fit:cover;border-radius:6px;border:1px solid var(--line);flex-shrink:0}
+.ed-row textarea{flex:1;min-height:70px;border-radius:8px;background:#081633;color:var(--tx);border:1px solid var(--line);padding:6px;font-size:14px}
+.qbar{display:flex;gap:6px;align-items:flex-end;margin-top:8px}.qbar textarea{flex:1;border-radius:12px;background:#081633;color:var(--tx);border:1px solid var(--line);padding:9px;font-size:15px;resize:none}
+.qbar button{border:1px solid var(--line);background:rgba(30,58,138,.6);color:#fff;border-radius:999px;padding:9px 12px;font-size:14px}.qbar button.rec{background:#a855f7}
+#qaLog{max-height:220px;overflow:auto;font-size:14px;line-height:1.5}#qaLog .q{color:#93c5fd;margin-top:8px}#qaLog .a{color:#e2e8f0}
+#pauseVeil{display:none;position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);z-index:6;background:rgba(3,10,30,.82);border:1px solid #f59e0b;color:#fde68a;border-radius:12px;padding:8px 16px;font-size:clamp(13px,2.4vw,18px)}
+body.paused #pauseVeil{display:block}#pauseBtn{font-weight:800}body.paused #pauseBtn,body.paused #fsPause{background:#f59e0b!important}
+#fsCtl{display:none}
+body.fs{overflow:hidden}body.fs #fsWrap{position:fixed;inset:0;z-index:60;background:#000;display:flex;align-items:center;justify-content:center}
+body.fs #stage{width:min(100vw,177.78vh);height:auto;max-width:none;border:0;margin:0}
+body.fs #fsCtl{display:flex;gap:8px;position:fixed;right:12px;top:calc(10px + env(safe-area-inset-top));z-index:70;transition:opacity .4s}
+body.fs #fsCtl button{background:rgba(3,10,30,.7);color:#fff;border:1px solid var(--line);border-radius:999px;padding:7px 12px;font-size:13px}
+body.fs.ctlhide #fsCtl{opacity:0;pointer-events:none}
+.camrow{display:flex;align-items:center;justify-content:center;gap:8px;margin:8px 0 2px}.camlbl{font-size:12px;color:#94a3b8}
+.camBtn{width:38px;height:38px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:rgba(148,163,184,.14);border:1px solid rgba(148,163,184,.25);color:#e2e8f0;padding:0}
+.camBtn.on{background:rgba(168,85,247,.35);border-color:#a855f7;color:#fff}body.fs #fsCtl .camBtn{width:34px;height:34px;padding:0}
+#pip{display:none;position:absolute;right:2%;bottom:16%;width:16%;aspect-ratio:3/4;object-fit:cover;border-radius:8px;border:2px solid rgba(255,255,255,.6);transform:scaleX(-1);z-index:7;background:#000}body.camon #pip{display:block}
+.map-row{display:flex;gap:8px;align-items:center;margin:6px 0;font-size:12px;color:#cbd5e1}.map-row img{width:64px;height:36px;object-fit:cover;border-radius:4px;flex-shrink:0;border:1px solid var(--line)}.map-row b{color:#7dd3fc}#mapList{max-height:260px;overflow:auto}
+#lipCv{position:absolute;inset:0;width:100%;height:100%;z-index:4;pointer-events:none}
+#status{text-align:center;font-size:13px;color:#94a3b8;padding:0 14px}
+#ask{display:none;max-width:700px;margin:10px auto;padding:0 14px}#ask textarea{width:100%;border-radius:10px;background:var(--panel);color:var(--tx);border:1px solid var(--line);padding:8px}
+#panel,#editor{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:50;align-items:flex-end;justify-content:center}
+#panel .box,#editor .box{background:var(--panel);width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));border:1px solid var(--line);max-height:88vh;overflow:auto}
+#panel h2,#editor h2{font-size:16px;margin:0 0 10px}.row{margin:12px 0}.row label{display:block;font-size:14px;margin-bottom:6px;color:#bae6fd}
+.row select,.row input[type=range]{width:100%}.row select{background:#081633;color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:8px}
+.up{display:block;text-align:center;padding:10px;border:1px dashed var(--acc);border-radius:10px;color:var(--acc);font-weight:700}.up input{display:none}
+.hint{font-size:12px;color:#94a3b8;margin-top:4px}
+#micBtn{width:44px;height:44px;border-radius:50%;background:#e9e9ec;color:#111;border:0;display:flex;align-items:center;justify-content:center;padding:0;flex:0 0 44px}#micBtn.rec{background:#8b5cf6;color:#fff}
+</style></head><body>
+<header><a href="aivault-home.html">‹ 首頁</a><h1>Technical Dark Star 暗星 · 導讀</h1><span><button class="icon-btn" id="fsBtn">⛶ 全螢幕</button> <button class="icon-btn" id="setBtn">⚙ 設定</button></span></header>
+<div id="fsWrap"><div id="stage">
+ <video id="v0" class="on" muted playsinline preload="auto" poster="digital-human-real/guide/guide_idle.jpg"></video><video id="v1" muted playsinline preload="auto"></video>
+ <img id="slide" alt=""><img id="mouth" alt=""><canvas id="lipCv"></canvas><div id="pageNo"></div><div id="sub">按「開始導讀」，暗星會為你講解簡報。</div>
+ <video id="pip" muted playsinline autoplay></video><div id="pauseVeil">已暫停，按繼續恢復</div>
+</div><div id="fsCtl"><button id="fsCam" class="camBtn" aria-label="鏡頭"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9a3 3 0 0 1 3-3h1.5l1.4-2h6.2l1.4 2H18a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"/><circle cx="12" cy="13" r="3.5"/></svg></button><button id="fsPause">⏸ 暫停</button><button id="fsExit">✕ 離開全螢幕</button></div></div>
+<main>
+<div class="card">
+ <div class="badge">AIVAULT · 數位人導讀</div>
+ <div class="camrow"><button class="camBtn" id="camBtn" type="button" aria-label="開啟鏡頭與麥克風"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9a3 3 0 0 1 3-3h1.5l1.4-2h6.2l1.4 2H18a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"/><circle cx="12" cy="13" r="3.5"/></svg></button><span class="camlbl" id="camLbl">開啟鏡頭／麥克風</span></div>
+ <div class="ctrl"><button id="startBtn">▶ 開始導讀</button><button class="sec" id="pauseBtn">⏸ 暫停</button><button class="sec" id="prevBtn">上一頁</button><button class="sec" id="nextBtn">下一頁</button><button id="skipBtn">⏭ 跳過，立即換頁</button></div>
+ <div style="text-align:center;margin:6px 0"><button class="icon-btn" id="modeBtn">🔊 手機語音</button></div>
+ <div id="status">目前使用內建示範簡報</div>
+</div>
+<div class="tiles">
+ <label class="tile"><b>🖼️</b>上傳簡報<br><small>PDF／PPTX／圖片</small><input type="file" id="slideFile" accept=".pdf,.pptx,.ppt,image/*" multiple></label>
+ <label class="tile"><b>📄</b>上傳口語講稿<br><small>Word／PDF／PPTX／TXT</small><input type="file" id="scriptFile" accept=".docx,.pdf,.pptx,.ppt,.txt,.md,text/plain"></label>
+ <div class="tile" id="editBtn"><b>✍️</b>新增口語表達<br><small>逐頁直接輸入</small></div>
+</div>
+<div class="card"><div class="badge">講稿對應預覽</div> <span class="hint" id="mapInfo"></span>
+ <div id="mapShift" style="display:none;gap:8px;justify-content:center;margin:8px 0"><button class="icon-btn" id="mapL">◀ 講稿往前一頁</button><button class="icon-btn" id="mapR">講稿往後一頁 ▶</button></div>
+ <div id="mapList"></div></div>
+<div class="hint" id="upMsg" style="text-align:center;margin-top:8px"></div>
+<div id="ask" class="card"><div class="badge">問暗星</div>
+ <div id="qaLog"></div>
+ <div class="qbar"><button id="micBtn" title="語音輸入" aria-label="語音輸入"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V20"/></svg></button><textarea id="askBox" rows="1" placeholder="導讀結束後可以發問…" disabled></textarea><button id="askSend" disabled>送出</button></div>
+ <div style="text-align:center;margin-top:8px"><button class="icon-btn" id="endBtn">🙇 結束導讀</button></div></div>
+</main>
+<div id="editor"><div class="box"><h2>✍️ 口語表達（每頁講稿）</h2><div class="hint">每一頁講完才會換下一頁。句子用「。！？」或換行分開。</div><div id="edList"></div>
+ <div class="row"><button class="icon-btn" id="edSave">儲存</button> <button class="icon-btn" id="edClose">取消</button></div></div></div>
+<div id="panel"><div class="box">
+ <h2>⚙ 導讀設定</h2>
+ <div class="hint">PPT 舊格式（.ppt）無法在瀏覽器讀取，請另存成 PPTX 或 PDF。PPTX 只擷取圖片與文字，版面可能不同，建議匯出 PDF。</div>
+ <div class="row"><label>語音模式</label><select id="modeSel"><option value="tts">手機語音（免費、離線也可）</option><option value="live">即時語音（AIVAULT AI，需登入）</option></select><div class="hint">iPhone 手機語音會受「靜音開關」影響：請把左側靜音鍵撥到響鈴、調高音量。</div></div>
+ <div class="row" id="liveVoiceRow"><label>即時語音聲音</label><select id="liveVoiceSel"></select></div>
+ <div class="row"><label>手機語音聲音</label><select id="voiceSel"></select></div>
+ <div class="row"><label>語速 <span id="rateVal">1.0</span></label><input type="range" id="rate" min="0.6" max="1.6" step="0.1" value="1"></div>
+ <div class="row"><label><input type="checkbox" id="heelChk" checked> 高跟鞋聲（暗星走路時）</label></div>
+ <div class="row"><label><input type="checkbox" id="auto" checked> 自動配合簡報播放（講完自動翻頁）</label></div>
+ <div class="row"><button class="icon-btn" id="resetBtn">恢復內建示範</button> <button class="icon-btn" id="closeBtn">關閉</button></div>
+</div></div>
+<script>
+// TODO: 之後可把上傳的簡報＋講稿存到書架（目前只存在本機 IndexedDB，不碰現有書架）
+const G='digital-human-real/guide/',$=id=>document.getElementById(id);
+const CLIPS={idle:'guide_idle',intro:'guide_intro',point:'guide_point',walk:'guide_walk',explain:'guide_explain',ask:'guide_ask',bow:'guide_bow',talk:'guide_talk'};
+const vids=[$('v0'),$('v1')];let cur=0,curClip=null,lip=null,mouthImgs={};
+let clipGen=0;
+function playClip(name,loop){const my=++clipGen;return new Promise(res=>{const nv=vids[1-cur],ov=vids[cur];nv.loop=!!loop;nv.onended=null;nv.oncanplay=null;nv.src=G+CLIPS[name]+'.mp4';nv.poster=G+CLIPS[name]+'.jpg';
+ const go=()=>{if(my!==clipGen){res();return;}nv.play().catch(()=>{});nv.classList.add('on');ov.classList.remove('on');setTimeout(()=>{if(!ov.classList.contains('on'))ov.pause();},400);cur=1-cur;curClip=name;$('slide').classList.toggle('dim',name==='walk');};
+ nv.oncanplay=()=>{nv.oncanplay=null;go()};nv.onerror=()=>res();nv.onended=()=>res();nv.load();if(loop)setTimeout(res,50);});}
+async function oneShot(n){if(paused)return;await playClip(n,false);if(!paused&&(!stopped||qaMode))playClip(speaking?'talk':'idle',true);}
+// ---- lip ----
+fetch(G+'lip/guide_lip.json').then(r=>r.json()).then(j=>{lip=j;['closed','half','open','round'].forEach(k=>{const i=new Image();i.src=G+'lip/mouth_'+k+'.png';mouthImgs[k]=i;});});
+const LIP_ON=false; // 舊版 lip/ 疊加停用，改用下方 lip2（臉部偵測、只在正臉時）
+let speaking=false,vis='closed',visT=0;
+ // Real-person motion playback: existing original MP4 only; never replace Dark Star identity.
+ // Enabled only in Q&A idle moments; does not interrupt guide narration or live speech.
+ let lastRealMotionAt=0,realMotionBusy=false;
+ window.__darkstarPlayRealMotion=async function(clip){
+  if(!qaMode||paused||speaking||realMotionBusy||curClip!=='idle'||Date.now()-lastRealMotionAt<7000)return false;
+  if(!['intro','point','explain','ask','bow'].includes(clip))return false;
+  realMotionBusy=true;lastRealMotionAt=Date.now();
+  try{await oneShot(clip);return true;}finally{realMotionBusy=false;}
+ };
+const SEQ=['half','open','half','closed','round','half','open','closed'];
+function lipLoop(t){requestAnimationFrame(lipLoop);const m=$('mouth'),v=vids[cur];
+ // 離線合成檢查（guide-lip-check）顯示頭部轉動時會出現雙嘴，guide_talk 本身已有自然嘴動 → 預設關閉疊加；?lip=1 只在正臉、非淡入淡出時試用
+ if(!LIP_ON||!lip||!speaking||curClip!=='talk'||v.readyState<2||!v.classList.contains('on')||vids[1-cur].classList.contains('on')){m.style.display='none';return;}
+ if(t-visT>140){visT=t;vis=SEQ[(Math.random()*SEQ.length)|0];m.src=mouthImgs[vis].src;}
+ const [W,H]=lip.videoSize,[pw,ph]=lip.patchSize,fi=Math.min(lip.frameOffsets.length-1,Math.floor(v.currentTime*lip.fps)),o=lip.frameOffsets[fi]||[0,0];
+ const cx=lip.mouthCenter[0]+o[0],cy=lip.mouthCenter[1]+o[1];
+ Object.assign(m.style,{display:'block',left:((cx-pw/2)/W*100)+'%',top:((cy-ph/2)/H*100)+'%',width:(pw/W*100)+'%',height:(ph/H*100)+'%'});}
+requestAnimationFrame(lipLoop);
+// ---- data ----
+function demoSlides(){const d=[['AIVAULT 電子書導讀','暗星帶你讀懂一本書'],['重點一：知識的複利','每天 1% 的進步 → 一年 37 倍'],['重點二：圖表解讀','左低右高：先慢後快的成長曲線']];
+ return d.map((t,i)=>{const c=document.createElement('canvas');c.width=1280;c.height=720;const x=c.getContext('2d');const g=x.createLinearGradient(0,0,1280,720);g.addColorStop(0,'#0b1d4a');g.addColorStop(1,'#1e1b4b');x.fillStyle=g;x.fillRect(0,0,1280,720);
+  x.fillStyle='#7dd3fc';x.font='bold 64px sans-serif';x.fillText(t[0],80,160);x.fillStyle='#e2e8f0';x.font='40px sans-serif';x.fillText(t[1],80,250);
+  if(i==2){x.strokeStyle='#38bdf8';x.lineWidth=8;x.beginPath();for(let k=0;k<=100;k++){const px=120+k*10,py=640-Math.pow(1.045,k)*4;k?x.lineTo(px,py):x.moveTo(px,py);}x.stroke();x.strokeStyle='#64748b';x.lineWidth=3;x.strokeRect(120,320,1000,320);}
+  if(i==1){[1,2,3,4,5].forEach(k=>{x.fillStyle='#6366f1';x.fillRect(120+k*170,640-k*k*12,110,k*k*12);});}
+  return c.toDataURL('image/jpeg',.85);});}
+const DEMO_SCRIPT=[['大家好，我是暗星，今天由我為你導讀這本書。','我們會用三頁簡報，快速抓住重點。'],['第一個重點是知識的複利。','請看這裡的長條圖，每天進步一點點，累積起來就非常驚人。','就像存錢一樣，利息也會再生利息。'],['接著看這張圖表。','曲線一開始很平，後來突然往上衝。','這代表堅持的人，會在後段看到爆發性的成果。']];
+const DEMO_SLIDES=demoSlides();let slides=DEMO_SLIDES,script=DEMO_SCRIPT,page=0;const toSec=sc=>sc.map(a=>a.join(''));
+// IndexedDB
+const idb=new Promise(r=>{const q=indexedDB.open('aivault_guide_v1',1);q.onupgradeneeded=()=>q.result.createObjectStore('kv');q.onsuccess=()=>r(q.result);q.onerror=()=>r(null);});
+async function kv(k,v){const db=await idb;if(!db)return;return new Promise(r=>{const t=db.transaction('kv',v===undefined?'readonly':'readwrite').objectStore('kv');const q=v===undefined?t.get(k):(v===null?t.delete(k):t.put(v,k));q.onsuccess=()=>r(q.result);q.onerror=()=>r();});}
+const settings=JSON.parse(localStorage.getItem('aivault-guide-settings')||'{}');
+function saveSet(){localStorage.setItem('aivault-guide-settings',JSON.stringify(settings));}
+function splitSent(t){return (t.match(/[^。！？!?\n]+[。！？!?]?/g)||[]).map(s=>s.trim()).filter(Boolean);}
+// 講稿對應：有「## 第N頁」就照頁碼放；沒有頁碼且段數比投影片少
