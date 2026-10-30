@@ -1,0 +1,25 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AIVAULT｜連接本機暗星書庫</title><style>body{font:16px/1.7 system-ui;background:#0b1020;color:#e4ecff;max-width:680px;margin:40px auto;padding:24px}h1{font-size:25px}button,a{display:inline-block;border:1px solid #7e8cbe;background:#302952;color:white;padding:10px 18px;border-radius:10px;text-decoration:none;margin:6px 6px 6px 0;font:inherit}button:disabled{opacity:.4}#status{background:#16223d;padding:16px;border-radius:12px;white-space:pre-wrap}.muted{color:#aabada;font-size:14px}</style>
+<h1>把 AIVAULT 電子書接給本機暗星</h1><p>只搜尋你目前帳號已勾選「讓暗星學習」的書。查到的原文片段與書名、頁碼會傳給這台電腦上的暗星。</p><p class="muted">登入憑證留在 AIVAULT 網站內，不傳給本機；不開放整個書庫下載，也不更改你的書籍勾選。</p><button id="connect">允許連接本機暗星</button><button id="disconnect" disabled>斷開連接</button><a href="aivault-home.html" target="_blank" rel="noopener">登入 AIVAULT</a><a href="dark-star-ebook.html" target="_blank" rel="noopener">設定學習書籍</a><p id="status" role="status">請先登入 AIVAULT，再按「允許連接本機暗星」。請保留本頁開啟。</p>
+<script src="darkstar-study-books.js?v=20261031-localbooks1"></script>
+<script>
+'use strict';
+const LOCAL='http://127.0.0.1:18764',channel=new URLSearchParams(location.hash.slice(1)).get('channel');
+const status=document.getElementById('status'),connect=document.getElementById('connect'),disconnect=document.getElementById('disconnect');
+let allowed=false,loading=null,working=false,lastRequest=0;
+function send(type,detail={}){if(window.opener)window.opener.postMessage({type,channel,...detail},LOCAL);}
+function validConnection(){return !!window.opener&&/^[a-f0-9]{32}$/.test(channel||'');}
+async function session(){const study=await window.AIVAULTStudyBooks.get(true);if(!study?.logged_in||!study.enabled)throw new Error('尚未登入，或無法確認目前帳號的學習書籍。請先登入 AIVAULT，再重試。');if(!Object.keys(study.enabled).some(id=>study.enabled[id]))throw new Error('尚未勾選學習書籍。請到書架選擇「讓暗星學習」。');return study;}
+async function loadQA(){if(window.AIVAULTBookQA)return;if(!loading)loading=new Promise((resolve,reject)=>{window.AIVAULTSourceLocks={state:()=>({ebook:true,on:['ebook'],order:['ebook']})};const s=document.createElement('script');s.src='darkstar-book-qa.js?v=20261031-localbooks1';s.onload=()=>resolve();s.onerror=()=>reject(new Error('書頁檢索元件載入失敗'));document.head.appendChild(s);});await loading;}
+connect.onclick=async()=>{connect.disabled=true;try{if(!validConnection())throw new Error('請回到本機暗星，從「連接 AIVAULT 書庫」按鈕開啟本頁。');await session();allowed=true;disconnect.disabled=false;status.textContent='已連接。請回本機暗星提問，例如「請在電子書搜尋比例原則」。首次建立書頁索引可能較久。';send('AIVAULT_BOOKS_STATE',{connected:true});}catch(e){status.textContent=e.message;allowed=false;connect.disabled=false;}};
+disconnect.onclick=()=>{allowed=false;connect.disabled=false;disconnect.disabled=true;status.textContent='書庫連接已斷開。';send('AIVAULT_BOOKS_STATE',{connected:false});};
+window.addEventListener('message',async event=>{const m=event.data;if(event.origin!==LOCAL||event.source!==window.opener||!m||m.channel!==channel||m.type!=='AIVAULT_BOOKS_QUERY'||!allowed)return;
+if(working||Date.now()-lastRequest<500){send('AIVAULT_BOOKS_RESULT',{id:m.id,ok:false,error:'書庫正在處理上一個問題，請稍後重試。'});return;}
+if(!/^[a-f0-9]{32}$/.test(m.id||'')||typeof m.question!=='string'||m.question.length>1400)return;
+working=true;lastRequest=Date.now();status.textContent='正在搜尋已勾選電子書的原文……';try{await session();await loadQA();const text=String(await window.AIVAULTBookQA.getContextForQuery(m.question)||'');if(!allowed)return;
+const ok=/^【(?:AIVAULT 電子書實際檢索結果|指定書籍逐頁查詢結果|指定章節實際取得片段|AIVAULT 書架書目)/.test(text);const sources=[],seen=new Set();for(const match of text.matchAll(/《([^》]+)》\s*(?:PDF第|p\.)(\d+)\s*(?:頁)?/g)){const key=match[1]+':'+match[2];if(!seen.has(key)){seen.add(key);sources.push({title:match[1].slice(0,180),page:Number(match[2])});}}
+send('AIVAULT_BOOKS_RESULT',{id:m.id,ok,context:ok?text.slice(0,8500):'',sources:sources.slice(0,12),error:ok?'':text||'沒有取得可引用的書頁片段。'});status.textContent=ok?'已把這次取得的書頁片段交給本機暗星。等待下一個問題。':text;
+}catch(e){send('AIVAULT_BOOKS_RESULT',{id:m.id,ok:false,error:String(e.message||e)});status.textContent=e.message||String(e);}finally{working=false;}});
+setInterval(()=>{if(allowed)send('AIVAULT_BOOKS_STATE',{connected:true});},4000);
+window.addEventListener('pagehide',()=>send('AIVAULT_BOOKS_STATE',{connected:false}));
+if(!validConnection()){connect.disabled=true;status.textContent='請從本機暗星的「連接 AIVAULT 書庫」按鈕開啟本頁。';}
+</script></html>
