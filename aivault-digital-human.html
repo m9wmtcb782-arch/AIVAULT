@@ -1687,6 +1687,13 @@
         if (!v || !j.endAt || (AVATAR.buttons || []).some(b => b.clip === n)) return;
         v.addEventListener('timeupdate', () => { if (clip === n && v.currentTime >= j.endAt - 0.05 && !v.paused) { v.pause(); v.onended && v.onended(); } });   // 剪掉和 idle 不接的尾巴
       });
+      // 曙光：說話時播車主提供的真實說話片段（talk-a／talk-b 輪流），片段本身有自然嘴型／頭部動作→不疊整頭嘴型
+      const TALKS = (AVATAR.talkClips || []).filter(t => V[t.clip]); const TALK = {}; let talkIdx = 0, talkNow = '';
+      TALKS.forEach(t => { TALK[t.clip] = t; const v = V[t.clip]; v.loop = false; ONCE[t.clip] = 1; v.preload = 'auto';
+        const next = () => { if (clip !== t.clip || v._swap) return; v._swap = 1; talkIdx = (talkIdx + 1) % TALKS.length; if (TALKS.length > 2 && Math.random() < 0.25) talkIdx = (talkIdx + 1) % TALKS.length; talkNow = TALKS[talkIdx].clip; const nv = V[talkNow]; nv._swap = 0; try { nv.currentTime = 0; } catch {} update(); };
+        v.addEventListener('timeupdate', () => { if (t.endAt && v.currentTime >= t.endAt - 0.05) next(); });
+        v.addEventListener('ended', next);
+      });
       const BTN = {};   // 按鈕片段：預載、說話中也可播、結尾無縫接回 idle（＋整頭嘴型）
       function warm(n) { const v = V[n]; if (v && v.preload !== 'auto') { v.preload = 'auto'; try { v.load(); } catch {} } }
       if (Array.isArray(AVATAR.buttons) && AVATAR.buttons.length) {   // 自訂小圖按鈕（曙光：雪茄／龍）；暗星無此設定→維持 ☕🐱
@@ -1717,7 +1724,9 @@
       function want() {
         if (phase === 'intro') return 'transition';
         if (filler && BTN[filler]) return filler;
-        if (locked()) return lockClip;   // 動作／儀式播放中：說話開始也讓它播完（不暫停、不疊嘴型）   // 按鈕動作優先（說話中也播；結束後立刻回到說話狀態）
+        if (locked()) return lockClip;   // 動作／儀式播放中：說話開始也讓它播完（不暫停、不疊嘴型）
+        if (TALKS.length && (isSpeaking || dhVoice.voiced)) { if (!talkNow) { talkNow = TALKS[talkIdx].clip; V[talkNow]._swap = 0; try { V[talkNow].currentTime = 0; } catch {} } return talkNow; }
+        if (TALKS.length) talkNow = '';   // 按鈕動作優先（說話中也播；結束後立刻回到說話狀態）
         if (currentEmotion !== lastEmotion) {
           lastEmotion = currentEmotion;
           const m = MOOD[currentEmotion];
@@ -1743,7 +1752,7 @@
           if (ONCE[name] && name !== clip) { try { v.currentTime = 0; } catch {} }
           const prev = V[clip];
           clip = name;
-          if (JOIN && R && R.isAction(name) && name !== 'transition') { lockClip = name; lockT = R.lockUntil(Date.now(), v.duration); }
+          if (JOIN && R && R.isAction(name) && name !== 'transition' && !TALK[name]) { lockClip = name; lockT = R.lockUntil(Date.now(), v.duration); }
           Object.values(V).forEach(x => x.style.transitionDuration = fadeMs + 'ms');
           const reveal = () => {
             if (!v.classList.contains('on')) { shownAt = Date.now(); shownFade = fadeMs; }
@@ -1764,6 +1773,7 @@
         if (failed) return;
         const n = want();
         const toIdleFromTalk = (clip === 'talk' || clip === 'happy') && n === 'idle';
+        if (TALK[n] || TALK[clip]) { show(n, AVATAR.talkFadeMs || 220); return; }
         show(n, (fast || toIdleFromTalk || n === 'talk') ? 120 : 250);
       }
       dhVoice.onChange(() => update(true));
@@ -1816,7 +1826,7 @@
         else { filler = pick; update(); }
       }
       setInterval(fillerTick, 1500);
-      function cancelAction() { if (failed) return; if (locked()) { waiting = false; setStatus(''); return; } filler = ''; drinking = false; petting = false; moodOnce = ''; if (phase === 'intro') phase = 'main'; waiting = false; setStatus(''); clip === 'idle' || show('idle', 100); }
+      function cancelAction() { if (failed) return; if (locked() || TALK[clip]) { waiting = false; setStatus(''); return; } filler = ''; drinking = false; petting = false; moodOnce = ''; if (phase === 'intro') phase = 'main'; waiting = false; setStatus(''); clip === 'idle' || show('idle', 100); }
       function startWaiting(label, kind) { waiting = true; waitKind = kind || 'net'; setStatus(label); }
       function stopWaiting() { waiting = false; setStatus(''); }
       function flash(name, ms) { forced = name; forcedUntil = Date.now() + ms; update(); setTimeout(() => { if (forced === name) { forced = ''; update(); } }, ms + 50); }
@@ -1869,7 +1879,7 @@
       }
       // ritual clips play once
       ((AVATAR && AVATAR.ritualOrder) || []).forEach(n => { if (V[n]) { ONCE[n] = 1; V[n].loop = false; } });
-      return { attach, update, drink, petCat, cmd, waitIdle, cancelAction, startWaiting, stopWaiting, setStatus, flash, playRitual, get clip() { return clip; }, get btnClip() { return !!BTN[clip]; }, get locked() { return locked(); },
+      return { attach, update, drink, petCat, cmd, waitIdle, cancelAction, startWaiting, stopWaiting, setStatus, flash, playRitual, get clip() { return clip; }, get btnClip() { return !!BTN[clip]; }, get talking() { return !!TALK[clip]; }, get locked() { return locked(); },
         get lipOk() {   // 整頭嘴型只畫在真正看得到、已淡入完成的 idle 上
           if (!JOIN || !R) return true; const iv = V.idle;
           return !!iv && Date.now() - shownAt >= shownFade && R.lipAllowed({ clip, idleOn: iv.classList.contains('on'), idlePaused: iv.paused, idleReady: iv.readyState, otherOn: Object.entries(V).some(([k, x]) => k !== 'idle' && x.classList.contains('on')) });
@@ -2120,7 +2130,7 @@
         rx++;
         if (!playCtx) return;
         if (Date.now() < userTalkingUntil) return;
-        if (waitingAudio || (dhVid.clip !== 'idle' && !dhVid.btnClip && !dhVid.locked)) { waitingAudio = false; try { dhVid.cancelAction(); } catch {} }
+        if (waitingAudio || (dhVid.clip !== 'idle' && !dhVid.btnClip && !dhVid.locked && !dhVid.talking)) { waitingAudio = false; try { dhVid.cancelAction(); } catch {} }
         rate = rate || 24000;
         const n = Math.floor(u8.byteLength / 2); if (!n) return;
         const dv = new DataView(u8.buffer, u8.byteOffset, n * 2);
