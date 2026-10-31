@@ -1670,10 +1670,22 @@
         ['touchstart', 'pointerdown', 'click'].forEach(ev => document.addEventListener(ev, unlock, { passive: true }));
         document.addEventListener('visibilitychange', () => { if (!document.hidden) unlock(); });
       }
+      if (Array.isArray(AVATAR.buttons) && AVATAR.buttons.length) {   // 自訂小圖按鈕（曙光：雪茄／龍）；暗星無此設定→維持 ☕🐱
+        AVATAR.buttons.forEach((b, i) => {
+          if (!V[b.clip]) return;
+          V[b.clip].loop = false; ONCE[b.clip] = 1;
+          const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'dh-cup'; btn.title = b.title || '';
+          if (i) btn.style.right = (8 + 42 * i) + 'px';
+          btn.style.backgroundImage = 'url(' + b.icon + ')'; btn.style.backgroundSize = 'cover'; btn.style.backgroundPosition = 'center';
+          btn.onclick = (e) => { e.stopPropagation(); if (failed || phase === 'intro' || isSpeaking) return; drinking = petting = false; moodOnce = ''; filler = b.clip; try { V[b.clip].currentTime = 0; } catch {} update(); };
+          el.appendChild(btn);
+        });
+      } else {
       const cup = document.createElement('button'); cup.type = 'button'; cup.className = 'dh-cup'; cup.textContent = '☕'; cup.title = '喝一口';
       cup.onclick = (e) => { e.stopPropagation(); drink(); }; el.appendChild(cup);
       const cat = document.createElement('button'); cat.type = 'button'; cat.className = 'dh-cup'; cat.style.right = '50px'; cat.textContent = '🐱'; cat.title = '摸摸貓';
       cat.onclick = (e) => { e.stopPropagation(); petCat(true); }; el.appendChild(cat);
+      }
       function want() {
         if (phase === 'intro') return 'transition';
         if (currentEmotion !== lastEmotion) {
