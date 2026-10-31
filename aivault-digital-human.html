@@ -1655,6 +1655,7 @@
           if (++errs >= 2) fail(); else setTimeout(() => { try { v.load(); } catch {} }, 800);
         };
         v.onended = () => {
+          if (JOIN && clip === n) prepJoin(n);
           if (BTN[n] && filler === n) { endBtn(BTN[n]); return; }
           if (n === 'transition') phase = 'main';
           if (n === 'drink') drinking = false;
@@ -1671,6 +1672,21 @@
         ['touchstart', 'pointerdown', 'click'].forEach(ev => document.addEventListener(ev, unlock, { passive: true }));
         document.addEventListener('visibilitychange', () => { if (!document.hidden) unlock(); });
       }
+      // 曙光（有 clipJoin）：動作／儀式片段鎖定到播完，說話不打斷；結尾接到最像的 idle 影格再淡入
+      const JOIN = AVATAR.clipJoin || null, R = window.DHClipRules;
+      let lockClip = '', lockT = 0, shownAt = 0, shownFade = 0;
+      function locked() { return !!(JOIN && R && lockClip && V[lockClip] && R.holdAction({ clip: lockClip, ended: V[lockClip].ended, now: Date.now(), lockUntil: lockT })); }
+      function prepJoin(n) {   // 片段結束：idle 先跳到最接近的影格
+        if (lockClip === n) lockClip = '';
+        const j = JOIN && JOIN[n], iv = V.idle;
+        if (j && iv && j.idleAt != null) { try { iv.currentTime = j.idleAt; } catch {} }
+        if (forced === n) forced = '';
+      }
+      if (JOIN) Object.entries(JOIN).forEach(([n, j]) => {
+        const v = V[n]; if (v) { v.loop = false; ONCE[n] = 1; }   // 動作片段只播一次（原本會循環→說話時被硬切暫停＝定格）
+        if (!v || !j.endAt || (AVATAR.buttons || []).some(b => b.clip === n)) return;
+        v.addEventListener('timeupdate', () => { if (clip === n && v.currentTime >= j.endAt - 0.05 && !v.paused) { v.pause(); v.onended && v.onended(); } });   // 剪掉和 idle 不接的尾巴
+      });
       const BTN = {};   // 按鈕片段：預載、說話中也可播、結尾無縫接回 idle（＋整頭嘴型）
       function warm(n) { const v = V[n]; if (v && v.preload !== 'auto') { v.preload = 'auto'; try { v.load(); } catch {} } }
       if (Array.isArray(AVATAR.buttons) && AVATAR.buttons.length) {   // 自訂小圖按鈕（曙光：雪茄／龍）；暗星無此設定→維持 ☕🐱
@@ -1694,12 +1710,14 @@
       }
       function endBtn(b) {   // 結尾：idle 先跳到最接近的影格，再交叉淡入（說話中→idle＋整頭嘴型，不說話→idle）
         if (filler !== b.clip) return;
+        if (lockClip === b.clip) lockClip = '';
         const iv = V.idle; if (iv && b.idleAt != null) { try { iv.currentTime = b.idleAt; } catch {} }
         filler = ''; show(want(), b.fadeMs || 220);
       }
       function want() {
         if (phase === 'intro') return 'transition';
-        if (filler && BTN[filler]) return filler;   // 按鈕動作優先（說話中也播；結束後立刻回到說話狀態）
+        if (filler && BTN[filler]) return filler;
+        if (locked()) return lockClip;   // 動作／儀式播放中：說話開始也讓它播完（不暫停、不疊嘴型）   // 按鈕動作優先（說話中也播；結束後立刻回到說話狀態）
         if (currentEmotion !== lastEmotion) {
           lastEmotion = currentEmotion;
           const m = MOOD[currentEmotion];
@@ -1725,8 +1743,10 @@
           if (ONCE[name] && name !== clip) { try { v.currentTime = 0; } catch {} }
           const prev = V[clip];
           clip = name;
+          if (JOIN && R && R.isAction(name) && name !== 'transition') { lockClip = name; lockT = R.lockUntil(Date.now(), v.duration); }
           Object.values(V).forEach(x => x.style.transitionDuration = fadeMs + 'ms');
           const reveal = () => {
+            if (!v.classList.contains('on')) { shownAt = Date.now(); shownFade = fadeMs; }
             v.classList.add('on');
             Object.entries(V).forEach(([k, x]) => { if (k !== name && x.classList.contains('on')) { x.classList.remove('on'); setTimeout(() => { if (clip !== k) x.pause(); }, fadeMs + 20); } });
           };
@@ -1796,7 +1816,7 @@
         else { filler = pick; update(); }
       }
       setInterval(fillerTick, 1500);
-      function cancelAction() { if (failed) return; filler = ''; drinking = false; petting = false; moodOnce = ''; if (phase === 'intro') phase = 'main'; waiting = false; setStatus(''); clip === 'idle' || show('idle', 100); }
+      function cancelAction() { if (failed) return; if (locked()) { waiting = false; setStatus(''); return; } filler = ''; drinking = false; petting = false; moodOnce = ''; if (phase === 'intro') phase = 'main'; waiting = false; setStatus(''); clip === 'idle' || show('idle', 100); }
       function startWaiting(label, kind) { waiting = true; waitKind = kind || 'net'; setStatus(label); }
       function stopWaiting() { waiting = false; setStatus(''); }
       function flash(name, ms) { forced = name; forcedUntil = Date.now() + ms; update(); setTimeout(() => { if (forced === name) { forced = ''; update(); } }, ms + 50); }
@@ -1849,7 +1869,11 @@
       }
       // ritual clips play once
       ((AVATAR && AVATAR.ritualOrder) || []).forEach(n => { if (V[n]) { ONCE[n] = 1; V[n].loop = false; } });
-      return { attach, update, drink, petCat, cmd, waitIdle, cancelAction, startWaiting, stopWaiting, setStatus, flash, playRitual, get clip() { return clip; }, get btnClip() { return !!BTN[clip]; }, video: n => V[n], el, get failed() { return failed; } };
+      return { attach, update, drink, petCat, cmd, waitIdle, cancelAction, startWaiting, stopWaiting, setStatus, flash, playRitual, get clip() { return clip; }, get btnClip() { return !!BTN[clip]; }, get locked() { return locked(); },
+        get lipOk() {   // 整頭嘴型只畫在真正看得到、已淡入完成的 idle 上
+          if (!JOIN || !R) return true; const iv = V.idle;
+          return !!iv && Date.now() - shownAt >= shownFade && R.lipAllowed({ clip, idleOn: iv.classList.contains('on'), idlePaused: iv.paused, idleReady: iv.readyState, otherOn: Object.entries(V).some(([k, x]) => k !== 'idle' && x.classList.contains('on')) });
+        }, video: n => V[n], el, get failed() { return failed; } };
 
     })();
 
@@ -1964,7 +1988,7 @@
         const live = liveCtx && liveQ.length && liveCtx.currentTime < liveUntil + 0.05;
         if (!live && now - last < 33) return; last = now;
         const idle = dhVid.video('idle');
-        const on = !dhVid.failed && dhVid.clip === 'idle' && (isSpeaking || dhVoice.voiced) && document.contains(dhVid.el);
+        const on = !dhVid.failed && dhVid.clip === 'idle' && (isSpeaking || dhVoice.voiced) && document.contains(dhVid.el) && (!LP.fullHead || dhVid.lipOk);
         if (box.parentNode !== dhVid.el) dhVid.el.appendChild(box);
         if (!on) { setVis(''); gCand = null; box.style.display = 'none'; return; }
         box.style.display = '';
@@ -2096,7 +2120,7 @@
         rx++;
         if (!playCtx) return;
         if (Date.now() < userTalkingUntil) return;
-        if (waitingAudio || (dhVid.clip !== 'idle' && !dhVid.btnClip)) { waitingAudio = false; try { dhVid.cancelAction(); } catch {} }
+        if (waitingAudio || (dhVid.clip !== 'idle' && !dhVid.btnClip && !dhVid.locked)) { waitingAudio = false; try { dhVid.cancelAction(); } catch {} }
         rate = rate || 24000;
         const n = Math.floor(u8.byteLength / 2); if (!n) return;
         const dv = new DataView(u8.buffer, u8.byteOffset, n * 2);
@@ -3007,6 +3031,7 @@
     else await render();
   </script>
 <script src="darkstar-book-qa.js"></script>
+<script src="digital-human-real/dh-clip-rules.js?v=20261031-dawn2"></script>
 <script src="digital-human-real/zh-viseme.js?v=20261031-dawn1" charset="utf-8"></script>
 <script src="digital-human-real/dawn-bg-fx.js?v=20261031-dawn1"></script>
 <script src="digital-human-real/dh-knowledge.js?v=20261021-dual-retrieval1" charset="utf-8"></script>
