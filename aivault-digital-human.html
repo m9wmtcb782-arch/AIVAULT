@@ -1640,7 +1640,7 @@
       const LAZY = AVATAR.id !== 'darkstar';
       const EAGER = { transition:1, idle:1, talk:1 };
       const V = {};
-      let failed = false, clip = '', phase = AVATAR.idleNeverStill ? 'main' : 'intro', drinking = false, petting = false, filler = '', lastFiller = '', waitKind = '', waiting = false, forced = '', forcedUntil = 0, fillerN = 0, moodOnce = '', lastEmotion = 'calm';
+      let failed = false, clip = '', phase = 'intro', drinking = false, petting = false, filler = '', lastFiller = '', waitKind = '', waiting = false, forced = '', forcedUntil = 0, fillerN = 0, moodOnce = '', lastEmotion = 'calm';
       function fail() { if (failed) return; failed = true; el.remove(); document.querySelectorAll('.dh-head.vid').forEach(h => h.classList.remove('vid')); }
       CLIPS.forEach(n => {
         const v = document.createElement('video');
@@ -1648,12 +1648,6 @@
         v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('webkit-playsinline', '');
         { const c = AVATAR.clips && AVATAR.clips[n]; v.poster = DIR + ((c && c.poster) || n + '.jpg'); v.src = DIR + ((c && c.src) || n + '.mp4'); }
         v.loop = !ONCE[n];
-        if (n === 'idle' && AVATAR.idleNeverStill) {   // 曙光：idle 一進頁面就自動播（iOS 需 muted+playsinline+autoplay），只播一次停在最後一格（回到原圖）
-          v.autoplay = true; v.setAttribute('autoplay', ''); v.preload = 'auto';
-          if (AVATAR.idleOnce) v.loop = false;
-          const kick = () => { if (clip === 'idle' && v.paused && !v.ended) v.play().catch(() => {}); };
-          ['loadeddata', 'canplay'].forEach(ev => v.addEventListener(ev, kick));
-        }
         let errs = 0;
         v.onerror = () => {   // 只有 idle 連續失敗才退回照片；其他片段失敗就略過
           if (n === 'transition') { phase = 'main'; update(); return; }
@@ -1676,7 +1670,7 @@
       if (V.happy) V.happy.loop = true;
       if (AVATAR.idleNeverStill) setInterval(() => { if (failed || document.hidden || !document.contains(el)) return; const v = V[clip] || V.idle; if (v && v.paused && !v.ended) v.play().catch(() => {}); }, 1500);   // 曙光：登入後不論是否連線，影片停住就自動續播
       if (LAZY) {   // iOS：第一次觸碰時重新 play 目前片段（自動播放被擋時不會一直停在海報）
-        const unlock = () => { const v = V[clip] || V.idle; if (v && v.paused && !(AVATAR.idleOnce && v.ended)) v.play().catch(() => {}); };
+        const unlock = () => { const v = V[clip] || V.idle; if (v && v.paused) v.play().catch(() => {}); };
         ['touchstart', 'pointerdown', 'click'].forEach(ev => document.addEventListener(ev, unlock, { passive: true }));
         document.addEventListener('visibilitychange', () => { if (!document.hidden) unlock(); });
       }
@@ -1770,7 +1764,7 @@
           const p = v.play();
           if (v.readyState >= 2 || BTN[name]) reveal();   // 按鈕片段：海報立即出現，不等解碼 else { v.addEventListener('playing', reveal, { once: true }); setTimeout(reveal, 400); }
           if (p && p.catch) p.catch(() => reveal());
-        } else if (v.paused && !(AVATAR.idleOnce && name === 'idle' && v.ended)) { v.play().catch(() => {}); }   // idleOnce：播完停在最後一格，不重播
+        } else if (v.paused) { v.play().catch(() => {}); }
         // 說話時依音量微調速度
         if (name === 'talk' || name === 'happy') {
           const lv = dhVoice.level;
