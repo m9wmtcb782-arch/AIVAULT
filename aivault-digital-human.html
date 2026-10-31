@@ -1640,7 +1640,7 @@
       const LAZY = AVATAR.id !== 'darkstar';
       const EAGER = { transition:1, idle:1, talk:1 };
       const V = {};
-      let failed = false, clip = '', phase = 'intro', drinking = false, petting = false, filler = '', lastFiller = '', waitKind = '', waiting = false, forced = '', forcedUntil = 0, fillerN = 0, moodOnce = '', lastEmotion = 'calm';
+      let failed = false, clip = '', phase = AVATAR.intro === false ? 'main' : 'intro', drinking = false, petting = false, filler = '', lastFiller = '', waitKind = '', waiting = false, forced = '', forcedUntil = 0, fillerN = 0, moodOnce = '', lastEmotion = 'calm';
       function fail() { if (failed) return; failed = true; el.remove(); document.querySelectorAll('.dh-head.vid').forEach(h => h.classList.remove('vid')); }
       CLIPS.forEach(n => {
         const v = document.createElement('video');
@@ -1721,6 +1721,14 @@
         const iv = V.idle; if (iv && b.idleAt != null) { try { iv.currentTime = b.idleAt; } catch {} }
         filler = ''; show(want(), b.fadeMs || 220);
       }
+      // 說話遲滯（暗星不用：她說話時一直停在 idle）：音訊塊之間的短暫靜音不切回 idle，避免一段一段閃
+      const HOLD = AVATAR.id === 'darkstar' ? 0 : (AVATAR.talkHoldMs || 650); let spokeAt = 0, holdT = 0;
+      function speakingNow() {
+        if (isSpeaking || dhVoice.voiced) { spokeAt = Date.now(); return true; }
+        const left = HOLD - (Date.now() - spokeAt);
+        if (HOLD && spokeAt && left > 0) { clearTimeout(holdT); holdT = setTimeout(() => update(), left + 20); return true; }
+        return false;
+      }
       function want() {
         if (phase === 'intro') return 'transition';
         if (filler && BTN[filler]) return filler;
@@ -1733,7 +1741,7 @@
           moodOnce = (m && m !== 'happy') ? m : '';
         }
         const happy = currentEmotion === 'happy';
-        if (isSpeaking || dhVoice.voiced) return (LAZY && V.talk && !(AVATAR.lip && AVATAR.lip.fullHead)) ? 'talk' : 'idle';   // 曙光 fullHead：idle + 整顆頭嘴型圖   // 暗星：idle + 即時嘴型疊圖；其他有 talk 片段者直接播 talk
+        if (speakingNow()) return (LAZY && V.talk && !(AVATAR.lip && AVATAR.lip.fullHead)) ? 'talk' : 'idle';   // 曙光 fullHead：idle + 整顆頭嘴型圖   // 暗星：idle + 即時嘴型疊圖；其他有 talk 片段者直接播 talk
         if (drinking) return 'drink';
         if (petting) return 'petcat';
         if (filler) return filler;
@@ -1998,7 +2006,7 @@
         const live = liveCtx && liveQ.length && liveCtx.currentTime < liveUntil + 0.05;
         if (!live && now - last < 33) return; last = now;
         const idle = dhVid.video('idle');
-        const on = !dhVid.failed && dhVid.clip === 'idle' && (isSpeaking || dhVoice.voiced) && document.contains(dhVid.el) && (!LP.fullHead || dhVid.lipOk);
+        const on = LP.overlay !== false && !dhVid.failed && dhVid.clip === 'idle' && (isSpeaking || dhVoice.voiced) && document.contains(dhVid.el) && (!LP.fullHead || dhVid.lipOk);
         if (box.parentNode !== dhVid.el) dhVid.el.appendChild(box);
         if (!on) { setVis(''); gCand = null; box.style.display = 'none'; return; }
         box.style.display = '';
