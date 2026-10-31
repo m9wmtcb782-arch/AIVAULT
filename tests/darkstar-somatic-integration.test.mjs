@@ -13,3 +13,19 @@ test('missing dynamics solver prevents actuation',()=>{const f=fixture(undefined
 test('unsafe joint angle prevents actuation',()=>{const f=fixture(()=>({approved:true}));f.adapter.enable();assert.equal(f.adapter.step({leftKneeFlex:200},sensors).status,'BLOCKED_REFLEX');assert.equal(f.count(),0)});
 test('unapproved dynamics prevent actuation',()=>{const f=fixture(()=>({approved:false}));f.adapter.enable();assert.equal(f.adapter.step({leftKneeFlex:30},sensors).status,'BLOCKED_DYNAMICS_NOT_APPROVED');assert.equal(f.count(),0)});
 test('explicitly approved dynamics permit actuation',()=>{const f=fixture(()=>({approved:true}));f.adapter.enable();assert.equal(f.adapter.step({leftKneeFlex:30},sensors).status,'POSE_APPLIED');assert.equal(f.count(),1)});
+
+// M0 anatomical audit regressions (Issue #43)
+test('M0: spine includes T12-L1 and has 24 intervertebral/occipital segments',()=>{
+ assert.equal(ANATOMICAL_JOINTS.some(j=>j.name.includes('T12-L1')),true);
+ assert.equal(ANATOMICAL_JOINTS.filter(j=>j.region==='spine').length,25);
+});
+test('M0: not every joint is 3-axis; hinges and pivots are single-axis',()=>{
+ const by=n=>ANATOMICAL_JOINTS.filter(j=>j.name===n);
+ for(const n of ['humeroulnar','proximal radioulnar','distal radioulnar','talocrural'])for(const j of by(n))assert.equal(j.axes.length,1,n);
+ for(const n of ['radiocarpal','tibiofemoral'])for(const j of by(n))assert.equal(j.axes.length,2,n);
+ assert.equal(by('distal tibiofibular').every(j=>j.axes.length===0),true);
+});
+test('M0: fixed sutures have no axes and no motor',()=>{
+ for(const j of ANATOMICAL_JOINTS.filter(j=>j.type.startsWith('fibrous')))assert.equal(j.axes.length===0&&j.motorEnabled===false,true,j.name);
+});
+test('M0: no joint is motor-enabled while ROM is unverified',()=>assert.equal(jointAudit().motorReady,0));
