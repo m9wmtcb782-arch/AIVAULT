@@ -1655,6 +1655,7 @@
           if (++errs >= 2) fail(); else setTimeout(() => { try { v.load(); } catch {} }, 800);
         };
         v.onended = () => {
+          if (BTN[n] && filler === n) { endBtn(BTN[n]); return; }
           if (n === 'transition') phase = 'main';
           if (n === 'drink') drinking = false;
           if (n === filler) filler = '';
@@ -1670,14 +1671,19 @@
         ['touchstart', 'pointerdown', 'click'].forEach(ev => document.addEventListener(ev, unlock, { passive: true }));
         document.addEventListener('visibilitychange', () => { if (!document.hidden) unlock(); });
       }
+      const BTN = {};   // 按鈕片段：預載、說話中也可播、結尾無縫接回 idle（＋整頭嘴型）
+      function warm(n) { const v = V[n]; if (v && v.preload !== 'auto') { v.preload = 'auto'; try { v.load(); } catch {} } }
       if (Array.isArray(AVATAR.buttons) && AVATAR.buttons.length) {   // 自訂小圖按鈕（曙光：雪茄／龍）；暗星無此設定→維持 ☕🐱
+        if (V.idle) V.idle.addEventListener('playing', () => setTimeout(() => AVATAR.buttons.forEach(b => warm(b.clip)), 1200), { once: true });
         AVATAR.buttons.forEach((b, i) => {
           if (!V[b.clip]) return;
-          V[b.clip].loop = false; ONCE[b.clip] = 1;
+          V[b.clip].loop = false; ONCE[b.clip] = 1; BTN[b.clip] = b;
+          if (b.endAt) V[b.clip].addEventListener('timeupdate', () => { const v = V[b.clip]; if (clip === b.clip && !v._ending && v.currentTime >= b.endAt - 0.05) { v._ending = 1; endBtn(b); } });
           const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'dh-cup'; btn.title = b.title || '';
           if (i) btn.style.right = (8 + 42 * i) + 'px';
           btn.style.backgroundImage = 'url(' + b.icon + ')'; btn.style.backgroundSize = 'cover'; btn.style.backgroundPosition = 'center';
-          btn.onclick = (e) => { e.stopPropagation(); if (failed || phase === 'intro' || isSpeaking) return; drinking = petting = false; moodOnce = ''; filler = b.clip; try { V[b.clip].currentTime = 0; } catch {} update(); };
+          ['touchstart', 'pointerdown'].forEach(ev => btn.addEventListener(ev, () => warm(b.clip), { passive: true }));
+          btn.onclick = (e) => { e.stopPropagation(); if (failed || phase === 'intro') return; drinking = petting = false; moodOnce = ''; filler = b.clip; V[b.clip]._ending = 0; try { V[b.clip].currentTime = 0; } catch {} update(true); };
           el.appendChild(btn);
         });
       } else {
@@ -1686,8 +1692,14 @@
       const cat = document.createElement('button'); cat.type = 'button'; cat.className = 'dh-cup'; cat.style.right = '50px'; cat.textContent = '🐱'; cat.title = '摸摸貓';
       cat.onclick = (e) => { e.stopPropagation(); petCat(true); }; el.appendChild(cat);
       }
+      function endBtn(b) {   // 結尾：idle 先跳到最接近的影格，再交叉淡入（說話中→idle＋整頭嘴型，不說話→idle）
+        if (filler !== b.clip) return;
+        const iv = V.idle; if (iv && b.idleAt != null) { try { iv.currentTime = b.idleAt; } catch {} }
+        filler = ''; show(want(), b.fadeMs || 220);
+      }
       function want() {
         if (phase === 'intro') return 'transition';
+        if (filler && BTN[filler]) return filler;   // 按鈕動作優先（說話中也播；結束後立刻回到說話狀態）
         if (currentEmotion !== lastEmotion) {
           lastEmotion = currentEmotion;
           const m = MOOD[currentEmotion];
@@ -1719,7 +1731,7 @@
             Object.entries(V).forEach(([k, x]) => { if (k !== name && x.classList.contains('on')) { x.classList.remove('on'); setTimeout(() => { if (clip !== k) x.pause(); }, fadeMs + 20); } });
           };
           const p = v.play();
-          if (v.readyState >= 2) reveal(); else { v.addEventListener('playing', reveal, { once: true }); setTimeout(reveal, 400); }
+          if (v.readyState >= 2 || BTN[name]) reveal();   // 按鈕片段：海報立即出現，不等解碼 else { v.addEventListener('playing', reveal, { once: true }); setTimeout(reveal, 400); }
           if (p && p.catch) p.catch(() => reveal());
         } else if (v.paused) { v.play().catch(() => {}); }
         // 說話時依音量微調速度
@@ -1809,6 +1821,7 @@
         const aw = lp.videoW || 480, ah = lp.videoH || 432;
         head.style.aspectRatio = aw + ' / ' + ah;
         if (el.parentNode !== head) { head.appendChild(el); if (V[clip]) V[clip].play().catch(() => {}); }
+        if (AVATAR.bgFx && window.DHBgFx && !attach._fx) attach._fx = DHBgFx.attach(el, AVATAR.bgFx, { visible: cl => !failed && cl.includes(clip) });
         update();
       }
 
@@ -1836,7 +1849,7 @@
       }
       // ritual clips play once
       ((AVATAR && AVATAR.ritualOrder) || []).forEach(n => { if (V[n]) { ONCE[n] = 1; V[n].loop = false; } });
-      return { attach, update, drink, petCat, cmd, waitIdle, cancelAction, startWaiting, stopWaiting, setStatus, flash, playRitual, get clip() { return clip; }, video: n => V[n], el, get failed() { return failed; } };
+      return { attach, update, drink, petCat, cmd, waitIdle, cancelAction, startWaiting, stopWaiting, setStatus, flash, playRitual, get clip() { return clip; }, get btnClip() { return !!BTN[clip]; }, video: n => V[n], el, get failed() { return failed; } };
 
     })();
 
@@ -1902,12 +1915,13 @@
         const held = now - gCandT;
         if (v === '') { if (held >= 120) { setVis(''); gLast = now; gCand = null; } return; }
         if (cur === '') { if (held >= 60) { setVis(v); gLast = now; gCand = null; } return; }
-        if (now - gLast < 150) return;
+        if (now - gLast < (LP.fullHead ? 90 : 150)) return;
         if ((NEAR[cur] || []).includes(v) && held < 90) return;
         setVis(v); gLast = now; gCand = null;
       }
       // 中文字無法即時轉拼音：用字碼決定一個穩定的口型（同一字每次相同），英文用母音
       function charVis(ch) {
+        if (LP.fullHead && window.DHZhViseme) return DHZhViseme.charVis(ch);   // 曙光：依拼音韻母選 啊/婀/欸/嗚
         if (/[，。！？、,.!?;；:：\s…—]/.test(ch)) return '';
         const c = ch.toLowerCase();
         if (/[a-z]/.test(c)) return /[a]/.test(c) ? 'wide' : /[ei]/.test(c) ? 'ee' : /[o]/.test(c) ? 'oh' : /[u w]/.test(c) ? 'u' : 'slight';
@@ -2069,6 +2083,8 @@
         micSrc.connect(micNode); micNode.connect(sink); sink.connect(inCtx.destination);
       }
       // —— 播放 + 由 PCM 直接算嘴型（每 20ms 一格，排在實際播放時間上）——
+      const textLip = () => !!(AVATAR && AVATAR.lip && AVATAR.lip.fullHead && window.DHZhViseme);
+      const textQ = []; let alignSt = {};
       function visFor(rms, zcr) {
         if (rms < 0.015) return '';
         if (rms < 0.035) return 'slight';
@@ -2080,7 +2096,7 @@
         rx++;
         if (!playCtx) return;
         if (Date.now() < userTalkingUntil) return;
-        if (waitingAudio || dhVid.clip !== 'idle') { waitingAudio = false; try { dhVid.cancelAction(); } catch {} }
+        if (waitingAudio || (dhVid.clip !== 'idle' && !dhVid.btnClip)) { waitingAudio = false; try { dhVid.cancelAction(); } catch {} }
         rate = rate || 24000;
         const n = Math.floor(u8.byteLength / 2); if (!n) return;
         const dv = new DataView(u8.buffer, u8.byteOffset, n * 2);
@@ -2095,7 +2111,11 @@
         for (let i = 0; i < n; i += step) {
           let sum = 0, z = 0, m = Math.min(n, i + step);
           for (let j = i; j < m; j++) { sum += ch[j] * ch[j]; if (j > i && (ch[j] >= 0) !== (ch[j - 1] >= 0)) z++; }
-          list.push([t0 + i / rate, visFor(Math.sqrt(sum / (m - i)), z / (m - i))]);
+          list.push([t0 + i / rate, visFor(Math.sqrt(sum / (m - i)), z / (m - i)), Math.sqrt(sum / (m - i))]);
+        }
+        if (textLip()) {   // 曙光：字幕文字→音節嘴型，時間跟著實際播放的音框；沒字可用的音框退回音量嘴型
+          const al = DHZhViseme.alignFrames(list.map(x => [x[0], x[2]]), textQ, alignSt);
+          al.forEach((a, k) => { if (a[1] !== null) list[k][1] = a[1]; });
         }
         try { dhLip.schedule(playCtx, list); } catch {}
         if (!isSpeaking) setSpeaking(true);
@@ -2103,6 +2123,7 @@
       }
       function playB64(b, mime) { const m = /rate=(\d+)/.exec(String(mime || '')); try { const bin = atob(b), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); playPCM(u, m ? +m[1] : 24000); } catch (e) { lastErr = 'decode'; } }
       function bargeIn() {
+        textQ.length = 0; alignSt = {};
         sources.forEach(x => { try { x.stop(); } catch {} }); sources = []; nextPlay = 0; userTalkingUntil = Date.now() + 700;
         clearTimeout(drainT); try { dhLip.clearSchedule(); } catch {} setSpeaking(false);
       }
@@ -2136,8 +2157,9 @@
         } catch {}
         if (d.type === 'live_open' || d.setupComplete) { gotSetup = true; wsState = '已連線'; retry = 0; try { dhVid.stopWaiting(); dhVid.cancelAction(); } catch {} }
         const inn = (sc.inputTranscription && sc.inputTranscription.text) || (d.type === 'inputTranscription' ? d.text : '');
-        if (inn) { inBuf += inn; upsert('user', inBuf); try { dhCommand(inBuf, cmdFired); } catch {} clearTimeout(knowT); const q = inBuf; knowT = setTimeout(() => liveKnow(q), 1200); }
+        if (inn) { if (!inBuf) { textQ.length = 0; alignSt = {}; } inBuf += inn; upsert('user', inBuf); try { dhCommand(inBuf, cmdFired); } catch {} clearTimeout(knowT); const q = inBuf; knowT = setTimeout(() => liveKnow(q), 1200); }
         const out = (sc.outputTranscription && sc.outputTranscription.text) || (d.type === 'outputTranscription' ? d.text : '');
+        if (out && textLip()) { for (const v of DHZhViseme.textToVisemes(out)) textQ.push(v); if (textQ.length > 400) textQ.splice(0, textQ.length - 400); }
         if (out) { if (inBuf) { inBuf = ''; userIdx = -1; } outBuf += out; upsert('assistant', outBuf); if (liveChip && chatLog[aiIdx]) chatLog[aiIdx].src = liveChip; if (/[（(]\s*(微笑|笑)/.test(outBuf) && !cmdFired.has('outsmile')) { cmdFired.add('outsmile'); try { dhVid.cmd('happy'); } catch {} } }
         if (sc.turnComplete || d.turnComplete || d.type === 'turnComplete') { cmdFired = new Set(); knowTurnDone = false; if (liveChipUsed) liveChip = ''; liveChipUsed = !!liveChip; outBuf = ''; aiIdx = -1; inBuf = ''; userIdx = -1; }
         if (d.type === 'error' || d.error) {
@@ -2985,6 +3007,8 @@
     else await render();
   </script>
 <script src="darkstar-book-qa.js"></script>
+<script src="digital-human-real/zh-viseme.js?v=20261031-dawn1" charset="utf-8"></script>
+<script src="digital-human-real/dawn-bg-fx.js?v=20261031-dawn1"></script>
 <script src="digital-human-real/dh-knowledge.js?v=20261021-dual-retrieval1" charset="utf-8"></script>
 <script>try { DHKnow.init({ url: "https://clcddygkaaqqtsbswgdf.supabase.co", anon: window.__dhAnon || "" }); } catch (e) {}</script>
 <script src="aivault-presence.js?v=20261017-pr2" defer></script></body>
