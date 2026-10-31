@@ -1,0 +1,33 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><title>AIVAULT Agent Ops 開創者控制台（Phase 1）</title>
+<style>body{font-family:system-ui;background:#0b0f17;color:#e6e9ef;margin:24px}table{border-collapse:collapse}td,th{border:1px solid #334;padding:6px 10px}.warn{color:#ffb454}.ok{color:#7fd962}button{margin:4px}</style>
+<h1>AIVAULT Agent Ops 開創者控制台</h1>
+<p class="warn">誠實計數：資料直接讀 <code>agent_ops.v_honest_counts</code>。身分數 ≠ 真實信箱數；LOCAL 測試信箱不計入。</p>
+<p>連線狀態：<span id="conn">未連線</span>（需要開創者登入的 Supabase session；本頁不含任何金鑰）</p>
+<table id="counts"><tr><th>項目</th><th>數值</th></tr></table>
+<h2>操作（後端 agent-ops-admin 函式尚未部署，按鈕會被拒絕）</h2>
+<label>任務 ID <input id="tid"></label> <button data-a="approve">核准</button><button data-a="reject">駁回</button><br>
+<label>AI ID <input id="aid" placeholder="Worker-001"></label> <button data-a="revoke">撤銷權限</button> <button data-a="stop_all" class="warn">停止全部任務</button>
+<pre id="out"></pre>
+<script type="module">
+const cfg = JSON.parse(localStorage.getItem("aivault_agent_ops_cfg") || "{}"); // {url, anonKey, accessToken} set by founder login page
+const L = { identities:"AI 個體總數", real_verified_mailboxes:"真實已驗證信箱", pending_mailboxes:"申請中信箱", local_test_mailboxes:"LOCAL 測試信箱（不計入）",
+  authorized_platform_accounts:"已授權平台帳號", verified_platform_accounts:"已驗證平台帳號", mails_sent:"寄出郵件", mails_received:"收到郵件" };
+const t = document.getElementById("counts");
+async function load() {
+  if (!cfg.url || !cfg.accessToken) { for (const k in L) t.insertAdjacentHTML("beforeend", `<tr><td>${L[k]}</td><td>—（未連線）</td></tr>`); return; }
+  const r = await fetch(`${cfg.url}/rest/v1/v_honest_counts?select=*`, { headers: { apikey: cfg.anonKey, Authorization: "Bearer " + cfg.accessToken, "Accept-Profile": "agent_ops" } });
+  document.getElementById("conn").textContent = r.ok ? "已連線" : "讀取失敗 " + r.status;
+  const row = r.ok ? (await r.json())[0] || {} : {};
+  for (const k in L) t.insertAdjacentHTML("beforeend", `<tr><td>${L[k]}</td><td>${row[k] ?? "—"}</td></tr>`);
+  t.insertAdjacentHTML("beforeend", `<tr><td>實際費用</td><td>US$0（Phase 1 未使用付費服務）</td></tr>`);
+}
+document.querySelectorAll("button[data-a]").forEach(b => b.onclick = async () => {
+  const a = b.dataset.a; if (a === "stop_all" && !confirm("確定停止全部任務？")) return;
+  const out = document.getElementById("out");
+  if (!cfg.url) { out.textContent = "未連線：後端尚未部署，未執行任何操作。"; return; }
+  const r = await fetch(`${cfg.url}/functions/v1/agent-ops-admin`, { method: "POST", headers: { Authorization: "Bearer " + cfg.accessToken, "Content-Type": "application/json" },
+    body: JSON.stringify({ action: a, task_id: document.getElementById("tid").value, agent_id: document.getElementById("aid").value }) });
+  out.textContent = r.status + " " + await r.text();
+});
+load();
+</script></html>
