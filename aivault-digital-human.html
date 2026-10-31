@@ -1636,12 +1636,15 @@
       const ONCE = { transition:1, drink:1, petcat:1, hair:1, screen:1, stretch:1, think:1, catplay:1, question:1, angry:1, affection:1, happy:0 };
       const MOOD = AVATAR.moods || { happy:'happy', think:'question', wow:'question', angry:'angry', sad:'affection', affection:'affection' };
       const el = document.createElement('div'); el.className = 'dh-vid';
+      // 非暗星（例：曙光 35 段 720x960）：iOS Safari 同時預載太多 <video> 會讓 idle 解碼失敗→退回靜態照片。只預載必要片段，其餘播放時才載入；說話改播 talk 片段（不疊低解析嘴型方塊）
+      const LAZY = AVATAR.id !== 'darkstar';
+      const EAGER = { transition:1, idle:1, talk:1 };
       const V = {};
       let failed = false, clip = '', phase = 'intro', drinking = false, petting = false, filler = '', lastFiller = '', waitKind = '', waiting = false, forced = '', forcedUntil = 0, fillerN = 0, moodOnce = '', lastEmotion = 'calm';
       function fail() { if (failed) return; failed = true; el.remove(); document.querySelectorAll('.dh-head.vid').forEach(h => h.classList.remove('vid')); }
       CLIPS.forEach(n => {
         const v = document.createElement('video');
-        v.muted = true; v.defaultMuted = true; v.playsInline = true; v.preload = 'auto';
+        v.muted = true; v.defaultMuted = true; v.playsInline = true; v.preload = (LAZY && !EAGER[n]) ? 'none' : 'auto';
         v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('webkit-playsinline', '');
         { const c = AVATAR.clips && AVATAR.clips[n]; v.poster = DIR + ((c && c.poster) || n + '.jpg'); v.src = DIR + ((c && c.src) || n + '.mp4'); }
         v.loop = !ONCE[n];
@@ -1661,7 +1664,12 @@
         };
         el.appendChild(v); V[n] = v;
       });
-      V.happy.loop = true;
+      if (V.happy) V.happy.loop = true;
+      if (LAZY) {   // iOS：第一次觸碰時重新 play 目前片段（自動播放被擋時不會一直停在海報）
+        const unlock = () => { const v = V[clip] || V.idle; if (v && v.paused) v.play().catch(() => {}); };
+        ['touchstart', 'pointerdown', 'click'].forEach(ev => document.addEventListener(ev, unlock, { passive: true }));
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) unlock(); });
+      }
       const cup = document.createElement('button'); cup.type = 'button'; cup.className = 'dh-cup'; cup.textContent = '☕'; cup.title = '喝一口';
       cup.onclick = (e) => { e.stopPropagation(); drink(); }; el.appendChild(cup);
       const cat = document.createElement('button'); cat.type = 'button'; cat.className = 'dh-cup'; cat.style.right = '50px'; cat.textContent = '🐱'; cat.title = '摸摸貓';
@@ -1674,7 +1682,7 @@
           moodOnce = (m && m !== 'happy') ? m : '';
         }
         const happy = currentEmotion === 'happy';
-        if (isSpeaking || dhVoice.voiced) return 'idle';          // 說話時用 idle + 即時嘴型疊圖
+        if (isSpeaking || dhVoice.voiced) return (LAZY && V.talk) ? 'talk' : 'idle';   // 暗星：idle + 即時嘴型疊圖；其他有 talk 片段者直接播 talk
         if (drinking) return 'drink';
         if (petting) return 'petcat';
         if (filler) return filler;
@@ -1687,6 +1695,8 @@
         if (failed) return;
         if (name === 'transition' && !show._tg) show._tg = setTimeout(() => { if (phase === 'intro') { phase = 'main'; update(); } }, 7000);   // iOS 若沒播完也不會卡在第一格
         const v = V[name];
+        if (!v) return;
+        if (v.preload === 'none') { v.preload = 'auto'; try { v.load(); } catch {} }
         if (name !== clip) {
           if (ONCE[name] && name !== clip) { try { v.currentTime = 0; } catch {} }
           const prev = V[clip];
@@ -1716,7 +1726,7 @@
       setInterval(() => { if (clip === 'talk' || clip === 'happy') show(clip, 120); }, 250);
       function drink() { if (failed || phase === 'intro' || isSpeaking || petting) return; filler = ''; drinking = true; update(); }
       function petCat(withSound) {
-        if (failed || phase === 'intro' || isSpeaking || drinking) return;
+        if (failed || phase === 'intro' || isSpeaking || drinking || !V.petcat) return;
         const v = V.petcat; v.muted = !withSound; if (withSound) { v.removeAttribute('muted'); v.volume = 1; }
         filler = ''; petting = true; update();
         if (withSound) v.play().catch(() => { v.muted = true; v.play().catch(() => {}); });
