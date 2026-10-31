@@ -1979,8 +1979,10 @@
       }
       // 獨立頻道：數字人用自己的 agent id 與 aivault-dh- 命名空間；後端若不接受自訂 agent，才退回暗星 agent（但 topic/conversation 仍是數字人專用 key，不碰暗星/曙光的 key）
       const DH_AGENT = 'aivault-digital-human-' + ((AVATAR && AVATAR.id) || 'darkstar');
-      function agentId() { try { const v = localStorage.getItem('aivault-dh-live-agent'); const t = +localStorage.getItem('aivault-dh-live-agent-at') || 0; if (v && v !== DH_AGENT && Date.now() - t > 6 * 3600e3) { localStorage.removeItem('aivault-dh-live-agent'); return DH_AGENT; } return v || DH_AGENT; } catch { return DH_AGENT; } }
-      function nsKey(base) { return base + (agentId() === DH_AGENT ? '-v2' : ''); }
+      // 每個數字人獨立 localStorage 命名空間（暗星／曙光不可共用 topic／conversation／agent 回退，否則 IDENTITY_MISMATCH）
+      const DH_AV_NS = '-' + ((AVATAR && AVATAR.id) || 'darkstar');
+      function agentId() { try { const v = localStorage.getItem('aivault-dh-live-agent' + DH_AV_NS); const t = +localStorage.getItem('aivault-dh-live-agent' + DH_AV_NS + '-at') || 0; if (v && v !== DH_AGENT && Date.now() - t > 6 * 3600e3) { localStorage.removeItem('aivault-dh-live-agent' + DH_AV_NS); return DH_AGENT; } return v || DH_AGENT; } catch { return DH_AGENT; } }
+      function nsKey(base) { return base + DH_AV_NS + (agentId() === DH_AGENT ? '-v2' : ''); }
       function topicId() {
         const k = nsKey('aivault-dh-live-topic-id');
         const prefix = agentId() === DH_AGENT ? 'aivault-dh-' : 'technical-dark-star-';
@@ -2139,7 +2141,7 @@
           sock.onclose = ev => {
             clearTimeout(t); if (ws === sock) ws = null; wsState = '斷線 ' + ev.code + (ev.reason ? ' ' + String(ev.reason).slice(0, 40) : '');
             // 自訂 agent 連兩次都在 setup 前被關（且不是登入問題）→ 後端不支援，改用暗星 agent（仍用數字人專用 key）
-            if (!gotSetup && agentId() === DH_AGENT && !/AUTH/.test(lastErr + ev.reason) && ++customFails >= 2) { try { localStorage.setItem('aivault-dh-live-agent', 'technical-dark-star'); localStorage.setItem('aivault-dh-live-agent-at', String(Date.now())); } catch {} lastErr = '自訂頻道不支援，改用暗星頻道'; }
+            if (!gotSetup && agentId() === DH_AGENT && !/AUTH/.test(lastErr + ev.reason) && ++customFails >= 2) { try { localStorage.setItem('aivault-dh-live-agent' + DH_AV_NS, 'technical-dark-star'); localStorage.setItem('aivault-dh-live-agent' + DH_AV_NS + '-at', String(Date.now())); } catch {} lastErr = '自訂頻道不支援，改用暗星頻道'; }
             if (active && wanted && retry < 6) { retry++; try { dhVid.startWaiting('重新連線中…', 'net'); } catch {}
               setTimeout(() => { if (active && wanted) connect().catch(() => {}); }, Math.min(15000, 800 * 2 ** retry)); }
             else if (active) { toast('即時語音已中斷' + (lastErr ? '：' + lastErr : '')); stop(); }
