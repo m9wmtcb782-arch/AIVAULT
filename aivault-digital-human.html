@@ -1652,7 +1652,6 @@
         v.onerror = () => {   // 只有 idle 連續失敗才退回照片；其他片段失敗就略過
           if (n === 'transition') { phase = 'main'; update(); return; }
           if (n !== 'idle') { if (clip === n) { drinking = petting = false; filler = ''; moodOnce = ''; update(); } return; }
-          if (AVATAR.idleNeverStill) { setTimeout(() => { try { v.load(); v.play().catch(() => {}); } catch {} }, Math.min(8000, 800 * ++errs)); return; }   // 曙光：idle 出錯一直重試載入，不退回靜態照片
           if (++errs >= 2) fail(); else setTimeout(() => { try { v.load(); } catch {} }, 800);
         };
         v.onended = () => {
@@ -1668,7 +1667,6 @@
         el.appendChild(v); V[n] = v;
       });
       if (V.happy) V.happy.loop = true;
-      if (AVATAR.idleNeverStill) setInterval(() => { if (failed || document.hidden || !document.contains(el)) return; const v = V[clip] || V.idle; if (v && v.paused && !v.ended) v.play().catch(() => {}); }, 1500);   // 曙光：登入後不論是否連線，影片停住就自動續播
       if (LAZY) {   // iOS：第一次觸碰時重新 play 目前片段（自動播放被擋時不會一直停在海報）
         const unlock = () => { const v = V[clip] || V.idle; if (v && v.paused) v.play().catch(() => {}); };
         ['touchstart', 'pointerdown', 'click'].forEach(ev => document.addEventListener(ev, unlock, { passive: true }));
@@ -2000,7 +1998,7 @@
         const live = liveCtx && liveQ.length && liveCtx.currentTime < liveUntil + 0.05;
         if (!live && now - last < 33) return; last = now;
         const idle = dhVid.video('idle');
-        const on = !dhVid.failed && dhVid.clip === 'idle' && (isSpeaking || dhVoice.voiced) && document.contains(dhVid.el) && (!LP.fullHead || dhVid.lipOk) && !LP.disabled;   // 曙光新 idle（車主影片）構圖不同→關閉整頭嘴型疊圖
+        const on = !dhVid.failed && dhVid.clip === 'idle' && (isSpeaking || dhVoice.voiced) && document.contains(dhVid.el) && (!LP.fullHead || dhVid.lipOk);
         if (box.parentNode !== dhVid.el) dhVid.el.appendChild(box);
         if (!on) { setVis(''); gCand = null; box.style.display = 'none'; return; }
         box.style.display = '';
