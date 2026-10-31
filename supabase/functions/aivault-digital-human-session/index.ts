@@ -1,3 +1,4 @@
+import "../_shared/neural-bus.ts"; // neural bus (NEURAL_BUS_ON, default off)
 /**
  * AIVAULT Digital Human session relay.
  * Secrets stay in Edge Function environment. Frontend must never embed vendor keys.

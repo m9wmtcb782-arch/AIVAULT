@@ -1,3 +1,4 @@
+import "../_shared/neural-bus.ts"; // neural bus (NEURAL_BUS_ON, default off)
 import { paidAllowed, PAID_DENIED } from "../_shared/paid_gate.ts";
 const CORS: Record<string, string> = {
   "Access-Control-Allow-Origin": "https://m9wmtcb782-arch.github.io",

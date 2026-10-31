@@ -1,3 +1,4 @@
+import "../_shared/neural-bus.ts"; // neural bus (NEURAL_BUS_ON, default off)
 // AIVAULT Compute Coordinator
 // Minimal lifecycle fix: real assignment row, no COMPLETED without verified WebGPU result.
 import { verifyTensorStage, tensorPipelineStart, tensorPipelineStatus, enqueueTensorNext, recoverTensorLeases } from "./tensor-pipeline.ts";

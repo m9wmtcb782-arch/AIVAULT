@@ -1,3 +1,4 @@
+import "../_shared/neural-bus.ts"; // neural bus (NEURAL_BUS_ON, default off)
 // ============================================================
 // AIVAULT Compute Mesh v0.1
 // Edge Function

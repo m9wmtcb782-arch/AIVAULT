@@ -1,3 +1,4 @@
+import "../_shared/neural-bus.ts"; // neural bus (NEURAL_BUS_ON, default off)
 import { OWN_VERIFIER_MODEL, json, ownWeightClassify, sampleCount } from "../_shared/contract.ts";
 import { requireInternal } from "../_shared/auth.ts";
 import { recomputeContentHash } from "../_shared/hash.ts";

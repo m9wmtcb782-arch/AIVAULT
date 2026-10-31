@@ -1,3 +1,4 @@
+import "../_shared/neural-bus.ts"; // neural bus (NEURAL_BUS_ON, default off)
 const CORS: Record<string, string> = {
   "Access-Control-Allow-Origin": "https://m9wmtcb782-arch.github.io",
   "Access-Control-Allow-Headers": "authorization, apikey, content-type",

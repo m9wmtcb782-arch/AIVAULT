@@ -1,3 +1,4 @@
+import "../_shared/neural-bus.ts"; // neural bus (NEURAL_BUS_ON, default off)
 import { floor } from "./floor.ts";
 import { photoSolve } from "../dark-star-photo-solve/index.ts";
 import { webSearch } from "./web-search.ts";

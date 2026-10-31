@@ -1,3 +1,4 @@
+import "../_shared/neural-bus.ts"; // neural bus (NEURAL_BUS_ON, default off)
 import { CONTRACT, ROUTER, TASK_TYPE, defaultBudget, json, validateItems } from "../_shared/contract.ts";
 import { requireInternal } from "../_shared/auth.ts";
 import { emitEvent, serviceClient } from "../_shared/db.ts";

@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import "../_shared/neural-bus.ts"; // neural bus (NEURAL_BUS_ON, default off)
 import { ttsGemini, geminiConfigured, GeminiQuotaError } from "./gemini.ts";
 import { paidAllowed } from "../_shared/paid_gate.ts";
 

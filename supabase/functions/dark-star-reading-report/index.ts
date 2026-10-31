@@ -1,3 +1,4 @@
+import "../_shared/neural-bus.ts"; // neural bus (NEURAL_BUS_ON, default off)
 // dark-star-reading-report v27
 // deployment trigger: direct report retry fix
 // v16: tolerate plain Markdown/text model output and accumulate continuation safely.
