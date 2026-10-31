@@ -12,13 +12,13 @@ export class SmtpImapProvider {
   tlsOpts() { return this.allowInsecureLocal ? { rejectUnauthorized: false } : {}; }
   async send({ address, password, to, subject, text, inReplyTo }) {
     const t = nodemailer.createTransport({ host: this.smtp.host, port: this.smtp.port, secure: this.smtp.secure ?? this.secure,
-      ignoreTLS: this.allowInsecureLocal && !this.smtp.secure, auth: { user: address, pass: password }, tls: this.tlsOpts() });
+      auth: { user: address, pass: password }, tls: this.tlsOpts() });
     const info = await t.sendMail({ from: address, to, subject, text, ...(inReplyTo ? { inReplyTo, references: inReplyTo } : {}) });
     return { messageId: info.messageId, accepted: info.accepted, rejected: info.rejected, response: info.response };
   }
   async fetchNew({ address, password, sinceUid = 0, markSeen = false }) {
     const c = new ImapFlow({ host: this.imap.host, port: this.imap.port, secure: this.imap.secure ?? this.secure,
-      auth: { user: address, pass: password }, logger: false, tls: this.tlsOpts(), doSTARTTLS: this.allowInsecureLocal ? false : undefined });
+      auth: { user: address, pass: password }, logger: false, tls: this.tlsOpts() });
     await c.connect(); const out = [];
     const lock = await c.getMailboxLock("INBOX");
     try {
