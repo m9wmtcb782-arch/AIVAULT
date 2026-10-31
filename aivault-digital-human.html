@@ -1694,7 +1694,7 @@
           moodOnce = (m && m !== 'happy') ? m : '';
         }
         const happy = currentEmotion === 'happy';
-        if (isSpeaking || dhVoice.voiced) return (LAZY && V.talk) ? 'talk' : 'idle';   // 暗星：idle + 即時嘴型疊圖；其他有 talk 片段者直接播 talk
+        if (isSpeaking || dhVoice.voiced) return (LAZY && V.talk && !(AVATAR.lip && AVATAR.lip.fullHead)) ? 'talk' : 'idle';   // 曙光 fullHead：idle + 整顆頭嘴型圖   // 暗星：idle + 即時嘴型疊圖；其他有 talk 片段者直接播 talk
         if (drinking) return 'drink';
         if (petting) return 'petcat';
         if (filler) return filler;
@@ -1882,10 +1882,11 @@
       const box = document.createElement('div'); box.className = 'dh-lip';
       box.style.cssText = `position:absolute;width:${PW/VW*100}%;height:${PH/VH*100}%;pointer-events:none;z-index:1;`;
       const IM = {};
-      VIS.forEach(k => { const i = document.createElement('img'); i.src = (LP.dir || REAL_FACE_DIR + 'lip/') + (LP.prefix ?? 'mouth_') + k + '.png'; i.alt = '';
-        i.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;opacity:0;transform:scale(' + ((LP.scale || [0.94,0.82]).join(',')) + ');transform-origin:' + (LP.origin || '50% 38%') + ';'; box.appendChild(i); IM[k] = i; });
+      VIS.forEach(k => { const i = document.createElement('img'); i.src = (LP.dir || REAL_FACE_DIR + 'lip/') + (LP.prefix ?? 'mouth_') + k + (LP.ext || '.png'); i.alt = '';
+        i.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;opacity:0;' + (LP.fadeMs ? 'transition:opacity ' + LP.fadeMs + 'ms linear;' : '') + 'transform:scale(' + ((LP.scale || [0.94,0.82]).join(',')) + ');transform-origin:' + (LP.origin || '50% 38%') + ';'; box.appendChild(i); IM[k] = i; });
       let cur = '', holdUntil = 0, seq = [], seqT = 0;
       function setVis(k) {
+        if (k && LP.map && LP.map[k]) k = LP.map[k];   // 曙光：6 種嘴型→啊/婀/欸/嗚 整頭圖
         if (k === cur) return;
         if (cur && IM[cur]) IM[cur].style.opacity = 0;
         cur = k; if (k && IM[k]) IM[k].style.opacity = 1;
