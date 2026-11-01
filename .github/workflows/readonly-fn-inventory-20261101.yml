@@ -1,0 +1,41 @@
+name: READ-ONLY Base1 edge function inventory 2026-11-01
+on:
+  push:
+    branches: [readonly/fn-inventory-20261101]
+jobs:
+  inv:
+    runs-on: ubuntu-latest
+    env:
+      T: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      REF: clcddygkaaqqtsbswgdf
+    steps:
+      - name: List functions + invocation counts (GET only)
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request, urllib.parse, datetime as dt
+          H={"Authorization":"Bearer "+os.environ["T"],"User-Agent":"aivault-inv"}
+          def get(u):
+              try: return json.load(urllib.request.urlopen(urllib.request.Request(u,headers=H),timeout=60))
+              except Exception as e: return {"error":str(e)[:300]}
+          base=f"https://api.supabase.com/v1/projects/{os.environ['REF']}"
+          fns=get(base+"/functions"); print("FUNCTIONS_COUNT", len(fns) if isinstance(fns,list) else fns)
+          now=dt.datetime.now(dt.timezone.utc)
+          def counts(days):
+              out={}
+              # analytics endpoint limits range; query in 1-day windows
+              for d in range(days):
+                  e=now-dt.timedelta(days=d); s=e-dt.timedelta(days=1)
+                  sql="select m.function_id as fid, count(*) as n from function_edge_logs cross join unnest(metadata) as m group by fid"
+                  q=urllib.parse.urlencode({"sql":sql,"iso_timestamp_start":s.isoformat().replace("+00:00","Z"),"iso_timestamp_end":e.isoformat().replace("+00:00","Z")})
+                  r=get(base+"/analytics/endpoints/logs.all?"+q)
+                  if "error" in r and not r.get("result"): out.setdefault("_err",[]).append(str(r["error"])[:200]); continue
+                  for row in r.get("result") or []: out[row["fid"]]=out.get(row["fid"],0)+int(row["n"])
+              return out
+          c30=counts(30); c7=counts(7)
+          print("ANALYTICS_ERR", (c30.get("_err") or [])[:2])
+          for f in fns if isinstance(fns,list) else []:
+              print("FN", json.dumps({"slug":f.get("slug"),"id":f.get("id"),"status":f.get("status"),"version":f.get("version"),"updated_at":f.get("updated_at"),"verify_jwt":f.get("verify_jwt"),"c7":c7.get(f.get("id"),0),"c30":c30.get(f.get("id"),0)}))
+          print("PLAN", get(base.replace("/projects/","/projects/")+"/billing/addons") if False else "")
+          org=get(f"https://api.supabase.com/v1/projects/{os.environ['REF']}"); print("PROJECT", {k:org.get(k) for k in ("organization_id","status","region")})
+          o=get(f"https://api.supabase.com/v1/organizations/{org.get('organization_id')}"); print("ORG_PLAN", o.get("plan") if isinstance(o,dict) else o)
+          PY
