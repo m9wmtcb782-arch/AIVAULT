@@ -63,6 +63,14 @@ Deno.serve(async (req) => {
   const h = cors(req.headers.get("origin"));
   if (req.method === "OPTIONS") return new Response(null, { headers: h });
   if (req.method !== "GET") return new Response("method not allowed", { status: 405, headers: h });
+  // GET /config → {map_tiles_key}（Supabase Secret GOOGLE_MAP_TILES_KEY）；只回給允許的 Origin，不快取
+  if (new URL(req.url).pathname.replace(/\/+$/, "").endsWith("/config")) {
+    const origin = req.headers.get("origin");
+    if (!origin || !ALLOW.includes(origin)) return new Response(JSON.stringify({ error: "ORIGIN_NOT_ALLOWED" }), { status: 403, headers: { ...h, "content-type": "application/json" } });
+    const k = Deno.env.get("GOOGLE_MAP_TILES_KEY");
+    if (!k) return new Response(JSON.stringify({ error: "NOT_CONFIGURED" }), { status: 503, headers: { ...h, "content-type": "application/json" } });
+    return new Response(JSON.stringify({ map_tiles_key: k }), { headers: { ...h, "content-type": "application/json", "cache-control": "no-store" } });
+  }
   try {
     if (!cache || Date.now() - cache.at > TTL) cache = { at: Date.now(), body: JSON.stringify(await build()) };
     return new Response(cache.body, { headers: { ...h, "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=300" } });

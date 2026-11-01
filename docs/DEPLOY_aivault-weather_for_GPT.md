@@ -36,6 +36,18 @@ GPT 你好：
 4. **不得刪除、覆寫或修改既有 function**（包含 `dark-star-youtube`、`ai-gateway`、`dark-star-ebook-ingest` 等），只新增 `aivault-weather`。
 5. 不要動暗星／曙光數字人頁。
 
+## 追加：GET /config（版本 D Google 3D 地圖金鑰）
+- 使用者會自己把 Google Map Tiles API 金鑰放進 Supabase Secrets，名稱 **`GOOGLE_MAP_TILES_KEY`**（該金鑰已在 Google Cloud 設 HTTP Referer 限制 `https://m9wmtcb782-arch.github.io/*`、只開 Map Tiles API）。**請不要要求使用者貼給你，也不要寫進 repo／log。**
+- 路徑：`GET /functions/v1/aivault-weather/config` → `{"map_tiles_key":"…"}`。
+- 只在 `Origin` 為 `https://m9wmtcb782-arch.github.io` 時回傳；其他 Origin 回 403 `ORIGIN_NOT_ALLOWED`；未設定回 503 `NOT_CONFIGURED`；`cache-control: no-store`；天氣快取不可包含此值。
+- 前端每次載入最多打一次 Google root.json，session 存 sessionStorage 約 2.5 小時（每日上限約 30 次 root 請求）。
+- 驗收：
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" "$F/config"                                              # 無 Origin → 403
+curl -s -H 'Origin: https://evil.example' -o /dev/null -w "%{http_code}\n" "$F/config"           # 403
+curl -s -H 'Origin: https://m9wmtcb782-arch.github.io' "$F/config" | python3 -c 'import sys,json;print("ok" if json.load(sys.stdin).get("map_tiles_key") else "missing")'  # 只印 ok，不要印出金鑰
+```
+
 ## 部署指令（參考）
 ```bash
 supabase functions deploy aivault-weather --no-verify-jwt --project-ref clcddygkaaqqtsbswgdf
