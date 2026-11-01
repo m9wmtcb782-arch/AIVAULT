@@ -17,7 +17,7 @@
   function tp() { var o = {}; new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Taipei', hour: 'numeric', hourCycle: 'h23' }).formatToParts(new Date()).forEach(function (x) { o[x.type] = +x.value; }); return o; }
   function night() { var r = document.getElementById('cpw-root'); if (r) return r.classList.contains('night'); var h = tp().hour; return h < 6 || h >= 18; }
   function weather() { var r = document.getElementById('cpw-root'); return r ? (r.className.match(/clear|cloudy|heavy_rain|rain|typhoon/) || ['clear'])[0] : 'clear'; }
-  function wind() { var w = window.AIVAULT_WEATHER_STATE; return w ? [w.wind_dir_deg || 0, w.wind_speed_ms || 0] : [225, 2]; }
+  function wind() { var w = window.AIVAULT_WEATHER_STATE; return w ? [w.wind_dir_deg == null ? null : w.wind_dir_deg, w.wind_speed_ms == null ? null : w.wind_speed_ms] : [225, 2]; } // null＝無資料
   var BGU = null; Promise.all([import('https://cdn.jsdelivr.net/npm/three@0.160.0/+esm'), import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js/+esm')
     .catch(function () { return null; }), import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/BufferGeometryUtils.js/+esm').catch(function () { return null; })]).then(function (m) { BGU = m[2]; start(m[0], m[1] && m[1].OrbitControls); }).catch(fallback2D);
   function start(T, Orbit) {
@@ -232,8 +232,8 @@
       var wet = /rain|typhoon/.test(wx); RAIN.visible = wet; if (wet) { var a = RAIN.geometry.attributes.position.array, sp = wx === 'rain' ? 140 : 260, sx = wx === 'typhoon' ? 120 : 10; for (var i = 0; i < RAINN; i++) { a[i * 3 + 1] -= sp * dt; a[i * 3] += sx * dt; if (a[i * 3 + 1] < 0) { a[i * 3 + 1] = 400; a[i * 3] = (Math.random() - .5) * 900; } } RAIN.geometry.attributes.position.needsUpdate = true; RAIN.position.set(C.position.x * .5, 0, C.position.z * .5 - 200); }
       S.fog.near = wet ? 300 : 900;
       // 風：CWA 風向（來向，正北 0°）；場景 -Z 為北。風車迎風、風向魚指向下風
-      var rad = w[0] * Math.PI / 180; if (NAC) { NAC.rotation.y = Math.atan2(Math.sin(rad), -Math.cos(rad)) ; ang += Math.min(w[1], 25) * dt * .5; ROT.rotation.z = -ang; }
-      if (SOCK) { SOCK.rotation.y = Math.atan2(-Math.sin(rad), Math.cos(rad)); SOCK.rotation.x = (1 - Math.min(1, w[1] / 10)) * 1.2 + Math.sin(now / 300) * .05 * (RM ? 0 : 1); }
+      var noW = w[1] == null, rad = (w[0] == null ? 0 : w[0]) * Math.PI / 180; if (NAC) { if (w[0] != null) NAC.rotation.y = Math.atan2(Math.sin(rad), -Math.cos(rad)); if (!noW) ang += Math.min(w[1], 25) * dt * .5; ROT.rotation.z = -ang; } // 無風速資料 → 停轉
+      if (SOCK) { if (w[0] != null) SOCK.rotation.y = Math.atan2(-Math.sin(rad), Math.cos(rad)); SOCK.rotation.x = noW ? 1.2 : (1 - Math.min(1, w[1] / 10)) * 1.2 + Math.sin(now / 300) * .05 * (RM ? 0 : 1); } // 無資料 → 下垂不擺
       TR.forEach(function (o) { if (!off) { if (o.wait > 0) o.wait -= dt; else { var ni = o.si + o.dir; if (ni < 0 || ni >= o.stops.length) { o.dir *= -1; ni = o.si + o.dir; } var tg = o.stops[ni]; o.f += o.dir * dt * (RM ? 1.5 : 5); if ((o.dir > 0 && o.f >= tg) || (o.dir < 0 && o.f <= tg)) { o.f = tg; o.si = ni; o.wait = 6; } } }
         var i0 = Math.max(0, Math.min(o.P.length - 2, Math.floor(o.f))), u = o.f - i0, a = o.P[i0], b = o.P[i0 + 1]; o.m.position.copy(V(a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, 3.5)); o.m.rotation.y = -Math.atan2(b[1] - a[1], b[0] - a[0]); o.m.visible = true; });
       if (nye() && L101 && now - lastB > 220) { lastB = now; var tier = Math.random() * 9 | 0, c = new T.Color().setHSL(Math.random(), 1, .62), n = MOB ? 60 : 120; for (var j = 0; j < n; j++) { var th = Math.random() * 6.283, ph = Math.random() * 3.14, v = 22 + Math.random() * 18; FW.push({ p: L101.position.clone().add(new T.Vector3(0, (10 + tier * 6.5) * 1.6, 0)), v: new T.Vector3(Math.sin(ph) * Math.cos(th) * v, Math.cos(ph) * v + 8, Math.sin(ph) * Math.sin(th) * v), l: 1, c: c }); } if (FW.length > FWN) FW.splice(0, FW.length - FWN); }

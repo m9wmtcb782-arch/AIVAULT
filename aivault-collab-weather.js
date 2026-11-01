@@ -9,6 +9,16 @@
   var RM = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   var MOBILE = /iPhone|iPad|Android/i.test(navigator.userAgent) || Math.min(innerWidth, innerHeight) < 500;
   var MAXP = RM ? 60 : (MOBILE ? 220 : 480);
+  function nz(v) { return v === null || v === undefined || v === '' || !isFinite(+v) ? null : +v; } // null＝無資料（不當 0）
+  function badgeText(S) { // 純函式，可測試
+    var nm = { clear: '晴', cloudy: '多雲', rain: '下雨', heavy_rain: '大雨', typhoon: '颱風' }[S.condition] || S.condition;
+    if (S.preview) return '預覽：' + nm + (S.is_night ? '・夜' : '・日') + '（非真實氣象）';
+    if (S.offline) return '天氣離線・' + (S.is_night ? '夜' : '日') + '（本地時間）';
+    var t = S.temp_c == null ? '氣溫無資料' : S.temp_c + '°C';
+    var w = S.wind_speed_ms == null ? '風速無資料' : '風 ' + S.wind_speed_ms + ' m/s';
+    var d = S.wind_dir_deg == null ? (S.wind_speed_ms == null ? '' : ' 風向無資料') : ' ' + S.wind_dir_deg + '°';
+    return nm + (S.typhoon_name ? '・' + S.typhoon_name : '') + '・' + t + '・' + w + d + (S.obs_time ? '・' + String(S.obs_time).slice(11, 16) : '') + '（CWA）'; }
+  window.AIVAULT_weatherBadgeText = badgeText; window.AIVAULT_weatherNz = nz;
   var S = { condition: 'clear', is_night: localNight(), wind_dir_deg: 225, wind_speed_ms: 2, offline: true, preview: false };
   function localNight() { var h = +new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Taipei', hour: 'numeric', hourCycle: 'h23' }).format(new Date()) % 24; return h < 6 || h >= 18; } // 依 Asia/Taipei
 
@@ -63,14 +73,14 @@
       d.style.webkitMaskComposite = 'source-in'; d.style.maskComposite = 'intersect';
     }
     fit(); setTimeout(mask, 300);
-    var SW = S.wind_speed_ms, P = [], ang = 0, sock = 0, t0 = performance.now();
+    var SW = S.wind_speed_ms || 0, P = [], ang = 0, sock = 0, t0 = performance.now();
     function target() { var c = S.condition; return c === 'heavy_rain' ? MAXP : c === 'typhoon' ? MAXP : c === 'rain' ? Math.round(MAXP * .45) : 0; }
     function frame(now) {
       var dt = Math.min(.05, (now - t0) / 1000); t0 = now;
-      SW += (S.wind_speed_ms - SW) * Math.min(1, dt * .8);
+      var noWind = S.wind_speed_ms == null; SW += ((noWind ? 0 : S.wind_speed_ms) - SW) * Math.min(1, dt * .8); // 無資料 → 風車停、風向魚下垂不擺
       var W = cv.width, H = cv.height, c = S.condition, ws = SW, typh = c === 'typhoon';
       var slant = typh ? 0.9 : Math.min(.45, ws / 25); // 雨斜度（往風吹去的方向）
-      var dirSign = Math.sin((S.wind_dir_deg + 180) * Math.PI / 180) >= 0 ? 1 : -1; // CWA 風向：風「來自」的方位，正北 0°、順時針；場景面向正北，右＝東
+      var noDir = S.wind_dir_deg == null, dirSign = noDir ? 1 : (Math.sin((S.wind_dir_deg + 180) * Math.PI / 180) >= 0 ? 1 : -1); // CWA 風向：風「來自」的方位，正北 0°、順時針；場景面向正北，右＝東
       cx.clearRect(0, 0, W, H);
       var n = target(), step = Math.max(1, Math.ceil(MAXP * dt / 2)); /* 約 2 秒平滑增減 */ for (var a = 0; a < step && P.length < n; a++) P.push(drop(W, H, false)); if (P.length > n) P.length = Math.max(n, P.length - step);
       cx.strokeStyle = S.is_night ? 'rgba(190,205,235,.6)' : (window.AIVAULT_MAP_MODE ? 'rgba(70,95,130,.6)' : 'rgba(170,190,215,.6)'); cx.lineWidth = (c === 'heavy_rain' || typh ? 1.6 : 1.1) * dpr; cx.beginPath();
@@ -83,13 +93,13 @@
       var rpm = Math.min(ws, 25) * (RM ? 1.5 : 6); ang = (ang + rpm * dt * 6) % 360;
       R.querySelector('#cpw-rot').setAttribute('transform', 'rotate(' + ang.toFixed(1) + ')');
       // 機艙朝向：風從 wind_dir_deg 吹來，轉子迎風；2D 側視以左右翻轉表示東西分量
-      var from = Math.sin(S.wind_dir_deg * Math.PI / 180); // >0 東風來
+      var from = noDir ? 1 : Math.sin(S.wind_dir_deg * Math.PI / 180); // >0 東風來
       R.querySelector('#cpw-nac').setAttribute('transform', 'translate(50 40) scale(' + (from >= 0 ? 1 : -1) + ' 1)'); // 轉子迎風（風從東來→轉子朝右/東）
       R.querySelector('#cpw-tl').setAttribute('opacity', S.is_night ? (Math.floor(now / 900) % 2 ? 1 : .15) : 0);
       // 風向魚：風大飄直、風小下垂；往風吹去方向飄
       var lift = Math.max(0, Math.min(1, ws / 10)); sock += dt * (2 + ws * .8);
-      var flap = RM ? 0 : Math.sin(sock * 2.2) * (0.25 + lift * 0.5);
-      R.querySelector('#cpw-wa').setAttribute('transform', 'rotate(' + ((S.wind_dir_deg + 180) % 360) + ')'); // 地圖箭頭指向風吹去的方向（與地標同一正北）
+      var flap = (RM || noWind) ? 0 : Math.sin(sock * 2.2) * (0.25 + lift * 0.5);
+      var wa = R.querySelector('#cpw-wa'); wa.style.display = noDir ? 'none' : ''; if (!noDir) wa.setAttribute('transform', 'rotate(' + ((S.wind_dir_deg + 180) % 360) + ')'); // 地圖箭頭指向風吹去的方向（與地標同一正北）
       drawFish(lift, flap, dirSign); // 魚往下風處（wind_dir_deg+180）飄；畫面右＝東
       requestAnimationFrame(frame);
     }
@@ -111,11 +121,7 @@
       window.AIVAULT_WEATHER_STATE = S;
       R.className = S.condition + (S.is_night ? ' night' : '');
       document.documentElement.classList.toggle('cpw-shake', S.condition === 'typhoon' && !RM);
-      var nm = { clear: '晴', cloudy: '多雲', rain: '下雨', heavy_rain: '大雨', typhoon: '颱風' }[S.condition] || S.condition;
-      var b = R.querySelector('#cpw-badge');
-      if (S.preview) b.textContent = '預覽：' + nm + (S.is_night ? '・夜' : '・日') + '（非真實氣象）';
-      else if (S.offline) b.textContent = '天氣離線・' + (S.is_night ? '夜' : '日') + '（本地時間）';
-      else b.textContent = nm + (S.typhoon_name ? '・' + S.typhoon_name : '') + '・' + S.temp_c + '°C・風 ' + S.wind_speed_ms + ' m/s ' + S.wind_dir_deg + '°' + (S.obs_time ? '・' + String(S.obs_time).slice(11, 16) : '') + '（CWA）';
+      R.querySelector('#cpw-badge').textContent = badgeText(S);
       setTimeout(mask, 50);
     }
     var pw = Q.get('weather');
@@ -128,7 +134,7 @@
       var ac = window.AbortController ? new AbortController() : null; if (ac) setTimeout(function () { ac.abort(); }, 8000);
       fetch(API, { cache: 'no-store', signal: ac && ac.signal }).then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (j) {
         if (!j || typeof j.condition !== 'string') throw 0;
-        S = { condition: j.condition, is_night: !!j.is_night, wind_dir_deg: +j.wind_dir_deg || 0, wind_speed_ms: +j.wind_speed_ms || 0, temp_c: j.temp_c, pop: j.pop, obs_time: j.obs_time, typhoon_name: j.typhoon_name, offline: false }; apply();
+        S = { condition: j.condition, is_night: !!j.is_night, wind_dir_deg: nz(j.wind_dir_deg), wind_speed_ms: nz(j.wind_speed_ms), temp_c: nz(j.temp_c), pop: j.pop, obs_time: j.obs_time, typhoon_name: j.typhoon_name, offline: false }; apply();
       }).catch(function () { S = { condition: 'clear', is_night: localNight(), wind_dir_deg: 225, wind_speed_ms: 2, offline: true }; apply(); });
     }
     requestAnimationFrame(frame);

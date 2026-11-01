@@ -54,12 +54,12 @@
   function updBoard() { var w = window.AIVAULT_WEATHER_STATE || {}, d = new Intl.DateTimeFormat('zh-TW', { timeZone: 'Asia/Taipei', month: 'long', day: 'numeric', weekday: 'short' }).format(new Date());
     var nm = { clear: '☀️ 晴', cloudy: '⛅ 多雲', rain: '🌧 雨', heavy_rain: '⛈ 大雨', typhoon: '🌀 颱風' }[w.condition] || '—';
     if (w.preview) board.innerHTML = '📅 ' + d + '<br>' + nm + '<br><small>預覽（非真實氣象）</small>';
-    else if (w.offline || w.temp_c == null) board.innerHTML = '📅 ' + d + '<br>天氣離線<br><small>後端未連線，不顯示數字</small>';
-    else board.innerHTML = '📅 ' + d + '<br>' + nm + ' <b>' + Math.round(w.temp_c) + '°C</b><br>降雨機率 ' + (w.pop != null ? w.pop + '%' : '—') + '<br><small>中央氣象署</small>'; }
+    else if (w.offline) board.innerHTML = '📅 ' + d + '<br>天氣離線<br><small>後端未連線，不顯示數字</small>';
+    else board.innerHTML = '📅 ' + d + '<br>' + nm + (w.temp_c == null ? ' 氣溫無資料' : ' <b>' + Math.round(w.temp_c) + '°C</b>') + '<br>降雨機率 ' + (w.pop != null ? w.pop + '%' : '—') + '<br><small>中央氣象署</small>'; }
   var t0 = performance.now(), ang = 0, lastBoard = '';
   function loop(now) {
     var dt = Math.min(.1, (now - t0) / 1000); t0 = now, N = night(); root.classList.toggle('on', N); root.querySelector('#cpd-n').classList.toggle('show', N); root.querySelector('#cpd-d').classList.toggle('show', !N);
-    var w = window.AIVAULT_WEATHER_STATE || {}; var key = JSON.stringify([w.condition, w.preview, w.offline, w.temp_c]); if (key !== lastBoard) { lastBoard = key; updBoard(); }
+    var w = window.AIVAULT_WEATHER_STATE || {}; var key = JSON.stringify([w.condition, w.preview, w.offline, w.temp_c, w.pop]); if (key !== lastBoard) { lastBoard = key; updBoard(); }
     var k = box.k; cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.clearRect(0, 0, innerWidth, innerHeight);
     if (N) { cx.globalCompositeOperation = 'lighter'; LAMPS.forEach(function (p) { var s = S(p), g = cx.createRadialGradient(s[0], s[1], 0, s[0], s[1], 26 * k); g.addColorStop(0, 'rgba(255,214,130,.55)'); g.addColorStop(1, 'rgba(255,214,130,0)'); cx.fillStyle = g; cx.fillRect(s[0] - 26 * k, s[1] - 26 * k, 52 * k, 52 * k); }); cx.globalCompositeOperation = 'source-over'; }
     // 捷運（模擬）
@@ -77,9 +77,9 @@
     cx.font = '800 ' + Math.max(11, 13 * k) + 'px "PingFang TC","Noto Sans TC",sans-serif'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
     ROADS.forEach(function (r) { var q = at(r.p, r.L, r.L[r.L.length - 1] * .5), s = S(q), tw = cx.measureText(r.n).width + 14; cx.fillStyle = 'rgba(25,28,36,.82)'; cx.strokeStyle = '#fff'; cx.lineWidth = 2; cx.beginPath(); cx.rect(s[0] - tw / 2, s[1] - 22 * k - 10, tw, 20); cx.fill(); cx.stroke(); cx.fillStyle = '#fff'; cx.fillText(r.n, s[0], s[1] - 22 * k); });
     // 風車葉片（底圖風車位置）＋風向魚
-    var ws = (w.wind_speed_ms || 2), dir = (w.wind_dir_deg || 225); ang += Math.min(ws, 25) * dt * .9; var hub = S([708, 312]);
+    var noW = w.wind_speed_ms == null, ws = noW ? 0 : w.wind_speed_ms, dir = w.wind_dir_deg == null ? 225 : w.wind_dir_deg; ang += Math.min(ws, 25) * dt * .9; // 無資料 → 停 var hub = S([708, 312]);
     cx.save(); cx.translate(hub[0], hub[1]); cx.rotate(ang); cx.fillStyle = '#fff'; cx.strokeStyle = '#889'; for (var b = 0; b < 3; b++) { cx.rotate(2.094); cx.beginPath(); cx.moveTo(-1.2 * k, 0); cx.lineTo(0, -15 * k); cx.lineTo(1.2 * k, 0); cx.fill(); cx.stroke(); } cx.restore();
-    var pole = S([735, 330]), down = Math.sin((dir + 180) * Math.PI / 180) >= 0 ? 1 : -1, lift = Math.min(1, ws / 10), fl = RM ? 0 : Math.sin(now / 200) * .15;
+    var pole = S([735, 330]), down = Math.sin((dir + 180) * Math.PI / 180) >= 0 ? 1 : -1, lift = Math.min(1, ws / 10), fl = (RM || noW) ? 0 : Math.sin(now / 200) * .15;
     cx.strokeStyle = '#7a6a55'; cx.lineWidth = 1.5 * k; cx.beginPath(); cx.moveTo(pole[0], pole[1]); cx.lineTo(pole[0], pole[1] - 22 * k); cx.stroke();
     cx.save(); cx.translate(pole[0], pole[1] - 21 * k); cx.rotate(down > 0 ? (1 - lift) * 1.3 + fl : Math.PI - (1 - lift) * 1.3 - fl); cx.fillStyle = '#e8453c'; cx.beginPath(); cx.moveTo(0, -3 * k); cx.lineTo(16 * k, -1.2 * k); cx.lineTo(16 * k, 1.2 * k); cx.lineTo(0, 3 * k); cx.fill(); cx.restore();
     requestAnimationFrame(loop);

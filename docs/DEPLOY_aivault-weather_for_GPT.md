@@ -27,7 +27,8 @@ GPT 你好：
 {"condition":"clear|cloudy|rain|heavy_rain|typhoon","is_night":false,"wind_dir_deg":180,"wind_speed_ms":1.7,"temp_c":26.3,"obs_time":"2026-11-01T20:00:00+08:00","typhoon_name":"（選填）"}
 ```
 - `is_night`：以 Asia/Taipei 時間 18:00–06:00 為夜。
-- 觀測值缺測（CWA 用 -99）時不可捏造數字。
+- 觀測值缺測（CWA 用 -99／-999／空字串／非數字，風向 990 不定）時：`temp_c`、`wind_dir_deg`、`wind_speed_ms` **回 `null`，絕不補 0**（邏輯在 `supabase/functions/aivault-weather/normalize.js`，`node tests/aivault-weather-nulls.test.mjs` 驗證）。真實的 0（靜風 0 m/s、北風 0°）照實回 0。
+- 前端收到 `null`：右上角顯示「氣溫無資料／風速無資料／風向無資料」，風車停轉、風向魚下垂不擺、風向箭頭隱藏（2D 覆蓋層、版本 A/B/D）；版本 C 目前沒有風車。
 
 ## 規則
 1. **後端快取 10 分鐘**（函式記憶體快取），避免用光 CWA 配額。前端每 10 分鐘自動重抓、頁面回到前景時立即重抓；日夜與節慶由前端每分鐘依 Asia/Taipei 重算。上游失敗時回上一次快取，沒有快取回 503。
@@ -47,6 +48,11 @@ curl -s -o /dev/null -w "%{http_code}\n" "$F/config"                            
 curl -s -H 'Origin: https://evil.example' -o /dev/null -w "%{http_code}\n" "$F/config"           # 403
 curl -s -H 'Origin: https://m9wmtcb782-arch.github.io' "$F/config" | python3 -c 'import sys,json;print("ok" if json.load(sys.stdin).get("map_tiles_key") else "missing")'  # 只印 ok，不要印出金鑰
 ```
+
+## 部署注意（回覆你 2026-11-01 的回報）
+- `/config` 路由已在 commit `373ea31` 加入 `index.ts`；缺測補 0 已在本次 commit 修正。請以分支最新版部署。
+- 這次部署要上傳兩個檔：`index.ts` 與 `normalize.js`（同一個 function 目錄）。
+- 你回報 Supabase 已達 100 個 Function 上限：**仍不可自行刪除任何既有 function**。請等使用者指定並授權要刪除哪一個，再部署。
 
 ## 部署指令（參考）
 ```bash

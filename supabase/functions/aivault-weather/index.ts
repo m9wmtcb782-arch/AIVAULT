@@ -23,7 +23,7 @@ async function cwa(id: string, q: Record<string, string>) {
   if (!r.ok) throw new Error(`${id} HTTP ${r.status}`); // 不帶網址，避免金鑰外洩到錯誤訊息
   return await r.json();
 }
-const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n > -90 ? n : null; };
+import { tempC, windDir, windSpeed } from "./normalize.js"; // 缺測 → null（不補 0）
 
 async function build() {
   const [obs, fc, ty] = await Promise.allSettled([
@@ -34,7 +34,7 @@ async function build() {
   if (obs.status !== "fulfilled") throw new Error("observation unavailable");
   const st = obs.value?.records?.Station?.[0]; const we = st?.WeatherElement ?? {};
   const wx: string = String(we.Weather ?? "");
-  const temp = num(we.AirTemperature), dir = num(we.WindDirection), spd = num(we.WindSpeed);
+  const temp = tempC(we.AirTemperature), dir = windDir(we.WindDirection), spd = windSpeed(we.WindSpeed);
   let pop = 0;
   if (fc.status === "fulfilled") {
     const el = fc.value?.records?.location?.[0]?.weatherElement ?? [];
@@ -54,7 +54,7 @@ async function build() {
   const h = Number(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Taipei", hour: "numeric", hourCycle: "h23" }).format(new Date()));
   return {
     condition, is_night: h < 6 || h >= 18,
-    wind_dir_deg: dir ?? 0, wind_speed_ms: spd ?? 0, temp_c: temp, obs_time: obsTime,
+    wind_dir_deg: dir, wind_speed_ms: spd, temp_c: temp, // 可能為 null＝無資料 obs_time: obsTime,
     pop, weather_text: wx, ...(typhoonName ? { typhoon_name: typhoonName } : {}), source: "CWA",
   };
 }
