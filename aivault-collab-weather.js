@@ -52,7 +52,7 @@
       '<circle id="cpw-tl" cx="50" cy="34" r="1.6" fill="#f33" opacity="0"/></svg>' +
       '<svg id="cpw-sock" class="cpw-own" viewBox="0 0 120 140"><rect x="8" y="10" width="4" height="130" fill="#8a7a66"/><circle cx="10" cy="9" r="3.5" fill="#d4af37"/>' +
       '<g id="cpw-fishg" transform="translate(12 18)"><path id="cpw-fish" fill="#e8453c" stroke="#7a1d18" stroke-width=".8"/><path id="cpw-fish2" fill="none" stroke="#fff" stroke-width="2" opacity=".85"/><circle id="cpw-eye" r="3" fill="#fff" stroke="#222" stroke-width="1.4"/></g></svg>' +
-      '<div id="cpw-badge">天氣載入中…</div>';
+      '<svg id="cpw-wc" class="cpw-own" viewBox="-30 -30 60 60" style="position:absolute;right:8px;top:calc(env(safe-area-inset-top,0px) + 44px);width:56px;height:56px"><circle r="27" fill="rgba(10,14,28,.55)" stroke="#fff"/><text y="-17" text-anchor="middle" fill="#f66" font-size="10" font-weight="700">N</text><g id="cpw-wa"><path d="M0 -16 L5 -6 L1.5 -6 L1.5 16 L-1.5 16 L-1.5 -6 L-5 -6Z" fill="#7df"/></g></svg><div id="cpw-badge">天氣載入中…</div>';
     document.body.appendChild(R);
     var cv = R.querySelector('#cpw-cv'), cx = cv.getContext('2d'), dpr = Math.min(devicePixelRatio || 1, MOBILE ? 1.5 : 2);
     function fit() { cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; mask(); } addEventListener('resize', fit);
@@ -70,7 +70,7 @@
       SW += (S.wind_speed_ms - SW) * Math.min(1, dt * .8);
       var W = cv.width, H = cv.height, c = S.condition, ws = SW, typh = c === 'typhoon';
       var slant = typh ? 0.9 : Math.min(.45, ws / 25); // 雨斜度（往風吹去的方向）
-      var dirSign = Math.sin((S.wind_dir_deg + 180) * Math.PI / 180) >= 0 ? 1 : -1;
+      var dirSign = Math.sin((S.wind_dir_deg + 180) * Math.PI / 180) >= 0 ? 1 : -1; // CWA 風向：風「來自」的方位，正北 0°、順時針；場景面向正北，右＝東
       cx.clearRect(0, 0, W, H);
       var n = target(), step = Math.max(1, Math.ceil(MAXP * dt / 2)); /* 約 2 秒平滑增減 */ for (var a = 0; a < step && P.length < n; a++) P.push(drop(W, H, false)); if (P.length > n) P.length = Math.max(n, P.length - step);
       cx.strokeStyle = S.is_night ? 'rgba(190,205,235,.55)' : 'rgba(170,190,215,.6)'; cx.lineWidth = (c === 'heavy_rain' || typh ? 1.6 : 1.1) * dpr; cx.beginPath();
@@ -84,12 +84,13 @@
       R.querySelector('#cpw-rot').setAttribute('transform', 'rotate(' + ang.toFixed(1) + ')');
       // 機艙朝向：風從 wind_dir_deg 吹來，轉子迎風；2D 側視以左右翻轉表示東西分量
       var from = Math.sin(S.wind_dir_deg * Math.PI / 180); // >0 東風來
-      R.querySelector('#cpw-nac').setAttribute('transform', 'translate(50 40) scale(' + (from >= 0 ? -1 : 1) + ' 1)');
+      R.querySelector('#cpw-nac').setAttribute('transform', 'translate(50 40) scale(' + (from >= 0 ? 1 : -1) + ' 1)'); // 轉子迎風（風從東來→轉子朝右/東）
       R.querySelector('#cpw-tl').setAttribute('opacity', S.is_night ? (Math.floor(now / 900) % 2 ? 1 : .15) : 0);
       // 風向魚：風大飄直、風小下垂；往風吹去方向飄
       var lift = Math.max(0, Math.min(1, ws / 10)); sock += dt * (2 + ws * .8);
       var flap = RM ? 0 : Math.sin(sock * 2.2) * (0.25 + lift * 0.5);
-      drawFish(lift, flap, -dirSign);
+      R.querySelector('#cpw-wa').setAttribute('transform', 'rotate(' + ((S.wind_dir_deg + 180) % 360) + ')'); // 地圖箭頭指向風吹去的方向（與地標同一正北）
+      drawFish(lift, flap, dirSign); // 魚往下風處（wind_dir_deg+180）飄；畫面右＝東
       requestAnimationFrame(frame);
     }
     function drop(W, H, init) { var v = (8 + Math.random() * 8) * dpr * (S.condition === 'typhoon' ? 1.6 : 1); return { x: Math.random() * (W + 200) - 100, y: init ? Math.random() * H : -20 - Math.random() * 80, v: v, l: (10 + Math.random() * 12) * dpr }; }
@@ -107,6 +108,7 @@
       R.querySelector('#cpw-eye').setAttribute('cx', pts[1][0].toFixed(1)); R.querySelector('#cpw-eye').setAttribute('cy', pts[1][1].toFixed(1));
     }
     function apply() {
+      window.AIVAULT_WEATHER_STATE = S;
       R.className = S.condition + (S.is_night ? ' night' : '');
       document.documentElement.classList.toggle('cpw-shake', S.condition === 'typhoon' && !RM);
       var nm = { clear: '晴', cloudy: '多雲', rain: '下雨', heavy_rain: '大雨', typhoon: '颱風' }[S.condition] || S.condition;
