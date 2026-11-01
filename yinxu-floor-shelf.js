@@ -1,7 +1,8 @@
 /* 因序小說書架：類型分類分頁＋「1000 人工作區」長篇連載（擁有者核准後才上架）。
    獨立檔案；關閉：localStorage.yinxuFloorShelfOff = '1'。不改動原本書架的書與功能。 */
 (function () {
-  if (localStorage.getItem('yinxuFloorShelfOff') === '1') return;
+  var standalone = !!document.getElementById('aiNovelShelf');
+  if (!standalone && localStorage.getItem('yinxuFloorShelfOff') === '1') return;
   var URL_ = 'https://clcddygkaaqqtsbswgdf.supabase.co', KEY = 'sb-clcddygkaaqqtsbswgdf-auth-token';
   var ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsY2RkeWdrYWFxcXRzYnN3Z2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzUwNjQsImV4cCI6MjEwMjMxMTA2NH0.kYg6h7n74CtbiIjNjZ2xxJj16SV42INZVzQ9dLNUfKE';
   var MOCK = window.__floorShelfMock;
@@ -22,12 +23,12 @@
   var tabs = document.createElement('div'); tabs.className = 'yfs-tabs'; shelf.parentNode.insertBefore(tabs, shelf);
   var box = document.createElement('div'); shelf.parentNode.insertBefore(box, shelf.nextSibling);
   var books = [], genres = [], cur = '全部';
-  function drawTabs() { var list = ['全部', '因序互動'].concat(genres.filter(function (g) { return books.some(function (b) { return b.genre === g; }); }));
+  function drawTabs() { var list = (standalone ? ['全部'] : ['全部', '因序互動']).concat(genres.filter(function (g) { return books.some(function (b) { return b.genre === g; }); }));
     tabs.innerHTML = list.map(function (g) { return '<button class="yfs-tab' + (g === cur ? ' on' : '') + '" data-g="' + esc(g) + '">' + esc(g) + (g !== '全部' && g !== '因序互動' ? ' ' + books.filter(function (b) { return b.genre === g; }).length : '') + '</button>'; }).join(''); }
   function draw() { drawTabs(); shelf.style.display = (cur === '全部' || cur === '因序互動') ? '' : 'none';
     var bs = cur === '因序互動' ? [] : books.filter(function (b) { return cur === '全部' || b.genre === cur; });
-    box.innerHTML = bs.length ? '<h3 class="yfs-h">🏢 AI 工作區長篇</h3><div class="yfs-grid">' + bs.map(function (b) {
-      return '<button class="yfs-book" data-b="' + b.id + '"><span class="yfs-g">' + esc(b.genre) + '</span> <span class="yfs-s">' + (b.status === 'done' ? '完結' : '連載中') + '</span><br><b>《' + esc(b.title || '未命名') + '》</b><br><small class="muted">' + b.chapters_done + '/' + b.target_chapters + ' 章 · ' + Math.round((b.chars || 0) / 1000) / 10 + ' 萬字</small><br><small>📜 看文字</small></button>'; }).join('') + '</div>' : (cur !== '全部' && cur !== '因序互動' ? '<p class="muted">這個類型還沒有核准上架的作品。</p>' : ''); }
+    box.innerHTML = bs.length ? '<h3 class="yfs-h">AI小說 · 已核准上架</h3><div class="yfs-grid">' + bs.map(function (b) {
+      return '<button class="yfs-book" data-b="' + esc(b.id) + '"><span class="yfs-g">' + esc(b.genre) + '</span> <span class="yfs-s">' + (b.status === 'done' ? '完結' : '連載中') + '</span><br><b>《' + esc(b.title || '未命名') + '》</b><br><small class="muted">' + b.chapters_done + '/' + b.target_chapters + ' 章 · ' + Math.round((b.chars || 0) / 1000) / 10 + ' 萬字</small><br><small>📜 看文字</small></button>'; }).join('') + '</div>' : (cur !== '全部' && cur !== '因序互動' ? '<p class="muted">這個類型還沒有核准上架的作品。</p>' : ''); }
   tabs.addEventListener('click', function (e) { var t = e.target.closest('[data-g]'); if (t) { cur = t.dataset.g; draw(); } });
   box.addEventListener('click', function (e) { var t = e.target.closest('[data-b]'); if (t) read(t.dataset.b, 1); });
   var rd = null;
@@ -42,7 +43,19 @@
         if (x === 'sel') el.onchange = function () { read(id, Number(el.value)); };
         else el.onclick = function () { if (x === 'close') rd.style.display = 'none'; if (x === 'prev') read(id, ch - 1); if (x === 'next') read(id, ch + 1); }; });
       rd.scrollTop = 0; } catch (e) { rd.innerHTML = '<p>載入失敗：' + esc(e.message) + ' <button onclick="this.closest(\'.yfs-read\').style.display=\'none\'">關閉</button></p>'; } }
-  function load() { api('shelf', {}).then(function (d) { books = d.books || []; genres = d.genres || []; draw(); }).catch(function () { draw(); }); }
+  var notice = document.createElement('p'); notice.className = 'muted'; notice.setAttribute('role', 'status'); box.parentNode.insertBefore(notice, box);
+  async function load() {
+    notice.textContent = '正在載入已核准小說…';
+    try { var d = await api('shelf', {}); books = d.books || []; genres = d.genres || []; draw();
+      notice.textContent = books.length ? '已上架 ' + books.length + ' 本小說，點選書名即可閱讀。' : '目前沒有已核准的小說。';
+    } catch (e) {
+      notice.textContent = e.message === 'login' || /401|login required/.test(e.message) ? '請先登入，即可閱讀已核准的AI小說。' : '小說載入失敗：' + e.message;
+      if (/login|401/.test(e.message)) { var a = document.createElement('a'); a.textContent = ' 前往登入'; a.href = 'aivault-login.html?next=' + encodeURIComponent(location.pathname.split('/').pop() + location.search); notice.appendChild(a); }
+    }
+  }
+  var refresh = document.getElementById('refreshNovels'); if (refresh) refresh.onclick = load;
   draw(); load();
+  setInterval(function () { if (!document.hidden) load(); }, 30000);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) load(); });
   window.__yinxuFloorShelf = { books: function () { return books; } };
 })();
