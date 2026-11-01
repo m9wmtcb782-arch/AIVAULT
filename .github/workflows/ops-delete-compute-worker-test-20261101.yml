@@ -1,0 +1,28 @@
+name: OPS backup+delete aivault-compute-worker-test (founder approved 2026-11-01)
+on:
+  push:
+    branches: [ops/delete-compute-worker-test-20261101]
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    env: { T: "${{ secrets.SUPABASE_ACCESS_TOKEN }}", REF: clcddygkaaqqtsbswgdf, SLUG: aivault-compute-worker-test }
+    steps:
+      - name: Backup metadata + body (GET only)
+        run: |
+          mkdir -p bk
+          curl -sf -H "Authorization: Bearer $T" https://api.supabase.com/v1/projects/$REF/functions/$SLUG -o bk/$SLUG.meta.json
+          curl -sf -H "Authorization: Bearer $T" https://api.supabase.com/v1/projects/$REF/functions/$SLUG/body -o bk/$SLUG.body
+          ls -l bk; test -s bk/$SLUG.body; file bk/$SLUG.body; sha256sum bk/*
+      - uses: actions/upload-artifact@v4
+        with: { name: backup-aivault-compute-worker-test, path: bk/, retention-days: 90 }
+  delete:
+    needs: backup
+    runs-on: ubuntu-latest
+    env: { T: "${{ secrets.SUPABASE_ACCESS_TOKEN }}", REF: clcddygkaaqqtsbswgdf, SLUG: aivault-compute-worker-test }
+    steps:
+      - name: Delete only aivault-compute-worker-test
+        run: |
+          test "$SLUG" = "aivault-compute-worker-test"
+          echo -n "delete http="; curl -s -o /dev/null -w '%{http_code}\n' -X DELETE -H "Authorization: Bearer $T" https://api.supabase.com/v1/projects/$REF/functions/$SLUG
+          echo -n "after get http="; curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $T" https://api.supabase.com/v1/projects/$REF/functions/$SLUG
+          echo -n "count="; curl -s -H "Authorization: Bearer $T" https://api.supabase.com/v1/projects/$REF/functions | python3 -c 'import sys,json;print(len(json.load(sys.stdin)))'
