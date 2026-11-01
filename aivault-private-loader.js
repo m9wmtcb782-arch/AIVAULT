@@ -6,6 +6,7 @@
   var KEY = 'sb-clcddygkaaqqtsbswgdf-auth-token';
   var slug = document.currentScript && document.currentScript.getAttribute('data-slug');
   var pages = ((document.currentScript && document.currentScript.getAttribute('data-pages')) || '').split(',');
+  var extra = ((document.currentScript && document.currentScript.getAttribute('data-overlay')) || '').split(',').filter(Boolean); // 選用：渲染後追加的公開覆蓋層腳本（如天氣層）
   var want = new URLSearchParams(location.search).get('page');
   if (want && pages.indexOf(want) >= 0) slug = want;
   function toLogin(why) {
@@ -27,6 +28,7 @@
     if (!r.ok) throw new Error('HTTP ' + r.status);
     var rows = await r.json(); if (!rows.length || !rows[0].html) return toLogin('no access');
     document.open(); document.write(rows[0].html); document.close();
+    extra.forEach(function (src) { if (!/^[\w.\-]+\.js(\?[\w=.&\-]*)?$/.test(src)) return; var sc = document.createElement('script'); sc.src = src; (document.body || document.documentElement).appendChild(sc); });
   }
   if (!slug || !sess()) return toLogin('no session');
   run().catch(function (e) {
