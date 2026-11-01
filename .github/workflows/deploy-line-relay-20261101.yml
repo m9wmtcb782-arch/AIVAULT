@@ -24,6 +24,7 @@ jobs:
               except urllib.error.HTTPError as e: sys.exit("FAILED: " + e.read().decode()[:800])
           print("pre-exists:", q("select to_regclass('public.line_inbox') as t"))
           q("begin;\n" + open("supabase/line_inbox_20261101.sql").read() + "\ncommit;")
+          print(q("select grantee, string_agg(privilege_type, ',') as p from information_schema.role_table_grants where table_name='line_inbox' group by grantee"))
           print(q("select c.relname, c.relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='line_inbox'"))
           PY
       - name: Guard - function and secret names must be new (do not overwrite existing)

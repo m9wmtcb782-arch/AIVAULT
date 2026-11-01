@@ -10,3 +10,5 @@ alter table public.line_inbox enable row level security;
 revoke all on public.line_inbox from anon, authenticated;
 create index if not exists line_inbox_pending on public.line_inbox (id) where consumed_at is null;
 -- 回滾：drop table public.line_inbox;
+grant select, insert, update on public.line_inbox to service_role;
+grant usage, select on sequence public.line_inbox_id_seq to service_role;
