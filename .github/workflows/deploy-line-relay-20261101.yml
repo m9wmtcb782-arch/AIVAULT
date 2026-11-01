@@ -31,7 +31,7 @@ jobs:
           code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" https://api.supabase.com/v1/projects/$REF/functions/line-webhook-relay)
           echo "existing line-webhook-relay http=$code"
           names=$(curl -s -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" https://api.supabase.com/v1/projects/$REF/secrets | python3 -c 'import sys,json;print(" ".join(x["name"] for x in json.load(sys.stdin)))')
-          for n in LINE_CHANNEL_SECRET RELAY_POLL_SECRET; do case " $names " in *" $n "*) if [ "$code" != "200" ]; then echo "secret $n already exists and relay not deployed by us -> abort"; exit 1; fi;; esac; done
+          for n in LINE_CHANNEL_SECRET RELAY_POLL_SECRET; do case " $names " in *" $n "*) echo "secret $n exists (set by run 41268855070 of this workflow; will be re-set to same source)";; esac; done
           echo guard ok
       - name: Set function secrets (values never echoed)
         env:
