@@ -1,3 +1,4 @@
+import "../_shared/neural-bus.ts"; // neural bus (NEURAL_BUS_ON, default off)
 import { PROVIDER_REWARD_PER_PASSED, VERIFIER_UNITS_PER_SAMPLED, json } from "../_shared/contract.ts";
 import { requireInternal } from "../_shared/auth.ts";
 import { serviceClient, snapshotLedger, transition } from "../_shared/db.ts";

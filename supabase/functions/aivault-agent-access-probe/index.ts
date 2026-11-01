@@ -1,3 +1,4 @@
+import "../_shared/neural-bus.ts"; // neural bus (NEURAL_BUS_ON, default off)
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 

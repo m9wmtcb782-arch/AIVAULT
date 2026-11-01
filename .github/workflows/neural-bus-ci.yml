@@ -1,0 +1,18 @@
+name: neural-bus CI observer (flag-off)
+on:
+  workflow_run:
+    workflows: ["AI lab factory (agents write, test and fix code in an offline sandbox)", "AI pool agent floor (work loop)", "AI pool agents setup (manual)", "AI pool degrees (learning + exams)", "AI pool learning every 10 min (four districts, realtime-voice curriculum)", "AI pool mobile-model research + four-module upgrade designs (rs1)", "AI pool watch video test (audio Whisper + frames vision, CC-licensed talks only)", "Agent comms - 6-agent small game acceptance (free Groq quota, offline tests)", "Android Compute Worker APK", "Autonomous Agent Runtime Offline Tests", "Backend backup (encrypted)", "Build Dark Star real-person MP4 edits", "Cache Dark Star Avatar", "Cache Three.js runtime", "City Blender headless render (GLB -> PNG, free runner)", "City Playwright screenshots (iPhone viewport, public pages, free runner)", "City reading tier (no-LLM, 0 tokens) — all idle original agents read real free sources", "DB apply study-books migration (additive)", "DB check study-books table", "DB fix study-books grants", "DB schema dump (reference only)", "Dark Star Somatic Regression", "Degree audit (read-only)", "Deploy AIVAULT to GitHub Pages", "Deploy Agent Access Probe", "Deploy ai-gateway (sm2 city memory hook; refuses if live code differs from repo base)", "Deploy bots migration + ingest (bot-pr feature)", "Deploy compute coordinator lifecycle fix", "Deploy dark-star-ebook-ingest", "Deploy dark-star-reading-report", "Download compute coordinator source", "Download deployed dark-star-ebook-ingest (compare before deploy)", "Ebook images to private storage (manual)", "Enable signup approval (one-time)", "Import private ebook (manual)", "Import public ebook JSON (manual)", "Install Dark Star Digital Human", "Install Dark Star Realtime Voice Button", "Install Dark Star Realtime Voice v2", "Install Dark Star diagnostic strip", "Integrate Dark Star Emotion Avatar", "Paid-gate pg1 (check / backup / deploy 4 functions, manual only)", "Pool bookshelf (協作池書架, separate from user ebooks)", "Publish private pages (manual)", "Shared memory A/B/C/D acceptance (offline sandbox, 1 free model call)", "TinyFish controlled search", "Town weather (CWA + JMA, every 30 min)", "Video center v2 (free CPU variants vs BBB questions)", "Video learning center (decode once, CPU vision, free)", "Worker-001 REAL CPU inference (manual only)", "Worker-001 bridge checks", "Yinxu backend e2e (manual)"]
+    types: [completed]
+permissions: { contents: read }
+jobs:
+  emit:
+    if: vars.NEURAL_BUS_ON == '1'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          NEURAL_BUS_ON: ${{ vars.NEURAL_BUS_ON }}
+          NEURAL_BASE: base1
+          SUPABASE_URL: ${{ secrets.NEURAL_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.NEURAL_SERVICE_ROLE_KEY }}
+        run: python3 neural/neural_bus.py "${{ github.event.workflow_run.name }}" reflex ci_run "${{ github.event.workflow_run.conclusion == 'success' && 'pass' || 'fail' }}"

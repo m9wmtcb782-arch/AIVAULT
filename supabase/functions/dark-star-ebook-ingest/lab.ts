@@ -1,7 +1,10 @@
 // lb1：AI 實驗工廠。程式與代理區學階最高的 AI 寫程式，較低學階的 AI 只看規格寫測試；程式在 GitHub Actions 的無網路、無密鑰容器裡真的執行測試；
 // 失敗把錯誤回饋給寫程式的 AI 修正，最多 LAB_MAX_ITER 次。所有程式、測試輸出、通過與否、token、代理 id 都存真實紀錄。成功才送 🟡 作品審核，不會自動上線。
 // 關閉：函式 env LAB_OFF=1；每日上限 LAB_DAILY（預設 4）
-import { callModel } from "./floor.ts";
+import { callModel as callModel0 } from "./floor.ts";
+import { causalOn, causalCallModel, causalRecord } from "./causal.ts";
+// ce0：CAUSAL_ENGINE_ON!=1 → 直接用原本 callModel（行為不變）
+const callModel = (s: string, u: string, m?: number) => causalOn() ? causalCallModel(callModel0, s, u, m) : callModel0(s, u, m);
 import { kbSearch, kbFromLab, helpFromFail } from "./city.ts";
 import { memContext } from "./mem.ts";
 const URL0 = Deno.env.get("SUPABASE_URL") || "", SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -118,7 +121,7 @@ async function verifyFiles(e: any) {
   const v = await callModel(`${V.persona || ""}\n你是 AIVAULT 的 ${V.name}，擔任獨立驗收員。你看不到程式和原本的測試，只依需求寫 3–5 個隱藏驗收測試。`, `需求：${e.title}\n${e.spec}\nAPI：${e.api || ""}\n\n寫 verify.js：const { test } = require("node:test"); const assert = require("node:assert/strict"); ${tHint} 只輸出 JSON：{"verify_js":"完整測試檔"}`, 2500);
   return { js: String(v.v?.verify_js || ""), model: v.model, tokens: tok(v.usage) };
 }
-export async function labReport(b: any) { const r = await labReport0(b); if (r?.done) { try { const [e] = await rest(`aivault_lab_experiments?id=eq.${Number(b.id)}&select=id,title,spec,api,sandbox,lead_id,tester_id,verifier_id`); if (e) { if (r.status === "passed") await kbFromLab(e); else await helpFromFail(e); } } catch (_) { /* best-effort */ } } return r; }
+export async function labReport(b: any) { const r = await labReport0(b); if (r?.done) { try { const [e] = await rest(`aivault_lab_experiments?id=eq.${Number(b.id)}&select=id,title,spec,api,sandbox,lead_id,tester_id,verifier_id`); if (e) { if (r.status === "passed") await kbFromLab(e); else await helpFromFail(e); if (causalOn()) await causalRecord(e, r.status === "passed", String(b.output || "").slice(-300)); } } catch (_) { /* best-effort */ } } return r; }
 async function labReport0(b: any) {
   const [e] = await rest(`aivault_lab_experiments?id=eq.${b.id}&select=*`); if (!e || e.status !== "running") return { ok: false, error: "not running" };
   const its = e.iterations || []; const cur = its[its.length - 1]; cur.pass = !!b.pass; cur.exit = b.exit; cur.output = String(b.output || "").slice(0, 6000); cur.tests = b.tests || null; cur.ran_at = new Date().toISOString();
