@@ -10,7 +10,7 @@
   var MOBILE = /iPhone|iPad|Android/i.test(navigator.userAgent) || Math.min(innerWidth, innerHeight) < 500;
   var MAXP = RM ? 60 : (MOBILE ? 220 : 480);
   var S = { condition: 'clear', is_night: localNight(), wind_dir_deg: 225, wind_speed_ms: 2, offline: true, preview: false };
-  function localNight() { var h = new Date().getHours(); return h < 6 || h >= 18; }
+  function localNight() { var h = +new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Taipei', hour: 'numeric', hourCycle: 'h23' }).format(new Date()) % 24; return h < 6 || h >= 18; } // 依 Asia/Taipei
 
   function boot() {
     var css = document.createElement('style');
@@ -63,15 +63,16 @@
       d.style.webkitMaskComposite = 'source-in'; d.style.maskComposite = 'intersect';
     }
     fit(); setTimeout(mask, 300);
-    var P = [], ang = 0, sock = 0, t0 = performance.now();
+    var SW = S.wind_speed_ms, P = [], ang = 0, sock = 0, t0 = performance.now();
     function target() { var c = S.condition; return c === 'heavy_rain' ? MAXP : c === 'typhoon' ? MAXP : c === 'rain' ? Math.round(MAXP * .45) : 0; }
     function frame(now) {
       var dt = Math.min(.05, (now - t0) / 1000); t0 = now;
-      var W = cv.width, H = cv.height, c = S.condition, ws = S.wind_speed_ms, typh = c === 'typhoon';
+      SW += (S.wind_speed_ms - SW) * Math.min(1, dt * .8);
+      var W = cv.width, H = cv.height, c = S.condition, ws = SW, typh = c === 'typhoon';
       var slant = typh ? 0.9 : Math.min(.45, ws / 25); // 雨斜度（往風吹去的方向）
       var dirSign = Math.sin((S.wind_dir_deg + 180) * Math.PI / 180) >= 0 ? 1 : -1;
       cx.clearRect(0, 0, W, H);
-      var n = target(); while (P.length < n) P.push(drop(W, H, true)); if (P.length > n) P.length = n;
+      var n = target(), step = Math.max(1, Math.ceil(MAXP * dt / 2)); /* 約 2 秒平滑增減 */ for (var a = 0; a < step && P.length < n; a++) P.push(drop(W, H, false)); if (P.length > n) P.length = Math.max(n, P.length - step);
       cx.strokeStyle = S.is_night ? 'rgba(190,205,235,.55)' : 'rgba(170,190,215,.6)'; cx.lineWidth = (c === 'heavy_rain' || typh ? 1.6 : 1.1) * dpr; cx.beginPath();
       for (var i = 0; i < P.length; i++) { var p = P[i], vx = slant * dirSign * p.v, L = p.l;
         cx.moveTo(p.x, p.y); cx.lineTo(p.x - vx * L / p.v, p.y - L);
@@ -118,7 +119,9 @@
     var pw = Q.get('weather');
     if (pw) { S.preview = true; S.offline = false; S.condition = pw; S.is_night = Q.get('night') === '1' ? true : Q.get('night') === '0' ? false : localNight();
       S.wind_speed_ms = +(Q.get('wind') || (pw === 'typhoon' ? 22 : pw === 'heavy_rain' ? 9 : pw === 'rain' ? 5 : 2.5)); S.wind_dir_deg = +(Q.get('dir') || 90); apply(); }
-    else { apply(); load(); setInterval(load, 10 * 60 * 1000); }
+    else { apply(); load(); setInterval(load, 10 * 60 * 1000); // 每 10 分鐘同步
+      document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') load(); }); // 回到前景立即重抓
+      setInterval(function () { var n = localNight(); if (n !== S.is_night) { S.is_night = n; apply(); } }, 60 * 1000); } // 每分鐘依台北時間重算日夜
     function load() {
       var ac = window.AbortController ? new AbortController() : null; if (ac) setTimeout(function () { ac.abort(); }, 8000);
       fetch(API, { cache: 'no-store', signal: ac && ac.signal }).then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (j) {

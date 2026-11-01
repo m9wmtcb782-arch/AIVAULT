@@ -24,9 +24,11 @@
   window.AIVAULT_festivalFor = function (t) { for (var i = 0; i < FESTIVALS.length; i++) if (FESTIVALS[i].match(t)) return FESTIVALS[i].id; return null; };
   var q = new URLSearchParams(location.search).get('festival');
   var id = q === 'none' ? null : (q || window.AIVAULT_festivalFor(new Date()));
-  var F = FESTIVALS.filter(function (f) { return f.id === id; })[0]; if (!F) return;
+  var F = FESTIVALS.filter(function (f) { return f.id === id; })[0];
   var RM = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var styled = false;
   function boot() {
+    if (!F) return; if (styled) { mount(); return; } styled = true;
     var st = document.createElement('style');
     st.textContent = '#cpf-root{position:fixed;inset:0;pointer-events:none;z-index:2147482990;overflow:hidden;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}' +
       '.cpf{position:absolute;font-size:clamp(26px,5vw,46px);filter:drop-shadow(0 0 8px rgba(255,210,120,.55))}' +
@@ -45,6 +47,10 @@
       '.cpf-pk{position:absolute;left:50%;bottom:16%;transform:translateX(-50%);font-size:clamp(110px,22vw,200px);line-height:1;filter:drop-shadow(0 6px 10px rgba(0,0,0,.4));transition:filter 1.5s}'+'#cpw-root.night~#cpf-root .cpf-pk{filter:drop-shadow(0 0 22px rgba(255,150,30,.95)) drop-shadow(0 0 60px rgba(255,120,0,.7)) brightness(1.15);animation:cpfPk 2.2s ease-in-out infinite}'+'@keyframes cpfPk{50%{filter:drop-shadow(0 0 30px rgba(255,170,40,1)) drop-shadow(0 0 90px rgba(255,120,0,.8)) brightness(1.3)}}'+
       '@media (prefers-reduced-motion:reduce){.cpf{animation-duration:30s!important}}';
     document.head.appendChild(st);
+    mount();
+  }
+  function mount() {
+    var old = document.getElementById('cpf-root'); if (old) old.remove(); if (!F) return;
     var R = document.createElement('div'); R.id = 'cpf-root'; R.setAttribute('aria-hidden', 'true');
     var h = '<div class="cpf-tag">🎉 ' + F.name + (q ? '（預覽）' : '') + '</div>', seed = 7;
     function rnd() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
@@ -61,4 +67,9 @@
     document.body.appendChild(R);
   }
   if (document.body) boot(); else document.addEventListener('DOMContentLoaded', boot);
+  if (!q) setInterval(function () { // 每分鐘依 Asia/Taipei 重算節慶，跨日自動切換
+    var nid = window.AIVAULT_festivalFor(new Date()); if (nid === (F && F.id)) return;
+    F = FESTIVALS.filter(function (f) { return f.id === nid; })[0];
+    if (!F) { var o = document.getElementById('cpf-root'); if (o) { o.style.transition = 'opacity 2s'; o.style.opacity = 0; setTimeout(function () { o.remove(); }, 2100); } } else boot();
+  }, 60 * 1000);
 })();
