@@ -55,12 +55,20 @@
       S.add(new T.Mesh(g, new T.MeshStandardMaterial({ map: tex, roughness: 1 })));
       D.districts.forEach(function (d) { d.d.split('M').filter(Boolean).forEach(function (r) { var pts = r.replace('Z', '').split('L').map(function (s) { return s.trim().split(' ').map(Number); }); pts.push(pts[0]); S.add(line(pts, 0x7a3c1a, 1.5)); }); label(d.name, d.cx, d.cy, 26, '#3b2a17'); });
       D.rivers.forEach(function (r) { ribbon(r.p, r.n === '淡水河' ? 14 : r.n === '景美溪' ? 6 : 9, 0x4f9fd6, .6); });
-      D.roads.forEach(function (r) { var ev = r.t !== 'ar'; ribbon(r.p, r.t === 'fw' ? 5 : r.t === 'ev' ? 4 : 3, r.t === 'fw' ? 0xe07b2e : r.t === 'ev' ? 0xf2c14e : 0xf4f4f4, ev ? 4 : .8, ev); var m = r.p[Math.floor(r.p.length / 2)]; label(r.n, m[0], m[1], 12, '#4a3726', ev ? 10 : 6); });
+      D.roads.forEach(function (r) { var ev = r.t !== 'ar'; ribbon(r.p, r.t === 'fw' ? 5 : r.t === 'ev' ? 4 : 3, r.t === 'fw' ? 0xe07b2e : r.t === 'ev' ? 0xf2c14e : 0xf4f4f4, ev ? 4 : .8, ev); roadLabels(r, ev); });
       D.mrt.tracks.forEach(function (t) { S.add(line(t.p, D.mrt.colors[t.l], 2.2)); });
       D.mountains.forEach(function (m) { label('⛰ ' + m.n, m.p[0], m.p[1], 16, '#2e4a1f', 14); });
-      landmarks(); lamps(); trains(); weatherFx(); turbine(); fireworks();
+      landmarks(); lamps(); trains(); weatherFx(); turbine(); fireworks(); people(); camParam();
       R.setAnimationLoop(loop);
     }
+    function roadLabels(r, ev) { // 主動標所有幹道路名：每 ~110 地圖單位一個大字牌，永遠面向鏡頭
+      var P = dense(r.p), n = Math.max(1, Math.round(P.length * 6 / 110));
+      for (var i = 0; i < n; i++) { var q = P[Math.floor((i + .5) / n * (P.length - 1))]; roadSign(r.n, q[0], q[1], ev ? 14 : 8, r.t); } }
+    function roadSign(t, u, v, dy, kind) { var c = document.createElement('canvas'), x = c.getContext('2d'); c.width = 320; c.height = 80;
+      var bg = kind === 'fw' ? '#0b6e3c' : kind === 'ev' ? '#1f4e9c' : 'rgba(25,28,36,.82)'; x.font = '800 44px "PingFang TC","Noto Sans TC",sans-serif';
+      var w = Math.min(310, x.measureText(t).width + 30); x.fillStyle = bg; x.beginPath(); x.roundRect ? x.roundRect((320 - w) / 2, 6, w, 66, 14) : x.rect((320 - w) / 2, 6, w, 66); x.fill(); x.strokeStyle = '#fff'; x.lineWidth = 3; x.stroke();
+      x.fillStyle = '#fff'; x.textAlign = 'center'; x.fillText(t, 160, 56);
+      var sp = new T.Sprite(new T.SpriteMaterial({ map: new T.CanvasTexture(c), depthTest: false, transparent: true })); sp.scale.set(36, 9, 1); sp.position.copy(V(u, v, dy + 4)); sp.renderOrder = 6; S.add(sp); return sp; }
     function label(t, u, v, size, color, dy) { var c = document.createElement('canvas'), x = c.getContext('2d'); c.width = 256; c.height = 64; x.font = '700 30px "PingFang TC","Noto Sans TC",sans-serif'; x.textAlign = 'center'; x.lineWidth = 6; x.strokeStyle = 'rgba(255,255,255,.9)'; x.strokeText(t, 128, 42); x.fillStyle = color; x.fillText(t, 128, 42);
       var s = new T.Sprite(new T.SpriteMaterial({ map: new T.CanvasTexture(c), depthTest: false, transparent: true })); s.scale.set(size * 4, size, 1); s.position.copy(V(u, v, (dy || 8) + 4)); s.renderOrder = 5; S.add(s); return s; }
     function P(lat, lon) { return [(lon - D.lon0) / (D.lon1 - D.lon0) * W0, (D.lat1 - lat) / (D.lat1 - D.lat0) * H0]; }
@@ -95,8 +103,41 @@
         CARM[t.l] = CARM[t.l] || new T.MeshStandardMaterial({ color: c, emissive: 0x000000 });
         var stops = []; D.mrt.stations.forEach(function (s) { var bi = -1, bd = 6; P.forEach(function (q, i) { var d = Math.hypot(q[0] - s.p[0], q[1] - s.p[1]); if (d < bd) { bd = d; bi = i; } }); if (bi >= 0) stops.push(bi); });
         stops = stops.filter(function (v, i, a) { return a.indexOf(v) === i; }).sort(function (a, b) { return a - b; }); if (stops.length < 2) stops = [0, P.length - 1];
-        for (var j = 0; j < 2; j++) { var m = new T.Mesh(new T.BoxGeometry(9, 2.4, 2.6), CARM[t.l]); S.add(m); TR.push({ P: P, stops: stops, si: j ? stops.length - 1 : 0, dir: j ? -1 : 1, f: stops[j ? stops.length - 1 : 0], wait: Math.random() * 6, m: m }); } });
+        for (var j = 0; j < 2; j++) { var m = new T.Mesh(new T.BoxGeometry(12, 3, 3.4), CARM[t.l]); S.add(m); TR.push({ P: P, stops: stops, si: j ? stops.length - 1 : 0, dir: j ? -1 : 1, f: stops[j ? stops.length - 1 : 0], wait: Math.random() * 6, m: m }); } });
     }
+    // —— 通用低多邊形行人（非協作池角色，不冒充原角色；拿到原素材後用 addSprite 替換）——
+    var PEOPLE = [], ROADS = [], PG = { body: new T.CylinderGeometry(.55, .65, 1.9, 6), head: new T.SphereGeometry(.5, 8, 6), leg: new T.BoxGeometry(.32, 1.2, .32) };
+    var SKIN = new T.MeshStandardMaterial({ color: 0xf1c27d }), LEGM = new T.MeshStandardMaterial({ color: 0x2b2f3a });
+    var SHIRT = [0xe63946, 0x457b9d, 0x2a9d8f, 0xf4a261, 0x8e44ad, 0xffffff, 0x1d3557, 0xffb703].map(function (c) { return new T.MeshStandardMaterial({ color: c, emissive: 0 }); });
+    function person(k) { var g = new T.Group(), b = new T.Mesh(PG.body, SHIRT[k % SHIRT.length]); b.position.y = 2.15; g.add(b); var h = new T.Mesh(PG.head, SKIN); h.position.y = 3.6; g.add(h);
+      var l1 = new T.Mesh(PG.leg, LEGM), l2 = new T.Mesh(PG.leg, LEGM); l1.geometry.translate(0, 0, 0); l1.position.set(-.25, .6, 0); l2.position.set(.25, .6, 0); g.add(l1); g.add(l2); g.userData.legs = [l1, l2]; g.scale.setScalar(1.25); S.add(g); return g; }
+    function people() {
+      ROADS = D.roads.filter(function (r) { return r.t === 'ar'; }).map(function (r) { return dense(r.p); });
+      var N = MOB ? 36 : 80;
+      for (var i = 0; i < N; i++) { var R0 = ROADS[i % ROADS.length]; PEOPLE.push({ g: person(i), road: R0, f: Math.random() * (R0.length - 1), dir: Math.random() < .5 ? 1 : -1, side: Math.random() < .5 ? 1 : -1, sp: 1.1 + Math.random() * .7, state: 'walk', ph: Math.random() * 6, cool: 2 + Math.random() * 12 }); }
+    }
+    function trainStopPos(o) { var q = o.P[o.stops[o.si]]; return q; }
+    function updPeople(dt, now) {
+      PEOPLE.forEach(function (p) {
+        if (p.state === 'walk') {
+          p.f += p.dir * p.sp * dt; if (p.f <= 0 || p.f >= p.road.length - 1) { p.dir *= -1; p.f = Math.max(0, Math.min(p.road.length - 1.001, p.f)); }
+          var i = Math.floor(p.f), u = p.f - i, a = p.road[i], b = p.road[Math.min(p.road.length - 1, i + 1)], dx = b[0] - a[0], dz = b[1] - a[1], L = Math.hypot(dx, dz) || 1;
+          var x = a[0] + dx * u - dz / L * 2.6 * p.side, z = a[1] + dz * u + dx / L * 2.6 * p.side; // 人行道：路中心線側移
+          p.g.position.copy(V(x, z, .2)); p.g.rotation.y = Math.atan2(dx * p.dir, dz * p.dir); p.ph += dt * 9 * p.sp;
+          p.g.userData.legs[0].rotation.x = Math.sin(p.ph) * .6; p.g.userData.legs[1].rotation.x = -Math.sin(p.ph) * .6; p.g.visible = true;
+          p.cool -= dt;
+          if (p.cool <= 0) { for (var k = 0; k < TR.length; k++) { var o = TR[k]; if (o.wait > 1.5) { var q = trainStopPos(o); if (Math.hypot(q[0] - x, q[1] - z) < 14) { p.state = 'ride'; p.train = o; p.rideStops = 1 + (Math.random() * 4 | 0); p.lastSi = o.si; p.seat = (Math.random() - .5) * 6; break; } } } if (p.state === 'walk') p.cool = 2; }
+        } else { // 隨列車移動
+          var o = p.train; p.g.position.copy(o.m.position).add(new T.Vector3(Math.cos(o.m.rotation.y) * p.seat, 1.3, -Math.sin(o.m.rotation.y) * p.seat)); p.g.rotation.y = o.m.rotation.y; p.g.userData.legs[0].rotation.x = p.g.userData.legs[1].rotation.x = 0;
+          if (o.si !== p.lastSi) { p.lastSi = o.si; p.rideStops--; }
+          if (p.rideStops <= 0 && o.wait > 0) { // 到站下車：走到最近的幹道人行道
+            var q2 = trainStopPos(o), best = null, bd = 40; ROADS.forEach(function (R1) { for (var j = 0; j < R1.length; j += 2) { var d = Math.hypot(R1[j][0] - q2[0], R1[j][1] - q2[1]); if (d < bd) { bd = d; best = [R1, j]; } } });
+            if (best) { p.state = 'walk'; p.road = best[0]; p.f = best[1]; p.cool = 25 + Math.random() * 30; } else p.rideStops = 1;
+          }
+        }
+      });
+    }
+    function camParam() { var c = (Q.get('cam') || '').split(',').map(Number); if (c.length >= 3 && c.every(isFinite)) { var t = window.AIVAULT_3D.project(c[0], c[1]); var d = c[2]; C.position.set(t.x + d * .35, t.y + d * .75, t.z + d); if (ctl) { ctl.target.copy(t); ctl.update(); } else C.lookAt(t); } }
     var RAIN, RAINN = MOB ? 900 : 2200;
     function weatherFx() { var g = new T.BufferGeometry(), a = new Float32Array(RAINN * 3); for (var i = 0; i < RAINN; i++) { a[i * 3] = (Math.random() - .5) * 900; a[i * 3 + 1] = Math.random() * 400; a[i * 3 + 2] = (Math.random() - .5) * 900; }
       g.setAttribute('position', new T.BufferAttribute(a, 3)); RAIN = new T.Points(g, new T.PointsMaterial({ color: 0xb8c8e0, size: 2.2, transparent: true, opacity: .7 })); RAIN.visible = false; S.add(RAIN); }
@@ -110,9 +151,9 @@
       SOCK = new T.Group(); SOCK.position.set(g.position.x + 14, g.position.y + 17.5, g.position.z); S.add(SOCK);
       var cone = new T.Mesh(new T.CylinderGeometry(1.6, .5, 9, 8, 1, true), new T.MeshStandardMaterial({ color: 0xe8453c, side: T.DoubleSide })); cone.rotation.x = Math.PI / 2; cone.position.z = 4.5; SOCK.add(cone);
       label('風車・風向魚', p[0] + 6, p[1], 12, '#123', 42); }
-    var FW = [], FWG, FWN = MOB ? 400 : 1000;
+    var FW = [], FWG, FWN = MOB ? 900 : 2400;
     function fireworks() { FWG = new T.BufferGeometry(); FWG.setAttribute('position', new T.BufferAttribute(new Float32Array(FWN * 3), 3)); FWG.setAttribute('color', new T.BufferAttribute(new Float32Array(FWN * 3), 3));
-      var pts = new T.Points(FWG, new T.PointsMaterial({ size: 2.4, vertexColors: true, transparent: true, blending: T.AdditiveBlending, depthWrite: false })); S.add(pts); }
+      var pts = new T.Points(FWG, new T.PointsMaterial({ size: 4.5, vertexColors: true, transparent: true, blending: T.AdditiveBlending, depthWrite: false })); S.add(pts); }
     function nye() { return Q.get('festival') === 'newyeareve' || (window.AIVAULT_isNewYearEve && window.AIVAULT_isNewYearEve(new Date())); }
     var t0 = performance.now(), lastB = 0, ang = 0;
     function loop(now) {
@@ -127,13 +168,15 @@
       if (SOCK) { SOCK.rotation.y = Math.atan2(-Math.sin(rad), Math.cos(rad)); SOCK.rotation.x = (1 - Math.min(1, w[1] / 10)) * 1.2 + Math.sin(now / 300) * .05 * (RM ? 0 : 1); }
       TR.forEach(function (o) { if (!off) { if (o.wait > 0) o.wait -= dt; else { var ni = o.si + o.dir; if (ni < 0 || ni >= o.stops.length) { o.dir *= -1; ni = o.si + o.dir; } var tg = o.stops[ni]; o.f += o.dir * dt * (RM ? 1.5 : 5); if ((o.dir > 0 && o.f >= tg) || (o.dir < 0 && o.f <= tg)) { o.f = tg; o.si = ni; o.wait = 6; } } }
         var i0 = Math.max(0, Math.min(o.P.length - 2, Math.floor(o.f))), u = o.f - i0, a = o.P[i0], b = o.P[i0 + 1]; o.m.position.copy(V(a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, 3.5)); o.m.rotation.y = -Math.atan2(b[1] - a[1], b[0] - a[0]); o.m.visible = true; });
-      if (nye() && L101 && now - lastB > 380) { lastB = now; var tier = Math.random() * 9 | 0, c = new T.Color().setHSL(Math.random(), 1, .6), n = 40; for (var j = 0; j < n; j++) { var th = Math.random() * 6.283, ph = Math.random() * 3.14, v = 18 + Math.random() * 14; FW.push({ p: L101.position.clone().add(new T.Vector3(0, 10 + tier * 6.5, 0)), v: new T.Vector3(Math.sin(ph) * Math.cos(th) * v, Math.cos(ph) * v + 8, Math.sin(ph) * Math.sin(th) * v), l: 1, c: c }); } if (FW.length > FWN) FW.splice(0, FW.length - FWN); }
-      if (FWG) { var pa = FWG.attributes.position.array, ca = FWG.attributes.color.array; for (i = 0; i < FWN; i++) { var f = FW[i]; if (f) { f.v.y -= 9.8 * dt; f.p.addScaledVector(f.v, dt); f.l -= dt * .7; pa[i * 3] = f.p.x; pa[i * 3 + 1] = f.p.y; pa[i * 3 + 2] = f.p.z; ca[i * 3] = f.c.r * f.l; ca[i * 3 + 1] = f.c.g * f.l; ca[i * 3 + 2] = f.c.b * f.l; } else { pa[i * 3 + 1] = -999; } } FW = FW.filter(function (f) { return f.l > 0; }); FWG.attributes.position.needsUpdate = true; FWG.attributes.color.needsUpdate = true; }
-      if (ctl) ctl.update(); R.render(S, C);
+      if (nye() && L101 && now - lastB > 220) { lastB = now; var tier = Math.random() * 9 | 0, c = new T.Color().setHSL(Math.random(), 1, .62), n = MOB ? 60 : 120; for (var j = 0; j < n; j++) { var th = Math.random() * 6.283, ph = Math.random() * 3.14, v = 22 + Math.random() * 18; FW.push({ p: L101.position.clone().add(new T.Vector3(0, (10 + tier * 6.5) * 1.6, 0)), v: new T.Vector3(Math.sin(ph) * Math.cos(th) * v, Math.cos(ph) * v + 8, Math.sin(ph) * Math.sin(th) * v), l: 1, c: c }); } if (FW.length > FWN) FW.splice(0, FW.length - FWN); }
+      if (FWG) { var pa = FWG.attributes.position.array, ca = FWG.attributes.color.array; for (i = 0; i < FWN; i++) { var f = FW[i]; if (f) { f.v.y -= 9.8 * dt; f.p.addScaledVector(f.v, dt); f.l -= dt * .45; pa[i * 3] = f.p.x; pa[i * 3 + 1] = f.p.y; pa[i * 3 + 2] = f.p.z; var bl = Math.min(1, f.l * 1.6); ca[i * 3] = f.c.r * bl; ca[i * 3 + 1] = f.c.g * bl; ca[i * 3 + 2] = f.c.b * bl; } else { pa[i * 3 + 1] = -999; } } FW = FW.filter(function (f) { return f.l > 0; }); FWG.attributes.position.needsUpdate = true; FWG.attributes.color.needsUpdate = true; }
+      updPeople(dt, now);
+      if (Q.get('follow') === 'rider') { var rd = PEOPLE.filter(function (p) { return p.state === 'ride'; })[0]; if (rd) { var tp3 = rd.g.position; C.position.set(tp3.x + 22, tp3.y + 26, tp3.z + 34); C.lookAt(tp3); if (ctl) ctl.target.copy(tp3); } } // 預覽：鏡頭跟隨搭車行人 SHIRT.forEach(function (m) { m.emissive.setHex(N ? 0x222222 : 0); });
+      if (ctl && Q.get('follow') !== 'rider') ctl.update(); R.render(S, C);
     }
-    window.AIVAULT_3D = { scene: S, THREE: T, project: function (lat, lon) { var p = P(lat, lon); return V(p[0], p[1], 0); },
+    window.AIVAULT_3D = { stats: function () { return { people: PEOPLE.length, riding: PEOPLE.filter(function (p) { return p.state === 'ride'; }).length, trains: TR.length }; }, scene: S, THREE: T, project: function (lat, lon) { var p = P(lat, lon); return V(p[0], p[1], 0); },
       addSprite: function (image, path) { /* 給協作池原人物：以原圖做 billboard，沿 path（地圖單位）行走；不改外觀 */ var s = new T.Sprite(new T.SpriteMaterial({ map: new T.CanvasTexture(image), transparent: true })); s.scale.set(8, 12, 1); S.add(s); return s; } };
     var sim = document.createElement('div'); sim.style.cssText = 'position:fixed;left:8px;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);z-index:2147483004;font:12px system-ui,"PingFang TC",sans-serif;color:#fff;background:rgba(10,14,28,.7);padding:4px 9px;border-radius:10px;pointer-events:none';
-    sim.textContent = '🚇 捷運行駛為「模擬」｜3D：拖曳旋轉、雙指縮放'; document.body.appendChild(sim);
+    sim.textContent = '🚇 捷運與行人皆為「模擬」（通用行人，非協作池角色）｜3D：拖曳旋轉、雙指縮放'; document.body.appendChild(sim);
   }
 })();
