@@ -73,7 +73,7 @@
       var dirSign = Math.sin((S.wind_dir_deg + 180) * Math.PI / 180) >= 0 ? 1 : -1; // CWA 風向：風「來自」的方位，正北 0°、順時針；場景面向正北，右＝東
       cx.clearRect(0, 0, W, H);
       var n = target(), step = Math.max(1, Math.ceil(MAXP * dt / 2)); /* 約 2 秒平滑增減 */ for (var a = 0; a < step && P.length < n; a++) P.push(drop(W, H, false)); if (P.length > n) P.length = Math.max(n, P.length - step);
-      cx.strokeStyle = S.is_night ? 'rgba(190,205,235,.55)' : 'rgba(170,190,215,.6)'; cx.lineWidth = (c === 'heavy_rain' || typh ? 1.6 : 1.1) * dpr; cx.beginPath();
+      cx.strokeStyle = S.is_night ? 'rgba(190,205,235,.6)' : (window.AIVAULT_MAP_MODE ? 'rgba(70,95,130,.6)' : 'rgba(170,190,215,.6)'); cx.lineWidth = (c === 'heavy_rain' || typh ? 1.6 : 1.1) * dpr; cx.beginPath();
       for (var i = 0; i < P.length; i++) { var p = P[i], vx = slant * dirSign * p.v, L = p.l;
         cx.moveTo(p.x, p.y); cx.lineTo(p.x - vx * L / p.v, p.y - L);
         p.x += vx * dt * 60; p.y += p.v * dt * 60; if (p.y > H || p.x < -50 || p.x > W + 50) P[i] = drop(W, H, false); }
@@ -128,7 +128,7 @@
       var ac = window.AbortController ? new AbortController() : null; if (ac) setTimeout(function () { ac.abort(); }, 8000);
       fetch(API, { cache: 'no-store', signal: ac && ac.signal }).then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (j) {
         if (!j || typeof j.condition !== 'string') throw 0;
-        S = { condition: j.condition, is_night: !!j.is_night, wind_dir_deg: +j.wind_dir_deg || 0, wind_speed_ms: +j.wind_speed_ms || 0, temp_c: j.temp_c, obs_time: j.obs_time, typhoon_name: j.typhoon_name, offline: false }; apply();
+        S = { condition: j.condition, is_night: !!j.is_night, wind_dir_deg: +j.wind_dir_deg || 0, wind_speed_ms: +j.wind_speed_ms || 0, temp_c: j.temp_c, pop: j.pop, obs_time: j.obs_time, typhoon_name: j.typhoon_name, offline: false }; apply();
       }).catch(function () { S = { condition: 'clear', is_night: localNight(), wind_dir_deg: 225, wind_speed_ms: 2, offline: true }; apply(); });
     }
     requestAnimationFrame(frame);
