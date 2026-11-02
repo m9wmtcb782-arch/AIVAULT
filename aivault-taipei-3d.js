@@ -1,7 +1,7 @@
 /* AIVAULT 同步協作池・臺北 3D 地圖場景 v1（Three.js r160，MIT，jsDelivr CDN；全部程式建模，無付費/版權模型）
    地形：aivault-taipei-height.png（AWS Terrain Tiles DEM，高度×1.6 誇張）；區界、河流、道路（高架有高度）、捷運（模擬行駛）、
    8 個低多邊形地標（101、中正紀念堂、圓山飯店、市政府、總統府、北門、南門、小南門）、日夜光影、路燈點光源、雨/颱風粒子、風車、風向魚、101 跨年煙火。
-   iPhone：DPR≤1.5、無陰影、粒子上限、路燈點光源上限 6；無 WebGL → 退回 2D（aivault-taipei-map.js）。啟用 ?map=3d。
+   iPhone：DPR≤1.5、無陰影、粒子上限、路燈點光源上限 6；無 WebGL → 顯示提示，不載入 2D。啟用 ?map=3d。
    協作池原有人物：本檔提供 window.AIVAULT_3D.addSprite(img, path) billboard 介面，未更動人物外觀；尚未接上私有頁人物資料。 */
 (function () {
   var D = window.AIVAULT_TAIPEI_MAP; if (!D || window.__aivault3d) return; window.__aivault3d = 1;
@@ -9,8 +9,13 @@
   var MOB = /iPhone|iPad|Android/i.test(navigator.userAgent) || Math.min(innerWidth, innerHeight) < 500;
   var base = (document.currentScript && document.currentScript.src || '').replace(/[^\/]*$/, '');
   function hasGL() { try { var c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch (e) { return false; } }
-  function fallback2D() { var s = document.createElement('script'); s.src = base + 'aivault-taipei-map.js?v=m1'; document.head.appendChild(s); }
-  if (!hasGL()) return fallback2D();
+  function noGLMessage() {
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;inset:0;z-index:2147482900;background:#1a2332;color:#eef;display:flex;align-items:center;justify-content:center;font:16px system-ui;text-align:center;padding:24px';
+    d.innerHTML = '此裝置不支援 WebGL<br>無法顯示 3D 地圖<br>（已移除 2D 平面圖）';
+    document.body.appendChild(d);
+  }
+  if (!hasGL()) return noGLMessage();
   window.AIVAULT_MAP_MODE = '3d';
   var hide = document.createElement('style'); hide.textContent = '#cpw-lamps,#cpw-turb,#cpw-sock,#cpw-dark,#cpw-cloud{display:none!important}'; // 3D 場景內已有路燈點光源、風車、風向魚、日夜
   (document.head || document.documentElement).appendChild(hide);
@@ -19,12 +24,12 @@
   function weather() { var r = document.getElementById('cpw-root'); return r ? (r.className.match(/clear|cloudy|heavy_rain|rain|typhoon/) || ['clear'])[0] : 'clear'; }
   function wind() { var w = window.AIVAULT_WEATHER_STATE; return w ? [w.wind_dir_deg == null ? null : w.wind_dir_deg, w.wind_speed_ms == null ? null : w.wind_speed_ms] : [225, 2]; } // null＝無資料
   var BGU = null; Promise.all([import('https://cdn.jsdelivr.net/npm/three@0.160.0/+esm'), import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js/+esm')
-    .catch(function () { return null; }), import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/BufferGeometryUtils.js/+esm').catch(function () { return null; })]).then(function (m) { BGU = m[2]; start(m[0], m[1] && m[1].OrbitControls); }).catch(fallback2D);
+    .catch(function () { return null; }), import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/BufferGeometryUtils.js/+esm').catch(function () { return null; })]).then(function (m) { BGU = m[2]; start(m[0], m[1] && m[1].OrbitControls); }).catch(noGLMessage);
   function start(T, Orbit) {
     var W0 = D.w, H0 = D.h, EX = 1.6, MPU = 22.3; // 1 地圖單位 ≈ 22.3 m
     var root = document.createElement('div'); root.id = 'cp3-root'; root.style.cssText = 'position:fixed;inset:0;z-index:2147482900;background:#9cc6dd';
     document.body.insertBefore(root, document.body.firstChild);
-    var R = new T.WebGLRenderer({ antialias: !MOB, powerPreference: 'low-power' }); var TIERS = [2, 1.5, 1, .75, .5], LOW = Q.get('res') === 'low', ti = LOW ? 4 : TIERS.indexOf(MOB ? 1.5 : 2); if (ti < 0) ti = 1; while (TIERS[ti] > (devicePixelRatio || 1) && ti < 2) ti++;
+    var R = new T.WebGLRenderer({ antialias: !MOB, powerPreference: 'low-power' }); var TIERS = [2, 1.5, 1, .75, .5], LOW = Q.get('res') === 'low' || MOB, ti = LOW ? 4 : TIERS.indexOf(MOB ? 1.5 : 2); if (ti < 0) ti = 1; while (TIERS[ti] > (devicePixelRatio || 1) && ti < 2) ti++;
     R.setPixelRatio(TIERS[ti]); if (LOW || Q.get('pixel') === '1') R.domElement.style.imageRendering = 'pixelated'; /* 低解析＋nearest 放大（像素風） */ R.setSize(innerWidth, innerHeight); root.appendChild(R.domElement);
     var S = new T.Scene(); S.fog = new T.Fog(0x9cc6dd, 900, 2600);
     var C = new T.PerspectiveCamera(45, innerWidth / innerHeight, 1, 6000); C.position.set(110, 230, 560);
