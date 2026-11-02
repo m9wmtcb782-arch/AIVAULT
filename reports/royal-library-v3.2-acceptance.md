@@ -60,3 +60,13 @@ HTML 含樣式、圖書館原有程式與嵌入的原生數字人衍生頁；無
 遮罩是固定輪廓，尚未逐段驗證所有大動作邊緣；不能宣稱為逐影格精密去背。
 提交 main: 8ac3bb79e270f38c8d13a94f70d29b336c733526。
 新版原位合成初測：idle readyState=4、paused=false；border=0、shadow=none。初測發現 iframe 白底，已加外層同座標輪廓遮罩，待部署複驗。
+
+## 原位版複驗結果
+
+部署提交：cbfbba9635808e3ffaac4327a78f931d1ab92b05（GitHub Pages 成功）。
+- PASS：人物外層 boxShadow=none；影片與 iframe 均使用同座標輪廓遮罩，實際截圖確認白底矩形已消失。
+- PASS：idle.mp4 readyState=4、paused=false、currentTime=4.129851。
+- PASS：點選開心，happy.mp4 readyState=4、paused=false、currentTime=0.31859。
+- PASS：點選思考，think.mp4 readyState=4、paused=false、currentTime=0.272013。
+- NOT TESTED：所有動作全時段輪廓、大幅動作邊緣、iPhone 真機、真人語音、嘴型同步、PDF 匯入。
+- 證據：royal-inline-final.jpg 為實際頁面截圖，非合成預覽圖。
