@@ -1,7 +1,7 @@
 /* AIVAULT 同步協作池・臺北 3D 地圖場景 v1（Three.js r160，MIT，jsDelivr CDN；全部程式建模，無付費/版權模型）
    地形：aivault-taipei-height.png（AWS Terrain Tiles DEM，高度×1.6 誇張）；區界、河流、道路（高架有高度）、捷運（模擬行駛）、
    8 個低多邊形地標（101、中正紀念堂、圓山飯店、市政府、總統府、北門、南門、小南門）、日夜光影、路燈點光源、雨/颱風粒子、風車、風向魚、101 跨年煙火。
-   iPhone：DPR≤1.5、無陰影、粒子上限、路燈點光源上限 6；無 WebGL 時顯示提示（不再退回 2D）。啟用 ?map=3d。舊裝置自動低畫質 3D。
+   iPhone：DPR≤1.5、無陰影、粒子上限、路燈點光源上限 6；無 WebGL → 顯示提示，不載入 2D。啟用 ?map=3d。
    協作池原有人物：本檔提供 window.AIVAULT_3D.addSprite(img, path) billboard 介面，未更動人物外觀；尚未接上私有頁人物資料。 */
 (function () {
   var D = window.AIVAULT_TAIPEI_MAP; if (!D || window.__aivault3d) return; window.__aivault3d = 1;
@@ -145,29 +145,111 @@
     }
     // —— 微縮模型風：一般樓房（窗戶貼圖、夜間亮窗）、山林、周圍水面＋雲海、熱氣球、tilt-shift ——
     var BLDM = null, BAL = [], SIGNM = null, XB = window.AIVAULT_XINYI_BLD, XBB = [1e9, 1e9, -1e9, -1e9], XM = null, CARS = [];
-    if (XB) XB.forEach(function (b) { for (var i = 1; i < b.length; i += 2) { XBB[0] = Math.min(XBB[0], b[i]); XBB[1] = Math.min(XBB[1], b[i + 1]); XBB[2] = Math.max(XBB[2], b[i]); XBB[3] = Math.max(XBB[3], b[i + 1]); } });
-    function mini() {
-      BLDM = new T.MeshStandardMaterial({ color: 0xd8d2c8, roughness: .85, map: winTex() });
-      SIGNM = new T.MeshStandardMaterial({ color: 0xfff4d0, emissive: 0xfff4d0, emissiveIntensity: .3 });
-      var n = MOB ? 80 : 220;
-      for (var i = 0; i < n; i++) { var u = Math.random() * W0, v = Math.random() * H0; if (inWater(u, v) || nearRoad(u, v) < 3 || inXinyi(u, v)) continue; bld(u, v); }
-      if (XB) { XM = new T.MeshStandardMaterial({ color: 0xc9c3b9, roughness: .8, map: winTex() }); XB.forEach(function (b) { var pts = []; for (var i = 1; i < b.length; i += 2) pts.push([b[i], b[i + 1]]); xinyiBld(b[0], pts); }); }
-      forest(); sea(); balloons();
+    if (XB) XB.forEach(function (b) { for (var i = 1; i < b.length; i += 2) { XBB[0] = Math.min(XBB[0], b[i]); XBB[2] = Math.max(XBB[2], b[i]); XBB[1] = Math.min(XBB[1], b[i + 1]); XBB[3] = Math.max(XBB[3], b[i + 1]); } });
+    function xinyi() { // 信義區真實建物輪廓＋樓層擠出（data.taipei 建築執照套繪圖）
+      if (!XB || !BGU) return; var gs = [], PAL2 = [0xb5523b, 0xf3ead8, 0xc9ced3, 0x7fb3b8, 0x6fa3c7, 0x8fc1b5, 0xe8c38a, 0xd9a07a], c = new T.Color();
+      XB.forEach(function (b, k) { var pts = []; for (var i = 1; i < b.length; i += 2) pts.push(new T.Vector2(b[i] - W0 / 2, -(b[i + 1] - H0 / 2))); if (pts.length < 3) return;
+        var hgt = Math.max(1.2, b[0] * 3.3 / MPU * 2.5), g = new T.ExtrudeGeometry(new T.Shape(pts), { depth: hgt, bevelEnabled: false }); g.rotateX(-Math.PI / 2);
+        var cx0 = 0, cz0 = 0; pts.forEach(function (p) { cx0 += p.x; cz0 += -p.y; }); cx0 /= pts.length; cz0 /= pts.length; g.translate(0, hAt(cx0 + W0 / 2, cz0 + H0 / 2), 0);
+        c.setHex(PAL2[k % PAL2.length]); var n = g.attributes.position.count, ca = new Float32Array(n * 3); for (var j = 0; j < n; j++) { ca[j * 3] = c.r; ca[j * 3 + 1] = c.g; ca[j * 3 + 2] = c.b; } g.setAttribute('color', new T.BufferAttribute(ca, 3)); g.deleteAttribute('uv'); gs.push(g); });
+      var m = BGU.mergeGeometries(gs, false); if (!m) return; XM = new T.MeshStandardMaterial({ vertexColors: true, roughness: .8, emissive: 0x000000 }); S.add(new T.Mesh(m, XM));
+      label('信義區：真實建物輪廓（data.taipei）', (XBB[0] + XBB[2]) / 2, XBB[1] - 6, 12, '#123', 30); }
+    function extras() {
+      // 公園綠地
+      [[25.0300, 121.5355, 16, '大安森林公園'], [25.0400, 121.5600, 9, '國父紀念館'], [25.0230, 121.5050, 12, '青年公園'], [25.0640, 121.5390, 7, '榮星花園'], [25.0700, 121.5170, 8, '花博公園']].forEach(function (pk) { var p = P(pk[0], pk[1]), g = new T.Mesh(new T.CircleGeometry(pk[2], 18), new T.MeshStandardMaterial({ color: 0x6fbf5a })); g.rotation.x = -Math.PI / 2; g.position.copy(V(p[0], p[1], .9)); S.add(g);
+        for (var i = 0; i < 14; i++) { var a = Math.random() * 6.283, r = Math.random() * pk[2] * .85, t = new T.Mesh(new T.SphereGeometry(1.4, 6, 4), new T.MeshStandardMaterial({ color: 0x2e7d32, flatShading: true })); t.position.copy(V(p[0] + Math.cos(a) * r, p[1] + Math.sin(a) * r, 2.2)); S.add(t); } label('🌳 ' + pk[3], p[0], p[1], 11, '#1b5e20', 8); });
+      // 道路標線（幹道中央白色虛線）
+      D.roads.forEach(function (r) { var l = line(r.p, 0xffffff, r.t === 'ar' ? 1.0 : 4.2); l.material = new T.LineDashedMaterial({ color: 0xffffff, dashSize: 2, gapSize: 2 }); l.computeLineDistances(); S.add(l); });
+      // 新地標：南山廣場、陶朱隱園、信義天橋
+      var p1 = P(25.0335, 121.5660), g1 = new T.Group(); [[10, 34, 0x9fb4c4], [8, 10, 0xb8c9d6], [5, 6, 0xcfd9e0]].reduce(function (y, b) { var m = new T.Mesh(new T.BoxGeometry(b[0], b[1], b[0] * .8), new T.MeshStandardMaterial({ color: b[2], flatShading: true })); m.position.y = y + b[1] / 2; g1.add(m); return y + b[1]; }, 0); g1.position.copy(V(p1[0], p1[1], 0)); g1.scale.setScalar(1.6); S.add(g1); label('南山廣場', p1[0], p1[1], 13, '#111', 82);
+      var p2 = P(25.0377, 121.5671), g2 = new T.Group(); for (var i = 0; i < 20; i++) { var m = new T.Mesh(new T.BoxGeometry(5, 1.2, 5), new T.MeshStandardMaterial({ color: i % 2 ? 0x8fbf7a : 0xd9dde0, flatShading: true })); m.position.y = i * 1.3 + .6; m.rotation.y = i * .08; g2.add(m); } g2.position.copy(V(p2[0], p2[1], 0)); g2.scale.setScalar(1.6); S.add(g2); label('陶朱隱園', p2[0], p2[1], 13, '#111', 50);
+      ribbon([P(25.0410, 121.5650), P(25.0392, 121.5662), P(25.0365, 121.5662), P(25.0345, 121.5652)], 2.2, 0xdfe6ea, 3.5, true); ribbon([P(25.0375, 121.5637), P(25.0378, 121.5662)], 2.2, 0xdfe6ea, 3.5, true); var pb = P(25.0378, 121.5655); label('信義天橋', pb[0], pb[1], 11, '#123', 10);
+      // YouBike 站（主要捷運站旁）
+      var YB = /台北車站|臺北車站|西門|中正紀念堂|古亭|忠孝復興|大安|市政府|台北101|公館|松山機場|南京復興|東門|忠孝新生|士林|動物園/;
+      D.mrt.stations.filter(function (x) { return YB.test(x.n); }).forEach(function (x) { var g = new T.Group(); for (var i = 0; i < 6; i++) { var b = new T.Mesh(new T.BoxGeometry(.4, 1, 1.6), new T.MeshStandardMaterial({ color: 0xff9f1c })); b.position.set(i * .9 - 2.2, .5, 0); g.add(b); } var k = new T.Mesh(new T.BoxGeometry(.8, 2, .8), new T.MeshStandardMaterial({ color: 0xffd60a })); k.position.set(3.2, 1, 0); g.add(k); g.position.copy(V(x.p[0] + 4, x.p[1] + 4, 0)); g.scale.setScalar(1.3); S.add(g); });
+      // 車輛、機車（彩色，沿道路行駛）
+      var CC = [0xe63946, 0x1d70b8, 0xffffff, 0x222222, 0xffb703, 0x2a9d8f, 0xc0c0c0], NV = MOB ? 50 : 140;
+      for (var v = 0; v < NV; v++) { var R0 = ROADS[v % ROADS.length], moto = v % 3 === 0, g3 = new T.Group(), body = new T.Mesh(moto ? new T.BoxGeometry(1.4, .9, .5) : new T.BoxGeometry(2.6, 1.1, 1.4), new T.MeshStandardMaterial({ color: CC[v % CC.length] })); body.position.y = .6; g3.add(body);
+        if (!moto) { var top = new T.Mesh(new T.BoxGeometry(1.4, .6, 1.2), new T.MeshStandardMaterial({ color: 0x9fd3ff })); top.position.set(-.1, 1.4, 0); g3.add(top); } else { var rider = new T.Mesh(new T.SphereGeometry(.35, 6, 4), SKIN); rider.position.y = 1.5; g3.add(rider); }
+        S.add(g3); CARS.push({ g: g3, road: R0, f: Math.random() * (R0.length - 1), dir: Math.random() < .5 ? 1 : -1, sp: (moto ? 3 : 2.4) + Math.random() * 1.5 }); }
     }
-    function winTex() { var c = document.createElement('canvas'), x = c.getContext('2d'); c.width = 64; c.height = 128; x.fillStyle = '#d8d2c8'; x.fillRect(0, 0, 64, 128); x.fillStyle = '#4a5560'; for (var y = 8; y < 120; y += 12) for (var i = 0; i < 4; i++) x.fillRect(6 + i * 14, y, 8, 6); return new T.CanvasTexture(c); }
-    function inWater(u, v) { return D.rivers.some(function (r) { return Math.min.apply(0, r.p.map(function (p) { return Math.hypot(p[0] - u, p[1] - v); })) < 8; }); }
-    function nearRoad(u, v) { var d = 99; D.roads.forEach(function (r) { dense(r.p).forEach(function (p) { d = Math.min(d, Math.hypot(p[0] - u, p[1] - v)); }); }); return d; }
-    function inXinyi(u, v) { return u > XBB[0] - 10 && u < XBB[2] + 10 && v > XBB[1] - 10 && v < XBB[3] + 10; }
-    function bld(u, v) { var h = 4 + Math.random() * 18, w = 3 + Math.random() * 6, d = 3 + Math.random() * 6; var m = new T.Mesh(new T.BoxGeometry(w, h, d), BLDM); m.position.copy(V(u, v, 0)).add(new T.Vector3(0, h / 2, 0)); m.rotation.y = Math.random() * .4; S.add(m); }
-    function xinyiBld(h, pts) { if (pts.length < 3) return; var shape = new T.Shape(); shape.moveTo(pts[0][0] - W0 / 2, pts[0][1] - H0 / 2); for (var i = 1; i < pts.length; i++) shape.lineTo(pts[i][0] - W0 / 2, pts[i][1] - H0 / 2); shape.lineTo(pts[0][0] - W0 / 2, pts[0][1] - H0 / 2);
-      var g = new T.ExtrudeGeometry(shape, { depth: h * .8, bevelEnabled: false }); g.rotateX(-Math.PI / 2); var m = new T.Mesh(g, XM); m.position.y = hAt(pts[0][0], pts[0][1]); S.add(m); }
-    function forest() { var n = MOB ? 40 : 120; for (var i = 0; i < n; i++) { var u = Math.random() * W0, v = Math.random() * H0 * .4; if (hAt(u, v) < 2) continue; var tree = new T.Group(); var trunk = new T.Mesh(new T.CylinderGeometry(.3, .4, 2, 4), new T.MeshStandardMaterial({ color: 0x5a3a1a })); trunk.position.y = 1; tree.add(trunk); var crown = new T.Mesh(new T.ConeGeometry(1.8, 4, 6), new T.MeshStandardMaterial({ color: 0x2e5a1f })); crown.position.y = 3.5; tree.add(crown); tree.position.copy(V(u, v, 0)); S.add(tree); } }
-    function sea() { var geo = new T.PlaneGeometry(W0 * 1.5, H0 * .3); geo.rotateX(-Math.PI / 2); var m = new T.Mesh(geo, new T.MeshStandardMaterial({ color: 0x4f9fd6, transparent: true, opacity: .6 })); m.position.set(0, 0.2, H0 * .6); S.add(m); }
-    function balloons() { var n = MOB ? 2 : 5; for (var i = 0; i < n; i++) { var g = new T.Group(); var bal = new T.Mesh(new T.SphereGeometry(2, 8, 6), new T.MeshStandardMaterial({ color: Math.random() * 0xffffff })); bal.position.y = 4; g.add(bal); var basket = new T.Mesh(new T.BoxGeometry(1.2, .8, 1.2), new T.MeshStandardMaterial({ color: 0x8a6a4a })); basket.position.y = 1; g.add(basket); g.position.set((Math.random() - .5) * W0, 20 + Math.random() * 30, (Math.random() - .5) * H0); BAL.push(g); S.add(g); } }
-    function weatherFx() { /* 雨/颱風粒子在 3D 場景內實作 */ }
-    function turbine() { /* 風車 */ }
-    function fireworks() { /* 煙火 */ }
-    function camParam() { }
-    function loop(now) { if (ctl) ctl.update(); R.render(S, C); }
+    function updCars(dt) { CARS.forEach(function (c) { c.f += c.dir * c.sp * dt; if (c.f <= 0 || c.f >= c.road.length - 1) { c.dir *= -1; c.f = Math.max(0, Math.min(c.road.length - 1.001, c.f)); }
+      var i = Math.floor(c.f), u = c.f - i, a = c.road[i], b = c.road[Math.min(c.road.length - 1, i + 1)], dx = b[0] - a[0], dz = b[1] - a[1], L = Math.hypot(dx, dz) || 1, lane = .9 * c.dir;
+      c.g.position.copy(V(a[0] + dx * u + dz / L * lane, a[1] + dz * u - dx / L * lane, 1)); c.g.rotation.y = -Math.atan2(dz * c.dir, dx * c.dir); }); }
+    function inside(u, v) { for (var i = 0; i < POLY.length; i++) { var P = POLY[i], c = false; for (var a = 0, b = P.length - 1; a < P.length; b = a++) if ((P[a][1] > v) !== (P[b][1] > v) && u < (P[b][0] - P[a][0]) * (v - P[a][1]) / (P[b][1] - P[a][1]) + P[a][0]) c = !c; if (c) return true; } return false; }
+    var POLY = []; D.districts.forEach(function (d) { d.d.split('M').filter(Boolean).forEach(function (r) { POLY.push(r.replace('Z', '').split('L').map(function (s) { return s.trim().split(' ').map(Number); })); }); });
+    function winTex() { var c = document.createElement('canvas'); c.width = 32; c.height = 64; var x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 32, 64); x.fillStyle = '#556677'; for (var r = 0; r < 8; r++) for (var q = 0; q < 4; q++) x.fillRect(3 + q * 7.5, 4 + r * 7.6, 4.5, 4.6); var t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; return t; }
+    function winEm() { var c = document.createElement('canvas'); c.width = 32; c.height = 64; var x = c.getContext('2d'); x.fillStyle = '#000'; x.fillRect(0, 0, 32, 64); for (var r = 0; r < 8; r++) for (var q = 0; q < 4; q++) { x.fillStyle = Math.random() < .65 ? '#ffcf7a' : '#000'; x.fillRect(3 + q * 7.5, 4 + r * 7.6, 4.5, 4.6); } return new T.CanvasTexture(c); }
+    function mini() {
+      var NB = MOB ? 700 : 2200, NT = MOB ? 900 : 3000, dm = new T.Object3D(), col = new T.Color();
+      BLDM = new T.MeshStandardMaterial({ map: winTex(), emissiveMap: winEm(), emissive: 0x000000, roughness: .85 });
+      var bi = new T.InstancedMesh(new T.BoxGeometry(1, 1, 1), BLDM, NB), n = 0, tries = 0, PAL = [0xb5523b, 0xc8674a, 0xf3ead8, 0xe9dcc4, 0xc9ced3, 0xaeb6bd, 0x7fb3b8, 0x6fa3c7, 0x8fc1b5, 0xe8c38a, 0xd9a07a, 0xf0d9b5]; // 磚紅、米白、淺灰、玻璃藍綠…
+      var roofs = new T.InstancedMesh(new T.BoxGeometry(1, 1, 1), new T.MeshStandardMaterial({ color: 0xffffff, roughness: .9 }), NB), signs = new T.InstancedMesh(new T.PlaneGeometry(1, 1), new T.MeshStandardMaterial({ color: 0xffffff, emissive: 0x000000, side: T.DoubleSide }), NB), ns = 0, RP = [0x6b4f3a, 0x3d5a6c, 0x8a3b2f, 0x555b61, 0x4f6b3a], SP = [0xe63946, 0xffb703, 0x2a9d8f, 0x1d70b8, 0xf28482, 0x06d6a0];
+      SIGNM = signs.material;
+      while (n < NB && tries++ < NB * 30) { var u = 150 + Math.random() * 650, v = 560 + Math.random() * 560; if (!inside(u, v) || hAt(u, v) > 3.5) continue; if (XB && u > XBB[0] && u < XBB[2] && v > XBB[1] && v < XBB[3]) continue;
+        var nearR = D.rivers.some(function (r) { return r.p.some(function (q) { return Math.hypot(q[0] - u, q[1] - v) < 16; }); }); if (nearR) continue;
+        var dc = Math.hypot(u - 470, v - 900), hgt = 2 + Math.random() * (dc < 120 ? 14 : 6); var w = 3 + Math.random() * 4, d = 3 + Math.random() * 4;
+        dm.position.copy(V(u, v, hgt / 2)); dm.scale.set(w, hgt, d); dm.rotation.y = 0; dm.updateMatrix(); bi.setMatrixAt(n, dm.matrix); bi.setColorAt(n, col.setHex(PAL[(Math.random() * PAL.length) | 0]));
+        dm.position.copy(V(u, v, hgt + .25)); dm.scale.set(w * 1.06, .5, d * 1.06); dm.updateMatrix(); roofs.setMatrixAt(n, dm.matrix); roofs.setColorAt(n, col.setHex(RP[n % RP.length]));
+        if (Math.random() < .22) { dm.position.copy(V(u, v + d / 2 + .06, Math.min(hgt * .45, 3))); dm.scale.set(w * .7, 1.1, 1); dm.updateMatrix(); signs.setMatrixAt(ns, dm.matrix); signs.setColorAt(ns, col.setHex(SP[ns % SP.length])); ns++; }
+        n++; }
+      bi.count = n; roofs.count = n; signs.count = ns; S.add(bi); S.add(roofs); S.add(signs); xinyi(); extras();
+      var tg = new T.ConeGeometry(1.6, 4.5, 5); tg.translate(0, 2.25, 0); var ti2 = new T.InstancedMesh(tg, new T.MeshStandardMaterial({ color: 0x2f6b2a, flatShading: true }), NT); n = 0; tries = 0;
+      while (n < NT && tries++ < NT * 20) { var u2 = Math.random() * W0, v2 = Math.random() * H0, h2 = hAt(u2, v2); if (h2 < 4 || !inside(u2, v2) && Math.random() < .7) continue; var s2 = .8 + Math.random() * 1.2; dm.position.copy(V(u2, v2, 0)); dm.scale.set(s2, s2 * (1 + Math.random() * .5), s2); dm.updateMatrix(); ti2.setMatrixAt(n, dm.matrix); ti2.setColorAt(n, col.setHSL(.27 + Math.random() * .08, .45, .22 + Math.random() * .12)); n++; }
+      ti2.count = n; S.add(ti2);
+      var water = new T.Mesh(new T.PlaneGeometry(6000, 6000), new T.MeshStandardMaterial({ color: 0x5b9fc7, roughness: .3, metalness: .1 })); water.rotation.x = -Math.PI / 2; water.position.y = -2; S.add(water);
+      var cc = document.createElement('canvas'); cc.width = cc.height = 64; var x = cc.getContext('2d'), g = x.createRadialGradient(32, 32, 2, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.6, 'rgba(255,255,255,.6)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+      var cm = new T.SpriteMaterial({ map: new T.CanvasTexture(cc), transparent: true, depthWrite: false, opacity: .95 }), NC = MOB ? 50 : 140;
+      for (var i = 0; i < NC; i++) { var a = Math.random() * 6.283, r = 760 + Math.random() * 380, sp = new T.Sprite(cm); sp.position.set(Math.cos(a) * r * .85, 10 + Math.random() * 40, Math.sin(a) * r); var sc = 120 + Math.random() * 180; sp.scale.set(sc, sc * .55, 1); S.add(sp); }
+      [[25.06, 121.50, 0xe63946], [25.02, 121.58, 0xffb703], [25.10, 121.56, 0x2a9d8f], [25.00, 121.53, 0x8e44ad]].forEach(function (b, i) { var g2 = new T.Group(), env = new T.Mesh(new T.SphereGeometry(5, 10, 8), new T.MeshStandardMaterial({ color: b[2], flatShading: true })); env.scale.y = 1.2; env.position.y = 9; g2.add(env); var bk = new T.Mesh(new T.BoxGeometry(2, 1.6, 2), new T.MeshStandardMaterial({ color: 0x8b5a2b })); bk.position.y = 1; g2.add(bk);
+        var p = P(b[0], b[1]); g2.position.copy(V(p[0], p[1], 70 + i * 12)); g2.userData.y0 = g2.position.y; g2.userData.ph = i * 1.7; S.add(g2); BAL.push(g2); });
+      var ts = document.createElement('div'); ts.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:2147482901;backdrop-filter:blur(' + (MOB ? 2 : 3) + 'px);-webkit-backdrop-filter:blur(' + (MOB ? 2 : 3) + 'px);-webkit-mask:linear-gradient(#000 0,transparent 32%,transparent 72%,#000 100%);mask:linear-gradient(#000 0,transparent 32%,transparent 72%,#000 100%)';
+      if (Q.get('tiltshift') !== '0' && ti < 4) document.body.appendChild(ts); // tilt-shift 景深（低解析模式自動關）
+    }
+    function camParam() { var c = (Q.get('cam') || '').split(',').map(Number); if (c.length >= 3 && c.every(isFinite)) { var t = window.AIVAULT_3D.project(c[0], c[1]); var d = c[2]; C.position.set(t.x + d * .35, t.y + d * .75, t.z + d); if (ctl) { ctl.target.copy(t); ctl.update(); } else C.lookAt(t); } }
+    var sim;
+    var RAIN, RAINN = MOB ? 900 : 2200;
+    function weatherFx() { var g = new T.BufferGeometry(), a = new Float32Array(RAINN * 3); for (var i = 0; i < RAINN; i++) { a[i * 3] = (Math.random() - .5) * 900; a[i * 3 + 1] = Math.random() * 400; a[i * 3 + 2] = (Math.random() - .5) * 900; }
+      g.setAttribute('position', new T.BufferAttribute(a, 3)); RAIN = new T.Points(g, new T.PointsMaterial({ color: 0xb8c8e0, size: 2.2, transparent: true, opacity: .7 })); RAIN.visible = false; S.add(RAIN); }
+    var ROT, NAC, SOCK;
+    function turbine() { var p = P(25.12, 121.615), g = new T.Group(); g.position.copy(V(p[0], p[1], 0)); // 內湖山區風車（場景裝飾）
+      var tw = new T.Mesh(new T.CylinderGeometry(.6, 1, 34, 6), new T.MeshStandardMaterial({ color: 0xeef1f4 })); tw.position.y = 17; g.add(tw);
+      NAC = new T.Group(); NAC.position.y = 34; g.add(NAC); var nb = new T.Mesh(new T.BoxGeometry(2, 2, 5), new T.MeshStandardMaterial({ color: 0xffffff })); NAC.add(nb);
+      ROT = new T.Group(); ROT.position.z = 3; NAC.add(ROT); for (var i = 0; i < 3; i++) { var b = new T.Mesh(new T.BoxGeometry(1.2, 18, .3), new T.MeshStandardMaterial({ color: 0xf5f7f9 })); b.position.y = 9; var h = new T.Group(); h.rotation.z = i * 2.094; h.add(b); ROT.add(h); }
+      S.add(g);
+      var pole = new T.Mesh(new T.CylinderGeometry(.3, .3, 18, 5), PIERM); pole.position.set(g.position.x + 14, g.position.y + 9, g.position.z); S.add(pole);
+      SOCK = new T.Group(); SOCK.position.set(g.position.x + 14, g.position.y + 17.5, g.position.z); S.add(SOCK);
+      var cone = new T.Mesh(new T.CylinderGeometry(1.6, .5, 9, 8, 1, true), new T.MeshStandardMaterial({ color: 0xe8453c, side: T.DoubleSide })); cone.rotation.x = Math.PI / 2; cone.position.z = 4.5; SOCK.add(cone);
+      label('風車・風向魚', p[0] + 6, p[1], 12, '#123', 42); }
+    var FW = [], FWG, FWN = MOB ? 900 : 2400;
+    function fireworks() { FWG = new T.BufferGeometry(); FWG.setAttribute('position', new T.BufferAttribute(new Float32Array(FWN * 3), 3)); FWG.setAttribute('color', new T.BufferAttribute(new Float32Array(FWN * 3), 3));
+      var pts = new T.Points(FWG, new T.PointsMaterial({ size: 4.5, vertexColors: true, transparent: true, blending: T.AdditiveBlending, depthWrite: false })); S.add(pts); }
+    function nye() { return Q.get('festival') === 'newyeareve' || (window.AIVAULT_isNewYearEve && window.AIVAULT_isNewYearEve(new Date())); }
+    var t0 = performance.now(), lastB = 0, ang = 0, fN = 0, fT = performance.now(), FPS = 0;
+    function perf(now) { fN++; if (now - fT < 2000) return; FPS = fN * 1000 / (now - fT); fN = 0; fT = now; // 依 FPS 自動升降解析度
+      if (Q.get('autores') !== '0') { if (FPS < 28 && ti < TIERS.length - 1) { ti++; R.setPixelRatio(TIERS[ti]); } else if (FPS > 56 && ti > (LOW ? 4 : MOB ? 1 : 0)) { ti--; R.setPixelRatio(TIERS[ti]); } }
+      if (sim) sim.textContent = '🚇 捷運與行人皆為「模擬」（通用行人，非協作池角色）｜' + FPS.toFixed(0) + ' FPS @ DPR ' + TIERS[ti] + (LOW ? '（低解析）' : '') + '｜拖曳旋轉、雙指縮放'; }
+    function loop(now) {
+      perf(now); var dt = Math.min(.1, (now - t0) / 1000); t0 = now; var N = night(), wx = weather(), w = wind(), h = tp().hour, off = h >= 1 && h < 6 && !Q.get('mrt');
+      sun.intensity = N ? .12 : (wx === 'clear' ? 1.6 : .8); amb.intensity = N ? .28 : .9; var sky = N ? 0x0b1430 : (wx === 'clear' ? 0x9cc6dd : 0x8d99a6); S.background = new T.Color(sky); S.fog.color.setHex(sky);
+      LAMPS.forEach(function (l) { l.intensity = N ? 900 : 0; }); LAMPM.emissive.setHex(N ? 0xffd38a : 0); WINM.emissive.setHex(N ? 0xffc860 : 0);
+      for (var k in CARM) CARM[k].emissive.setHex(N ? 0x332200 : 0);
+      var wet = /rain|typhoon/.test(wx); RAIN.visible = wet; if (wet) { var a = RAIN.geometry.attributes.position.array, sp = wx === 'rain' ? 140 : 260, sx = wx === 'typhoon' ? 120 : 10; for (var i = 0; i < RAINN; i++) { a[i * 3 + 1] -= sp * dt; a[i * 3] += sx * dt; if (a[i * 3 + 1] < 0) { a[i * 3 + 1] = 400; a[i * 3] = (Math.random() - .5) * 900; } } RAIN.geometry.attributes.position.needsUpdate = true; RAIN.position.set(C.position.x * .5, 0, C.position.z * .5 - 200); }
+      S.fog.near = wet ? 300 : 900;
+      // 風：CWA 風向（來向，正北 0°）；場景 -Z 為北。風車迎風、風向魚指向下風
+      var noW = w[1] == null, rad = (w[0] == null ? 0 : w[0]) * Math.PI / 180; if (NAC) { if (w[0] != null) NAC.rotation.y = Math.atan2(Math.sin(rad), -Math.cos(rad)); if (!noW) ang += Math.min(w[1], 25) * dt * .5; ROT.rotation.z = -ang; } // 無風速資料 → 停轉
+      if (SOCK) { if (w[0] != null) SOCK.rotation.y = Math.atan2(-Math.sin(rad), Math.cos(rad)); SOCK.rotation.x = noW ? 1.2 : (1 - Math.min(1, w[1] / 10)) * 1.2 + Math.sin(now / 300) * .05 * (RM ? 0 : 1); } // 無資料 → 下垂不擺
+      TR.forEach(function (o) { if (!off) { if (o.wait > 0) o.wait -= dt; else { var ni = o.si + o.dir; if (ni < 0 || ni >= o.stops.length) { o.dir *= -1; ni = o.si + o.dir; } var tg = o.stops[ni]; o.f += o.dir * dt * (RM ? 1.5 : 5); if ((o.dir > 0 && o.f >= tg) || (o.dir < 0 && o.f <= tg)) { o.f = tg; o.si = ni; o.wait = 6; } } }
+        var i0 = Math.max(0, Math.min(o.P.length - 2, Math.floor(o.f))), u = o.f - i0, a = o.P[i0], b = o.P[i0 + 1]; o.m.position.copy(V(a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, 3.5)); o.m.rotation.y = -Math.atan2(b[1] - a[1], b[0] - a[0]); o.m.visible = true; });
+      if (nye() && L101 && now - lastB > 220) { lastB = now; var tier = Math.random() * 9 | 0, c = new T.Color().setHSL(Math.random(), 1, .62), n = MOB ? 60 : 120; for (var j = 0; j < n; j++) { var th = Math.random() * 6.283, ph = Math.random() * 3.14, v = 22 + Math.random() * 18; FW.push({ p: L101.position.clone().add(new T.Vector3(0, (10 + tier * 6.5) * 1.6, 0)), v: new T.Vector3(Math.sin(ph) * Math.cos(th) * v, Math.cos(ph) * v + 8, Math.sin(ph) * Math.sin(th) * v), l: 1, c: c }); } if (FW.length > FWN) FW.splice(0, FW.length - FWN); }
+      if (FWG) { var pa = FWG.attributes.position.array, ca = FWG.attributes.color.array; for (i = 0; i < FWN; i++) { var f = FW[i]; if (f) { f.v.y -= 9.8 * dt; f.p.addScaledVector(f.v, dt); f.l -= dt * .45; pa[i * 3] = f.p.x; pa[i * 3 + 1] = f.p.y; pa[i * 3 + 2] = f.p.z; var bl = Math.min(1, f.l * 1.6); ca[i * 3] = f.c.r * bl; ca[i * 3 + 1] = f.c.g * bl; ca[i * 3 + 2] = f.c.b * bl; } else { pa[i * 3 + 1] = -999; } } FW = FW.filter(function (f) { return f.l > 0; }); FWG.attributes.position.needsUpdate = true; FWG.attributes.color.needsUpdate = true; }
+      updPeople(dt, now); if (BLDM) BLDM.emissive.setHex(N ? 0xffffff : 0x000000); if (SIGNM) SIGNM.emissive.setHex(N ? 0x553322 : 0); if (XM) XM.emissive.setHex(N ? 0x2a1e10 : 0); updCars(dt); BAL.forEach(function (b) { b.position.y = b.userData.y0 + Math.sin(now / 1500 + b.userData.ph) * 4; b.position.x += Math.sin(now / 9000 + b.userData.ph) * .03; });
+      if (Q.get('follow') === 'rider') { var rd = PEOPLE.filter(function (p) { return p.state === 'ride'; })[0]; if (rd) { var tp3 = rd.g.position; C.position.set(tp3.x + 22, tp3.y + 26, tp3.z + 34); C.lookAt(tp3); if (ctl) ctl.target.copy(tp3); } } // 預覽：鏡頭跟隨搭車行人 SHIRT.forEach(function (m) { m.emissive.setHex(N ? 0x222222 : 0); });
+      if (ctl && Q.get('follow') !== 'rider') ctl.update(); R.render(S, C);
+    }
+    window.AIVAULT_3D = { stats: function () { return { fps: Math.round(FPS), dpr: TIERS[ti], people: PEOPLE.length, riding: PEOPLE.filter(function (p) { return p.state === 'ride'; }).length, trains: TR.length }; }, scene: S, THREE: T, project: function (lat, lon) { var p = P(lat, lon); return V(p[0], p[1], 0); },
+      addSprite: function (image, path) { /* 給協作池原人物：以原圖做 billboard，沿 path（地圖單位）行走；不改外觀 */ var s = new T.Sprite(new T.SpriteMaterial({ map: new T.CanvasTexture(image), transparent: true })); s.scale.set(8, 12, 1); S.add(s); return s; } };
+    sim = document.createElement('div'); sim.style.cssText = 'position:fixed;left:8px;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);z-index:2147483004;font:12px system-ui,"PingFang TC",sans-serif;color:#fff;background:rgba(10,14,28,.7);padding:4px 9px;border-radius:10px;pointer-events:none';
+    sim.textContent = '🚇 捷運與行人皆為「模擬」（通用行人，非協作池角色）｜3D：拖曳旋轉、雙指縮放'; document.body.appendChild(sim);
   }
 })();
