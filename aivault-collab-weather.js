@@ -53,15 +53,7 @@
       '@media (prefers-reduced-motion:reduce){html.cpw-shake body,html.cpw-shake img,html.cpw-shake svg:not(.cpw-own){animation:none}.typhoon #cpw-swirl{animation-duration:40s}}';
     document.head.appendChild(css);
     var R = document.createElement('div'); R.id = 'cpw-root'; R.setAttribute('aria-hidden', 'true');
-    var lamps = '', N = MOBILE ? 4 : 6;
-    for (var i = 0; i < N; i++) lamps += '<div class="cpw-lamp" style="left:' + (14 + i * (72 / (N - 1))).toFixed(1) + '%"><div class="cpw-cone"></div><div class="cpw-pool"></div><div class="cpw-pole"></div><div class="cpw-head"></div><div class="cpw-bulb"></div><div class="cpw-halo"></div></div>';
-    R.innerHTML = '<div id="cpw-cloud"></div><div id="cpw-swirl"></div><div id="cpw-dark"></div><canvas id="cpw-cv"></canvas><div id="cpw-lamps">' + lamps + '</div>' +
-      '<svg id="cpw-turb" class="cpw-own" viewBox="0 0 100 180"><rect x="47" y="40" width="6" height="140" rx="2" fill="#dfe4ea" stroke="#9aa3ad" stroke-width=".6"/>' +
-      '<g id="cpw-nac" transform="translate(50 40)"><rect x="-12" y="-4" width="20" height="8" rx="3" fill="#eef1f4" stroke="#9aa3ad" stroke-width=".6"/></g>' +
-      '<g transform="translate(50 40)"><g id="cpw-rot">' + [0, 120, 240].map(function (a) { return '<path transform="rotate(' + a + ')" d="M0 0 L-3 -6 Q-2 -38 0 -44 Q3 -38 3 -6 Z" fill="#f5f7f9" stroke="#9aa3ad" stroke-width=".6"/>'; }).join('') + '<circle r="3.5" fill="#cfd6dd" stroke="#8a939d" stroke-width=".6"/></g></g>' +
-      '<circle id="cpw-tl" cx="50" cy="34" r="1.6" fill="#f33" opacity="0"/></svg>' +
-      '<svg id="cpw-sock" class="cpw-own" viewBox="0 0 120 140"><rect x="8" y="10" width="4" height="130" fill="#8a7a66"/><circle cx="10" cy="9" r="3.5" fill="#d4af37"/>' +
-      '<g id="cpw-fishg" transform="translate(12 18)"><path id="cpw-fish" fill="#e8453c" stroke="#7a1d18" stroke-width=".8"/><path id="cpw-fish2" fill="none" stroke="#fff" stroke-width="2" opacity=".85"/><circle id="cpw-eye" r="3" fill="#fff" stroke="#222" stroke-width="1.4"/></g></svg>' +
+    R.innerHTML = '<div id="cpw-cloud"></div><div id="cpw-swirl"></div><div id="cpw-dark"></div><canvas id="cpw-cv"></canvas>' +
       '<svg id="cpw-wc" class="cpw-own" viewBox="-30 -30 60 60" style="position:absolute;right:8px;top:calc(env(safe-area-inset-top,0px) + 44px);width:56px;height:56px"><circle r="27" fill="rgba(10,14,28,.55)" stroke="#fff"/><text y="-17" text-anchor="middle" fill="#f66" font-size="10" font-weight="700">N</text><g id="cpw-wa"><path d="M0 -16 L5 -6 L1.5 -6 L1.5 16 L-1.5 16 L-1.5 -6 L-5 -6Z" fill="#7df"/></g></svg><div id="cpw-badge">天氣載入中…</div>';
     document.body.appendChild(R);
     var cv = R.querySelector('#cpw-cv'), cx = cv.getContext('2d'), dpr = Math.min(devicePixelRatio || 1, MOBILE ? 1.5 : 2);
@@ -89,18 +81,7 @@
         p.x += vx * dt * 60; p.y += p.v * dt * 60; if (p.y > H || p.x < -50 || p.x > W + 50) P[i] = drop(W, H, false); }
       cx.stroke();
       if (typh && !RM) { cx.strokeStyle = 'rgba(230,235,245,.18)'; cx.lineWidth = 2 * dpr; for (var k = 0; k < 6; k++) { var yy = ((now / 7 + k * 173) % (H + 200)) - 100, xx = ((now * .9 + k * 311) % (W + 400)) - 200; cx.beginPath(); cx.moveTo(xx, yy); cx.quadraticCurveTo(xx + 90 * dirSign * dpr, yy - 20 * dpr, xx + 200 * dirSign * dpr, yy + 6 * dpr); cx.stroke(); } }
-      // 風車：轉速 ∝ 風速（0 m/s 停；25 m/s 以上切出保護顯示最大）
-      var rpm = Math.min(ws, 25) * (RM ? 1.5 : 6); ang = (ang + rpm * dt * 6) % 360;
-      R.querySelector('#cpw-rot').setAttribute('transform', 'rotate(' + ang.toFixed(1) + ')');
-      // 機艙朝向：風從 wind_dir_deg 吹來，轉子迎風；2D 側視以左右翻轉表示東西分量
-      var from = noDir ? 1 : Math.sin(S.wind_dir_deg * Math.PI / 180); // >0 東風來
-      R.querySelector('#cpw-nac').setAttribute('transform', 'translate(50 40) scale(' + (from >= 0 ? 1 : -1) + ' 1)'); // 轉子迎風（風從東來→轉子朝右/東）
-      R.querySelector('#cpw-tl').setAttribute('opacity', S.is_night ? (Math.floor(now / 900) % 2 ? 1 : .15) : 0);
-      // 風向魚：風大飄直、風小下垂；往風吹去方向飄
-      var lift = Math.max(0, Math.min(1, ws / 10)); sock += dt * (2 + ws * .8);
-      var flap = (RM || noWind) ? 0 : Math.sin(sock * 2.2) * (0.25 + lift * 0.5);
       var wa = R.querySelector('#cpw-wa'); wa.style.display = noDir ? 'none' : ''; if (!noDir) wa.setAttribute('transform', 'rotate(' + ((S.wind_dir_deg + 180) % 360) + ')'); // 地圖箭頭指向風吹去的方向（與地標同一正北）
-      drawFish(lift, flap, dirSign); // 魚往下風處（wind_dir_deg+180）飄；畫面右＝東
       requestAnimationFrame(frame);
     }
     function drop(W, H, init) { var v = (8 + Math.random() * 8) * dpr * (S.condition === 'typhoon' ? 1.6 : 1); return { x: Math.random() * (W + 200) - 100, y: init ? Math.random() * H : -20 - Math.random() * 80, v: v, l: (10 + Math.random() * 12) * dpr }; }
