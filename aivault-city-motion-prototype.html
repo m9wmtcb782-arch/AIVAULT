@@ -104,7 +104,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{pointerStart=[e.clientX,e
 renderer.domElement.addEventListener('pointerup',e=>{if(!pointerStart||Math.hypot(e.clientX-pointerStart[0],e.clientY-pointerStart[1])>6)return;const ray=new T.Raycaster();ray.setFromCamera(new T.Vector2(e.clientX/innerWidth*2-1,-e.clientY/innerHeight*2+1),camera);const hit=ray.intersectObjects(agents.map(a=>a.g),true)[0];if(hit){followIndex=hit.object.userData.agentIndex;controls.autoRotate=false;$('follow').classList.add('active')}});
 function animate(now){requestAnimationFrame(animate);const dt=Math.min((now-last)/1000,.05);last=now;if(document.hidden)return;if(running)time+=dt;
 for(const a of agents){const t=time,walking=a.mode==='walk'&&t>waveUntil;let stride=walking?Math.sin(t*5+a.phase):0;
-if(a.mode==='walk'){const angle=a.phase+t*(a.index<12?.065:-.085);a.g.position.set(Math.cos(angle)*a.radius,.65,7+Math.sin(angle)*a.radius);a.g.rotation.y=-angle+(a.index<12?0:Math.PI);if(!walking)a.g.rotation.y=.15;}
+if(a.mode==='walk'){a.moveTime=(a.moveTime||0)+(walking&&running?dt:0);const angle=a.phase+a.moveTime*(a.index<12?.065:-.085);a.g.position.set(Math.cos(angle)*a.radius,.65,7+Math.sin(angle)*a.radius);a.g.rotation.y=-angle+(a.index<12?0:Math.PI);if(!walking)a.g.rotation.y=.15;}
 a.lLeg.rotation.x=stride*.48;a.rLeg.rotation.x=-stride*.48;a.lArm.rotation.x=-stride*.4;a.rArm.rotation.x=stride*.4;a.rArm.rotation.z=0;
 if(a.mode==='wave'||t<waveUntil){a.rArm.rotation.z=2.5+Math.sin(t*7+a.index)*.25;a.rArm.rotation.x=.1;a.lArm.rotation.x=0;}
 if(a.mode==='sit'){a.lLeg.rotation.x=-Math.PI/2;a.rLeg.rotation.x=-Math.PI/2;a.lArm.rotation.x=-1;a.rArm.rotation.x=-1;}
