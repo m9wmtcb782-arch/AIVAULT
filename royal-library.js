@@ -3,6 +3,7 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const E = window.AIVAULTEbook;
+  const LAW = window.RoyalLaw;
   const BASE = 'https://m9wmtcb782-arch.github.io/AIVAULT/';
   const CATS = [
     ['法律與法學','⚖️',['憲法與基本權利','行政法與行政訴訟','民法與民事訴訟','刑法與刑事訴訟','食品安全與衛生法','財政法與會計法','國際法與比較法','法學研究與論文']],
@@ -23,7 +24,7 @@
   const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, Number(v) || lo));
   const safeURL = s => { if(typeof s!=='string'||!s.trim())return '';try { const u = new URL(s, BASE); return /^(https:|blob:)$/.test(u.protocol) || /^data:image\/(png|jpeg|webp|gif);base64,/.test(s) ? u.href : ''; } catch { return ''; } };
   const state = {
-    books: [], mode: 'all', cat: null, sub: '', query: '', selected: null, index: 0, recommendIndex: 0,
+    books: [], mode: 'all', cat: null, sub: '', lawTopic: '', lawCache: {}, lawIndexRunning: false, lawIndexStatus: '', query: '', selected: null, index: 0, recommendIndex: 0,
     local: arr(read('aivaultLibraryMetadata', [])),
     favs: new Set([...arr(read('aivaultLibraryFavs', [])), ...arr(read('aivault_ebook_favorites', []))]),
     shelf: new Set(arr(read('aivaultRoyalShelf', []))),
@@ -60,8 +61,8 @@
   function dbPut(id, blob) { return new Promise((resolve,reject)=>{if(!state.db)return reject(Error('本機資料庫未啟用'));const tx=state.db.transaction('pdfs','readwrite');tx.objectStore('pdfs').put(blob,id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||Error('儲存已中止'));}); }
   function dbGet(id) { return new Promise((resolve,reject)=>{const req=state.db.transaction('pdfs','readonly').objectStore('pdfs').get(id);req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);}); }
   function inferCategory(b) {
-    const t=[b.category,b.metadata?.category,b.title,b.sub].filter(Boolean).join(' ');
-    const tests=[/法律|法學|行政|憲法|宪法|民法|刑法|食安|食品|司法|法学|决算|決算|中藥/,
+    const t=[b.category,b.metadata?.category,b.title,b.description,b.sub].filter(Boolean).join(' ').normalize('NFKC');
+    const tests=[/法律|法學|行政|憲法|宪法|民法|刑法|食安|食品|司法|法学|决算|決算|中藥|國家機構|国家机构|預算|预算|租稅|稅法|税法|會計法|会计法/,
       /英語|英语|英文|English/i,/人工智慧|AI|神經|程式|資訊|机器|機器/i,/小說|小说|文學|文学|劉慈欣|刘慈欣/,
       /歷史|历史|文化|藝術/,/物理|化學|生物|數學|天文/,/商業|財經|經濟|會計|財務/,
       /醫學|医学|健康|營養|公共衛生/,/日語|韓語|德語|法語|語言/];
@@ -74,9 +75,26 @@
   }
   function normalize(b, source) {
     const cat=Number.isInteger(b.cat)&&b.cat>=0&&b.cat<CATS.length?b.cat:inferCategory(b);
-    return {...b,id:String(b.id||b.ebook_id),title:String(b.title||'未命名'),author:String(b.author||''),cat,
+    const id=String(b.id||b.ebook_id);
+    const book={...b,id,title:String(b.title||'未命名'),author:String(b.author||''),cat,
       sub:b.sub||inferSub(b,cat),source,kind:b.kind||b.metadata?.content_type||'text',
       page_count:Number(b.total_pages||b.page_count)||0,cover_url:safeURL(b.cover_url===BASE?'':b.cover_url||'')};
+    if(cat===0&&LAW){book.lawToc=b.lawToc||state.lawCache[id]?.toc||'';book.lawExcerpt=b.lawExcerpt||state.lawCache[id]?.excerpt||'';applyLaw(book);}return book;
+  }
+  function applyLaw(book){if(book.cat!==0||!LAW)return;const c=LAW.classify(book);book.sub=c.primary;book.subjects=c.subjects;book.lawTopics=c.topics;book.lawEvidence=c.evidence;}
+  function belongs(book,cat,subject='',topic=''){return (cat===null||book.cat===cat)&&(!subject||(book.subjects||[book.sub]).includes(subject))&&(!topic||(book.lawTopics?.[subject]||[]).includes(topic));}
+  async function indexLawBooks(force=false){
+    if(!LAW||state.lawIndexRunning)return;state.lawIndexRunning=true;
+    const books=state.books.filter(b=>b.cat===0&&b.source==='remote');let done=0,cursor=0;
+    async function worker(){while(cursor<books.length){const b=books[cursor++],signature=[b.title,b.page_count,b.updated_at||''].join('|');const cached=state.lawCache[b.id];
+      try{if(force||cached?.signature!==signature||cached?.schema!==2){
+        let text='',excerpt='';try{const toc=await deadline(E.fetchRemoteToc(b.id),12000);text=arr(toc).map(x=>String(x.title||'')).join('\n').slice(0,30000);}catch{}
+        if(!text){try{const d=resultData(await deadline(E.fetchRemoteContext(b.id,1,2),12000));const content=arr(d.pages||d.context).map(p=>String(p.content||'')).join('\n').replace(/\[\[p?img:[^\]]+\]\]/g,'').trim();if(content.length>100)excerpt=content.slice(0,12000);}catch{}}
+        state.lawCache[b.id]={schema:2,signature,toc:text,excerpt};
+      }b.lawToc=state.lawCache[b.id]?.toc||'';b.lawExcerpt=state.lawCache[b.id]?.excerpt||'';applyLaw(b);}catch{}
+      done++;state.lawIndexStatus='已查詢 '+done+' / '+books.length+' 本法律書籍；目錄 '+books.filter(x=>x.lawToc).length+' 本、原文前頁 '+books.filter(x=>x.lawExcerpt).length+' 本';if($('lawIndexStatus'))$('lawIndexStatus').textContent=state.lawIndexStatus;
+    }}
+    try{await Promise.all([worker(),worker(),worker()]);write(cacheKey()+':lawIndex',state.lawCache);render();}finally{state.lawIndexRunning=false;}
   }
   function mergeBooks(remote, legacy) {
     const map=new Map();
@@ -92,7 +110,7 @@
   function cacheKey() {
     try { const t=E?.userToken();const p=t&&JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));return 'aivaultRoyalCatalog:'+ (p?.sub||'public'); } catch { return 'aivaultRoyalCatalog:public'; }
   }
-  async function loadCatalog() {
+  async function loadCatalog(force=false) {
     if(state.loading)return;
     state.loading=true;$('refresh').disabled=true;$('catalogStatus').textContent='正在同步第一基地館藏…';
     try {
@@ -101,7 +119,7 @@
       remoteBooks=arr(d.books||d.items||d.ebooks).filter(b=>Number(b.total_pages||b.page_count)>0&&!/FlipBook Probe/.test(b.title));
       write(cacheKey(),remoteBooks);state.catalogStatus=`已連接第一基地：${remoteBooks.length} 本遠端電子書`;
       try{legacyBooks=await E.allLocalBooks();}catch{legacyBooks=[];}
-      mergeBooks(remoteBooks,legacyBooks);await hydrateCovers();notice('館藏已更新。');
+      mergeBooks(remoteBooks,legacyBooks);await hydrateCovers();indexLawBooks(force).catch(()=>{});notice('館藏已更新。');
     } catch(e) {
       remoteBooks=arr(read(cacheKey(),[]));try{legacyBooks=await E?.allLocalBooks()||[];}catch{}
       state.catalogStatus=`館藏連線失敗：${e.message}；顯示 ${remoteBooks.length} 本快取及本機書籍。`;
@@ -113,9 +131,8 @@
       if(state.mode==='favs'&&!state.favs.has(b.id))return false;
       if(state.mode==='shelf'&&!state.shelf.has(b.id))return false;
       if(state.mode==='history'&&!state.history.some(h=>h.id===b.id))return false;
-      if(state.mode==='all'&&state.cat!==null&&b.cat!==state.cat)return false;
-      if(state.mode==='all'&&state.sub&&b.sub!==state.sub)return false;
-      return !state.query||[b.title,b.author,b.sub,CATS[b.cat][0]].join(' ').toLowerCase().includes(state.query.toLowerCase());
+      if(state.mode==='all'&&!belongs(b,state.cat,state.sub,state.lawTopic))return false;
+      return !state.query||[b.title,b.author,b.sub,...(b.subjects||[]),...Object.values(b.lawTopics||{}).flat(),CATS[b.cat][0]].join(' ').toLowerCase().includes(state.query.toLowerCase());
     });
     if(state.mode==='history')rows.sort((a,b)=>state.history.findIndex(x=>x.id===a.id)-state.history.findIndex(x=>x.id===b.id));
     return rows;
@@ -174,12 +191,13 @@
     $('books').innerHTML=rows.map(b=>{const h=state.history.find(x=>x.id===b.id);return `<button class="book" data-book="${esc(b.id)}"><div class="cover">${cover(b)}</div><strong>${esc(b.title)}</strong><small>${esc(b.author||'作者未提供')} · ${esc(badge(b))}</small><small>${b.page_count?b.page_count+' 頁':''}${state.mode==='history'&&h?' · 第 '+h.page+' 頁'+(h.at?' · '+esc(new Date(h.at).toLocaleString('zh-TW')):''):''}${state.favs.has(b.id)?' ★':''}</small></button>`;}).join('');
     $('empty').hidden=!!rows.length;$('empty').textContent=state.query?'沒有符合的書籍，請修改關鍵字或清除搜尋。':state.mode==='all'?'這個館區目前沒有可讀館藏。可匯入電子書或更新館藏。':'這個清單目前沒有書籍，請從全部館藏選書加入。';
     $('categories').innerHTML=CATS.map((c,i)=>`<button class="tile" data-cat="${i}"><b>${c[1]} ${esc(c[0])}</b><small>${state.books.filter(b=>b.cat===i).length} 本館藏</small></button>`).join('');
-    $('subcategories').innerHTML=state.cat===null?'':`<button data-sub="" aria-pressed="${!state.sub}">全部</button>`+CATS[state.cat][2].map(s=>`<button data-sub="${esc(s)}" aria-pressed="${state.sub===s}">${esc(s)} · ${state.books.filter(b=>b.cat===state.cat&&b.sub===s).length}</button>`).join('');
+    $('subcategories').innerHTML=state.cat===null?'':`<button data-sub="" aria-pressed="${!state.sub}">全部</button>`+CATS[state.cat][2].map(s=>`<button data-sub="${esc(s)}" aria-pressed="${state.sub===s}">${esc(s)} · ${state.books.filter(b=>belongs(b,state.cat,s)).length}</button>`).join('');
+    document.querySelectorAll('.scene-hit[data-cat]').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.cat===state.cat&&(b.dataset.sub||'')===state.sub)));
     document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===state.mode)));
     renderStage();
   }
-  function stageRows() { return state.books.filter(b=>(state.cat===null||b.cat===state.cat)&&(!state.sub||b.sub===state.sub)); }
-  function select(b) { if(!b)return;const changed=(state.cat!==null&&state.cat!==b.cat)||(state.sub&&state.sub!==b.sub);if(changed){state.cat=b.cat;state.sub='';}state.selected=b;if(changed)render();else renderStage();guideVersion++;syncContext().catch(()=>{}); }
+  function stageRows() { return state.books.filter(b=>belongs(b,state.cat,state.sub,state.lawTopic)); }
+  function select(b) { if(!b)return;const changed=!belongs(b,state.cat,state.sub,state.lawTopic);if(changed){state.cat=b.cat;state.sub='';state.lawTopic='';}state.selected=b;if(changed)render();else renderStage();guideVersion++;syncContext().catch(()=>{}); }
   function shift(n) { const rows=stageRows();if(!rows.length){notice('館藏尚未載入，請按更新館藏。',true);return;}let i=rows.findIndex(b=>b.id===state.selected?.id);select(rows[(Math.max(0,i)+n+rows.length)%rows.length]); const book=$('floatingBook');book.classList.remove('swap');void book.offsetWidth;book.classList.add('swap'); }
   function renderStage() {
     const available=stageRows();if(!state.selected||!available.some(b=>b.id===state.selected.id))state.selected=available[0]||null;
@@ -187,8 +205,10 @@
     const custom=b&&state.covers.get(b.id),floating=$('floatingBook');
     floating.classList.toggle('has-custom-cover',!!custom);
     const face=$('floatingCover');if(face)face.innerHTML=custom?`<img src="${esc(custom)}" alt="${esc(b.title)} 自訂封面">`:'';
-    $('floatingTitle').textContent=b?b.title.split('——')[0].replace(/｜排版版$/,''):(state.loading?'正在載入館藏':'此館區尚無館藏');$('floatingCategory').textContent=b?CATS[b.cat][0]:'';
-    $('stageBookName').textContent=b?b.title+' · 點書查看':'尚無館藏，可匯入電子書';
+    $('floatingTitle').textContent=b?b.title.split('——')[0].replace(/｜排版版$/,''):(state.loading?'正在載入館藏':'此分類尚無館藏');$('floatingCategory').textContent=b?(state.lawTopic||state.sub||CATS[b.cat][0]):'';
+    const lawView=state.cat===0;
+    $('stageBookName').textContent=lawView?(state.lawTopic||state.sub||'法律與法學')+' · '+available.length+' 本 · 選擇細分類':b?b.title+' · 點書查看':'尚無館藏，可匯入電子書';
+    $('stageBookName').dataset.action=lawView?'lawTopics':'details';
     $('sceneCategory').textContent=state.cat===null?'皇家電子圖書館':CATS[state.cat][1]+' '+CATS[state.cat][0]+'館';
     $('sceneBookInfo').innerHTML=b?`<button class="scene-cover" data-book="${esc(b.id)}" aria-label="查看 ${esc(b.title)}">${cover(b)}</button><div class="scene-meta"><strong>${esc(b.title)}</strong><small>${esc(b.author||'作者未提供')} · ${b.page_count||'?'} 頁</small><small>${esc(badge(b))} · ${esc(b.sub)}</small><div class="scene-book-actions"><button data-action="read">開始閱讀</button><button data-action="guide">暗星導讀</button><button data-action="shelf">${state.shelf.has(b.id)?'移出書架':'加入書架'}</button><button data-action="download">下載離線</button></div></div>`:'<div class="scene-meta"><strong>此館區尚無可讀書籍</strong><small>可匯入自己的電子書，或選擇其他館區。</small><button data-action="import">＋ 匯入電子書</button></div>';
     const a=available;
@@ -214,14 +234,20 @@
     $('recommendationStatus').textContent='推薦書籍第 '+(next+1)+' 至 '+Math.min(cards.length,next+5)+' 本，共 '+cards.length+' 本';
   }
   function modal(html) { modalFocus=document.activeElement;$('modalContent').innerHTML=html;$('overlay').classList.add('show');$('close').focus(); }
-  function closeModal() { $('overlay').classList.remove('show');modalFocus?.focus?.(); }
+  function closeModal() {const wasOpen=$('overlay').classList.contains('show');$('overlay').classList.remove('show');if(wasOpen)modalFocus?.focus?.({preventScroll:true});}
   function showBook(id) {
     const b=state.books.find(b=>b.id===id);if(!b)return notice('找不到這本書，請更新館藏。',true);
     $('sceneBookInfo').hidden=false;select(b);const p=state.progress[b.id]?.page||1;
     modal(`<div class="book-details"><div class="cover">${cover(b)}</div><h2>${esc(b.title)}</h2><p>${esc(b.author||'作者未提供')} · ${esc(CATS[b.cat][0])} / ${esc(b.sub)}</p><p>${esc(badge(b))} · ${b.page_count||'?'} 頁${p>1?' · 上次讀到第 '+p+' 頁':''}</p>${b.description?'<p>'+esc(b.description)+'</p>':''}<div class="modal-actions"><button data-action="read">📖 ${p>1?'繼續閱讀':'開始閱讀'}</button><button data-action="shelf">${state.shelf.has(b.id)?'移出書架':'＋ 加入書架'}</button><button data-action="favorite">${state.favs.has(b.id)?'★ 取消收藏':'☆ 收藏'}</button><button data-action="guide">🎙 暗星導讀</button><button data-action="download">↓ 下載離線</button><button data-action="changeCover">🖼 更換封面</button><button data-action="resetCover" ${state.covers.get(b.id)?'':'disabled'}>恢復彩色封面</button><button data-action="mark">${state.marks.has(b.id)?'取消本機學習標記':'標記為已學（本機）'}</button></div><p class="muted">封面可上傳 JPEG、PNG、WebP，會儲存在此裝置，並隨館藏備份一併匯出。</p></div>`);
+    if(b.cat===0){const tags=document.createElement('div');tags.className='law-subject-tags';for(const subject of b.subjects||[b.sub]){const tag=document.createElement('span');tag.textContent=subject;tags.append(tag);}const note=document.createElement('p');note.className='muted';note.textContent='分類依據：'+(b.lawEvidence||'書目資料');const details=$('modalContent').querySelector('.book-details');details.insertBefore(tags,details.querySelector('.modal-actions'));tags.after(note);}
   }
-  function setMode(mode) {state.mode=mode;state.cat=null;state.sub='';state.query='';$('search').value='';render();$('shelfSection').scrollIntoView({behavior:'smooth'});}
-  function setCategory(i, sub='') {state.cat=clamp(i,0,CATS.length-1);state.mode='all';state.sub=sub;state.query='';$('search').value='';$('importCategory').value=state.cat;const b=state.books.find(b=>b.cat===state.cat&&(!sub||b.sub===sub));if(b)select(b);else state.selected=null;render();closeModal();$('shelfSection').scrollIntoView({behavior:'smooth'});}
+  function setMode(mode) {state.mode=mode;state.cat=null;state.sub='';state.lawTopic='';state.query='';$('search').value='';render();$('shelfSection').scrollIntoView({behavior:'smooth'});}
+  function setCategory(i, sub='',topic='') {const viewport={x:window.scrollX,y:window.scrollY};state.cat=clamp(i,0,CATS.length-1);state.mode='all';state.sub=sub;state.lawTopic=topic;state.query='';$('search').value='';$('importCategory').value=state.cat;const b=state.books.find(b=>belongs(b,state.cat,sub,topic));if(b)select(b);else state.selected=null;render();closeModal();if(b){const book=$('floatingBook');book.classList.remove('swap');void book.offsetWidth;book.classList.add('swap');}requestAnimationFrame(()=>window.scrollTo({left:viewport.x,top:viewport.y,behavior:'instant'}));}
+  function showLawTopics(){
+    if(!LAW)return;const groups=state.sub?LAW.groups.filter(g=>g.name===state.sub):LAW.groups;
+    modal('<h2>法律書籍分類</h2><p>依現有書名、書目說明、目錄與已取得的原文歸類；跨主題書籍可出現在多個分類。</p><p id="lawIndexStatus" class="muted">'+esc(state.lawIndexStatus||'正在核對館藏目錄…')+'</p><div class="law-classifications"><button data-cat="0">全部法律書籍 · '+state.books.filter(b=>b.cat===0).length+' 本</button>'+groups.map(g=>'<section><h3><button data-cat="0" data-sub="'+esc(g.name)+'">'+esc(g.name)+' · '+state.books.filter(b=>belongs(b,0,g.name)).length+' 本</button></h3><div class="law-topic-grid">'+g.topics.map(topic=>'<button data-law-topic="'+esc(topic)+'" data-law-subject="'+esc(g.name)+'">'+esc(topic)+' · '+state.books.filter(b=>belongs(b,0,g.name,topic)).length+'</button>').join('')+'</div></section>').join('')+'</div>');
+  }
+  function showHall(){modal('<h2>皇家主館 · 選擇館區</h2><div class="grid">'+CATS.map((g,i)=>'<button class="tile" data-cat="'+i+'"><b>'+g[1]+' '+esc(g[0])+'</b><small>'+state.books.filter(b=>b.cat===i).length+' 本館藏</small></button>').join('')+'</div>');}
   async function pdfLib() {
     if(!pdfLibPromise)pdfLibPromise=deadline(import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs')).then(p=>{p.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';return p;}).catch(e=>{pdfLibPromise=null;throw e;});
     return pdfLibPromise;
@@ -439,7 +465,7 @@
     const b=state.reader||state.selected;
     switch(action){
       case 'all':setMode('all');closeModal();break;case 'shelfList':setMode('shelf');break;case 'favs':setMode('favs');break;case 'history':setMode('history');break;
-      case 'zones':$('zones').open=true;$('zones').scrollIntoView({behavior:'smooth'});break;
+      case 'zones':showHall();break;
       case 'search':$('search').focus();$('search').scrollIntoView({behavior:'smooth',block:'center'});break;
       case 'clear':state.query='';$('search').value='';render();notice('已清除搜尋。');break;
       case 'details':if(b)showBook(b.id);else notice('請先更新館藏。',true);break;
@@ -453,11 +479,12 @@
       case 'recPrev':moveRecommendations(-1);break;case 'recNext':moveRecommendations(1);break;
       case 'import':$('fileInput').click();break;case 'backup':await backup();break;
       case 'restore':case 'importLearning':$('restoreInput').value='';$('restoreInput').click();break;case 'restoreConfirm':await restoreConfirm();break;
-      case 'refresh':await loadCatalog();break;case 'close':closeModal();break;
+      case 'refresh':await loadCatalog(true);break;case 'close':closeModal();break;
       case 'closeReader':closeReader();break;case 'prevPage':await paintPage(state.page-1);break;case 'nextPage':await paintPage(state.page+1);break;
       case 'jump':await paintPage($('pageNumber').value);break;case 'retryReader':await openBook(state.reader);break;case 'retryPage':await paintPage(button.dataset.page||state.page);break;
       case 'listen':listen();break;case 'guide':await guide();break;case 'voice':await toggleVoice();break;case 'stop':stopVoice();break;
       case 'avatar':if(typeof frame?.contentWindow?.libraryAvatarAction!=='function')throw Error('數字人互動程式尚未載入，請稍後重試');frame.contentWindow.libraryAvatarAction(button.dataset.clip);notice('已觸發暗星動作：'+button.textContent);break;
+      case 'lawTopics':showLawTopics();break;
       case 'mark':if(!b)throw Error('請先選書');state.marks.has(b.id)?state.marks.delete(b.id):state.marks.add(b.id);persist();showBook(b.id);notice('本機標記已更新；不代表暗星已完成學習。');break;
       case 'learned':showLearned();break;case 'refreshLearning':await refreshLearning();break;
       case 'exportLearning':downloadBlob(new Blob([JSON.stringify({format:'AIVAULT-LEARNED-RECORDS-V1',records:state.learned,local_manual_marks:[...state.marks]})],{type:'application/json'}),'暗星學習紀錄.json');notice('學習紀錄已送出下載。');break;
@@ -470,8 +497,9 @@
   document.addEventListener('click',async e=>{
     const b=e.target.closest('button,[data-action]');if(!b||b.disabled)return;
     if(b.dataset.book){$('sceneBookInfo').hidden=false;showBook(b.dataset.book);return;}
+    if(b.dataset.lawTopic!==undefined){setCategory(0,b.dataset.lawSubject,b.dataset.lawTopic);return;}
     if(b.dataset.cat!==undefined){setCategory(+b.dataset.cat,b.dataset.sub||'');return;}
-    if(b.dataset.sub!==undefined){state.sub=b.dataset.sub;state.mode='all';render();return;}
+    if(b.dataset.sub!==undefined){setCategory(state.cat,b.dataset.sub);return;}
     if(b.dataset.mode){setMode(b.dataset.mode);return;}
     const action=b.dataset.action;if(!action)return;
     if(b.dataset.busy)return;b.dataset.busy='1';
@@ -541,6 +569,9 @@
   hot('收合目前書籍資訊','dismissInfo',78.7,52,3,2);hot('圖上麥克風：即時對話','voice',87,84,8,6);
   [['全部館藏','all'],['我的收藏','favs'],['閱讀紀錄','history'],['開啟閱讀器','reader']].forEach(([label,action],i)=>hot(label,action,2+i*24.5,93.9,24,4.6));
   async function init() {
+    state.lawCache=read(cacheKey()+':lawIndex',{});
+    $('stageBookName').setAttribute('role','button');$('stageBookName').tabIndex=0;
+    $('stageBookName').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('stageBookName').click();}});
     document.documentElement.style.setProperty('--royal-cover-art','url("'+$('scene').src+'")');
     const floatingCover=document.createElement('span');floatingCover.id='floatingCover';floatingCover.className='floating-cover';$('floatingBook').append(floatingCover);
     mountAvatar();remoteBooks=arr(read(cacheKey(),[]));mergeBooks(remoteBooks,[]);
