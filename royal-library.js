@@ -30,7 +30,7 @@
     history: arr(read('aivaultLibraryHistory', [])).map(x => typeof x === 'string' ? {id:x,page:1,at:null} : x).filter(x => x?.id),
     progress: read('aivaultRoyalProgress', {}), marks: new Set(arr(read('aivaultDarkStarLearnedLocal', []))),
     learned: arr(read('aivaultVerifiedLearningRecords', [])), study: [],
-    catalogStatus: '正在載入第一基地館藏…', db: null, blobs: new Map(), pages: new Map(),
+    catalogStatus: '正在載入第一基地館藏…', db: null, blobs: new Map(), pages: new Map(), covers: new Map(), coverRevision: 0,
     reader: null, page: 1, total: 1, readerToken: 0, pageToken: 0, doc: null, rendered: null,
     lastReader: read('aivaultRoyalLastReader', null), restore: null, voice: {}, ready: false,
     font: clamp(read('aivaultRoyalFont', 19),14,30), loading: false
@@ -99,11 +99,11 @@
       remoteBooks=arr(d.books||d.items||d.ebooks).filter(b=>Number(b.total_pages||b.page_count)>0&&!/FlipBook Probe/.test(b.title));
       write(cacheKey(),remoteBooks);state.catalogStatus=`已連接第一基地：${remoteBooks.length} 本遠端電子書`;
       try{legacyBooks=await E.allLocalBooks();}catch{legacyBooks=[];}
-      mergeBooks(remoteBooks,legacyBooks);notice('館藏已更新。');
+      mergeBooks(remoteBooks,legacyBooks);await hydrateCovers();notice('館藏已更新。');
     } catch(e) {
       remoteBooks=arr(read(cacheKey(),[]));try{legacyBooks=await E?.allLocalBooks()||[];}catch{}
       state.catalogStatus=`館藏連線失敗：${e.message}；顯示 ${remoteBooks.length} 本快取及本機書籍。`;
-      mergeBooks(remoteBooks,legacyBooks);notice(state.catalogStatus,true);
+      mergeBooks(remoteBooks,legacyBooks);await hydrateCovers();notice(state.catalogStatus,true);
     } finally {state.loading=false;$('refresh').disabled=false;$('catalogStatus').textContent=state.catalogStatus;}
   }
   function listBooks() {
@@ -118,7 +118,51 @@
     if(state.mode==='history')rows.sort((a,b)=>state.history.findIndex(x=>x.id===a.id)-state.history.findIndex(x=>x.id===b.id));
     return rows;
   }
-  function cover(b) { return b.cover_url?`<img loading="lazy" src="${esc(b.cover_url)}" alt="${esc(b.title)} 封面">`:`<span>${esc(b.title)}</span><small class="cover-author">${esc(b.author||CATS[b.cat][0])}</small>`; }
+  function coverStyle(b) {
+    const title=b.title;
+    if(/行政法入[門门]/.test(title))return 0;
+    if(/张树义|張樹義/.test(title))return 1;
+    if(/行政法[与與]行政[诉訴][讼訟]/.test(title))return 2;
+    if(/憲法|宪法/.test(title))return 3;
+    if(/國際|国际/.test(title))return 4;
+    let n=0;for(const c of title)n=(n+c.charCodeAt(0))%5;return n;
+  }
+  function cover(b) {
+    const image=safeURL(state.covers.get(b.id)||b.cover_url||'');
+    if(image)return `<img loading="lazy" src="${esc(image)}" alt="${esc(b.title)} 封面">`;
+    const short=b.title.split('——')[0].replace(/｜排版版$/,'');
+    return `<span class="illustrated-cover jacket-${coverStyle(b)}" role="img" aria-label="${esc(b.title)} 彩色封面"><span class="jacket-title">${esc(short)}</span></span>`;
+  }
+  async function hydrateCovers() {
+    await Promise.all(state.books.filter(b=>!state.covers.has(b.id)).map(async b=>{
+      let own;try{own=state.db&&await dbGet('cover:'+b.id);}catch{}
+      let image=typeof own==='string'?own:'';
+      if(!own?.reset&&!image){try{image=await E.customCover(b.id)||'';}catch{}}
+      state.covers.set(b.id,safeURL(image));
+    }));
+    state.coverRevision++;render();
+  }
+  async function changeCover(file) {
+    const b=state.selected;if(!file||!b)return;
+    if(!/^image\/(jpeg|png|webp)$/.test(file.type))throw Error('封面請使用 JPEG、PNG 或 WebP 圖片');
+    if(file.size>12*1024*1024)throw Error('封面圖片請小於 12MB');
+    notice('正在儲存「'+b.title+'」的新封面…');
+    const url=blobURL(file);let image;
+    try{image=await new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=()=>reject(Error('圖片無法解碼，請換一張'));im.src=url;});}finally{URL.revokeObjectURL(url);}
+    const ratio=Math.min(1,900/image.naturalWidth,1200/image.naturalHeight),canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(image.naturalWidth*ratio));canvas.height=Math.max(1,Math.round(image.naturalHeight*ratio));
+    const g=canvas.getContext('2d');g.fillStyle='#fffdf3';g.fillRect(0,0,canvas.width,canvas.height);g.drawImage(image,0,0,canvas.width,canvas.height);
+    const data=canvas.toDataURL('image/jpeg',.9);await dbPut('cover:'+b.id,data);
+    try{await E.setCustomCover(b.id,data);}catch{}
+    state.covers.set(b.id,data);state.coverRevision++;render();showBook(b.id);notice('封面已儲存；立體書、推薦書架及館藏列表已同步更新。');
+    $('coverInput').value='';
+  }
+  async function resetCover() {
+    const b=state.selected;if(!b)return;
+    const previous=state.covers.get(b.id);if(previous)await dbPut('cover-previous:'+b.id,previous);
+    await dbPut('cover:'+b.id,{reset:true});try{await E.clearCustomCover(b.id);}catch{}
+    state.covers.set(b.id,'');state.coverRevision++;render();showBook(b.id);notice('已恢復原本彩色封面。');
+  }
   function badge(b) { return b.source==='remote'?'第一基地館藏':b.missing?'書檔待補':'本機館藏'; }
   function render() {
     const rows=listBooks();
@@ -137,6 +181,9 @@
   function shift(n) { const rows=stageRows();if(!rows.length){notice('館藏尚未載入，請按更新館藏。',true);return;}let i=rows.findIndex(b=>b.id===state.selected?.id);select(rows[(Math.max(0,i)+n+rows.length)%rows.length]); const book=$('floatingBook');book.classList.remove('swap');void book.offsetWidth;book.classList.add('swap'); }
   function renderStage() {
     const b=state.selected;
+    const custom=b&&state.covers.get(b.id),floating=$('floatingBook');
+    floating.classList.toggle('has-custom-cover',!!custom);
+    const face=$('floatingCover');if(face)face.innerHTML=custom?`<img src="${esc(custom)}" alt="${esc(b.title)} 自訂封面">`:'';
     $('floatingTitle').textContent=b?b.title.split('——')[0].replace(/｜排版版$/,''):'正在載入館藏';$('floatingCategory').textContent=b?CATS[b.cat][0]:'';
     $('stageBookName').textContent=b?b.title+' · 點書查看':'尚無館藏';
     $('sceneCategory').textContent=state.cat===null?'皇家電子圖書館':CATS[state.cat][1]+' '+CATS[state.cat][0]+'館';
@@ -144,10 +191,11 @@
     const a=stageRows();
     const track=$('recommendations');
     const key=a.map(x=>x.id).join('|');
-    if(track.dataset.books!==key){
-      track.dataset.books=key;state.recommendIndex=0;
+    if(track.dataset.books!==key||track.dataset.coverRevision!==String(state.coverRevision)){
+      const scroll=track.dataset.books===key?track.scrollLeft:0;
+      track.dataset.books=key;track.dataset.coverRevision=String(state.coverRevision);state.recommendIndex=0;
       track.innerHTML=a.map(x=>`<button data-book="${esc(x.id)}" aria-label="查看 ${esc(x.title)}"><div class="cover">${cover(x)}</div></button>`).join('');
-      track.scrollLeft=0;
+      track.scrollLeft=scroll;
     }
     for(const id of ['prevStageBook','nextStageBook'])$(id).disabled=a.length<2;
     for(const id of ['recPrev','recNext'])$(id).disabled=a.length<=5;
@@ -167,7 +215,7 @@
   function showBook(id) {
     const b=state.books.find(b=>b.id===id);if(!b)return notice('找不到這本書，請更新館藏。',true);
     select(b);const p=state.progress[b.id]?.page||1;
-    modal(`<div class="book-details"><div class="cover">${cover(b)}</div><h2>${esc(b.title)}</h2><p>${esc(b.author||'作者未提供')} · ${esc(CATS[b.cat][0])} / ${esc(b.sub)}</p><p>${esc(badge(b))} · ${b.page_count||'?'} 頁${p>1?' · 上次讀到第 '+p+' 頁':''}</p>${b.description?'<p>'+esc(b.description)+'</p>':''}<div class="modal-actions"><button data-action="read">📖 ${p>1?'繼續閱讀':'開始閱讀'}</button><button data-action="shelf">${state.shelf.has(b.id)?'移出書架':'＋ 加入書架'}</button><button data-action="favorite">${state.favs.has(b.id)?'★ 取消收藏':'☆ 收藏'}</button><button data-action="guide">🎙 暗星導讀</button><button data-action="download">↓ 下載離線</button><button data-action="mark">${state.marks.has(b.id)?'取消本機學習標記':'標記為已學（本機）'}</button></div></div>`);
+    modal(`<div class="book-details"><div class="cover">${cover(b)}</div><h2>${esc(b.title)}</h2><p>${esc(b.author||'作者未提供')} · ${esc(CATS[b.cat][0])} / ${esc(b.sub)}</p><p>${esc(badge(b))} · ${b.page_count||'?'} 頁${p>1?' · 上次讀到第 '+p+' 頁':''}</p>${b.description?'<p>'+esc(b.description)+'</p>':''}<div class="modal-actions"><button data-action="read">📖 ${p>1?'繼續閱讀':'開始閱讀'}</button><button data-action="shelf">${state.shelf.has(b.id)?'移出書架':'＋ 加入書架'}</button><button data-action="favorite">${state.favs.has(b.id)?'★ 取消收藏':'☆ 收藏'}</button><button data-action="guide">🎙 暗星導讀</button><button data-action="download">↓ 下載離線</button><button data-action="changeCover">🖼 更換封面</button><button data-action="resetCover" ${state.covers.get(b.id)?'':'disabled'}>恢復彩色封面</button><button data-action="mark">${state.marks.has(b.id)?'取消本機學習標記':'標記為已學（本機）'}</button></div><p class="muted">封面可上傳 JPEG、PNG、WebP，會儲存在此裝置，並隨館藏備份一併匯出。</p></div>`);
   }
   function setMode(mode) {state.mode=mode;state.cat=null;state.sub='';state.query='';$('search').value='';render();$('shelfSection').scrollIntoView({behavior:'smooth'});}
   function setCategory(i, sub='') {state.cat=clamp(i,0,CATS.length-1);state.mode='all';state.sub=sub;state.query='';$('search').value='';const b=state.books.find(b=>b.cat===state.cat&&(!sub||b.sub===sub));if(b)select(b);render();closeModal();$('shelfSection').scrollIntoView({behavior:'smooth'});}
@@ -285,7 +333,7 @@
     notice('正在整理館藏備份…');const files=[],pages=[];let bytes=0;
     for(const [id,blob] of state.blobs){bytes+=blob.size;if(bytes>160*1024*1024)throw Error('本機書檔合計超過 160MB，請逐本下載書檔');files.push({id,name:state.local.find(b=>b.id===id)?.file_name||id,data:await toBase64(blob)});}
     for(const b of state.books.filter(b=>b.source!=='remote')){const p=await loadPages(b);if(p.length)pages.push({id:b.id,pages:p});}
-    const metadata={format:'AIVAULT-ROYAL-BACKUP-V2',created_at:new Date().toISOString(),books:state.books,local:state.local,favorites:[...state.favs],shelf:[...state.shelf],history:state.history,progress:state.progress,lastReader:state.lastReader,marks:[...state.marks],learning:state.learned,files,pages};
+    const metadata={format:'AIVAULT-ROYAL-BACKUP-V2',created_at:new Date().toISOString(),books:state.books,local:state.local,favorites:[...state.favs],shelf:[...state.shelf],history:state.history,progress:state.progress,lastReader:state.lastReader,marks:[...state.marks],learning:state.learned,covers:[...state.covers].filter(([,image])=>image),files,pages};
     downloadBlob(new Blob([JSON.stringify(metadata)],{type:'application/json'}),'AIVAULT-皇家圖書館備份-'+new Date().toISOString().slice(0,10)+'.json');notice(`備份已送出下載：${files.length} 個原始書檔、${pages.length} 本本機頁面；遠端館藏需另外下載離線包。`);
   }
   async function readRestore(file) {
@@ -311,7 +359,8 @@
       state.marks=new Set([...state.marks,...arr(d.marks)]);state.learned=[...state.learned,...arr(d.learning)];write('aivaultVerifiedLearningRecords',state.learned);
       if(!state.lastReader&&typeof d.lastReader==='string')state.lastReader=d.lastReader;
     }
-    persist();mergeBooks(remoteBooks,legacyBooks);state.restore=null;closeModal();notice('合併還原完成，已恢復 '+restored+' 個書檔／閱讀包。');
+    for(const row of arr(d.covers)){if(!Array.isArray(row)||typeof row[0]!=='string')continue;const image=safeURL(row[1]);if(!image||!/^data:image\//.test(image))continue;await dbPut('cover:'+row[0],image);state.covers.set(row[0],image);}
+    state.coverRevision++;persist();mergeBooks(remoteBooks,legacyBooks);state.restore=null;closeModal();notice('合併還原完成，已恢復 '+restored+' 個書檔／閱讀包。');
   }
   function showLearned() {
     const marked=state.books.filter(b=>state.marks.has(b.id)),assigned=state.study.filter(x=>x.enabled);
@@ -377,6 +426,7 @@
       case 'shelf':if(!b)throw Error('請先選書');state.shelf.has(b.id)?state.shelf.delete(b.id):state.shelf.add(b.id);persist();render();notice(state.shelf.has(b.id)?'已加入我的書架。':'已移出我的書架。');if($('overlay').classList.contains('show'))showBook(b.id);break;
       case 'favorite':if(!b)throw Error('請先選書');state.favs.has(b.id)?state.favs.delete(b.id):state.favs.add(b.id);persist();render();if($('overlay').classList.contains('show'))showBook(b.id);break;
       case 'download':await downloadBook(state.selected);break;case 'cacheBook':await cacheBook(button);break;
+      case 'changeCover':$('coverInput').click();break;case 'resetCover':await resetCover();break;
       case 'prev':shift(-1);break;case 'next':shift(1);break;
       case 'recPrev':moveRecommendations(-1);break;case 'recNext':moveRecommendations(1);break;
       case 'import':$('fileInput').click();break;case 'backup':await backup();break;
@@ -419,6 +469,8 @@
   document.addEventListener('error',e=>{if(e.target instanceof HTMLImageElement&&e.target.closest('.cover,.scene-cover')){const image=e.target;const span=document.createElement('span');span.textContent=image.alt.replace(/ 封面$/,'');image.replaceWith(span);}},true);
   $('fileInput').addEventListener('change',e=>importFiles([...e.target.files]));
   $('restoreInput').addEventListener('change',e=>readRestore(e.target.files[0]).catch(err=>notice('還原檔案讀取失敗：'+err.message,true)));
+  const coverInput=document.createElement('input');coverInput.id='coverInput';coverInput.type='file';coverInput.accept='image/jpeg,image/png,image/webp';coverInput.hidden=true;document.body.append(coverInput);
+  coverInput.addEventListener('change',e=>changeCover(e.target.files[0]).catch(err=>{notice('封面未變更：'+err.message,true);coverInput.value='';}));
   $('importCategory').innerHTML=CATS.map((c,i)=>`<option value="${i}">${esc(c[0])}</option>`).join('');
   // Keep the original artwork interactive, including its painted navigation and subject signs.
   const hot=(label,action,x,y,w,h,extra={})=>{const b=document.createElement('button');b.className='scene-hit';b.setAttribute('aria-label',label);b.title=label;b.style.cssText=`left:${x}%;top:${y}%;width:${w}%;height:${h}%`;b.dataset.action=action;for(const[k,v]of Object.entries(extra))b.dataset[k]=v;$('sceneHits').append(b);};
@@ -429,6 +481,8 @@
   hot('收合目前書籍資訊','dismissInfo',78.7,52,3,2);hot('圖上麥克風：即時對話','voice',87,84,8,6);
   [['全部館藏','all'],['我的收藏','favs'],['閱讀紀錄','history'],['開啟閱讀器','reader']].forEach(([label,action],i)=>hot(label,action,2+i*24.5,93.9,24,4.6));
   async function init() {
+    document.documentElement.style.setProperty('--royal-cover-art','url("'+$('scene').src+'")');
+    const floatingCover=document.createElement('span');floatingCover.id='floatingCover';floatingCover.className='floating-cover';$('floatingBook').append(floatingCover);
     mountAvatar();remoteBooks=arr(read(cacheKey(),[]));mergeBooks(remoteBooks,[]);
     try{state.db=await dbOpen();let restored=0;for(const b of state.local){const blob=await dbGet(b.id);if(blob instanceof Blob){state.blobs.set(b.id,blob);restored++;}else{const pages=await dbGet('pages:'+b.id);if(Array.isArray(pages))state.pages.set(b.id,pages);}}$('storageStatus').textContent='本機資料庫可用，已恢復 '+restored+' 個原始書檔。';}
     catch(e){$('storageStatus').textContent='本機儲存未啟用：'+e.message+'；請在關閉前備份。';}
