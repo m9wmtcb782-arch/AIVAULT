@@ -179,7 +179,7 @@
     renderStage();
   }
   function stageRows() { return state.books.filter(b=>(state.cat===null||b.cat===state.cat)&&(!state.sub||b.sub===state.sub)); }
-  function select(b) { if(!b)return;state.selected=b;renderStage();guideVersion++;syncContext().catch(()=>{}); }
+  function select(b) { if(!b)return;const changed=(state.cat!==null&&state.cat!==b.cat)||(state.sub&&state.sub!==b.sub);if(changed){state.cat=b.cat;state.sub='';}state.selected=b;if(changed)render();else renderStage();guideVersion++;syncContext().catch(()=>{}); }
   function shift(n) { const rows=stageRows();if(!rows.length){notice('館藏尚未載入，請按更新館藏。',true);return;}let i=rows.findIndex(b=>b.id===state.selected?.id);select(rows[(Math.max(0,i)+n+rows.length)%rows.length]); const book=$('floatingBook');book.classList.remove('swap');void book.offsetWidth;book.classList.add('swap'); }
   function renderStage() {
     const available=stageRows();if(!state.selected||!available.some(b=>b.id===state.selected.id))state.selected=available[0]||null;
