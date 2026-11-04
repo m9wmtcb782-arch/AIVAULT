@@ -45,7 +45,9 @@
   }
   function notice(message, error=false) {
     $('operationStatus').textContent = message; $('operationStatus').classList.toggle('error', error);
+    if(error&&$('reader')?.classList.contains('show'))$('readerMessage').textContent=message;
   }
+  function guideMessage(message) { $('guideStatus').textContent=message;if($('reader')?.classList.contains('show'))$('readerMessage').textContent=message; }
   function resultData(r) { if (!r?.ok || r.data?.ok === false) throw Error(r?.data?.message || r?.data?.error || `服務回應 ${r?.status || '失敗'}`); return r.data?.data || r.data || {}; }
   function deadline(p, ms=18000) { let timer; return Promise.race([p, new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('連線逾時，請重試')),ms);})]).finally(()=>clearTimeout(timer)); }
   function dbOpen() {
@@ -176,19 +178,20 @@
     document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===state.mode)));
     renderStage();
   }
-  function stageRows() { const a=state.books.filter(b=>state.cat===null||b.cat===state.cat);return a.length?a:state.books; }
+  function stageRows() { return state.books.filter(b=>(state.cat===null||b.cat===state.cat)&&(!state.sub||b.sub===state.sub)); }
   function select(b) { if(!b)return;state.selected=b;renderStage();guideVersion++;syncContext().catch(()=>{}); }
   function shift(n) { const rows=stageRows();if(!rows.length){notice('館藏尚未載入，請按更新館藏。',true);return;}let i=rows.findIndex(b=>b.id===state.selected?.id);select(rows[(Math.max(0,i)+n+rows.length)%rows.length]); const book=$('floatingBook');book.classList.remove('swap');void book.offsetWidth;book.classList.add('swap'); }
   function renderStage() {
+    const available=stageRows();if(!state.selected||!available.some(b=>b.id===state.selected.id))state.selected=available[0]||null;
     const b=state.selected;
     const custom=b&&state.covers.get(b.id),floating=$('floatingBook');
     floating.classList.toggle('has-custom-cover',!!custom);
     const face=$('floatingCover');if(face)face.innerHTML=custom?`<img src="${esc(custom)}" alt="${esc(b.title)} 自訂封面">`:'';
-    $('floatingTitle').textContent=b?b.title.split('——')[0].replace(/｜排版版$/,''):'正在載入館藏';$('floatingCategory').textContent=b?CATS[b.cat][0]:'';
-    $('stageBookName').textContent=b?b.title+' · 點書查看':'尚無館藏';
+    $('floatingTitle').textContent=b?b.title.split('——')[0].replace(/｜排版版$/,''):(state.loading?'正在載入館藏':'此館區尚無館藏');$('floatingCategory').textContent=b?CATS[b.cat][0]:'';
+    $('stageBookName').textContent=b?b.title+' · 點書查看':'尚無館藏，可匯入電子書';
     $('sceneCategory').textContent=state.cat===null?'皇家電子圖書館':CATS[state.cat][1]+' '+CATS[state.cat][0]+'館';
-    $('sceneBookInfo').innerHTML=b?`<button class="scene-cover" data-book="${esc(b.id)}" aria-label="查看 ${esc(b.title)}">${cover(b)}</button><div class="scene-meta"><strong>${esc(b.title)}</strong><small>${esc(b.author||'作者未提供')} · ${b.page_count||'?'} 頁</small><small>${esc(badge(b))} · ${esc(b.sub)}</small><div class="scene-book-actions"><button data-action="read">開始閱讀</button><button data-action="guide">暗星導讀</button><button data-action="shelf">${state.shelf.has(b.id)?'移出書架':'加入書架'}</button><button data-action="download">下載離線</button></div></div>`:'<p>正在載入第一基地館藏…</p>';
-    const a=stageRows();
+    $('sceneBookInfo').innerHTML=b?`<button class="scene-cover" data-book="${esc(b.id)}" aria-label="查看 ${esc(b.title)}">${cover(b)}</button><div class="scene-meta"><strong>${esc(b.title)}</strong><small>${esc(b.author||'作者未提供')} · ${b.page_count||'?'} 頁</small><small>${esc(badge(b))} · ${esc(b.sub)}</small><div class="scene-book-actions"><button data-action="read">開始閱讀</button><button data-action="guide">暗星導讀</button><button data-action="shelf">${state.shelf.has(b.id)?'移出書架':'加入書架'}</button><button data-action="download">下載離線</button></div></div>`:'<div class="scene-meta"><strong>此館區尚無可讀書籍</strong><small>可匯入自己的電子書，或選擇其他館區。</small><button data-action="import">＋ 匯入電子書</button></div>';
+    const a=available;
     const track=$('recommendations');
     const key=a.map(x=>x.id).join('|');
     if(track.dataset.books!==key||track.dataset.coverRevision!==String(state.coverRevision)){
@@ -214,11 +217,11 @@
   function closeModal() { $('overlay').classList.remove('show');modalFocus?.focus?.(); }
   function showBook(id) {
     const b=state.books.find(b=>b.id===id);if(!b)return notice('找不到這本書，請更新館藏。',true);
-    select(b);const p=state.progress[b.id]?.page||1;
+    $('sceneBookInfo').hidden=false;select(b);const p=state.progress[b.id]?.page||1;
     modal(`<div class="book-details"><div class="cover">${cover(b)}</div><h2>${esc(b.title)}</h2><p>${esc(b.author||'作者未提供')} · ${esc(CATS[b.cat][0])} / ${esc(b.sub)}</p><p>${esc(badge(b))} · ${b.page_count||'?'} 頁${p>1?' · 上次讀到第 '+p+' 頁':''}</p>${b.description?'<p>'+esc(b.description)+'</p>':''}<div class="modal-actions"><button data-action="read">📖 ${p>1?'繼續閱讀':'開始閱讀'}</button><button data-action="shelf">${state.shelf.has(b.id)?'移出書架':'＋ 加入書架'}</button><button data-action="favorite">${state.favs.has(b.id)?'★ 取消收藏':'☆ 收藏'}</button><button data-action="guide">🎙 暗星導讀</button><button data-action="download">↓ 下載離線</button><button data-action="changeCover">🖼 更換封面</button><button data-action="resetCover" ${state.covers.get(b.id)?'':'disabled'}>恢復彩色封面</button><button data-action="mark">${state.marks.has(b.id)?'取消本機學習標記':'標記為已學（本機）'}</button></div><p class="muted">封面可上傳 JPEG、PNG、WebP，會儲存在此裝置，並隨館藏備份一併匯出。</p></div>`);
   }
   function setMode(mode) {state.mode=mode;state.cat=null;state.sub='';state.query='';$('search').value='';render();$('shelfSection').scrollIntoView({behavior:'smooth'});}
-  function setCategory(i, sub='') {state.cat=clamp(i,0,CATS.length-1);state.mode='all';state.sub=sub;state.query='';$('search').value='';const b=state.books.find(b=>b.cat===state.cat&&(!sub||b.sub===sub));if(b)select(b);render();closeModal();$('shelfSection').scrollIntoView({behavior:'smooth'});}
+  function setCategory(i, sub='') {state.cat=clamp(i,0,CATS.length-1);state.mode='all';state.sub=sub;state.query='';$('search').value='';$('importCategory').value=state.cat;const b=state.books.find(b=>b.cat===state.cat&&(!sub||b.sub===sub));if(b)select(b);else state.selected=null;render();closeModal();$('shelfSection').scrollIntoView({behavior:'smooth'});}
   async function pdfLib() {
     if(!pdfLibPromise)pdfLibPromise=deadline(import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs')).then(p=>{p.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';return p;}).catch(e=>{pdfLibPromise=null;throw e;});
     return pdfLibPromise;
@@ -250,6 +253,10 @@
       else if(blob&&/^(txt|md)$/.test(b.kind)){const text=await blob.text();const parts=E.splitTextPages(text,1200);const pages=parts.map((content,i)=>({content,page_number:i+1}));state.pages.set(b.id,pages);total=pages.length||1;}
       else if(b.source!=='remote'){const pages=await loadPages(b);if(!pages.length)throw Error('找不到可閱讀檔案，請重新匯入');total=pages.length;}
       if(token!==state.readerToken)return;
+      if(!state.progress[b.id]){
+        try{const previous=b.source==='legacy-local'?await E.loadLocalProgress(b.id):b.source==='remote'&&E.userToken()?await deadline(E.loadRemoteProgress(b.id),2500):null;const page=Number(previous?.current_page||previous?.page_number);if(page>0)state.progress[b.id]={page,total:previous.total_pages||total,at:previous.last_read_at||null};}catch{}
+      }
+      if(token!==state.readerToken)return;
       state.total=Math.max(1,total);const n=clamp(requested||state.progress[b.id]?.page||1,1,state.total);
       $('pageControls').hidden=false;await paintPage(n);
     } catch(e){if(token!==state.readerToken)return;$('readerContent').innerHTML='<h2>未能開啟電子書</h2><p>'+esc(e.message)+'</p><button data-action="retryReader">重新載入</button> <button data-action="import">匯入原始檔案</button>';notice(e.message,true);}
@@ -272,8 +279,20 @@
       return type==='pimg'?`<img class="page-image" data-private="${k}" alt="第 ${state.page} 頁原文圖片">`:`<img class="page-image" src="${BASE}ebooks/${encodeURIComponent(b.id)}/img/${k}.jpg" alt="第 ${state.page} 頁原文圖片">`;
     }).replace(/\n/g,'<br>')+'</div>';
   }
-  async function paintPage(n) {
+  function pageSnapshot() {
+    const host=$('readerScroll'),content=$('readerContent'),view=document.createElement('div'),copy=content.cloneNode(true);
+    view.style.cssText='width:100%;height:100%;overflow:hidden;padding:14px;box-sizing:border-box;background:#1a1322';
+    copy.style.position='relative';copy.style.top=(-host.scrollTop)+'px';
+    const sourceCanvases=[...content.querySelectorAll('canvas')],clonedCanvases=[...copy.querySelectorAll('canvas')];
+    sourceCanvases.forEach((canvas,i)=>{try{clonedCanvases[i].getContext('2d').drawImage(canvas,0,0);}catch{}});
+    const sourceImages=[...content.querySelectorAll('img')],clonedImages=[...copy.querySelectorAll('img')];
+    sourceImages.forEach((image,i)=>{if(!image.complete||!image.naturalWidth)return;try{const canvas=document.createElement('canvas');canvas.width=image.naturalWidth;canvas.height=image.naturalHeight;canvas.className=image.className;canvas.style.cssText=image.style.cssText;canvas.getContext('2d').drawImage(image,0,0);clonedImages[i].replaceWith(canvas);}catch{}});
+    view.append(copy);return view;
+  }
+  async function paintPage(n, turnOptions={}) {
     const b=state.reader;if(!b)return;const p=clamp(n,1,state.total),token=++state.pageToken;
+    window.AIVAULTPageCurl?.cancel();
+    const oldPage=state.page,before=state.rendered&&p!==oldPage?pageSnapshot():null;
     stopReading();$('readerMessage').textContent='正在讀取第 '+p+' 頁…';$('prevPage').disabled=true;$('nextPage').disabled=true;
     try {
       const page=await getPage(b,p);if(token!==state.pageToken)return;state.page=p;state.rendered=page;
@@ -281,14 +300,16 @@
       if(page.pdfPage){const vp=page.pdfPage.getViewport({scale:Math.min(1.8,Math.max(.8,($('readerContent').clientWidth-32)/page.pdfPage.getViewport({scale:1}).width))});const canvas=document.createElement('canvas');canvas.width=vp.width;canvas.height=vp.height;await page.pdfPage.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;if(token!==state.pageToken)return;$('readerContent').replaceChildren(canvas);}
       else {$('readerContent').innerHTML=pageHTML(page,b);await loadPrivateImages($('readerContent'),b);if(token!==state.pageToken)return;}
       $('readerMessage').textContent='';$('pageLabel').textContent=`${p} / ${state.total}`;$('pageNumber').value=p;$('pageNumber').max=state.total;$('pageRange').max=state.total;$('pageRange').value=p;
-      $('readerScroll').scrollTop=0;state.lastReader=b.id;state.progress[b.id]={page:p,total:state.total,at:new Date().toISOString()};
+      $('readerScroll').scrollTop=0;
+      if(before&&window.AIVAULTPageCurl&&!matchMedia('(prefers-reduced-motion: reduce)').matches){await window.AIVAULTPageCurl.run($('readerScroll'),before,null,p>oldPage?'next':'prev',{duration:320,corner:turnOptions.corner||'bottom',slope:turnOptions.slope||.3});if(token!==state.pageToken)return;}
+      state.lastReader=b.id;state.progress[b.id]={page:p,total:state.total,at:new Date().toISOString()};
       state.history=[{id:b.id,page:p,at:new Date().toISOString()},...state.history.filter(x=>x.id!==b.id)].slice(0,200);persist();render();
       const u=new URL(location.href);u.searchParams.set('book',b.id);u.searchParams.set('page',p);u.searchParams.set('view','reader');history.replaceState(null,'',u);
       syncContext().catch(()=>{});
     }catch(e){if(token!==state.pageToken)return;$('readerMessage').textContent='第 '+p+' 頁讀取失敗：'+e.message;$('readerContent').innerHTML='<p>未能載入這一頁，閱讀進度保留。</p><button data-action="retryPage" data-page="'+p+'">重試此頁</button>';}
     finally{if(token===state.pageToken){$('prevPage').disabled=state.page<=1;$('nextPage').disabled=state.page>=state.total;}}
   }
-  function closeReader() {++state.readerToken;++state.pageToken;stopReading();$('reader').classList.remove('show');const doc=state.doc;state.doc=null;doc?.destroy();state.reader=null;const u=new URL(location.href);u.searchParams.set('view','shelf');u.searchParams.delete('book');u.searchParams.delete('ebook_id');history.replaceState(null,'',u);}
+  function closeReader() {++state.readerToken;++state.pageToken;window.AIVAULTPageCurl?.cancel();cancelSwipe();stopReading();$('reader').classList.remove('show');const doc=state.doc;state.doc=null;doc?.destroy();state.reader=null;const u=new URL(location.href);u.searchParams.set('view','shelf');u.searchParams.delete('book');u.searchParams.delete('ebook_id');history.replaceState(null,'',u);}
   async function importFiles(files) {
     for(const file of files) {
       const ext=file.name.split('.').pop().toLowerCase();
@@ -374,19 +395,20 @@
     const timer=setInterval(()=>{try{const vs=[...frame.contentDocument.querySelectorAll('video')];if(vs.some(v=>v.readyState>=2&&!v.paused&&v.currentTime>0)){frame.style.opacity='1';avatarPreview.pause();avatarPreview.hidden=true;state.ready=true;clearInterval(timer);$('avatarStatus').textContent='暗星數字人已載入';}}catch{}},500);
     window.addEventListener('pagehide',()=>{clearInterval(timer);avatarPreview.pause();stopVoice();},{once:true});
     window.addEventListener('message',e=>{if(e.source!==frame.contentWindow||e.origin!==location.origin||e.data?.type!=='royal-avatar')return;const d=e.data;state.voice=d;state.ready=true;
-      if(d.state)$('dsStatus').textContent=(d.confirmed&&d.active?'語音已連線':'語音未連線')+' · '+d.state+(d.error?' · '+d.error:'');
+      if(d.state){const message=(d.confirmed&&d.active?'語音已連線':'語音未連線')+' · '+d.state+(d.error?' · '+d.error:'');$('dsStatus').textContent=message;if($('readerVoiceStatus'))$('readerVoiceStatus').textContent=message;}
       if(d.videoError)$('avatarStatus').textContent='影片載入失敗：'+d.videoError;
       $('voiceToggle').textContent=d.active?'■ 結束對話':'🎙 即時對話';
-      if(d.guideSent===false){notice('導讀尚未送出，請先完成即時語音連線。',true);$('guideStatus').textContent='請先連接即時對話，再按導讀。';}
-      if(d.guideSent===true)$('guideStatus').textContent='已送出目前頁面的導讀要求。';
+      if($('readerVoiceToggle'))$('readerVoiceToggle').textContent=d.active?'■ 結束對話':'🎙 即時對話';
+      if(d.guideSent===false){notice('導讀尚未送出，請先完成即時語音連線。',true);guideMessage('請先連接即時對話，再按導讀。');}
+      if(d.guideSent===true)guideMessage('已送出目前頁面的導讀要求。');
     });
   }
   function post(type,text) {frame?.contentWindow?.postMessage({type,text},location.origin);}
   async function toggleVoice() {
     if(!state.ready||typeof frame?.contentWindow?.libraryVoiceToggle!=='function'){notice('數字人互動程式尚在載入；影片可先播放，請稍後重試。',true);return;}
-    notice('正在切換即時語音，請依瀏覽器提示允許麥克風。');try{await frame.contentWindow.libraryVoiceToggle();}catch(e){notice('語音啟動失敗：'+e.message,true);}
+    guideMessage('正在切換即時語音，請依瀏覽器提示允許麥克風。');try{await frame.contentWindow.libraryVoiceToggle();}catch(e){notice('語音啟動失敗：'+e.message,true);}
   }
-  function stopVoice() {guideVersion++;post('royal-stop');stopReading();$('guideStatus').textContent='語音與導讀已停止';notice('已停止語音與導讀。');}
+  function stopVoice() {guideVersion++;post('royal-stop');stopReading();guideMessage('語音與導讀已停止');notice('已停止語音與導讀。');}
   async function contextForBook(b) {
     if(!b)throw Error('請先選擇電子書');const n=state.reader?.id===b.id?state.page:state.progress[b.id]?.page||1;
     let page;if(state.reader?.id===b.id&&state.rendered)page=state.rendered;
@@ -399,9 +421,9 @@
   async function syncContext() {const b=state.reader||state.selected;if(!b||!state.ready)return;try{const text=await contextForBook(b);if((state.reader||state.selected)?.id===b.id)post('royal-context','資料更新，請勿主動朗讀。'+text);}catch{}}
   async function guide() {
     const b=state.reader||state.selected;if(!b){notice('請先選書。',true);return;}
-    $('guideStatus').textContent='正在取得目前頁面的原文…';const v=++guideVersion;
-    try{const text=await contextForBook(b);if(v!==guideVersion)return;if(!state.voice.active||!state.voice.confirmed){$('guideStatus').textContent='原文已取得，請先按「即時對話」完成連線，再按「導讀目前頁」。';notice('請先連接暗星即時對話，才能開始 AI 導讀。',true);$('voicePanel').scrollIntoView({behavior:'smooth'});return;}post('royal-guide',text+'\n請口語解說本頁，忠實原文。');$('guideStatus').textContent='已要求暗星導讀第 '+(state.reader?.id===b.id?state.page:state.progress[b.id]?.page||1)+' 頁，等待語音回應。';closeModal();}
-    catch(e){if(v!==guideVersion)return;$('guideStatus').textContent='導讀未開始：'+e.message;notice('導讀未開始：'+e.message,true);}
+    guideMessage('正在取得目前頁面的原文…');const v=++guideVersion;
+    try{const text=await contextForBook(b);if(v!==guideVersion)return;if(!state.voice.active||!state.voice.confirmed){const message='原文已取得，請先按上方「🎙 即時對話」完成連線，再按「暗星導讀」。';notice(message,true);guideMessage(message);if(!state.reader){closeModal();$('voicePanel').scrollIntoView({behavior:'smooth'});}return;}post('royal-guide',text+'\n請口語解說本頁，忠實原文。');guideMessage('已要求暗星導讀第 '+(state.reader?.id===b.id?state.page:state.progress[b.id]?.page||1)+' 頁，等待語音回應。');closeModal();}
+    catch(e){if(v!==guideVersion)return;guideMessage('導讀未開始：'+e.message);notice('導讀未開始：'+e.message,true);}
   }
   function stopReading() {if('speechSynthesis'in window)speechSynthesis.cancel();activeUtterance=null;$('listen').textContent='🔊 朗讀本頁';}
   function listen() {
@@ -465,6 +487,44 @@
   $('search').addEventListener('input',e=>{state.query=e.target.value.trim();render();});
   $('pageRange').addEventListener('change',e=>paintPage(e.target.value));
   $('pageNumber').addEventListener('keydown',e=>{if(e.key==='Enter')paintPage(e.target.value);});
+  let swipe=null,swipeFrame=0,turningBySwipe=false;
+  const touchPointers=new Set(),swipeHost=$('readerScroll');
+  function cancelSwipe() {swipe=null;if(swipeFrame)cancelAnimationFrame(swipeFrame);swipeFrame=0;window.AIVAULTPageCurl?.cancel();}
+  swipeHost.addEventListener('pointerdown',e=>{
+    if(e.pointerType==='touch'){touchPointers.add(e.pointerId);if(touchPointers.size>1){cancelSwipe();return;}}
+    if(turningBySwipe&&swipeHost.querySelector('.qq-curl-host')){window.AIVAULTPageCurl.cancel();turningBySwipe=false;}
+    if(turningBySwipe||!state.rendered||!state.reader||e.button>0||touchPointers.size>1)return;
+    if(e.target.closest('button,input,textarea,select,a,[contenteditable]'))return;
+    if(e.pointerType==='mouse'&&!e.target.closest('canvas,img'))return;
+    if(window.getSelection()?.type==='Range')return;
+    swipe={id:e.pointerId,x:e.clientX,y:e.clientY,lastX:e.clientX,lastY:e.clientY,horizontal:false,before:null};
+  });
+  swipeHost.addEventListener('pointermove',e=>{
+    if(!swipe||swipe.id!==e.pointerId)return;
+    const dx=e.clientX-swipe.x,dy=e.clientY-swipe.y;
+    swipe.lastX=e.clientX;swipe.lastY=e.clientY;
+    if(!swipe.horizontal){if(Math.abs(dy)>12&&Math.abs(dy)>Math.abs(dx)*1.2){cancelSwipe();return;}if(Math.abs(dx)<12||Math.abs(dx)<Math.abs(dy)*1.3)return;swipe.horizontal=true;swipe.before=pageSnapshot();try{swipeHost.setPointerCapture(e.pointerId);}catch{}}
+    if(e.cancelable)e.preventDefault();
+    if(!window.AIVAULTPageCurl||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    const next=dx<0,target=state.page+(next?1:-1);if(target<1||target>state.total)return;
+    if(swipeFrame)cancelAnimationFrame(swipeFrame);
+    swipeFrame=requestAnimationFrame(()=>{swipeFrame=0;if(!swipe)return;const box=swipeHost.getBoundingClientRect();window.AIVAULTPageCurl.run(swipeHost,swipe.before,null,next?'next':'prev',{hold:Math.min(.48,Math.abs(dx)/box.width*.75),corner:swipe.y<box.top+box.height/2?'top':'bottom',slope:Math.abs(dy/dx)});});
+  },{passive:false});
+  function finishSwipe(e) {
+    if(e.pointerType==='touch')touchPointers.delete(e.pointerId);
+    if(!swipe||swipe.id!==e.pointerId)return;
+    const gesture=swipe,dx=e.clientX-gesture.x,dy=e.clientY-gesture.y,box=swipeHost.getBoundingClientRect();cancelSwipe();
+    const threshold=Math.min(80,Math.max(42,box.width*.1));
+    if(!gesture.horizontal||Math.abs(dx)<threshold||Math.abs(dx)<Math.abs(dy)*1.3)return;
+    const next=state.page+(dx<0?1:-1);
+    if(next<1||next>state.total){$('readerMessage').textContent=next<1?'已是第一頁。':'已是最後一頁。';return;}
+    if(e.cancelable)e.preventDefault();turningBySwipe=true;
+    paintPage(next,{corner:gesture.y<box.top+box.height/2?'top':'bottom',slope:Math.abs(dy/dx)}).finally(()=>{turningBySwipe=false;});
+  }
+  swipeHost.addEventListener('pointerup',finishSwipe);
+  swipeHost.addEventListener('pointercancel',e=>{touchPointers.delete(e.pointerId);cancelSwipe();});
+  swipeHost.addEventListener('lostpointercapture',()=>{if(swipe)cancelSwipe();});
+  swipeHost.addEventListener('dragstart',e=>{if(e.target.closest('img'))e.preventDefault();});
   document.addEventListener('input',e=>{if(e.target.id==='fontSetting'){state.font=+e.target.value;write('aivaultRoyalFont',state.font);$('fontValue').textContent=state.font+'px';$('readerContent').style.fontSize=state.font+'px';}});
   document.addEventListener('error',e=>{if(e.target instanceof HTMLImageElement&&e.target.closest('.cover,.scene-cover')){const image=e.target;const span=document.createElement('span');span.textContent=image.alt.replace(/ 封面$/,'');image.replaceWith(span);}},true);
   $('fileInput').addEventListener('change',e=>importFiles([...e.target.files]));
