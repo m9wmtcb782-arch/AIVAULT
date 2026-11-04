@@ -1,4 +1,4 @@
-/* Dark Star anatomical joint registry v0.1
+/* Dark Star anatomical joint registry v0.2 (M0 audit: T12-L1 added; per-joint types/axes corrected)
  * Anatomical inventory, not an invented 360-joint atlas.
  * Each named entry is independently addressable. Unsupported joints remain uncalibrated.
  * ROM values are NOT inferred. A null ROM prohibits motor actuation.
@@ -18,19 +18,30 @@ add('spine','atlanto-axial','midline','synovial',['rotation']);
 for(let i=2;i<=6;i++)add('spine',`cervical C${i}-C${i+1} segment`,'midline','composite',['flexion','lateral','rotation']);
 add('spine','cervicothoracic C7-T1 segment','midline','composite',['flexion','lateral','rotation']);
 for(let i=1;i<=11;i++)add('spine',`thoracic T${i}-T${i+1} segment`,'midline','composite',['flexion','lateral','rotation']);
+add('spine','thoracolumbar T12-L1 segment','midline','composite',['flexion','lateral','rotation']);
 for(let i=1;i<=4;i++)add('spine',`lumbar L${i}-L${i+1} segment`,'midline','composite',['flexion','lateral','rotation']);
 add('spine','lumbosacral L5-S1','midline','composite',['flexion','lateral','rotation']);
 for(let rib=1;rib<=12;rib++)bilateral('thorax',`costovertebral rib ${rib}`,'synovial-small',['glide']);
 for(let rib=1;rib<=10;rib++)bilateral('thorax',`costotransverse rib ${rib}`,'synovial-small',['glide']);
 for(let rib=1;rib<=7;rib++)bilateral('thorax',`sternocostal rib ${rib}`,rib===1?'cartilaginous':'synovial-small',rib===1?[]:['glide']);
-for(const name of ['sternoclavicular','acromioclavicular','glenohumeral','humeroulnar','humeroradial','proximal radioulnar','distal radioulnar','radiocarpal','midcarpal'])bilateral('upper-limb',name,'synovial',['flexion','abduction','rotation']);
+const UPPER=[['sternoclavicular','synovial-saddle',['elevation-depression','protraction-retraction','axial-rotation']],
+ ['acromioclavicular','synovial-plane',['glide']],['glenohumeral','synovial-ball-socket',['flexion','abduction','rotation']],
+ ['humeroulnar','synovial-hinge',['flexion']],['humeroradial','synovial-hinge-pivot',['flexion','axial-rotation']],
+ ['proximal radioulnar','synovial-pivot',['pronation-supination']],['distal radioulnar','synovial-pivot',['pronation-supination']],
+ ['radiocarpal','synovial-condyloid',['flexion','radial-ulnar-deviation']],['midcarpal','synovial-plane-complex',['flexion','radial-ulnar-deviation']]];
+for(const [name,type,axes] of UPPER)bilateral('upper-limb',name,type,axes);
 for(let finger=1;finger<=5;finger++){
  bilateral('hand',`carpometacarpal digit ${finger}`,'synovial',['flexion','abduction']);
  bilateral('hand',`metacarpophalangeal digit ${finger}`,'synovial',['flexion','abduction']);
  if(finger===1)bilateral('hand','thumb interphalangeal','hinge',['flexion']);
  else {bilateral('hand',`proximal interphalangeal digit ${finger}`,'hinge',['flexion']);bilateral('hand',`distal interphalangeal digit ${finger}`,'hinge',['flexion']);}
 }
-for(const name of ['sacroiliac','hip','tibiofemoral','patellofemoral','proximal tibiofibular','distal tibiofibular','talocrural','subtalar','talonavicular','calcaneocuboid'])bilateral('lower-limb',name,'complex',['flexion','abduction','rotation']);
+const LOWER=[['sacroiliac','synovial-plane',['nutation']],['hip','synovial-ball-socket',['flexion','abduction','rotation']],
+ ['tibiofemoral','synovial-modified-hinge',['flexion','axial-rotation']],['patellofemoral','synovial-plane',['glide']],
+ ['proximal tibiofibular','synovial-plane',['glide']],['distal tibiofibular','fibrous-syndesmosis',[]],
+ ['talocrural','synovial-hinge',['dorsiflexion-plantarflexion']],['subtalar','synovial-plane-complex',['inversion-eversion']],
+ ['talonavicular','synovial-ball-socket',['glide']],['calcaneocuboid','synovial-saddle',['glide']]];
+for(const [name,type,axes] of LOWER)bilateral('lower-limb',name,type,axes);
 for(let digit=1;digit<=5;digit++){
  bilateral('foot',`tarsometatarsal digit ${digit}`,'synovial-small',['glide']);
  bilateral('foot',`metatarsophalangeal digit ${digit}`,'synovial',['flexion','abduction']);
