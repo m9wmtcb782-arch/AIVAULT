@@ -60,7 +60,7 @@ def main():
             query=urllib.parse.urlencode({"filename":filename,"subfolder":image.get("subfolder",""),"type":image.get("type","output")})
             with urllib.request.urlopen(base+"/view?"+query,timeout=60) as response:
                 content=response.read()
-            if not content.startswith(b"\\x89PNG\\r\\n\\x1a\\n"):
+            if not content.startswith(b"\x89PNG\r\n\x1a\n"):
                 raise ValueError("Output is not a PNG")
             count+=1
             target=out/(args.name+"_"+job[:8]+"_"+str(count)+".png")
