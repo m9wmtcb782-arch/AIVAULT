@@ -134,10 +134,10 @@
   }
   function stageRows() { const a=state.books.filter(b=>state.cat===null||b.cat===state.cat);return a.length?a:state.books; }
   function select(b) { if(!b)return;state.selected=b;renderStage();guideVersion++;syncContext().catch(()=>{}); }
-  function shift(n) { const rows=stageRows();if(!rows.length){notice('館藏尚未載入，請按更新館藏。',true);return;}let i=rows.findIndex(b=>b.id===state.selected?.id);select(rows[(Math.max(0,i)+n+rows.length)%rows.length]); }
+  function shift(n) { const rows=stageRows();if(!rows.length){notice('館藏尚未載入，請按更新館藏。',true);return;}let i=rows.findIndex(b=>b.id===state.selected?.id);select(rows[(Math.max(0,i)+n+rows.length)%rows.length]); const book=$('floatingBook');book.classList.remove('swap');void book.offsetWidth;book.classList.add('swap'); }
   function renderStage() {
     const b=state.selected;
-    $('floatingTitle').textContent=b?.title||'正在載入館藏';$('floatingCategory').textContent=b?CATS[b.cat][0]:'';
+    $('floatingTitle').textContent=b?b.title.split('——')[0].replace(/｜排版版$/,''):'正在載入館藏';$('floatingCategory').textContent=b?CATS[b.cat][0]:'';
     $('stageBookName').textContent=b?b.title+' · 點書查看':'尚無館藏';
     $('sceneCategory').textContent=state.cat===null?'皇家電子圖書館':CATS[state.cat][1]+' '+CATS[state.cat][0]+'館';
     $('sceneBookInfo').innerHTML=b?`<button class="scene-cover" data-book="${esc(b.id)}" aria-label="查看 ${esc(b.title)}">${cover(b)}</button><div class="scene-meta"><strong>${esc(b.title)}</strong><small>${esc(b.author||'作者未提供')} · ${b.page_count||'?'} 頁</small><small>${esc(badge(b))} · ${esc(b.sub)}</small><div class="scene-book-actions"><button data-action="read">開始閱讀</button><button data-action="guide">暗星導讀</button><button data-action="shelf">${state.shelf.has(b.id)?'移出書架':'加入書架'}</button><button data-action="download">下載離線</button></div></div>`:'<p>正在載入第一基地館藏…</p>';
