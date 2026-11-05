@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aivault.local/comic-engine/schema/shot.schema.json",
+  "title": "Comic Engine Shot (timeline item)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["shot_id", "scene_id", "start_sec", "end_sec", "camera", "dialogue"],
+  "properties": {
+    "shot_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{1,31}$" },
+    "scene_id": { "type": "string" },
+    "start_sec": { "type": "number", "minimum": 0, "maximum": 60 },
+    "end_sec": { "type": "number", "minimum": 0, "maximum": 60 },
+    "camera": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["framing"],
+      "properties": {
+        "framing": { "enum": ["wide", "medium", "close", "extreme_close"] },
+        "pan": { "type": "number", "default": 0 },
+        "zoom": { "type": "number", "minimum": 0.5, "maximum": 3, "default": 1 }
+      }
+    },
+    "cast": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["character_id"],
+        "properties": {
+          "character_id": { "type": "string" },
+          "pose": { "type": "string", "default": "idle" },
+          "expression": { "type": "string", "default": "neutral" },
+          "x": { "type": "number", "default": 0.5 },
+          "y": { "type": "number", "default": 0.7 }
+        }
+      }
+    },
+    "dialogue": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["character_id", "text", "start_sec", "end_sec"],
+        "properties": {
+          "character_id": { "type": "string" },
+          "text": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "start_sec": { "type": "number", "minimum": 0, "maximum": 60 },
+          "end_sec": { "type": "number", "minimum": 0, "maximum": 60 },
+          "subtitle": { "type": "boolean", "default": true }
+        }
+      }
+    },
+    "sfx": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["asset", "at_sec"],
+        "properties": {
+          "asset": { "type": "string" },
+          "at_sec": { "type": "number", "minimum": 0, "maximum": 60 }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>漫劇引擎 P1・時間軸預覽（隔離）</title>
+<style>
+  :root { color-scheme: dark; font-family: system-ui, "PingFang TC", sans-serif; }
+  body { margin: 0; background: #0b1220; color: #e8eefc; }
+  header { padding: 12px 16px; border-bottom: 1px solid #243049; }
+  header strong { color: #9fd0ff; }
+  main { display: grid; gap: 12px; padding: 16px; max-width: 960px; margin: 0 auto; }
+  .badge { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 999px; background: #1d2a44; color: #bcd; }
+  #stage { aspect-ratio: 9/16; max-height: 70vh; margin: 0 auto; width: min(360px, 100%); background: #152038; border-radius: 16px; border: 1px solid #2a3b5c; position: relative; overflow: hidden; }
+  #stage .label { position: absolute; left: 10px; top: 10px; font-size: 12px; background: rgba(0,0,0,.55); padding: 4px 8px; border-radius: 8px; }
+  #stage .sub { position: absolute; left: 8%; right: 8%; bottom: 10%; text-align: center; background: rgba(0,0,0,.6); padding: 8px 10px; border-radius: 10px; font-size: 14px; min-height: 1.4em; }
+  #rail { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+  .shot { flex: 0 0 auto; width: 120px; padding: 8px; border-radius: 10px; border: 1px solid #334866; background: #121c31; cursor: pointer; font-size: 12px; }
+  .shot.active { border-color: #6ab0ff; box-shadow: 0 0 0 1px #6ab0ff inset; }
+  .shot b { display: block; margin-bottom: 4px; }
+  #meta { font-size: 13px; color: #a9b7d4; white-space: pre-wrap; }
+  footer { font-size: 12px; color: #7f8eab; padding: 0 16px 20px; max-width: 960px; margin: 0 auto; }
+</style>
+</head>
+<body>
+<header>
+  <div><strong>comic-engine</strong> P1 時間軸預覽</div>
+  <div class="badge">隔離頁・非正式 Pages・不輸出 MP4・付費 API 關閉</div>
+</header>
+<main>
+  <div id="stage">
+    <div class="label" id="sceneLabel">載入中…</div>
+    <div class="sub" id="sub"></div>
+  </div>
+  <div id="rail" aria-label="分鏡時間軸"></div>
+  <div id="meta"></div>
+</main>
+<footer>
+  資料來自 <code>comic-engine/projects/_example/project.json</code>。P2 才需要本機 Godot＋FFmpeg。
+  平行 Draft PR #58（comic-studio）未合併進本目錄。
+</footer>
+<script>
+async function boot() {
+  const res = await fetch('../projects/_example/project.json');
+  const p = await res.json();
+  const scenes = Object.fromEntries(p.scenes.map(s => [s.id, s]));
+  const chars = Object.fromEntries(p.characters.map(c => [c.id, c]));
+  const rail = document.getElementById('rail');
+  const sceneLabel = document.getElementById('sceneLabel');
+  const sub = document.getElementById('sub');
+  const meta = document.getElementById('meta');
+  function show(shot, el) {
+    rail.querySelectorAll('.shot').forEach(n => n.classList.remove('active'));
+    el.classList.add('active');
+    const sc = scenes[shot.scene_id];
+    sceneLabel.textContent = `${sc.display_name}・${shot.start_sec}–${shot.end_sec}s・${shot.camera.framing}`;
+    const line = (shot.dialogue || [])[0];
+    sub.textContent = line ? `${chars[line.character_id]?.display_name || line.character_id}：${line.text}` : '（此鏡頭無對白）';
+    meta.textContent = JSON.stringify({ shot_id: shot.shot_id, cast: shot.cast, dialogue: shot.dialogue }, null, 2);
+  }
+  p.timeline.forEach((shot, i) => {
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'shot' + (i === 0 ? ' active' : '');
+    el.innerHTML = `<b>${shot.shot_id}</b>${shot.start_sec}–${shot.end_sec}s<br/>${scenes[shot.scene_id]?.display_name || shot.scene_id}`;
+    el.onclick = () => show(shot, el);
+    rail.appendChild(el);
+    if (i === 0) show(shot, el);
+  });
+}
+boot().catch(e => { document.getElementById('sceneLabel').textContent = '載入失敗'; document.getElementById('meta').textContent = String(e); });
+</script>
+</body>
+</html>

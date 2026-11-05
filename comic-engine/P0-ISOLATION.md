@@ -27,7 +27,7 @@ comic-engine/
 |---|---|---|
 | P0 隔離分支與目錄 | CONFIRMED | 本檔 |
 | P0 既有系統盤點 | REQUIRES TEST | 需逐一確認 AI Gateway／Cognitive／Governance 實際檔案與介面 |
-| P1 schema／時間軸／素材庫 | 未開始 | |
+| P1 schema／時間軸／素材庫 | REQUIRES TEST | 見 P1-SCHEMA.md；示例＋驗證器＋隔離預覽 |
 | P2 本機 60 秒 MP4 | BLOCKED | 需本地工作節點（安裝 Godot 4 與 FFmpeg）實際執行 |
 | P3 雙設備分發 | BLOCKED | 需兩台實機實測吞吐、傳輸、熱降頻 |
 | P4 暗星／曙光接入 | 未開始 | 需人工審核 |
