@@ -103,6 +103,7 @@
     legacy.forEach(b=>map.set(String(b.id),normalize(b,'legacy-local')));
     state.local.forEach(b=>map.set(String(b.id),normalize(localMeta(b),'royal-local')));
     remote.forEach(b=>{const id=String(b.ebook_id||b.id);if(!map.has(id))map.set(id,normalize(b,'remote'));});
+    arr(window.AIVAULTMedicalBooks).forEach(b=>{if(!map.has(b.id))map.set(b.id,normalize(b,'medical-builtin'));state.pages.set(b.id,b.pages);});
     state.books=[...map.values()].filter(b=>b.id&&(b.page_count!==0 || b.source==='royal-local'));
     if(!state.selected||!map.has(state.selected.id))state.selected=state.books[0]||null;
     else state.selected=map.get(state.selected.id);
@@ -184,7 +185,7 @@
     await dbPut('cover:'+b.id,{reset:true});try{await E.clearCustomCover(b.id);}catch{}
     state.covers.set(b.id,'');state.coverRevision++;render();showBook(b.id);notice('已恢復原本彩色封面。');
   }
-  function badge(b) { return b.source==='remote'?'第一基地館藏':b.missing?'書檔待補':'本機館藏'; }
+  function badge(b) { return b.source==='remote'?'第一基地館藏':b.source==='medical-builtin'?'繁中原創教材':b.missing?'書檔待補':'本機館藏'; }
   function render() {
     const rows=listBooks();
     const names={all:state.cat===null?'全部館藏':CATS[state.cat][0],shelf:'我的書架',favs:'我的收藏',history:'閱讀紀錄'};
@@ -268,6 +269,7 @@
   function pageKey(id,n) {return id+':'+n;}
   async function loadPages(b) {
     if(state.pages.has(b.id))return state.pages.get(b.id);
+    if(b.source==='medical-builtin')return arr(b.pages);
     if(b.source==='legacy-local'){const pages=await E.pagesOf(b.id);state.pages.set(b.id,pages);return pages;}
     if(state.db){const pages=await dbGet('pages:'+b.id);if(Array.isArray(pages)){state.pages.set(b.id,pages);return pages;}}
     return [];
