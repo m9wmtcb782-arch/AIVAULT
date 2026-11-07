@@ -61,6 +61,7 @@
   function dbPut(id, blob) { return new Promise((resolve,reject)=>{if(!state.db)return reject(Error('本機資料庫未啟用'));const tx=state.db.transaction('pdfs','readwrite');tx.objectStore('pdfs').put(blob,id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||Error('儲存已中止'));}); }
   function dbGet(id) { return new Promise((resolve,reject)=>{const req=state.db.transaction('pdfs','readonly').objectStore('pdfs').get(id);req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);}); }
   function inferCategory(b) {
+    if(b.metadata?.source==='ai-novel-pipeline')return 3;
     const t=[b.category,b.metadata?.category,b.title,b.description,b.sub].filter(Boolean).join(' ').normalize('NFKC');
     const tests=[/法律|法學|行政|憲法|宪法|民法|刑法|食安|食品|司法|法学|决算|決算|中藥|國家機構|国家机构|預算|预算|租稅|稅法|税法|會計法|会计法/,
       /英語|英语|英文|English/i,/人工智慧|AI|神經|程式|資訊|机器|機器/i,/小說|小说|文學|文学|劉慈欣|刘慈欣/,
@@ -69,6 +70,7 @@
     const n=tests.findIndex(x=>x.test(t));return n<0?9:n;
   }
   function inferSub(b, cat) {
+    if(cat===3&&b.metadata?.source==='ai-novel-pipeline')return 'AI 原創小說';
     const t=String(b.title||'')+' '+String(b.category||'');
     const tests=cat===0?[/憲法|宪法|基本權/,/行政/,/民法|民事/,/刑法|刑事/,/食品|食安|中藥/,/財政|決算|决算|會計/,/國際|国际|比較/,/研究|論文/]:cat===1?[/國中|国中|第一冊/,/高中|第二冊/,/大學|大学|成人|第三冊/,/生活/,/中英/,/商務/]:[];
     let i=tests.findIndex(x=>x.test(t));return CATS[cat][2][i<0?0:i];
