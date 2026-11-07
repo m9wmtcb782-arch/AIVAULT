@@ -191,6 +191,16 @@
     $('currentTitle').textContent=names[state.mode];$('count').textContent=rows.length+' 本';
     $('location').textContent=names[state.mode];
     $('books').innerHTML=rows.map(b=>{const h=state.history.find(x=>x.id===b.id);return `<button class="book" data-book="${esc(b.id)}"><div class="cover">${cover(b)}</div><strong>${esc(b.title)}</strong><small>${esc(b.author||'作者未提供')} · ${esc(badge(b))}</small><small>${b.page_count?b.page_count+' 頁':''}${state.mode==='history'&&h?' · 第 '+h.page+' 頁'+(h.at?' · '+esc(new Date(h.at).toLocaleString('zh-TW')):''):''}${state.favs.has(b.id)?' ★':''}</small></button>`;}).join('');
+    // Verified publisher-hosted medical reference books; external reading is explicitly labeled.
+    if(state.mode==='all' && state.cat===7 && !state.query) {
+      const references=[
+        {title:'Anatomy and Physiology 2e｜人體解剖與生理學',sub:'醫學',url:'https://openstax.org/books/anatomy-and-physiology-2e/pages/1-introduction'},
+        {title:'Microbiology｜微生物學',sub:'醫學',url:'https://openstax.org/books/microbiology/pages/1-introduction'}
+      ].filter(b=>!state.sub||b.sub===state.sub);
+      const area=document.createElement('section');area.setAttribute('aria-label','公開醫學電子書');
+      area.innerHTML='<h3>公開醫學電子書（出版社原站閱讀）</h3><p>以下是完整免費線上教材，點擊後開啟出版社網站；尚未匯入第一基地內建翻頁閱讀器。</p><div class="books">'+references.map(b=>'<a class="book" href="'+b.url+'" target="_blank" rel="noopener noreferrer" style="display:block;text-decoration:none;padding:12px;border:1px solid #aaa;border-radius:10px"><div class="cover" style="min-height:90px;display:grid;place-items:center;font-size:38px">🩺</div><strong>'+esc(b.title)+'</strong><small>OpenStax · 英文原版 · 免費閱讀</small></a>').join('')+'</div>';
+      $('books').appendChild(area);
+    }
     $('empty').hidden=!!rows.length;$('empty').textContent=state.query?'沒有符合的書籍，請修改關鍵字或清除搜尋。':state.mode==='all'?'這個館區目前沒有可讀館藏。可匯入電子書或更新館藏。':'這個清單目前沒有書籍，請從全部館藏選書加入。';
     $('categories').innerHTML=CATS.map((c,i)=>`<button class="tile" data-cat="${i}"><b>${c[1]} ${esc(c[0])}</b><small>${state.books.filter(b=>b.cat===i).length} 本館藏</small></button>`).join('');
     $('subcategories').innerHTML=state.cat===null?'':`<button data-sub="" aria-pressed="${!state.sub}">全部</button>`+CATS[state.cat][2].map(s=>`<button data-sub="${esc(s)}" aria-pressed="${state.sub===s}">${esc(s)} · ${state.books.filter(b=>belongs(b,state.cat,s)).length}</button>`).join('');
