@@ -350,16 +350,95 @@
     finally{if(token===state.pageToken){$('prevPage').disabled=state.page<=1;$('nextPage').disabled=state.page>=state.total;}}
   }
   function closeReader() {++state.readerToken;++state.pageToken;window.AIVAULTPageCurl?.cancel();cancelSwipe();stopReading();$('reader').classList.remove('show');const doc=state.doc;state.doc=null;doc?.destroy();state.reader=null;const u=new URL(location.href);u.searchParams.set('view','shelf');u.searchParams.delete('book');u.searchParams.delete('ebook_id');history.replaceState(null,'',u);}
+  // Extract book text and raster illustrations, never execute imported markup.
+  let importRunning=false, zipLoader;
+  async function bookZip() {
+    if(window.JSZip)return window.JSZip;
+    if(!zipLoader)zipLoader=new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';script.onload=()=>window.JSZip?resolve(window.JSZip):reject(Error('EPUB 解壓程式未載入'));script.onerror=()=>reject(Error('EPUB 解壓程式下載失敗，請檢查網路後重試'));document.head.append(script);}).catch(e=>{zipLoader=null;throw e;});
+    return deadline(zipLoader,30000);
+  }
+  function bookPath(base,href) {
+    const u=new URL(href,new URL(base,'https://ebook.invalid/'));
+    if(u.origin!=='https://ebook.invalid')throw Error('EPUB 含有外部資源路徑');
+    return decodeURIComponent(u.pathname.slice(1));
+  }
+  function bookXML(text,label) {
+    const doc=new DOMParser().parseFromString(text,'application/xml');
+    if(doc.getElementsByTagName('parsererror').length)throw Error(label+' 格式損壞');
+    return doc;
+  }
+  async function illustratedPages(markup,resolveImage,label) {
+    const doc=new DOMParser().parseFromString(markup,'text/html');
+    doc.querySelectorAll('script,style,iframe,object,embed,form,template,noscript,nav').forEach(n=>n.remove());
+    const pages=[];let text='',images={},sequence=0;
+    const flush=()=>{if(text.trim())pages.push({page_number:pages.length+1,content:text.trim(),images});text='';images={};};
+    const append=value=>{for(let chunk of String(value).split(/([\s\S]{1,1200})/).filter(Boolean)){if(text.length+chunk.length>1600)flush();text+=chunk;}};
+    const blocks=/^(ADDRESS|ARTICLE|ASIDE|BLOCKQUOTE|DIV|DL|DT|DD|FIGCAPTION|FIGURE|FOOTER|H[1-6]|HEADER|HR|LI|MAIN|P|SECTION|TABLE|TR|UL|OL)$/;
+    async function walk(node){
+      if(node.nodeType===3){append(node.textContent.replace(/\s+/g,' '));return;}
+      if(node.nodeType!==1)return;
+      if(node.tagName==='IMG'||node.localName==='image'){
+        const src=node.getAttribute('src')||node.getAttribute('href')||node.getAttribute('xlink:href');
+        if(!src)throw Error(label+' 有圖片缺少來源');
+        const image=await resolveImage(src);
+        if(!/^data:image\/(png|jpeg|webp|gif);base64,/i.test(image))throw Error(label+' 圖片格式尚不支援，請轉為 PNG 或 JPEG');
+        if(text.length>1200)flush();const marker='[[img:import_'+(++sequence)+']]';images[marker]=image;append('\n'+marker+'\n');return;
+      }
+      if(node.tagName==='BR'){append('\n');return;}
+      if(blocks.test(node.tagName))append('\n');
+      for(const child of node.childNodes)await walk(child);
+      if(blocks.test(node.tagName))append('\n');else if(node.tagName==='TD'||node.tagName==='TH')append(' | ');
+    }
+    await walk(doc.body);flush();return pages;
+  }
+  async function importIllustrated(file,ext) {
+    if(ext!=='epub'){
+      const markup=await file.text();
+      const pages=await illustratedPages(markup,async src=>{if(/^data:image\/(png|jpeg|webp|gif);base64,/i.test(src))return src;throw Error('HTML 的圖片必須內嵌在檔案中；請匯入含圖片的 EPUB 或內嵌圖片 HTML');},file.name);
+      if(!pages.length)throw Error('HTML 沒有可閱讀內容');
+      return {pages};
+    }
+    const Zip=await bookZip(),zip=await Zip.loadAsync(file);
+    const container=zip.file('META-INF/container.xml');if(!container)throw Error('不是有效的 EPUB：缺少 container.xml');
+    const root=bookXML(await container.async('string'),'EPUB 容器').getElementsByTagNameNS('*','rootfile')[0];
+    const packagePath=root?.getAttribute('full-path'),packageFile=packagePath&&zip.file(packagePath);if(!packageFile)throw Error('EPUB 缺少內容目錄');
+    const opf=bookXML(await packageFile.async('string'),'EPUB 內容目錄');
+    const manifest=new Map([...opf.getElementsByTagNameNS('*','item')].map(n=>[n.getAttribute('id'),{path:bookPath(packagePath,n.getAttribute('href')),type:n.getAttribute('media-type')}]));
+    const spine=[...opf.getElementsByTagNameNS('*','itemref')];if(!spine.length)throw Error('EPUB 缺少章節順序');
+    const pages=[];let done=0;
+    for(const ref of spine){
+      const item=manifest.get(ref.getAttribute('idref')),entry=item&&zip.file(item.path);if(!entry)throw Error('EPUB 章節檔案遺失：'+ref.getAttribute('idref'));
+      notice('正在解析 EPUB 章節 '+(++done)+' / '+spine.length+'…');
+      const chapter=await illustratedPages(await entry.async('string'),async src=>{
+        if(/^data:image\/(png|jpeg|webp|gif);base64,/i.test(src))return src;
+        const path=bookPath(item.path,src),image=zip.file(path);if(!image)throw Error('EPUB 圖片遺失：'+path);
+        const resource=[...manifest.values()].find(x=>x.path===path),suffix=path.split('.').pop().toLowerCase();
+        const mime=resource?.type||({png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',webp:'image/webp'}[suffix]);
+        if(!/^image\/(png|jpeg|webp|gif)$/.test(mime||''))throw Error('EPUB 圖片格式尚不支援：'+path);
+        return 'data:'+mime+';base64,'+await image.async('base64');
+      },item.path);
+      const title=chapter[0]?.content.replace(/\[\[img:[^\]]+\]\]/g,'').trim().split('\n').find(Boolean)||'章節 '+done;
+      if(chapter.length)chapter[0].chapter_title=title.slice(0,160);
+      for(const page of chapter)pages.push({...page,page_number:pages.length+1});
+      await new Promise(resolve=>setTimeout(resolve,0));
+    }
+    if(!pages.length)throw Error('EPUB 沒有可閱讀內容');
+    return {pages,title:opf.getElementsByTagNameNS('*','title')[0]?.textContent?.trim(),author:opf.getElementsByTagNameNS('*','creator')[0]?.textContent?.trim()};
+  }
   async function importFiles(files) {
+    if(importRunning){notice('目前仍在匯入書籍，請等待完成後再加入檔案。',true);return;}
+    importRunning=true;
+    try {
     for(const file of files) {
       const ext=file.name.split('.').pop().toLowerCase();
-      if(!/^(pdf|txt|md|docx|pptx|xlsx|xls|png|jpg|jpeg|webp)$/.test(ext)){notice(file.name+'：不支援此格式，請轉成 PDF、DOCX、PPTX、XLSX 或 TXT。',true);continue;}
-      if(file.size>80*1024*1024){notice(file.name+' 超過 80MB，請分割檔案後再匯入。',true);continue;}
+      if(!/^(epub|html|htm|pdf|txt|md|docx|pptx|xlsx|xls|png|jpg|jpeg|webp)$/.test(ext)){notice(file.name+'：不支援此格式，可匯入 EPUB、內嵌圖片 HTML、PDF、Office 或純文字。',true);continue;}
+      if(file.size>256*1024*1024){notice(file.name+' 超過目前單檔 256MB 的解析範圍，請按章分割。',true);continue;}
       notice('正在匯入 '+file.name+'…');
       try {
         const id=crypto.randomUUID?.()||('file-'+Date.now()+'-'+Math.random().toString(36).slice(2)),cat=Number($('importCategory').value),meta={id,title:file.name.replace(/\.[^.]+$/,''),author:'',cat,sub:CATS[cat][2][0],kind:ext,file_name:file.name,page_count:0};
         let pages;
-        if(ext==='pdf'){const p=await pdfLib();const doc=await deadline(p.getDocument({data:await file.arrayBuffer()}).promise,45000);meta.page_count=doc.numPages;await doc.destroy();}
+        if(/^(epub|html|htm)$/.test(ext)){const result=await importIllustrated(file,ext);pages=result.pages;meta.title=result.title||meta.title;meta.author=result.author||'';meta.page_count=pages.length;}
+        else if(ext==='pdf'){const p=await pdfLib();const doc=await deadline(p.getDocument({data:await file.arrayBuffer()}).promise,45000);meta.page_count=doc.numPages;await doc.destroy();}
         else if(/^(txt|md)$/.test(ext)){pages=E.splitTextPages(await file.text(),1200).map((content,i)=>({page_number:i+1,content}));meta.page_count=pages.length;}
         else {const result=await deadline(E.importFile(file,{title:meta.title,category:CATS[cat][0]}),120000);meta.id=result.book.id;meta.page_count=result.pages.length;meta.source='legacy-local';pages=result.pages;}
         state.blobs.set(meta.id,file);if(pages)state.pages.set(meta.id,pages);
@@ -368,7 +447,7 @@
         notice(file.name+' 匯入完成，共 '+meta.page_count+' 頁。'+(stored?'已儲存於此裝置。':'本機儲存失敗，關閉頁面前請下載備份。'),!stored);
       }catch(e){notice(file.name+' 匯入失敗：'+e.message,true);}
     }
-    $('fileInput').value='';
+    } finally {importRunning=false;$('fileInput').value='';}
   }
   function downloadBlob(blob,name) {const u=blobURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),60000);}
   async function downloadBook(b) {
@@ -569,6 +648,7 @@
   swipeHost.addEventListener('dragstart',e=>{if(e.target.closest('img'))e.preventDefault();});
   document.addEventListener('input',e=>{if(e.target.id==='fontSetting'){state.font=+e.target.value;write('aivaultRoyalFont',state.font);$('fontValue').textContent=state.font+'px';$('readerContent').style.fontSize=state.font+'px';}});
   document.addEventListener('error',e=>{if(e.target instanceof HTMLImageElement&&e.target.closest('.cover,.scene-cover')){const image=e.target;const span=document.createElement('span');span.textContent=image.alt.replace(/ 封面$/,'');image.replaceWith(span);}},true);
+  $('fileInput').accept='.epub,.html,.htm,.pdf,.txt,.md,.docx,.pptx,.xlsx,.xls,.png,.jpg,.jpeg,.webp';
   $('fileInput').addEventListener('change',e=>importFiles([...e.target.files]));
   $('restoreInput').addEventListener('change',e=>readRestore(e.target.files[0]).catch(err=>notice('還原檔案讀取失敗：'+err.message,true)));
   const coverInput=document.createElement('input');coverInput.id='coverInput';coverInput.type='file';coverInput.accept='image/jpeg,image/png,image/webp';coverInput.hidden=true;document.body.append(coverInput);
@@ -597,3 +677,4 @@
   }
   init().catch(e=>notice('圖書館初始化失敗：'+e.message,true));
 })();
+
