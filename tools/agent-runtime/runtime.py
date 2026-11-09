@@ -94,6 +94,16 @@ def claim(db):
         return row
 
 
+def renew(db, task_id, run_id):
+    with db:
+        db.execute("BEGIN IMMEDIATE")
+        now = time.time()
+        return db.execute("""
+            UPDATE task SET lease_until=?
+            WHERE id=? AND run_id=? AND state='running' AND lease_until>?
+        """, (now + LEASE_SECONDS, task_id, run_id, now)).rowcount == 1
+
+
 def finish(db, task_id, run_id, state, evidence):
     with db:
         db.execute("BEGIN IMMEDIATE")
@@ -107,17 +117,44 @@ def finish(db, task_id, run_id, state, evidence):
         return bool(changed)
 
 
+def run_leased(db, task_id, run_id, command, timeout):
+    deadline = time.monotonic() + timeout
+    heartbeat_interval = LEASE_SECONDS / 3
+    with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                          text=True) as child:
+        try:
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise subprocess.TimeoutExpired(command, timeout)
+                try:
+                    stdout, _ = child.communicate(timeout=min(remaining, heartbeat_interval))
+                except subprocess.TimeoutExpired:
+                    if time.monotonic() >= deadline:
+                        raise
+                    if not renew(db, task_id, run_id):
+                        return {"error_type": "LeaseLost"}
+                    continue
+                if child.returncode:
+                    raise subprocess.CalledProcessError(child.returncode, command)
+                return json.loads(stdout)
+        finally:
+            if child.poll() is None:
+                child.kill()
+                child.communicate()
+
+
 def worker(path):
     with closing(connect(path)) as db:
         while (job := claim(db)) is not None:
             task_id, agent_id, run_id, attempt = job
             started = time.monotonic()
             try:
-                result = subprocess.run(
+                evidence = run_leased(
+                    db, task_id, run_id,
                     ["node", "--experimental-transform-types", str(TOOL), str(agent_id), run_id],
-                    capture_output=True, text=True, timeout=15, check=True,
+                    timeout=15,
                 )
-                evidence = json.loads(result.stdout)
             except (OSError, ValueError, subprocess.SubprocessError) as error:
                 evidence = {"error_type": type(error).__name__}
             if evidence.get("state") == "COMPLETED":

@@ -1,14 +1,38 @@
 """Regression checks for concurrent claims, restart, and stale completions."""
+import sys
 import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from pathlib import Path
+from unittest.mock import patch
 
 import runtime
 
 
 class QueueTests(unittest.TestCase):
+    def test_long_running_child_keeps_lease_and_expired_owner_cannot_renew(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(runtime, "LEASE_SECONDS", 0.6):
+            path = Path(directory) / "runtime.sqlite"
+            with closing(runtime.connect(path)) as db, closing(runtime.connect(path)) as other:
+                db.executescript(runtime.SCHEMA)
+                runtime.seed(db, 1, "heartbeat")
+                task_id, _, run_id, _ = runtime.claim(db)
+                result = runtime.run_leased(
+                    db, task_id, run_id,
+                    [sys.executable, "-c", 'import time; time.sleep(0.9); print("{}")'],
+                    timeout=5,
+                )
+                self.assertEqual(result, {})
+                self.assertIsNone(runtime.claim(other))
+                with db:
+                    db.execute("UPDATE task SET lease_until=0 WHERE id=?", (task_id,))
+                self.assertFalse(runtime.renew(db, task_id, run_id))
+                _, _, replacement, _ = runtime.claim(other)
+                self.assertFalse(runtime.renew(db, task_id, run_id))
+                self.assertFalse(runtime.finish(db, task_id, run_id, "verified_completed", {}))
+                self.assertTrue(runtime.finish(other, task_id, replacement, "verified_completed", {}))
+
     def test_claim_limit_and_expired_attempt_fencing(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "runtime.sqlite"
