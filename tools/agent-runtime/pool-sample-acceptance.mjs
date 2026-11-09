@@ -1,4 +1,4 @@
-/** Ten model-backed agent trials against the existing authenticated local model bridge. */
+/** Model-backed agent trials against the existing authenticated local model bridge. */
 import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { AutonomousAgentRuntime } from "../../aivault-collab-v0.2/autonomous-agent-runtime/agent-runtime-v0.1.ts";
@@ -7,8 +7,14 @@ const bridge = "http://127.0.0.1:8765/worker-001/chat";
 const token = process.env.AIVAULT_WORKER_BRIDGE_TOKEN ?? "";
 const model = process.env.AIVAULT_WORKER_MODEL ?? "SmolLM2-135M-Instruct";
 const sample = JSON.parse(readFileSync(process.env.AIVAULT_POOL_SAMPLE, "utf8"));
-if (sample.length !== 10 || new Set(sample.map(r => r.id)).size !== 10) {
-  throw new Error("Expected ten distinct pool identities");
+if (!Array.isArray(sample) || sample.length === 0 ||
+    sample.some(row => typeof row.id !== "string" || !row.id.trim()) ||
+    new Set(sample.map(row => row.id)).size !== sample.length) {
+  throw new Error("Expected a nonempty sample of distinct pool identities");
+}
+const concurrency = Number(process.env.AIVAULT_POOL_TEST_CONCURRENCY ?? "1");
+if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 4) {
+  throw new Error("Expected test concurrency from 1 to 4");
 }
 const tools = { MAX: Math.max, MIN: Math.min };
 const trials = [
@@ -108,12 +114,22 @@ if (token.length < 32) {
   process.exitCode = 2;
 } else {
   let passed = 0;
-  for (const [index, trial] of trials.entries()) {
-    const result = await runTrial(index, trial);
-    console.log(JSON.stringify(result));
-    if (result.state === "COMPLETED") passed++;
-    if (result.error?.startsWith("MODEL_BRIDGE_HTTP_") || result.error === "fetch failed") break;
+  for (let start = 0; start < sample.length; start += concurrency) {
+    const batch = sample.slice(start, start + concurrency);
+    const results = await Promise.all(batch.map((_, offset) => {
+      const index = start + offset;
+      const [tool, left, right, objective] = trials[index % trials.length];
+      // Keep each case auditable and vary operands for larger roster samples.
+      const delta = Math.floor(index / trials.length) * 2;
+      return runTrial(index, [tool, left + delta, right + delta, objective]);
+    }));
+    for (const result of results) {
+      console.log(JSON.stringify(result));
+      if (result.state === "COMPLETED") passed++;
+    }
+    if (results.some(result => result.error?.startsWith("MODEL_BRIDGE_HTTP_") ||
+        result.error === "fetch failed")) break;
   }
-  console.error(`Verified model-backed agents: ${passed}/${trials.length}`);
-  if (passed !== trials.length) process.exitCode = 1;
+  console.error(`Verified model-backed agents: ${passed}/${sample.length}`);
+  if (passed !== sample.length) process.exitCode = 1;
 }
