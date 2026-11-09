@@ -21,3 +21,13 @@ python3 tools/agent-runtime/runtime.py /tmp/aivault.sqlite audit
 ```
 
 本機驗收採固定規則和工具白名單，並行租約上限四個、待處理任務上限十萬、每工作最多三次嘗試。工具子程序限時 15 秒，短於 60 秒租約。後續階段仍需接入既有 Governance、Cognitive、因果引擎及模型 Gateway，驗證長任務 heartbeat、取消、跨代理人協作、跨節點排程與正式站整合。
+
+## 十萬筆出列與程序中斷回復
+
+```sh
+python3 -B tools/agent-runtime/drain_benchmark.py /tmp/aivault-level5-drain.sqlite
+```
+
+請指定尚未存在的資料庫。腳本填入十萬筆任務，讓子程序持有四筆一秒期測試租約，再強制結束子程序。四個替補 worker 使用原有 SQLite 取件、完成和稽核流程，把整個佇列排空。腳本逐筆對照完成紀錄及 run ID，並檢查失效 run ID 無法再次寫入結果。工作負載是本機 SHA-256，量測範圍為佇列和稽核寫入。GitHub 工具吞吐量由前一節的獨立測試量測。
+
+輸出含出列時間、CPU 時間、主程序峰值 RSS 和資料庫容量。完整稽核可用 `runtime.py DATABASE audit` 匯出。
