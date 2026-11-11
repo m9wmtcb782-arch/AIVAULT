@@ -1,0 +1,21 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data: blob:; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Grok NCL v7 手機GPU實測</title><link rel="stylesheet" href="app.css"></head><body>
+<h1>Grok NCL v7 手機GPU實測</h1>
+<p>只需按一下。頁面會自動：驗證檔案 → 安裝離線快取 → 載入真實模型 → GPU對照參考答案 → 短測 → 正式30輪，最後顯示結果並可下載JSON。</p>
+<button id="start" class="big">開始測試</button>
+<ol id="steps"></ol><div id="result"></div>
+<p><button id="save" disabled>下載結果JSON</button><button id="copy" disabled>複製結果JSON</button></p>
+<p class="warn">這是已訓練的70,048參數v7 compat小模型（byte模型），不是70B。GPU（WebGPU）負責全部推論與採樣；CPU（JavaScript）只負責讀檔、驗證、提交、計時與匯出。沒有WebGPU會直接失敗，不會改用CPU。頁面不連任何外部網址。記憶體RSS瀏覽器無法取得，標為NOT VERIFIED。</p>
+<details><summary>斷網（飛航模式）測試</summary><p>第一次按「開始測試」成功後，開飛航模式並關Wi-Fi，重新整理本頁，勾選下方，再按一次「開始測試」，然後按「檢查離線證據」。</p>
+<label><input type="checkbox" id="airplane"> 我已開啟飛航模式並關閉Wi-Fi／行動網路（自述）</label><button id="probe">檢查離線證據</button></details>
+<details><summary>進階參數與手動步驟</summary>
+<label>裝置標籤（例如 iPhone 17 / iOS 26.x）<input id="label" size="36"></label>
+<label>提示詞 <input id="prompt" value="Alice " size="36"></label><label>seed <input id="seed" type="number" value="7" min="1"></label>
+<label>每輪生成bytes <input id="n" type="number" value="1024" min="1" max="4096"></label><label>正式輪數 <input id="rounds" type="number" value="30" min="1" max="200"></label>
+<label>暖機輪數（不計入） <input id="warmup" type="number" value="1" min="0" max="10"></label>
+<label>每次dispatch步數 <select id="chunk"><option value="0">0＝單次dispatch（失敗時自動改64）</option><option value="256">256</option><option value="64">64</option><option value="16">16</option></select></label>
+<label>CPU參考核對 <select id="verify"><option value="first">第1輪全部bytes</option><option value="all">所有輪（慢）</option><option value="none">不核對</option></select></label>
+<p><button id="install">安裝離線快取</button><button id="loadNet">從網路載入</button><button id="loadCache">從快取載入</button><button id="golden" disabled>GPU案例核對</button><button id="one" disabled>單次生成</button><button id="bench" disabled>只跑量測</button></p></details>
+<p id="state"></p><details><summary>詳細資料</summary><pre id="status"></pre></details><h3>生成文字範例（UTF-8有損顯示）</h3><pre id="text"></pre>
+<script type="module" src="app.js"></script></body></html>
