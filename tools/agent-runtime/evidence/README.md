@@ -1,0 +1,1 @@
+2026-11-09 實測。來源程式提交 c750855aafc51bd35de8e11ce38352d06ca3d311。Linux x86_64、Python 3.12.14、Node 24.22.1、curl 8.5.0。100 個不同身分，各自讀取同一個 GitHub 提交的 README。108 次有獨立 run_id 的租約執行，8 次 TIMEOUT 後重新派發，100 筆核驗完成。原始資料可用 gzip -dc github-readme.jsonl.gz 解開。CPU 為累計處理器時間，RSS 為最大單一子程序峰值。容量測試涵蓋身分與任務入列和同批去重。

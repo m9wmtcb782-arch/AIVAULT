@@ -1,4 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { originNclInference } from "./origin-ncl.ts";
+import { originEdgeInference } from "./origin-edge.ts";
 import "../_shared/neural-bus.ts"; // neural bus (NEURAL_BUS_ON, default off)
 import { paidAllowed, PAID_DENIED } from "../_shared/paid_gate.ts";
 
@@ -6751,6 +6753,24 @@ Deno.serve(
         },
         400,
       );
+    }
+
+    if (isRecord(body) && body.action === "origin_ncl_infer") {
+      if (!(Deno.env.get("AI_GATEWAY_INTERNAL_SECRET") || Deno.env.get("GATEWAY_INTERNAL_SECRET"))) {
+        return json({ success: false, error: "ORIGIN_INTERNAL_AUTH_NOT_CONFIGURED" }, 503);
+      }
+      const result = Deno.env.get("AIVAULT_ORIGIN_RUNTIME") === "edge"
+        ? await originEdgeInference(
+          body,
+          Deno.env.get("SUPABASE_URL") ?? "",
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+        )
+        : await originNclInference(
+          body,
+          Deno.env.get("AIVAULT_ORIGIN_WORKER_URL") ?? "",
+          Deno.env.get("AIVAULT_ORIGIN_WORKER_TOKEN") ?? "",
+        );
+      return json({ ...result.payload, gateway_version: VERSION }, result.status);
     }
 
     if (
