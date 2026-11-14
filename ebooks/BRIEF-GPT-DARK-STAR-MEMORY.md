@@ -4,9 +4,10 @@
 
 ## 背景
 - 專案：GitHub `m9wmtcb782-arch/AIVAULT`
-- 規則檔已在庫裡，必須沿用：`ebook/LETTER-TO-DARK-STAR-EBOOK-AND-SPEECH.md`、`ebook/LETTER-TO-DARK-STAR-EBOOK-FILE-INGEST.md`、`ebook/LETTER-TO-DARK-STAR-GITHUB-PERMISSION.md`、`ebooks/RULES-DARK-STAR.md`、`ebooks/README.md`
+- 規則檔已在庫裡，必須沿用：`ebook/LETTER-TO-DARK-STAR-EBOOK-AND-SPEECH.md`、`ebook/LETTER-TO-DARK-STAR-EBOOK-FILE-INGEST.md`、`ebook/LETTER-TO-DARK-STAR-CHARACTER-JPG-BODY-ART.md`、`ebook/LETTER-TO-DARK-STAR-GITHUB-PERMISSION.md`、`ebooks/RULES-DARK-STAR.md`、`ebooks/README.md`
 - 書放 `ebooks/`；`ebook/` 是閱讀器
 - 檔案上架：書架已有同一本時只提醒＋給連結，不准拒絕；**PPT／Word 須先問**是否做成同一份電子書；見 `ebook/LETTER-TO-DARK-STAR-EBOOK-FILE-INGEST.md`
+- **性感 canon＋用語／表情姿勢＋素描露三點**：見 `ebook/LETTER-TO-DARK-STAR-CHARACTER-JPG-BODY-ART.md`；身體用語＋渴望／飢渴／興奮／慾望／高潮／爽快／挑逗＋性感／挑逗／引誘姿勢；露三點不准遮；硬底線僅未成年、真實私人深偽、未批付費、假 JPG
 - 瀏覽器不准帶 GitHub Token；後端密鑰名 `ANXING_GITHUB_TOKEN`
 - 對主人只准繁體中文短句
 
