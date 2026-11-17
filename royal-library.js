@@ -118,8 +118,9 @@
     state.loading=true;$('refresh').disabled=true;$('catalogStatus').textContent='正在同步第一基地館藏…';
     try {
       if(!E)throw Error('館藏程式未載入，請重新整理');
-      const d=resultData(await deadline(E.fetchRemoteCatalog(100)));
-      remoteBooks=arr(d.books||d.items||d.ebooks).filter(b=>Number(b.total_pages||b.page_count)>0&&!/FlipBook Probe/.test(b.title));
+      // 分頁載入全部館藏（每頁 100 本；伺服器回 has_more/next_offset 時續抓，舊伺服器沒有分頁資訊時只抓一頁＝舊行為）
+      const all=[];let offset=0;for(let i=0;i<100;i++){const d=resultData(await deadline(E.fetchRemoteCatalog(100,offset)));all.push(...arr(d.books||d.items||d.ebooks));if(!d.has_more||d.next_offset==null||Number(d.next_offset)<=offset)break;offset=Number(d.next_offset);$('catalogStatus').textContent=`正在同步第一基地館藏…已讀 ${all.length} 本`;}
+      const seen=new Set();remoteBooks=all.filter(b=>{const id=String(b.ebook_id||b.id);if(seen.has(id))return false;seen.add(id);return true;}).filter(b=>Number(b.total_pages||b.page_count)>0&&!/FlipBook Probe/.test(b.title));
       write(cacheKey(),remoteBooks);state.catalogStatus=`已連接第一基地：${remoteBooks.length} 本遠端電子書`;
       try{legacyBooks=await E.allLocalBooks();}catch{legacyBooks=[];}
       mergeBooks(remoteBooks,legacyBooks);await hydrateCovers();indexLawBooks(force).catch(()=>{});notice('館藏已更新。');
@@ -301,11 +302,13 @@
       $('pageControls').hidden=false;await paintPage(n);
     } catch(e){if(token!==state.readerToken)return;$('readerContent').innerHTML='<h2>未能開啟電子書</h2><p>'+esc(e.message)+'</p><button data-action="retryReader">重新載入</button> <button data-action="import">匯入原始檔案</button>';notice(e.message,true);}
   }
+  // 私有圖片網址：pimg＝ebook-private/{書}/（會員）；oimg＝ebook-owner/{擁有者}/{書}/（只限本人）
+  function privateImageURL(b,type,k){const S='https://clcddygkaaqqtsbswgdf.supabase.co/storage/v1/object/authenticated/';if(type==='oimg'){const o=b.owner_id||b.metadata?.owner_id;if(!o)throw Error('此頁圖片只限擁有者本人閱讀');return S+'ebook-owner/'+encodeURIComponent(o)+'/'+encodeURIComponent(b.id)+'/'+encodeURIComponent(k)+'.jpg';}return S+'ebook-private/'+encodeURIComponent(b.id)+'/'+k+'.jpg';}
   async function loadPrivateImages(container,b) {
     const tk=E.userToken();
     await Promise.all([...container.querySelectorAll('img[data-private]')].map(async img=>{
       if(!tk){img.replaceWith(Object.assign(document.createElement('p'),{textContent:'此頁圖片需要登入第一基地後才能閱讀。'}));return;}
-      try {const r=await fetch('https://clcddygkaaqqtsbswgdf.supabase.co/storage/v1/object/authenticated/ebook-private/'+encodeURIComponent(b.id)+'/'+img.dataset.private+'.jpg',{headers:{Authorization:'Bearer '+tk},signal:AbortSignal.timeout(15000)});if(!r.ok)throw Error('圖片讀取失敗（'+r.status+'）');const url=blobURL(await r.blob());img.src=url;img.onload=()=>URL.revokeObjectURL(url);}
+      try {const r=await fetch(privateImageURL(b,img.dataset.ptype||'pimg',img.dataset.private),{headers:{Authorization:'Bearer '+tk},signal:AbortSignal.timeout(15000)});if(!r.ok)throw Error('圖片讀取失敗（'+r.status+'）');const url=blobURL(await r.blob());img.src=url;img.onload=()=>URL.revokeObjectURL(url);}
       catch(e){img.replaceWith(Object.assign(document.createElement('p'),{textContent:e.message+'，可按「重試此頁」。'}));}
     }));
   }
@@ -313,10 +316,10 @@
     const image=safeURL(page.image||'');
     if(image)return `<img class="page-image" src="${esc(image)}" alt="第 ${state.page} 頁原文"><p>${esc(page.content||'')}</p>`;
     const text=String(page.content||page.text||'');
-    return '<div class="page-text">'+esc(text).replace(/\[\[(p?img):([A-Za-z0-9_-]+)\]\]/g,(marker,type,k)=>{
+    return '<div class="page-text">'+esc(text).replace(/\[\[([po]?img):([A-Za-z0-9_-]+)\]\]/g,(marker,type,k)=>{
       const embedded=safeURL(page.images?.[marker]||'');
       if(embedded)return `<img class="page-image" src="${esc(embedded)}" alt="第 ${state.page} 頁原文圖片">`;
-      return type==='pimg'?`<img class="page-image" data-private="${k}" alt="第 ${state.page} 頁原文圖片">`:`<img class="page-image" src="${BASE}ebooks/${encodeURIComponent(b.id)}/img/${k}.jpg" alt="第 ${state.page} 頁原文圖片">`;
+      return type!=='img'?`<img class="page-image" data-private="${k}" data-ptype="${type}" alt="第 ${state.page} 頁原文圖片">`:`<img class="page-image" src="${BASE}ebooks/${encodeURIComponent(b.id)}/img/${k}.jpg" alt="第 ${state.page} 頁原文圖片">`;
     }).replace(/\n/g,'<br>')+'</div>';
   }
   function pageSnapshot() {
@@ -457,8 +460,8 @@
     const pages=await loadPages(b);if(!pages.length)throw Error('沒有可下載的檔案，請重新匯入原始檔案。');downloadBlob(new Blob([JSON.stringify({format:'AIVAULT-ROYAL-BOOK-V1',book:b,pages})],{type:'application/json'}),b.title+'-離線閱讀包.json');notice('已送出離線閱讀包下載。');
   }
   async function embedPageImages(page,b) {
-    const output={...page};let content=String(page.content||'');const matches=[...content.matchAll(/\[\[(p?img):([A-Za-z0-9_-]+)\]\]/g)];
-    for(const m of matches){const headers={};let url=BASE+'ebooks/'+encodeURIComponent(b.id)+'/img/'+m[2]+'.jpg';if(m[1]==='pimg'){const tk=E.userToken();if(!tk)throw Error('此書圖片需要登入第一基地');headers.Authorization='Bearer '+tk;url='https://clcddygkaaqqtsbswgdf.supabase.co/storage/v1/object/authenticated/ebook-private/'+b.id+'/'+m[2]+'.jpg';}const r=await fetch(url,{headers,signal:AbortSignal.timeout(20000)});if(!r.ok)throw Error('第 '+page.page_number+' 頁圖片下載失敗');const image=await toBase64(await r.blob());output.images=output.images||{};output.images[m[0]]=image;}
+    const output={...page};let content=String(page.content||'');const matches=[...content.matchAll(/\[\[([po]?img):([A-Za-z0-9_-]+)\]\]/g)];
+    for(const m of matches){const headers={};let url=BASE+'ebooks/'+encodeURIComponent(b.id)+'/img/'+m[2]+'.jpg';if(m[1]!=='img'){const tk=E.userToken();if(!tk)throw Error('此書圖片需要登入第一基地');headers.Authorization='Bearer '+tk;url=privateImageURL(b,m[1],m[2]);}const r=await fetch(url,{headers,signal:AbortSignal.timeout(20000)});if(!r.ok)throw Error('第 '+page.page_number+' 頁圖片下載失敗');const image=await toBase64(await r.blob());output.images=output.images||{};output.images[m[0]]=image;}
     return output;
   }
   async function cacheBook(button) {

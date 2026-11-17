@@ -72,6 +72,12 @@ button.primary{background:#c4a36a;color:#1b1612;border-color:#c4a36a;font-weight
         <input id="description" placeholder="簡短說明">
       </div>
     </div>
+    <label>可見範圍 visibility</label>
+    <select id="visibility" aria-label="可見範圍">
+      <option value="public" selected>公開（所有人可讀，與原本相同）</option>
+      <option value="members">會員（登入且已核准的 AIVAULT 會員）</option>
+      <option value="owner">只限本人（只有建立者本人可讀，不列入他人書架、搜尋與暗星）</option>
+    </select>
     <label>封面（選用）</label>
     <div style="display:flex;gap:12px;align-items:center">
       <img class="coverprev" id="coverPrev" alt="封面預覽">
@@ -250,7 +256,8 @@ $("btnStart").onclick = async () => {
     title,
     author: $("author").value.trim(),
     version: $("version").value.trim(),
-    description: $("description").value.trim()
+    description: $("description").value.trim(),
+    visibility: $("visibility").value || "public"
   };
   if ($("coverPrev").src && $("coverPrev").src.startsWith("data:image/")) {
     payload.cover_base64 = $("coverPrev").src;
@@ -258,6 +265,14 @@ $("btnStart").onclick = async () => {
   }
   const created = await ingest(payload);
   if (!created.ok) return;
+  // 非公開書：伺服器必須回報相同的 visibility；舊版伺服器會忽略此欄而建立公開書，此時立刻停止、不上傳內文
+  if (payload.visibility !== "public") {
+    const got = created.data.ebook?.visibility || created.data.visibility || "";
+    if (got !== payload.visibility) {
+      log("伺服器未確認「" + payload.visibility + "」可見範圍（可能尚未部署新版），已停止，不上傳內文。已建立的空白草稿 id：" + (created.data.ebook_id || created.data.ebook?.id || "?"), "err");
+      return;
+    }
+  }
   job.job_id = created.data.job_id || created.data.job?.id || created.data.id || null;
   job.ebook_id = created.data.ebook_id || created.data.ebook?.id || created.data.book_id || created.data.id || null;
   if (created.data.ebook && created.data.job_id) {

@@ -3,6 +3,9 @@ on:
   workflow_dispatch:
     inputs:
       eid: { description: "ebook id", required: true, default: "c8743d50-bad5-4ec8-b675-5e64fe7985a9" }
+      mode: { description: "members (ebook-private, 會員可讀) | owner (ebook-owner, 只限本人)", required: true, default: "members" }
+      owner_id: { description: "owner 模式：擁有者 user id", required: false, default: "" }
+      img_archive: { description: "owner 模式：加密圖片封存檔路徑（*.tar.gpg，不可放 ebooks/）", required: false, default: "" }
 jobs:
   run:
     runs-on: ubuntu-latest
@@ -10,5 +13,9 @@ jobs:
       - uses: actions/checkout@v4
       - env:
           TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          KEY: ${{ secrets.AIVAULT_PRIVATE_PAGES_KEY }}
           EID: ${{ inputs.eid }}
+          MODE: ${{ inputs.mode }}
+          OWNER_ID: ${{ inputs.owner_id }}
+          IMG_ARCHIVE: ${{ inputs.img_archive }}
         run: python3 .github/scripts/ebook_private_images.py
