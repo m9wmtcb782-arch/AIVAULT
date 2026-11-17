@@ -235,6 +235,18 @@ async function ttsCached(text: string, voice: string, style: string) {
   await put(key, Uint8Array.from(atob(a.base64), (c) => c.charCodeAt(0)), a.mime); return key;
 }
 
+
+/* 小說文字正規化：修正模型把換行寫成 /n 或字面上的 \n 的情況。 */
+export function normalizeStoryText(value: unknown): string {
+  return String(value ?? "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/(?:\\n|\/n){2,}/gi, "\n\n")
+    .replace(/(?:\\n|\/n)/gi, "\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 /* ---------- 執行期導演 ---------- */
 const DIRECT_SYS = (pkg: any) => "你是因序小說的執行期導演，統籌說書人與各角色 AI，並兼任世界狀態管理與防誘導監督。繁體中文口語。\n" + RULES(pkg.original_ending || "") +
   "\n【理解讀者】先真正理解主角（讀者）剛剛說的話的意圖。不論多出乎意料，都要讓故事依照他的選擇分歧發展，絕對不要因為沒聽懂就照原劇情或原著主角的台詞走。若回答模糊到無法判斷意圖（例如只有「嗯」「不知道」或辨識亂碼），設 understood=false，並由剛才提問的角色用不同說法追問一次以確認（開放式，追問句裡也不可列舉選項）。" +
@@ -251,7 +263,12 @@ async function direct(b: any) {
   const cast = (pkg.characters || []).map((c: any) => `${c.id}=${c.name}（${c.personality || ""}；${c.speech_style || ""}）` + (c.agent ? `［扮演 AI：${c.agent.name}，個性${c.agent.trait || ""}${mem[c.agent.id]?.length ? "；記憶：" + mem[c.agent.id].join(" / ") : ""}］` : "")).join("\n");
   const causes = (st.causes || []).slice(-20).map((x: any) => `${x.id}（第${x.turn}回合，影響${x.weight || 1}${x.paid ? "，已回收" : ""}）：${String(x.text).slice(0, 60)}`).join("\n") || "（尚無）";
   const user = `已種下的因：\n${causes}\n\n書名：${pkg.title}\n主角（讀者扮演，不可替他說話）：${pkg.protagonist?.name || "主角"}\n角色：\n${cast}\n\n全書大綱（背景知識）：${JSON.stringify(pkg.outline || []).slice(0, 12000)}\n\n世界狀態（不可逆事實）：${JSON.stringify(st.facts || [])}\n目前幕：${st.act || 1}　回合：${st.turn || 0}\n已做的決定：${JSON.stringify((st.decisions || []).map((d: any) => ({ q: d.question, a: d.answer, by: d.by })))}\n\n最近發生：\n${String(st.recent || "").slice(-6000)}\n\n剛剛 ${b.asker || "角色"} 問主角：「${b.question || ""}」\n主角回答：「${b.answer || ""}」${b.by === "auto" ? (b.answer ? "（讀者沉默，由主角 AI 代答）" : "（讀者沉默，請先在 auto_answer 寫出主角 AI 的回答）") : ""}${b.clarified ? "（這是追問後的回答，請直接依此推進，不要再追問）" : ""}`;
-  return await llm(DIRECT_SYS(pkg), user, { maxTokens: 6000, fast: b.fast !== false });
+  const result = await llm(DIRECT_SYS(pkg), user, { maxTokens: 6000, fast: b.fast !== false });
+  result.lines = (Array.isArray(result.lines) ? result.lines : []).map((line: any) => ({ ...line, text: normalizeStoryText(line?.text).replace(/\n/g, " ") }));
+  if (result.prompt?.text) result.prompt.text = normalizeStoryText(result.prompt.text).replace(/\n/g, " ");
+  if (result.clarify) result.clarify = normalizeStoryText(result.clarify).replace(/\n/g, " ");
+  if (result.auto_answer) result.auto_answer = normalizeStoryText(result.auto_answer).replace(/\n/g, " ");
+  return result;
 }
 
 export async function yinxu(r: Request) {
@@ -304,7 +321,17 @@ export async function yinxu(r: Request) {
       return out({ ok: true });
     }
     if (a === "direct") return out({ ok: true, ...(await direct(b)) });
-    if (a === "novelize") return out({ ok: true, ...(await llm("你是小說家（遊玩記錄轉新小說 AI）。把互動紀錄整理成完整繁體中文短篇小說（600–1200 字，第三人稱），忠於紀錄中已發生的事，不要改回原結局。只輸出 JSON：{\"title\":\"新標題\",\"story\":\"...\",\"new_ending\":\"新結局一句話\"}", String(b.transcript || "").slice(-20000), { maxTokens: 6000, fast: true })) });
+    if (a === "novelize") {
+      const novel = await llm(
+        `你是 AIVAULT 因序小說的專業繁體中文小說家。把互動紀錄整理成完整短篇小說（600–1200 字、第三人稱），忠於已發生的事件與人物選擇，不得擅自改回原結局。文字自然、有完整段落、標點正確，對話另起段。換段必須使用真正的換行（JSON 字串內以 \\n 表示）；絕對不可輸出字面上的 /n、/n/n 或 \\\\n 標記，不要把換行符號當成小說內容。只輸出 JSON：{"title":"新標題","story":"完整小說正文","new_ending":"新結局一句話"}` ,
+        String(b.transcript || "").slice(-20000),
+        { maxTokens: 6000, fast: true }
+      );
+      novel.title = normalizeStoryText(novel.title).replace(/\n/g, " ");
+      novel.story = normalizeStoryText(novel.story);
+      novel.new_ending = normalizeStoryText(novel.new_ending).replace(/\n/g, " ");
+      return out({ ok: true, ...novel });
+    }
     if (a === "tts") {
       const text = String(b.text || "").trim(); if (!text) return out({ error: "text" }, 400);
       try { const key = await ttsCached(text, String(b.voice || "Sulafat"), String(b.style || "")); const s = await sign([key]); return out({ ok: true, url: s[key] }); }
