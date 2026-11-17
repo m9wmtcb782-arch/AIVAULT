@@ -12,6 +12,19 @@ async function rest(path: string, init: RequestInit = {}) {
   const r = await fetch(URL0 + "/rest/v1/" + path, { ...init, headers: { ...SRH, Prefer: "return=representation", ...(init.headers || {}) } });
   const t = await r.text(); if (!r.ok) throw new Error("DB " + r.status + " " + t.slice(0, 200)); return t ? JSON.parse(t) : null;
 }
+
+/* 協作池小說格式規則：提示模型正確分段，並在儲存前修復錯誤換行標記。 */
+const NOVEL_FORMAT_RULES = "\n【小說排版與字幕規則】一律使用繁體中文。正文必須依語意分段，場景轉換另起段，人物對話另起段；段落之間使用真正換行，不可把 /n、/n/n、\\n 等符號當作正文輸出。JSON 的 result 欄位必須是乾淨的小說正文，不要包含 Markdown 程式碼圍欄或換行說明。保留標點、人物原話與劇情，不可為了排版刪減內容。";
+function normalizeNovelText(value: unknown): string {
+  return String(value ?? "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/(?:\\n|\/n){2,}/gi, "\n\n")
+    .replace(/(?:\\n|\/n)/gi, "\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 const REPO_RAW = "https://raw.githubusercontent.com/m9wmtcb782-arch/AIVAULT/main/";
 export const SPAWN_CAP = 20; // 經擁有者核准的子代理總上限（預設名冊維持 1000）
 type Z = { key: string; label: string; media?: string; tasks: { t: string; ctx?: string }[] };
@@ -145,15 +158,15 @@ export async function runTask(t: any, think = callModel) {
   }
   const lessonText = lessons ? `\n\n【擁有者的審稿意見與寫作守則（必須遵守）】\n${lessons}` : "";
   const researchText = research.length ? `\n\n【網路搜尋參考（${nv?.genre}寫作技巧，僅參考不抄襲）】\n` + research.map((x: any) => `- ${x.title}：${x.snippet}（${x.url}）`).join("\n") : "";
-  if (nv?.stage === "outline") user = `任務：構思一部原創${nv.genre}長篇小說（繁體中文，避免模仿既有作品），共 ${CH_TARGET} 章、每章約 ${CH_CHARS} 字，全書約 ${CH_TARGET * CH_CHARS / 10000} 萬字。交付：書名、一句話賣點、主要角色（5–8 位，含動機與成長）、世界觀與規則、10 個篇章弧（每弧涵蓋 10 章，寫出該弧的因果推進、轉折與結尾鉤子；最後一弧收束全書）。只輸出 JSON：{"title":"書名","logline":"一句話賣點","result":"完整大綱（Markdown）","arcs":["第1–10章：…","第11–20章：…", "…共10項"],"lesson":"一句寫作經驗"}${nv.rewrite ? "\n這是依擁有者意見重寫的大綱。" : ""}${lessonText}${researchText}`;
+  if (nv?.stage === "outline") user = `任務：構思一部原創${nv.genre}長篇小說（繁體中文，避免模仿既有作品），共 ${CH_TARGET} 章、每章約 ${CH_CHARS} 字，全書約 ${CH_TARGET * CH_CHARS / 10000} 萬字。交付：書名、一句話賣點、主要角色（5–8 位，含動機與成長）、世界觀與規則、10 個篇章弧（每弧涵蓋 10 章，寫出該弧的因果推進、轉折與結尾鉤子；最後一弧收束全書）。只輸出 JSON：{"title":"書名","logline":"一句話賣點","result":"完整大綱（Markdown）","arcs":["第1–10章：…","第11–20章：…", "…共10項"],"lesson":"一句寫作經驗"}${nv.rewrite ? "\n這是依擁有者意見重寫的大綱。" : ""}${lessonText}${NOVEL_FORMAT_RULES}${researchText}`;
   if (nv?.stage === "chapter" && bk) {
     const arc = (bk.arcs || [])[Math.min(9, Math.floor((nv.ch - 1) / 10))] || "";
     const prev = await rest(`aivault_novel_chapters?book_id=eq.${bk.id}&ch=gte.${Math.max(1, nv.ch - 5)}&ch=lt.${nv.ch}&select=ch,title,text&order=ch.asc`);
     const last = prev[prev.length - 1];
-    user = `你正在與工作區同事接力寫${bk.genre}長篇《${bk.title}》（共 ${bk.target_chapters} 章）。\n全書大綱（節錄）：\n${String(bk.outline || "").slice(0, 2500)}\n\n本章所屬篇章弧：${arc}\n近幾章標題：${prev.map((c: any) => "第" + c.ch + "章 " + (c.title || "")).join("／") || "（本章是開篇）"}\n${last ? "上一章結尾（必須自然銜接）：\n" + String(last.text).slice(-1200) + "\n" : ""}\n現在寫第 ${nv.ch} 章。繁體中文，約 ${CH_CHARS} 字（不少於 ${CH_CHARS - 500} 字），有場景、對白與內心描寫，推進篇章弧的因果，章末留鉤子${nv.ch === bk.target_chapters ? "（這是最終章，收束全書）" : ""}。只輸出 JSON：{"title":"章名","result":"本章完整正文","lesson":"一句寫作經驗"}${nv.rewrite ? "\n這是依擁有者意見重寫的一章。" : ""}${lessonText}`; }
+    user = `你正在與工作區同事接力寫${bk.genre}長篇《${bk.title}》（共 ${bk.target_chapters} 章）。\n全書大綱（節錄）：\n${String(bk.outline || "").slice(0, 2500)}\n\n本章所屬篇章弧：${arc}\n近幾章標題：${prev.map((c: any) => "第" + c.ch + "章 " + (c.title || "")).join("／") || "（本章是開篇）"}\n${last ? "上一章結尾（必須自然銜接）：\n" + String(last.text).slice(-1200) + "\n" : ""}\n現在寫第 ${nv.ch} 章。繁體中文，約 ${CH_CHARS} 字（不少於 ${CH_CHARS - 500} 字），有場景、對白與內心描寫，推進篇章弧的因果，章末留鉤子${nv.ch === bk.target_chapters ? "（這是最終章，收束全書）" : ""}。只輸出 JSON：{"title":"章名","result":"本章完整正文","lesson":"一句寫作經驗"}${nv.rewrite ? "\n這是依擁有者意見重寫的一章。" : ""}${lessonText}${NOVEL_FORMAT_RULES}`; }
   try {
     const call = await think(sys, user, nv?.stage === "chapter" ? 8000 : 4000); const v = call.v;
-    let result = String(v.result || "").trim(); if (!nv && z.media && !result.startsWith("【企劃稿")) result = `【企劃稿・尚未生成${z.media}】\n` + result;
+    let result = String(v.result || "").trim(); if (nv?.book) result = normalizeNovelText(result); if (!nv && z.media && !result.startsWith("【企劃稿")) result = `【企劃稿・尚未生成${z.media}】\n` + result;
     await rest(`aivault_pool_agent_tasks?id=eq.${t.id}`, { method: "PATCH", body: JSON.stringify({ status: "done", result, review_status: "pending", steps: [{ type: "act", title: "完成", model: call.model, usage: call.usage, started_at: started, finished_at: new Date().toISOString(), source_url: cx.url || research[0]?.url || null, source_sha: cx.sha, research: research.map((x: any) => ({ title: x.title, url: x.url })), lessons_applied: lessons ? lessons.split("\n").length : 0 }], step_no: 1, updated_at: new Date().toISOString() }) });
     if (nv?.stage === "outline" && bk) { const title = String(v.title || "未命名").slice(0, 60); const arcs = (Array.isArray(v.arcs) ? v.arcs : []).slice(0, 10).map(String);
       await rest(`aivault_novel_books?id=eq.${bk.id}`, { method: "PATCH", body: JSON.stringify({ title, outline: (v.logline ? "**" + v.logline + "**\n\n" : "") + result, arcs, status: "review", updated_at: new Date().toISOString() }) });
