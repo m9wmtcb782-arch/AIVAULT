@@ -11,6 +11,16 @@
   var audioEl = new Audio(); audioEl.preload = 'auto'; audioEl.setAttribute('playsinline', '');
   var ttsCache = {}, ttsCooldown = 0;
 
+  function normalizeNovelText(value) {
+    return String(value == null ? '' : value)
+      .replace(/\r\n?/g, '\n')
+      .replace(/(?:\\n|\/n){2,}/gi, '\n\n')
+      .replace(/(?:\\n|\/n)/gi, '\n')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
   /* ---------- 載入 ---------- */
   async function loadBook() {
     var id = Q.get('book') || 'lighthouse-night', b = YinxuStore.get(id);
@@ -24,6 +34,7 @@
   function nameOf(id) { return id === 'narrator' ? '說書人' : id === '__me' ? '你（' + chars.__me.name + '）' : (chars[id] || {}).name || id; }
   function addLine(l) {
     var d = document.createElement('div'); d.className = 'line ' + (l.speaker === 'narrator' ? 'narrator ' : '') + (l.cls || '');
+    l.text = normalizeNovelText(l.text);
     d.innerHTML = '<span class="who">' + esc((l.speaker === 'narrator' ? '🎙 ' : l.speaker === '__me' ? '🧑 ' : '🗣 ') + nameOf(l.speaker)) + (l.fallback ? ' <em class="fb">🔈 備援語音</em>' : '') + (l.by === 'auto' ? ' <em class="fb">主角 AI 代答</em>' : '') + '</span>' + esc(l.text);
     $('stage').appendChild(d); d.scrollIntoView({ behavior: 'smooth', block: 'end' }); return d;
   }
@@ -178,8 +189,8 @@
   async function finish() {
     status('📝 正在把這條時間線寫成新的一部…');
     var tx = st.transcript.filter(function (l) { return !l.repeat; }).map(function (l) { return nameOf(l.speaker) + '：' + l.text; }).join('\n'), story = '', title = '', newEnd = '';
-    try { var j = await API.call('novelize', { transcript: '書名：' + book.title + '\n主角：' + chars.__me.name + '\n' + tx }); story = j.story || ''; title = j.title || ''; newEnd = j.new_ending || ''; } catch (_) {}
-    if (!story) story = tx;
+    try { var j = await API.call('novelize', { transcript: '書名：' + book.title + '\n主角：' + chars.__me.name + '\n' + tx }); story = normalizeNovelText(j.story || ''); title = normalizeNovelText(j.title || ''); newEnd = normalizeNovelText(j.new_ending || ''); } catch (_) {}
+    if (!story) story = normalizeNovelText(tx);
     var part = (book.part || 1) + 1, siblings = YinxuStore.children(book.book_id).length;
     var nb = { book_id: book.book_id + '-t' + Date.now().toString(36), parent_id: book.book_id, part: part,
       title: book.title.replace(/｜.*$/, '') + '｜第' + part + '部' + (title ? '：' + title.replace(/[《》]/g, '') : '') + (siblings ? '（時間線 ' + (siblings + 1) + '）' : ''),
