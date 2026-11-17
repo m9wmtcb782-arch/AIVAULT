@@ -1,12 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-// Regression contract for the normalizer shared by the Edge Function and browser player.
+// Regression contract for the normalizer used by the Edge Function and browser player.
 function normalize(value) {
   return String(value == null ? "" : value)
     .replace(/\r\n?/g, "\n")
-    .replace(/(?:\\\\n|\\/n){2,}/gi, "\n\n")
-    .replace(/(?:\\\\n|\\/n)/gi, "\n")
+    .replace(/(?:\\n|\/n){2,}/gi, "\n\n")
+    .replace(/(?:\\n|\/n)/gi, "\n")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
