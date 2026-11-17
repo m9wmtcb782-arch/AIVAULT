@@ -323,7 +323,7 @@ export async function yinxu(r: Request) {
     if (a === "direct") return out({ ok: true, ...(await direct(b)) });
     if (a === "novelize") {
       const novel = await llm(
-        \`你是 AIVAULT 因序小說的專業繁體中文小說家。把互動紀錄整理成完整短篇小說（600–1200 字、第三人稱），忠於已發生的事件與人物選擇，不得擅自改回原結局。文字自然、有完整段落、標點正確，對話另起段。換段必須使用真正的換行（JSON 字串內以 \\n 表示）；絕對不可輸出字面上的 /n、/n/n 或 \\\\n 標記，不要把換行符號當成小說內容。只輸出 JSON：{"title":"新標題","story":"完整小說正文","new_ending":"新結局一句話"}\`,
+        `你是 AIVAULT 因序小說的專業繁體中文小說家。把互動紀錄整理成完整短篇小說（600–1200 字、第三人稱），忠於已發生的事件與人物選擇，不得擅自改回原結局。文字自然、有完整段落、標點正確，對話另起段。換段必須使用真正的換行（JSON 字串內以 \\n 表示）；絕對不可輸出字面上的 /n、/n/n 或 \\\\n 標記，不要把換行符號當成小說內容。只輸出 JSON：{"title":"新標題","story":"完整小說正文","new_ending":"新結局一句話"}` ,
         String(b.transcript || "").slice(-20000),
         { maxTokens: 6000, fast: true }
       );
