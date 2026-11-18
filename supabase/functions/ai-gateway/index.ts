@@ -56,7 +56,7 @@ import { paidAllowed, PAID_DENIED } from "../_shared/paid_gate.ts";
  * - Gemini models are dynamically discovered per API key
  */
 
-const VERSION = "ai-gateway-v3.1.8-thinking";
+const VERSION = "ai-gateway-v3.1.7";
 
 /* sm2：暗星／曙光接上全城共享記憶（與代理同一套資料庫介面 aivault_mem_search / aivault_mem_write / aivault_mem_notify）。
  * 只在文字對話路徑（executeLLMGateway）做：取前 3 筆相關片段注入 system，要求引用 [mem#id]；回覆後記錄引用並把建議寫回記憶（admin 層，含來源對話與版本）。
@@ -3445,48 +3445,6 @@ function extractGeminiText(
     .join("");
 }
 
-/*
- * Optional per-request Gemini thinking control (backward compatible).
- * Only applied when the caller sends `thinking` / `thinking_level` /
- * `thinking_budget`; every existing caller keeps the model default.
- */
-type ThinkingOptions = {
-  level?: "minimal" | "low" | "medium" | "high";
-  budget?: number;
-};
-
-const THINKING_LEVELS = ["minimal", "low", "medium", "high"];
-
-export function parseThinkingOptions(body: unknown): ThinkingOptions | null {
-  if (!isRecord(body)) return null;
-  const src: Record<string, unknown> = isRecord(body.thinking) ? body.thinking : {};
-  const rawLevel = src.level ?? body.thinking_level;
-  const rawBudget = src.budget ?? body.thinking_budget;
-  const level = typeof rawLevel === "string" ? rawLevel.trim().toLowerCase() : "";
-  if (THINKING_LEVELS.includes(level)) return { level: level as ThinkingOptions["level"] };
-  if (typeof rawBudget === "number" && Number.isFinite(rawBudget)) {
-    // -1 = dynamic；0..32768 tokens
-    const budget = rawBudget < 0 ? -1 : Math.min(32768, Math.floor(rawBudget));
-    return { budget };
-  }
-  return null;
-}
-
-// Candidate thinkingConfig payloads to try, in order; the final `null`
-// means "no thinkingConfig" (current behaviour) so an unsupported option
-// never turns a working request into a failure.
-export function thinkingConfigCandidates(thinking: ThinkingOptions | null): (Record<string, unknown> | null)[] {
-  if (!thinking) return [null];
-  if (thinking.level) return [{ thinkingLevel: thinking.level }, { thinkingLevel: thinking.level.toUpperCase() }, null];
-  if (typeof thinking.budget === "number") return [{ thinkingBudget: thinking.budget }, null];
-  return [null];
-}
-
-export function extractGeminiFinishReason(data: any): string | null {
-  const r = data?.candidates?.[0]?.finishReason;
-  return typeof r === "string" && r ? r : null;
-}
-
 async function callGemini(
   providerKey: ProviderKey,
   model: string,
@@ -3494,7 +3452,6 @@ async function callGemini(
   temperature: number,
   maxTokens: number,
   media: MediaPart[] = [],
-  thinking: ThinkingOptions | null = null,
 ) {
   if (
     !model
@@ -3604,35 +3561,21 @@ async function callGemini(
   }
 
   try {
-    const thinkingCandidates = thinkingConfigCandidates(thinking);
-    let response!: Response;
-    let thinkingApplied: Record<string, unknown> | null = null;
-    for (let ti = 0; ti < thinkingCandidates.length; ti++) {
-      const tc = thinkingCandidates[ti];
-      const generationConfig = { ...(payload.generationConfig as Record<string, unknown>) };
-      if (tc) generationConfig.thinkingConfig = tc;
-      else delete generationConfig.thinkingConfig;
-      response =
-        await fetchWithTimeout(
-          url,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-            body:
-              JSON.stringify(
-                { ...payload, generationConfig },
-              ),
+    const response =
+      await fetchWithTimeout(
+        url,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
           },
-        );
-      thinkingApplied = tc;
-      // Only an explicit 400 from a request that carried thinkingConfig is
-      // retried with the next (more conservative) candidate.
-      if (response.ok || response.status !== 400 || !tc || ti === thinkingCandidates.length - 1) break;
-      try { await response.body?.cancel(); } catch { /* ignore */ }
-    }
+          body:
+            JSON.stringify(
+              payload,
+            ),
+        },
+      );
 
     if (
       !response.ok
@@ -3651,11 +3594,6 @@ async function callGemini(
     const data =
       await response.json();
 
-    const finishReason =
-      extractGeminiFinishReason(
-        data,
-      );
-
     const content =
       extractGeminiText(
         data,
@@ -3670,7 +3608,6 @@ async function callGemini(
         status: 502,
         error:
           "GEMINI_EMPTY_RESPONSE",
-        finishReason,
       };
     }
 
@@ -3679,8 +3616,6 @@ async function callGemini(
       content,
       status:
         response.status,
-      finishReason,
-      thinkingApplied,
     };
   } catch (error) {
     const message =
@@ -4177,7 +4112,6 @@ function normalizeRequest(
     input,
     metadata,
     media,
-    thinking: parseThinkingOptions(body),
   };
 }
 
@@ -5013,7 +4947,6 @@ async function executeLLMGateway(
               normalized.temperature,
               normalized.maxTokens,
               normalized.media,
-              normalized.thinking,
             ),
           );
 
@@ -5060,7 +4993,6 @@ async function executeLLMGateway(
                   normalized.temperature,
                   normalized.maxTokens,
                   normalized.media,
-                  normalized.thinking,
                 ),
               );
 
@@ -5231,16 +5163,6 @@ async function executeLLMGateway(
           provider,
 
           model,
-
-          /*
-           * Optional diagnostics (additive): provider finish reason, e.g.
-           * "STOP" / "MAX_TOKENS" for Gemini; null when unknown.
-           */
-          finish_reason:
-            (result as any)?.finishReason ?? null,
-
-          thinking_applied:
-            (result as any)?.thinkingApplied ?? null,
 
           agent:
             normalized.agent,
