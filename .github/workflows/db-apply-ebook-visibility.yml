@@ -1,0 +1,63 @@
+name: DB apply ebook visibility migration (PR #65, manual)
+# 手動觸發：先備份 → 套用 supabase/migrations/20261118090000_ebook_owner_visibility.sql（從指定 ref 取檔）→ 驗證。
+# 安全檢查：公開書數量必須不變、e0bc8c57 必須維持 public，否則標示失敗。不印任何密鑰。
+on:
+  workflow_dispatch:
+    inputs:
+      ref: { description: "commit/branch containing the migration file", required: true, default: "287d520ac0fdb77ad4e35c0dcaedf19d5470c80f" }
+      mode: { description: "check (backup + dry verify only) | apply", required: true, default: "check" }
+permissions: { contents: read }
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ inputs.ref }}" }
+      - name: Backup, apply, verify
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys, urllib.request
+          P="https://api.supabase.com/v1/projects/clcddygkaaqqtsbswgdf/database/query"
+          def q(sql):
+              r=urllib.request.Request(P,data=json.dumps({"query":sql}).encode(),headers={"Authorization":"Bearer "+os.environ["TOKEN"],"Content-Type":"application/json","User-Agent":"aivault-migrate"})
+              try: return json.load(urllib.request.urlopen(r,timeout=180))
+              except urllib.error.HTTPError as e: print("SQL ERROR",e.code,e.read().decode()[:800]); sys.exit(1)
+          E0="e0bc8c57-646d-474c-988e-d6cb3d4f8972"
+          os.makedirs("backup",exist_ok=True)
+          cols=[c["column_name"] for c in q("select column_name from information_schema.columns where table_schema='public' and table_name='dark_star_ebooks'")]
+          has_vis="visibility" in cols
+          sel="id,title,status,created_at,metadata->'private' as private,metadata->'visibility' as meta_vis"+(",visibility,owner_id" if has_vis else "")
+          before=q(f"select {sel} from public.dark_star_ebooks order by created_at")
+          fn=q("select pg_get_functiondef(p.oid) def, pg_get_function_identity_arguments(p.oid) args from pg_proc p where p.proname='dark_star_search_ebook_pages'")
+          pol=q("select policyname,cmd,roles::text,qual from pg_policies where schemaname='storage' and tablename='objects'")
+          bk=q("select id,public from storage.buckets")
+          json.dump({"ebooks":before,"search_fn":fn,"storage_policies":pol,"buckets":bk,"columns":cols},open("backup/before.json","w"),ensure_ascii=False,indent=1)
+          priv=lambda r: str(r.get("private")).lower() in ("true",'"true"')
+          n_pub=sum(1 for r in before if not priv(r) and (not has_vis or r.get("visibility")=="public"))
+          print("BEFORE total",len(before),"public",n_pub,"private_flag",sum(1 for r in before if priv(r)),"has_visibility_col",has_vis)
+          print("BEFORE e0bc8c57",[ {k:r[k] for k in r if k!='title'} for r in before if r["id"]==E0])
+          print("BEFORE search fn args",[f["args"] for f in fn])
+          print("BEFORE storage policies on objects:",len(pol),[p["policyname"] for p in pol if "ebook" in (p["policyname"]+str(p["qual"]))])
+          if os.environ["MODE"]!="apply":
+              print("MODE=check: not applying"); sys.exit(0)
+          q(open("supabase/migrations/20261118090000_ebook_owner_visibility.sql").read())
+          after=q("select id,visibility,owner_id,metadata->>'private' p from public.dark_star_ebooks")
+          json.dump(after,open("backup/after.json","w"),ensure_ascii=False,indent=1)
+          a_pub=sum(1 for r in after if r["visibility"]=="public")
+          bad=q("select count(*)::int n from public.dark_star_ebooks where (metadata->>'private')='true' and visibility<>'members' and visibility<>'owner'")[0]["n"]
+          e0=[r for r in after if r["id"]==E0]
+          print("AFTER total",len(after),"by visibility",q("select visibility,count(*)::int n from public.dark_star_ebooks group by 1 order by 1"))
+          print("AFTER e0bc8c57",e0)
+          print("AFTER search fn args",[f["args"] for f in q("select pg_get_function_identity_arguments(p.oid) args from pg_proc p where p.proname='dark_star_search_ebook_pages'")])
+          print("AFTER anon/auth execute",q("select has_function_privilege('anon','public.dark_star_search_ebook_pages(text[],uuid,integer,uuid,boolean,boolean)','execute') a, has_function_privilege('authenticated','public.dark_star_search_ebook_pages(text[],uuid,integer,uuid,boolean,boolean)','execute') u"))
+          print("AFTER bucket ebook-owner",q("select public from storage.buckets where id='ebook-owner'"),"policy",q("select count(*)::int n from pg_policies where policyname='ebook_owner_read_self'"))
+          ok = len(after)==len(before) and a_pub==n_pub and bad==0 and e0 and e0[0]["visibility"]=="public"
+          print("PUBLIC before/after",n_pub,a_pub,"private-not-members",bad,"CHECK","PASS" if ok else "FAIL")
+          sys.exit(0 if ok else 2)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: ebook-visibility-backup, path: backup, retention-days: 30 }
