@@ -1,0 +1,29 @@
+name: Private ebook audit (read-only, encrypted output, 2026-11-18)
+on:
+  push:
+    branches: [ops/private-ebook-audit-20261118]
+    paths:
+      - ".github/scripts/private_ebook_audit_20261118.py"
+      - ".github/workflows/private-ebook-audit-20261118.yml"
+      - "ops/private-ebook-audit-20261118/**"
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit (read-only)
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: python3 .github/scripts/private_ebook_audit_20261118.py
+      - name: Encrypt result for recipient
+        run: |
+          mkdir -p enc
+          openssl rand -out k.bin 32
+          openssl pkeyutl -encrypt -pubin -inkey ops/private-ebook-audit-20261118/recipient_pub.pem -pkeyopt rsa_padding_mode:oaep -in k.bin -out enc/key.enc
+          tar czf - out | openssl enc -aes-256-cbc -pbkdf2 -salt -pass file:k.bin -out enc/audit.tgz.enc
+          rm -rf out k.bin
+      - uses: actions/upload-artifact@v4
+        with:
+          name: private-audit-encrypted
+          path: enc/
+          retention-days: 7
