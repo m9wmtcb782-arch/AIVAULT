@@ -239,5 +239,62 @@
     const truncated = !/##\s*資料限制/.test(answer);
     return { answer, truncated, legal, sides, bookJuris: bookJ, sources, webNote, calls, counts: { book: bookP.length, shelf: shelfP.length, web: webP.length }, missing };
   }
-  return { FLAGS, SYNONYMS, JLABEL, extractTerms, isLegalQuestion, jurisOfBook, mentionedJuris, compareSides, foreignLanguage, takePassages, missingSides, buildMessages, keywordMessages, parseKeywordJSON, gatewayText, renderAnswer, stripPageNumbers, run };
+
+  // ── 複製問題給外部 AI（Grok／GPT）：外部 AI 不執行 JavaScript，故只給「純文字版」網址 ──
+  const SITE = 'https://m9wmtcb782-arch.github.io/AIVAULT';
+  function readerUrl(id) { return SITE + '/dark-star-ebook.html?book=' + encodeURIComponent(id); }
+  function textBase(id) { return SITE + '/ebook-text/' + encodeURIComponent(id); }
+  function partUrl(id, i) { return textBase(id) + '/part-' + String(i).padStart(3, '0') + '.txt'; }
+  // 依頁碼找出所在部分（1 起算），保留出現順序、去重，最多 max 個
+  function partsForPages(entry, pages, max = 3) {
+    const parts = arr(entry && entry.parts), out = [];
+    for (const p of arr(pages)) {
+      const n = Number(p); const i = parts.findIndex(r => n >= r[0] && n <= r[1]);
+      if (i >= 0 && !out.includes(i + 1)) out.push(i + 1);
+      if (out.length >= max) break;
+    }
+    return out;
+  }
+  // 小書（部分數少）可在瀏覽器直接讀純文字檔、以關鍵詞計分挑部分
+  function scorePartText(text, terms) {
+    const t = fold(String(text || '')); let s = 0;
+    for (const k of arr(terms)) { const f = fold(k); if (!f) continue; let i = t.indexOf(f), c = 0; while (i >= 0 && c < 20) { c++; i = t.indexOf(f, i + f.length); } s += c * Math.min(4, f.length); }
+    return s;
+  }
+  // 產生可貼給 Grok／GPT 的提問文字。book.public=false 時只給書名、作者與說明，絕不給網址或內文。
+  function buildCopyPrompt({ question, book, entry, parts, excerpts }) {
+    const q = String(question || '').trim();
+    const title = String(book && book.title || ''), author = String(book && book.author || '');
+    const bookJ = jurisOfBook(title, author);
+    const lines = ['請先閱讀下列 AIVAULT 電子書內容，再回答問題。', '', '【問題】', q || '（請在此填入問題）', '',
+      '【書籍】《' + title + '》' + (author ? '｜' + author : '') + '（本書法域：' + (JLABEL[bookJ] || JLABEL.UNKNOWN) + '）'];
+    if (book && book.public === false) {
+      lines.push('※ 此書為非公開書籍：網址需登入第一基地，外部 AI 無法讀取，因此不附連結與內文；若需要，請自行貼上相關段落。');
+    } else if (entry && arr(entry.parts).length) {
+      const id = book.id; const ps = arr(parts).length ? parts : [1];
+      lines.push('', '【可直接讀取的純文字（不需登入、不需執行 JavaScript）】');
+      for (const i of ps) { const r = entry.parts[i - 1]; if (r) lines.push('- 與問題最相關的部分：' + partUrl(id, i)); }
+      lines.push('- 全書目錄（列出所有部分的連結，可再開啟其他部分）：' + textBase(id) + '/index.txt');
+      if (entry.src) lines.push('- 官方來源：' + entry.src);
+      lines.push('- 閱讀器（給人看，需要 JavaScript，外部 AI 通常讀不到）：' + readerUrl(id));
+    } else {
+      lines.push('', '※ 此書目前沒有純文字版（只匯出官方／公有領域來源的公開書籍）；閱讀器網址需要 JavaScript，外部 AI 通常讀不到：' + readerUrl(book.id));
+    }
+    const ex = arr(excerpts).filter(x => x && x.text);
+    if (ex.length && !(book && book.public === false)) {
+      lines.push('', '【書中相關段落（已直接附上，供無法開啟連結時使用）】');
+      let used = 0;
+      for (const x of ex) { const t = String(x.text).replace(/\s+\n/g, '\n').trim().slice(0, 2500); if (used + t.length > 6000) break; used += t.length; lines.push('〈段落〉', t, ''); }
+    }
+    lines.push('', '【回答要求】',
+      '1. 一律使用繁體中文；先給結論，再說明理由，並提出你的見解與評析。',
+      '2. 比較基準一律是中華民國（臺灣）法律：' + (bookJ === 'TW' ? '本書即中華民國法律，請以中華民國法律分析；只有問題涉及其他國家時才比較。' : '請比對' + (JLABEL[bookJ] || '本書所述法域') + '與中華民國相同或相近法條的差異，並用表格整理「議題／' + (JLABEL[bookJ] || '本書法域') + '／中華民國／差異」。'),
+      '3. 優先依據上列書籍文字；書中沒有的，再搜尋網路（優先官方來源，例如全國法規資料庫 law.moj.gov.tw、憲法法庭網站），並附上出處網址。',
+      '4. 條號、條文與判決字號必須來自上列文字或官方來源，不可捏造；找不到就明說。',
+      '5. 回答中不要寫頁碼。',
+      '6. 在各段標示來源：（本書）、（網路來源）、（AI 見解）。',
+      '7. 若無法開啟上列連結，請直接說「無法讀取連結」，不要憑空作答。');
+    return lines.join('\n');
+  }
+  return { SITE, readerUrl, textBase, partUrl, partsForPages, scorePartText, buildCopyPrompt, FLAGS, SYNONYMS, JLABEL, extractTerms, isLegalQuestion, jurisOfBook, mentionedJuris, compareSides, foreignLanguage, takePassages, missingSides, buildMessages, keywordMessages, parseKeywordJSON, gatewayText, renderAnswer, stripPageNumbers, run };
 });
