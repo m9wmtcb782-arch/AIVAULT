@@ -56,7 +56,7 @@ import { paidAllowed, PAID_DENIED } from "../_shared/paid_gate.ts";
  * - Gemini models are dynamically discovered per API key
  */
 
-const VERSION = "ai-gateway-v3.1.7";
+const VERSION = "ai-gateway-v3.1.8-thinking";
 
 /* sm2：暗星／曙光接上全城共享記憶（與代理同一套資料庫介面 aivault_mem_search / aivault_mem_write / aivault_mem_notify）。
  * 只在文字對話路徑（executeLLMGateway）做：取前 3 筆相關片段注入 system，要求引用 [mem#id]；回覆後記錄引用並把建議寫回記憶（admin 層，含來源對話與版本）。
