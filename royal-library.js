@@ -30,7 +30,7 @@
     shelf: new Set(arr(read('aivaultRoyalShelf', []))),
     history: arr(read('aivaultLibraryHistory', [])).map(x => typeof x === 'string' ? {id:x,page:1,at:null} : x).filter(x => x?.id),
     progress: read('aivaultRoyalProgress', {}), marks: new Set(arr(read('aivaultDarkStarLearnedLocal', []))),
-    learned: arr(read('aivaultVerifiedLearningRecords', [])), study: [],
+    learned: arr(read('aivaultVerifiedLearningRecords', [])), study: [], studyAt: 0, studyLoading: false, novels: null, novelsStatus: '', novelsLoading: false,
     catalogStatus: '正在載入第一基地館藏…', db: null, blobs: new Map(), pages: new Map(), covers: new Map(), coverRevision: 0,
     reader: null, page: 1, total: 1, readerToken: 0, pageToken: 0, doc: null, rendered: null,
     lastReader: read('aivaultRoyalLastReader', null), restore: null, voice: {}, ready: false,
@@ -192,6 +192,8 @@
     state.covers.set(b.id,'');state.coverRevision++;render();showBook(b.id);notice('已恢復原本彩色封面。');
   }
   function badge(b) { return b.source==='remote'?'第一基地館藏':b.source==='medical-builtin'?'繁中原創教材':b.missing?'書檔待補':'本機館藏'; }
+  // 館區計數；小說與文學館另含 AI小說（協作池）入口／已核准小說數
+  function zoneCountText(i){const n=state.books.filter(b=>b.cat===i).length;if(i!==3)return n+' 本館藏';const k=arr(state.novels).length;return (n+k)+' 本館藏 · '+(k?'含 '+k+' 本 AI小說':'含 AI小說入口');}
   function render() {
     const rows=listBooks();
     const names={all:state.cat===null?'全部館藏':CATS[state.cat][0],shelf:'我的書架',favs:'我的收藏',history:'閱讀紀錄'};
@@ -208,8 +210,12 @@
       area.innerHTML='<h3>公開醫學電子書（出版社原站閱讀）</h3><p>以下是完整免費線上教材，點擊後開啟出版社網站；尚未匯入第一基地內建翻頁閱讀器。</p><div class="books">'+references.map(b=>'<a class="book" href="'+b.url+'" target="_blank" rel="noopener noreferrer" style="display:block;text-decoration:none;padding:12px;border:1px solid #aaa;border-radius:10px"><div class="cover" style="min-height:90px;display:grid;place-items:center;font-size:38px">🩺</div><strong>'+esc(b.title)+'</strong><small>OpenStax · 英文原版 · 免費閱讀</small></a>').join('')+'</div>';
       $('books').appendChild(area);
     }
-    $('empty').hidden=!!rows.length;$('empty').textContent=state.query?'沒有符合的書籍，請修改關鍵字或清除搜尋。':state.mode==='all'?'這個館區目前沒有可讀館藏。可匯入電子書或更新館藏。':'這個清單目前沒有書籍，請從全部館藏選書加入。';
-    $('categories').innerHTML=CATS.map((c,i)=>`<button class="tile" data-cat="${i}"><b>${c[1]} ${esc(c[0])}</b><small>${state.books.filter(b=>b.cat===i).length} 本館藏</small></button>`).join('');
+    if(state.mode==='all' && state.cat===3 && !state.query && (!state.sub||state.sub==='AI 原創小說')) {
+      $('books').appendChild(novelsSection());
+      if(state.novels===null&&!state.novelsLoading&&!state.novelsStatus&&E.userToken())loadNovels();
+    }
+    $('empty').hidden=!!rows.length||(state.mode==='all'&&state.cat===3&&!state.query);$('empty').textContent=state.query?'沒有符合的書籍，請修改關鍵字或清除搜尋。':state.mode==='all'?'這個館區目前沒有可讀館藏。可匯入電子書或更新館藏。':'這個清單目前沒有書籍，請從全部館藏選書加入。';
+    $('categories').innerHTML=CATS.map((c,i)=>`<button class="tile" data-cat="${i}"><b>${c[1]} ${esc(c[0])}</b><small>${zoneCountText(i)}</small></button>`).join('');
     $('subcategories').innerHTML=state.cat===null?'':`<button data-sub="" aria-pressed="${!state.sub}">全部</button>`+CATS[state.cat][2].map(s=>`<button data-sub="${esc(s)}" aria-pressed="${state.sub===s}">${esc(s)} · ${state.books.filter(b=>belongs(b,state.cat,s)).length}</button>`).join('');
     document.querySelectorAll('.scene-hit[data-cat]').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.cat===state.cat&&(b.dataset.sub||'')===state.sub)));
     document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===state.mode)));
@@ -277,7 +283,7 @@
     if(!LAW)return;const groups=state.sub?LAW.groups.filter(g=>g.name===state.sub):LAW.groups;
     modal('<h2>法律書籍分類</h2><p>依現有書名、書目說明、目錄與已取得的原文歸類；跨主題書籍可出現在多個分類。</p><p id="lawIndexStatus" class="muted">'+esc(state.lawIndexStatus||'正在核對館藏目錄…')+'</p><div class="law-classifications"><button data-cat="0">全部法律書籍 · '+state.books.filter(b=>b.cat===0).length+' 本</button>'+groups.map(g=>'<section><h3><button data-cat="0" data-sub="'+esc(g.name)+'">'+esc(g.name)+' · '+state.books.filter(b=>belongs(b,0,g.name)).length+' 本</button></h3><div class="law-topic-grid">'+g.topics.map(topic=>'<button data-law-topic="'+esc(topic)+'" data-law-subject="'+esc(g.name)+'">'+esc(topic)+' · '+state.books.filter(b=>belongs(b,0,g.name,topic)).length+'</button>').join('')+'</div></section>').join('')+'</div>');
   }
-  function showHall(){modal('<h2>皇家主館 · 選擇館區</h2><div class="grid">'+CATS.map((g,i)=>'<button class="tile" data-cat="'+i+'"><b>'+g[1]+' '+esc(g[0])+'</b><small>'+state.books.filter(b=>b.cat===i).length+' 本館藏</small></button>').join('')+'</div>');}
+  function showHall(){modal('<h2>皇家主館 · 選擇館區</h2><div class="grid">'+CATS.map((g,i)=>'<button class="tile" data-cat="'+i+'"><b>'+g[1]+' '+esc(g[0])+'</b><small>'+zoneCountText(i)+'</small></button>').join('')+'</div>');}
   async function pdfLib() {
     if(!pdfLibPromise)pdfLibPromise=deadline(import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs')).then(p=>{p.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';return p;}).catch(e=>{pdfLibPromise=null;throw e;});
     return pdfLibPromise;
@@ -521,11 +527,49 @@
     for(const row of arr(d.covers)){if(!Array.isArray(row)||typeof row[0]!=='string')continue;const image=safeURL(row[1]);if(!image||!/^data:image\//.test(image))continue;await dbPut('cover:'+row[0],image);state.covers.set(row[0],image);}
     state.coverRevision++;persist();mergeBooks(remoteBooks,legacyBooks);state.restore=null;closeModal();notice('合併還原完成，已恢復 '+restored+' 個書檔／閱讀包。');
   }
-  function showLearned() {
-    const marked=state.books.filter(b=>state.marks.has(b.id)),assigned=state.study.filter(x=>x.enabled);
-    modal(`<h2>📘 暗星學習紀錄</h2><p>本機標記與學習安排分開顯示；均不作為已完成學習的證明。</p><h3>本機手動標記 · ${marked.length}</h3>${marked.map(b=>`<button data-book="${esc(b.id)}">${esc(b.title)}</button>`).join('')||'<p>目前沒有本機標記。</p>'}<h3>後端學習安排 · ${assigned.length}</h3><p>${esc(state.studyStatus||'按下重新核對可讀取現有學習安排。')}</p>${assigned.map(x=>{const b=state.books.find(b=>b.id===x.ebook_id);return '<p>'+esc(b?.title||x.ebook_id)+' · 已安排，未核實完成</p>';}).join('')}<h3>匯入來源紀錄 · ${state.learned.length}</h3>${state.learned.slice(0,100).map(r=>'<p>'+esc(r.title)+'<br><small>來源：'+esc(r.source||'未提供')+' · '+esc(r.completed_at||'日期未提供')+' · 待獨立核實</small></p>').join('')}<div class="modal-actions"><button data-action="refreshLearning">重新核對</button><button data-action="importLearning">匯入紀錄</button><button data-action="exportLearning">匯出紀錄</button><button data-action="learningTemplate">下載範本</button></div>`);
+  // 暗星已學：後端學習安排（study_list，登入自動讀取）＋舊書架學習進度（aivault_bookqa_progress_v1）＋本機標記＋匯入紀錄
+  const L=window.AIVAULTLearned;
+  const LOGIN_URL='aivault-login.html?next='+encodeURIComponent('dark-star-ebook.html');
+  function bookTitle(id){return state.books.find(b=>b.id===id)?.title||'';}
+  function showLearned(auto=true) {
+    const marked=state.books.filter(b=>state.marks.has(b.id)),logged=!!E.userToken();
+    const progress=L?L.parseProgress(localStorage.getItem('aivault_bookqa_progress_v1')):[];
+    const assigned=L?L.assignedRows(state.study,state.books,progress):state.study.filter(x=>x.enabled).map(x=>({id:x.ebook_id,title:bookTitle(x.ebook_id),missing:!bookTitle(x.ebook_id)}));
+    const label=p=>L&&p?' · '+L.progressLabel(p):'';
+    const loginBox=logged?'':`<p class="learned-login" role="note">🔐 尚未登入第一基地（或登入已過期），無法讀取暗星的學習安排。<a href="${LOGIN_URL}">前往登入</a>，回來後會自動顯示。</p>`;
+    const assignedHTML=assigned.map(x=>x.missing?`<div class="book-placeholder learned-missing" role="group" aria-label="需登入或重新整理">🔒 需登入或重新整理<br><small>${esc(x.id)}${label(x.progress)}</small></div>`:`<button data-book="${esc(x.id)}">${esc(x.title)}${esc(label(x.progress))}</button>`).join('');
+    const progHTML=progress.map(p=>{const t=bookTitle(p.id);return t?`<button data-book="${esc(p.id)}">${esc(t)} · ${esc(L.progressLabel(p))}</button>`:`<p>${esc(p.id)} · ${esc(L.progressLabel(p))} <small>（目前館藏未載入，需登入或重新整理）</small></p>`;}).join('');
+    modal(`<div data-panel="learned"><h2>📘 暗星學習紀錄</h2><p>本機標記與學習安排分開顯示；均不作為已完成學習的證明。</p>${loginBox}<h3>後端學習安排（暗星已學／學習中） · ${assigned.length}</h3><p>${esc(state.studyLoading?'正在讀取目前帳號的學習安排…':state.studyStatus||(logged?'按下重新核對可讀取現有學習安排。':'登入後自動讀取。'))}</p>${assignedHTML}<h3>暗星學習進度（本裝置） · ${progress.length}</h3>${progHTML||'<p>本裝置沒有學習進度紀錄。</p>'}<h3>本機手動標記 · ${marked.length}</h3>${marked.map(b=>`<button data-book="${esc(b.id)}">${esc(b.title)}</button>`).join('')||'<p>目前沒有本機標記。</p>'}<h3>匯入來源紀錄 · ${state.learned.length}</h3>${state.learned.slice(0,100).map(r=>'<p>'+esc(r.title)+'<br><small>來源：'+esc(r.source||'未提供')+' · '+esc(r.completed_at||'日期未提供')+' · 待獨立核實</small></p>').join('')}<div class="modal-actions"><button data-action="refreshLearning">重新核對</button><button data-action="importLearning">匯入紀錄</button><button data-action="exportLearning">匯出紀錄</button><button data-action="learningTemplate">下載範本</button></div></div>`);
+    if(auto&&logged&&!state.studyLoading&&Date.now()-state.studyAt>60000)refreshLearning(true);
   }
-  async function refreshLearning() {try{const d=resultData(await deadline(E.ingest({action:'study_list'})));state.study=arr(d.books);state.studyStatus=d.logged_in?'已讀取目前帳號的學習安排。':'尚未登入第一基地，無法讀取私人學習安排。';}catch(e){state.studyStatus='核對失敗：'+e.message;}showLearned();}
+  function learnedPanelOpen(){return $('overlay').classList.contains('show')&&!!$('modalContent').querySelector('[data-panel="learned"]');}
+  async function refreshLearning(silent=false) {
+    if(state.studyLoading)return;state.studyLoading=true;if(learnedPanelOpen())showLearned(false);
+    try{if(!E.userToken()){state.study=[];state.studyStatus='尚未登入第一基地，無法讀取私人學習安排。';}else{const d=resultData(await deadline(E.ingest({action:'study_list'})));state.study=arr(d.books);state.studyStatus=d.logged_in?`已讀取目前帳號的學習安排（${new Date().toLocaleTimeString('zh-TW')}）。`:'登入已過期，請重新登入第一基地。';}state.studyAt=Date.now();}
+    catch(e){state.studyStatus='核對失敗：'+e.message;state.studyAt=Date.now();}
+    finally{state.studyLoading=false;}
+    if(learnedPanelOpen()||!silent)showLearned(false);
+  }
+  // 小說與文學館：AI 小說（協作池）入口；登入時用 floor 功能 shelf 動作讀已核准小說
+  const NOVELS_PAGE='aivault-ai-novels.html';
+  async function loadNovels() {
+    if(state.novelsLoading)return;const tk=E.userToken();if(!tk){state.novels=null;state.novelsStatus='';return;}
+    state.novelsLoading=true;state.novelsStatus='正在讀取 AI 小說…';
+    try{const r=await deadline(fetch(E.INGEST+'?feature=floor',{method:'POST',headers:{'Content-Type':'application/json',apikey:E.ANON_KEY,Authorization:'Bearer '+tk},body:JSON.stringify({action:'shelf'})}));
+      const d=await r.json().catch(()=>({}));if(!r.ok||d.error)throw Error(d.error||d.message||('服務回應 '+r.status));
+      state.novels=L?L.novelCards(d):[];state.novelsStatus=state.novels.length?'':'目前沒有已核准上架的 AI 小說。';}
+    catch(e){state.novels=null;state.novelsStatus=/login/i.test(e.message)?'登入已過期，請重新登入第一基地。':'AI 小說載入失敗：'+e.message;}
+    finally{state.novelsLoading=false;}
+    if(state.mode==='all'&&state.cat===3)render();
+  }
+  function novelsSection() {
+    const area=document.createElement('section');area.className='ai-novels';area.setAttribute('aria-label','AI小說（協作池）');
+    const logged=!!E.userToken(),list=arr(state.novels);
+    const cards=list.map(n=>`<a class="book ai-novel" data-novel="${esc(n.id)}" href="${NOVELS_PAGE}" style="display:block;text-decoration:none"><div class="cover" style="min-height:90px;display:grid;place-items:center;font-size:34px">📖</div><strong>《${esc(n.title)}》</strong><small>${esc(n.genre)}${n.genre?' · ':''}${esc(n.status)}</small><small>${n.chapters}${n.target?'/'+n.target:''} 章 · ${n.wan} 萬字</small></a>`).join('');
+    area.innerHTML=`<h3>📚 AI小說（協作池）</h3><p><a class="btn ai-novels-entry" href="${NOVELS_PAGE}" style="display:inline-block;padding:10px 14px;border:1px solid #aaa;border-radius:10px;text-decoration:none">📚 AI小說（協作池）${list.length?' · '+list.length+' 本':''} →</a></p>`+
+      (logged?(state.novelsStatus?`<p>${esc(state.novelsStatus)}</p>`:'')+(cards?`<div class="books">${cards}</div>`:''):`<p role="note">🔐 登入第一基地後，這裡會直接列出經核准上架的 AI 小說。<a href="${LOGIN_URL}">前往登入</a></p>`);
+    return area;
+  }
   function mountAvatar() {
     frame=$('avatarFrame');avatarPreview=$('royalAvatarPreview');
     frame.srcdoc=new TextDecoder().decode(Uint8Array.from(atob($('avatarSource').textContent.trim()),c=>c.charCodeAt(0)));
@@ -693,6 +737,7 @@
     catch(e){$('storageStatus').textContent='本機儲存未啟用：'+e.message+'；請在關閉前備份。';}
     await loadCatalog();
     applyShelfAddLink();
+    if(E.userToken()){refreshLearning(true);loadNovels();}
     const params=new URLSearchParams(location.search),id=params.get('book')||params.get('ebook_id')||params.get('id');
     if(id&&params.get('view')!=='shelf'){let b=state.books.find(x=>x.id===id);if(!b)b=normalize({id,title:'第一基地電子書',page_count:1},'remote');await openBook(b,+params.get('page')||undefined);}
   }
