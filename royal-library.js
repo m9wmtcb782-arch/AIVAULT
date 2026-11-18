@@ -130,14 +130,19 @@
       mergeBooks(remoteBooks,legacyBooks);await hydrateCovers();notice(state.catalogStatus,true);
     } finally {state.loading=false;$('refresh').disabled=false;$('catalogStatus').textContent=state.catalogStatus;}
   }
+  // 搜尋比對：繁簡折疊（royal-library-zhfold.js），未載入時退回原本的小寫包含比對
+  function queryMatches(text,query){const Z=window.AIVAULTZhFold;return Z?Z.matches(text,query):String(text).toLowerCase().includes(String(query).toLowerCase());}
+  function placeholderCard(b){return `<div class="book book-placeholder" role="group" aria-label="書架上的書：需登入或重新整理"><div class="cover" style="display:grid;place-items:center;font-size:34px">🔒</div><strong>需登入或重新整理</strong><small>這本書在你的書架上，但目前館藏沒有載入（會員或私人書需先登入第一基地）。</small><small>編號 ${esc(String(b.id).slice(0,8))}…</small><span class="quick-controls"><button data-action="refresh">↻ 重新整理</button><button data-action="shelfRemove" data-id="${esc(b.id)}">移出書架</button></span></div>`;}
   function listBooks() {
     let rows=state.books.filter(b=>{
       if(state.mode==='favs'&&!state.favs.has(b.id))return false;
       if(state.mode==='shelf'&&!state.shelf.has(b.id))return false;
       if(state.mode==='history'&&!state.history.some(h=>h.id===b.id))return false;
       if(state.mode==='all'&&!belongs(b,state.cat,state.sub,state.lawTopic))return false;
-      return !state.query||[b.title,b.author,b.sub,...(b.subjects||[]),...Object.values(b.lawTopics||{}).flat(),CATS[b.cat][0]].join(' ').toLowerCase().includes(state.query.toLowerCase());
+      return !state.query||queryMatches([b.title,b.author,b.sub,...(b.subjects||[]),...Object.values(b.lawTopics||{}).flat(),CATS[b.cat][0]].join(' '),state.query);
     });
+    // 我的書架：清單上有、但目前館藏沒載入的書（例如會員書尚未登入）顯示佔位卡，不讓它默默消失
+    if(state.mode==='shelf'&&!state.query){const have=new Set(state.books.map(b=>b.id));for(const id of state.shelf)if(!have.has(id))rows.push({id,placeholder:true,title:'需登入或重新整理'});}
     if(state.mode==='history')rows.sort((a,b)=>state.history.findIndex(x=>x.id===a.id)-state.history.findIndex(x=>x.id===b.id));
     return rows;
   }
@@ -192,7 +197,7 @@
     const names={all:state.cat===null?'全部館藏':CATS[state.cat][0],shelf:'我的書架',favs:'我的收藏',history:'閱讀紀錄'};
     $('currentTitle').textContent=names[state.mode];$('count').textContent=rows.length+' 本';
     $('location').textContent=names[state.mode];
-    $('books').innerHTML=rows.map(b=>{const h=state.history.find(x=>x.id===b.id);return `<button class="book" data-book="${esc(b.id)}"><div class="cover">${cover(b)}</div><strong>${esc(b.title)}</strong><small>${esc(b.author||'作者未提供')} · ${esc(badge(b))}</small><small>${b.page_count?b.page_count+' 頁':''}${state.mode==='history'&&h?' · 第 '+h.page+' 頁'+(h.at?' · '+esc(new Date(h.at).toLocaleString('zh-TW')):''):''}${state.favs.has(b.id)?' ★':''}</small></button>`;}).join('');
+    $('books').innerHTML=rows.map(b=>{if(b.placeholder)return placeholderCard(b);const h=state.history.find(x=>x.id===b.id);return `<button class="book" data-book="${esc(b.id)}"><div class="cover">${cover(b)}</div><strong>${esc(b.title)}</strong><small>${esc(b.author||'作者未提供')} · ${esc(badge(b))}</small><small>${b.page_count?b.page_count+' 頁':''}${state.mode==='history'&&h?' · 第 '+h.page+' 頁'+(h.at?' · '+esc(new Date(h.at).toLocaleString('zh-TW')):''):''}${state.favs.has(b.id)?' ★':''}</small></button>`;}).join('');
     // Verified publisher-hosted medical reference books; external reading is explicitly labeled.
     if(state.mode==='all' && state.cat===7 && !state.query) {
       const references=[
@@ -255,6 +260,17 @@
     modal(`<div class="book-details"><div class="cover">${cover(b)}</div><h2>${esc(b.title)}</h2><p>${esc(b.author||'作者未提供')} · ${esc(CATS[b.cat][0])} / ${esc(b.sub)}</p><p>${esc(badge(b))} · ${b.page_count||'?'} 頁${p>1?' · 上次讀到第 '+p+' 頁':''}</p>${b.description?'<p>'+esc(b.description)+'</p>':''}<div class="modal-actions"><button data-action="read">📖 ${p>1?'繼續閱讀':'開始閱讀'}</button><button data-action="shelf">${state.shelf.has(b.id)?'移出書架':'＋ 加入書架'}</button><button data-action="favorite">${state.favs.has(b.id)?'★ 取消收藏':'☆ 收藏'}</button><button data-action="guide">🎙 暗星導讀</button><button data-action="download">↓ 下載離線</button><button data-action="changeCover">🖼 更換封面</button><button data-action="resetCover" ${state.covers.get(b.id)?'':'disabled'}>恢復彩色封面</button><button data-action="mark">${state.marks.has(b.id)?'取消本機學習標記':'標記為已學（本機）'}</button></div><p class="muted">封面可上傳 JPEG、PNG、WebP，會儲存在此裝置，並隨館藏備份一併匯出。</p></div>`);
     if(b.cat===0){const tags=document.createElement('div');tags.className='law-subject-tags';for(const subject of b.subjects||[b.sub]){const tag=document.createElement('span');tag.textContent=subject;tags.append(tag);}const note=document.createElement('p');note.className='muted';note.textContent='分類依據：'+(b.lawEvidence||'書目資料');const details=$('modalContent').querySelector('.book-details');details.insertBefore(tags,details.querySelector('.modal-actions'));tags.after(note);}
   }
+  // 深層連結 ?shelf_add=<ebook_id>[,<ebook_id>...]：加入「我的書架」並切到書架；書不在館藏時提示登入，仍保留在書架清單
+  function parseShelfAdd(search){const v=new URLSearchParams(search).getAll('shelf_add').join(',');return [...new Set(v.split(',').map(x=>x.trim()).filter(x=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x)).map(x=>x.toLowerCase()))].slice(0,50);}
+  function applyShelfAddLink(){
+    const ids=parseShelfAdd(location.search);if(!ids.length)return;
+    ids.forEach(id=>state.shelf.add(id));persist();setMode('shelf');
+    const missing=ids.filter(id=>!state.books.some(b=>b.id===id));
+    const names=ids.map(id=>state.books.find(b=>b.id===id)?.title).filter(Boolean);
+    notice(missing.length?`已加入我的書架${names.length?'：'+names.join('、'):''}。有 ${missing.length} 本目前館藏沒有載入（會員或私人書需先登入第一基地），登入後重新整理就會出現。`:`已加入我的書架：${names.join('、')}`,!!missing.length);
+    try{const u=new URL(location.href);u.searchParams.delete('shelf_add');if(!u.searchParams.get('view'))u.searchParams.set('view','shelf');history.replaceState(null,'',u.toString());}catch{}
+  }
+  if(typeof window!=='undefined')window.__AIVAULT_parseShelfAdd=parseShelfAdd;
   function setMode(mode) {state.mode=mode;state.cat=null;state.sub='';state.lawTopic='';state.query='';$('search').value='';render();$('shelfSection').scrollIntoView({behavior:'smooth'});}
   function setCategory(i, sub='',topic='') {const viewport={x:window.scrollX,y:window.scrollY};state.cat=clamp(i,0,CATS.length-1);state.mode='all';state.sub=sub;state.lawTopic=topic;state.query='';$('search').value='';$('importCategory').value=state.cat;const b=state.books.find(b=>belongs(b,state.cat,sub,topic));if(b)select(b);else state.selected=null;render();closeModal();if(b){const book=$('floatingBook');book.classList.remove('swap');void book.offsetWidth;book.classList.add('swap');}requestAnimationFrame(()=>window.scrollTo({left:viewport.x,top:viewport.y,behavior:'instant'}));}
   function showLawTopics(){
@@ -575,7 +591,8 @@
       case 'recPrev':moveRecommendations(-1);break;case 'recNext':moveRecommendations(1);break;
       case 'import':$('fileInput').click();break;case 'backup':await backup();break;
       case 'restore':case 'importLearning':$('restoreInput').value='';$('restoreInput').click();break;case 'restoreConfirm':await restoreConfirm();break;
-      case 'refresh':await loadCatalog(true);break;case 'close':closeModal();break;
+      case 'refresh':await loadCatalog(true);render();break;
+      case 'shelfRemove':{const id=button?.dataset.id;if(id){state.shelf.delete(id);persist();render();notice('已移出我的書架。');}break;}case 'close':closeModal();break;
       case 'closeReader':closeReader();break;case 'prevPage':await paintPage(state.page-1);break;case 'nextPage':await paintPage(state.page+1);break;
       case 'jump':await paintPage($('pageNumber').value);break;case 'retryReader':await openBook(state.reader);break;case 'retryPage':await paintPage(button.dataset.page||state.page);break;
       case 'listen':listen();break;case 'guide':await guide();break;case 'voice':await toggleVoice();break;case 'stop':stopVoice();break;
@@ -675,6 +692,7 @@
     try{state.db=await dbOpen();let restored=0;for(const b of state.local){const blob=await dbGet(b.id);if(blob instanceof Blob){state.blobs.set(b.id,blob);restored++;}else{const pages=await dbGet('pages:'+b.id);if(Array.isArray(pages))state.pages.set(b.id,pages);}}$('storageStatus').textContent='本機資料庫可用，已恢復 '+restored+' 個原始書檔。';}
     catch(e){$('storageStatus').textContent='本機儲存未啟用：'+e.message+'；請在關閉前備份。';}
     await loadCatalog();
+    applyShelfAddLink();
     const params=new URLSearchParams(location.search),id=params.get('book')||params.get('ebook_id')||params.get('id');
     if(id&&params.get('view')!=='shelf'){let b=state.books.find(x=>x.id===id);if(!b)b=normalize({id,title:'第一基地電子書',page_count:1},'remote');await openBook(b,+params.get('page')||undefined);}
   }
