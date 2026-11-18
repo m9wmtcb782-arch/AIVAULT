@@ -113,6 +113,12 @@
   function cacheKey() {
     try { const t=E?.userToken();const p=t&&JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));return 'aivaultRoyalCatalog:'+ (p?.sub||'public'); } catch { return 'aivaultRoyalCatalog:public'; }
   }
+  // 頁數欄位為 0 時，以實際頁面資料探測頁數（指數＋二分搜尋；任何一次查詢失敗就當作無法確認，回傳 0 不顯示）
+  async function countRemotePages(id) {
+    const has=async n=>{const d=resultData(await deadline(E.fetchRemoteBook(id,n),8000));return !!(d.page||arr(d.pages)[0]);};
+    if(!await has(1))return 0;let lo=1,hi=2;while(hi<=65536&&await has(hi)){lo=hi;hi*=2;}
+    while(hi-lo>1){const m=(lo+hi)>>1;if(await has(m))lo=m;else hi=m;}return lo;
+  }
   async function loadCatalog(force=false) {
     if(state.loading)return;
     state.loading=true;$('refresh').disabled=true;$('catalogStatus').textContent='正在同步第一基地館藏…';
@@ -120,7 +126,10 @@
       if(!E)throw Error('館藏程式未載入，請重新整理');
       // 分頁載入全部館藏（每頁 100 本；伺服器回 has_more/next_offset 時續抓，舊伺服器沒有分頁資訊時只抓一頁＝舊行為）
       const all=[];let offset=0;for(let i=0;i<100;i++){const d=resultData(await deadline(E.fetchRemoteCatalog(100,offset)));all.push(...arr(d.books||d.items||d.ebooks));if(!d.has_more||d.next_offset==null||Number(d.next_offset)<=offset)break;offset=Number(d.next_offset);$('catalogStatus').textContent=`正在同步第一基地館藏…已讀 ${all.length} 本`;}
-      const seen=new Set();remoteBooks=all.filter(b=>{const id=String(b.ebook_id||b.id);if(seen.has(id))return false;seen.add(id);return true;}).filter(b=>Number(b.total_pages||b.page_count)>0&&!/FlipBook Probe/.test(b.title));
+      const seen=new Set();const uniq=all.filter(b=>{const id=String(b.ebook_id||b.id);if(seen.has(id))return false;seen.add(id);return true;}).filter(b=>!/FlipBook Probe/.test(b.title));
+      // 頁數欄位為 0 但實際有頁面資料的書（不改資料庫欄位）：逐頁探測實際頁數後顯示；真正 0 內容的空殼仍隱藏
+      await Promise.all(uniq.filter(b=>!(Number(b.total_pages||b.page_count)>0)).map(async b=>{const n=await countRemotePages(String(b.ebook_id||b.id)).catch(()=>0);if(n>0)b.page_count=n;}));
+      remoteBooks=uniq.filter(b=>Number(b.total_pages||b.page_count)>0);
       write(cacheKey(),remoteBooks);state.catalogStatus=`已連接第一基地：${remoteBooks.length} 本遠端電子書`;
       try{legacyBooks=await E.allLocalBooks();}catch{legacyBooks=[];}
       mergeBooks(remoteBooks,legacyBooks);await hydrateCovers();indexLawBooks(force).catch(()=>{});notice('館藏已更新。');
