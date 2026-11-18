@@ -272,7 +272,7 @@
   function showBook(id) {
     const b=state.books.find(b=>b.id===id);if(!b)return notice('找不到這本書，請更新館藏。',true);
     $('sceneBookInfo').hidden=false;select(b);const p=state.progress[b.id]?.page||1;
-    modal(`<div class="book-details"><div class="cover">${cover(b)}</div><h2>${esc(b.title)}</h2><p>${esc(b.author||'作者未提供')} · ${esc(CATS[b.cat][0])} / ${esc(b.sub)}</p><p>${esc(badge(b))} · ${b.page_count||'?'} 頁${p>1?' · 上次讀到第 '+p+' 頁':''}</p>${b.description?'<p>'+esc(b.description)+'</p>':''}<div class="modal-actions"><button data-action="read">📖 ${p>1?'繼續閱讀':'開始閱讀'}</button><button data-action="shelf">${state.shelf.has(b.id)?'移出書架':'＋ 加入書架'}</button><button data-action="favorite">${state.favs.has(b.id)?'★ 取消收藏':'☆ 收藏'}</button><button data-action="guide">🎙 暗星導讀</button><button data-action="download">↓ 下載離線</button><button data-action="changeCover">🖼 更換封面</button><button data-action="resetCover" ${state.covers.get(b.id)?'':'disabled'}>恢復彩色封面</button><button data-action="mark">${state.marks.has(b.id)?'取消本機學習標記':'標記為已學（本機）'}</button></div><p class="muted">封面可上傳 JPEG、PNG、WebP，會儲存在此裝置，並隨館藏備份一併匯出。</p></div>`);
+    modal(`<div class="book-details"><div class="cover">${cover(b)}</div><h2>${esc(b.title)}</h2><p>${esc(b.author||'作者未提供')} · ${esc(CATS[b.cat][0])} / ${esc(b.sub)}</p><p>${esc(badge(b))} · ${b.page_count||'?'} 頁${p>1?' · 上次讀到第 '+p+' 頁':''}</p>${b.description?'<p>'+esc(b.description)+'</p>':''}<div class="modal-actions"><button data-action="read">📖 ${p>1?'繼續閱讀':'開始閱讀'}</button><button data-action="shelf">${state.shelf.has(b.id)?'移出書架':'＋ 加入書架'}</button><button data-action="favorite">${state.favs.has(b.id)?'★ 取消收藏':'☆ 收藏'}</button><button data-action="guide">🎙 暗星導讀</button><button data-action="ask">❓ 向這本書提問</button><button data-action="download">↓ 下載離線</button><button data-action="changeCover">🖼 更換封面</button><button data-action="resetCover" ${state.covers.get(b.id)?'':'disabled'}>恢復彩色封面</button><button data-action="mark">${state.marks.has(b.id)?'取消本機學習標記':'標記為已學（本機）'}</button></div><p class="muted">封面可上傳 JPEG、PNG、WebP，會儲存在此裝置，並隨館藏備份一併匯出。</p></div>`);
     if(b.cat===0){const tags=document.createElement('div');tags.className='law-subject-tags';for(const subject of b.subjects||[b.sub]){const tag=document.createElement('span');tag.textContent=subject;tags.append(tag);}const note=document.createElement('p');note.className='muted';note.textContent='分類依據：'+(b.lawEvidence||'書目資料');const details=$('modalContent').querySelector('.book-details');details.insertBefore(tags,details.querySelector('.modal-actions'));tags.after(note);}
   }
   // 深層連結 ?shelf_add=<ebook_id>[,<ebook_id>...]：加入「我的書架」並切到書架；書不在館藏時提示登入，仍保留在書架清單
@@ -551,6 +551,38 @@
     modal(`<div data-panel="learned"><h2>📘 暗星學習紀錄</h2><p>本機標記與學習安排分開顯示；均不作為已完成學習的證明。</p>${loginBox}<h3>後端學習安排（暗星已學／學習中） · ${assigned.length}</h3><p>${esc(state.studyLoading?'正在讀取目前帳號的學習安排…':state.studyStatus||(logged?'按下重新核對可讀取現有學習安排。':'登入後自動讀取。'))}</p>${assignedHTML}<h3>暗星學習進度（本裝置） · ${progress.length}</h3>${progHTML||'<p>本裝置沒有學習進度紀錄。</p>'}<h3>本機手動標記 · ${marked.length}</h3>${marked.map(b=>`<button data-book="${esc(b.id)}">${esc(b.title)}</button>`).join('')||'<p>目前沒有本機標記。</p>'}<h3>匯入來源紀錄 · ${state.learned.length}</h3>${state.learned.slice(0,100).map(r=>'<p>'+esc(r.title)+'<br><small>來源：'+esc(r.source||'未提供')+' · '+esc(r.completed_at||'日期未提供')+' · 待獨立核實</small></p>').join('')}<div class="modal-actions"><button data-action="refreshLearning">重新核對</button><button data-action="importLearning">匯入紀錄</button><button data-action="exportLearning">匯出紀錄</button><button data-action="learningTemplate">下載範本</button></div></div>`);
     if(auto&&logged&&!state.studyLoading&&Date.now()-state.studyAt>60000)refreshLearning(true);
   }
+  // ❓ 向這本書提問：AI 依本書 → 書架其他書 → 網路（缺比對資料時）作答，法律題附兩岸比較（royal-library-ask.js）
+  const ASK=window.AIVAULTAsk;
+  function isNonPublic(b){const v=String(b?.visibility||b?.metadata?.visibility||'').toLowerCase();return (v&&v!=='public')||b?.metadata?.private===true||b?.metadata?.private==='true';}
+  function askPanelOpen(){return $('overlay').classList.contains('show')&&!!$('modalContent').querySelector('[data-panel="ask"]');}
+  function showAsk(b){
+    if(!b)return;
+    if(!E.userToken()){modal(`<div data-panel="ask"><h2>❓ 向這本書提問</h2><p>《${esc(b.title)}》</p><p class="learned-login" role="note">🔐 此功能需要先登入第一基地（或登入已過期）。<a href="${LOGIN_URL}">前往登入</a></p></div>`);return;}
+    if(!ASK){notice('提問模組尚未載入，請重新整理。',true);return;}
+    const a=state.ask?.bookId===b.id?state.ask:(state.ask={bookId:b.id,question:'',running:false,status:'',result:null,error:''});
+    const r=a.result;
+    const src=r?r.sources.map(x=>x.type==='book'?'<li>本書《'+esc(x.title)+'》</li>':x.type==='shelf'?'<li>書架其他書《'+esc(x.title)+'》</li>':'<li>網路來源：'+esc(x.title)+'<br><a href="'+esc(x.url)+'" target="_blank" rel="noopener noreferrer">'+esc(x.url)+'</a></li>').join(''):'';
+    modal(`<div data-panel="ask" class="ask-panel"><h2>❓ 向這本書提問</h2><p>《${esc(b.title)}》</p>${isNonPublic(b)?'<p role="note" class="ask-note">⚠️ 此書非公開：提問時會把書中相關段落送到 Google Gemini 產生答案。</p>':''}<label for="askQuestion">你的問題</label><textarea id="askQuestion" rows="4" maxlength="1000" placeholder="例如：言論自由在兩岸憲法上的保障有何差異？" style="width:100%;box-sizing:border-box;font:inherit">${esc(a.question)}</textarea><div class="modal-actions"><button data-action="askRun" ${a.running?'disabled':''}>${a.running?'AI 處理中…':'🤖 AI 回答'}</button></div><p id="askStatus" role="status">${esc(a.error?'失敗：'+a.error:a.status)}</p>${r?`<section class="ask-answer" aria-label="AI 答案"><p class="ask-label"><b>🤖 AI 生成</b>：依本書${r.counts.shelf?'、書架其他書':''}${r.counts.web?'、網路來源':''}整理，可能有誤，重要結論請對照原文或官方法規。</p>${ASK.renderAnswer(r.answer)}${r.truncated?'<p role="note">⚠️ 答案可能因長度上限而不完整，可把問題拆小後再問一次。</p>':''}<h4>資料來源</h4><ul>${src||'<li>沒有檢索到資料</li>'}</ul>${r.webNote?'<p>'+esc(r.webNote)+'</p>':''}</section>`:''}</div>`);
+    const t=$('askQuestion');if(t)t.addEventListener('input',()=>{a.question=t.value;});
+  }
+  async function askPost(url,body,ms){const tk=E.userToken();if(!tk)throw Error('請先登入第一基地');const r=await deadline(fetch(url,{method:'POST',headers:{'Content-Type':'application/json',apikey:E.ANON_KEY,Authorization:'Bearer '+tk},body:JSON.stringify(body)}),ms);const d=await r.json().catch(()=>({}));if(!r.ok||d.ok===false||d.success===false)throw Error(d.message||d.error||('服務回應 '+r.status));return d;}
+  const askApi={
+    search:body=>askPost(E.INGEST+'?feature=photo-solve',body,30000),
+    research:body=>askPost(E.INGEST+'?feature=photo-solve',{allow_web:true,...body},60000),
+    webSearch:q=>askPost(E.INGEST+'?feature=web-search',{q,n:5},20000),
+    context:async(id,page,radius)=>{const d=resultData(await deadline(E.fetchRemoteContext(id,page,radius),15000));return arr(d.pages||d.context);},
+    gateway:(messages,o)=>askPost(E.GATEWAY,{provider:'gemini',allowed_providers:['gemini'],capability:'chat',messages,temperature:o?.temperature??0.2,max_tokens:o?.max_tokens||4096},150000)
+  };
+  async function runAsk(){
+    const a=state.ask,b=a&&state.books.find(x=>x.id===a.bookId);if(!a||!b||a.running)return;
+    const t=$('askQuestion');if(t)a.question=t.value.trim();if(a.question.length<2){a.error='請輸入問題';showAsk(b);return;}
+    if(!E.userToken()){showAsk(b);return;}
+    a.running=true;a.error='';a.result=null;a.status='準備中…';showAsk(b);
+    try{a.result=await ASK.run({question:a.question,book:{...b},books:state.books,api:askApi,flags:window.AIVAULTAskFlags||{},onStatus:m=>{a.status=m;if(askPanelOpen()){const el=$('askStatus');if(el)el.textContent=m;}}});a.status='完成（AI 呼叫 '+a.result.calls+' 次）。';}
+    catch(e){a.error=e.message||String(e);}
+    finally{a.running=false;}
+    if(askPanelOpen())showAsk(b);else notice(a.error?'提問失敗：'+a.error:'AI 答案已完成，打開「向這本書提問」查看。',!!a.error);
+  }
   function learnedPanelOpen(){return $('overlay').classList.contains('show')&&!!$('modalContent').querySelector('[data-panel="learned"]');}
   async function refreshLearning(silent=false) {
     if(state.studyLoading)return;state.studyLoading=true;if(learnedPanelOpen())showLearned(false);
@@ -652,6 +684,7 @@
       case 'avatar':if(typeof frame?.contentWindow?.libraryAvatarAction!=='function')throw Error('數字人互動程式尚未載入，請稍後重試');frame.contentWindow.libraryAvatarAction(button.dataset.clip);notice('已觸發暗星動作：'+button.textContent);break;
       case 'lawTopics':showLawTopics();break;
       case 'mark':if(!b)throw Error('請先選書');state.marks.has(b.id)?state.marks.delete(b.id):state.marks.add(b.id);persist();showBook(b.id);notice('本機標記已更新；不代表暗星已完成學習。');break;
+      case 'ask':if(!b)throw Error('請先選書');showAsk(b);break;case 'askRun':await runAsk();break;
       case 'learned':showLearned();break;case 'refreshLearning':await refreshLearning();break;
       case 'exportLearning':downloadBlob(new Blob([JSON.stringify({format:'AIVAULT-LEARNED-RECORDS-V1',records:state.learned,local_manual_marks:[...state.marks]})],{type:'application/json'}),'暗星學習紀錄.json');notice('學習紀錄已送出下載。');break;
       case 'learningTemplate':downloadBlob(new Blob([JSON.stringify({format:'AIVAULT-LEARNED-RECORDS-V1',records:[{title:'請填書名',source:'請填可追溯來源',completed_at:'',status:'unverified'}]},null,2)],{type:'application/json'}),'暗星學習紀錄範本.json');break;

@@ -24,5 +24,13 @@
     // 每個關鍵字都要出現；比對時也忽略標點與符號（「行政法入門第二版」可找到「行政法入门（第二版）」）
     return q.split(" ").every(function (t) { return h.indexOf(t) >= 0 || (compact(t) && hc.indexOf(compact(t)) >= 0); });
   }
-  return { fold: fold, matches: matches, size: MAP.size };
+  // 反向（簡→繁）：同一簡體字對應多個繁體字時取字表中第一個；只供搜尋詞產生變體
+  var INV = new Map();
+  MAP.forEach(function (s, t) { if (!INV.has(s)) INV.set(s, t); });
+  // 這些字在繁體中本身也常用（表／錶、制／製…），反推時保留原字
+  var KEEP = "表制面干台系只志松致谷卷才向同合千了布折回板局游借克困曲周咸症";
+  function toTrad(text) { var s = fold(text), out = ""; for (var j = 0; j < s.length; j++) { var c = s[j]; out += KEEP.indexOf(c) >= 0 ? c : (INV.get(c) || c); } return out; }
+  function variants(text) { var o = String(text == null ? "" : text).trim(), f = fold(o), a = [o, f], r = []; if (f === o.toLowerCase()) a.push(toTrad(o)); // 原文已是繁體就不再反推，避免「表→錶」之類誤轉
+     for (var k = 0; k < a.length; k++) if (a[k] && r.indexOf(a[k]) < 0) r.push(a[k]); return r; }
+  return { fold: fold, matches: matches, toTrad: toTrad, variants: variants, size: MAP.size };
 });
