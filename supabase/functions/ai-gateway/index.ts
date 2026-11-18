@@ -1,5 +1,5 @@
+import { originEdgeInference } from "./origin-edge.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import "../_shared/neural-bus.ts"; // neural bus (NEURAL_BUS_ON, default off)
 import { paidAllowed, PAID_DENIED } from "../_shared/paid_gate.ts";
 
 /**
@@ -56,7 +56,7 @@ import { paidAllowed, PAID_DENIED } from "../_shared/paid_gate.ts";
  * - Gemini models are dynamically discovered per API key
  */
 
-const VERSION = "ai-gateway-v3.1.5";
+const VERSION = "ai-gateway-v3.1.7";
 
 /* sm2：暗星／曙光接上全城共享記憶（與代理同一套資料庫介面 aivault_mem_search / aivault_mem_write / aivault_mem_notify）。
  * 只在文字對話路徑（executeLLMGateway）做：取前 3 筆相關片段注入 system，要求引用 [mem#id]；回覆後記錄引用並把建議寫回記憶（admin 層，含來源對話與版本）。
@@ -130,6 +130,8 @@ const SUPABASE_SERVICE_ROLE_KEY =
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
 const CHAT_CONTEXT_MAX_CHARS = 500000;
+// Bound provider history without deleting canonical Supabase conversation records.
+const MAX_PROVIDER_HISTORY_MESSAGES = 40;
 const OPENAI_COMPATIBLE_MAX_CHARS = 6000;
 const OPENAI_COMPATIBLE_MAX_COMPLETION_TOKENS = 384;
 const MEMORY_PAGE_SIZE = 1000;
@@ -141,7 +143,6 @@ const DARK_STAR_GITHUB_API = "https://api.github.com";
 const DARK_STAR_RAW_BASE = "https://raw.githubusercontent.com/m9wmtcb782-arch/AIVAULT/main";
 const DARK_STAR_STARTUP_FILES = [
   "ebook/LETTER-TO-DARK-STAR-EBOOK-AND-SPEECH.md",
-  "ebook/LETTER-TO-DARK-STAR-EBOOK-FILE-INGEST.md",
   "ebook/LETTER-TO-DARK-STAR-GITHUB-PERMISSION.md",
   "ebooks/RULES-DARK-STAR.md",
   "ebooks/README.md",
@@ -978,7 +979,7 @@ async function recordQuotaEvent(
             ? null
             : String(result?.error || "UNKNOWN_PROVIDER_ERROR").slice(0, 2000),
           execution_id: executionId || null,
-          agent_id: "technical-dark-star",
+          agent_id: result?.agent_id || null,
           metadata: { gateway_version: VERSION },
         }),
       },
@@ -2928,7 +2929,7 @@ function buildBoundedContext(
   for (
     let i =
       history.length - 1;
-    i >= 0;
+    i >= 0 && selected.length < MAX_PROVIDER_HISTORY_MESSAGES;
     i--
   ) {
     const message =
@@ -3771,7 +3772,7 @@ async function callOpenAICompatible(
         success: false,
         status: 502,
         error:
-          emptyError,
+          `${emptyError}: finish_reason=${String(data?.choices?.[0]?.finish_reason || "unknown")}; reasoning_present=${Boolean(data?.choices?.[0]?.message?.reasoning)}; content_type=${typeof data?.choices?.[0]?.message?.content}`,
       };
     }
 
@@ -4791,6 +4792,9 @@ async function executeLLMGateway(
     GeminiModelResolution | null =
     null;
 
+  // A Groq organization-level TPD limit is shared across its API keys.
+  // Stop trying sibling keys after a confirmed organization-wide exhaustion.
+  let groqOrganizationQuotaExhausted = false;
   for (
     const provider
     of providerOrder
@@ -4822,6 +4826,7 @@ async function executeLLMGateway(
       const providerKey
       of candidates
     ) {
+      if (provider === "groq" && groqOrganizationQuotaExhausted) break;
       attempts++;
 
       attemptedProviders.push(
@@ -5347,6 +5352,10 @@ async function executeLLMGateway(
             started,
         ),
       );
+      if (provider === "groq" && result.status === 429 &&
+          /in organization\s+[^\s]+[\s\S]*tokens per day\s*\(TPD\)/i.test(String(result.error || ""))) {
+        groqOrganizationQuotaExhausted = true;
+      }
     }
   }
 
@@ -6751,6 +6760,28 @@ Deno.serve(
         },
         400,
       );
+    }
+
+    if (isRecord(body) && body.action === "origin_ncl_infer") {
+      const token = req.headers.get("x-aivault-origin-token") ?? "";
+      if (!/^[a-f0-9]{64}$/.test(token)) {
+        return json({ success: false, error: "ORIGIN_UNAUTHORIZED" }, 401);
+      }
+      const expected = "9bafd620b771c393681aa1b53a09bd443e216d1b14f80ef67f2bb67a796bd5bd";
+      const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)));
+      let difference = 0;
+      for (let index = 0; index < digest.length; index++) {
+        difference |= digest[index] ^ Number.parseInt(expected.slice(index * 2, index * 2 + 2), 16);
+      }
+      if (difference !== 0) {
+        return json({ success: false, error: "ORIGIN_UNAUTHORIZED" }, 401);
+      }
+      const result = await originEdgeInference(
+        body,
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      );
+      return json({ ...result.payload, gateway_version: VERSION }, result.status);
     }
 
     if (
