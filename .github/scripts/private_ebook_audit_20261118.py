@@ -32,3 +32,9 @@ for b in books:
 json.dump({"totals": allb, "books": res}, open("out/private_audit.json", "w", encoding="utf-8"), ensure_ascii=False, default=str)
 print("TOTAL", allb, "NONPUBLIC", len(res), "WITH_URL_HEAVY", sum(1 for r in res if r["url_heavy_pages"]),
       "WITH_LAWGETFILE", sum(1 for r in res if r["lawgetfile"]), "EMPTY", sum(1 for r in res if r["pages_in_db"] == 0))
+
+# 唯讀：頁數欄位為 0 但有頁面資料的書，檢查頁碼是否連續（只印 id 前 8 碼與數字）
+for r in q("""select e.id, e.total_pages, count(p.*)::int n, min(p.page_number) a, max(p.page_number) b, count(distinct p.page_number)::int d
+  from dark_star_ebooks e join dark_star_ebook_pages p on p.ebook_id=e.id where coalesce(e.total_pages,0)=0 group by e.id, e.total_pages"""):
+    print("ZERO_COUNT_WITH_PAGES", str(r["id"])[:8], "rows", r["n"], "min", r["a"], "max", r["b"], "distinct", r["d"], "contiguous", r["a"] == 1 and r["b"] == r["d"] == r["n"])
+print("EMPTY_BOOKS", q("select count(*)::int n from dark_star_ebooks e where not exists (select 1 from dark_star_ebook_pages p where p.ebook_id=e.id)"))
