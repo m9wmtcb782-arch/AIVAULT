@@ -98,3 +98,16 @@ test('run：中華民國法規書、未提其他法域 → 不強制比較、不
   const r = await A.run({ question: '契約何時成立？', book: { id: 'civ', title: '民法', author: '法務部全國法規資料庫', cat: 0 }, books: [], api });
   assert.deepEqual(r.sides, []); assert.equal(web, 0); assert.equal(r.calls, 1);
 });
+test('run：gateway 帶 thinking low；finish_reason=MAX_TOKENS 視為截斷', async () => {
+  const seen = [];
+  const mk = fr => ({ search: async () => ({ sources: [] }), context: async () => [], webSearch: async () => ({}), research: async () => ({}),
+    gateway: async (m, o) => { seen.push(o); return { success: true, content: '## 結論\n答\n## 資料限制\n無', finish_reason: fr }; } });
+  const book = { id: 'civ', title: '民法', cat: 0 };
+  const r1 = await A.run({ question: '契約何時成立？', book, books: [], api: mk('STOP') });
+  assert.deepEqual(seen.at(-1).thinking, { level: 'low' });
+  assert.equal(r1.truncated, false); assert.equal(r1.finishReason, 'STOP');
+  const r2 = await A.run({ question: '契約何時成立？', book, books: [], api: mk('MAX_TOKENS') });
+  assert.equal(r2.truncated, true);
+  await A.run({ question: '契約何時成立？', book, books: [], api: mk(null), flags: { thinking: '' } });
+  assert.equal(seen.at(-1).thinking, undefined);
+});

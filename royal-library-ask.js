@@ -9,7 +9,7 @@
   else root.AIVAULTAsk = factory(root.AIVAULTZhFold);
 })(typeof self !== 'undefined' ? self : this, function (Z) {
   'use strict';
-  const FLAGS = { aiKeywords: 'auto', web: true, maxBookChars: 24000, maxShelfChars: 16000, maxWebChars: 8000, maxTokens: 8192 }; // Gemini 3 的思考 token 也計入上限，4096 會把答案截斷
+  const FLAGS = { aiKeywords: 'auto', web: true, maxBookChars: 24000, maxShelfChars: 16000, maxWebChars: 8000, maxTokens: 8192, thinking: 'low' }; // Gemini 3 的思考 token 也計入上限，4096 會把答案截斷
   const arr = v => Array.isArray(v) ? v : [];
   const uniq = a => [...new Set(a.filter(Boolean))];
   const fold = s => Z && Z.fold ? Z.fold(s) : String(s || '').toLowerCase();
@@ -169,7 +169,7 @@
     let legal = isLegalQuestion(q, book), kw = null, calls = 0;
     // 外文書（德文、英文…）用中文問題搜不到原文：自動先請 AI 產生書本原文語言的關鍵詞（多一次 AI 呼叫）
     const useKw = flags.aiKeywords === true || (flags.aiKeywords !== false && foreignLanguage(book.title));
-    if (useKw) { status('AI 正在整理搜尋關鍵詞…'); try { kw = parseKeywordJSON(gatewayText(await api.gateway(keywordMessages(q, book), { temperature: 0, max_tokens: 800 }))); calls++; if (kw && kw.legal) legal = true; } catch (e) { kw = null; calls++; } }
+    if (useKw) { status('AI 正在整理搜尋關鍵詞…'); try { kw = parseKeywordJSON(gatewayText(await api.gateway(keywordMessages(q, book), { temperature: 0, max_tokens: 800, thinking: flags.thinking ? { level: flags.thinking } : undefined }))); calls++; if (kw && kw.legal) legal = true; } catch (e) { kw = null; calls++; } }
     const sides = compareSides(legal, bookJ, q);
     const bookTerms = uniq([...(kw ? kw.terms_book : []), ...extractTerms(q, [])]);
     const twTerms = extractTerms(q, kw ? [...kw.terms_tw, ...kw.laws_tw] : []).filter(t => !/[\u3400-\u9fff]/.test(t) || !Z.toTrad || fold(t) !== t.toLowerCase() || Z.toTrad(t) === t);
@@ -228,7 +228,7 @@
     }
     status('AI 正在撰寫答案…');
     const g = { book: bookP, shelf: shelfP, web: webP };
-    let data; try { data = await api.gateway(buildMessages(q, book, g, legal, sides), { temperature: 0.2, max_tokens: flags.maxTokens }); } finally { calls++; }
+    let data; try { data = await api.gateway(buildMessages(q, book, g, legal, sides), { temperature: 0.2, max_tokens: flags.maxTokens, thinking: flags.thinking ? { level: flags.thinking } : undefined }); } finally { calls++; }
     const answer = stripPageNumbers(gatewayText(data));
     if (!answer) throw Error('AI 沒有回傳答案，請稍後再試');
     const sources = [
@@ -236,8 +236,10 @@
       ...uniq(shelfP.map(p => p.book_title)).map(t => ({ type: 'shelf', title: t })),
       ...webP.map(p => ({ type: 'web', title: p.title, url: p.url }))
     ];
-    const truncated = !/##\s*資料限制/.test(answer);
-    return { answer, truncated, legal, sides, bookJuris: bookJ, sources, webNote, calls, counts: { book: bookP.length, shelf: shelfP.length, web: webP.length }, missing };
+    const finishReason = (data && (data.finish_reason || (data.result && data.result.finish_reason))) || null;
+    // 閘道回報 MAX_TOKENS（新版閘道才有）或缺少結尾段落 → 視為被截斷
+    const truncated = finishReason === 'MAX_TOKENS' || !/##\s*資料限制/.test(answer);
+    return { answer, truncated, finishReason, legal, sides, bookJuris: bookJ, sources, webNote, calls, counts: { book: bookP.length, shelf: shelfP.length, web: webP.length }, missing };
   }
 
   // ── 複製問題給外部 AI（Grok／GPT）：外部 AI 不執行 JavaScript，故只給「純文字版」網址 ──
