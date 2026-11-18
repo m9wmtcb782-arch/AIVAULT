@@ -573,7 +573,7 @@
     research:body=>askPost(E.INGEST+'?feature=photo-solve',{allow_web:true,...body},60000),
     webSearch:q=>askPost(E.INGEST+'?feature=web-search',{q,n:5},20000),
     context:async(id,page,radius)=>{const d=resultData(await deadline(E.fetchRemoteContext(id,page,radius),15000));return arr(d.pages||d.context);},
-    gateway:(messages,o)=>askPost(E.GATEWAY,{provider:'gemini',allowed_providers:['gemini'],capability:'chat',messages,temperature:o?.temperature??0.2,max_tokens:o?.max_tokens||4096},150000)
+    gateway:(messages,o)=>askPost(E.GATEWAY,{provider:'gemini',allowed_providers:['gemini'],capability:'chat',messages,temperature:o?.temperature??0.2,max_tokens:o?.max_tokens||4096,...(o?.thinking?{thinking:o.thinking}:{})},150000)
   };
   /* 複製問題給外部 AI：外部 AI 不執行 JS，只給 ebook-text/ 純文字版網址（僅公開且已匯出的書）。 */
   let textManifest=null;

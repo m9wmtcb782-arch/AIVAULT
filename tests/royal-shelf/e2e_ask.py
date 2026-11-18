@@ -47,7 +47,7 @@ async def run(b,logged):
         out['table_rows']=await a.locator('table tr').count()
         out['sources']=await a.locator('ul').last.inner_text()
         out['has_page_no']=bool(__import__('re').search(r'第\s*\d+\s*頁',await a.inner_text()))
-        g=log['gateway'][-1]; out['gateway_req']={k:g.get(k) for k in ('provider','allowed_providers','agent_id','temperature','max_tokens')}; out['gateway_calls']=len(log['gateway'])
+        g=log['gateway'][-1]; out['gateway_req']={k:g.get(k) for k in ('provider','allowed_providers','agent_id','temperature','max_tokens','thinking')}; out['gateway_calls']=len(log['gateway'])
         out['searches']=log['search']; out['web']=log['web']
         out['table_scroll']=await pg.evaluate("()=>{const t=document.querySelector('.ask-table');return t&&getComputedStyle(t).overflowX}")
         await pg.click('#close'); await pg.wait_for_timeout(300)
