@@ -215,8 +215,11 @@
     return String(pick(page, ["content", "page_content", "text", "body", "html"]) || "");
   }
 
-  async function fetchRemoteCatalog(limit) {
-    return ingest({ action: "list", limit: limit || 80 });
+  // offset 分頁：伺服器回 has_more/next_offset（舊伺服器忽略 offset，只回最新一頁）
+  async function fetchRemoteCatalog(limit, offset) {
+    const payload = { action: "list", limit: limit || 80 };
+    if (offset) payload.offset = offset;
+    return ingest(payload);
   }
   async function fetchRemoteBook(ebookId, pageNumber) {
     const result = await ingest({ action: "book", ebook_id: ebookId, page_number: pageNumber || 1 });

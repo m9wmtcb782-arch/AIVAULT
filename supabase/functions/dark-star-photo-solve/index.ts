@@ -1,5 +1,6 @@
 import { citationTarget, statuteMatches, exactArticleText, articleForms } from './legal-citation.ts';
 import { identifyLaw, researchWeb } from './legal-research.ts';
+import { canRead, isAdmin, isMember, type Viewer } from '../_shared/ebook_access.ts';
 const BASE = Deno.env.get('SUPABASE_URL') || '';
 const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const CORS = {'Access-Control-Allow-Origin':'https://m9wmtcb782-arch.github.io','Access-Control-Allow-Headers':'authorization, apikey, content-type','Access-Control-Allow-Methods':'POST, OPTIONS'};
@@ -20,6 +21,12 @@ async function database(path:string, body?:unknown) {
   const r=await fetch(BASE+'/rest/v1/'+path,{method:body?'POST':'GET',headers:{apikey:SERVICE,authorization:'Bearer '+SERVICE,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(15000)});
   const data=await r.json(); if(!r.ok)throw new Error('教材資料庫查詢失敗');return data;
 }
+// 只回傳呼叫者可讀的書（public／已登入會員可讀 members／本人或 owner/admin 可讀 owner）；select=* 讓 migration 前後都能讀到 visibility/owner_id 或 metadata
+async function readableBooks(viewer:Viewer, ids?:string[]|null, limit=200):Promise<any[]> {
+  const filter=ids&&ids.length?'&id=in.'+encodeURIComponent('('+ids.join(',')+')'):'';
+  const rows=await database('dark_star_ebooks?select=*&order=created_at.desc'+filter+'&limit='+limit);
+  return (Array.isArray(rows)?rows:[]).filter((b:any)=>canRead(b,viewer));
+}
 async function gateway(req:Request,prompt:string,image:string) {
   const headers:Record<string,string>={'Content-Type':'application/json',authorization:req.headers.get('authorization')||'',apikey:req.headers.get('apikey')||''};
   const secret=Deno.env.get('AI_GATEWAY_INTERNAL_SECRET')||Deno.env.get('GATEWAY_INTERNAL_SECRET');if(secret)headers['x-aivault-internal']=secret;
@@ -39,13 +46,18 @@ export async function photoSolve(req:Request){
   let sharedLibraryToken=false;
   try{const part=token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');const claims=JSON.parse(atob(part));sharedLibraryToken=claims.role==='anon'&&claims.ref===new URL(BASE).hostname.split('.')[0];}catch{ /* invalid token */ }
   // The platform verifies this JWT's signature before the handler runs.
-  if(token!==anon&&!sharedLibraryToken){const r=await fetch(BASE+'/auth/v1/user',{headers:{apikey:anon,authorization:'Bearer '+token}});if(!r.ok)return out({ok:false,error:'Unauthorized'},401);}
+  // 公開金鑰＝訪客（viewer=null，只能讀 public 書）；使用者 JWT 驗證後取得 id／角色，approved===false 視同訪客
+  let viewer:Viewer=null;
+  if(token!==anon&&!sharedLibraryToken){const r=await fetch(BASE+'/auth/v1/user',{headers:{apikey:anon,authorization:'Bearer '+token}});if(!r.ok)return out({ok:false,error:'Unauthorized'},401);const u=await r.json().catch(()=>null);if(u?.id&&u?.app_metadata?.approved!==false)viewer={id:String(u.id),role:u.app_metadata?.role??null,approved:u.app_metadata?.approved??null};}
   try {
     if(Number(req.headers.get('content-length')||0)>9000000)return out({ok:false,error:'圖片過大'},413);
     const raw=await req.text();if(raw.length>9000000)return out({ok:false,error:'圖片過大'},413);
     const b=JSON.parse(raw),action=String(b.action||'solve');
-    if(action==='books')return out({ok:true,books:await database('dark_star_ebooks?select=id,title,total_pages&total_pages=gt.0&order=created_at.desc&limit=200')});
+    if(action==='books')return out({ok:true,books:(await readableBooks(viewer,null,2000)).filter((x:any)=>Number(x.total_pages)>0).map((x:any)=>({id:x.id,title:x.title,total_pages:x.total_pages}))});
     const bookId=b.ebook_id||null;if(bookId&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(bookId))return out({ok:false,error:'電子書編號錯誤'},400);
+    // 指定的書必須是呼叫者可讀的；不可讀一律當作不存在（不透露 owner-only 書）
+    if(bookId&&!(await readableBooks(viewer,[bookId],1)).length)return out({ok:false,error:'找不到這本電子書'},404);
+    const rpcViewer={viewer_id:viewer?.id||null,viewer_is_member:isMember(viewer),viewer_is_admin:isAdmin(viewer)};
     let question=String(b.question||'').trim().slice(0,12000),terms=keywords(question,b.terms);
     const image=String(b.image||'');
     if(!['search','ocr','solve','research','classify'].includes(action))return out({ok:false,error:'unknown action'},400);
@@ -61,7 +73,7 @@ export async function photoSolve(req:Request){
     let jurisdiction=identifyLaw(question,String(b.jurisdiction||'auto'));
     let citation=citationTarget(question,String(b.law_name||''));
     if(bookId&&(citation.missing_law||jurisdiction.code==='UNKNOWN')&&!b.law_name){
-      const book=await database('dark_star_ebooks?select=title&id=eq.'+bookId+'&limit=1');
+      const book=await readableBooks(viewer,[bookId],1);
       citation=citationTarget(question,String(book[0]?.title||''));
       if(jurisdiction.code==='UNKNOWN'){const j=identifyLaw(String(book[0]?.title||''));if(j.confirmed&&['CN','TW'].includes(j.code))jurisdiction={...j,script:jurisdiction.script,reason:'依已選電子書的法律法域判讀：'+j.reason};}
     }
@@ -72,7 +84,7 @@ export async function photoSolve(req:Request){
     if(action==='research'){const web=await researchWeb(question,terms,jurisdiction.code,citation.law_name);return out({ok:true,question,terms,jurisdiction,web,sources:web.sources.map((x:any,i:number)=>({...x,ref:i+1})),found:web.sources.length>0});}
     let rows:any[];
     if(citation.articles.length){
-      const catalog=await database('dark_star_ebooks?select=id,title'+(bookId?'&id=eq.'+bookId:'')+'&limit=200');
+      const catalog=await readableBooks(viewer,bookId?[bookId]:null,2000);
       const matching=catalog.filter((book:any)=>{
         if(!book.id||!statuteMatches(String(book.title||''),'',citation))return false;
         const scope=identifyLaw(String(book.title||''));
@@ -86,8 +98,10 @@ export async function photoSolve(req:Request){
         rows=pages.map((p:any)=>({...p,page_id:p.id,book_title:matching.find((book:any)=>book.id===p.ebook_id)?.title,excerpt:String(p.title||'')+'\n'+String(p.content||'')}));
       }else rows=[];
       // Full-text fallback also searches Chinese article aliases when the book has no article metadata.
-      if(!rows.length)rows=await database('rpc/dark_star_search_ebook_pages',{terms:[citation.law_name,...aliases.flatMap(id=>['第'+id+'條','第'+id+'条'])],book_id:bookId,result_limit:10});
-    }else rows=await database('rpc/dark_star_search_ebook_pages',{terms,book_id:bookId,result_limit:6});
+      if(!rows.length)rows=await database('rpc/dark_star_search_ebook_pages',{terms:[citation.law_name,...aliases.flatMap(id=>['第'+id+'條','第'+id+'条'])],book_id:bookId,result_limit:10,...rpcViewer});
+    }else rows=await database('rpc/dark_star_search_ebook_pages',{terms,book_id:bookId,result_limit:6,...rpcViewer});
+    // 第二道防線：資料庫函式已依 visibility 過濾，這裡再逐本確認呼叫者可讀
+    {const ids=[...new Set((rows||[]).map((p:any)=>String(p.ebook_id||'')).filter(Boolean))];const ok=new Set(ids.length?(await readableBooks(viewer,ids,ids.length)).map((x:any)=>String(x.id)):[]);rows=(rows||[]).filter((p:any)=>ok.has(String(p.ebook_id)));}
     // Clear references to the other jurisdiction are excluded from legal authority.
     const sources:any[]=rows.filter((p:any)=>{
       if(!['CN','TW'].includes(jurisdiction.code))return true;

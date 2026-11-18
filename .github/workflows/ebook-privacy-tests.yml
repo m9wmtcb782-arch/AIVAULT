@@ -1,0 +1,20 @@
+name: Ebook privacy tests (offline)
+on:
+  pull_request:
+    paths:
+      - 'supabase/functions/_shared/ebook_access.ts'
+      - 'supabase/functions/dark-star-ebook-ingest/index.ts'
+      - 'supabase/functions/dark-star-photo-solve/**'
+      - 'supabase/migrations/20261118090000_ebook_owner_visibility.sql'
+      - 'tests/ebook-privacy/**'
+  workflow_dispatch:
+permissions: { contents: read }
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with: { deno-version: v2.x }
+      # 全部離線：假 Supabase + PGlite，不使用任何 secrets、不連正式資料庫
+      - run: deno test -A tests/ebook-privacy/
