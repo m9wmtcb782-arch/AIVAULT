@@ -1,0 +1,40 @@
+name: Backup live ai-gateway source (read-only download -> backup branch + artifact)
+# 只下載正式版 ai-gateway（含 _shared 依賴）原始碼，存成 artifact 並推到 backup/ 分支；不部署、不改正式版。
+on:
+  workflow_dispatch:
+    inputs:
+      branch: { description: "backup branch name", required: true, default: "backup/ai-gateway-live" }
+permissions:
+  contents: write
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Download live ai-gateway (read-only)
+        env: { SUPABASE_ACCESS_TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN }}" }
+        run: |
+          set -e
+          mkdir -p /tmp/live && cd /tmp/live
+          npx -y supabase@latest functions download ai-gateway --project-ref clcddygkaaqqtsbswgdf --use-api || npx -y supabase@latest functions download ai-gateway --project-ref clcddygkaaqqtsbswgdf
+          echo "== downloaded files =="; find /tmp/live -type f | sed 's#^/tmp/live/##' | sort
+          F=$(find /tmp/live -path '*ai-gateway/index.ts' | head -1); test -n "$F"
+          grep -n '^const VERSION' "$F" || true
+          sha256sum $(find /tmp/live -type f -name '*.ts') | sed 's#/tmp/live/##'
+      - uses: actions/upload-artifact@v4
+        with: { name: ai-gateway-live-source, path: /tmp/live, retention-days: 90 }
+      - name: Commit live source to backup branch (no deploy)
+        env: { BR: "${{ inputs.branch }}" }
+        run: |
+          set -e
+          git config user.name "aivault-backup-bot"; git config user.email "actions@users.noreply.github.com"
+          git checkout -B "$BR"
+          SRC=$(dirname "$(dirname "$(find /tmp/live -path '*ai-gateway/index.ts' | head -1)")")
+          cp -R "$SRC"/. supabase/functions/
+          git add supabase/functions
+          git status --short
+          git diff --cached --stat | tail -3
+          git commit -m "sync: live ai-gateway source from clcddygkaaqqtsbswgdf ($(date -u +%FT%TZ)) — pure source sync, no deploy" || echo "no changes"
+          git push -f origin "$BR"
