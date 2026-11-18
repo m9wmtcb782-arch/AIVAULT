@@ -1,0 +1,25 @@
+name: Import US Code Title 26 full text (one-off, 2026-11-18)
+on:
+  push:
+    branches: [data/usc26-fulltext-20261118]
+    paths:
+      - "ebook/usc26-119-142/**"
+      - ".github/scripts/usc26_import_20261118.py"
+      - ".github/workflows/usc26-import-20261118.yml"
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Backup then import
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: python3 .github/scripts/usc26_import_20261118.py
+      - name: Upload backup
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: usc26-backup-20261118
+          path: backup/
+          retention-days: 90
