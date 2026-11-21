@@ -42,7 +42,27 @@ def step_health():
     st, d = req("POST", "/database/query", {"query": "select 1 as ok, now() as at, pg_is_in_recovery() as recovery"}, 60)
     log("SELECT1", st, str(d)[:1500])
 
-STEPS = {"health": step_health}
+def logs(sql, hours=24, label=""):
+    import urllib.parse
+    end = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()); start = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(time.time() - hours * 3600))
+    st, d = req("GET", "/analytics/endpoints/logs.all?" + urllib.parse.urlencode({"sql": sql, "iso_timestamp_start": start, "iso_timestamp_end": end}))
+    rows = (d.get("result") if isinstance(d, dict) else None) or []
+    log(f"LOGS[{label}] HTTP {st} rows={len(rows)} err={str(d.get('error') if isinstance(d, dict) else d)[:300]}")
+    save(f"logs-{label}.json", d)
+    return rows
+
+def step_diag():
+    """NO SQL against the database: Management API + log analytics only (safe while DB is down)."""
+    for path in ["", "/health?services=db,rest,auth,storage,realtime,pooler", "/config/disk", "/config/disk/util", "/config/disk/autoscale",
+                 "/database/backups", "/readonly", "/config/database/postgres", "/upgrade/status", "/billing/addons"]:
+        st, d = req("GET", path); log(f"GET {path or '/'} -> {st} {json.dumps(d, ensure_ascii=False, default=str)[:2500]}")
+        save("api" + (path.replace('/', '_').split('?')[0] or "_project") + ".json", {"status": st, "body": d})
+    rows = logs("select timestamp, event_message from postgres_logs order by timestamp desc limit 400", 24, "postgres-24h")
+    for r in rows[:120]: log("  PG", r.get("timestamp"), str(r.get("event_message"))[:300].replace("\n", " "))
+    rows = logs("select timestamp, event_message from postgres_logs where regexp_contains(event_message, '53100|57P03|No space|xlogtemp|PANIC|FATAL|could not write') order by timestamp asc limit 200", 24 * 7, "postgres-errors-7d")
+    for r in rows[:60]: log("  ERR", r.get("timestamp"), str(r.get("event_message"))[:300])
+
+STEPS = {"health": step_health, "diag": step_diag}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
