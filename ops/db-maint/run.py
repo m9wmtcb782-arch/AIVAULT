@@ -68,13 +68,13 @@ def step_logs():
     step_diag_logs()
 
 def step_diag_logs():
-    rows = logs("select timestamp, event_message from postgres_logs order by timestamp desc limit 400", 24, "postgres-24h")
+    rows = logs("SELECT timestamp, event_message FROM logs WHERE source_name = 'postgres_logs' ORDER BY timestamp DESC LIMIT 400", 24, "postgres-24h")
     for r in rows[:150]: log("  PG", r.get("timestamp"), str(r.get("event_message"))[:300])
-    for h in (24, 72, 168):
-        rows = logs("select timestamp, event_message from postgres_logs where regexp_contains(event_message, '53100|57P03|No space|xlogtemp|PANIC|could not write|checkpoint|redo|database system') order by timestamp asc limit 300", h, f"postgres-errors-{h}h")
-        for r in rows[:80]: log("  ERR", r.get("timestamp"), str(r.get("event_message"))[:300])
-    rows = logs("select timestamp, event_message from edge_logs order by timestamp desc limit 50", 6, "edge-6h")
-    for r in rows[:20]: log("  EDGE", r.get("timestamp"), str(r.get("event_message"))[:200])
+    for h in (24, 168):
+        rows = logs("SELECT timestamp, event_message FROM logs WHERE source_name = 'postgres_logs' AND match(event_message, '53100|57P03|No space|xlogtemp|PANIC|could not write|redo|database system|checkpoint') ORDER BY timestamp ASC LIMIT 300", h, f"postgres-errors-{h}h")
+        for r in rows[:100]: log("  ERR", r.get("timestamp"), str(r.get("event_message"))[:300])
+    rows = logs("SELECT source_name, count() AS n FROM logs GROUP BY source_name ORDER BY n DESC", 24, "sources-24h")
+    for r in rows: log("  SRC", r)
 
 STEPS = {"health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
