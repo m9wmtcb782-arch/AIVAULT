@@ -42,9 +42,10 @@ def step_health():
     st, d = req("POST", "/database/query", {"query": "select 1 as ok, now() as at, pg_is_in_recovery() as recovery"}, 60)
     log("SELECT1", st, str(d)[:1500])
 
-def logs(sql, hours=24, label=""):
+def logs(sql, hours=24, label="", ago_days=0):
     import urllib.parse
-    end = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()); start = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(time.time() - hours * 3600))
+    now = time.time() - ago_days * 86400
+    end = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(now)); start = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(now - min(hours, 24) * 3600 + 60))
     st, d = req("GET", "/analytics/endpoints/logs?" + urllib.parse.urlencode({"sql": sql, "iso_timestamp_start": start, "iso_timestamp_end": end}))
     rows = (d.get("result") if isinstance(d, dict) else None) or []
     log(f"LOGS[{label}] HTTP {st} rows={len(rows)} err={str(d.get('error') if isinstance(d, dict) else d)[:300]}")
@@ -68,16 +69,13 @@ def step_logs():
     step_diag_logs()
 
 def step_diag_logs():
-    rows = logs("SELECT * FROM logs ORDER BY timestamp DESC LIMIT 3", 24, "schema-probe")
-    for r in rows: log("  ROW", json.dumps(r, ensure_ascii=False, default=str)[:1500])
-    import os as _o
-    if _o.environ.get("CONFIRM") == "probe": return
-    rows = logs("SELECT timestamp, event_message FROM logs WHERE source_name = 'postgres_logs' ORDER BY timestamp DESC LIMIT 400", 24, "postgres-24h")
-    for r in rows[:150]: log("  PG", r.get("timestamp"), str(r.get("event_message"))[:300])
-    for h in (24, 168):
-        rows = logs("SELECT timestamp, event_message FROM logs WHERE source_name = 'postgres_logs' AND match(event_message, '53100|57P03|No space|xlogtemp|PANIC|could not write|redo|database system|checkpoint') ORDER BY timestamp ASC LIMIT 300", h, f"postgres-errors-{h}h")
-        for r in rows[:100]: log("  ERR", r.get("timestamp"), str(r.get("event_message"))[:300])
-    rows = logs("SELECT source_name, count() AS n FROM logs GROUP BY source_name ORDER BY n DESC", 24, "sources-24h")
+    W = "source = 'postgres_logs'"
+    rows = logs(f"SELECT timestamp, severity_text, event_message FROM logs WHERE {W} ORDER BY timestamp DESC LIMIT 300", 24, "postgres-last24h")
+    for r in rows[:120]: log("  PG", r.get("timestamp"), r.get("severity_text"), str(r.get("event_message"))[:300])
+    for d in range(0, 7):
+        rows = logs(f"SELECT timestamp, log_attributes['parsed.sql_state_code'] AS code, event_message FROM logs WHERE {W} AND (match(event_message, '53100|57P03|No space|xlogtemp|PANIC|could not write|redo |database system is|checkpointer|disk') OR log_attributes['parsed.sql_state_code'] IN ('53100','57P03','58P01','XX000')) ORDER BY timestamp ASC LIMIT 200", 24, f"postgres-errors-day-{d}", ago_days=d)
+        for r in rows[:40]: log(f"  ERR d-{d}", r.get("timestamp"), r.get("code"), str(r.get("event_message"))[:260])
+    rows = logs("SELECT source, count() AS n FROM logs GROUP BY source ORDER BY n DESC", 24, "sources-24h")
     for r in rows: log("  SRC", r)
 
 STEPS = {"health": step_health, "diag": step_diag, "logs": step_logs}
