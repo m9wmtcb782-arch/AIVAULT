@@ -1,0 +1,23 @@
+name: DB maintenance runner (Base1 clcddygkaaqqtsbswgdf; steps from ops/db-maint/run.py)
+# 由 ops/db-maint/run.py 執行預先寫好的步驟（只針對第一基地 clcddygkaaqqtsbswgdf）。
+# 輸出（含備份）一律上傳為 artifact；不印任何祕密。
+on:
+  workflow_dispatch:
+    inputs:
+      step: { description: "step name in ops/db-maint/run.py (e.g. health, measure)", required: true, default: "health" }
+      confirm: { description: "for destructive steps type the step name again", required: false, default: "" }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run step
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          STEP: ${{ inputs.step }}
+          CONFIRM: ${{ inputs.confirm }}
+        run: python3 ops/db-maint/run.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: "db-maint-${{ inputs.step }}-${{ github.run_id }}", path: ops-out/, retention-days: 90, if-no-files-found: ignore }
