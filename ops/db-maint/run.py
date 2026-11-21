@@ -68,6 +68,10 @@ def step_logs():
     step_diag_logs()
 
 def step_diag_logs():
+    rows = logs("SELECT * FROM logs ORDER BY timestamp DESC LIMIT 3", 24, "schema-probe")
+    for r in rows: log("  ROW", json.dumps(r, ensure_ascii=False, default=str)[:1500])
+    import os as _o
+    if _o.environ.get("CONFIRM") == "probe": return
     rows = logs("SELECT timestamp, event_message FROM logs WHERE source_name = 'postgres_logs' ORDER BY timestamp DESC LIMIT 400", 24, "postgres-24h")
     for r in rows[:150]: log("  PG", r.get("timestamp"), str(r.get("event_message"))[:300])
     for h in (24, 168):
