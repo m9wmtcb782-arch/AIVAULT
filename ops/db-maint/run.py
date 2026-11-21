@@ -45,7 +45,7 @@ def step_health():
 def logs(sql, hours=24, label=""):
     import urllib.parse
     end = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()); start = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(time.time() - hours * 3600))
-    st, d = req("GET", "/analytics/endpoints/logs.all?" + urllib.parse.urlencode({"sql": sql, "iso_timestamp_start": start, "iso_timestamp_end": end}))
+    st, d = req("GET", "/analytics/endpoints/logs?" + urllib.parse.urlencode({"sql": sql, "iso_timestamp_start": start, "iso_timestamp_end": end}))
     rows = (d.get("result") if isinstance(d, dict) else None) or []
     log(f"LOGS[{label}] HTTP {st} rows={len(rows)} err={str(d.get('error') if isinstance(d, dict) else d)[:300]}")
     save(f"logs-{label}.json", d)
@@ -59,10 +59,24 @@ def step_diag():
         save("api" + (path.replace('/', '_').split('?')[0] or "_project") + ".json", {"status": st, "body": d})
     rows = logs("select timestamp, event_message from postgres_logs order by timestamp desc limit 400", 24, "postgres-24h")
     for r in rows[:120]: log("  PG", r.get("timestamp"), str(r.get("event_message"))[:300].replace("\n", " "))
-    rows = logs("select timestamp, event_message from postgres_logs where regexp_contains(event_message, '53100|57P03|No space|xlogtemp|PANIC|FATAL|could not write') order by timestamp asc limit 200", 24 * 7, "postgres-errors-7d")
-    for r in rows[:60]: log("  ERR", r.get("timestamp"), str(r.get("event_message"))[:300])
+    for h in (24, 72, 168):
+        rows = logs("select timestamp, event_message from postgres_logs where regexp_contains(event_message, '53100|57P03|No space|xlogtemp|PANIC|could not write|checkpoint|redo|database system') order by timestamp asc limit 300", h, f"postgres-errors-{h}h")
+        for r in rows[:80]: log("  ERR", r.get("timestamp"), str(r.get("event_message"))[:300])
+        if rows: break
 
-STEPS = {"health": step_health, "diag": step_diag}
+def step_logs():
+    step_diag_logs()
+
+def step_diag_logs():
+    rows = logs("select timestamp, event_message from postgres_logs order by timestamp desc limit 400", 24, "postgres-24h")
+    for r in rows[:150]: log("  PG", r.get("timestamp"), str(r.get("event_message"))[:300])
+    for h in (24, 72, 168):
+        rows = logs("select timestamp, event_message from postgres_logs where regexp_contains(event_message, '53100|57P03|No space|xlogtemp|PANIC|could not write|checkpoint|redo|database system') order by timestamp asc limit 300", h, f"postgres-errors-{h}h")
+        for r in rows[:80]: log("  ERR", r.get("timestamp"), str(r.get("event_message"))[:300])
+    rows = logs("select timestamp, event_message from edge_logs order by timestamp desc limit 50", 6, "edge-6h")
+    for r in rows[:20]: log("  EDGE", r.get("timestamp"), str(r.get("event_message"))[:200])
+
+STEPS = {"health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
