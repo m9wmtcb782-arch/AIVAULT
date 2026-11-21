@@ -78,7 +78,17 @@ def step_diag_logs():
     rows = logs("SELECT source, count() AS n FROM logs GROUP BY source ORDER BY n DESC", 24, "sources-24h")
     for r in rows: log("  SRC", r)
 
-STEPS = {"health": step_health, "diag": step_diag, "logs": step_logs}
+def step_crashlog():
+    W = "source = 'postgres_logs'"
+    for d in range(0, 4):
+        rows = logs(f"SELECT min(timestamp) AS first, max(timestamp) AS last, count() AS n FROM logs WHERE {W} AND match(event_message, 'No space left|xlogtemp|53100')", 24, f"nospace-day-{d}", ago_days=d)
+        log(f"  NOSPACE d-{d}", rows)
+        rows = logs(f"SELECT min(timestamp) AS first, max(timestamp) AS last, count() AS n FROM logs WHERE {W} AND match(event_message, 'not accepting connections|57P03')", 24, f"57p03-day-{d}", ago_days=d)
+        log(f"  57P03 d-{d}", rows)
+    rows = logs(f"SELECT timestamp, severity_text, log_attributes['parsed.sql_state_code'] AS code, event_message FROM logs WHERE {W} AND NOT match(event_message, 'checkpoint (starting|complete)|not accepting connections|connection (received|authorized|authenticated)|disconnection') ORDER BY timestamp ASC LIMIT 400", 24, "pg-notable-24h")
+    for r in rows[:400]: log("  N", r.get("timestamp"), r.get("code"), str(r.get("event_message"))[:240])
+
+STEPS = {"crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
