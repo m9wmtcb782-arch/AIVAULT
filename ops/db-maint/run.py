@@ -88,7 +88,17 @@ def step_crashlog():
     rows = logs(f"SELECT timestamp, severity_text, log_attributes['parsed.sql_state_code'] AS code, event_message FROM logs WHERE {W} AND NOT match(event_message, 'checkpoint (starting|complete)|not accepting connections|connection (received|authorized|authenticated)|disconnection') ORDER BY timestamp ASC LIMIT 400", 24, "pg-notable-24h")
     for r in rows[:400]: log("  N", r.get("timestamp"), r.get("code"), str(r.get("event_message"))[:240])
 
-STEPS = {"crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+def step_window():
+    import urllib.parse
+    start, end = CONFIRM.split("|")
+    sql = "SELECT timestamp, log_attributes['parsed.sql_state_code'] AS code, log_attributes['parsed.backend_type'] AS bt, event_message FROM logs WHERE source = 'postgres_logs' AND NOT match(event_message, 'cron job \\d+ (starting|completed)|connection (received|authorized|authenticated)|disconnection') ORDER BY timestamp ASC LIMIT 500"
+    st, d = req("GET", "/analytics/endpoints/logs?" + urllib.parse.urlencode({"sql": sql, "iso_timestamp_start": start, "iso_timestamp_end": end}))
+    rows = (d.get("result") if isinstance(d, dict) else None) or []
+    log(f"WINDOW {start}..{end} HTTP {st} rows={len(rows)} err={str(d.get('error') if isinstance(d, dict) else d)[:300]}")
+    save("logs-window.json", d)
+    for r in rows: log("  W", r.get("timestamp"), r.get("code"), r.get("bt"), str(r.get("event_message"))[:260])
+
+STEPS = {"window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
