@@ -91,7 +91,7 @@ def step_crashlog():
 def step_window():
     import urllib.parse
     start, end = CONFIRM.split("|")
-    sql = "SELECT timestamp, log_attributes['parsed.sql_state_code'] AS code, log_attributes['parsed.backend_type'] AS bt, event_message FROM logs WHERE source = 'postgres_logs' AND NOT match(event_message, 'cron job \\d+ (starting|completed)|connection (received|authorized|authenticated)|disconnection') ORDER BY timestamp ASC LIMIT 500"
+    sql = "SELECT timestamp, log_attributes['parsed.sql_state_code'] AS code, log_attributes['parsed.backend_type'] AS bt, event_message FROM logs WHERE source = 'postgres_logs' AND position(event_message, 'cron job') = 0 AND position(event_message, 'connection ') = 0 AND position(event_message, 'disconnection') = 0 ORDER BY timestamp ASC LIMIT 500"
     st, d = req("GET", "/analytics/endpoints/logs?" + urllib.parse.urlencode({"sql": sql, "iso_timestamp_start": start, "iso_timestamp_end": end}))
     rows = (d.get("result") if isinstance(d, dict) else None) or []
     log(f"WINDOW {start}..{end} HTTP {st} rows={len(rows)} err={str(d.get('error') if isinstance(d, dict) else d)[:300]}")
