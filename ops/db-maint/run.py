@@ -308,7 +308,19 @@ def step_accept2():
     qr("select count(*) n, max(created_at) last from public.aivault_pool_agent_learning", "pool-learning", 180)
     qr("select count(*) n from public.aivault_pool_agents", "pool-agents", 180)
 
-STEPS = {"accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+def step_final():
+    """READ-ONLY: heartbeat success in last hour + recovery timeline."""
+    qr("select status, count(*) n, max(slot) last_slot, max(finished_at) last_finished from public.aivault_darkstar_heartbeat_runs where slot >= to_char(now() at time zone 'utc' - interval '70 minutes','YYYY-MM-DD\"T\"HH24:MI') and slot not like 'work:%' group by 1", "hb-hour")
+    qr("select agent_id, status, last_heartbeat, now()-last_heartbeat age from public.agent_registry where agent_id='darkstar'", "agent-now")
+    for d0, d1, lab in [("2026-11-22T02:30:00Z", "2026-11-22T04:30:00Z", "recov"), ("2026-11-22T04:30:00Z", "2026-11-22T07:00:00Z", "recov2")]:
+        alog(lab, "SELECT timestamp, event_message FROM logs WHERE source = 'postgres_logs' AND match(event_message, 'ready to accept|redo done|No space|shutting down|starting PostgreSQL|pg_cron scheduler') ORDER BY timestamp ASC LIMIT 100", 0, 100) if False else None
+        import urllib.parse
+        sql = "SELECT timestamp, event_message FROM logs WHERE source = 'postgres_logs' AND regexp_contains(event_message, 'ready to accept|redo done|No space|shutting down|starting PostgreSQL|pg_cron scheduler') ORDER BY timestamp ASC LIMIT 100"
+        st, d = req("GET", "/analytics/endpoints/logs?" + urllib.parse.urlencode({"sql": sql, "iso_timestamp_start": d0, "iso_timestamp_end": d1}))
+        rows = (d.get("result") if isinstance(d, dict) else None) or []
+        log(f"LOGS[{lab}] {st} rows={len(rows)} err={str(d.get('error') if isinstance(d, dict) else d)[:200]}"); save(f"logs-{lab}.json", d)
+
+STEPS = {"final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
