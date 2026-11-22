@@ -637,7 +637,15 @@ def step_bgwpre():
     qr("select status, left(return_message,30) m, count(*) n from cron.job_run_details where start_time > now()-interval '30 minutes' group by 1,2 order by 3 desc", "cron-30m-before", 60)
     st, d = req("GET", "/config/database/postgres"); log("PGCONFIG", st, json.dumps(d)[:1500]); save("pgconfig.json", {"status": st, "body": d})
 
-STEPS = {"bgwpre": step_bgwpre, "taskchk": step_taskchk, "t236fix": step_t236fix, "t236rc": step_t236rc, "t235m": step_t235m, "t234verify": step_t234verify, "convchk": step_convchk, "convlogs": step_convlogs, "pgrstchk": step_pgrstchk, "fnlogs": step_fnlogs, "t234fix3": step_t234fix3, "t234fix2": step_t234fix2, "t234chk": step_t234chk, "t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+def step_bgwprobe():
+    """Probe whether the sanctioned Management API accepts cron.use_background_workers.
+    PATCH without restart; schema says additionalProperties=false so a 4xx (no change) is expected."""
+    st, d = req("PATCH", "/config/database/postgres", {"cron.use_background_workers": True, "restart_database": False})
+    log("PROBE-PATCH", st, json.dumps(d)[:800]); save("bgwprobe.json", {"status": st, "body": d})
+    st2, d2 = req("GET", "/config/database/postgres"); log("PGCONFIG-AFTER", st2, json.dumps(d2)[:800])
+    qr("select name, setting, pending_restart from pg_settings where name in ('cron.use_background_workers','max_worker_processes')", "settings-after", 60)
+
+STEPS = {"bgwprobe": step_bgwprobe, "bgwpre": step_bgwpre, "taskchk": step_taskchk, "t236fix": step_t236fix, "t236rc": step_t236rc, "t235m": step_t235m, "t234verify": step_t234verify, "convchk": step_convchk, "convlogs": step_convlogs, "pgrstchk": step_pgrstchk, "fnlogs": step_fnlogs, "t234fix3": step_t234fix3, "t234fix2": step_t234fix2, "t234chk": step_t234chk, "t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
