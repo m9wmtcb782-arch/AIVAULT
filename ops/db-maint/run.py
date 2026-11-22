@@ -247,7 +247,20 @@ def step_bench():
     qs("explain (analyze, buffers, format json) select count(*) from public.aivault_learning_dispatch", "io-30mb", 180)
     qs("select name, setting from pg_settings where name in ('track_io_timing','shared_buffers','effective_cache_size','work_mem','max_worker_processes','max_parallel_workers')", "settings2")
 
-STEPS = {"bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+PAUSE_JOBS = (3, 4, 10, 13)  # learn10, place (ebook-ingest every 10 min), share_research (avg 34 s), cla_assign_new_agents (avg 99 s)
+
+def step_throttle():
+    """TEMPORARY, reversible IO throttle while disk IO is starved. Revert: step unthrottle (active := true). 暗星 jobs 14/15/16, dispatch 9 untouched."""
+    if CONFIRM != "throttle": sys.exit("type throttle in confirm")
+    for j in PAUSE_JOBS: wq_retry(f"select cron.alter_job({j}, active := false)", f"pause-{j}", 4, 15)
+    qs("select jobid, jobname, schedule, active from cron.job order by jobid", "jobs-after")
+
+def step_unthrottle():
+    if CONFIRM != "unthrottle": sys.exit("type unthrottle in confirm")
+    for j in PAUSE_JOBS: wq_retry(f"select cron.alter_job({j}, active := true)", f"resume-{j}", 4, 15)
+    qs("select jobid, jobname, schedule, active from cron.job order by jobid", "jobs-after")
+
+STEPS = {"throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
