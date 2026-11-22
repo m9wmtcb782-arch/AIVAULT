@@ -176,7 +176,23 @@ def step_truncjrd():
         time.sleep(20)
     wq_retry("notify pgrst, 'reload schema'", "pgrst-reload", 4, 20)
 
-STEPS = {"truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+def step_pgrst():
+    """READ-ONLY: why PostgREST schema cache fails (PGRST002)."""
+    qs("select rolname, rolconfig from pg_roles where rolname in ('authenticator','anon','authenticated','service_role','postgres')", "roles")
+    qs("select count(*) filter (where relkind in ('r','v','m','p','f')) rels, (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','graphql_public')) funcs, (select count(*) from pg_attribute) atts from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public'", "catalog")
+    qs("select pid, usename, application_name, state, now()-query_start dur, now()-backend_start age, wait_event_type, wait_event, left(query,200) q from pg_stat_activity where usename='authenticator' or application_name ilike '%postgrest%'", "pgrst-conns")
+    qs("select schemaname, relname, n_live_tup, n_dead_tup, last_autovacuum, last_autoanalyze from pg_stat_sys_tables where relname in ('pg_class','pg_attribute','pg_proc','pg_depend','pg_type','pg_constraint','pg_statistic') order by n_dead_tup desc", "catalog-bloat")
+    qs("select c.relname, pg_total_relation_size(c.oid) bytes from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='pg_catalog' and c.relkind='r' order by 2 desc limit 8", "catalog-sizes")
+    start = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(time.time()-1500)); end = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+    import urllib.parse
+    for label, sql in [("pg", "SELECT timestamp, log_attributes['parsed.sql_state_code'] AS code, log_attributes['parsed.user_name'] AS u, log_attributes['parsed.application_name'] AS app, event_message FROM logs WHERE source = 'postgres_logs' AND position(event_message, 'connection ') = 0 AND position(event_message, 'disconnection') = 0 ORDER BY timestamp DESC LIMIT 200"),
+                       ("rest", "SELECT timestamp, event_message FROM logs WHERE source = 'postgrest_logs' ORDER BY timestamp DESC LIMIT 100")]:
+        st, d = req("GET", "/analytics/endpoints/logs?" + urllib.parse.urlencode({"sql": sql, "iso_timestamp_start": start, "iso_timestamp_end": end}))
+        rows = (d.get("result") if isinstance(d, dict) else None) or []
+        log(f"LOGS[{label}] HTTP {st} rows={len(rows)} err={str(d.get('error') if isinstance(d, dict) else d)[:300]}"); save(f"logs-{label}.json", d)
+        for r in rows[:80]: log("  L", r.get("timestamp"), r.get("code"), r.get("u"), r.get("app"), str(r.get("event_message"))[:300].replace("\n", " "))
+
+STEPS = {"pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
