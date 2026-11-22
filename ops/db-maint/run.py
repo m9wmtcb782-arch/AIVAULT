@@ -133,7 +133,30 @@ def step_measure():
     qs("select * from pg_stat_checkpointer", "checkpointer")
     qs("select sum(blks_read) blks_read, sum(blks_hit) blks_hit, sum(temp_bytes) temp_bytes, sum(xact_commit) commits from pg_stat_database", "iostats")
 
-STEPS = {"measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+def wq(sql, label, timeout=300):
+    """write SQL (only inside destructive steps gated by CONFIRM)."""
+    log(f"-- WRITE[{label}]: {' '.join(sql.split())[:600]}")
+    t0 = time.time(); st, d = req("POST", "/database/query", {"query": sql}, timeout); dt = time.time() - t0
+    log(f"   -> HTTP {st} in {dt:.1f}s: {json.dumps(d, ensure_ascii=False, default=str)[:3000]}")
+    save(f"w-{label}.json", {"status": st, "secs": round(dt, 2), "body": d}); time.sleep(2)
+    return st in (200, 201), d
+
+def step_cronfix():
+    """t224u/t225u authorized. Job 9 is already '0 * * * *' (hourly, lighter than every minute) -> not touched.
+    cron.job_run_details (~700 MB run-log history) -> lean backup of newest 500 rows (index scan) then TRUNCATE (instant, frees disk, minimal WAL)."""
+    if CONFIRM != "cronfix": sys.exit("type cronfix in confirm")
+    qs("select current_setting('default_transaction_read_only') ro, pg_is_in_recovery() rec, pg_database_size(current_database()) db_bytes", "pre-state", 120)
+    qs(f"select jobid, jobname, schedule, active, {MASK} cmd from cron.job order by jobid", "pre-cronjobs")
+    d = qs("select runid, jobid, status, left(return_message,200) return_message, start_time, end_time from cron.job_run_details order by runid desc limit 500", "backup-jrd-newest500", 300)
+    if d is None or not isinstance(d, list) or len(d) == 0: sys.exit("lean backup of newest rows failed -> NOT truncating")
+    qs("select max(runid) max_runid, pg_total_relation_size('cron.job_run_details') bytes from cron.job_run_details where runid >= (select max(runid) from cron.job_run_details)", "pre-jrd-size", 120)
+    ok, r = wq("set lock_timeout = '20s'; truncate cron.job_run_details;", "truncate-jrd", 300)
+    if not ok: sys.exit("truncate failed")
+    qs("select pg_total_relation_size('cron.job_run_details') bytes, count(*) n from cron.job_run_details", "post-jrd")
+    qs("select pg_database_size(current_database()) db_bytes", "post-dbsize")
+    wq("notify pgrst, 'reload schema'", "pgrst-reload")
+
+STEPS = {"cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
