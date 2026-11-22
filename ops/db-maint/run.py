@@ -192,7 +192,17 @@ def step_pgrst():
         log(f"LOGS[{label}] HTTP {st} rows={len(rows)} err={str(d.get('error') if isinstance(d, dict) else d)[:300]}"); save(f"logs-{label}.json", d)
         for r in rows[:80]: log("  L", r.get("timestamp"), r.get("code"), r.get("u"), r.get("app"), str(r.get("event_message"))[:300].replace("\n", " "))
 
-STEPS = {"pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+def step_pgrstfix():
+    """PGRST002 root: PostgREST schema-cache query exceeds authenticator statement_timeout=8s on the IO-starved DB.
+    Minimal reversible fix: authenticator statement_timeout 8s -> 60s (anon 3s / authenticated 8s unchanged). Rollback: alter role authenticator set statement_timeout = '8s'."""
+    if CONFIRM != "pgrstfix": sys.exit("type pgrstfix in confirm")
+    ok, d = wq_retry("alter role authenticator set statement_timeout = '60s'", "authenticator-timeout")
+    if not ok: sys.exit("alter role failed")
+    qs("select rolname, rolconfig from pg_roles where rolname in ('authenticator','anon','authenticated')", "roles-after")
+    wq_retry("notify pgrst, 'reload config'", "pgrst-reload-config", 4, 15); time.sleep(3)
+    wq_retry("notify pgrst, 'reload schema'", "pgrst-reload-schema", 4, 15)
+
+STEPS = {"pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
