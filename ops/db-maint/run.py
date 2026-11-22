@@ -342,7 +342,24 @@ def step_p1():
     alog("perm-denied", "SELECT timestamp, log_attributes['parsed.user_name'] AS u, log_attributes['parsed.application_name'] AS app, event_message FROM logs WHERE source = 'postgres_logs' AND position(event_message, 'permission denied') > 0 ORDER BY timestamp DESC LIMIT 100", 1440, 40)
     alog("rest-perm", "SELECT timestamp, event_message FROM logs WHERE source = 'postgrest_logs' AND position(event_message, 'dark_star_ebooks') > 0 ORDER BY timestamp DESC LIMIT 60", 1440, 30)
 
-STEPS = {"p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+JOB16_OLD = "update public.agent_registry set status='OFFLINE',connection_status='not_connected',current_action='HEARTBEAT_STALE_OVER_180_SECONDS',updated_at=now() where agent_id in ('darkstar','technical-dark-star') and (last_heartbeat is null or last_heartbeat<now()-interval '3 minutes') and connection_status<>'not_connected';"
+JOB16_NEW = JOB16_OLD + " update public.aivault_darkstar_heartbeat_runs set status='FAIL',finished_at=now(),error_code='STALE_STARTED_NO_FINISH' where slot >= to_char((now() at time zone 'utc') - interval '3 hours','YYYY-MM-DD\"T\"HH24:MI') and slot < 'work:' and status='STARTED' and started_at < now() - interval '5 minutes';"
+
+def step_p2fix():
+    """t230u phase 1/2: close stuck STARTED heartbeat runs honestly (FAIL, not PASS) + make job 16 watchdog do it going forward. Function inventory (read-only)."""
+    if CONFIRM != "p2fix": sys.exit("type p2fix in confirm")
+    st, d = req("GET", "/functions"); fns = d if isinstance(d, list) else []
+    log(f"FUNCTIONS HTTP {st} count={len(fns)}"); save("functions.json", [{k: f.get(k) for k in ('slug','version','status','updated_at','verify_jwt','ezbr_sha256')} for f in fns])
+    for f in fns:
+        if f.get('slug') in ('aivault-compute-coordinator','technical-dark-star','dark-star-ebook-ingest','ai-gateway'): log("  FN", json.dumps({k: f.get(k) for k in ('slug','version','status','updated_at','ezbr_sha256')}))
+    ok, r = wq_retry("update public.aivault_darkstar_heartbeat_runs set status='FAIL', finished_at=now(), error_code='STALE_STARTED_NO_FINISH' where slot >= '2026-11-21' and slot < 'work:' and status='STARTED' and started_at < now() - interval '10 minutes' returning slot", "close-stale-hb", 4, 20, 180)
+    ok, r = wq_retry("update public.aivault_darkstar_heartbeat_runs set status='FAIL', finished_at=now(), error_code='STALE_STARTED_NO_FINISH' where slot >= 'work:' and status='STARTED' and started_at < now() - interval '30 minutes' returning slot", "close-stale-work", 4, 20, 180)
+    qr("select command from cron.job where jobid=16", "job16-before-raw")
+    sql = "select cron.alter_job(16, command := $cmd$" + JOB16_NEW + "$cmd$)"
+    ok, r = wq_retry(sql, "job16-alter", 4, 20)
+    qr("select jobid, schedule, active, command from cron.job where jobid=16", "job16-after")
+
+STEPS = {"p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
