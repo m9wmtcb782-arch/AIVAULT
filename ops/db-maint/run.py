@@ -529,7 +529,13 @@ def step_t234fix2():
     t0 = time.time(); d = qs("select public.aivault_log_retention(500) r", "retention-batch-500", 120); log(f"batch secs {time.time()-t0:.1f}")
     qr("select count(*) n, min(slot) first from public.aivault_darkstar_heartbeat_runs where slot >= '2000' and slot < to_char((now() at time zone 'utc') - interval '14 days','YYYY-MM-DD\"T\"HH24:MI')", "hb-old-after", 120)
 
-STEPS = {"t234fix2": step_t234fix2, "t234chk": step_t234chk, "t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+def step_t234fix3():
+    """t234u: retention job 50 -> hourly small batch (500 rows/table ~37s measured) instead of one 5000-row daily run."""
+    if CONFIRM != "t234fix3": sys.exit("type t234fix3 in confirm")
+    wq_retry("select cron.alter_job((select jobid from cron.job where jobname='aivault-log-retention-v1'), schedule := '57 * * * *', command := $c$select public.aivault_log_retention(500)$c$)", "job50", 6, 20)
+    qr("select jobid, jobname, schedule, command, active from cron.job where jobname in ('aivault-log-retention-v1','aivault-db-health-daily-v1','aivault-cron-history-retention')", "jobs", 60)
+
+STEPS = {"t234fix3": step_t234fix3, "t234fix2": step_t234fix2, "t234chk": step_t234chk, "t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
