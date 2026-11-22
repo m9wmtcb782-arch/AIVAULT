@@ -260,7 +260,19 @@ def step_unthrottle():
     for j in PAUSE_JOBS: wq_retry(f"select cron.alter_job({j}, active := true)", f"resume-{j}", 4, 15)
     qs("select jobid, jobname, schedule, active from cron.job order by jobid", "jobs-after")
 
-STEPS = {"throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+def step_inventory():
+    """READ-ONLY ebook inventory (metadata only, no book text): per-book page bytes, category, jurisdiction hints. No deletions."""
+    qs("""select b.id, b.title, b.author, b.language, b.status, b.created_at, b.total_pages,
+      b.metadata->>'category' cat, b.metadata->>'subcategory' subcat, b.metadata->>'jurisdiction' juris, b.metadata->>'visibility' vis,
+      coalesce(p.n,0) pages, coalesce(p.bytes,0) page_bytes
+      from public.dark_star_ebooks b left join (select ebook_id, count(*) n, sum(pg_column_size(t.*)) bytes from public.dark_star_ebook_pages t group by 1) p on p.ebook_id=b.id
+      order by b.created_at""", "ebooks", 300)
+    qs("select bucket_id, count(*) n, sum((metadata->>'size')::bigint) bytes from storage.objects group by 1 order by 3 desc nulls last", "storage", 120)
+    qs("select pg_database_size(current_database()) db_bytes", "dbsize", 60)
+    qs("select n.nspname, c.relname, pg_total_relation_size(c.oid) total from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind in ('r','m','p') order by 3 desc limit 25", "toptables", 300)
+    qs(f"select jobid, left({RED % 'command'},400) cmd from cron.job where jobid=17", "job17")
+
+STEPS = {"inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
