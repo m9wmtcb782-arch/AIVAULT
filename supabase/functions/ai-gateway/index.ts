@@ -270,6 +270,8 @@ interface MemoryContext {
   };
   reason?: string;
   error?: string;
+  degraded?: boolean;
+  persist?: string;
 }
 
 interface GeminiModelResolution {
@@ -1012,6 +1014,7 @@ async function getQuotaState(
     const response = await supabaseFetch(
       supabaseRestUrl("aivault_gateway_quota_events", query),
       { method: "GET" },
+      QUOTA_READ_TIMEOUT_MS,
     );
 
     if (!response.ok) {
@@ -1089,7 +1092,7 @@ async function callAndRecordQuota(
   executionId: string | null | undefined,
   result: any,
 ) {
-  await recordQuotaEvent(providerKey, model, executionId, result);
+  runInBackground("QUOTA_EVENT_WRITE_FAILED", recordQuotaEvent(providerKey, model, executionId, result));
   return result;
 }
 
@@ -2465,6 +2468,7 @@ function supabaseRestUrl(
 async function supabaseFetch(
   url: string,
   options: RequestInit = {},
+  timeoutMs = REQUEST_TIMEOUT_MS,
 ) {
   return fetchWithTimeout(
     url,
@@ -2475,7 +2479,18 @@ async function supabaseFetch(
         ...(options.headers || {}),
       },
     },
+    timeoutMs,
   );
+}
+
+// dg1 (t235u): background DB writes so a slow database cannot block the chat reply.
+const MEMORY_READ_TIMEOUT_MS = 15000;
+const QUOTA_READ_TIMEOUT_MS = 8000;
+function runInBackground(label: string, task: Promise<unknown>) {
+  const guarded = task.catch((error) => console.error(label, error instanceof Error ? error.message : String(error)));
+  // deno-lint-ignore no-explicit-any
+  const rt = (globalThis as any).EdgeRuntime;
+  if (rt && typeof rt.waitUntil === "function") rt.waitUntil(guarded);
 }
 
 async function ensureConversation(
@@ -2657,6 +2672,7 @@ async function loadConversationMessages(
         {
           method: "GET",
         },
+        MEMORY_READ_TIMEOUT_MS,
       );
 
     if (
@@ -4562,7 +4578,20 @@ async function executeLLMGateway(
   const dawnLightAgent = agentId === "dawn-light";
   // Equal research privileges for Dark Star and Dawn Light.
   const researchAgent = darkStarAgent || dawnLightAgent;
-  if (researchAgent && !memory.enabled) {
+  // dg1 (t235u): when the conversation store is slow/unavailable, answer WITHOUT long-term memory
+  // (clearly labelled in memory.degraded + a system note) instead of refusing with 503.
+  // Set DARK_STAR_MEMORY_STRICT=1 to restore the old refuse-with-503 behaviour.
+  if (researchAgent && !memory.enabled && memory.reason !== "TOPIC_ID_REQUIRED" && Deno.env.get("DARK_STAR_MEMORY_STRICT") !== "1") {
+    memory.degraded = true;
+    let identity: GatewayMessage[] = [];
+    try { identity = (await loadDarkStarStartupMessages(emit)).messages; } catch { /* GitHub rules unavailable: still answer, labelled degraded */ }
+    memory.messages = [
+      ...identity,
+      { role: "system", content: "【系統狀態】暗星的長期對話記憶目前因資料庫緩慢暫時無法讀取（" + String(memory.reason || "") + "）。本輪只根據目前這則對話回答；若主人提到先前內容，請誠實說明這輪讀不到記憶，不要猜測。" },
+      ...memory.messages,
+    ];
+  }
+  if (researchAgent && !memory.enabled && !memory.degraded) {
     return json({
       success: false,
       error: "DARK_STAR_MEMORY_UNAVAILABLE",
@@ -4968,7 +4997,7 @@ async function executeLLMGateway(
             failure,
           );
 
-          await recordQuotaEvent(
+          runInBackground("QUOTA_EVENT_WRITE_FAILED", recordQuotaEvent(
             providerKey,
             "unresolved",
             normalized.executionId,
@@ -4979,7 +5008,7 @@ async function executeLLMGateway(
                 modelResolution.error ||
                 "NO_USABLE_GEMINI_MODEL",
             },
-          );
+          ));
 
           continue;
         }
@@ -5135,12 +5164,14 @@ async function executeLLMGateway(
          * We do NOT save the entire incoming frontend history.
          */
         try {
-          await persistCompletedTurn(
-            memory,
-            memory.current_user_message ||
-              normalized.ownerQuestion,
-            responseText,
-          );
+          const persistUser = memory.current_user_message || normalized.ownerQuestion;
+          if (extractDarkStarRememberNote(persistUser)) {
+            await persistCompletedTurn(memory, persistUser, responseText);
+          } else {
+            // dg1: conversation-log write must not block the reply on a slow DB
+            runInBackground("MEMORY_WRITE_FAILED_AFTER_SUCCESS", persistCompletedTurn(memory, persistUser, responseText));
+            memory.persist = "background";
+          }
         } catch (
           memoryWriteError
         ) {
