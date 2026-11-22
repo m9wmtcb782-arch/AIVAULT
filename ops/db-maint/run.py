@@ -272,7 +272,26 @@ def step_inventory():
     qs("select n.nspname, c.relname, pg_total_relation_size(c.oid) total from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind in ('r','m','p') order by 3 desc limit 25", "toptables", 300)
     qs(f"select jobid, left({RED % 'command'},400) cmd from cron.job where jobid=17", "job17")
 
-STEPS = {"inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+def step_accept():
+    """READ-ONLY acceptance checks."""
+    for i in range(5):
+        qs("select 1 ok, now() at, pg_is_in_recovery() rec", f"sel-{i}", 60); time.sleep(8)
+    qs("select agent_id, status, connection_status, last_heartbeat, now()-last_heartbeat age from public.agent_registry where agent_id in ('darkstar','technical-dark-star')", "agent-registry")
+    qs("select slot, status, error_code, finished_at from public.aivault_darkstar_heartbeat_runs order by slot desc limit 12", "hb-latest", 120)
+    qs("select count(*) n, max(updated_at) last from public.dark_star_learning_memory", "ds-memory", 120)
+    qs("select id, title, status, total_pages from public.dark_star_ebooks where id::text like any(array['a14fa90b%','28b34c97%','e0bc8c57%','c8743d50%'])", "core-books", 120)
+    qs("select (select count(*) from public.dark_star_ebooks) books, (select count(*) from public.aivault_novel_books) novels, (select count(*) from public.aivault_novel_chapters) chapters", "counts", 180)
+    qs("select title from public.aivault_novel_books order by 1", "novels", 60)
+    qs("select state, count(*) from public.aivault_learning_dispatch group by 1 order by 2 desc", "dispatch-state", 180)
+    qs("select * from public.aivault_learning_dispatch_ticks order by tick_id desc limit 3", "dispatch-ticks", 60)
+    qs("select status, count(*) from public.aivault_pool_agent_tasks group by 1", "pool-tasks", 180)
+    qs("select id, node_name, status, last_heartbeat_at from public.aivault_compute_nodes order by last_heartbeat_at desc nulls last limit 5", "compute-nodes", 60)
+    qs("select jobid, status, count(*) n, max(start_time) last from cron.job_run_details where start_time > now()-interval '40 minutes' group by 1,2 order by 1,2", "cron-recent", 60)
+    qs("select pg_database_size(current_database()) db_bytes", "dbsize", 60)
+    for path in ["/health?services=db,rest,auth,storage,realtime,pooler", "/config/disk", "/config/disk/util"]:
+        st, d = req("GET", path); log(f"GET {path} -> {st} {json.dumps(d, ensure_ascii=False, default=str)[:1500]}"); save("api" + path.replace('/', '_').split('?')[0] + ".json", {"status": st, "body": d})
+
+STEPS = {"accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
