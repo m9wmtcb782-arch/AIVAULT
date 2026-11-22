@@ -577,7 +577,18 @@ def step_t234verify():
     qr("select (select count(*) from public.dark_star_ebooks) ebooks, (select count(*) from public.aivault_pool_agents) pool_agents, (select count(*) from public.aivault_pool_agent_tasks where status='blocked') blocked", "integrity", 120)
     for i in range(3): qs("select 1", f"select1-{i}", 60)
 
-STEPS = {"t234verify": step_t234verify, "convchk": step_convchk, "convlogs": step_convlogs, "pgrstchk": step_pgrstchk, "fnlogs": step_fnlogs, "t234fix3": step_t234fix3, "t234fix2": step_t234fix2, "t234chk": step_t234chk, "t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+def step_t235m():
+    """READ-ONLY t235u measurement: IO/connection health now."""
+    for i in range(3): qs("select 1", f"select1-{i}", 60)
+    qr("select status, left(return_message,40) m, count(*) n from cron.job_run_details where start_time > now()-interval '30 minutes' group by 1,2 order by 3 desc", "cron-30m", 60)
+    qr("select status, count(*) n, max(slot) last from public.aivault_darkstar_heartbeat_runs where slot >= to_char((now() at time zone 'utc') - interval '60 minutes','YYYY-MM-DD\"T\"HH24:MI') and slot < 'work:' group by 1", "hb-60m", 60)
+    qr("select agent_id, status, connection_status, last_heartbeat, now()-last_heartbeat age from public.agent_registry where agent_id in ('darkstar','technical-dark-star')", "registry", 60)
+    t0=time.time(); qs("select count(*) from pg_class", "catalog-read", 60); log(f"catalog-read {time.time()-t0:.1f}s")
+    t0=time.time(); qs("select sum(length(slot)) from (select slot from public.aivault_darkstar_heartbeat_runs order by slot limit 3000) x", "heap-read-3000", 120); log(f"heap-read {time.time()-t0:.1f}s")
+    alog("schema-cache", "SELECT timestamp, left(event_message,120) AS e FROM logs WHERE source = 'postgrest_logs' AND match(event_message, 'Schema cache (queried|loaded in)|PGRST00') ORDER BY timestamp DESC LIMIT 12", 40)
+    alog("fn-edge", "SELECT timestamp, left(event_message, 140) AS e FROM logs WHERE source = 'function_edge_logs' ORDER BY timestamp DESC LIMIT 25", 30)
+
+STEPS = {"t235m": step_t235m, "t234verify": step_t234verify, "convchk": step_convchk, "convlogs": step_convlogs, "pgrstchk": step_pgrstchk, "fnlogs": step_fnlogs, "t234fix3": step_t234fix3, "t234fix2": step_t234fix2, "t234chk": step_t234chk, "t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
