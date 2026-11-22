@@ -403,18 +403,19 @@ RETENTION_FN = r"""
 create or replace function public.aivault_log_retention(p_batch int default 5000) returns jsonb
 language plpgsql security definer set search_path = public, pg_temp as $f$
 -- t234u: small-batch purge of append-only LOG rows only. Never touches memory, learning, ebooks, pool agents or pool tasks.
-declare hb int := 0; qe int := 0;
+declare hb int := 0; qe int := 0; v_cut text; v_hi text; v_qid bigint;
 begin
   perform set_config('lock_timeout', '5s', true);
   -- 1) 暗星 minute heartbeat run log (slot 'YYYY-MM-DDTHH:MI'), keep 14 days; 'work:*' slots untouched
-  delete from public.aivault_darkstar_heartbeat_runs where slot in (
-    select slot from public.aivault_darkstar_heartbeat_runs
-    where slot < to_char((now() at time zone 'utc') - interval '14 days', 'YYYY-MM-DD"T"HH24:MI') and slot ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T'
-    order by slot limit greatest(1, least(p_batch, 20000)));
+  -- range delete on the primary key (an IN-subquery could seq-scan the 57 MB table)
+  v_cut := to_char((now() at time zone 'utc') - interval '14 days', 'YYYY-MM-DD"T"HH24:MI');
+  select slot into v_hi from public.aivault_darkstar_heartbeat_runs where slot >= '2000' and slot < v_cut
+    order by slot offset greatest(0, least(p_batch, 20000) - 1) limit 1;
+  delete from public.aivault_darkstar_heartbeat_runs where slot >= '2000' and slot < v_cut and slot <= coalesce(v_hi, v_cut) and slot ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T';
   get diagnostics hb = row_count;
   -- 2) ai-gateway provider quota event log, keep 30 days (gateway only reads the current day window + latest rows)
-  delete from public.aivault_gateway_quota_events where id in (
-    select id from public.aivault_gateway_quota_events where event_at < now() - interval '30 days' order by id limit greatest(1, least(p_batch, 20000)));
+  select max(id) into v_qid from (select id from public.aivault_gateway_quota_events where event_at < now() - interval '30 days' order by id limit greatest(1, least(p_batch, 20000))) q;
+  delete from public.aivault_gateway_quota_events where id <= v_qid and event_at < now() - interval '30 days';
   get diagnostics qe = row_count;
   return jsonb_build_object('at', now(), 'heartbeat_runs_deleted', hb, 'gateway_quota_events_deleted', qe);
 end $f$;
@@ -517,7 +518,18 @@ def step_t234chk():
     qr("select count(*) n from public.aivault_gateway_quota_events where event_at < now() - interval '30 days'", "qe-old", 120)
     qr("select jobid, status, count(*) n from cron.job_run_details where start_time > now()-interval '20 minutes' group by 1,2 order by 1,2", "cron-20m", 60)
 
-STEPS = {"t234chk": step_t234chk, "t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+def step_t234fix2():
+    """t234u: retention fn v2 (pkey range delete), drop the unneeded pool-agents index (explain showed pkey bitmap already), test one 500-row batch."""
+    if CONFIRM != "t234fix2": sys.exit("type t234fix2 in confirm")
+    qr("select status, left(return_message,90) m, count(*) n from cron.job_run_details where start_time > now()-interval '60 minutes' and status='failed' group by 1,2 order by 3 desc limit 10", "cron-fail-msgs", 60)
+    qr("explain select slot from public.aivault_darkstar_heartbeat_runs where slot >= '2000' and slot < '2026-11-08T11:00' order by slot offset 499 limit 1", "explain-hi", 60)
+    qr("explain delete from public.aivault_darkstar_heartbeat_runs where slot >= '2000' and slot < '2026-11-08T11:00' and slot <= '2026-10-23T09:00' and slot ~ '^[0-9]{4}'", "explain-del", 60)
+    wq_retry(RETENTION_FN, "retention-fn-v2", 4, 20)
+    wq_retry("set lock_timeout='10s'; drop index if exists public.aivault_pool_agents_zone_status_upd", "drop-agents-index", 4, 20)
+    t0 = time.time(); d = qs("select public.aivault_log_retention(500) r", "retention-batch-500", 120); log(f"batch secs {time.time()-t0:.1f}")
+    qr("select count(*) n, min(slot) first from public.aivault_darkstar_heartbeat_runs where slot >= '2000' and slot < to_char((now() at time zone 'utc') - interval '14 days','YYYY-MM-DD\"T\"HH24:MI')", "hb-old-after", 120)
+
+STEPS = {"t234fix2": step_t234fix2, "t234chk": step_t234chk, "t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
