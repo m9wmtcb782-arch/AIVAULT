@@ -223,7 +223,23 @@ def step_load():
     qs("select pid, usename, application_name, now()-query_start dur, wait_event_type, wait_event, left(regexp_replace(query,'[[:space:]]+',' ','g'),180) q from pg_stat_activity where state='active' and pid<>pg_backend_pid() order by dur desc limit 15", "act-active")
     qs("select left(regexp_replace(query,'[[:space:]]+',' ','g'),140) q, calls, round(total_exec_time/1000) total_s, round(mean_exec_time) mean_ms, shared_blks_read from extensions.pg_stat_statements order by total_exec_time desc limit 20", "pss-time")
 
-STEPS = {"load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+RED = "regexp_replace(regexp_replace(%s, '(eyJ[A-Za-z0-9._-]{20,}|sb_secret_[A-Za-z0-9_-]+|[Bb]earer [A-Za-z0-9._-]{12,})', '***', 'g'), '[[:space:]]+', ' ', 'g')"
+
+def step_writeload():
+    """READ-ONLY: job 9 real schedule/frequency, retention job, write-heavy table growth/bloat."""
+    qs(f"select jobid, jobname, schedule, active, left({RED % 'command'},700) cmd from cron.job where jobid in (3,4,9,10,14,15,16,17) order by jobid", "jobs-detail")
+    qs("select jobid, count(*) n, min(start_time) first, max(start_time) last, count(*) filter (where status='succeeded') ok from cron.job_run_details group by 1 order by 1", "jrd-now")
+    qs(f"select p.proname, length(p.prosrc) len, left({RED % 'p.prosrc'},2500) src from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in ('aivault_learning_dispatch_tick')", "tick-src")
+    qs("select relname, n_live_tup, n_dead_tup, n_tup_ins, n_tup_upd, n_tup_hot_upd, n_tup_del, last_autovacuum, autovacuum_count, pg_total_relation_size(relid) bytes from pg_stat_user_tables where relname in ('aivault_presence','aivault_darkstar_heartbeat_runs','agent_registry','aivault_compute_nodes','aivault_learning_dispatch','aivault_pool_agent_tasks','aivault_pool_agents','aivault_pool_agent_learning','aivault_private_pages','aivault_compute_tasks','aivault_gateway_quota_events','aivault_standing_order_log') order by n_tup_ins+n_tup_upd desc", "write-tables")
+    qs("select relname, n_tup_ins+n_tup_upd+n_tup_del writes, n_dead_tup, pg_total_relation_size(relid) bytes from pg_stat_user_tables order by n_tup_ins+n_tup_upd+n_tup_del desc limit 15", "top-writers")
+    qs("select status, count(*) n from public.aivault_learning_dispatch group by 1 order by 2 desc", "dispatch-status", 120)
+    qs("select status, count(*) n from public.aivault_pool_agent_tasks group by 1 order by 2 desc", "tasks-status", 120)
+    qs("select date_trunc('hour', created_at) h, count(*) from public.aivault_darkstar_heartbeat_runs where created_at > now()-interval '6 hours' group by 1 order by 1", "hb-rate", 120)
+    qs("select slug, length(coalesce(html::text,'')) len, updated_at from public.aivault_private_pages order by slug", "private-pages", 120)
+    qs("select stats_reset from pg_stat_database where datname='postgres'", "stats-reset")
+    alog("alter-job", "SELECT timestamp, event_message FROM logs WHERE source = 'postgres_logs' AND (match(event_message, 'alter_job|cron.schedule|unschedule|job_run_details') ) ORDER BY timestamp ASC LIMIT 50", 1440, 50)
+
+STEPS = {"writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
