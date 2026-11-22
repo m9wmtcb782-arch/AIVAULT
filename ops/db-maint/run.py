@@ -541,7 +541,15 @@ def step_fnlogs():
     alog("fn-console", "SELECT timestamp, left(event_message, 300) AS e FROM logs WHERE source = 'function_logs' AND match(event_message, '(?i)error|denied|owner|403|timeout|abort') ORDER BY timestamp DESC LIMIT 30", 30)
     alog("rest-agents", "SELECT timestamp, left(event_message, 160) AS e FROM logs WHERE source = 'edge_logs' AND position(event_message, 'aivault_pool_agents') > 0 ORDER BY timestamp DESC LIMIT 30", 30)
 
-STEPS = {"fnlogs": step_fnlogs, "t234fix3": step_t234fix3, "t234fix2": step_t234fix2, "t234chk": step_t234chk, "t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+def step_pgrstchk():
+    """READ-ONLY: why PGRST002 again."""
+    qr("select rolname, rolconfig from pg_roles where rolname in ('authenticator','anon','authenticated','service_role','postgres')", "roles", 60)
+    qr("select pid, usename, application_name, state, now()-query_start dur, wait_event_type, wait_event, left(query,80) q from pg_stat_activity where pid<>pg_backend_pid() and backend_type='client backend' order by dur desc nulls last limit 25", "activity", 60)
+    qr("select count(*) total, count(*) filter (where state='active') active, count(*) filter (where usename='authenticator') pgrst from pg_stat_activity", "conns", 60)
+    alog("pg-pgrst", "SELECT timestamp, left(event_message, 220) AS e FROM logs WHERE source = 'postgres_logs' AND match(event_message, '(?i)timeout|cancel|authenticator|terminat|fatal|too many') AND position(event_message, 'cron job') = 0 ORDER BY timestamp DESC LIMIT 40", 20)
+    alog("pgrst-logs", "SELECT timestamp, left(event_message, 220) AS e FROM logs WHERE source = 'postgrest_logs' ORDER BY timestamp DESC LIMIT 30", 20)
+
+STEPS = {"pgrstchk": step_pgrstchk, "fnlogs": step_fnlogs, "t234fix3": step_t234fix3, "t234fix2": step_t234fix2, "t234chk": step_t234chk, "t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
