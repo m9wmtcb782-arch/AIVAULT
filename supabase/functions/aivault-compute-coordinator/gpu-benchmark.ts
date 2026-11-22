@@ -7,8 +7,22 @@ export function benchmarkChecksum(elements: number, iterations: number): number 
   }
   return sum;
 }
+// t230u: honest CPU worker path. A node with runtime 'cpu' may only run 'cpu-u32-mix' and must report executed_on 'CPU', gpu false.
+export function isCpuNode(node: any): boolean { return String(node?.runtime||'').toLowerCase()==='cpu'; }
+export function verifyCpuResult(task: any, result: any): boolean {
+  const elements=Number(task.elements),iterations=Number(task.iterations);
+  return task.type==='cpu-u32-mix' && result.executed_on==='CPU' && result.gpu===false && result.verified===true &&
+    Number.isInteger(elements)&&elements>0&&elements<=4096&&Number.isInteger(iterations)&&iterations>0&&iterations<=16&&
+    result.elements===elements && result.iterations_per_element===iterations && result.sample_count===Math.min(1024,elements) &&
+    Number.isFinite(result.cpu_time_ms)&&result.cpu_time_ms>=0 && result.checksum===benchmarkChecksum(elements,iterations);
+}
 export function compatibleGpuTask(node: any, task: any): boolean {
   const payload=task.payload || {};
+  if(isCpuNode(node)||task.type==='cpu-u32-mix'){
+    if(!(isCpuNode(node)&&task.type==='cpu-u32-mix'))return false;
+    if(payload.target_node_id && payload.target_node_id !== node.node_id)return false;
+    return Number.isInteger(task.elements)&&task.elements>0&&task.elements<=4096&&Number.isInteger(task.iterations)&&task.iterations>0&&task.iterations<=16;
+  }
   if(Array.isArray(node.capability?.supported_task_types) && !node.capability.supported_task_types.includes(task.type))return false;
   if((payload.excluded_node_id&&payload.excluded_node_id===node.node_id)||payload.excluded_node_ids?.includes(node.node_id))return false;
   if(task.type==='gpu-tensor-stage')return node.capability?.supported_task_types?.includes('gpu-tensor-stage')===true;

@@ -28,7 +28,7 @@ export async function checkPoolTaskAccess(task: Record<string, unknown>, modelAl
         : { allowed: false, reason: 'MODEL_NOT_APPROVED_FOR_POOL' };
     } catch { return { allowed: false, reason: 'MODEL_AUTHORIZATION_UNAVAILABLE' }; }
   }
-  return ['compute', 'compute_test', 'webgpu-compute', 'gpu-u32-mix', 'gpu-tensor-stage', 'nn-infer', 'micro-mlp-infer'].includes(type)
+  return ['compute', 'compute_test', 'webgpu-compute', 'gpu-u32-mix', 'cpu-u32-mix', 'gpu-tensor-stage', 'nn-infer', 'micro-mlp-infer'].includes(type)
     ? (['nn-infer', 'micro-mlp-infer'].includes(type)
         ? { allowed: false, reason: 'MODEL_ID_REQUIRED' }
         : { allowed: true, reason: 'FIXED_POOL_VALIDATION' })
