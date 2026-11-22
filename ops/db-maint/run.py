@@ -645,7 +645,22 @@ def step_bgwprobe():
     st2, d2 = req("GET", "/config/database/postgres"); log("PGCONFIG-AFTER", st2, json.dumps(d2)[:800])
     qr("select name, setting, pending_restart from pg_settings where name in ('cron.use_background_workers','max_worker_processes')", "settings-after", 60)
 
-STEPS = {"bgwprobe": step_bgwprobe, "bgwpre": step_bgwpre, "taskchk": step_taskchk, "t236fix": step_t236fix, "t236rc": step_t236rc, "t235m": step_t235m, "t234verify": step_t234verify, "convchk": step_convchk, "convlogs": step_convlogs, "pgrstchk": step_pgrstchk, "fnlogs": step_fnlogs, "t234fix3": step_t234fix3, "t234fix2": step_t234fix2, "t234chk": step_t234chk, "t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+def step_cronstats():
+    """READ-ONLY: per-job run stats for restaggering (t238)."""
+    qr("select jobid, jobname, schedule, active from cron.job order by jobid", "cron-jobs", 60)
+    qr("""select jobid, count(*) n,
+      count(*) filter (where status='succeeded') ok,
+      count(*) filter (where return_message='job startup timeout') sto,
+      count(*) filter (where status='failed' and return_message<>'job startup timeout') oth,
+      round(avg(extract(epoch from end_time-start_time)) filter (where status='succeeded')::numeric,1) avg_s,
+      round(max(extract(epoch from end_time-start_time))::numeric,1) max_s
+      from cron.job_run_details where start_time > now()-interval '3 hours' group by 1 order by 1""", "per-job-3h", 90)
+    qr("""select date_trunc('hour',start_time) h, count(*) n, count(*) filter (where return_message='job startup timeout') sto
+      from cron.job_run_details where start_time > now()-interval '4 hours' group by 1 order by 1""", "hourly", 90)
+    qr("""select status, coalesce(error_code,'') e, count(*) n from public.aivault_darkstar_heartbeat_runs
+      where slot >= to_char((now() at time zone 'utc') - interval '3 hours','YYYY-MM-DD"T"HH24:MI') and slot < 'work:' group by 1,2 order by 3 desc""", "hb-3h", 90)
+
+STEPS = {"cronstats": step_cronstats, "bgwprobe": step_bgwprobe, "bgwpre": step_bgwpre, "taskchk": step_taskchk, "t236fix": step_t236fix, "t236rc": step_t236rc, "t235m": step_t235m, "t234verify": step_t234verify, "convchk": step_convchk, "convlogs": step_convlogs, "pgrstchk": step_pgrstchk, "fnlogs": step_fnlogs, "t234fix3": step_t234fix3, "t234fix2": step_t234fix2, "t234chk": step_t234chk, "t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
