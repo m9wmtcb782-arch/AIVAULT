@@ -2,7 +2,7 @@ import "../_shared/neural-bus.ts"; // neural bus (NEURAL_BUS_ON, default off)
 // AIVAULT Compute Coordinator
 // Minimal lifecycle fix: real assignment row, no COMPLETED without verified WebGPU result.
 import { verifyTensorStage, tensorPipelineStart, tensorPipelineStatus, enqueueTensorNext, recoverTensorLeases } from "./tensor-pipeline.ts";
-import { compatibleGpuTask, verifyPortableGpuResult, poolGpuRating } from "./gpu-benchmark.ts";
+import { compatibleGpuTask, verifyPortableGpuResult, poolGpuRating, isCpuNode, verifyCpuResult } from "./gpu-benchmark.ts";
 import { checkPoolTaskAccess } from "./task-access.ts";
 import { isNnInferType, verifyNnInferResult, NN_MODEL_ID } from "./nn-infer-verify.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -182,7 +182,7 @@ async function createTask(body: Record<string, unknown>) {
   if (!access.allowed) return json({success:false,error:access.reason},403);
   const elements = Number(task.elements ?? ((task.payload as Record<string, unknown> | undefined)?.elements ?? 0));
   const iterations = Number(task.iterations ?? task.iters ?? 1);
-  if ((task.type || task.task_type) === "gpu-u32-mix" && (!Number.isInteger(elements) || elements < 1 || elements > 4096 || !Number.isInteger(iterations) || iterations < 1 || iterations > 16)) return json({success:false,error:"PORTABLE_GPU_WORKLOAD_OUT_OF_RANGE"},400);
+  if (["gpu-u32-mix","cpu-u32-mix"].includes(String(task.type || task.task_type)) && (!Number.isInteger(elements) || elements < 1 || elements > 4096 || !Number.isInteger(iterations) || iterations < 1 || iterations > 16)) return json({success:false,error:"PORTABLE_GPU_WORKLOAD_OUT_OF_RANGE"},400);
   const taskType = String(task.type || task.task_type || "compute");
   if (isNnInferType(taskType)) {
     const mid = String(task.model_id || (task.payload as any)?.model_id || "");
@@ -206,8 +206,8 @@ async function createTask(body: Record<string, unknown>) {
       id: taskId,
       elements,
       iterations,
-      gpu_required: task.gpu_required !== false,
-      backend: task.backend || "webgpu",
+      gpu_required: taskType === "cpu-u32-mix" ? false : task.gpu_required !== false,
+      backend: taskType === "cpu-u32-mix" ? "cpu" : (task.backend || "webgpu"),
       execution: task.execution || "remote",
       requirements: task.requirements || {},
     },
@@ -235,8 +235,9 @@ async function requestTask(body: Record<string, unknown>) {
     .maybeSingle();
   if (nodeErr) return json({ success: false, error: nodeErr.message }, 500);
   if (!node) return json({ success: false, error: "node not registered" }, 404);
-  if (body.gpu_available === false || node.gpu !== true || node.status === "OFFLINE" || node.status === "ERROR") {
-    return json({ success: false, error: "no gpu worker" });
+  const cpuNode = isCpuNode(node);
+  if (node.status === "OFFLINE" || node.status === "ERROR" || (!cpuNode && (body.gpu_available === false || node.gpu !== true))) {
+    return json({ success: false, error: cpuNode ? "cpu worker offline" : "no gpu worker" });
   }
 
   if (!/^[a-zA-Z0-9_-]{1,128}$/.test(nodeId)) return json({success:false,error:"INVALID_NODE_ID"},400);
@@ -248,13 +249,14 @@ async function requestTask(body: Record<string, unknown>) {
     .or("payload->>target_node_id.is.null,payload->>target_node_id.eq." + nodeId);
   const supportedTypes = node.capability?.supported_task_types;
   if (Array.isArray(supportedTypes) && supportedTypes.length > 0) waitingQuery = waitingQuery.in("type",supportedTypes.filter((v: unknown)=>typeof v === "string"));
+  else if (cpuNode) waitingQuery = waitingQuery.eq("type","cpu-u32-mix");
   else if (node.runtime === "webgl2") waitingQuery = waitingQuery.eq("type","gpu-u32-mix");
   const {data:waiting,error:waitErr} = await waitingQuery.order("created_at",{ascending:true}).limit(20);
   if (waitErr) return json({ success: false, error: waitErr.message }, 500);
   let task: any = null;
   for (const row of waiting || []) {
     const payload = row.payload || {};
-    if (payload.gpu_required === false || !compatibleGpuTask(node,row)) continue;
+    if ((!cpuNode && payload.gpu_required === false) || !compatibleGpuTask(node,row)) continue;
     const access = await checkPoolTaskAccess({ ...row, payload }, modelAllowedInPool);
     if (access.allowed) { task = row; break; }
   }
@@ -334,7 +336,7 @@ async function requestTask(body: Record<string, unknown>) {
     assignmentId: assignment.id,
     assignment_id: assignment.id,
     node_capability: node.capability?.aivault_compute_capability || null,
-    worker_hardware: { gpu: node.gpu === true },
+    worker_hardware: { gpu: node.gpu === true, runtime: node.runtime || null },
   });
 }
 
@@ -415,6 +417,7 @@ async function taskResult(body: Record<string, unknown>) {
         return json({success:true,verified:true,taskStatus:"COMPLETED",taskId,idempotent:true});
       }
     }else if (storedTask?.type === "gpu-u32-mix") verified = verifyPortableGpuResult(storedTask,result);
+    else if (storedTask?.type === "cpu-u32-mix") verified = verifyCpuResult(storedTask,result);
     else if (storedTask && isNnInferType(storedTask.type)) verified = verifyNnInferResult(storedTask,result);
     else if (result.executed_on === "WebGL2") verified = false;
   }
