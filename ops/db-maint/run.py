@@ -320,7 +320,29 @@ def step_final():
         rows = (d.get("result") if isinstance(d, dict) else None) or []
         log(f"LOGS[{lab}] {st} rows={len(rows)} err={str(d.get('error') if isinstance(d, dict) else d)[:200]}"); save(f"logs-{lab}.json", d)
 
-STEPS = {"final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+def cols(t):
+    return f"(select string_agg(column_name||':'||data_type, ', ' order by ordinal_position) from information_schema.columns where table_schema='public' and table_name='{t}')"
+
+def step_p1():
+    """READ-ONLY phase-1..5 diagnosis for t230u."""
+    qr("select name, setting from pg_settings where name like 'cron.%' or name in ('max_connections','superuser_reserved_connections','idle_in_transaction_session_timeout')", "settings")
+    qr("select usename, application_name, state, count(*) n from pg_stat_activity where backend_type='client backend' group by 1,2,3 order by 4 desc", "conns")
+    for t in ["aivault_darkstar_heartbeat_runs","agent_registry","aivault_pool_agent_tasks","aivault_pool_agents","aivault_learning_dispatch","compute_mesh_nodes","compute_mesh_tasks","compute_mesh_assignments","compute_models","aivault_compute_nodes","aivault_compute_tasks","dark_star_study_books"]:
+        qr(f"select '{t}' t, {cols(t)} c", f"cols-{t}")
+    qr("select status, count(*) n, min(slot) first, max(slot) last from public.aivault_darkstar_heartbeat_runs where status='STARTED' group by 1", "hb-started")
+    qr("select status, connection_status, count(*) n from public.agent_registry group by 1,2 order by 3 desc", "registry-status")
+    qr("select agent_id, status, connection_status, current_action from public.agent_registry where status in ('BLOCKED') limit 10", "registry-blocked")
+    qr("select c.relname, c.relrowsecurity rls, has_table_privilege('anon', c.oid, 'select') anon_sel, has_table_privilege('authenticated', c.oid, 'select') auth_sel, has_table_privilege('service_role', c.oid, 'select') sr_sel from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname in ('dark_star_ebooks','dark_star_ebook_pages','dark_star_ebook_toc','dark_star_ebook_ingest_chunks','dark_star_study_books','aivault_private_pages','agent_registry')", "ebook-grants")
+    qr("select tablename, policyname, roles, cmd, left(qual,200) qual from pg_policies where schemaname='public' and tablename in ('dark_star_ebooks','dark_star_ebook_pages','dark_star_study_books','dark_star_ebook_toc')", "ebook-policies")
+    qr("select count(*) n from public.compute_mesh_nodes", "cm-nodes")
+    qr("select status, count(*) from public.compute_mesh_tasks group by 1", "cm-tasks")
+    qr("select status, count(*) from public.compute_mesh_assignments group by 1", "cm-assign")
+    qr("select * from public.compute_models limit 3", "compute-models")
+    qr("select id, status, left(coalesce(title,''),80) title, created_at, updated_at from public.aivault_pool_agent_tasks where status='queued' order by created_at desc limit 5", "pool-queued")
+    alog("perm-denied", "SELECT timestamp, log_attributes['parsed.user_name'] AS u, log_attributes['parsed.application_name'] AS app, event_message FROM logs WHERE source = 'postgres_logs' AND position(event_message, 'permission denied') > 0 ORDER BY timestamp DESC LIMIT 100", 1440, 40)
+    alog("rest-perm", "SELECT timestamp, event_message FROM logs WHERE source = 'postgrest_logs' AND position(event_message, 'dark_star_ebooks') > 0 ORDER BY timestamp DESC LIMIT 60", 1440, 30)
+
+STEPS = {"p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
