@@ -660,7 +660,19 @@ def step_cronstats():
     qr("""select status, coalesce(error_code,'') e, count(*) n from public.aivault_darkstar_heartbeat_runs
       where slot >= to_char((now() at time zone 'utc') - interval '3 hours','YYYY-MM-DD"T"HH24:MI') and slot < 'work:' group by 1,2 order by 3 desc""", "hb-3h", 90)
 
-STEPS = {"cronstats": step_cronstats, "bgwprobe": step_bgwprobe, "bgwpre": step_bgwpre, "taskchk": step_taskchk, "t236fix": step_t236fix, "t236rc": step_t236rc, "t235m": step_t235m, "t234verify": step_t234verify, "convchk": step_convchk, "convlogs": step_convlogs, "pgrstchk": step_pgrstchk, "fnlogs": step_fnlogs, "t234fix3": step_t234fix3, "t234fix2": step_t234fix2, "t234chk": step_t234chk, "t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+T238_NEW = {1: "16 * * * *", 5: "4,34 * * * *", 6: "18,48 * * * *", 11: "24,54 * * * *", 12: "38 * * * *",
+            15: "28 * * * *", 16: "2-59/10 * * * *", 50: "44 */2 * * *", 2: "6 16 * * *", 7: "14 19 * * *"}
+T238_OLD = {1: "6,26,46 * * * *", 5: "2-59/10 * * * *", 6: "8-59/10 * * * *", 11: "20,50 * * * *", 12: "40 * * * *",
+            15: "14,44 * * * *", 16: "*/4 * * * *", 50: "57 * * * *", 2: "5 16 * * *", 7: "15 19 * * *"}
+def _t238_apply(m, label):
+    sql = "select " + ", ".join(f"cron.alter_job(job_id := {j}, schedule := '{v}')" for j, v in m.items())
+    ok, r = wq_retry(sql, label, 4, 20, 120)
+    qr("select jobid, jobname, schedule, active from cron.job order by jobid", label + "-readback", 60)
+    if not ok: sys.exit(1)
+def step_t238fix(): _t238_apply(T238_NEW, "t238-restagger")
+def step_t238rollback(): _t238_apply(T238_OLD, "t238-rollback")
+
+STEPS = {"t238fix": step_t238fix, "t238rollback": step_t238rollback, "cronstats": step_cronstats, "bgwprobe": step_bgwprobe, "bgwpre": step_bgwpre, "taskchk": step_taskchk, "t236fix": step_t236fix, "t236rc": step_t236rc, "t235m": step_t235m, "t234verify": step_t234verify, "convchk": step_convchk, "convlogs": step_convlogs, "pgrstchk": step_pgrstchk, "fnlogs": step_fnlogs, "t234fix3": step_t234fix3, "t234fix2": step_t234fix2, "t234chk": step_t234chk, "t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
