@@ -156,7 +156,27 @@ def step_cronfix():
     qs("select pg_database_size(current_database()) db_bytes", "post-dbsize")
     wq("notify pgrst, 'reload schema'", "pgrst-reload")
 
-STEPS = {"cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+def wq_retry(sql, label, tries=8, gap=25, timeout=300):
+    """retry ONLY when the connection never established (HTTP 544 'connection timeout' => statement not executed)."""
+    for i in range(tries):
+        ok, d = wq(sql, f"{label}-try{i}", timeout)
+        if ok: return True, d
+        if "connection timeout" not in str(d): return False, d
+        time.sleep(gap)
+    return False, d
+
+def step_truncjrd():
+    """t224u/t225u: lean backup already saved (run 45003721783 artifact, newest 500 rows). TRUNCATE cron.job_run_details with connect-retry."""
+    if CONFIRM != "truncjrd": sys.exit("type truncjrd in confirm")
+    ok, d = wq_retry("set lock_timeout = '20s'; truncate cron.job_run_details;", "truncate-jrd")
+    if not ok: sys.exit("truncate failed")
+    time.sleep(5)
+    for i in range(3):
+        if qs("select pg_total_relation_size('cron.job_run_details') jrd_bytes, (select count(*) from cron.job_run_details) n, pg_database_size(current_database()) db_bytes", f"post-size-{i}") is not None: break
+        time.sleep(20)
+    wq_retry("notify pgrst, 'reload schema'", "pgrst-reload", 4, 20)
+
+STEPS = {"truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
