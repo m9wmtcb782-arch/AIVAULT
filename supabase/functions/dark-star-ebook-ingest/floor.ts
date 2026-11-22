@@ -144,9 +144,12 @@ export async function runTask(t: any, think = callModel) {
   const started = new Date().toISOString();
   const [a] = await rest(`aivault_pool_agents?id=eq.${t.agent_id}&select=*`);
   const z = ZONES.find((x) => x.key === (t.zone || a.zone)) || ZONES[0];
-  await rest(`aivault_pool_agents?id=eq.${a.id}`, { method: "PATCH", body: JSON.stringify({ status: "running", updated_at: new Date().toISOString() }) });
-  await rest(`aivault_pool_agent_tasks?id=eq.${t.id}`, { method: "PATCH", body: JSON.stringify({ status: "running", updated_at: new Date().toISOString() }) });
-  const mem = await rest(`aivault_pool_agent_memory?agent_id=eq.${a.id}&select=content&order=created_at.desc&limit=5`);
+  // tb2：三個互不相依的 DB 呼叫並行（資料庫慢時省下兩次等待）
+  const [, , mem] = await Promise.all([
+    rest(`aivault_pool_agents?id=eq.${a.id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ status: "running", updated_at: new Date().toISOString() }) }),
+    rest(`aivault_pool_agent_tasks?id=eq.${t.id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ status: "running", updated_at: new Date().toISOString() }) }),
+    rest(`aivault_pool_agent_memory?agent_id=eq.${a.id}&select=content&order=created_at.desc&limit=5`),
+  ]);
   const tpl = z.tasks.find((x) => x.t === t.order_text);
   const media = z.media ? `\n你所在的${z.label}區尚未串接${z.media}生成 API，所以只交付「企劃／腳本／提示詞」，成果第一行必須寫「【企劃稿・尚未生成${z.media}】」。` : "";
   const sys = a.persona + `\n你目前派駐在 AIVAULT 1000 人工作區的「${z.label}」區。成果只交給擁有者審核，絕不聲稱已對外發送、發布或購買。` + media + "\n你的記憶：\n" + (mem.map((m: any) => "- " + m.content).join("\n") || "（尚無）");
@@ -339,23 +342,27 @@ export async function floor(r: Request) {
       const T0 = Date.now(), DL = T0 + Math.min(125000, Math.max(30000, Number(b.budget_ms) || 120000)); // tb1：Edge 上限 150 秒，預留回應時間
       const think = (s0: string, u0: string, m?: number) => callModel(s0, u0, m, DL);
       // 卡住超過 15 分鐘的 running 任務退回 queued
-      await rest(`aivault_pool_agent_tasks?source=eq.floor&status=eq.running&updated_at=lt.${new Date(Date.now() - 900000).toISOString()}`, { method: "PATCH", body: JSON.stringify({ status: "queued" }) });
-      const cand = await rest(`aivault_pool_agent_tasks?source=eq.floor&status=eq.queued&kind=eq.work&select=*&order=created_at.asc&limit=40`);
+      // tb2：退回卡住任務與讀取候選並行；候選查詢不變
+      const [, cand] = await Promise.all([
+        rest(`aivault_pool_agent_tasks?source=eq.floor&status=eq.running&updated_at=lt.${new Date(Date.now() - 900000).toISOString()}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ status: "queued" }) }).catch(() => null),
+        rest(`aivault_pool_agent_tasks?source=eq.floor&status=eq.queued&kind=eq.work&select=*&order=created_at.asc&limit=40`),
+      ]);
       let q: any[] = [];
       const pri = (x: any) => (x.plan?.command ? 2 : x.plan?.novel ? 1 : 0); cand.sort((x: any, y: any) => pri(y) - pri(x)); // 擁有者指令最優先，其次小說 // 先寫小說（第一本優先讓擁有者看品質）
       for (const c of cand) { q.push(c); if (q.length >= n) break; }
       // 沒有媒體金鑰的區不待命：佇列不足就派原創小說大綱（之後自動分章給同區其他人）
-      const newBooks = Date.now() - T0 < 20000 ? await ensureBooks() : 0; // 資料庫慢時跳過，下輪再補
+      let newBooks = 0; // tb2：開書移到執行任務之後、且仍有預算時才做
       if (!q.length) { // 佇列空：從各區範本輪流補一件（真實任務，不是假動作）
         const z = ZONES[Math.floor(Date.now() / 1800000) % ZONES.length]; const tp = z.tasks[Math.floor(Date.now() / 18000000) % z.tasks.length];
         const t = await enqueue(z.key, tp.t + "（第 " + new Date().toISOString().slice(0, 10) + " 輪，請參考你的記憶改進上次的成果）", null); if (t) q = [t];
       }
       const results = []; let budgetStop = false;
       for (const t of q) {
-        if (DL - Date.now() < 60000) { budgetStop = true; break; } // 剩餘不足 60 秒不開新任務，留給下一輪
+        if (DL - Date.now() < 45000) { budgetStop = true; break; } // 剩餘不足 45 秒不開新任務，留給下一輪
         const r0 = await runTask(t, think); results.push(r0);
         if (!r0.ok && /429|rate|BUDGET/i.test(String(r0.error))) { budgetStop = /BUDGET/.test(String(r0.error)); break; }
       } // 依序執行；遇到 Groq 限流或時間預算用完就停（被中斷的任務退回 queued）
+      if (!budgetStop && DL - Date.now() > 30000) newBooks = await ensureBooks().catch(() => 0);
       const rl = results.some((x: any) => !x.ok && /429|LLM_FAILED/.test(String(x.error)));
       return out({ ok: true, done: results.filter((x) => x.ok).length, rate_limited: rl, budget_stop: budgetStop, elapsed_ms: Date.now() - T0, deferred: q.length - results.length, new_books: newBooks, results });
     }
