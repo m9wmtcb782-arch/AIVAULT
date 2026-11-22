@@ -685,7 +685,42 @@ def step_t238obs():
     qr("select jobid, count(*) n, count(*) filter (where return_message='job startup timeout') sto from cron.job_run_details where start_time >= '2026-11-22 13:20+00' group by 1 order by 1", "after-per-job", 90)
     qr("select agent_id, status, connection_status, last_heartbeat from public.agent_registry where agent_id in ('darkstar','technical-dark-star')", "registry", 60)
 
-STEPS = {"t238obs": step_t238obs, "t238fix": step_t238fix, "t238rollback": step_t238rollback, "cronstats": step_cronstats, "bgwprobe": step_bgwprobe, "bgwpre": step_bgwpre, "taskchk": step_taskchk, "t236fix": step_t236fix, "t236rc": step_t236rc, "t235m": step_t235m, "t234verify": step_t234verify, "convchk": step_convchk, "convlogs": step_convlogs, "pgrstchk": step_pgrstchk, "fnlogs": step_fnlogs, "t234fix3": step_t234fix3, "t234fix2": step_t234fix2, "t234chk": step_t234chk, "t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+def step_t239():
+    """READ-ONLY after founder's Nano->Micro compute change: wait for DB, verify size + memory settings, measure."""
+    t0 = time.time(); up = False
+    while time.time() - t0 < 1200:
+        st, d = req("POST", "/database/query", {"query": "select 1 as ok"}, 60)
+        log(f"POLL t+{time.time()-t0:.0f}s HTTP {st} {str(d)[:120]}")
+        if st in (200, 201) and isinstance(d, list): up = True; break
+        time.sleep(30)
+    if not up: log("DB NOT BACK within 20 min"); sys.exit(3)
+    st, d = req("GET", ""); log("PROJECT", st, json.dumps({k: d.get(k) for k in ("status", "region", "database")} if isinstance(d, dict) else d)[:600])
+    st, d = req("GET", "/billing/addons"); log("ADDONS", st, json.dumps(d)[:1500]); save("t239-addons.json", {"st": st, "d": d})
+    st, d = req("GET", "/health?services=db&services=rest&services=auth&services=storage"); log("HEALTH", st, json.dumps(d)[:600])
+    qr("select name, setting, unit, source from pg_settings where name in ('shared_buffers','effective_cache_size','work_mem','maintenance_work_mem','max_connections','max_worker_processes','max_parallel_workers','cron.use_background_workers','cron.max_running_jobs') order by 1", "settings", 60)
+    qr("select pg_postmaster_start_time() started, now()", "uptime", 60)
+    for i in range(3):
+        t1 = time.time(); qs("select 1", f"select1-{i}", 60); log(f"select1-{i} {time.time()-t1:.1f}s")
+    t1 = time.time(); qs("select count(*) from pg_class", "catalog-read", 60); log(f"catalog-read {time.time()-t1:.1f}s")
+    t1 = time.time(); qs("select sum(length(slot)) from (select slot from public.aivault_darkstar_heartbeat_runs order by slot limit 3000) x", "heap-read-3000", 120); log(f"heap-read {time.time()-t1:.1f}s")
+    alog("schema-cache", "SELECT timestamp, left(event_message,120) AS e FROM logs WHERE source = 'postgrest_logs' AND match(event_message, 'Schema cache (queried|loaded in)|PGRST00') ORDER BY timestamp DESC LIMIT 12", 40)
+
+def step_t239obs():
+    """READ-ONLY: cron startup timeout + heartbeat since the restart vs the earlier windows."""
+    st = qr("select pg_postmaster_start_time() s", "start", 60); a = st[0]["s"] if st else "2026-11-22 22:55+00"
+    qr(f"""select count(*) n, count(*) filter (where return_message='job startup timeout') sto,
+      count(*) filter (where jobid=14) hb_n, count(*) filter (where jobid=14 and status='succeeded') hb_ok, min(start_time) first, max(start_time) last
+      from cron.job_run_details where start_time >= '{a}'""", "cron-after", 90)
+    qr(f"select jobid, count(*) n, count(*) filter (where status='succeeded') ok, count(*) filter (where return_message='job startup timeout') sto, round(avg(extract(epoch from end_time-start_time))::numeric,1) avg_s from cron.job_run_details where start_time >= '{a}' group by 1 order by 1", "per-job", 90)
+    qr(f"""select status, coalesce(error_code,'') e, count(*) n from public.aivault_darkstar_heartbeat_runs
+      where slot >= to_char(('{a}'::timestamptz) at time zone 'utc','YYYY-MM-DD"T"HH24:MI') and slot < 'work:' group by 1,2 order by 3 desc""", "hb-after", 90)
+    qr("select agent_id, status, connection_status, last_heartbeat from public.agent_registry where agent_id in ('darkstar','technical-dark-star')", "registry", 60)
+    qr("select blks_read, blks_hit, round(100.0*blks_hit/greatest(blks_hit+blks_read,1),2) hit_pct, temp_bytes from pg_stat_database where datname=current_database()", "dbstat", 60)
+    for i in range(3):
+        t1 = time.time(); qs("select 1", f"select1-{i}", 60); log(f"select1-{i} {time.time()-t1:.1f}s")
+    t1 = time.time(); qs("select sum(length(slot)) from (select slot from public.aivault_darkstar_heartbeat_runs order by slot limit 3000) x", "heap-read-3000", 120); log(f"heap-read {time.time()-t1:.1f}s")
+
+STEPS = {"t239": step_t239, "t239obs": step_t239obs, "t238obs": step_t238obs, "t238fix": step_t238fix, "t238rollback": step_t238rollback, "cronstats": step_cronstats, "bgwprobe": step_bgwprobe, "bgwpre": step_bgwpre, "taskchk": step_taskchk, "t236fix": step_t236fix, "t236rc": step_t236rc, "t235m": step_t235m, "t234verify": step_t234verify, "convchk": step_convchk, "convlogs": step_convlogs, "pgrstchk": step_pgrstchk, "fnlogs": step_fnlogs, "t234fix3": step_t234fix3, "t234fix2": step_t234fix2, "t234chk": step_t234chk, "t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
