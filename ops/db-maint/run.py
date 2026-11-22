@@ -359,7 +359,19 @@ def step_p2fix():
     ok, r = wq_retry(sql, "job16-alter", 4, 20)
     qr("select jobid, schedule, active, command from cron.job where jobid=16", "job16-after")
 
-STEPS = {"p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+def step_p6():
+    """READ-ONLY: pool cycle outcome, heartbeat states after job16 change, compute evidence, light stability (5x select), sizes."""
+    for i in range(5):
+        qs("select 1 ok, now() at", f"sel-{i}", 60); time.sleep(6)
+    qr("select id, agent_id, zone, kind, status, step_no, updated_at, left(coalesce(result,''),300) result, steps->0->>'model' model, steps->0->'usage' usage from public.aivault_pool_agent_tasks where source='floor' and updated_at > now() - interval '40 minutes' order by updated_at desc limit 5", "pool-recent", 180)
+    qr("select status, count(*) n, max(slot) last from public.aivault_darkstar_heartbeat_runs where slot >= to_char((now() at time zone 'utc') - interval '90 minutes','YYYY-MM-DD\"T\"HH24:MI') and slot < 'work:' group by 1", "hb-90m")
+    qr("select agent_id, status, connection_status, last_heartbeat, now()-last_heartbeat age from public.agent_registry where agent_id='darkstar'", "darkstar-now")
+    qr("select t.task_id, t.type, t.status, a.status a_status, a.result->>'executed_on' on_, a.result->>'checksum' cs, a.updated_at from public.compute_mesh_tasks t join public.compute_mesh_assignments a using (task_id) where t.task_id like 'cpu-test-%' order by a.updated_at desc limit 3", "compute-evidence")
+    qr("select jobid, status, count(*) n from cron.job_run_details where start_time > now()-interval '30 minutes' group by 1,2 order by 1,2", "cron-30m")
+    qr("select pg_database_size(current_database()) db_bytes, pg_total_relation_size('cron.job_run_details') jrd_bytes", "sizes")
+    st, d = req("GET", "/health?services=db,rest,auth,storage,realtime,pooler"); log("HEALTH", st, json.dumps(d)[:800]); save("api_health.json", {"status": st, "body": d})
+
+STEPS = {"p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
