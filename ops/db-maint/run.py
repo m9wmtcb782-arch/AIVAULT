@@ -588,7 +588,34 @@ def step_t235m():
     alog("schema-cache", "SELECT timestamp, left(event_message,120) AS e FROM logs WHERE source = 'postgrest_logs' AND match(event_message, 'Schema cache (queried|loaded in)|PGRST00') ORDER BY timestamp DESC LIMIT 12", 40)
     alog("fn-edge", "SELECT timestamp, left(event_message, 140) AS e FROM logs WHERE source = 'function_edge_logs' ORDER BY timestamp DESC LIMIT 25", 30)
 
-STEPS = {"t235m": step_t235m, "t234verify": step_t234verify, "convchk": step_convchk, "convlogs": step_convlogs, "pgrstchk": step_pgrstchk, "fnlogs": step_fnlogs, "t234fix3": step_t234fix3, "t234fix2": step_t234fix2, "t234chk": step_t234chk, "t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+def step_t236rc():
+    """READ-ONLY root cause for function TimeoutErrors: top statements, activity, lock waits, cron durations, host metrics (memory/swap/disk)."""
+    qr("select left(regexp_replace(query,'\\s+',' ','g'),150) q, calls, round(total_exec_time/1000) total_s, round(mean_exec_time) mean_ms, round(max_exec_time) max_ms, shared_blks_read r from extensions.pg_stat_statements order by total_exec_time desc limit 20", "pss-total", 60)
+    qr("select left(regexp_replace(query,'\\s+',' ','g'),150) q, calls, round(mean_exec_time) mean_ms, round(max_exec_time) max_ms, shared_blks_read r from extensions.pg_stat_statements where calls>=3 order by mean_exec_time desc limit 15", "pss-mean", 60)
+    qr("select pid, usename, application_name, state, wait_event_type, wait_event, now()-query_start dur, left(query,100) q from pg_stat_activity where pid<>pg_backend_pid() and state<>'idle' order by dur desc nulls last", "activity", 60)
+    qr("select a.pid, l.locktype, l.mode, l.relation::regclass rel, now()-a.query_start waiting, pg_blocking_pids(a.pid) blockers, left(a.query,100) q from pg_locks l join pg_stat_activity a using(pid) where not l.granted", "lock-waits", 60)
+    qr("select j.jobid, j.jobname, d.status, count(*) n, round(avg(extract(epoch from d.end_time-d.start_time))::numeric,1) avg_s, round(max(extract(epoch from d.end_time-d.start_time))::numeric,1) max_s from cron.job_run_details d join cron.job j using(jobid) where d.start_time > now()-interval '3 hours' group by 1,2,3 order by 1,3", "cron-3h", 60)
+    qr("select checkpoints_timed, checkpoints_req, buffers_alloc, buffers_backend from pg_stat_bgwriter", "bgwriter", 60)
+    qr("select blks_read, blks_hit, round(100.0*blks_hit/greatest(blks_hit+blks_read,1),2) hit_pct, temp_bytes, deadlocks, stats_reset from pg_stat_database where datname=current_database()", "dbstat", 60)
+    # host metrics (Supabase privileged metrics endpoint; key fetched inside the job, never printed)
+    st, keys = req("GET", "/api-keys?reveal=true")
+    sr = next((k.get("api_key") for k in keys if k.get("name") == "service_role"), None) if isinstance(keys, list) else None
+    if not sr: log("METRICS: no key", st); return
+    import base64
+    r = urllib.request.Request(f"https://{REF}.supabase.co/customer/v1/privileged/metrics", headers={"Authorization": "Basic " + base64.b64encode(("service_role:" + sr).encode()).decode()})
+    try:
+        txt = urllib.request.urlopen(r, timeout=60).read().decode()
+    except Exception as e:
+        log("METRICS error", type(e).__name__, str(e)[:200]); return
+    keep = ("node_memory_MemTotal_bytes", "node_memory_MemAvailable_bytes", "node_memory_SwapTotal_bytes", "node_memory_SwapFree_bytes", "node_memory_Cached_bytes",
+            "node_vmstat_pswpin", "node_vmstat_pswpout", "node_disk_io_time_seconds_total", "node_disk_reads_completed_total", "node_disk_writes_completed_total",
+            "node_disk_read_time_seconds_total", "node_disk_write_time_seconds_total", "node_load1", "node_load5", "node_cpu_seconds_total{cpu=\"0\",mode=\"iowait\"}",
+            "node_cpu_seconds_total{cpu=\"0\",mode=\"idle\"}", "node_pressure_io", "node_pressure_memory", "node_filesystem_avail_bytes", "node_filesystem_size_bytes", "pg_up")
+    lines = [l for l in txt.splitlines() if not l.startswith("#") and l.startswith(keep)]
+    for l in lines[:80]: log("  M", l[:220])
+    save("metrics-selected.json", lines)
+
+STEPS = {"t236rc": step_t236rc, "t235m": step_t235m, "t234verify": step_t234verify, "convchk": step_convchk, "convlogs": step_convlogs, "pgrstchk": step_pgrstchk, "fnlogs": step_fnlogs, "t234fix3": step_t234fix3, "t234fix2": step_t234fix2, "t234chk": step_t234chk, "t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
