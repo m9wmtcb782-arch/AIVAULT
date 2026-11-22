@@ -535,7 +535,13 @@ def step_t234fix3():
     wq_retry("select cron.alter_job((select jobid from cron.job where jobname='aivault-log-retention-v1'), schedule := '57 * * * *', command := $c$select public.aivault_log_retention(500)$c$)", "job50", 6, 20)
     qr("select jobid, jobname, schedule, command, active from cron.job where jobname in ('aivault-log-retention-v1','aivault-db-health-daily-v1','aivault-cron-history-retention')", "jobs", 60)
 
-STEPS = {"t234fix3": step_t234fix3, "t234fix2": step_t234fix2, "t234chk": step_t234chk, "t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+def step_fnlogs():
+    """READ-ONLY: recent edge/function/REST status codes (paths + status only; no headers/bodies)."""
+    alog("fn-edge", "select timestamp, response.status_code as s, request.method as m, request.pathname as p, m.execution_time_ms as ms from function_edge_logs cross join unnest(metadata) as m cross join unnest(m.response) as response cross join unnest(m.request) as request order by timestamp desc limit 40", 30)
+    alog("fn-console", "select timestamp, event_message from function_logs where regexp_contains(event_message, '(?i)error|denied|owner|403|timeout') order by timestamp desc limit 30", 30)
+    alog("rest-agents", "select timestamp, response.status_code as s, request.path as p from edge_logs cross join unnest(metadata) as m cross join unnest(m.response) as response cross join unnest(m.request) as request where request.path like '%aivault_pool_agents%' order by timestamp desc limit 30", 30)
+
+STEPS = {"fnlogs": step_fnlogs, "t234fix3": step_t234fix3, "t234fix2": step_t234fix2, "t234chk": step_t234chk, "t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
