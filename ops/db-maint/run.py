@@ -509,7 +509,15 @@ def step_daily():
     for r in h or []: log("  HIST", r["day"], r["db_bytes"])
     if s.get("warnings"): sys.exit(1)
 
-STEPS = {"t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+def step_t234chk():
+    """READ-ONLY: did the timed-out retention batch / index build finish? what is running?"""
+    qr("select pid, state, now()-query_start dur, wait_event_type, wait_event, left(query,120) q from pg_stat_activity where state<>'idle' and pid<>pg_backend_pid() order by dur desc nulls last limit 15", "active", 60)
+    qr("select indexrelid::regclass idx, indisvalid, indisready, pg_relation_size(indexrelid) bytes from pg_index where indrelid='public.aivault_pool_agents'::regclass", "agents-idx", 60)
+    qr("select count(*) n, min(slot) first from public.aivault_darkstar_heartbeat_runs where slot < to_char((now() at time zone 'utc') - interval '14 days','YYYY-MM-DD\"T\"HH24:MI') and slot ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T'", "hb-old", 120)
+    qr("select count(*) n from public.aivault_gateway_quota_events where event_at < now() - interval '30 days'", "qe-old", 120)
+    qr("select jobid, status, count(*) n from cron.job_run_details where start_time > now()-interval '20 minutes' group by 1,2 order by 1,2", "cron-20m", 60)
+
+STEPS = {"t234chk": step_t234chk, "t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
