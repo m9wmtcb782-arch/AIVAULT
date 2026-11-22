@@ -291,7 +291,24 @@ def step_accept():
     for path in ["/health?services=db,rest,auth,storage,realtime,pooler", "/config/disk", "/config/disk/util"]:
         st, d = req("GET", path); log(f"GET {path} -> {st} {json.dumps(d, ensure_ascii=False, default=str)[:1500]}"); save("api" + path.replace('/', '_').split('?')[0] + ".json", {"status": st, "body": d})
 
-STEPS = {"accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+def qr(sql, label, timeout=120, tries=5):
+    for i in range(tries):
+        d = qs(sql, f"{label}" if i == 0 else f"{label}-r{i}", timeout)
+        if d is not None: return d
+        time.sleep(15)
+
+def step_accept2():
+    """READ-ONLY: retries connection timeouts; 暗星 heartbeat/memory/core books, novels."""
+    qr("select agent_id, status, connection_status, current_action, last_heartbeat, now()-last_heartbeat age from public.agent_registry where agent_id in ('darkstar','technical-dark-star')", "agent-registry")
+    qr("select slot, status, error_code, finished_at from public.aivault_darkstar_heartbeat_runs order by slot desc limit 15", "hb-latest")
+    qr("select count(*) n, max(updated_at) last from public.dark_star_learning_memory", "ds-memory")
+    qr("select id, title, status, total_pages from public.dark_star_ebooks where id::text like any(array['a14fa90b%','28b34c97%','e0bc8c57%','c8743d50%'])", "core-books")
+    qr("select ebook_id, count(*) pages from public.dark_star_ebook_pages where ebook_id::text like any(array['a14fa90b%','28b34c97%','e0bc8c57%','c8743d50%']) group by 1", "core-pages", 180)
+    qr("select title from public.aivault_novel_books order by 1", "novels")
+    qr("select count(*) n, max(created_at) last from public.aivault_pool_agent_learning", "pool-learning", 180)
+    qr("select count(*) n from public.aivault_pool_agents", "pool-agents", 180)
+
+STEPS = {"accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
