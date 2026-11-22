@@ -204,7 +204,26 @@ def step_pgrstfix():
     wq_retry("notify pgrst, 'reload config'", "pgrst-reload-config", 4, 15); time.sleep(3)
     wq_retry("notify pgrst, 'reload schema'", "pgrst-reload-schema", 4, 15)
 
-STEPS = {"pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+def alog(label, sql, minutes=15, show=60):
+    import urllib.parse
+    start = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(time.time()-minutes*60)); end = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+    st, d = req("GET", "/analytics/endpoints/logs?" + urllib.parse.urlencode({"sql": sql, "iso_timestamp_start": start, "iso_timestamp_end": end}))
+    rows = (d.get("result") if isinstance(d, dict) else None) or []
+    log(f"LOGS[{label}] HTTP {st} rows={len(rows)} err={str(d.get('error') if isinstance(d, dict) else d)[:300]}"); save(f"logs-{label}.json", d)
+    for r in rows[:show]: log("  L", json.dumps(r, ensure_ascii=False, default=str)[:400])
+    return rows
+
+def step_load():
+    """READ-ONLY: who is loading the DB right now."""
+    alog("edge-by-fn", "SELECT m.function_id AS fn, r.method AS method, count(*) AS n FROM function_edge_logs CROSS JOIN UNNEST(metadata) AS m CROSS JOIN UNNEST(m.request) AS r GROUP BY fn, method ORDER BY n DESC LIMIT 40")
+    alog("edge-paths", "SELECT r.pathname AS path, resp.status_code AS code, count(*) AS n FROM function_edge_logs CROSS JOIN UNNEST(metadata) AS m CROSS JOIN UNNEST(m.request) AS r CROSS JOIN UNNEST(m.response) AS resp GROUP BY path, code ORDER BY n DESC LIMIT 40")
+    alog("api-paths", "SELECT r.path AS path, r.method AS method, resp.status_code AS code, count(*) AS n FROM edge_logs CROSS JOIN UNNEST(metadata) AS m CROSS JOIN UNNEST(m.request) AS r CROSS JOIN UNNEST(m.response) AS resp GROUP BY path, method, code ORDER BY n DESC LIMIT 50")
+    alog("api-ua", "SELECT h.user_agent AS ua, h.cf_connecting_ip AS ip, count(*) AS n FROM edge_logs CROSS JOIN UNNEST(metadata) AS m CROSS JOIN UNNEST(m.request) AS r CROSS JOIN UNNEST(r.headers) AS h GROUP BY ua, ip ORDER BY n DESC LIMIT 25")
+    qs("select usename, application_name, state, wait_event_type, wait_event, count(*) n, max(now()-query_start) longest from pg_stat_activity where backend_type='client backend' group by 1,2,3,4,5 order by n desc", "act-now")
+    qs("select pid, usename, application_name, now()-query_start dur, wait_event_type, wait_event, left(regexp_replace(query,'[[:space:]]+',' ','g'),180) q from pg_stat_activity where state='active' and pid<>pg_backend_pid() order by dur desc limit 15", "act-active")
+    qs("select left(regexp_replace(query,'[[:space:]]+',' ','g'),140) q, calls, round(total_exec_time/1000) total_s, round(mean_exec_time) mean_ms, shared_blks_read from extensions.pg_stat_statements order by total_exec_time desc limit 20", "pss-time")
+
+STEPS = {"load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
