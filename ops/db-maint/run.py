@@ -178,12 +178,14 @@ def step_truncjrd():
 
 def step_pgrst():
     """READ-ONLY: why PostgREST schema cache fails (PGRST002)."""
-    qs("select rolname, rolconfig from pg_roles where rolname in ('authenticator','anon','authenticated','service_role','postgres')", "roles")
+    qs("select left(regexp_replace(query,'\\s+',' ','g'),140) q, calls, round(total_exec_time/1000) total_s, round(mean_exec_time) mean_ms, shared_blks_read, temp_blks_written from extensions.pg_stat_statements order by total_exec_time desc limit 15", "pss-time")
+    qs("select left(regexp_replace(query,'\\s+',' ','g'),140) q, calls, shared_blks_read, shared_blks_written, round(total_exec_time/1000) total_s from extensions.pg_stat_statements order by shared_blks_read+shared_blks_written desc limit 10", "pss-io")
+    qs("select backend_type, object, context, reads, writes, extends, round(read_time) read_ms, round(write_time) write_ms, fsyncs from pg_stat_io where coalesce(reads,0)+coalesce(writes,0)>0 order by coalesce(read_time,0)+coalesce(write_time,0) desc limit 12", "pgstatio")
     qs("select count(*) filter (where relkind in ('r','v','m','p','f')) rels, (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','graphql_public')) funcs, (select count(*) from pg_attribute) atts from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public'", "catalog")
     qs("select pid, usename, application_name, state, now()-query_start dur, now()-backend_start age, wait_event_type, wait_event, left(query,200) q from pg_stat_activity where usename='authenticator' or application_name ilike '%postgrest%'", "pgrst-conns")
     qs("select schemaname, relname, n_live_tup, n_dead_tup, last_autovacuum, last_autoanalyze from pg_stat_sys_tables where relname in ('pg_class','pg_attribute','pg_proc','pg_depend','pg_type','pg_constraint','pg_statistic') order by n_dead_tup desc", "catalog-bloat")
     qs("select c.relname, pg_total_relation_size(c.oid) bytes from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='pg_catalog' and c.relkind='r' order by 2 desc limit 8", "catalog-sizes")
-    start = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(time.time()-1500)); end = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+    start = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(time.time()-600)); end = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
     import urllib.parse
     for label, sql in [("pg", "SELECT timestamp, log_attributes['parsed.sql_state_code'] AS code, log_attributes['parsed.user_name'] AS u, log_attributes['parsed.application_name'] AS app, event_message FROM logs WHERE source = 'postgres_logs' AND position(event_message, 'connection ') = 0 AND position(event_message, 'disconnection') = 0 ORDER BY timestamp DESC LIMIT 200"),
                        ("rest", "SELECT timestamp, event_message FROM logs WHERE source = 'postgrest_logs' ORDER BY timestamp DESC LIMIT 100")]:
