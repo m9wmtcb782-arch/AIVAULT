@@ -536,10 +536,10 @@ def step_t234fix3():
     qr("select jobid, jobname, schedule, command, active from cron.job where jobname in ('aivault-log-retention-v1','aivault-db-health-daily-v1','aivault-cron-history-retention')", "jobs", 60)
 
 def step_fnlogs():
-    """READ-ONLY: recent edge/function/REST status codes (paths + status only; no headers/bodies)."""
-    alog("fn-edge", "select timestamp, response.status_code as s, request.method as m, request.pathname as p, m.execution_time_ms as ms from function_edge_logs cross join unnest(metadata) as m cross join unnest(m.response) as response cross join unnest(m.request) as request order by timestamp desc limit 40", 30)
-    alog("fn-console", "select timestamp, event_message from function_logs where regexp_contains(event_message, '(?i)error|denied|owner|403|timeout') order by timestamp desc limit 30", 30)
-    alog("rest-agents", "select timestamp, response.status_code as s, request.path as p from edge_logs cross join unnest(metadata) as m cross join unnest(m.response) as response cross join unnest(m.request) as request where request.path like '%aivault_pool_agents%' order by timestamp desc limit 30", 30)
+    """READ-ONLY: recent edge/function/REST status lines (event_message only; query strings cut)."""
+    alog("fn-edge", "SELECT timestamp, left(event_message, 160) AS e FROM logs WHERE source = 'function_edge_logs' ORDER BY timestamp DESC LIMIT 40", 30)
+    alog("fn-console", "SELECT timestamp, left(event_message, 300) AS e FROM logs WHERE source = 'function_logs' AND match(event_message, '(?i)error|denied|owner|403|timeout|abort') ORDER BY timestamp DESC LIMIT 30", 30)
+    alog("rest-agents", "SELECT timestamp, left(event_message, 160) AS e FROM logs WHERE source = 'edge_logs' AND position(event_message, 'aivault_pool_agents') > 0 ORDER BY timestamp DESC LIMIT 30", 30)
 
 STEPS = {"fnlogs": step_fnlogs, "t234fix3": step_t234fix3, "t234fix2": step_t234fix2, "t234chk": step_t234chk, "t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
