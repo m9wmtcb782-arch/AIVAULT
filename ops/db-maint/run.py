@@ -562,7 +562,22 @@ def step_convchk():
     qr("select agent_id, count(*) n, max(updated_at) last from public.aivault_conversations group by 1 order by 3 desc nulls last", "convs-by-agent", 60)
     qr("select l.relation::regclass rel, l.mode, l.granted, a.state, now()-a.xact_start age, left(a.query,80) q from pg_locks l join pg_stat_activity a using(pid) where l.relation in ('public.aivault_conversations'::regclass,'public.aivault_conversation_messages'::regclass)", "locks", 60)
 
-STEPS = {"convchk": step_convchk, "convlogs": step_convlogs, "pgrstchk": step_pgrstchk, "fnlogs": step_fnlogs, "t234fix3": step_t234fix3, "t234fix2": step_t234fix2, "t234chk": step_t234chk, "t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+def step_t234verify():
+    """READ-ONLY state check after t234u changes + acceptance numbers."""
+    qr(f"select jobid, jobname, schedule, active, left({MASK},120) cmd from cron.job order by jobid", "cron", 60)
+    qr("select command from cron.job where jobid=16", "job16", 60)
+    qr("select proname, prosecdef from pg_proc where proname in ('aivault_log_retention','aivault_db_health_snapshot')", "fns", 60)
+    qr("select grantee, privilege_type from information_schema.routine_privileges where routine_name in ('aivault_log_retention','aivault_db_health_snapshot') and grantee in ('anon','authenticated','PUBLIC')", "fn-grants", 60)
+    qr("select indexrelid::regclass idx from pg_index where indrelid='public.aivault_pool_agents'::regclass", "agents-idx", 60)
+    qr("select relrowsecurity from pg_class where oid='public.aivault_db_health_daily'::regclass", "health-rls", 60)
+    qr("select jobid, status, count(*) n from cron.job_run_details where start_time > now()-interval '30 minutes' group by 1,2 order by 1,2", "cron-30m", 60)
+    qr("select status, count(*) n, max(slot) last from public.aivault_darkstar_heartbeat_runs where slot >= to_char((now() at time zone 'utc') - interval '60 minutes','YYYY-MM-DD\"T\"HH24:MI') and slot < 'work:' group by 1", "hb-60m", 60)
+    qr("select status, count(*) n from public.aivault_pool_agent_tasks where source='floor' and updated_at > now()-interval '30 minutes' group by 1", "floor-30m", 60)
+    qr("select count(*) n from public.aivault_darkstar_heartbeat_runs where slot >= '2000' and slot < to_char((now() at time zone 'utc') - interval '14 days','YYYY-MM-DD\"T\"HH24:MI')", "hb-old", 120)
+    qr("select (select count(*) from public.dark_star_ebooks) ebooks, (select count(*) from public.aivault_pool_agents) pool_agents, (select count(*) from public.aivault_pool_agent_tasks where status='blocked') blocked", "integrity", 120)
+    for i in range(3): qs("select 1", f"select1-{i}", 60)
+
+STEPS = {"t234verify": step_t234verify, "convchk": step_convchk, "convlogs": step_convlogs, "pgrstchk": step_pgrstchk, "fnlogs": step_fnlogs, "t234fix3": step_t234fix3, "t234fix2": step_t234fix2, "t234chk": step_t234chk, "t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
