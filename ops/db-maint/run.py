@@ -239,7 +239,15 @@ def step_writeload():
     qs("select stats_reset from pg_stat_database where datname='postgres'", "stats-reset")
     alog("alter-job", "SELECT timestamp, event_message FROM logs WHERE source = 'postgres_logs' AND (match(event_message, 'alter_job|cron.schedule|unschedule|job_run_details') ) ORDER BY timestamp ASC LIMIT 50", 1440, 50)
 
-STEPS = {"writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+def step_bench():
+    """READ-ONLY micro-benchmarks: server-side CPU time vs IO time (explain analyze)."""
+    for i in range(3):
+        qs("explain (analyze, timing off, format json) select count(*) from generate_series(1,1000000)", f"cpu-{i}", 120); time.sleep(5)
+    qs("explain (analyze, buffers, format json) select count(*) from public.aivault_private_pages", "io-small", 120)
+    qs("explain (analyze, buffers, format json) select count(*) from public.aivault_learning_dispatch", "io-30mb", 180)
+    qs("select name, setting from pg_settings where name in ('track_io_timing','shared_buffers','effective_cache_size','work_mem','max_worker_processes','max_parallel_workers')", "settings2")
+
+STEPS = {"bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
