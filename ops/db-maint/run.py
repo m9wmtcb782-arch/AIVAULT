@@ -622,7 +622,13 @@ def step_t236fix():
     wq_retry("select cron.alter_job(9, active := false)", "pause-job9", 6, 20)
     qr("select jobid, jobname, schedule, active from cron.job where jobid=9", "job9", 60)
 
-STEPS = {"t236fix": step_t236fix, "t236rc": step_t236rc, "t235m": step_t235m, "t234verify": step_t234verify, "convchk": step_convchk, "convlogs": step_convlogs, "pgrstchk": step_pgrstchk, "fnlogs": step_fnlogs, "t234fix3": step_t234fix3, "t234fix2": step_t234fix2, "t234chk": step_t234chk, "t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+def step_taskchk():
+    """READ-ONLY: one floor task's status (id in confirm) + background-cycle log lines."""
+    tid = "".join(c for c in CONFIRM if c.isalnum() or c == "-")
+    qr(f"select id, agent_id, zone, kind, status, review_status, left(order_text,60) task, length(result) result_chars, steps->0->>'model' model, steps->0->'usage'->>'total' tokens, steps->0->>'started_at' started, steps->0->>'finished_at' finished, updated_at from public.aivault_pool_agent_tasks where id='{tid}'", "task", 60)
+    alog("bg", "SELECT timestamp, left(event_message, 400) AS e FROM logs WHERE source = 'function_logs' AND match(event_message, 'FLOOR_BG') ORDER BY timestamp DESC LIMIT 5", 30)
+
+STEPS = {"taskchk": step_taskchk, "t236fix": step_t236fix, "t236rc": step_t236rc, "t235m": step_t235m, "t234verify": step_t234verify, "convchk": step_convchk, "convlogs": step_convlogs, "pgrstchk": step_pgrstchk, "fnlogs": step_fnlogs, "t234fix3": step_t234fix3, "t234fix2": step_t234fix2, "t234chk": step_t234chk, "t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
