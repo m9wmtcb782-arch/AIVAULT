@@ -339,7 +339,10 @@ export async function floor(r: Request) {
     }
     if (a === "cycle") {
       const n = Math.min(6, Math.max(1, Number(b.n) || 3));
-      const T0 = Date.now(), DL = T0 + Math.min(125000, Math.max(30000, Number(b.budget_ms) || 120000)); // tb1：Edge 上限 150 秒，預留回應時間
+      // tb3：background=true 時先回應（避開 150 秒閘道逾時），任務用 EdgeRuntime.waitUntil 在背景跑完並寫回 DB（Pro 牆鐘 400 秒，預算 330 秒）
+      // deno-lint-ignore no-explicit-any
+      const RT = (globalThis as any).EdgeRuntime; const bgMode = b.background === true && RT && typeof RT.waitUntil === "function";
+      const T0 = Date.now(), DL = T0 + (bgMode ? 330000 : Math.min(125000, Math.max(30000, Number(b.budget_ms) || 120000))); // tb1：Edge 上限 150 秒，預留回應時間
       const think = (s0: string, u0: string, m?: number) => callModel(s0, u0, m, DL);
       // 卡住超過 15 分鐘的 running 任務退回 queued
       // tb2：退回卡住任務與讀取候選並行；候選查詢不變
@@ -356,13 +359,20 @@ export async function floor(r: Request) {
         const z = ZONES[Math.floor(Date.now() / 1800000) % ZONES.length]; const tp = z.tasks[Math.floor(Date.now() / 18000000) % z.tasks.length];
         const t = await enqueue(z.key, tp.t + "（第 " + new Date().toISOString().slice(0, 10) + " 輪，請參考你的記憶改進上次的成果）", null); if (t) q = [t];
       }
-      const results = []; let budgetStop = false;
+      const results: any[] = []; let budgetStop = false;
+      const work = async () => {
       for (const t of q) {
         if (DL - Date.now() < 45000) { budgetStop = true; break; } // 剩餘不足 45 秒不開新任務，留給下一輪
         const r0 = await runTask(t, think); results.push(r0);
         if (!r0.ok && /429|rate|BUDGET/i.test(String(r0.error))) { budgetStop = /BUDGET/.test(String(r0.error)); break; }
       } // 依序執行；遇到 Groq 限流或時間預算用完就停（被中斷的任務退回 queued）
       if (!budgetStop && DL - Date.now() > 30000) newBooks = await ensureBooks().catch(() => 0);
+      };
+      if (bgMode) {
+        RT.waitUntil(work().then(() => console.log("FLOOR_BG_CYCLE_DONE", JSON.stringify({ done: results.filter((x) => x.ok).length, elapsed_ms: Date.now() - T0, results: results.map((x) => ({ id: x.id, ok: x.ok, error: x.error || null })) }))).catch((e) => console.error("FLOOR_BG_CYCLE_FAILED", String((e as any)?.message || e))));
+        return out({ ok: true, background: true, accepted: q.map((t: any) => t.id), done: null, rate_limited: false, elapsed_ms: Date.now() - T0 });
+      }
+      await work();
       const rl = results.some((x: any) => !x.ok && /429|LLM_FAILED/.test(String(x.error)));
       return out({ ok: true, done: results.filter((x) => x.ok).length, rate_limited: rl, budget_stop: budgetStop, elapsed_ms: Date.now() - T0, deferred: q.length - results.length, new_books: newBooks, results });
     }

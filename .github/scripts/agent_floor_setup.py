@@ -125,7 +125,8 @@ if any(s in STEPS for s in ("seed","cycle","test")):
     if "cycle" in STEPS:
         import time; end=time.time()+60*float(os.environ.get("MINUTES","1") or 1); k=0
         while True:  # 穩定佇列：依序一輪一輪做，遇到 Groq 限流就提早結束（免費層約 30 次/分，這裡遠低於上限）
-            k+=1; s,b=y({"action":"cycle","n":N}); ok=isinstance(b,dict)
+            k+=1; s,b=y({"action":"cycle","n":N,"background":"bg" in STEPS}); ok=isinstance(b,dict)
+            if ok and b.get("background"): print("CYCLE",k,s,"background accepted",b.get("accepted"),"elapsed_ms",b.get("elapsed_ms")); break
             print("CYCLE",k,s,"done",b.get("done") if ok else b,"rate_limited",b.get("rate_limited") if ok else "","budget_stop",b.get("budget_stop") if ok else "","elapsed_ms",b.get("elapsed_ms") if ok else "","deferred",b.get("deferred") if ok else "","error",b.get("error") if ok else "", [(r.get("agent"),r.get("zone"),r.get("model"),(r.get("usage") or {}).get("total"),r.get("error")) for r in (b.get("results") or [])] if ok else "")
             if s!=200 or not ok or time.time()>end: break
             if b.get("rate_limited"):
