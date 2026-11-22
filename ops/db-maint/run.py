@@ -37,7 +37,7 @@ def save(name, data):
 
 def step_health():
     st, d = req("GET", ""); log("PROJECT", st, json.dumps({k: d.get(k) for k in ("id", "name", "status", "region", "created_at")} if isinstance(d, dict) else d, ensure_ascii=False))
-    st, d = req("GET", "/health?services=db,rest,auth,storage,realtime&timeout_ms=10000"); log("HEALTH", st, json.dumps(d, ensure_ascii=False)[:2000])
+    st, d = req("GET", "/health?services=db,rest,auth,storage,realtime"); log("HEALTH", st, json.dumps(d, ensure_ascii=False)[:2000])
     # ONE lightweight connectivity check
     st, d = req("POST", "/database/query", {"query": "select 1 as ok, now() as at, pg_is_in_recovery() as recovery"}, 60)
     log("SELECT1", st, str(d)[:1500])
@@ -98,7 +98,42 @@ def step_window():
     save("logs-window.json", d)
     for r in rows: log("  W", r.get("timestamp"), r.get("code"), r.get("bt"), str(r.get("event_message"))[:260])
 
-STEPS = {"window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+MASK = "coalesce(substring(command from '(functions/v1/[a-zA-Z0-9_/-]+|[a-z_]+\\.[a-z_]+\\([^)]{0,30}\\)|[a-z_]+\\([^)]{0,30}\\))'), '(other)')"
+
+def qs(sql, label, timeout=120):
+    """read-only SQL; tolerant (logs error, continues); short pause to avoid hammering."""
+    log(f"-- SQL[{label}]: {' '.join(sql.split())[:600]}")
+    t0 = time.time(); st, d = req("POST", "/database/query", {"query": sql}, timeout); dt = time.time() - t0
+    log(f"   -> HTTP {st} in {dt:.1f}s: {json.dumps(d, ensure_ascii=False, default=str)[:6000]}")
+    save(f"q-{label}.json", {"status": st, "secs": round(dt, 2), "body": d}); time.sleep(1)
+    return d if st in (200, 201) else None
+
+def step_measure():
+    """READ-ONLY: connectivity x5, sizes, connections, cron, WAL, Management API disk/health. No writes."""
+    for path in ["", "/health?services=db,rest,auth,storage,realtime,pooler", "/config/disk", "/config/disk/util", "/config/disk/autoscale", "/readonly", "/billing/addons", "/config/database/pooler"]:
+        st, d = req("GET", path); log(f"GET {path or '/'} -> {st} {json.dumps(d, ensure_ascii=False, default=str)[:2500]}")
+        save("api" + (path.replace('/', '_').split('?')[0] or "_project") + ".json", {"status": st, "body": d})
+    for i in range(5):
+        qs("select 1 as ok, now() as at, pg_is_in_recovery() as recovery, current_setting('default_transaction_read_only') ro, current_setting('transaction_read_only') tro", f"select1-{i}", 60); time.sleep(3)
+    qs("select version(), pg_size_pretty(pg_database_size(current_database())) db_size, pg_database_size(current_database()) db_bytes, current_setting('max_connections') maxconn, current_setting('shared_buffers') sb, current_setting('max_wal_size') mws, current_setting('wal_keep_size') wks, current_setting('archive_mode') am", "settings")
+    qs("select datname, pg_database_size(datname) bytes from pg_database order by 2 desc", "dbsizes")
+    qs("select count(*) wal_files, sum(size) wal_bytes from pg_ls_waldir()", "wal")
+    qs("select * from pg_stat_archiver", "archiver")
+    qs("select slot_name, slot_type, active, wal_status, pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn) retained_bytes from pg_replication_slots", "slots")
+    qs("select n.nspname, c.relname, c.relkind, pg_total_relation_size(c.oid) total, pg_relation_size(c.oid) heap, pg_indexes_size(c.oid) idx, coalesce(pg_total_relation_size(c.reltoastrelid),0) toast, c.reltuples::bigint est_rows from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind in ('r','m','p') order by 4 desc limit 60", "toptables")
+    qs("select n.nspname, sum(pg_total_relation_size(c.oid)) bytes from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind in ('r','m','p') group by 1 order by 2 desc", "schemas")
+    qs("select schemaname, relname, n_live_tup, n_dead_tup, last_autovacuum, last_vacuum, n_tup_ins, n_tup_upd, n_tup_del from pg_stat_user_tables order by n_dead_tup desc limit 30", "deadtup")
+    qs("select state, wait_event_type, wait_event, backend_type, usename, application_name, count(*) n, max(now()-coalesce(xact_start,backend_start)) oldest from pg_stat_activity group by 1,2,3,4,5,6 order by n desc", "activity")
+    qs("select pid, usename, application_name, state, now()-query_start dur, wait_event, left(query,160) q from pg_stat_activity where state<>'idle' and pid<>pg_backend_pid() order by dur desc nulls last limit 20", "active")
+    qs(f"select jobid, jobname, schedule, active, username, left({MASK},220) cmd from cron.job order by jobid", "cronjobs")
+    qs("select pg_total_relation_size('cron.job_run_details') bytes, (select count(*) from cron.job_run_details) n, (select min(start_time) from cron.job_run_details) first, (select max(start_time) from cron.job_run_details) last", "cronhist")
+    qs("select jobid, status, count(*) n, max(start_time) last from cron.job_run_details where start_time > now()-interval '3 hours' group by 1,2 order by 1,2", "cronrecent")
+    qs("select relname, pg_total_relation_size(c.oid) bytes from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='net' and c.relkind='r'", "pgnet")
+    qs("select checkpoints_timed, checkpoints_req, buffers_checkpoint from pg_stat_bgwriter", "bgwriter")
+    qs("select * from pg_stat_checkpointer", "checkpointer")
+    qs("select sum(blks_read) blks_read, sum(blks_hit) blks_hit, sum(temp_bytes) temp_bytes, sum(xact_commit) commits from pg_stat_database", "iostats")
+
+STEPS = {"measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
