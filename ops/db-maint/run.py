@@ -392,7 +392,124 @@ def step_t234d():
     qs("select blks_read, blks_hit, tup_inserted, tup_updated, tup_deleted, xact_commit, stats_reset from pg_stat_database where datname=current_database()", "dbstat")
     qs("select pg_database_size(current_database()) db_bytes", "dbsize")
 
-STEPS = {"t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
+JOB16_V2 = ("update public.agent_registry set status='OFFLINE',connection_status='not_connected',current_action='HEARTBEAT_STALE_OVER_300_SECONDS',updated_at=now() "
+            "where agent_id in ('darkstar','technical-dark-star') and (last_heartbeat is null or last_heartbeat<now()-interval '5 minutes') and connection_status<>'not_connected'; "
+            "update public.aivault_darkstar_heartbeat_runs set status='FAIL',finished_at=now(),error_code='STALE_STARTED_NO_FINISH' "
+            "where slot >= to_char((now() at time zone 'utc') - interval '3 hours','YYYY-MM-DD\"T\"HH24:MI') and slot < 'work:' and status='STARTED' and started_at < now() - interval '5 minutes';")
+# t234u: jobid -> (old, new) schedules. Heartbeat on odd minutes, everything else on even minutes / staggered.
+SCHED = {14: ("* * * * *", "1-59/2 * * * *"), 16: ("*/2 * * * *", "*/4 * * * *"), 1: ("*/5 * * * *", "6,26,46 * * * *"),
+         5: ("*/5 * * * *", "2-59/10 * * * *"), 6: ("*/5 * * * *", "8-59/10 * * * *"), 15: ("5,35 * * * *", "14,44 * * * *")}
+RETENTION_FN = r"""
+create or replace function public.aivault_log_retention(p_batch int default 5000) returns jsonb
+language plpgsql security definer set search_path = public, pg_temp as $f$
+-- t234u: small-batch purge of append-only LOG rows only. Never touches memory, learning, ebooks, pool agents or pool tasks.
+declare hb int := 0; qe int := 0;
+begin
+  perform set_config('lock_timeout', '5s', true);
+  -- 1) 暗星 minute heartbeat run log (slot 'YYYY-MM-DDTHH:MI'), keep 14 days; 'work:*' slots untouched
+  delete from public.aivault_darkstar_heartbeat_runs where slot in (
+    select slot from public.aivault_darkstar_heartbeat_runs
+    where slot < to_char((now() at time zone 'utc') - interval '14 days', 'YYYY-MM-DD"T"HH24:MI') and slot ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T'
+    order by slot limit greatest(1, least(p_batch, 20000)));
+  get diagnostics hb = row_count;
+  -- 2) ai-gateway provider quota event log, keep 30 days (gateway only reads the current day window + latest rows)
+  delete from public.aivault_gateway_quota_events where id in (
+    select id from public.aivault_gateway_quota_events where event_at < now() - interval '30 days' order by id limit greatest(1, least(p_batch, 20000)));
+  get diagnostics qe = row_count;
+  return jsonb_build_object('at', now(), 'heartbeat_runs_deleted', hb, 'gateway_quota_events_deleted', qe);
+end $f$;
+revoke all on function public.aivault_log_retention(int) from public, anon, authenticated;
+"""
+HEALTH_SQL = r"""
+create table if not exists public.aivault_db_health_daily (
+  day date primary key, taken_at timestamptz not null default now(), db_bytes bigint not null,
+  top_tables jsonb not null, cron_24h jsonb, heartbeat_24h jsonb, warnings jsonb);
+alter table public.aivault_db_health_daily enable row level security;
+revoke all on public.aivault_db_health_daily from anon, authenticated;
+create or replace function public.aivault_db_health_snapshot() returns jsonb
+language plpgsql security definer set search_path = public, pg_temp as $f$
+-- t234u: lightweight daily health snapshot (catalog sizes + last-24h cron/heartbeat counts). Warns: DB > 5 GB, any table +200 MB/day.
+declare v_db bigint; v_top jsonb; v_cron jsonb; v_hb jsonb; v_prev jsonb; v_w jsonb := '[]'::jsonb; r record;
+begin
+  perform set_config('statement_timeout', '60s', true);
+  v_db := pg_database_size(current_database());
+  select jsonb_object_agg(t, b) into v_top from (
+    select n.nspname||'.'||c.relname t, pg_total_relation_size(c.oid) b from pg_class c join pg_namespace n on n.oid=c.relnamespace
+    where c.relkind in ('r','m','p') and n.nspname not in ('pg_catalog','information_schema') order by 2 desc limit 25) x;
+  select coalesce(jsonb_object_agg(j, s), '{}'::jsonb) into v_cron from (
+    select jobid::text j, jsonb_object_agg(status, n) s from (select jobid, status, count(*) n from cron.job_run_details where start_time > now()-interval '24 hours' group by 1,2) a group by 1) y;
+  select coalesce(jsonb_object_agg(status, n), '{}'::jsonb) into v_hb from (select status, count(*) n from public.aivault_darkstar_heartbeat_runs
+    where slot >= to_char((now() at time zone 'utc') - interval '24 hours','YYYY-MM-DD"T"HH24:MI') and slot < 'work:' group by 1) z;
+  if v_db > 5368709120 then v_w := v_w || jsonb_build_array('DB_OVER_5GB:' || v_db); end if;
+  select top_tables into v_prev from public.aivault_db_health_daily where day < current_date order by day desc limit 1;
+  if v_prev is not null then
+    for r in select key, value::bigint b from jsonb_each_text(v_top) loop
+      if r.b - coalesce((v_prev->>r.key)::bigint, 0) > 209715200 then v_w := v_w || jsonb_build_array('TABLE_GROWTH_OVER_200MB:' || r.key || ':' || (r.b - coalesce((v_prev->>r.key)::bigint,0))); end if;
+    end loop;
+  end if;
+  insert into public.aivault_db_health_daily(day, taken_at, db_bytes, top_tables, cron_24h, heartbeat_24h, warnings)
+  values (current_date, now(), v_db, v_top, v_cron, v_hb, v_w)
+  on conflict (day) do update set taken_at=excluded.taken_at, db_bytes=excluded.db_bytes, top_tables=excluded.top_tables, cron_24h=excluded.cron_24h, heartbeat_24h=excluded.heartbeat_24h, warnings=excluded.warnings;
+  return jsonb_build_object('day', current_date, 'db_bytes', v_db, 'warnings', v_w, 'cron_24h', v_cron, 'heartbeat_24h', v_hb, 'top_tables', v_top);
+end $f$;
+revoke all on function public.aivault_db_health_snapshot() from public, anon, authenticated;
+"""
+
+def step_t234fix():
+    """t234u (founder-approved, free, reversible): stagger/lower cron, job16 threshold 5 min, log retention fn+job, health snapshot fn+job, pool-agents index."""
+    if CONFIRM != "t234fix": sys.exit("type t234fix in confirm")
+    pre = qr("select jobid, jobname, schedule, active from cron.job order by jobid", "pre-cron")
+    if not pre: sys.exit("cannot read cron.job")
+    cur = {r["jobid"]: r["schedule"] for r in pre}
+    for j, (old, new) in SCHED.items():
+        if cur.get(j) != old: log(f"SKIP job {j}: schedule is {cur.get(j)!r}, expected {old!r}"); continue
+        wq_retry(f"select cron.alter_job({j}, schedule := '{new}')", f"sched-{j}", 4, 20)
+    wq_retry("select cron.alter_job(16, command := $c$" + JOB16_V2 + "$c$)", "job16-cmd", 4, 20)
+    # retention: preview, function, first small batch (keys saved), daily job
+    qr("select count(*) n, min(slot) first, max(slot) last from public.aivault_darkstar_heartbeat_runs where slot < to_char((now() at time zone 'utc') - interval '14 days','YYYY-MM-DD\"T\"HH24:MI') and slot ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T'", "preview-hb", 120)
+    qr("select count(*) n, min(event_at) first, max(event_at) last from public.aivault_gateway_quota_events where event_at < now() - interval '30 days'", "preview-qe", 120)
+    qr("select count(*) n, min(slot) first, max(slot) last, sum(case when slot<'work:' then 1 else 0 end) minute_slots from public.aivault_darkstar_heartbeat_runs", "hb-total", 120)
+    wq_retry(RETENTION_FN, "retention-fn", 4, 20)
+    wq_retry(HEALTH_SQL, "health-fn", 4, 20)
+    qr("select public.aivault_log_retention(2000) r", "retention-first-batch", 120)
+    have = {r["jobname"] for r in pre}
+    if "aivault-log-retention-v1" not in have:
+        wq_retry("select cron.schedule('aivault-log-retention-v1', '35 18 * * *', $c$select public.aivault_log_retention(5000)$c$)", "job-retention", 4, 20)
+    if "aivault-db-health-daily-v1" not in have:
+        wq_retry("select cron.schedule('aivault-db-health-daily-v1', '50 18 * * *', $c$select public.aivault_db_health_snapshot()$c$)", "job-health", 4, 20)
+    qr("select public.aivault_db_health_snapshot() s", "health-first", 120)
+    # pool agents: idle-agent lookup (floor enqueue) seq-scans 150 MB without this index
+    qr("explain select id from public.aivault_pool_agents where (id < 'ag-1' or id >= 'ah') and zone='law' and status='idle' order by updated_at asc limit 1", "explain-idle-pre", 120)
+    qr("select indexname from pg_indexes where schemaname='public' and tablename='aivault_pool_agents'", "agents-idx-pre", 60)
+    wq("set statement_timeout = '15min'; set lock_timeout = '10s'; create index if not exists aivault_pool_agents_zone_status_upd on public.aivault_pool_agents (zone, status, updated_at)", "agents-index", 600)
+    time.sleep(10)
+    qr("select indexname, pg_relation_size(indexname::regclass) bytes from pg_indexes where schemaname='public' and tablename='aivault_pool_agents'", "agents-idx-post", 60)
+    qr("explain select id from public.aivault_pool_agents where (id < 'ag-1' or id >= 'ah') and zone='law' and status='idle' order by updated_at asc limit 1", "explain-idle-post", 120)
+    qr(f"select jobid, jobname, schedule, active, left({MASK},200) cmd from cron.job order by jobid", "post-cron")
+    wq_retry("notify pgrst, 'reload schema'", "pgrst-reload", 3, 20)
+
+def step_t234rollback():
+    if CONFIRM != "t234rollback": sys.exit("type t234rollback in confirm")
+    for j, (old, new) in SCHED.items(): wq_retry(f"select cron.alter_job({j}, schedule := '{old}')", f"sched-{j}", 4, 20)
+    wq_retry("select cron.alter_job(16, command := $c$" + JOB16_NEW + "$c$)", "job16-cmd", 4, 20)
+    wq_retry("select cron.unschedule('aivault-log-retention-v1'); select cron.unschedule('aivault-db-health-daily-v1');", "unschedule", 4, 20)
+
+def step_daily():
+    """READ-mostly daily health: runs public.aivault_db_health_snapshot() (upserts today's row) and prints WARN lines."""
+    d = qr("select public.aivault_db_health_snapshot() s", "snapshot", 120)
+    if not d: log("WARN SNAPSHOT_FAILED (DB unreachable or slow)"); sys.exit(2)
+    s = d[0]["s"]; s = json.loads(s) if isinstance(s, str) else s
+    log("DAY", s.get("day"), "DB_BYTES", s.get("db_bytes"), f"({int(s.get('db_bytes') or 0)/1e9:.2f} GB)")
+    for k, v in sorted((s.get("top_tables") or {}).items(), key=lambda x: -int(x[1]))[:10]: log("  TABLE", k, v)
+    log("CRON_24H", json.dumps(s.get("cron_24h"))); log("HEARTBEAT_24H", json.dumps(s.get("heartbeat_24h")))
+    hb = s.get("heartbeat_24h") or {}; tot = sum(int(x) for x in hb.values()) or 1
+    log(f"HEARTBEAT_SUCCESS_RATE {100*int(hb.get('PASS',0))/tot:.1f}%")
+    for w in s.get("warnings") or []: log("WARN", w)
+    h = qr("select day, db_bytes from public.aivault_db_health_daily order by day desc limit 7", "history", 60)
+    for r in h or []: log("  HIST", r["day"], r["db_bytes"])
+    if s.get("warnings"): sys.exit(1)
+
+STEPS = {"t234fix": step_t234fix, "t234rollback": step_t234rollback, "daily": step_daily, "t234d": step_t234d, "p6": step_p6, "p2fix": step_p2fix, "p1": step_p1, "final": step_final, "accept2": step_accept2, "accept": step_accept, "inventory": step_inventory, "throttle": step_throttle, "unthrottle": step_unthrottle, "bench": step_bench, "writeload": step_writeload, "load": step_load, "pgrstfix": step_pgrstfix, "pgrst": step_pgrst, "truncjrd": step_truncjrd, "cronfix": step_cronfix, "measure": step_measure, "window": step_window, "crashlog": step_crashlog, "health": step_health, "diag": step_diag, "logs": step_logs}
 if __name__ == "__main__":
     if not TOKEN: sys.exit("TOKEN missing")
     log(f"== step {STEP} @ {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
