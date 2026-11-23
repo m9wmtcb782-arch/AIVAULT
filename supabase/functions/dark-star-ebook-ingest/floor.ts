@@ -6,6 +6,10 @@ import { webSearch } from "./web-search.ts";
 const H = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS", "Content-Type": "application/json" };
 const out = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: H });
 import { quotaSleeping, quotaHit } from "./city.ts";
+import { isSimple, smallJson, isNovelWriter, poolConfig, searchSummary } from "./smallmodel.ts";
+import { dispatchDrafts } from "./botposts.ts";
+const webResults = async (q: string) => ((await (await webSearch(new Request("http://local", { method: "POST", body: JSON.stringify({ q, n: 6 }) }))).json()).results || []);
+let CUR_AGENT: string | null = null, CUR_NOVEL = false; // t280：目前執行中的池代理（小模型路由用；暗星不經過 floor）
 const URL0 = Deno.env.get("SUPABASE_URL") || "", SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const SRH = { apikey: SR, Authorization: "Bearer " + SR, "Content-Type": "application/json" };
 async function rest(path: string, init: RequestInit = {}) {
@@ -71,7 +75,14 @@ export async function callModel(system0: string, user: string, maxTokens = 4000)
 let RR = Math.floor(Math.random() * 10);
 async function callModelRaw(system: string, user: string, maxTokens = 4000): Promise<{ v: any; model: string; usage: any }> {
   let last = "";
-  { const zz = await quotaSleeping(); if (zz) throw new Error("LLM_FAILED 429 QUOTA_SLEEP until " + new Date(zz).toISOString()); } // city1：額度睡眠中不打 Groq
+  const zz = await quotaSleeping();
+  // t280：簡單任務（短、非推理／法律／即時／小說）先給小模型；Groq 額度睡眠時，簡單任務不看 token 預算也先給小模型。失敗就走原路徑。
+  const pm = String((await poolConfig()).pool_smallmodel?.mode || "simple_first");
+  const large = CUR_AGENT ? await isNovelWriter(CUR_AGENT) : true; // t284：前 100 位（大模型組）不走小模型
+  if (CUR_AGENT && !CUR_NOVEL && !large && (pm === "small_only" || isSimple(user, maxTokens) || (zz && isSimple(user, maxTokens, true)))) {
+    const sm = await smallJson(system, user, maxTokens, CUR_AGENT).catch(() => null); if (sm) return sm;
+  }
+  if (zz) throw new Error("LLM_FAILED 429 QUOTA_SLEEP until " + new Date(zz).toISOString()); // city1：額度睡眠中不打 Groq
   const KS = envs("GROQ_API_KEY"); const off = KS.length ? (RR++ % KS.length) : 0; // pd1：輪流從不同金鑰開始，平均分攤免費額度
   for (const k of [...KS.slice(off), ...KS.slice(0, off)]) {
     try {
@@ -124,8 +135,13 @@ async function idleAgent(zone: string) {
   const a = await rest(`aivault_pool_agents?or=(id.lt.ag-1,id.gte.ah)&zone=eq.${zone}&status=eq.idle&select=id&order=updated_at.asc&limit=1`);
   return a[0]?.id || null;
 }
+async function idleWriter(zone: string) { // t281：小說優先派給 100 位小說作家
+  const ws = await rest(`aivault_pool_agent_roles?role=eq.novel_writer&select=agent_id`).catch(() => []); if (!ws.length) return null;
+  const a = await rest(`aivault_pool_agents?id=in.(${ws.map((w: any) => w.agent_id).join(",")})&zone=eq.${zone}&status=eq.idle&select=id&order=updated_at.asc&limit=1`).catch(() => []);
+  return a[0]?.id || null;
+}
 async function enqueue(zone: string, text: string, by: string | null, plan: any = null) {
-  const ag = await idleAgent(zone); if (!ag) return null;
+  const ag = (plan?.novel ? await idleWriter(zone) : null) || await idleAgent(zone); if (!ag) return null;
   await rest(`aivault_pool_agents?id=eq.${ag}`, { method: "PATCH", body: JSON.stringify({ updated_at: new Date().toISOString() }) });
   const [t] = await rest("aivault_pool_agent_tasks", { method: "POST", body: JSON.stringify({ agent_id: ag, order_text: text, zone, source: "floor", kind: "work", status: "queued", max_steps: 1, created_by: by, ...(plan ? { plan } : {}) }) });
   return t;
@@ -136,8 +152,9 @@ async function ctxText(path?: string) {
   try { const r = await fetch(REPO_RAW.replace("/main/", "/" + sha + "/") + path, { signal: AbortSignal.timeout(15000) }); if (!r.ok) return { text: "", url: null, sha: null }; const t = await r.text();
     return { text: `\n\n【AIVAULT repo 檔案：${path} @ ${sha.slice(0, 7)}（前 9000 字）】\n` + t.slice(0, 9000), url: `https://github.com/m9wmtcb782-arch/AIVAULT/blob/${sha}/${path}`, sha }; } catch { return { text: "", url: null, sha: null }; }
 }
-export async function runTask(t: any, think = callModel) {
+export async function runTask(t: any, think0 = callModel) {
   const started = new Date().toISOString();
+  let think = think0;
   const [a] = await rest(`aivault_pool_agents?id=eq.${t.agent_id}&select=*`);
   const z = ZONES.find((x) => x.key === (t.zone || a.zone)) || ZONES[0];
   await rest(`aivault_pool_agents?id=eq.${a.id}`, { method: "PATCH", body: JSON.stringify({ status: "running", updated_at: new Date().toISOString() }) });
@@ -164,6 +181,10 @@ export async function runTask(t: any, think = callModel) {
     const prev = await rest(`aivault_novel_chapters?book_id=eq.${bk.id}&ch=gte.${Math.max(1, nv.ch - 5)}&ch=lt.${nv.ch}&select=ch,title,text&order=ch.asc`);
     const last = prev[prev.length - 1];
     user = `你正在與工作區同事接力寫${bk.genre}長篇《${bk.title}》（共 ${bk.target_chapters} 章）。\n全書大綱（節錄）：\n${String(bk.outline || "").slice(0, 2500)}\n\n本章所屬篇章弧：${arc}\n近幾章標題：${prev.map((c: any) => "第" + c.ch + "章 " + (c.title || "")).join("／") || "（本章是開篇）"}\n${last ? "上一章結尾（必須自然銜接）：\n" + String(last.text).slice(-1200) + "\n" : ""}\n現在寫第 ${nv.ch} 章。繁體中文，約 ${CH_CHARS} 字（不少於 ${CH_CHARS - 500} 字），有場景、對白與內心描寫，推進篇章弧的因果，章末留鉤子${nv.ch === bk.target_chapters ? "（這是最終章，收束全書）" : ""}。只輸出 JSON：{"title":"章名","result":"本章完整正文","lesson":"一句寫作經驗"}${nv.rewrite ? "\n這是依擁有者意見重寫的一章。" : ""}${lessonText}${NOVEL_FORMAT_RULES}`; }
+  CUR_AGENT = a.id; CUR_NOVEL = !!nv;
+  if (nv && (await poolConfig()).novel_gemini?.enabled === true && await isNovelWriter(a.id)) { // t281：小說作家用 Gemini（預設關閉，待確認免費額度）
+    think = async (s0: string, u0: string, mt = 4000) => { const v = await llm(s0, u0, { maxTokens: mt }); return { v, model: String(v.__model || "gemini"), usage: null }; };
+  }
   try {
     const call = await think(sys, user, nv?.stage === "chapter" ? 8000 : 4000); const v = call.v;
     let result = String(v.result || "").trim(); if (nv?.book) result = normalizeNovelText(result); if (!nv && z.media && !result.startsWith("【企劃稿")) result = `【企劃稿・尚未生成${z.media}】\n` + result;
@@ -173,10 +194,10 @@ export async function runTask(t: any, think = callModel) {
       await rest(`aivault_pool_agent_tasks?id=eq.${t.id}`, { method: "PATCH", body: JSON.stringify({ plan: { novel: { ...nv, title } }, order_text: `📖 ${nv.genre}長篇《${title}》大綱（核准後上架連載）` }) });
       await nextChapter({ ...bk, title }, 1); }
     if (nv?.stage === "chapter" && bk) {
-      await rest("aivault_novel_chapters?on_conflict=book_id,ch", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ book_id: bk.id, ch: nv.ch, title: String(v.title || "").slice(0, 80), text: result, chars: result.length, agent_id: a.id, task_id: t.id, model: call.model, usage: call.usage }) });
+      await rest("aivault_novel_chapters?on_conflict=book_id,ch", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ book_id: bk.id, ch: nv.ch, title: String(v.title || "").slice(0, 80), text: result, chars: result.length, agent_id: a.id, task_id: t.id, model: call.model, usage: call.usage, review_status: "pending" }) });
       const cs = await rest(`aivault_novel_chapters?book_id=eq.${bk.id}&select=chars`); const done = cs.length, chars = cs.reduce((x: number, c: any) => x + (c.chars || 0), 0);
       await rest(`aivault_novel_books?id=eq.${bk.id}`, { method: "PATCH", body: JSON.stringify({ chapters_done: done, chars, status: done >= bk.target_chapters ? "done" : bk.status, updated_at: new Date().toISOString() }) });
-      if (nv.ch > PREVIEW_CHAPTERS) await rest(`aivault_pool_agent_tasks?id=eq.${t.id}`, { method: "PATCH", body: JSON.stringify({ review_status: null }) }); // 前 3 章與大綱給擁有者審，其餘章節只記帳
+      // t280：恢復人工審核——每一章都留在待審（review_status=pending），核准後才上書架（原本第 3 章後改為 null、不審）
       if (!nv.rewrite && nv.ch < bk.target_chapters && (bk.approved || nv.ch < PREVIEW_CHAPTERS)) await nextChapter(bk, nv.ch + 1); }
     if (research.length && nv?.book) await rest("aivault_pool_agent_memory", { method: "POST", body: JSON.stringify({ agent_id: a.id, kind: "research", task_id: t.id, content: `研究 ${nv.genre} 寫作：` + research.map((x: any) => x.title).join("；").slice(0, 450) }) });
     if (v.lesson) await rest("aivault_pool_agent_memory", { method: "POST", body: JSON.stringify({ agent_id: a.id, kind: "reflection", content: String(v.lesson).slice(0, 500), task_id: t.id }) });
@@ -208,13 +229,13 @@ export async function floor(r: Request) {
       if (!uu?.id) return out({ error: "login required" }, 401);
       if (a === "shelf") {
         const bks = await rest("aivault_novel_books?approved=eq.true&select=id,title,genre,outline,status,chapters_done,target_chapters,chars,updated_at&order=updated_at.desc");
-        const chs = bks.length ? await rest(`aivault_novel_chapters?book_id=in.(${bks.map((x: any) => x.id).join(",")})&select=book_id,ch,title,chars,agent_id&order=ch.asc`) : [];
+        const chs = bks.length ? await rest(`aivault_novel_chapters?book_id=in.(${bks.map((x: any) => x.id).join(",")})&or=(review_status.is.null,review_status.eq.approved)&select=book_id,ch,title,chars,agent_id&order=ch.asc`) : [];
         bks.forEach((x: any) => { x.chapters = chs.filter((c: any) => c.book_id === x.id).map((c: any) => [c.ch, c.title, c.chars, c.agent_id]); });
         return out({ ok: true, books: bks, genres: GENRES });
       }
       const id = String(b.book_id || "").replace(/[^0-9a-f-]/g, ""), ch = Math.max(1, Number(b.ch) || 1);
       const [bk] = await rest(`aivault_novel_books?id=eq.${id}&approved=eq.true&select=id,title`); if (!bk) return out({ error: "not found" }, 404);
-      const [c] = await rest(`aivault_novel_chapters?book_id=eq.${id}&ch=eq.${ch}&select=ch,title,text,chars,agent_id,model,created_at`);
+      const [c] = await rest(`aivault_novel_chapters?book_id=eq.${id}&ch=eq.${ch}&or=(review_status.is.null,review_status.eq.approved)&select=ch,title,text,chars,agent_id,model,created_at`);
       const nm = c?.agent_id ? (await rest(`aivault_pool_agents?id=eq.${c.agent_id}&select=name`))[0]?.name : null;
       return out({ ok: true, book: bk, chapter: c ? { ...c, agent_name: nm } : null });
     }
@@ -293,6 +314,7 @@ export async function floor(r: Request) {
         if (bk && d === "reject") { await rest(`aivault_novel_books?id=eq.${bk.id}`, { method: "PATCH", body: JSON.stringify({ status: "outline" }) }); await enqueue(bk.zone, `📖 依擁有者意見重寫${bk.genre}長篇大綱`, null, { novel: { stage: "outline", book: bk.id, genre: bk.genre, rewrite: true } }); } }
       if (nvr?.book && b.comment) { // 品質循環：意見寫進「這本書的守則」與全體寫作守則，之後每一章都會讀到
         await rest("aivault_pool_agent_memory", { method: "POST", body: JSON.stringify([{ agent_id: t.agent_id, kind: "book:" + nvr.book, task_id: t.id, content: `擁有者對${nvr.stage === "outline" ? "大綱" : "第" + nvr.ch + "章"}的意見：${String(b.comment).slice(0, 450)}` }, { agent_id: t.agent_id, kind: "style_guide", task_id: t.id, content: `寫作守則（擁有者）：${String(b.comment).slice(0, 450)}` }]) }); }
+      if (nvr?.stage === "chapter" && nvr.book && d !== "comment") await rest(`aivault_novel_chapters?book_id=eq.${nvr.book}&ch=eq.${nvr.ch}`, { method: "PATCH", body: JSON.stringify({ review_status: d === "approve" ? "approved" : "rejected" }) }).catch(() => null); // t280：章節審核結果決定是否上書架
       if (nvr?.stage === "chapter" && nvr.book && d === "reject") { const [bk] = await rest(`aivault_novel_books?id=eq.${nvr.book}&select=*`); if (bk) await enqueue(bk.zone, `📖 依擁有者意見重寫《${bk.title}》第 ${nvr.ch} 章`, null, { novel: { ...nvr, rewrite: true } }); }
       if (b.comment) await rest("aivault_pool_agent_memory", { method: "POST", body: JSON.stringify({ agent_id: t.agent_id, kind: "owner_feedback", content: `擁有者${d === "approve" ? "核准" : d === "reject" ? "退回" : "留言"}：${String(b.comment).slice(0, 400)}`, task_id: t.id }) });
       const [n] = await rest(`aivault_pool_agent_tasks?id=eq.${id}`, { method: "PATCH", body: JSON.stringify(patch) });
@@ -317,6 +339,46 @@ export async function floor(r: Request) {
     if (a === "approved") { // 供其他 AIVAULT 工具取用（也可直接讀 view aivault_pool_approved_outputs）
       let q = "aivault_pool_approved_outputs?select=*&order=reviewed_at.desc&limit=" + Math.min(100, Number(b.limit) || 30); if (b.zone) q += "&zone=eq." + String(b.zone).replace(/[^\w]/g, "");
       return out({ ok: true, outputs: await rest(q) });
+    }
+    // ---------- t280/t281/t282：協作池小模型（網搜摘要、機器人留言審核）----------
+    if (a === "search_summary") { // 擁有者／排程：網搜 → 小模型摘要（附來源）
+      const q = String(b.q || "").trim().slice(0, 200); if (q.length < 2) return out({ error: "q" }, 400);
+      return out(await searchSummary(q, String(b.agent_id || "research-summarizer").slice(0, 64), webResults));
+    }
+    if (a === "bot_post_dispatch") { // 暗星排程：派一小批代理寫留言草稿 → 只進待審佇列，不發布
+      // t286：前 100 位的留言只走大模型（Groq 免費層 callModelRaw；Gemini 旗標開啟才用 Gemini）。額度睡眠／失敗就跳過，不用小模型。
+      const large = async (agentId: string, asg: any) => {
+        if (await quotaSleeping()) return null;
+        const sys = "你是 AIVAULT 協作池代理，一律使用繁體中文。只輸出 JSON：{\"post\":\"一句話留言（40 字內，不含網址、不含個人資料、不做法律或醫療建議）\"}";
+        const usr = `版面：${asg.target}\n主題：${asg.topic}\n角度：${asg.angle}` + ((asg.sources || []).length ? "\n參考：\n" + asg.sources.map((x: any) => "- " + x.title).join("\n") : "");
+        const prevA = CUR_AGENT, prevN = CUR_NOVEL; CUR_AGENT = agentId; CUR_NOVEL = true; // CUR_NOVEL=true：callModelRaw 不會嘗試小模型
+        try {
+          const useGemini = (await poolConfig()).novel_gemini?.enabled === true;
+          const v = useGemini ? await llm(sys, usr, { maxTokens: 200 }) : (await callModelRaw(sys, usr, 300)).v;
+          const t = String(v?.post || "").trim(); return t ? { text: t, model: String(v?.__model || (useGemini ? "gemini" : "groq:openai/gpt-oss-120b")) } : null;
+        } catch { return null; } finally { CUR_AGENT = prevA; CUR_NOVEL = prevN; }
+      };
+      return out(await dispatchDrafts(webResults, Number(b.n) || undefined, b.dry_run === true, large));
+    }
+    if (a === "bot_post_release") { // t283：暗星指令——一次釋出已核准批次（僅擁有者；有每次／每小時／每天上限）
+      if (u.cron || !u.id) return out({ error: "owner only" }, 403);
+      return out(await rest("rpc/aivault_bot_post_release", { method: "POST", body: JSON.stringify({ p_limit: Math.min(1000, Number(b.n) || 50), p_actor: "technical-dark-star:" + u.id }) }));
+    }
+    if (a === "bot_posts") {
+      const st = ["pending", "blocked", "approved", "rejected", "posted", "failed"].includes(String(b.status)) ? String(b.status) : "pending";
+      return out({ ok: true, posts: await rest(`aivault_bot_posts?status=eq.${st}&select=*&order=created_at.desc&limit=${Math.min(200, Number(b.limit) || 50)}`) });
+    }
+    if (a === "bot_post_review") { // 只有擁有者／管理員（不接受排程金鑰）
+      if (u.cron || !u.id) return out({ error: "owner only" }, 403);
+      const id = Number(b.post_id) || 0; const d = String(b.decision || "");
+      if (!["approve", "reject"].includes(d)) return out({ error: "decision" }, 400);
+      const [p] = await rest(`aivault_bot_posts?id=eq.${id}&select=*`); if (!p) return out({ error: "not found" }, 404);
+      if (!["pending", "approved", "blocked"].includes(p.status)) return out({ error: "status " + p.status }, 409);
+      if (d === "approve" && p.status === "blocked" && b.override !== true) return out({ error: "blocked by checks: " + (p.checks?.issues || []).join(",") }, 409);
+      await rest(`aivault_bot_posts?id=eq.${id}`, { method: "PATCH", body: JSON.stringify({ status: d === "approve" ? "approved" : "rejected", reviewed_by: u.id, reviewed_at: new Date().toISOString(), review_comment: String(b.comment || "").slice(0, 500) || null }) });
+      await rest("aivault_audit_events", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ actor: u.id, action: "bot_post_" + d, target: "bot_post:" + id, detail: { agent_id: p.agent_id } }) }).catch(() => null);
+      const pub = d === "approve" ? await rest("rpc/aivault_bot_post_publish", { method: "POST", body: JSON.stringify({ p_id: id, p_actor: u.id }) }) : null;
+      return out({ ok: true, post_id: id, decision: d, publish: pub });
     }
     if (a === "enqueue") {
       const z = ZONES.find((x) => x.key === b.zone); const text = String(b.text || "").trim().slice(0, 2000);
