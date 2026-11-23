@@ -13,7 +13,7 @@
   var CFG = 'https://clcddygkaaqqtsbswgdf.supabase.co/functions/v1/aivault-weather/config';
   var MOB = /iPhone|iPad|Android/i.test(navigator.userAgent) || Math.min(innerWidth, innerHeight) < 560;
   var RM = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var CENTER = { lat: +(Q.get('lat') || 25.0560), lng: +(Q.get('lng') || 121.5400) }, Z0 = Q.get('z') ? +Q.get('z') : null, PI = Math.PI;
+  var CENTER = { lat: +(Q.get('lat') || 25.0600), lng: +(Q.get('lng') || 121.5450) }, Z0 = Q.get('z') ? +Q.get('z') : null, PI = Math.PI;
   var $ = function (id) { return document.getElementById(id); };
   var T = window.AIVAULT_TPE = { stats: {}, base: null };
   var SELF = (document.currentScript && document.currentScript.src) || location.href;
@@ -74,7 +74,7 @@
       window.__aivTpeG = function () {
         try {
           var g = google.maps, el = freshMapDiv();
-          var opt = { center: CENTER, zoom: Z0 || 13, mapTypeId: 'hybrid', gestureHandling: 'greedy', disableDefaultUI: true, zoomControl: !MOB, scaleControl: true, clickableIcons: false, keyboardShortcuts: true, tilt: 0, heading: 0, backgroundColor: '#0d1420' };
+          var opt = { center: CENTER, zoom: Z0 || 15, mapTypeId: 'hybrid', gestureHandling: 'greedy', disableDefaultUI: true, zoomControl: !MOB, scaleControl: true, clickableIcons: false, keyboardShortcuts: true, tilt: 0, heading: 0, backgroundColor: '#0d1420' };
           if (cfg.mapId) opt.mapId = cfg.mapId;
           var map = new g.Map(el, opt);
           var ov = new g.OverlayView(), items = [], root = document.createElement('div'); root.className = 'tpe-ov'; root.style.position = 'absolute';
@@ -108,7 +108,7 @@
     loadCss('https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css');
     return loadScript('https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js').then(function () {
       var el = freshMapDiv(), L = window.L;
-      var map = L.map(el, { center: [CENTER.lat, CENTER.lng], zoom: Z0 || 13, maxZoom: 20, minZoom: 10, zoomControl: !MOB, attributionControl: true, zoomSnap: 0.25, wheelPxPerZoomLevel: 90 });
+      var map = L.map(el, { center: [CENTER.lat, CENTER.lng], zoom: Z0 || 15, maxZoom: 20, minZoom: 10, zoomControl: !MOB, attributionControl: true, zoomSnap: 0.25, wheelPxPerZoomLevel: 90 });
       var NL = '<a href="https://maps.nlsc.gov.tw/" target="_blank" rel="noopener">內政部國土測繪中心</a> 臺灣通用電子地圖正射影像（PHOTO2）／電子地圖透明圖層（EMAP12），依<a href="https://data.gov.tw/license" target="_blank" rel="noopener">政府資料開放授權條款－第1版</a>';
       L.tileLayer('https://wmts.nlsc.gov.tw/wmts/PHOTO2/default/GoogleMapsCompatible/{z}/{y}/{x}', { maxNativeZoom: 20, maxZoom: 20, attribution: NL }).addTo(map);
       L.tileLayer('https://wmts.nlsc.gov.tw/wmts/EMAP12/default/GoogleMapsCompatible/{z}/{y}/{x}', { maxNativeZoom: 19, maxZoom: 20, opacity: .95 }).addTo(map);
@@ -255,8 +255,8 @@
     var use3d = want3d(V.z) && T3, list3 = [], drawn = 0, M = 60;
     // 我的位置誤差圈
     if (ME && ME.acc) { var p0 = scr(V, wx(ME.lng), wy(ME.lat)), r0 = ME.acc / mpp(V, ME.lat); cx.beginPath(); cx.arc(p0[0], p0[1], Math.max(r0, 6), 0, 2 * PI); cx.fillStyle = 'rgba(47,124,246,.16)'; cx.fill(); cx.lineWidth = 1.5; cx.strokeStyle = 'rgba(47,124,246,.55)'; cx.stroke(); }
-    for (var i = 0; i < E.length && drawn < BUDGET; i++) {
-      var e = E[i], p = scr(V, e.x, e.y); if (p[0] < -M || p[1] < -M || p[0] > V.w + M || p[1] > V.h + M) continue;
+    for (var i = 0; i < E.length; i++) {
+      var e = E[i]; if (drawn >= BUDGET && e.t !== 'train' && e.t !== 'plane' && e.t !== 'bus') continue; var p = scr(V, e.x, e.y); if (p[0] < -M || p[1] < -M || p[0] > V.w + M || p[1] > V.h + M) continue;
       var ang = Math.atan2(e.dy, e.dx), m = mpp(V, e.lat), nx = -Math.sin(ang), ny = Math.cos(ang);
       var lane = e.t === 'train' ? 3.5 / m + 2 : e.t === 'bus' || e.t === 'car' ? 3 / m + 1.5 : e.t === 'plane' ? 0 : e.side * 2 / m;
       e.sx = p[0] + nx * lane * (e.side > 0 ? 1 : -1) * (e.t === 'student' || e.t === 'people' ? 0 : 1) + (e.t === 'student' || e.t === 'people' ? nx * lane : 0); e.sy = p[1] + ny * lane * (e.side > 0 ? 1 : -1) * (e.t === 'student' || e.t === 'people' ? 0 : 1) + (e.t === 'student' || e.t === 'people' ? ny * lane : 0);
@@ -264,14 +264,14 @@
       var human = e.t === 'student' || e.t === 'people';
       if (use3d && (human ? V.z >= 16 : true)) { list3.push(e); cx.beginPath(); cx.ellipse(e.sx, e.sy + 1, human ? 5 : 7, human ? 2.2 : 3, 0, 0, 2 * PI); cx.fillStyle = 'rgba(0,0,0,.22)'; cx.fill(); continue; }
       cx.save(); cx.translate(e.sx, e.sy);
-      if (human) { cx.beginPath(); cx.arc(0, 0, V.z >= 15 ? 3.2 : 2.4, 0, 2 * PI); cx.fillStyle = e.t === 'student' ? 'rgba(96,165,250,.95)' : 'rgba(255,214,120,.95)'; cx.shadowColor = 'rgba(0,0,0,.5)'; cx.shadowBlur = 3; cx.fill(); }
+      if (human) { cx.beginPath(); cx.arc(0, 0, V.z >= 15 ? 4.5 : 3.5, 0, 2 * PI); cx.fillStyle = e.t === 'student' ? 'rgba(96,165,250,.95)' : 'rgba(255,214,120,.95)'; cx.shadowColor = 'rgba(0,0,0,.5)'; cx.shadowBlur = 3; cx.fill(); }
       else if (e.t === 'plane') {
-        var sc = Math.max(1, 34 / m / 40) * (1 + e.alt / 900 * .6), k = Math.max(16, 37 / m) * (1 + e.alt / 1500);
+        var sc = Math.max(1, 34 / m / 40) * (1 + e.alt / 900 * .6), k = Math.max(30, 37 / m) * (1 + e.alt / 1500);
         cx.globalAlpha = Math.max(0, Math.min(1, e.op));
         cx.save(); cx.translate(e.alt / 60, e.alt / 45); cx.rotate(ang); cx.fillStyle = 'rgba(0,0,0,.28)'; planePath(cx, k); cx.fill(); cx.restore();
         cx.rotate(ang); cx.fillStyle = '#fff'; cx.strokeStyle = '#1f2937'; cx.lineWidth = 1; planePath(cx, k); cx.fill(); cx.stroke();
       } else {
-        cx.rotate(ang); var Lp = e.t === 'train' ? Math.max(14, 60 / m) : e.t === 'bus' ? Math.max(7, 12 / m) : Math.max(4, 4.5 / m), Wp = e.t === 'train' ? Math.max(4.5, 3.2 / m) : e.t === 'bus' ? Math.max(3.5, 2.6 / m) : Math.max(2.6, 1.9 / m);
+        cx.rotate(ang); var Lp = e.t === 'train' ? Math.max(24, 60 / m) : e.t === 'bus' ? Math.max(14, 12 / m) : Math.max(10, 4.5 / m), Wp = e.t === 'train' ? Math.max(8, 3.2 / m) : e.t === 'bus' ? Math.max(6.5, 2.6 / m) : Math.max(5.5, 1.9 / m);
         cx.shadowColor = 'rgba(0,0,0,.45)'; cx.shadowBlur = 3; rr(cx, -Lp / 2, -Wp / 2, Lp, Wp, Wp / 2); cx.fillStyle = e.t === 'car' ? CARC[e.v] : e.c; cx.fill();
         if (e.t !== 'car') { cx.shadowBlur = 0; cx.lineWidth = 1; cx.strokeStyle = 'rgba(255,255,255,.9)'; cx.stroke(); }
       }
