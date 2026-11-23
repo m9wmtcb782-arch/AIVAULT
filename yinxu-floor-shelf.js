@@ -17,7 +17,10 @@
   css.textContent = '.yfs-tabs{display:flex;gap:6px;overflow-x:auto;padding:4px 0 10px;-webkit-overflow-scrolling:touch}.yfs-tab{flex:none;border:1px solid #273244;background:#0f1520;color:#e5e7eb;border-radius:999px;padding:6px 12px;font:inherit;font-size:14px}.yfs-tab.on{background:#a78bfa;color:#0b0b12;border-color:#a78bfa}' +
     '.yfs-h{margin:18px 0 8px;font-size:16px}.yfs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}.yfs-book{border:1px solid #1f2937;border-radius:12px;padding:10px;background:#0c111a;text-align:left;color:inherit;font:inherit}' +
     '.yfs-g{font-size:12px;border-radius:6px;padding:1px 6px;background:#1f2937}.yfs-s{font-size:12px;color:#fbbf24}.yfs-read{position:fixed;inset:0;z-index:50;background:#07090d;overflow:auto;padding:calc(env(safe-area-inset-top) + 10px) 16px 40px}.yfs-read .tx{white-space:pre-wrap;line-height:1.9;font-size:17px;max-width:720px;margin:0 auto}' +
-    '.yfs-nav{display:flex;gap:8px;justify-content:space-between;max-width:720px;margin:12px auto}.yfs-nav button,.yfs-nav select{border:1px solid #273244;background:#151c29;color:#e5e7eb;border-radius:10px;padding:8px 12px;font:inherit}';
+    '.yfs-nav{display:flex;gap:8px;justify-content:space-between;max-width:720px;margin:12px auto}.yfs-nav button,.yfs-nav select{border:1px solid #273244;background:#151c29;color:#e5e7eb;border-radius:10px;padding:8px 12px;font:inherit}' +
+    '.yfs-cm{max-width:720px;margin:18px auto 0;border-top:1px solid #1f2937;padding-top:12px}.yfs-cm h4{margin:0 0 8px;font-size:15px}.yfs-ci{border:1px solid #1f2937;border-radius:10px;padding:8px 10px;margin:8px 0;background:#0c111a}.yfs-ci.ai{border-color:#4c1d95;background:#120d22}' +
+    '.yfs-badge{display:inline-block;font-size:11px;border-radius:6px;padding:1px 6px;background:#6d28d9;color:#fff;margin-right:6px}.yfs-q{font-size:13px;color:#a1a1aa;border-left:2px solid #6d28d9;padding-left:8px;margin-top:4px}' +
+    '.yfs-cf textarea{width:100%;box-sizing:border-box;min-height:64px;border:1px solid #273244;background:#0f1520;color:#e5e7eb;border-radius:10px;padding:8px;font:inherit}.yfs-cf button{margin-top:6px;border:1px solid #273244;background:#a78bfa;color:#0b0b12;border-radius:10px;padding:6px 12px;font:inherit}';
   document.head.appendChild(css);
   var shelf = document.getElementById('shelf'); if (!shelf) return;
   var tabs = document.createElement('div'); tabs.className = 'yfs-tabs'; shelf.parentNode.insertBefore(tabs, shelf);
@@ -42,7 +45,19 @@
       rd.querySelectorAll('[data-x]').forEach(function (el) { var x = el.dataset.x;
         if (x === 'sel') el.onchange = function () { read(id, Number(el.value)); };
         else el.onclick = function () { if (x === 'close') rd.style.display = 'none'; if (x === 'prev') read(id, ch - 1); if (x === 'next') read(id, ch + 1); }; });
-      rd.scrollTop = 0; } catch (e) { rd.innerHTML = '<p>載入失敗：' + esc(e.message) + ' <button onclick="this.closest(\'.yfs-read\').style.display=\'none\'">關閉</button></p>'; } }
+      rd.scrollTop = 0; comments(id, ch); } catch (e) { rd.innerHTML = '<p>載入失敗：' + esc(e.message) + ' <button onclick="this.closest(\'.yfs-read\').style.display=\'none\'">關閉</button></p>'; } }
+  // t295：章節留言區（人類＋AI 書評；AI 一律標示「🤖 AI 書評」、模型與引用原文）。只顯示已核准留言。
+  async function comments(id, ch) { if (!rd) return; var sec = document.createElement('section'); sec.className = 'yfs-cm'; sec.innerHTML = '<h4>💬 本章留言</h4><div class="yfs-cl muted">載入留言中…</div>' +
+      '<form class="yfs-cf"><textarea maxlength="500" placeholder="寫下你對這一章的想法（500 字內；經自動檢查後顯示）"></textarea><button type="submit">送出留言</button> <small class="muted yfs-cs" role="status"></small></form>';
+    var tx = rd.querySelector('.tx'); if (tx) tx.appendChild(sec); var list = sec.querySelector('.yfs-cl');
+    async function load() { try { var d = await api('novel_comments', { book_id: id, ch: ch }); var cs = d.comments || [];
+        list.innerHTML = cs.length ? cs.map(function (c) { var ai = c.author_kind === 'ai';
+          return '<div class="yfs-ci' + (ai ? ' ai' : '') + '">' + (ai ? '<span class="yfs-badge" title="由 AI 協作池代理產生，經人工審核後發布">' + esc(c.ai_label || '🤖 AI 書評') + '</span>' : '') + '<b>' + esc(c.display_name) + '</b> <small class="muted">' + (c.ch ? '第' + c.ch + '章 · ' : '') + new Date(c.created_at).toLocaleDateString('zh-TW') + (ai && c.model ? ' · ' + esc(c.model) : '') + '</small><div>' + esc(c.body) + '</div>' + (ai && c.quote ? '<div class="yfs-q">引用原文：「' + esc(c.quote) + '」</div>' : '') + '</div>'; }).join('') : '<p class="muted">還沒有留言，來寫第一則吧。</p>';
+      } catch (e) { list.textContent = '留言暫時無法載入。'; } }
+    sec.querySelector('form').onsubmit = async function (ev) { ev.preventDefault(); var ta = sec.querySelector('textarea'), st = sec.querySelector('.yfs-cs'), body = ta.value.trim(); if (!body) return;
+      try { var r = await api('novel_comment', { book_id: id, ch: ch, body: body }); ta.value = ''; st.textContent = r.status === 'approved' ? '已送出。' : '已送出，待審核後顯示。'; load(); }
+      catch (e) { st.textContent = /rate/.test(e.message) ? '留言太頻繁，請稍後再試。' : (/login/.test(e.message) ? '請先登入。' : '送出失敗：' + e.message); } };
+    load(); }
   var notice = document.createElement('p'); notice.className = 'muted'; notice.setAttribute('role', 'status'); box.parentNode.insertBefore(notice, box);
   async function load() {
     notice.textContent = '正在載入已核准小說…';

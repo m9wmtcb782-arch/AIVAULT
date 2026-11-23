@@ -15,8 +15,18 @@ function relevant(q: string, t: string) {
   const hit = keys.filter((k) => t.includes(k)).length;
   return hit >= Math.max(1, Math.ceil(keys.length / 2));
 }
+const URL0 = Deno.env.get("SUPABASE_URL") || "", SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+// t280：公開入口限流（每 IP 每分鐘 20 次、全站每小時 600 次）；內部呼叫（http://local）不限。限流表未就緒時放行，不影響既有功能。
+async function rateOk(bucket: string, limit: number, win: number) {
+  try { const x = await fetch(URL0 + "/rest/v1/rpc/aivault_rate_hit", { method: "POST", headers: { apikey: SR, Authorization: "Bearer " + SR, "Content-Type": "application/json" }, body: JSON.stringify({ p_bucket: bucket, p_limit: limit, p_window_s: win }) });
+    if (!x.ok) return true; return (await x.json()) !== false; } catch { return true; }
+}
 export async function webSearch(r: Request) {
   if (r.method === "OPTIONS") return new Response("ok", { headers: H });
+  if (new URL(r.url).host !== "local") {
+    const ip = (r.headers.get("x-forwarded-for") || r.headers.get("cf-connecting-ip") || "?").split(",")[0].trim().slice(0, 64);
+    if (!(await rateOk("ws:ip:" + ip, 20, 60)) || !(await rateOk("ws:global", 600, 3600))) return out({ error: "rate limited" }, 429);
+  }
   try {
     const b = await r.json().catch(() => ({}));
     const q = String(b.q || "").trim().slice(0, 200);

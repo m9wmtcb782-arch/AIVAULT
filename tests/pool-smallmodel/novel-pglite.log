@@ -1,0 +1,33 @@
+MIGRATIONS applied ms 75
+PASS roster: 1000 reviewers, none in top-100, none authors, none spawned {"n":1000,"top100":0,"authors":0,"spawned":0}
+PASS roster deterministic (md5(id) order, re-computable) 
+PASS fill is idempotent (still 1000) 
+PASS t297 mixed roster: 100 large-model + 900 small-model reviewers, no top-100 writers {"large":100,"small":900,"large_in_top100":0}
+PASS DB rejects review by top-100 large-model novel writer (ag-00001) 
+PASS DB rejects review by chapter author (ag-00150) 
+PASS DB rejects review by outline author (ag-00200) 
+PASS DB rejects review by non-roster agent ag-00101 
+PASS roster reviewer can submit a pending review ag-00858 
+PASS DB rejects direct AI comment by author in comments table 
+PASS DB rejects AI comment without AI label/model 
+PASS reviewer who writes a chapter leaves the roster 
+PASS …and can no longer review 
+PASS roster refilled back to 1000 by fill() 
+PASS world-chat release never takes novel reviews {"ok":true,"limit":200,"released":0}
+PASS release capped at max_release_per_command=50 {"ok":true,"limit":50,"released":50} ms 7
+PASS second command releases remaining 10 (unapproved book B2 never released) {"ok":true,"limit":50,"released":10}
+PASS released rows are labelled AI with model + quote {"n":60,"labelled":60}
+PASS anon sees only approved comments of approved books rows 61
+PASS anon cannot insert 
+PASS anon cannot read roster 
+PASS member sees the same 61 approved 
+PASS member cannot approve/update 
+PASS owner sees pending too (62) 
+PASS audit log written for each release 
+PASS before purge: expired rows already hidden by restrictive RLS (human chat still visible) {"novel_visible":41,"old_ai":0,"human_old":1}
+PASS purge deletes exactly the expired comment rows {"ok":true,"cutoff":"2026-11-16T08:50:24.612+00:00","bot_posts":30,"world_chat_ai":1,"novel_comments":20}
+PASS purge leaves novels, chapters, ebooks, pages, agents, roster, human chat and fresh comments untouched {"b":2,"c":3,"e":1,"p":1,"ag":3000,"rv":1000,"human_chat":1,"nc_fresh":42,"bp_fresh":32,"wc_ai_fresh":1}
+PASS no expired comment rows remain 
+PASS second purge is a no-op 
+PASS rollback removes new objects; existing novels/chapters unchanged {"b":2,"c":2,"h":"f27718b7596c0d06e099a8c2bb875b58"}
+RESULT 31 passed, 0 failed
