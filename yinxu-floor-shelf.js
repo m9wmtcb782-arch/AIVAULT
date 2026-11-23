@@ -26,6 +26,11 @@
   var tabs = document.createElement('div'); tabs.className = 'yfs-tabs'; shelf.parentNode.insertBefore(tabs, shelf);
   var box = document.createElement('div'); shelf.parentNode.insertBefore(box, shelf.nextSibling);
   var books = [], genres = [], cur = '全部';
+  var FAVK = 'aivaultLibraryFavs'; // t318：與電子書架共用同一收藏清單（royal-library.js persist() 寫入 aivaultLibraryFavs）；AI 小說 id＝電子書 id
+  function favs() { try { var a = JSON.parse(localStorage.getItem(FAVK) || '[]'); return Array.isArray(a) ? a.filter(function (x) { return typeof x === 'string'; }) : []; } catch (e) { return []; } }
+  function isFav(id) { return favs().indexOf(id) >= 0; }
+  function toggleFav(id) { var a = favs(), i = a.indexOf(id); if (i >= 0) a.splice(i, 1); else a.push(id); try { localStorage.setItem(FAVK, JSON.stringify(a)); } catch (e) {} return i < 0; }
+  if (typeof window !== 'undefined') window.__yfsFav = { favs: favs, isFav: isFav, toggleFav: toggleFav };
   function drawTabs() { var list = (standalone ? ['全部'] : ['全部', '因序互動']).concat(genres.filter(function (g) { return books.some(function (b) { return b.genre === g; }); }));
     tabs.innerHTML = list.map(function (g) { return '<button class="yfs-tab' + (g === cur ? ' on' : '') + '" data-g="' + esc(g) + '">' + esc(g) + (g !== '全部' && g !== '因序互動' ? ' ' + books.filter(function (b) { return b.genre === g; }).length : '') + '</button>'; }).join(''); }
   function draw() { drawTabs(); shelf.style.display = (cur === '全部' || cur === '因序互動') ? '' : 'none';
@@ -41,11 +46,11 @@
     rd.style.display = 'block'; rd.innerHTML = '<p class="muted">載入中…</p>';
     try { var d = await api('shelf_chapter', { book_id: id, ch: ch }), c = d.chapter;
       var opts = b.chapters.map(function (x) { return '<option value="' + x[0] + '"' + (x[0] === ch ? ' selected' : '') + '>第' + x[0] + '章 ' + esc(x[1] || '') + '</option>'; }).join('');
-      var nav = '<div class="yfs-nav"><button data-x="close">✕ 關閉</button><select data-x="sel">' + opts + '</select><span><button data-x="prev"' + (ch <= 1 ? ' disabled' : '') + '>‹</button> <button data-x="next"' + (ch >= b.chapters.length ? ' disabled' : '') + '>›</button></span></div>';
+      var nav = '<div class="yfs-nav"><button data-x="close">✕ 關閉</button><button data-x="fav">' + (isFav(id) ? '★ 取消收藏' : '☆ 加入收藏') + '</button><select data-x="sel">' + opts + '</select><span><button data-x="prev"' + (ch <= 1 ? ' disabled' : '') + '>‹</button> <button data-x="next"' + (ch >= b.chapters.length ? ' disabled' : '') + '>›</button></span></div>';
       rd.innerHTML = nav + '<div class="tx"><h2>《' + esc(b.title) + '》</h2>' + (c ? '<h3>第' + c.ch + '章 ' + esc(c.title || '') + '</h3><p class="muted" style="font-size:13px">執筆：' + esc(c.agent_name || c.agent_id) + ' · ' + esc(c.model || '') + ' · ' + c.chars + ' 字</p>' + esc(c.text) : '<p class="muted">這一章還在寫。</p>') + '</div>' + nav;
       rd.querySelectorAll('[data-x]').forEach(function (el) { var x = el.dataset.x;
         if (x === 'sel') el.onchange = function () { read(id, Number(el.value)); };
-        else el.onclick = function () { if (x === 'close') rd.style.display = 'none'; if (x === 'prev') read(id, ch - 1); if (x === 'next') read(id, ch + 1); }; });
+        else el.onclick = function () { if (x === 'close') rd.style.display = 'none'; if (x === 'fav') { el.textContent = toggleFav(id) ? '★ 取消收藏' : '☆ 加入收藏'; } if (x === 'prev') read(id, ch - 1); if (x === 'next') read(id, ch + 1); }; });
       rd.scrollTop = 0; comments(id, ch); } catch (e) { rd.innerHTML = '<p>載入失敗：' + esc(e.message) + ' <button onclick="this.closest(\'.yfs-read\').style.display=\'none\'">關閉</button></p>'; } }
   // t295：章節留言區（人類＋AI 書評；AI 一律標示「🤖 AI 書評」、模型與引用原文）。只顯示已核准留言。
   async function comments(id, ch) { if (!rd) return; var sec = document.createElement('section'); sec.className = 'yfs-cm'; sec.innerHTML = '<h4>💬 本章留言</h4><div class="yfs-cl muted">載入留言中…</div>' +

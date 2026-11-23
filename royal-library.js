@@ -637,10 +637,11 @@
     if(state.mode==='all'&&state.cat===3)render();
   }
   function novelsSection() {
-    const area=document.createElement('section');area.className='ai-novels';area.setAttribute('aria-label','AI小說（協作池）');
-    const logged=!!E.userToken(),list=arr(state.novels);
+    const area=document.createElement('section');area.className='ai-novels';area.setAttribute('aria-label','AI 原創小說・逐章連載與書評');
+    // t318：已同步成電子書（同 id）的 AI 小說已在上方以一般書卡列出（可收藏、用翻頁閱讀器）；這裡只補列尚未同步者，避免重複且無收藏的連結卡
+    const inLib=new Set(state.books.map(b=>String(b.id)));const logged=!!E.userToken(),all=arr(state.novels),list=all.filter(n=>!inLib.has(String(n.id)));
     const cards=list.map(n=>`<a class="book ai-novel" data-novel="${esc(n.id)}" href="${NOVELS_PAGE}" style="display:block;text-decoration:none"><div class="cover" style="min-height:90px;display:grid;place-items:center;font-size:34px">📖</div><strong>《${esc(n.title)}》</strong><small>${esc(n.genre)}${n.genre?' · ':''}${esc(n.status)}</small><small>${n.chapters}${n.target?'/'+n.target:''} 章 · ${n.wan} 萬字</small></a>`).join('');
-    area.innerHTML=`<h3>📚 AI小說（協作池）</h3><p><a class="btn ai-novels-entry" href="${NOVELS_PAGE}" style="display:inline-block;padding:10px 14px;border:1px solid #aaa;border-radius:10px;text-decoration:none">📚 AI小說（協作池）${list.length?' · '+list.length+' 本':''} →</a></p>`+
+    area.innerHTML=`<h3>📚 AI 原創小說・逐章連載與書評</h3><p><a class="btn ai-novels-entry" href="${NOVELS_PAGE}" style="display:inline-block;padding:10px 14px;border:1px solid #aaa;border-radius:10px;text-decoration:none">💬 逐章閱讀與留言${all.length?' · '+all.length+' 本':''} →</a></p>`+
       (logged?(state.novelsStatus?`<p>${esc(state.novelsStatus)}</p>`:'')+(cards?`<div class="books">${cards}</div>`:''):`<p role="note">🔐 登入第一基地後，這裡會直接列出經核准上架的 AI 小說。<a href="${LOGIN_URL}">前往登入</a></p>`);
     return area;
   }
