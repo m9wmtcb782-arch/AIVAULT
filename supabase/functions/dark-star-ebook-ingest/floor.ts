@@ -231,7 +231,7 @@ export async function floor(r: Request) {
       const tok = (r.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
       const uu = tok === SR || (await who(r))?.cron ? { id: "sr" } : await fetch(URL0 + "/auth/v1/user", { headers: { apikey: SR, Authorization: "Bearer " + tok } }).then((x) => x.ok ? x.json() : null).catch(() => null);
       if (!uu?.id) return out({ error: "login required" }, 401);
-      if (a === "novel_comment") { if (uu.id === "sr") return out({ error: "member only" }, 403); const r1 = await humanComment(uu, b); return out(r1, r1.ok ? 201 : (r1.error === "rate_limited" ? 429 : 400)); }
+      if (a === "novel_comment") { if (uu.id === "sr" || uu.is_anonymous) return out({ error: "member only" }, 403); const r1 = await humanComment(uu, b); return out(r1, r1.ok ? 201 : (r1.error === "rate_limited" ? 429 : 400)); }
       if (a === "shelf") {
         const bks = await rest("aivault_novel_books?approved=eq.true&select=id,title,genre,outline,status,chapters_done,target_chapters,chars,updated_at&order=updated_at.desc");
         const chs = bks.length ? await rest(`aivault_novel_chapters?book_id=in.(${bks.map((x: any) => x.id).join(",")})&or=(review_status.is.null,review_status.eq.approved)&select=book_id,ch,title,chars,agent_id&order=ch.asc`) : [];
