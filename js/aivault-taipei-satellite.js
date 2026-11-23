@@ -1,6 +1,6 @@
 /* AIVAULT 臺北衛星地圖 v1
  * 底圖：Google Maps JS API（mapTypeId 'hybrid'，金鑰執行時從 aivault-weather/config 取得，不寫死、不輸出）。
- *       取不到金鑰或 Google 載入／驗證失敗 → 整個換成國土測繪中心 PHOTO2 正射影像（Leaflet），兩者絕不同畫面混用。
+ *       預設：國土測繪中心 PHOTO2 正射影像＋EMAP12 標註（免費、零 Google 載入）；加 ?map=google 才載入 Google，兩者絕不同畫面混用。
  * 疊加：地標（HTML，向量文字）、捷運線與依班距模擬列車、松山機場起降模擬、公車／汽車／學生／行人模擬、
  *       我的位置（watchPosition）＋指南針（DeviceOrientation）——位置只在本機，不儲存、不上傳。
  * 3D：縮放 ≥ 15 時載入 js/aivault-taipei-satellite-3d.js（Three.js，Kenney CC0 骨架動畫人物與車輛）。
@@ -61,7 +61,7 @@
   function loadCss(href) { var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); }
 
   function getKey() {
-    if (Q.get('base') === 'nlsc') return Promise.reject(new Error('?base=nlsc'));
+    if (Q.get('map') !== 'google') return Promise.reject(new Error('免費底圖（預設；Google 需加 ?map=google）'));
     var ac = window.AbortController ? new AbortController() : null; if (ac) setTimeout(function () { ac.abort(); }, 8000);
     return fetch(CFG, { cache: 'no-store', signal: ac && ac.signal }).then(function (r) { if (!r.ok) throw new Error('金鑰設定讀取失敗 HTTP ' + r.status); return r.json(); })
       .then(function (j) { var k = j && (j.maps_js_key || j.map_tiles_key); if (!k) throw new Error('後端沒有 Google 金鑰'); return { key: k, mapId: Q.get('mapId') || j.map_id || '' }; });
@@ -110,7 +110,7 @@
       var el = freshMapDiv(), L = window.L;
       var map = L.map(el, { center: [CENTER.lat, CENTER.lng], zoom: Z0 || 13, maxZoom: 20, minZoom: 10, zoomControl: !MOB, attributionControl: true, zoomSnap: 0.25, wheelPxPerZoomLevel: 90 });
       var NL = '<a href="https://maps.nlsc.gov.tw/" target="_blank" rel="noopener">內政部國土測繪中心</a> 臺灣通用電子地圖正射影像（PHOTO2）／電子地圖透明圖層（EMAP12），依<a href="https://data.gov.tw/license" target="_blank" rel="noopener">政府資料開放授權條款－第1版</a>';
-      L.tileLayer('https://wmts.nlsc.gov.tw/wmts/PHOTO2/default/GoogleMapsCompatible/{z}/{y}/{x}', { maxNativeZoom: 19, maxZoom: 20, attribution: NL }).addTo(map);
+      L.tileLayer('https://wmts.nlsc.gov.tw/wmts/PHOTO2/default/GoogleMapsCompatible/{z}/{y}/{x}', { maxNativeZoom: 20, maxZoom: 20, attribution: NL }).addTo(map);
       L.tileLayer('https://wmts.nlsc.gov.tw/wmts/EMAP12/default/GoogleMapsCompatible/{z}/{y}/{x}', { maxNativeZoom: 19, maxZoom: 20, opacity: .95 }).addTo(map);
       L.control.scale({ imperial: false }).addTo(map);
       A = {
@@ -124,7 +124,7 @@
         renderingType: function () { return 'RASTER（Leaflet）'; }, destroy: function () { map.remove(); }
       };
       T.base = 'nlsc';
-      status('備援底圖：國土測繪中心正射影像（' + reason + '）', false, false);
+      status('底圖：國土測繪中心正射影像＋電子地圖標註（' + reason + '）', false, false);
     });
   }
 
