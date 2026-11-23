@@ -69,12 +69,15 @@ export const ZONES: Z[] = [
 ];
 const envs = (b: string) => [b, ...Array.from({ length: 9 }, (_, i) => b + "_" + (i + 1))].map((n) => Deno.env.get(n) || "").filter((v, i, a) => v && a.indexOf(v) === i);
 // 真實模型呼叫：回傳 JSON、模型名稱與 token 用量（Groq 免費層 gpt-oss-120b；失敗才退回共用 llm，該情況用量記為 null）
-export async function callModel(system0: string, user: string, maxTokens = 4000): Promise<{ v: any; model: string; usage: any }> {
+// tb1：deadline（epoch ms，可省略）＝ cycle 時間預算；只有 cycle 傳入，其他呼叫者行為不變。
+export async function callModel(system0: string, user: string, maxTokens = 4000, deadline = 0): Promise<{ v: any; model: string; usage: any }> {
   const os = await ordersFor(system0).catch(() => []); const system = system0 + orderBlock(os); // so1：長期命令
-  const res = await callModelRaw(system, user, maxTokens); await logOrders(os, system0, res.v, res.model); return res;
+  const res = await callModelRaw(system, user, maxTokens, deadline); await logOrders(os, system0, res.v, res.model); return res;
 }
 let RR = Math.floor(Math.random() * 10);
-async function callModelRaw(system: string, user: string, maxTokens = 4000): Promise<{ v: any; model: string; usage: any }> {
+async function callModelRaw(system: string, user: string, maxTokens = 4000, deadline = 0): Promise<{ v: any; model: string; usage: any }> {
+  const left = () => (deadline ? deadline - Date.now() : Infinity);
+  if (left() < 25000) throw new Error("BUDGET_EXHAUSTED before model call");
   let last = "";
   const zz = await quotaSleeping();
   // t280：簡單任務（短、非推理／法律／即時／小說）先給小模型；Groq 額度睡眠時，簡單任務不看 token 預算也先給小模型。失敗就走原路徑。
@@ -87,7 +90,7 @@ async function callModelRaw(system: string, user: string, maxTokens = 4000): Pro
   const KS = envs("GROQ_API_KEY"); const off = KS.length ? (RR++ % KS.length) : 0; // pd1：輪流從不同金鑰開始，平均分攤免費額度
   for (const k of [...KS.slice(off), ...KS.slice(0, off)]) {
     try {
-      const r = await fetch("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { Authorization: "Bearer " + k, "Content-Type": "application/json" }, signal: AbortSignal.timeout(110000),
+      const r = await fetch("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { Authorization: "Bearer " + k, "Content-Type": "application/json" }, signal: AbortSignal.timeout(Math.max(10000, Math.min(110000, left() - 15000))),
         body: JSON.stringify({ model: "openai/gpt-oss-120b", messages: [{ role: "system", content: system }, { role: "user", content: user }], response_format: { type: "json_object" }, max_tokens: maxTokens, reasoning_effort: "low", temperature: 0.7 }) });
       if (!r.ok) { last += " groq:" + r.status + (r.status === 429 ? ":" + (await r.text()).slice(0, 300).replace(/\s+/g, " ") : ""); continue; }
       const j = await r.json(); const t = String(j.choices?.[0]?.message?.content || ""); const m = t.match(/\{[\s\S]*\}/); if (!m) { last += " groq:nojson"; continue; }
@@ -95,6 +98,7 @@ async function callModelRaw(system: string, user: string, maxTokens = 4000): Pro
     } catch (e) { last += " groq:" + String((e as any)?.message || e).slice(0, 60); }
   }
   if (/groq:429/.test(last)) { await quotaHit(last); throw new Error("LLM_FAILED 429 " + last); }
+  if (left() < 25000) throw new Error("BUDGET_EXHAUSTED after groq:" + last.slice(0, 120)); // 預算不足時不再改走備援模型
   const v = await llm(system, user, { maxTokens: 3500, skipGemini: true }); return { v, model: String(v.__model || "llm"), usage: null };
 }
 let SHA = "";
@@ -158,9 +162,12 @@ export async function runTask(t: any, think0 = callModel) {
   let think = think0;
   const [a] = await rest(`aivault_pool_agents?id=eq.${t.agent_id}&select=*`);
   const z = ZONES.find((x) => x.key === (t.zone || a.zone)) || ZONES[0];
-  await rest(`aivault_pool_agents?id=eq.${a.id}`, { method: "PATCH", body: JSON.stringify({ status: "running", updated_at: new Date().toISOString() }) });
-  await rest(`aivault_pool_agent_tasks?id=eq.${t.id}`, { method: "PATCH", body: JSON.stringify({ status: "running", updated_at: new Date().toISOString() }) });
-  const mem = await rest(`aivault_pool_agent_memory?agent_id=eq.${a.id}&select=content&order=created_at.desc&limit=5`);
+  // tb2：三個互不相依的 DB 呼叫並行（資料庫慢時省下兩次等待）
+  const [, , mem] = await Promise.all([
+    rest(`aivault_pool_agents?id=eq.${a.id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ status: "running", updated_at: new Date().toISOString() }) }),
+    rest(`aivault_pool_agent_tasks?id=eq.${t.id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ status: "running", updated_at: new Date().toISOString() }) }),
+    rest(`aivault_pool_agent_memory?agent_id=eq.${a.id}&select=content&order=created_at.desc&limit=5`),
+  ]);
   const tpl = z.tasks.find((x) => x.t === t.order_text);
   const media = z.media ? `\n你所在的${z.label}區尚未串接${z.media}生成 API，所以只交付「企劃／腳本／提示詞」，成果第一行必須寫「【企劃稿・尚未生成${z.media}】」。` : "";
   const sys = a.persona + `\n你目前派駐在 AIVAULT 1000 人工作區的「${z.label}」區。成果只交給擁有者審核，絕不聲稱已對外發送、發布或購買。` + media + "\n你的記憶：\n" + (mem.map((m: any) => "- " + m.content).join("\n") || "（尚無）");
@@ -212,7 +219,7 @@ export async function runTask(t: any, think0 = callModel) {
     await rest(`aivault_pool_agents?id=eq.${a.id}`, { method: "PATCH", body: JSON.stringify({ status: "idle", stats: s, updated_at: new Date().toISOString() }) });
     return { id: t.id, agent: a.name, zone: z.key, ok: true, model: call.model, usage: call.usage, source_url: cx.url, spawned, preview: result.slice(0, 160) };
   } catch (e) {
-    const lim = /429|LLM_FAILED/.test(String((e as any)?.message || e));
+    const lim = /429|LLM_FAILED|BUDGET_EXHAUSTED/.test(String((e as any)?.message || e));
     await rest(`aivault_pool_agent_tasks?id=eq.${t.id}`, { method: "PATCH", body: JSON.stringify({ status: lim ? "queued" : "failed", result: (lim ? "限流，稍後重試：" : "失敗：") + String((e as any)?.message || e).slice(0, 300), updated_at: new Date().toISOString() }) });
     await rest(`aivault_pool_agents?id=eq.${a.id}`, { method: "PATCH", body: JSON.stringify({ status: "idle" }) });
     return { id: t.id, agent: a.name, zone: z.key, ok: false, error: String((e as any)?.message || e).slice(0, 160) };
@@ -419,22 +426,42 @@ export async function floor(r: Request) {
     }
     if (a === "cycle") {
       const n = Math.min(6, Math.max(1, Number(b.n) || 3));
+      // tb3：background=true 時先回應（避開 150 秒閘道逾時），任務用 EdgeRuntime.waitUntil 在背景跑完並寫回 DB（Pro 牆鐘 400 秒，預算 330 秒）
+      // deno-lint-ignore no-explicit-any
+      const RT = (globalThis as any).EdgeRuntime; const bgMode = b.background === true && RT && typeof RT.waitUntil === "function";
+      const T0 = Date.now(), DL = T0 + (bgMode ? 330000 : Math.min(125000, Math.max(30000, Number(b.budget_ms) || 120000))); // tb1：Edge 上限 150 秒，預留回應時間
+      const think = (s0: string, u0: string, m?: number) => callModel(s0, u0, m, DL);
       // 卡住超過 15 分鐘的 running 任務退回 queued
-      await rest(`aivault_pool_agent_tasks?source=eq.floor&status=eq.running&updated_at=lt.${new Date(Date.now() - 900000).toISOString()}`, { method: "PATCH", body: JSON.stringify({ status: "queued" }) });
-      const cand = await rest(`aivault_pool_agent_tasks?source=eq.floor&status=eq.queued&kind=eq.work&select=*&order=created_at.asc&limit=40`);
+      // tb2：退回卡住任務與讀取候選並行；候選查詢不變
+      const [, cand] = await Promise.all([
+        rest(`aivault_pool_agent_tasks?source=eq.floor&status=eq.running&updated_at=lt.${new Date(Date.now() - 900000).toISOString()}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ status: "queued" }) }).catch(() => null),
+        rest(`aivault_pool_agent_tasks?source=eq.floor&status=eq.queued&kind=eq.work&select=*&order=created_at.asc&limit=40`),
+      ]);
       let q: any[] = [];
       const pri = (x: any) => (x.plan?.command ? 2 : x.plan?.novel ? 1 : 0); cand.sort((x: any, y: any) => pri(y) - pri(x)); // 擁有者指令最優先，其次小說 // 先寫小說（第一本優先讓擁有者看品質）
       for (const c of cand) { q.push(c); if (q.length >= n) break; }
       // 沒有媒體金鑰的區不待命：佇列不足就派原創小說大綱（之後自動分章給同區其他人）
-      const newBooks = await ensureBooks();
+      let newBooks = 0; // tb2：開書移到執行任務之後、且仍有預算時才做
       if (!q.length) { // 佇列空：從各區範本輪流補一件（真實任務，不是假動作）
         const z = ZONES[Math.floor(Date.now() / 1800000) % ZONES.length]; const tp = z.tasks[Math.floor(Date.now() / 18000000) % z.tasks.length];
         const t = await enqueue(z.key, tp.t + "（第 " + new Date().toISOString().slice(0, 10) + " 輪，請參考你的記憶改進上次的成果）", null); if (t) q = [t];
       }
-      const results = [];
-      for (const t of q) { const r0 = await runTask(t); results.push(r0); if (!r0.ok && /429|rate/i.test(String(r0.error))) break; } // 依序執行；遇到 Groq 限流就停
+      const results: any[] = []; let budgetStop = false;
+      const work = async () => {
+      for (const t of q) {
+        if (DL - Date.now() < 45000) { budgetStop = true; break; } // 剩餘不足 45 秒不開新任務，留給下一輪
+        const r0 = await runTask(t, think); results.push(r0);
+        if (!r0.ok && /429|rate|BUDGET/i.test(String(r0.error))) { budgetStop = /BUDGET/.test(String(r0.error)); break; }
+      } // 依序執行；遇到 Groq 限流或時間預算用完就停（被中斷的任務退回 queued）
+      if (!budgetStop && DL - Date.now() > 30000) newBooks = await ensureBooks().catch(() => 0);
+      };
+      if (bgMode) {
+        RT.waitUntil(work().then(() => console.log("FLOOR_BG_CYCLE_DONE", JSON.stringify({ done: results.filter((x) => x.ok).length, elapsed_ms: Date.now() - T0, results: results.map((x) => ({ id: x.id, ok: x.ok, error: x.error || null })) }))).catch((e) => console.error("FLOOR_BG_CYCLE_FAILED", String((e as any)?.message || e))));
+        return out({ ok: true, background: true, accepted: q.map((t: any) => t.id), done: null, rate_limited: false, elapsed_ms: Date.now() - T0 });
+      }
+      await work();
       const rl = results.some((x: any) => !x.ok && /429|LLM_FAILED/.test(String(x.error)));
-      return out({ ok: true, done: results.filter((x) => x.ok).length, rate_limited: rl, new_books: newBooks, results });
+      return out({ ok: true, done: results.filter((x) => x.ok).length, rate_limited: rl, budget_stop: budgetStop, elapsed_ms: Date.now() - T0, deferred: q.length - results.length, new_books: newBooks, results });
     }
     return out({ error: "unknown action" }, 400);
   } catch (e) { return out({ error: String((e as any)?.message || e).slice(0, 300) }, 500); }
