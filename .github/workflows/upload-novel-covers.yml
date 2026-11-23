@@ -15,6 +15,7 @@ jobs:
         run: |
           supabase link --project-ref clcddygkaaqqtsbswgdf
           for f in assets/novel-covers/*.jpg; do
+            if [ "$(curl -s -o /dev/null -w '%{http_code}' "https://clcddygkaaqqtsbswgdf.supabase.co/storage/v1/object/public/novel-covers/$(basename "$f")")" = "200" ]; then echo "skip existing $(basename "$f")"; continue; fi
             supabase storage cp "$f" "ss:///novel-covers/$(basename "$f")" --experimental --linked --yes --content-type image/jpeg --cache-control "max-age=31536000"
           done
           supabase storage ls ss:///novel-covers/ --experimental --linked --yes || true
