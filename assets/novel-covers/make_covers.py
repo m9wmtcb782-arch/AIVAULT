@@ -118,5 +118,6 @@ def anjing(out):
     text_c(d, H - 110, "AIVAULT 長篇・推理", SANS_B(36), (150, 200, 220), spacing=8)
     im.convert("RGB").save(out, "JPEG", quality=90)
 
-for fn, nid in [(xinghai, "9d6c6eb2-4be2-4466-a26f-4a499ecceb18"), (yunwu, "fcd413e3-28a4-4533-bf1e-e191b4258e2e"), (anjing, "b18378c0-91c9-433d-8640-1de7066ed340")]:
+if __name__ == "__main__":
+  for fn, nid in [(xinghai, "9d6c6eb2-4be2-4466-a26f-4a499ecceb18"), (yunwu, "fcd413e3-28a4-4533-bf1e-e191b4258e2e"), (anjing, "b18378c0-91c9-433d-8640-1de7066ed340")]:
     fn(f"{nid}.jpg"); print(nid, hashlib.sha256(open(f"{nid}.jpg", "rb").read()).hexdigest()[:16])
