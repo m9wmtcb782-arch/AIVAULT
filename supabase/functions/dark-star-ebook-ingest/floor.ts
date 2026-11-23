@@ -243,6 +243,8 @@ export async function floor(r: Request) {
         const bks = await rest("aivault_novel_books?approved=eq.true&select=id,title,genre,outline,status,chapters_done,target_chapters,chars,updated_at&order=updated_at.desc");
         const chs = bks.length ? await rest(`aivault_novel_chapters?book_id=in.(${bks.map((x: any) => x.id).join(",")})&or=(review_status.is.null,review_status.eq.approved)&select=book_id,ch,title,chars,agent_id&order=ch.asc`) : [];
         bks.forEach((x: any) => { x.chapters = chs.filter((c: any) => c.book_id === x.id).map((c: any) => [c.ch, c.title, c.chars, c.agent_id]); });
+        const cvs = bks.length ? await rest(`dark_star_ebooks?id=in.(${bks.map((x: any) => x.id).join(",")})&select=id,cover_url,cover_source`).catch(() => []) : []; // t318：書架封面（只讀封面欄位）
+        bks.forEach((x: any) => { const c = cvs.find((y: any) => y.id === x.id); x.cover_url = c?.cover_url || null; x.cover_source = c?.cover_source || null; });
         return out({ ok: true, books: bks, genres: GENRES });
       }
       const id = String(b.book_id || "").replace(/[^0-9a-f-]/g, ""), ch = Math.max(1, Number(b.ch) || 1);
