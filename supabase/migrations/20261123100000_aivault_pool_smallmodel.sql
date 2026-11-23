@@ -48,7 +48,8 @@ create table if not exists public.aivault_bot_posts (
   sources jsonb not null default '[]'::jsonb, checks jsonb not null default '{}'::jsonb,
   status text not null default 'pending' check (status in ('pending','blocked','approved','rejected','posted','failed')),
   model text, body_hash text unique, created_at timestamptz not null default now(),
-  reviewed_by uuid, reviewed_at timestamptz, review_comment text, posted_chat_id bigint, posted_at timestamptz);
+  reviewed_by uuid, reviewed_at timestamptz, review_comment text, posted_chat_id bigint, posted_at timestamptz,
+  target text not null default 'world_chat', ref jsonb not null default '{}'::jsonb);  -- t295：target='world_chat' 或 'novel'（小說書評，ref 記 book_id/ch/quote）
 create index if not exists aivault_bot_posts_status on public.aivault_bot_posts(status, created_at desc);
 create index if not exists aivault_bot_posts_agent on public.aivault_bot_posts(agent_id, created_at desc);
 alter table public.aivault_bot_posts enable row level security;
@@ -89,9 +90,10 @@ begin
   select * into p from aivault_bot_posts where id = p_id for update;
   if not found then return jsonb_build_object('ok', false, 'error', 'not_found'); end if;
   if p.status <> 'approved' then return jsonb_build_object('ok', false, 'error', 'not_approved'); end if;
+  if p.target <> 'world_chat' then return jsonb_build_object('ok', false, 'error', 'not_world_chat'); end if;
   select count(*) filter (where posted_at > now() - interval '1 hour'), count(*) filter (where posted_at > now() - interval '1 day'),
          count(*) filter (where posted_at > now() - interval '1 day' and agent_id = p.agent_id)
-    into nh, nd, na from aivault_bot_posts where status = 'posted';
+    into nh, nd, na from aivault_bot_posts where status = 'posted' and target = 'world_chat';
   if nh >= coalesce((cfg->>'global_post_per_hour')::int, 6) then return jsonb_build_object('ok', false, 'error', 'rate_limit_hour'); end if;
   if nd >= coalesce((cfg->>'global_post_per_day')::int, 30) then return jsonb_build_object('ok', false, 'error', 'rate_limit_day'); end if;
   if na >= coalesce((cfg->>'agent_post_per_day')::int, 1) then return jsonb_build_object('ok', false, 'error', 'rate_limit_agent'); end if;
@@ -110,12 +112,12 @@ create or replace function public.aivault_bot_post_release(p_limit int, p_actor 
 language plpgsql security definer set search_path = public as $$
 declare cfg jsonb := coalesce((select v from aivault_floor_state where k = 'bot_release'), '{}'::jsonb); nh int; nd int; lim int; n int;
 begin
-  select count(*) filter (where posted_at > now() - interval '1 hour'), count(*) filter (where posted_at > now() - interval '1 day') into nh, nd from aivault_bot_posts where status = 'posted';
+  select count(*) filter (where posted_at > now() - interval '1 hour'), count(*) filter (where posted_at > now() - interval '1 day') into nh, nd from aivault_bot_posts where status = 'posted' and target = 'world_chat';
   lim := least(greatest(coalesce(p_limit, 0), 0), coalesce((cfg->>'max_per_command')::int, 200),
                greatest(0, coalesce((cfg->>'max_per_hour')::int, 400) - nh), greatest(0, coalesce((cfg->>'max_per_day')::int, 1000) - nd));
   if lim <= 0 then return jsonb_build_object('ok', false, 'error', 'release_limit', 'posted_last_hour', nh, 'posted_last_day', nd); end if;
   perform set_config('aivault.ai_release', 'on', true);
-  with sel as (select id, body from aivault_bot_posts where status = 'approved' order by reviewed_at nulls last, id limit lim for update skip locked),
+  with sel as (select id, body from aivault_bot_posts where status = 'approved' and target = 'world_chat' order by reviewed_at nulls last, id limit lim for update skip locked),
        ins as (insert into aivault_world_chat(body) select '【AI 生成】' || body from sel returning id, body),
        upd as (update aivault_bot_posts p set status = 'posted', posted_at = now(), posted_chat_id = ins.id from sel join ins on ins.body = '【AI 生成】' || sel.body where p.id = sel.id returning p.id)
   select count(*) into n from upd;

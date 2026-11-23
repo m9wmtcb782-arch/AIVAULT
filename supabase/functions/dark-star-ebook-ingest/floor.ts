@@ -8,6 +8,7 @@ const out = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s
 import { quotaSleeping, quotaHit } from "./city.ts";
 import { isSimple, smallJson, isNovelWriter, poolConfig, searchSummary } from "./smallmodel.ts";
 import { dispatchDrafts } from "./botposts.ts";
+import { dispatchReviews, listComments, humanComment } from "./novelreviews.ts";
 const webResults = async (q: string) => ((await (await webSearch(new Request("http://local", { method: "POST", body: JSON.stringify({ q, n: 6 }) }))).json()).results || []);
 let CUR_AGENT: string | null = null, CUR_NOVEL = false; // t280：目前執行中的池代理（小模型路由用；暗星不經過 floor）
 const URL0 = Deno.env.get("SUPABASE_URL") || "", SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -223,10 +224,14 @@ export async function floor(r: Request) {
   if (r.method === "OPTIONS") return new Response("ok", { headers: H });
   try {
     const b = await r.json().catch(() => ({})); const a = String(b.action || "");
-    if (a === "shelf" || a === "shelf_chapter") { // 書架：任何已登入會員可讀「擁有者已核准」的書（連載中／完結）
+    if (a === "novel_comments") { // t295：公開讀——只回已核准書籍的 approved 留言（人類＋AI，AI 有標記）
+      const r0 = await listComments(String(b.book_id || ""), Number(b.ch) || undefined); return out(r0, r0.ok ? 200 : 404);
+    }
+    if (a === "shelf" || a === "shelf_chapter" || a === "novel_comment") { // 書架：任何已登入會員可讀「擁有者已核准」的書（連載中／完結）
       const tok = (r.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
       const uu = tok === SR || (await who(r))?.cron ? { id: "sr" } : await fetch(URL0 + "/auth/v1/user", { headers: { apikey: SR, Authorization: "Bearer " + tok } }).then((x) => x.ok ? x.json() : null).catch(() => null);
       if (!uu?.id) return out({ error: "login required" }, 401);
+      if (a === "novel_comment") { if (uu.id === "sr") return out({ error: "member only" }, 403); const r1 = await humanComment(uu, b); return out(r1, r1.ok ? 201 : (r1.error === "rate_limited" ? 429 : 400)); }
       if (a === "shelf") {
         const bks = await rest("aivault_novel_books?approved=eq.true&select=id,title,genre,outline,status,chapters_done,target_chapters,chars,updated_at&order=updated_at.desc");
         const chs = bks.length ? await rest(`aivault_novel_chapters?book_id=in.(${bks.map((x: any) => x.id).join(",")})&or=(review_status.is.null,review_status.eq.approved)&select=book_id,ch,title,chars,agent_id&order=ch.asc`) : [];
@@ -360,13 +365,33 @@ export async function floor(r: Request) {
       };
       return out(await dispatchDrafts(webResults, Number(b.n) || undefined, b.dry_run === true, large));
     }
+    if (a === "novel_review_dispatch") { // t295/t296：暗星派工——固定書評員名冊逐一讀章節寫一句書評 → 只進待審佇列
+      // t297：大模型書評員走大模型（Groq 免費層；Gemini 旗標開啟才用 Gemini）；額度睡眠／失敗就跳過，不用小模型
+      const largeReview = async (agentId: string, x: any) => {
+        if (await quotaSleeping()) return null;
+        const sys = "你是 AIVAULT 協作池的讀者代理，一律使用繁體中文。讀完小說原文後寫一句書評（50 字內，具體、不劇透結局、不人身攻擊、不含網址與個人資料），並逐字摘出原文 8–30 字作為引用。只輸出 JSON：{\"review\":\"…\",\"quote\":\"…\"}";
+        const usr = `書名：《${x.title}》第 ${x.ch} 章\n評論角度：${x.angle}\n原文：\n${x.text}`;
+        const prevA = CUR_AGENT, prevN = CUR_NOVEL; CUR_AGENT = agentId; CUR_NOVEL = true; // CUR_NOVEL=true：callModelRaw 不會嘗試小模型
+        try {
+          const useGemini = (await poolConfig()).novel_gemini?.enabled === true;
+          const v = useGemini ? await llm(sys, usr, { maxTokens: 300 }) : (await callModelRaw(sys, usr, 400)).v;
+          const rv = String(v?.review || "").trim(); return rv ? { review: rv, quote: String(v?.quote || "").trim(), model: String(v?.__model || (useGemini ? "gemini" : "groq:openai/gpt-oss-120b")) } : null;
+        } catch { return null; } finally { CUR_AGENT = prevA; CUR_NOVEL = prevN; }
+      };
+      return out(await dispatchReviews(Number(b.n) || undefined, b.dry_run === true, largeReview));
+    }
+    if (a === "novel_review_release") { // t295：暗星指令釋出已核准書評（僅擁有者；每次／每天上限）
+      if (u.cron || !u.id) return out({ error: "owner only" }, 403);
+      return out(await rest("rpc/aivault_novel_review_release", { method: "POST", body: JSON.stringify({ p_limit: Math.min(200, Number(b.n) || 20), p_actor: "technical-dark-star:" + u.id }) }));
+    }
     if (a === "bot_post_release") { // t283：暗星指令——一次釋出已核准批次（僅擁有者；有每次／每小時／每天上限）
       if (u.cron || !u.id) return out({ error: "owner only" }, 403);
       return out(await rest("rpc/aivault_bot_post_release", { method: "POST", body: JSON.stringify({ p_limit: Math.min(1000, Number(b.n) || 50), p_actor: "technical-dark-star:" + u.id }) }));
     }
     if (a === "bot_posts") {
       const st = ["pending", "blocked", "approved", "rejected", "posted", "failed"].includes(String(b.status)) ? String(b.status) : "pending";
-      return out({ ok: true, posts: await rest(`aivault_bot_posts?status=eq.${st}&select=*&order=created_at.desc&limit=${Math.min(200, Number(b.limit) || 50)}`) });
+      const tg = b.target === "novel" ? "&target=eq.novel" : b.target === "world_chat" ? "&target=eq.world_chat" : "";
+      return out({ ok: true, posts: await rest(`aivault_bot_posts?status=eq.${st}${tg}&select=*&order=created_at.desc&limit=${Math.min(200, Number(b.limit) || 50)}`) });
     }
     if (a === "bot_post_review") { // 只有擁有者／管理員（不接受排程金鑰）
       if (u.cron || !u.id) return out({ error: "owner only" }, 403);
