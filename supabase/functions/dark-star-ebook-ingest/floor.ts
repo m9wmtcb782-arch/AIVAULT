@@ -9,6 +9,7 @@ import { quotaSleeping, quotaHit } from "./city.ts";
 import { isSimple, smallJson, isNovelWriter, poolConfig, searchSummary } from "./smallmodel.ts";
 import { dispatchDrafts } from "./botposts.ts";
 import { dispatchReviews, listComments, humanComment } from "./novelreviews.ts";
+import { runCoverJobs } from "./covers.ts";
 const webResults = async (q: string) => ((await (await webSearch(new Request("http://local", { method: "POST", body: JSON.stringify({ q, n: 6 }) }))).json()).results || []);
 let CUR_AGENT: string | null = null, CUR_NOVEL = false; // t280：目前執行中的池代理（小模型路由用；暗星不經過 floor）
 const URL0 = Deno.env.get("SUPABASE_URL") || "", SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -321,6 +322,7 @@ export async function floor(r: Request) {
       }
       const nvr = Array.isArray(t.plan) ? null : t.plan?.novel;
       if (nvr?.stage === "outline" && nvr.book && d !== "comment") { const [bk] = await rest(`aivault_novel_books?id=eq.${nvr.book}&select=*`);
+        if (bk && d === "approve") await rest("rpc/aivault_novel_cover_enqueue_missing", { method: "POST", body: "{}" }).catch(() => null); // t316：上架不受封面阻擋；排入暗星 Gemini 封面佇列（cover_pending）
         if (bk && d === "approve") { await rest(`aivault_novel_books?id=eq.${bk.id}`, { method: "PATCH", body: JSON.stringify({ approved: true, status: bk.chapters_done >= bk.target_chapters ? "done" : "serial" }) });
           if (bk.chapters_done < bk.target_chapters) await nextChapter({ ...bk, approved: true }, bk.chapters_done + 1); }
         if (bk && d === "reject") { await rest(`aivault_novel_books?id=eq.${bk.id}`, { method: "PATCH", body: JSON.stringify({ status: "outline" }) }); await enqueue(bk.zone, `📖 依擁有者意見重寫${bk.genre}長篇大綱`, null, { novel: { stage: "outline", book: bk.id, genre: bk.genre, rewrite: true } }); } }
@@ -371,6 +373,9 @@ export async function floor(r: Request) {
         } catch { return null; } finally { CUR_AGENT = prevA; CUR_NOVEL = prevN; }
       };
       return out(await dispatchDrafts(webResults, Number(b.n) || undefined, b.dry_run === true, large));
+    }
+    if (a === "novel_covers") { // t310–t312：暗星封面佇列（Gemini；預設關閉；每日上限；遇配額停到隔天；無付費備援）
+      return out(await runCoverJobs({ dryRun: b.dry_run === true }));
     }
     if (a === "novel_review_dispatch") { // t295/t296：暗星派工——固定書評員名冊逐一讀章節寫一句書評 → 只進待審佇列
       // t297：大模型書評員走大模型（Groq 免費層；Gemini 旗標開啟才用 Gemini）；額度睡眠／失敗就跳過，不用小模型
