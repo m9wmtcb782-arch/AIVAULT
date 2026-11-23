@@ -3,7 +3,7 @@
   var ID = 'aiv-sat-panel';
   function build() {
     var w = document.createElement('section'); w.id = ID;
-    w.style.cssText = 'position:relative;margin:8px auto 12px;max-width:1200px;width:calc(100% - 16px);height:62vh;min-height:360px;border-radius:18px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.35);background:#0d1420;z-index:1';
+    w.style.cssText = 'position:relative;clear:both;margin:12px auto 16px;max-width:1200px;width:calc(100% - 16px);height:62vh;min-height:360px;border-radius:18px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.35);background:#0d1420;z-index:1';
     var f = document.createElement('iframe');
     f.src = 'aivault-taipei-satellite.html'; f.title = '台北衛星地圖'; f.loading = 'lazy';
     f.setAttribute('allow', 'geolocation; accelerometer; gyroscope; magnetometer');
@@ -23,7 +23,16 @@
     while (blk.parentElement && blk.parentElement !== document.body && !blk.parentElement.querySelector('canvas,iframe')) blk = blk.parentElement;
     if (blk.parentElement && blk.parentElement !== document.body && blk.parentElement.querySelectorAll('h1,h2,h3').length <= 2) blk = blk.parentElement;
     var n = blk; while (n && !(n.querySelector && n.querySelector('canvas,iframe')) && n.nextElementSibling) { n = n.nextElementSibling; if (n.querySelector && n.querySelector('canvas,iframe') || n.tagName === 'CANVAS' || n.tagName === 'IFRAME') break; }
-    return n || blk;
+    var a = n || blk;
+    // 往上爬到「頁面主要區塊」層級（與標題「AIVAULT AI 協作池」同層），整塊放在外面，避免插進協作城舞台內被壓住
+    var top = a;
+    while (top.parentElement && top.parentElement !== document.body) {
+      var par = top.parentElement, hasIntro = false, kids = par.children;
+      for (var j = 0; j < kids.length; j++) { if (kids[j] !== top && !kids[j].contains(top) && /AIVAULT AI 協作池/.test(kids[j].textContent || '') && !/協作池 3D 地圖/.test(kids[j].textContent || '')) { hasIntro = true; break; } }
+      if (hasIntro) break;
+      top = par;
+    }
+    return top;
   }
   var placed = false;
   function ensure() {
