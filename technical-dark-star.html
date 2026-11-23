@@ -7435,14 +7435,6 @@ async function sendMessage(){
     }else{
 
       // iOS Safari 的「Load failed」（TypeError：串流中斷、背景切換、網路切換）→ 以非串流模式自動重試一次
-      // DARKSTAR_OWN_MODEL_V1: 暗星自有模型先答；escalate／逾時／錯誤時 ownReply 為 null，照原 Gemini 路徑。
-      let ownReply = null;
-      if(!outgoingFiles.length && window.DarkstarOwnModel){
-        try{ ownReply = await window.DarkstarOwnModel.ask(text); }catch(e){ ownReply = null; }
-      }
-      if(ownReply){
-        result = { reply: ownReply.text, own_model: ownReply.meta };
-      }else
       try{
         result = await callAIVAULT(text, outgoingFiles);
       }catch(firstError){
@@ -8728,41 +8720,5 @@ window.__AIVAULT_DARK_STAR_TOGGLE_LIVE_VOICE__=async()=>{if(state.active||state.
 <script src="darkstar-mini-duo.js?v=20261016-md1"></script>
 <script src="darkstar-dawn-search.js?v=20261019-g1"></script>
 <script src="darkstar-duo-talk.js?v=20261016-dt8"></script>
-<script src="aivault-presence.js?v=20261017-pr2" defer></script><script>
-/* DARKSTAR_OWN_MODEL_V1 — 暗星自有模型 (Qwen3-1.7B, HF Space aivault3d/darkstar-llm)。
-   預設開啟；/health 失敗自動關閉。手動關閉：?ownModel=off 或 localStorage.darkstarOwnModel='off'。
-   不影響頭像、語音、媒體；回覆走同一個 renderAIMessage（同一個朗讀按鈕 speakText）。 */
-(function(){
-  var BASE = 'https://aivault3d-darkstar-llm.hf.space';
-  var off = /[?&]ownModel=off/.test(location.search); try{ off = off || localStorage.getItem('darkstarOwnModel') === 'off'; }catch(e){}
-  var st = { enabled: !off, healthy: false, checkedAt: 0 };
-  var sid = 'web-' + Math.random().toString(36).slice(2, 10);
-  function withTimeout(ms){ var c = new AbortController(); var t = setTimeout(function(){ c.abort(); }, ms); return { signal: c.signal, done: function(){ clearTimeout(t); } }; }
-  async function health(){
-    if(!st.enabled) return false;
-    var to = withTimeout(6000);
-    try{ var r = await fetch(BASE + '/health', { signal: to.signal }); var d = r.ok ? await r.json() : null; st.healthy = !!(d && d.model_loaded); }
-    catch(e){ st.healthy = false; } finally{ to.done(); st.checkedAt = Date.now(); }
-    return st.healthy;
-  }
-  async function ask(text){
-    if(!st.enabled || !text || text.length > 1000) return null;
-    if(!st.healthy){ if(Date.now() - st.checkedAt < 300000) return null; if(!(await health())) return null; }
-    var to = withTimeout(20000);
-    try{
-      var r = await fetch(BASE + '/infer', { method: 'POST', headers: { 'content-type': 'application/json' }, signal: to.signal,
-        body: JSON.stringify({ text: text, session_id: sid, agent_id: 'technical-dark-star' }) });
-      if(!r.ok) return null;
-      var d = await r.json();
-      console.info('[DarkStar][OWN MODEL]', d.route, d.reason || '', d.latency_ms + 'ms');
-      if(d.route !== 'local' || !d.output) return null;
-      return { text: d.output, meta: { id: d.id, model: d.model_key, version: d.version, latency_ms: d.latency_ms, confidence: d.confidence } };
-    }catch(e){ st.healthy = false; st.checkedAt = Date.now(); return null; }
-    finally{ to.done(); }
-  }
-  window.DarkstarOwnModel = { ask: ask, health: health, state: st };
-  health();
-})();
-</script>
-</body>
+<script src="aivault-presence.js?v=20261017-pr2" defer></script></body>
 </html>
