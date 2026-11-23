@@ -214,22 +214,22 @@
     SITES.forEach(function (s) {
       var n = 0, kind = 'people';
       if (s.k === 'school') { if (!LAYERS.students || !school) return; n = MOB ? 6 : 10; kind = 'student'; }
-      else { if (!LAYERS.people) return; n = s.k === 'night' ? (h >= 17 ? (MOB ? 10 : 16) : (h >= 11 ? 3 : 0)) : s.k === 'shop' ? (h >= 10 && h < 22.5 ? (MOB ? 8 : 12) : 1) : (h >= 6 ? (MOB ? 4 : 7) : 0); }
+      else { if (!LAYERS.people) return; n = s.k === 'night' ? (h >= 17 ? (MOB ? 10 : 16) : (h >= 6 ? (MOB ? 6 : 10) : 0)) : s.k === 'shop' ? (h >= 10 && h < 22.5 ? (MOB ? 8 : 12) : 1) : (h >= 6 ? (MOB ? 7 : 10) : 0); }
       for (var i = 0; i < n; i++) {
         var P = s.paths[i % s.paths.length], v = 1.1 + hash(s.n + i) * .5, ph = hash(s.n + 'p' + i) * P.L * 2, d = (S * v + ph) % (2 * P.L), back = d > P.L, dd = back ? 2 * P.L - d : d;
         var q = at(P, dd); push({ t: kind, x: q.x, y: q.y, dx: back ? -q.dx : q.dx, dy: back ? -q.dy : q.dy, v: Math.floor(hash(s.n + 'm' + i) * 6), side: (hash(s.n + 's' + i) - .5) * 2, lat: P.lat, ph: (S * v / .7) % (2 * PI) });
       }
     });
-    // 松山機場：06:00–23:00 每 7.5 分鐘一次起降（起飛／降落交替），使用跑道 10（向東）
+    // 松山機場：06:00–23:00 每 2.5 分鐘一架降落、一架起飛（隨時可見），使用跑道 10（向東）
     if (LAYERS.flights && h >= 6 && h < 23) {
-      var per = 450, idx = Math.floor(S / per), u = (S % per);
+      var per = 150, u = (S % per), u2 = ((S + 70) % per);
       var ax = RWY.a.x, ay = RWY.a.y, bx = RWY.b.x, by = RWY.b.y, ux = (bx - ax), uy = (by - ay);
-      if (idx % 2 === 0) { // 降落：自西方 8 km 進場 → 接地 → 減速滑行
+      { // 降落：自西方 8 km 進場 → 接地 → 減速滑行
         if (u < 150) { var mPerW = RWY.L, far = 8000 / mPerW, p, alt;
           if (u < 105) { var k2 = ease.inOut(u / 105); p = -far + (far + .12) * k2; alt = Math.max(0, 1 - k2 * 1.02) * 450; }
           else { var k3 = ease.out((u - 105) / 45); p = .12 + .5 * k3; alt = 0; }
           push({ t: 'plane', x: ax + ux * p, y: ay + uy * p, dx: ux, dy: uy, alt: alt, lat: RWY.lat, op: u > 140 ? (150 - u) / 10 : 1, label: '降落（模擬）' }); }
-      } else { // 起飛：跑道 10 起滾加速 → 抬頭 → 爬升離場
+      } { var u = u2; // 起飛：跑道 10 起滾加速 → 抬頭 → 爬升離場
         if (u < 120) { var p2, alt2;
           if (u < 38) { var k4 = ease.inQ(u / 38); p2 = .02 + .6 * k4; alt2 = 0; }
           else { var k5 = (u - 38) / 82; p2 = .62 + k5 * 3.4; alt2 = Math.pow(k5, 1.3) * 900; }
@@ -262,9 +262,9 @@
       e.sx = p[0] + nx * lane * (e.side > 0 ? 1 : -1) * (e.t === 'student' || e.t === 'people' ? 0 : 1) + (e.t === 'student' || e.t === 'people' ? nx * lane : 0); e.sy = p[1] + ny * lane * (e.side > 0 ? 1 : -1) * (e.t === 'student' || e.t === 'people' ? 0 : 1) + (e.t === 'student' || e.t === 'people' ? ny * lane : 0);
       e.ang = ang; e.m = m; drawn++;
       var human = e.t === 'student' || e.t === 'people';
-      if (use3d && (human ? V.z >= 16 : true)) { list3.push(e); cx.beginPath(); cx.ellipse(e.sx, e.sy + 1, human ? 5 : 7, human ? 2.2 : 3, 0, 0, 2 * PI); cx.fillStyle = 'rgba(0,0,0,.22)'; cx.fill(); continue; }
+      if (use3d && (human ? V.z >= 15 : true)) { list3.push(e); cx.beginPath(); cx.ellipse(e.sx, e.sy + 1, human ? 5 : 7, human ? 2.2 : 3, 0, 0, 2 * PI); cx.fillStyle = 'rgba(0,0,0,.22)'; cx.fill(); continue; }
       cx.save(); cx.translate(e.sx, e.sy);
-      if (human) { cx.beginPath(); cx.arc(0, 0, V.z >= 15 ? 4.5 : 3.5, 0, 2 * PI); cx.fillStyle = e.t === 'student' ? 'rgba(96,165,250,.95)' : 'rgba(255,214,120,.95)'; cx.shadowColor = 'rgba(0,0,0,.5)'; cx.shadowBlur = 3; cx.fill(); }
+      if (human) { cx.beginPath(); cx.arc(0, 0, V.z >= 15 ? 6 : 5, 0, 2 * PI); cx.fillStyle = e.t === 'student' ? 'rgba(96,165,250,.95)' : 'rgba(255,214,120,.95)'; cx.shadowColor = 'rgba(0,0,0,.5)'; cx.shadowBlur = 3; cx.fill(); }
       else if (e.t === 'plane') {
         var sc = Math.max(1, 34 / m / 40) * (1 + e.alt / 900 * .6), k = Math.max(30, 37 / m) * (1 + e.alt / 1500);
         cx.globalAlpha = Math.max(0, Math.min(1, e.op));
