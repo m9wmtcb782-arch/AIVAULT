@@ -1,0 +1,20 @@
+name: Upload novel covers (Base1 Storage novel-covers)
+on:
+  workflow_dispatch:
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Upload JPG covers (Base1 only)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase link --project-ref clcddygkaaqqtsbswgdf
+          for f in assets/novel-covers/*.jpg; do
+            supabase storage cp "$f" "ss:///novel-covers/$(basename "$f")" --experimental --linked --content-type image/jpeg --cache-control "max-age=31536000"
+          done
+          supabase storage ls ss:///novel-covers --experimental --linked
