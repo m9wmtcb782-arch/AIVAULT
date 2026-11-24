@@ -181,18 +181,19 @@
     const groups = uniq([sorted.slice(0, 12), ...(kw && kw.terms_book.length ? [kw.terms_book] : []), bookTerms.filter(t => fold(t) !== t.toLowerCase()).slice(0, 24), bookTerms.filter(t => fold(t) === t.toLowerCase()).slice(0, 24), ...chunks(bookTerms, 16)].filter(g => g.length).map(g => g.join('\u0001'))).map(g => g.split('\u0001')).slice(0, 5);
     let bookRows = (await Promise.all(groups.map(g => search({ ebook_id: book.id, terms: g })))).flat();
     bookRows.sort((a, b) => (b.score || 0) - (a.score || 0));
-    // Fallback：關鍵詞搜尋幾乎沒結果時，抽樣讀取書中多段（前段＋中後段），確保能讀到各論章節而非只讀前言
-    if (bookRows.length < 3 && api.context) {
+    // Fallback：關鍵詞搜尋不足時，抽樣讀取多段（含後段各論）。問「幾種／類型／分類」時加重後段抽樣。
+    if (bookRows.length < 4 && api.context) {
       status('關鍵詞命中不足，改抽樣讀取本書多段內容…');
       const total = Number(book.page_count || book.total_pages || 0);
-      const sample = [1, 2, 3, 5, 8, 12];
-      if (total > 50) {
-        const ratios = [0.15, 0.3, 0.45, 0.6, 0.75, 0.9];
+      const wantTypes = /幾種|幾類|類型|分類|哪些|有哪些|種類/.test(q);
+      const sample = [1, 2, 3, 5, 8];
+      if (total > 80) {
+        const ratios = wantTypes ? [0.2, 0.35, 0.5, 0.62, 0.72, 0.82, 0.92] : [0.15, 0.3, 0.5, 0.7, 0.85];
         for (const r of ratios) { const p = Math.max(1, Math.min(total, Math.round(total * r))); if (!sample.includes(p)) sample.push(p); }
       } else {
-        sample.push(20, 40, 60, 80, 100, 150, 200, 250, 300);
+        sample.push(30, 60, 100, 150, 200, 250, 280, 300, 320);
       }
-      const uniqPages = [...new Set(sample)].slice(0, 12);
+      const uniqPages = [...new Set(sample)].slice(0, 14);
       const ctx = await Promise.allSettled(uniqPages.map(p => api.context(book.id, p, 0)));
       for (const c of ctx) if (c.status === 'fulfilled') for (const pg of arr(c.value)) {
         const text = pg.content || pg.excerpt || '';
