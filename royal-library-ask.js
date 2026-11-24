@@ -181,11 +181,19 @@
     const groups = uniq([sorted.slice(0, 12), ...(kw && kw.terms_book.length ? [kw.terms_book] : []), bookTerms.filter(t => fold(t) !== t.toLowerCase()).slice(0, 24), bookTerms.filter(t => fold(t) === t.toLowerCase()).slice(0, 24), ...chunks(bookTerms, 16)].filter(g => g.length).map(g => g.join('\u0001'))).map(g => g.split('\u0001')).slice(0, 5);
     let bookRows = (await Promise.all(groups.map(g => search({ ebook_id: book.id, terms: g })))).flat();
     bookRows.sort((a, b) => (b.score || 0) - (a.score || 0));
-    // Fallback：關鍵詞搜尋幾乎沒結果時（常見於英文法典、書名查詢），直接讀前幾頁＋目錄附近，確保有實質內容可分析
-    if (bookRows.length < 2 && api.context) {
-      status('關鍵詞命中不足，改讀本書前頁與結構…');
-      const early = [1, 2, 3, 4, 5];
-      const ctx = await Promise.allSettled(early.map(p => api.context(book.id, p, 0)));
+    // Fallback：關鍵詞搜尋幾乎沒結果時，抽樣讀取書中多段（前段＋中後段），確保能讀到各論章節而非只讀前言
+    if (bookRows.length < 3 && api.context) {
+      status('關鍵詞命中不足，改抽樣讀取本書多段內容…');
+      const total = Number(book.page_count || book.total_pages || 0);
+      const sample = [1, 2, 3, 5, 8, 12];
+      if (total > 50) {
+        const ratios = [0.15, 0.3, 0.45, 0.6, 0.75, 0.9];
+        for (const r of ratios) { const p = Math.max(1, Math.min(total, Math.round(total * r))); if (!sample.includes(p)) sample.push(p); }
+      } else {
+        sample.push(20, 40, 60, 80, 100, 150, 200, 250, 300);
+      }
+      const uniqPages = [...new Set(sample)].slice(0, 12);
+      const ctx = await Promise.allSettled(uniqPages.map(p => api.context(book.id, p, 0)));
       for (const c of ctx) if (c.status === 'fulfilled') for (const pg of arr(c.value)) {
         const text = pg.content || pg.excerpt || '';
         if (text && text.length > 40) bookRows.push({ ebook_id: book.id, book_title: book.title, page_number: pg.page_number || 1, page_id: pg.id || (book.id + ':' + (pg.page_number || 1)), excerpt: text });
