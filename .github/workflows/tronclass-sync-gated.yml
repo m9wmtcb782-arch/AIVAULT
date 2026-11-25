@@ -1,0 +1,36 @@
+# GATED scaffold only — does NOT call TronClass.
+# STATUS 2026-10-25: school authorization UNCONFIRMED (no affirmative permission obtained). SCHOOL_AUTH_CONFIRMED=false — do NOT set the secret.
+# Enable only after school authorization; requires SCHOOL_AUTH_CONFIRMED=true.
+name: tronclass-sync-gated
+
+on:
+  schedule:
+    # Every 6 hours — job still no-ops unless secrets gate passes
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gated-noop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Authorization gate
+        env:
+          SCHOOL_AUTH_CONFIRMED: ${{ secrets.SCHOOL_AUTH_CONFIRMED }}
+        run: |
+          set -euo pipefail
+          if [ "${SCHOOL_AUTH_CONFIRMED:-}" != "true" ]; then
+            echo "SCHOOL_AUTH_CONFIRMED is not true — refusing any TronClass access."
+            echo "This workflow is a gated scaffold only."
+            exit 0
+          fi
+          echo "Gate token present, but live sync is NOT implemented in this PR."
+          echo "Refusing to hit TronClass until client endpoints are school-approved."
+          exit 0
+
+      - name: Intentionally skip checkout and network to TronClass
+        if: false
+        run: 'true'
