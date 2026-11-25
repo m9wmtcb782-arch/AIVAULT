@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#17120d">
+<title>AIVAULT｜電子書管理</title>
+<style>
+:root{color-scheme:dark;--bg:#120f0c;--panel:#1d1813;--line:#493b2a;--gold:#c4a36a;--muted:#b9aa92;--red:#e58d82;--green:#9ed4ae}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#f4ead6;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif}
+header{position:sticky;top:0;z-index:2;background:#17120df2;border-bottom:1px solid var(--line);padding:14px max(14px,calc((100% - 1000px)/2));display:flex;align-items:center;gap:12px}
+header strong{font-size:16px}header nav{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+a,.button{color:#f4ead6;text-decoration:none;border:1px solid var(--line);border-radius:9px;padding:9px 12px;background:#292117;font-size:13px}
+main{max-width:1000px;margin:0 auto;padding:20px 14px 60px}
+h1{font-size:24px;margin:0 0 6px}.sub{color:var(--muted);font-size:13px;line-height:1.6}
+.toolbar{display:flex;gap:9px;flex-wrap:wrap;margin:18px 0}
+input{min-width:180px;flex:1;border:1px solid var(--line);border-radius:10px;background:#211b15;color:#fff;padding:11px;font-size:14px}
+button{cursor:pointer;border:1px solid var(--line);border-radius:9px;background:#30261a;color:#fff;padding:10px 13px;font-size:13px}
+button:disabled{opacity:.5;cursor:wait}.danger{border-color:#9c5149;background:#542a26;color:#ffe8e4}
+.status{padding:12px;border:1px solid var(--line);border-radius:10px;background:#1d1813;color:var(--muted);font-size:13px;margin:12px 0}
+.list{display:grid;gap:10px}.book{border:1px solid var(--line);border-radius:13px;background:var(--panel);padding:14px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center}
+.title{font-weight:700;line-height:1.45;overflow-wrap:anywhere}.meta{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.6}.actions{display:flex;gap:8px;align-items:center}
+.pager{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:16px;color:var(--muted);font-size:13px}
+@media(max-width:600px){.book{grid-template-columns:1fr}.actions button{flex:1}.pager{align-items:stretch}.pager button{flex:1}}
+</style>
+<script src="ebook/aivault-ebook-lib.js?v=20261125-admin-delete"></script>
+</head>
+<body>
+<header><strong>♛ AIVAULT｜電子書管理</strong><nav><a href="dark-star-ebook.html">返回書架</a><a href="dark-star-ebook-editor.html">匯入電子書</a></nav></header>
+<main>
+<h1>電子書館藏管理</h1>
+<div class="sub">管理第一基地電子書。刪除按鈕會永久刪除後端書籍、頁面、目錄、閱讀進度、暗星研讀清單及匯入暫存資料。只有擁有者／管理者可以執行刪除。</div>
+<div class="toolbar"><input id="q" type="search" placeholder="搜尋書名、作者或版本"><button id="refresh">重新載入</button></div>
+<div id="status" class="status">正在讀取第一基地館藏……</div>
+<div id="list" class="list"></div>
+<div class="pager"><button id="prev" disabled>上一頁</button><span id="page">第 1 頁</span><button id="next" disabled>下一頁</button></div>
+</main>
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+const api=window.AIVAULTEbook;
+let offset=0,limit=80,hasMore=false,books=[],busy=false;
+function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function msg(t,kind){$("status").textContent=t;$("status").style.color=kind==="error"?"#e58d82":kind==="ok"?"#9ed4ae":"#b9aa92";}
+function idOf(b){return String(b.ebook_id||b.id||"");}
+function draw(){
+ const q=$("q").value.trim().toLocaleLowerCase();
+ const rows=books.filter(b=>[b.title,b.author,b.edition,b.version,b.category].some(v=>String(v||"").toLocaleLowerCase().includes(q)));
+ $("list").innerHTML=rows.length?rows.map(b=>{
+  const id=idOf(b);
+  return '<article class="book"><div><div class="title">'+esc(b.title||"未命名書籍")+'</div><div class="meta">作者：'+esc(b.author||"未提供")+'　｜　版本：'+esc(b.edition||b.version||"未標示")+'<br>頁數：'+esc(b.page_count||b.total_pages||0)+'　｜　狀態：'+esc(b.status||"已上架")+'<br>ID：'+esc(id)+'</div></div><div class="actions"><button class="danger" data-delete="'+esc(id)+'" '+(!id||busy?"disabled":"")+'>永久刪除</button></div></article>';
+ }).join(""):'<div class="status">目前頁面沒有符合條件的書籍。</div>';
+ $("page").textContent="第 "+(Math.floor(offset/limit)+1)+" 頁 · 本頁 "+books.length+" 本";
+ $("prev").disabled=offset===0||busy;$("next").disabled=!hasMore||busy;
+}
+async function load(reset){
+ if(busy)return;busy=true;if(reset)offset=0;draw();msg("正在讀取館藏……");
+ try{
+  const r=await api.ingest({action:"list",limit,offset});
+  if(!r.ok)throw new Error(r.data?.message||r.data?.error||("HTTP "+r.status));
+  books=r.data?.books||r.data?.items||r.data?.data?.books||[];
+  hasMore=!!(r.data?.has_more??r.data?.data?.has_more);
+  msg("已載入 "+books.length+" 本。刪除權限由後端擁有者／管理者驗證。","ok");
+ }catch(e){books=[];hasMore=false;msg("讀取失敗："+(e.message||e)+"。若尚未登入擁有者帳號，請先登入 AIVAULT。","error");}
+ finally{busy=false;draw();}
+}
+async function remove(id){
+ const b=books.find(x=>idOf(x)===id);if(!b)return;
+ const title=String(b.title||"這本書");
+ if(!confirm("確定永久刪除「"+title+"」？\n\n這會刪除後端原書與頁面、目錄、研讀清單、閱讀進度及匯入暫存，無法復原。"))return;
+ const typed=prompt("為避免誤刪，請輸入：刪除");
+ if(typed!=="刪除"){msg("已取消刪除。");return;}
+ busy=true;draw();msg("正在向第一基地送出永久刪除……");
+ try{
+  const r=await api.ingest({action:"delete",ebook_id:id,confirm:"PERMANENT_DELETE"});
+  if(!r.ok)throw new Error(r.data?.message||r.data?.error||("HTTP "+r.status));
+  msg("已刪除「"+title+"」。正在重新整理館藏……","ok");
+  busy=false;
+  await load(false);
+ }catch(e){msg("刪除失敗："+(e.message||e)+"。若回傳 OWNER_ONLY，請確認目前登入的是擁有者／管理者帳號。","error");busy=false;draw();}
+}
+$("list").addEventListener("click",e=>{const b=e.target.closest("[data-delete]");if(b)remove(b.dataset.delete);});
+$("refresh").addEventListener("click",()=>load(true));
+$("prev").addEventListener("click",()=>{offset=Math.max(0,offset-limit);load(false);});
+$("next").addEventListener("click",()=>{if(hasMore){offset+=limit;load(false);}});
+$("q").addEventListener("input",draw);
+if(!api||typeof api.ingest!=="function"){msg("電子書核心程式載入失敗，無法管理館藏。","error");return;}
+load(true);
+})();
+</script>
+</body></html>
