@@ -76,6 +76,7 @@ async function remove(id){
   const r=await api.ingest({action:"delete",ebook_id:id,confirm:"PERMANENT_DELETE"});
   if(!r.ok)throw new Error(r.data?.message||r.data?.error||("HTTP "+r.status));
   msg("已刪除「"+title+"」。正在重新整理館藏……","ok");
+  busy=false;
   await load(false);
  }catch(e){msg("刪除失敗："+(e.message||e)+"。若回傳 OWNER_ONLY，請確認目前登入的是擁有者／管理者帳號。","error");busy=false;draw();}
 }
