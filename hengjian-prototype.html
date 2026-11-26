@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>衡鑑 AI 原型 v0 · AIVAULT 第一基地</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#050a14;color:#e8f4ff;margin:0;padding:16px;line-height:1.5}
+.panel{background:#0b1728;border:1px solid #1a3a5c;border-radius:10px;padding:14px;margin:12px 0}
+h1{color:#4de8ff;font-size:1.4rem}
+.notice{background:#1a1808;border-left:3px solid #e8c06a;padding:8px;font-size:.85rem;color:#d5c080}
+.blocked{color:#ff9a5c;font-weight:bold}
+button{background:#1560a0;color:#fff;border:1px solid #2a80c0;padding:8px 14px;border-radius:6px;cursor:pointer;margin:4px}
+button:disabled{opacity:.5;cursor:not-allowed}
+#log,#output{background:#061018;border:1px solid #1a4060;border-radius:6px;padding:10px;white-space:pre-wrap;font-size:.85rem;min-height:80px}
+.status{font-size:.8rem;color:#7a9cc0}
+</style>
+</head>
+<body>
+<h1>衡鑑 AI（HENGJIAN）原型 v0</h1>
+<div class="notice">第二階段可執行原型：瀏覽器本地 WebGPU 推理（WebLLM）。未微調、未經專業評測。輸出僅供參考，必須人工覆核。無外部付費服務。資料不離開此裝置。</div>
+<div class="status" id="status">狀態：待載入模型（需 WebGPU）</div>
+
+<div class="panel">
+  <button id="loadBtn">載入小模型（Qwen2.5-1.5B 或等效）</button>
+  <button id="analyzeBtn" disabled>執行原型分析（模擬輸入）</button>
+  <div id="log"></div>
+</div>
+
+<div class="panel">
+  <h3>模擬輸入範例</h3>
+  <pre id="sampleInput">{
+  "simulationId": "SIM-DEMO",
+  "params": {"year": 2027, "rev": -15, "err": 12, "revGov": -8},
+  "alerts": ["營收變化超過 20%", "申報錯誤比例超過 10%"]
+}</pre>
+  <h3>原型輸出</h3>
+  <div id="output">尚未執行</div>
+</div>
+
+<script type="module">
+import { CreateMLCEngine } from "https://esm.run/@mlc-ai/web-llm";
+
+const statusEl = document.getElementById("status");
+const logEl = document.getElementById("log");
+const outputEl = document.getElementById("output");
+const loadBtn = document.getElementById("loadBtn");
+const analyzeBtn = document.getElementById("analyzeBtn");
+
+let engine = null;
+const MODEL_ID = "Qwen2.5-1.5B-Instruct-q4f16_1-MLC"; // 輕量候選，可改 Qwen3-1.7B
+
+function log(msg){
+  logEl.textContent += new Date().toISOString().slice(11,19) + " " + msg + "\n";
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+loadBtn.onclick = async () => {
+  loadBtn.disabled = true;
+  statusEl.textContent = "狀態：正在下載 / 載入模型（首次較久）...";
+  log("開始載入 " + MODEL_ID);
+  try {
+    engine = await CreateMLCEngine(MODEL_ID, {
+      initProgressCallback: (p) => {
+        statusEl.textContent = "載入中：" + (p.progress * 100).toFixed(0) + "% " + (p.text || "");
+        log(p.text || "progress " + p.progress);
+      }
+    });
+    statusEl.textContent = "狀態：模型已載入（本地 WebGPU）";
+    log("模型載入完成");
+    analyzeBtn.disabled = false;
+  } catch (e) {
+    statusEl.innerHTML = '<span class="blocked">載入失敗：' + e.message + "</span>（可能無 WebGPU 或記憶體不足）";
+    log("錯誤：" + e.message);
+    loadBtn.disabled = false;
+  }
+};
+
+analyzeBtn.onclick = async () => {
+  if (!engine) return;
+  analyzeBtn.disabled = true;
+  outputEl.textContent = "正在分析...";
+  const sample = document.getElementById("sampleInput").textContent;
+  const prompt = `你是衡鑑 AI 原型（未微調）。請依下列模擬資料給出簡短分析：風險摘要、可能需核對的法規方向（僅參考）、不確定事項、改善建議框架。明確標註此為原型輸出，非專業結論。\n\n資料：${sample}`;
+  try {
+    const reply = await engine.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.3,
+      max_tokens: 400
+    });
+    const text = reply.choices[0].message.content;
+    outputEl.textContent = text + "\n\n---\nmodel_version: HENGJIAN-PROTOTYPE-v0\nengine: WebLLM / " + MODEL_ID + "\n必須人工覆核。";
+    log("分析完成");
+  } catch (e) {
+    outputEl.innerHTML = '<span class="blocked">分析失敗：' + e.message + "</span>";
+    log("分析錯誤：" + e.message);
+  }
+  analyzeBtn.disabled = false;
+};
+</script>
+</body>
+</html>
