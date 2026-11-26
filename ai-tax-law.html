@@ -97,8 +97,20 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;padding:1rem}
 <details><summary>7. 可以直接提出復查嗎？</summary><p>須先確認是否已有可救濟的稅捐核定或其他行政決定，以及適用法律、法定期間與程序；單純風險提示未必等同可直接復查的核定。</p></details>
 <details><summary>8. 本頁分析可以當成正式法律意見嗎？</summary><p>不可以。本頁是前端教學模擬，未檢索個案卷證或即時法規，不能取代律師、納稅者權利保護官或主管機關的個案協助。</p></details>
 </section>
-<section class="card">
-<h2>十、暗星語音介接狀態</h2><p>目前沒有在本頁確認到可安全呼叫的既有暗星介接介面，因此不會自行猜測API或改動暗星核心。</p><div class="notice">NOT VERIFIED — 暗星即時語音尚未介接。本頁保留獨立運作，不修改暗星或曙光的喚醒、麥克風及語音路由。</div>
+<section class="card" id="darkStarLiveVoice">
+<h2>十、暗星即時語音法律助理</h2>
+<p>本區重用 AIVAULT 第一基地既有的暗星即時語音頁面與 live-voice 連線，不建立第二套模型或語音服務。請按下方按鈕後，在語音視窗內自行按「開始」並允許麥克風權限。</p>
+<div class="notice">麥克風只會在你主動啟動暗星語音後請求權限；本頁不會自動開啟麥克風，也不會自動啟動錄音。語音服務是否可連線，仍須以實際測試為準。</div>
+<div style="display:flex;flex-wrap:wrap;gap:.55rem;margin:.8rem 0">
+<a class="btn" href="technical-dark-star-live-video-test.html?mode=voice&v=3" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;text-decoration:none">🎙️ 在新視窗開啟暗星即時語音</a>
+<button type="button" class="secondary" id="loadDarkStarVoice">在本頁載入語音視窗</button>
+<button type="button" class="secondary" id="closeDarkStarVoice" disabled>關閉語音視窗</button>
+</div>
+<div id="darkStarVoiceFrameWrap" hidden>
+<iframe id="darkStarVoiceFrame" title="AIVAULT 暗星即時語音" src="about:blank" allow="microphone; autoplay" referrerpolicy="strict-origin-when-cross-origin" style="display:block;width:100%;height:720px;max-height:78vh;border:1px solid var(--border);border-radius:10px;background:#fff"></iframe>
+<p class="small">若 iPhone Safari 未在內嵌視窗提供麥克風權限，請使用上方「在新視窗開啟」方式；請在暗星頁面主動按「開始」，結束時按「停止」。</p>
+</div>
+<p class="small" id="darkStarVoiceStatus" aria-live="polite">狀態：尚未載入；尚未建立語音連線。</p>
 </section>
 </main>
 <a class="back-btn" href="aivault-home.html">返回 AIVAULT 首頁</a>
@@ -122,6 +134,19 @@ document.querySelectorAll("[data-scenario]").forEach(btn=>btn.addEventListener("
  show("simResult",'<h3>'+esc(d.title)+'｜<span class="pill">'+esc(d.level)+'</span></h3><p><b>模擬原因：</b>'+esc(d.reason)+'</p><p><b>法律爭點：</b></p><ul>'+d.issues.map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul><p><b>納稅者權利：</b></p><ul>'+d.rights.map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul><p><b>可能後續：</b>'+esc(d.next)+'</p><p class="small">本結果由固定教學規則產生，非真實AI模型或機關風險分數。</p>');
 }));
 byId("resetRisk").addEventListener("click",()=>hide("simResult"));
+byId("loadDarkStarVoice").addEventListener("click",()=>{
+ const wrap=byId("darkStarVoiceFrameWrap"),frame=byId("darkStarVoiceFrame"),status=byId("darkStarVoiceStatus");
+ if(!frame.dataset.loaded){frame.src="technical-dark-star-live-video-test.html?mode=voice&v=3";frame.dataset.loaded="1";}
+ wrap.hidden=false;byId("closeDarkStarVoice").disabled=false;
+ status.textContent="狀態：語音頁面已載入；請在視窗內按「開始」並授權麥克風。此處不代表連線已成功。";
+});
+byId("closeDarkStarVoice").addEventListener("click",()=>{
+ const frame=byId("darkStarVoiceFrame");
+ try{frame.contentWindow.postMessage({type:"aivault-dark-star-stop"},"*");}catch(e){}
+ frame.src="about:blank";delete frame.dataset.loaded;byId("darkStarVoiceFrameWrap").hidden=true;
+ byId("closeDarkStarVoice").disabled=true;byId("darkStarVoiceStatus").textContent="狀態：語音視窗已關閉。";
+});
+
 const problems={
 "個人資料錯誤":["確認姓名、身分識別、所得歸戶或其他資料是否錯置。","準備身分及原始資料證明，向相關機關提出查詢、說明或依法請求更正。"],
 "所得資料不一致":["核對所得年度、類別、給付人、扣繳及申報紀錄。","準備扣繳憑單、薪資明細、交易紀錄或更正證明。"],
