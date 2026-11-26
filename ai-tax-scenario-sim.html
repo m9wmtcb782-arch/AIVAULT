@@ -80,6 +80,12 @@ button.active { background:#16a34a; color:#fff; border-color:#16a34a; }
       <div id="summary"></div>
       <div class="notice" id="simNote"></div>
     </section>
+    <section class="card">
+      <h2>推演分支展開（規則式模擬，非獨立 AI 推理）</h2>
+      <p class="notice">每一分支由基礎情境、衝擊程度、復原條件組合產生。這是可重現的假設路徑，不代表統計機率或真實預測。</p>
+      <p id="branchSummary"></p>
+      <div id="branches" class="solutions"></div>
+    </section>
 
     <section class="card" id="chainSection" style="display:none">
       <h2>複合危機因果鏈（模擬）</h2>
@@ -239,6 +245,17 @@ button.active { background:#16a34a; color:#fff; border-color:#16a34a; }
       selected.map(s => '<li>【模擬】' + s.name + '（' + s.type + '）</li>').join('') + '</ul>' +
       (isCompound ? '<p><strong>複合危機因果鏈已啟用</strong></p>' : '');
     simNote.textContent = '本結果由前端預設結構化資料產生，標示為模擬資料，非真實 AI 推理。未呼叫 ai-gateway 或任何模型。';
+    const branchCount=Math.max(5,Math.min(100,parseInt(countInput.value,10)||20));
+    const impactModes=['基準情境','行政量能下降','資料延遲','高衝擊情境'];
+    const recoveryModes=['快速復原','一般復原','復原延遲','跨機關協調延遲','備援資源不足'];
+    const branches=Array.from({length:branchCount},(_,i)=>{
+      const scenario=selected[i%selected.length];
+      const impact=impactModes[Math.floor(i/selected.length)%impactModes.length];
+      const recovery=recoveryModes[Math.floor(i/(selected.length*impactModes.length))%recoveryModes.length];
+      return {id:i+1,scenario,impact,recovery};
+    });
+    document.getElementById('branchSummary').textContent='本次產生 '+branches.length+' 條規則式分支；基礎情境 '+selected.length+' 種；每條分支均標記其衝擊與復原假設。';
+    document.getElementById('branches').innerHTML=branches.map(b=>'<div class="sol"><strong>分支 '+b.id+'｜'+b.scenario.name+'</strong><br>衝擊假設：'+b.impact+'<br>復原假設：'+b.recovery+'<br><small>此分支為規則組合，不是獨立模型推理或機率估計。</small></div>').join('');
 
     if (isCompound) {
       chainSection.style.display = 'block';
