@@ -58,6 +58,19 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;padding:1rem}
 <div id="simResult" class="result" aria-live="polite"><p>請選擇上方情境開始模擬。</p></div>
 <button type="button" class="secondary" id="resetRisk">清除模擬結果</button>
 </section>
+
+<section class="card" id="ruleEngine">
+<h2>四、AI稅務規則引擎＋異常偵測模擬</h2>
+<p>輸入模擬數值，執行可解釋的規則比對，查看警示原因與人工查核清單。所有資料僅在本機瀏覽器處理；不連接真實稅務資料、資料庫或AI模型。</p>
+<div class="grid"><button type="button" class="secondary" id="rulePresetNormal">載入正常樣本</button><button type="button" class="secondary" id="rulePresetAnomaly">載入異常樣本</button></div>
+<div class="field"><label for="declaredIncome">申報收入（元）</label><input type="number" id="declaredIncome" min="0" value="1200000"></div>
+<div class="field"><label for="reportedThirdParty">第三方資料收入（元）</label><input type="number" id="reportedThirdParty" min="0" value="1200000"></div>
+<div class="field"><label for="expenseRatio">申報費用／收入比例（%）</label><input type="number" id="expenseRatio" min="0" max="100" value="45"></div>
+<div class="field"><label for="yearChange">較前年度收入變動（%）</label><input type="number" id="yearChange" min="-100" max="1000" value="8"></div>
+<div class="field"><label><input type="checkbox" id="duplicatePayment"> 疑似重複支付／申報</label></div><div class="field"><label><input type="checkbox" id="missingProof"> 部分費用支持文件缺漏</label></div>
+<button type="button" id="runRuleEngine">執行規則比對</button><button type="button" class="secondary" id="clearRuleEngine">清除／重設</button><div id="ruleEngineResult" class="result" aria-live="polite"></div>
+<div class="notice">教學規則：申報與第三方資料差異達10%、費用比例超過85%、年度收入變動超過±50%、重複記錄或支持文件缺漏會觸發提示。門檻為本頁自行設定，不是國稅局或審計部標準。</div>
+</section>
 <section class="card" id="objection">
 <h2>四、納稅者權利主張流程模擬</h2><p>依序完成下列步驟，系統會產生一份教學摘要。這不是政府申請表，也不會送出任何資料。</p>
 <div class="stepbar" id="stepbar"><span class="step active">1 情境</span><span class="step">2 問題</span><span class="step">3 證據</span><span class="step">4 權利</span><span class="step">5 摘要</span></div>
@@ -194,6 +207,28 @@ const cases=[
 {title:"個資超出必要範圍使用",facts:"系統將原為其他目的蒐集的資料整合用於稅務風險分析。",issues:"蒐集處理利用的法律依據、特定目的、必要性及資料安全。",law:"個人資料保護法及稅捐稽徵相關法規；應核對資料類型與機關法定職務。",duty:"確認法定依據、目的關聯、必要範圍、權限控管及保存期限。",rights:"依個案及法律規定主張資料查詢、更正或其他個資權利；並釐清限制事由。"}
 ];
 const list=byId("caseList");cases.forEach((c,i)=>{const b=document.createElement("button");b.type="button";b.className="case-item secondary";b.innerHTML="<b>案例 "+(i+1)+"</b><br>"+esc(c.title);b.addEventListener("click",()=>{show("caseResult",'<h3>'+esc(c.title)+'</h3><p><b>虛構事實：</b>'+esc(c.facts)+'</p><p><b>法律爭點：</b>'+esc(c.issues)+'</p><p><b>法律檢視：</b>'+esc(c.law)+'</p><p><b>機關責任：</b>'+esc(c.duty)+'</p><p><b>納稅者權利：</b>'+esc(c.rights)+'</p><p class="small">此為研究教學案例，具體法律結論仍須依現行法規及證據判斷。</p>');});list.appendChild(b);});
+function runTaxRuleEngine(){
+ const declared=Math.max(0,Number(document.getElementById("declaredIncome").value)||0);
+ const third=Math.max(0,Number(document.getElementById("reportedThirdParty").value)||0);
+ const ratio=Math.max(0,Math.min(100,Number(document.getElementById("expenseRatio").value)||0));
+ const change=Number(document.getElementById("yearChange").value)||0;
+ const duplicate=document.getElementById("duplicatePayment").checked,missing=document.getElementById("missingProof").checked;
+ const alerts=[];let score=0;
+ if(Math.max(declared,third)>0&&Math.abs(declared-third)/Math.max(declared,third)>=.10){score+=2;alerts.push(["申報與第三方資料差異","兩組收入差異達10%；核對所得類別、期間、歸戶、扣繳及更新日期。"]);}else alerts.push(["收入資料比對","未達本教學規則的差異提示門檻；仍需確認資料完整與類別一致。"]);
+ if(ratio>85){score+=2;alerts.push(["費用比例偏高","費用／收入比率高於85%；依產業、成本結構與支持憑證核實。"]);}
+ if(Math.abs(change)>50){score+=1;alerts.push(["年度收入變動","較前年度變動超過±50%；確認營運變化、一次性收入或申報分類因素。"]);}
+ if(duplicate){score+=3;alerts.push(["疑似重複支付／申報","逐筆核對單據號碼、日期、金額、交易對象及退款／沖銷。"]);}
+ if(missing){score+=2;alerts.push(["支持文件缺漏","確認法定文件要求、缺漏內容及補正可能性與期限。"]);}
+ const level=score>=5?"高（多項提示，優先核實）":score>=2?"中（存在核實線索）":"低（本組規則未觸發明顯警示）";
+ const safe=s=>String(s).replace(/[&<>"\x27]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","\x27":"&#39;"}[ch]));
+ const details=alerts.map(a=>"<li><b>"+safe(a[0])+"</b><br>"+safe(a[1])+"</li>").join("");
+ document.getElementById("ruleEngineResult").innerHTML="<h3>模擬分級："+safe(level)+"</h3><p><b>教學提示點數：</b>"+score+"（不是機關風險分數）</p><ul>"+details+"</ul><p><b>人工查核步驟：</b>①查資料來源與更新日期 ②核對原始交易及單據 ③記錄納稅者說明與反證 ④確認法源及程序 ⑤保留規則版本、觸發原因和覆核紀錄。</p><p>不得僅憑此分級認定逃漏稅或直接裁罰。</p><p class=small>本模組為固定前端規則模擬，未連接外部模型、真實納稅資料或機關風險系統。</p>";
+}
+const setTaxPreset=(anomaly)=>{document.getElementById("declaredIncome").value=anomaly?"900000":"1200000";document.getElementById("reportedThirdParty").value=anomaly?"1200000":"1200000";document.getElementById("expenseRatio").value=anomaly?"92":"45";document.getElementById("yearChange").value=anomaly?"-68":"8";document.getElementById("duplicatePayment").checked=anomaly;document.getElementById("missingProof").checked=anomaly;};
+document.getElementById("runRuleEngine").addEventListener("click",runTaxRuleEngine);
+document.getElementById("rulePresetNormal").addEventListener("click",()=>setTaxPreset(false));
+document.getElementById("rulePresetAnomaly").addEventListener("click",()=>setTaxPreset(true));
+document.getElementById("clearRuleEngine").addEventListener("click",()=>{setTaxPreset(false);const r=document.getElementById("ruleEngineResult");r.classList.remove("show");r.innerHTML="";});
 })();
 </script>
 </body>
