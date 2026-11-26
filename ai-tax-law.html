@@ -284,6 +284,25 @@ function runBatchScan(){
 document.getElementById("batchLoadSamples").addEventListener("click",runBatchScan);
 document.getElementById("batchRunScan").addEventListener("click",runBatchScan);
 document.getElementById("batchReset").addEventListener("click",()=>{const el=document.getElementById("batchAuditResults");el.innerHTML="";el.classList.remove("show");});
+document.getElementById("batchExportReport").addEventListener("click",()=>{
+ const ranked=batchSamples.map(x=>({...x,...batchRules(x)})).sort((a,b)=>b.score-a.score||a.id.localeCompare(b.id));
+ const nHigh=ranked.filter(x=>x.level==="高").length,nMed=ranked.filter(x=>x.level==="中").length,nLow=ranked.filter(x=>x.level==="低").length;
+ const stamp=new Date().toLocaleString("zh-TW");
+ const lines=["AIVAULT｜暗星稅務模擬查核報告","生成時間："+stamp,"聲明：本報告所有案件均為虛構資料。固定規則模擬，非正式AI模型、非機關風險評分，不構成逃漏稅認定或裁罰依據。","","批次統計：案件 "+ranked.length+" 筆；高提示 "+nHigh+"；中提示 "+nMed+"；低提示 "+nLow,"排序：提示分數由高至低，同分依案件編號。",""];
+ ranked.forEach((x,i)=>{
+  lines.push((i+1)+". "+x.id+"｜"+x.level+"提示｜分數 "+x.score);
+  lines.push("  申報收入："+x.declared.toLocaleString("zh-TW")+" 元；第三方收入："+x.third.toLocaleString("zh-TW")+" 元；費用比率："+x.expense+"%；年度變動："+x.change+"%");
+  lines.push("  疑似重複："+(x.duplicate?"是":"否")+"；支持文件缺漏："+(x.missing?"是":"否"));
+  lines.push("  觸發規則："+(x.alerts.length?x.alerts.join("、"):"未觸發提示"));
+  lines.push("  建議查核："+(x.level==="高"?"優先核對來源資料、交易憑證、重複項目及期間，並由人員逐項審查。":x.level==="中"?"確認警示條件及合理解釋，查驗原始憑證。":"例行確認資料完整性；低提示不等於免查或合法保證。"));
+  lines.push("  人工覆核紀錄：____________________________");
+  lines.push("  後續改善／追蹤：__________________________","  覆核人員／日期：__________________________","");
+ });
+ lines.push("通用檢查清單：","□ 確認資料來源、更新日期與正確性","□ 核對原始交易、憑證、帳冊及期間","□ 記錄納稅者說明與反證","□ 查證法律依據與程序要求","□ 記錄規則版本、觸發原因及人工覆核","□ 避免僅依模擬分數作出不利結論");
+ const blob=new Blob(["\\ufeff"+lines.join("\\n")],{type:"text/plain;charset=utf-8"});
+ const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="AIVAULT-暗星稅務模擬查核報告.txt";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+});
+
 
 })();
 </script>
