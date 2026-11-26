@@ -71,7 +71,9 @@ button.active { background:#16a34a; color:#fff; border-color:#16a34a; }
       <button type="button" id="runBtn">開始年度推演（模擬）</button>
       <button type="button" class="secondary" id="compoundBtn">啟用複合危機因果鏈</button>
       <button type="button" class="secondary" id="clearBtn">清除結果</button>
+      <button type="button" class="secondary" id="selfTestBtn">執行功能自我檢查</button>
     </div>
+    <pre id="selfTestOutput" class="gateway" aria-live="polite">尚未執行自我檢查。</pre>
   </section>
 
   <div id="output" class="result">
@@ -238,6 +240,7 @@ button.active { background:#16a34a; color:#fff; border-color:#16a34a; }
   }
 
   function render(selected, isCompound) {
+    if(!selected.length){alert('請至少選取一種基礎情境。');return false;}
     compoundMode = isCompound;
     const year = document.getElementById('year').value;
     const horizon = document.getElementById('horizon').value;
@@ -401,6 +404,10 @@ button.active { background:#16a34a; color:#fff; border-color:#16a34a; }
     }
     return {passed:results.every(x=>x.pass),results};
   };
+  document.getElementById('selfTestBtn').addEventListener('click',()=>{
+    const result=window.__scenarioSimSelfTest();
+    document.getElementById('selfTestOutput').textContent=JSON.stringify(result,null,2);
+  });
 })();
 </script>
 </body>
