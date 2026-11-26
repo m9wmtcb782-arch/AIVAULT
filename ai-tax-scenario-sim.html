@@ -97,7 +97,8 @@ button.active { background:#16a34a; color:#fff; border-color:#16a34a; }
       <p class="notice">本區依勾選的虛構情境產生規則式提醒，示範暗星應有的監督工作流程；目前尚未呼叫真實暗星模型或 Gateway。不得將模擬警示當成真實案件認定。</p>
       <div class="row">
         <button type="button" id="generateAlertsBtn">暗星分析情境並發出提醒（模擬）</button>
-        <button type="button" class="secondary" id="clearAlertsBtn">清除提醒</button>
+        <button type="button" class="secondary" id="exportAuditBtn">匯出稽核紀錄</button>
+        <button type="button" class="secondary" id="clearAlertsBtn">清除目前提醒</button>
       </div>
       <div id="alertSummary" aria-live="polite"></div>
       <div id="alertList" class="solutions"></div>
@@ -365,7 +366,50 @@ button.active { background:#16a34a; color:#fff; border-color:#16a34a; }
   const alertList = document.getElementById('alertList');
   const alertSummary = document.getElementById('alertSummary');
   const alertAuditLog = document.getElementById('alertAuditLog');
+  const ALERT_STORAGE_KEY = 'aivault-tax-sim-alerts-v1';
+  const AUDIT_STORAGE_KEY = 'aivault-tax-sim-audit-v1';
   let alertRecords = [];
+  let alertAuditRecords = [];
+  let storageAvailable = true;
+
+  function loadLocalState() {
+    try {
+      const savedAlerts = JSON.parse(localStorage.getItem(ALERT_STORAGE_KEY) || '[]');
+      const savedAudit = JSON.parse(localStorage.getItem(AUDIT_STORAGE_KEY) || '[]');
+      alertRecords = Array.isArray(savedAlerts) ? savedAlerts.filter(a => a && typeof a.id === 'string' && ALERT_RULES[Number(String(a.id).split('-')[1])]) : [];
+      alertAuditRecords = Array.isArray(savedAudit) ? savedAudit.slice(-500) : [];
+    } catch (_) {
+      storageAvailable = false;
+      alertRecords = [];
+      alertAuditRecords = [];
+    }
+  }
+
+  function persistLocalState() {
+    try {
+      localStorage.setItem(ALERT_STORAGE_KEY, JSON.stringify(alertRecords));
+      localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(alertAuditRecords.slice(-500)));
+      storageAvailable = true;
+      return true;
+    } catch (_) {
+      storageAvailable = false;
+      return false;
+    }
+  }
+
+  function appendAudit(action, alertRecord, detail) {
+    alertAuditRecords.push({
+      event_id: 'TAXSIM-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+      action,
+      alert_id: alertRecord ? alertRecord.id : null,
+      timestamp: new Date().toISOString(),
+      status: alertRecord ? alertRecord.status : null,
+      detail: String(detail || '').slice(0, 2000),
+      storage: 'browser-local-only'
+    });
+    if (alertAuditRecords.length > 500) alertAuditRecords = alertAuditRecords.slice(-500);
+    persistLocalState();
+  }
 
   const ALERT_RULES = {
     1: {risk:'高',level:'high',finding:'申報資料欄位缺漏或相互矛盾，可能使案件判斷基礎不完整。',baseline:'與同一案件其他申報欄位、附件及前期資料交叉比對。',impact:'案件延誤、錯誤補正或影響納稅者程序權益。',evidence:['原始申報書與更正紀錄','附件及補件往來紀錄','前期申報資料及資料異動軌跡'],action:'先確認資料來源與差異原因；必要時依程序通知補正，保留通知及送達紀錄。',owner:'承辦人員／股長覆核'},
@@ -410,18 +454,23 @@ button.active { background:#16a34a; color:#fff; border-color:#16a34a; }
     alertSummary.textContent = alertRecords.length
       ? '暗星已依 ' + alertRecords.length + ' 個模擬異常條件產生提醒。全部為虛構情境，尚未連接真實案件資料。'
       : '目前沒有提醒。請先執行情境推演，再啟動暗星提醒。';
-    alertList.innerHTML = alertRecords.map((a,i) => '<article class="alert-card '+a.level+'"><div class="row" style="justify-content:space-between"><strong>'+a.id+'｜'+a.scenario+'</strong><strong>風險：'+a.risk+'</strong></div><div class="alert-grid"><div class="alert-field"><strong>發現事項</strong><br>'+a.finding+'</div><div class="alert-field"><strong>比較基準／觸發原因</strong><br>'+a.baseline+'</div><div class="alert-field"><strong>可能影響</strong><br>'+a.impact+'</div><div class="alert-field"><strong>建議查證資料</strong><br><ul>'+a.evidence.map(x=>'<li>'+x+'</li>').join('')+'</ul></div><div class="alert-field"><strong>改善建議</strong><br>'+a.action+'<br><strong>建議負責角色：</strong>'+a.owner+'<br><strong>建議期限：</strong>由主管依案件法定期限及急迫性核定</div><div class="alert-field"><strong>提醒時間</strong><br>'+a.createdAt+'<br><strong>資料性質：</strong>虛構情境模擬，非真實案件</div></div><label for="status-'+i+'">承辦處理狀態</label><select id="status-'+i+'" data-alert-status="'+i+'"><option '+(a.status==='待確認'?'selected':'')+'>待確認</option><option '+(a.status==='查證中'?'selected':'')+'>查證中</option><option '+(a.status==='已改善'?'selected':'')+'>已改善</option><option '+(a.status==='不採納'?'selected':'')+'>不採納</option></select><label for="response-'+i+'">承辦回覆／查證結果／不採納理由</label><textarea id="response-'+i+'" data-alert-response="'+i+'" placeholder="請填寫查證結果、改善措施或不採納理由">'+escapeHTML(a.response)+'</textarea><div class="alert-actions"><button type="button" data-alert-save="'+i+'">儲存處理紀錄</button><button type="button" class="secondary" data-alert-improve="'+i+'">模擬改善後重新評估</button><span>改善狀態：'+(a.improved?'已完成改善後模擬':'尚未完成')+'</span></div>'+(a.improved?'<div class="notice">改善後模擬：原提醒已標記改善完成；仍須由承辦人確認證據及剩餘風險。此狀態僅保存在目前頁面記憶體。</div>':'')+'</article>').join('');
+    alertList.innerHTML = alertRecords.map((a,i) => '<article class="alert-card '+escapeHTML(a.level)+'"><div class="row" style="justify-content:space-between"><strong>'+escapeHTML(a.id)+'｜'+escapeHTML(a.scenario)+'</strong><strong>風險：'+escapeHTML(a.risk)+'</strong></div><div class="alert-grid"><div class="alert-field"><strong>發現事項</strong><br>'+escapeHTML(a.finding)+'</div><div class="alert-field"><strong>比較基準／觸發原因</strong><br>'+escapeHTML(a.baseline)+'</div><div class="alert-field"><strong>可能影響</strong><br>'+escapeHTML(a.impact)+'</div><div class="alert-field"><strong>建議查證資料</strong><br><ul>'+a.evidence.map(x=>'<li>'+escapeHTML(x)+'</li>').join('')+'</ul></div><div class="alert-field"><strong>改善建議</strong><br>'+escapeHTML(a.action)+'<br><strong>建議負責角色：</strong>'+escapeHTML(a.owner)+'<br><strong>建議期限：</strong>由主管依案件法定期限及急迫性核定</div><div class="alert-field"><strong>提醒時間</strong><br>'+escapeHTML(a.createdAt)+'<br><strong>資料性質：</strong>虛構情境模擬，非真實案件</div></div><label for="status-'+i+'">承辦處理狀態</label><select id="status-'+i+'" data-alert-status="'+i+'"><option '+(a.status==='待確認'?'selected':'')+'>待確認</option><option '+(a.status==='查證中'?'selected':'')+'>查證中</option><option '+(a.status==='已改善'?'selected':'')+'>已改善</option><option '+(a.status==='不採納'?'selected':'')+'>不採納</option></select><label for="response-'+i+'">承辦回覆／查證結果／不採納理由</label><textarea id="response-'+i+'" data-alert-response="'+i+'" placeholder="請填寫查證結果、改善措施或不採納理由">'+escapeHTML(a.response)+'</textarea><div class="alert-actions"><button type="button" data-alert-save="'+i+'">儲存處理紀錄</button><button type="button" class="secondary" data-alert-improve="'+i+'">改善後重新評估（規則式）</button><span>改善狀態：'+(a.improved?'已重新評估，待人工覆核':'尚未重新評估')+'</span></div>'+(a.improved?'<div class="notice"><strong>重新評估結果（規則式）：待人工覆核。</strong><br>'+escapeHTML(a.reassessment || '改善措施已記錄；仍須核對證據及剩餘風險。')+'<br><small>此結果不代表風險已消失，亦非真實暗星模型推理。</small></div>':'')+'</article>').join('');
+    if (!storageAvailable) alertSummary.textContent += '（此瀏覽器目前無法保存本機紀錄，請匯出備份。）';
   }
 
   document.getElementById('generateAlertsBtn').addEventListener('click',()=>{
     const selected=getSelected();
     if(!selected.length){alert('請先選取至少一種情境。');return;}
     alertRecords=makeAlerts(selected);
+    appendAudit('alerts_generated', null, '依所選虛構情境建立 ' + alertRecords.length + ' 項規則式提醒。');
+    persistLocalState();
     renderAlerts();
-    alertAuditLog.textContent='暗星模擬提醒已建立。請承辦人逐項查證；AI 不作成行政認定。';
+    alertAuditLog.textContent='規則式模擬提醒已建立並嘗試保存於本機。請承辦人逐項查證；目前不是暗星模型推理。';
   });
   document.getElementById('clearAlertsBtn').addEventListener('click',()=>{
-    alertRecords=[];renderAlerts();alertAuditLog.textContent='提醒紀錄已清除（僅清除本頁暫存模擬資料）。';
+    const clearedCount = alertRecords.length;
+    alertRecords=[];appendAudit('active_alerts_cleared', null, '清除目前提醒 ' + clearedCount + ' 項；保留稽核歷程。');
+    renderAlerts();alertAuditLog.textContent='目前提醒已清除；稽核歷程保留。所有資料僅存於此瀏覽器。';
   });
   alertList.addEventListener('click',e=>{
     const save=e.target.closest('[data-alert-save]');
@@ -432,18 +481,51 @@ button.active { background:#16a34a; color:#fff; border-color:#16a34a; }
     const status=document.querySelector('[data-alert-status="'+i+'"]');
     const response=document.querySelector('[data-alert-response="'+i+'"]');
     if(save){
+      const previousStatus = a.status;
       a.status=status.value;a.response=response.value;
-      alertAuditLog.textContent=a.id+' 已更新：'+a.status+'。'+(a.response?'承辦紀錄：'+a.response:'尚未填寫處理說明。');
+      a.updatedAt=new Date().toISOString();
+      appendAudit('handler_record_saved', a, '狀態：' + previousStatus + ' → ' + a.status + '；承辦紀錄：' + (a.response || '未填寫'));
+      alertAuditLog.textContent=a.id+' 已更新：'+a.status+'。'+(a.response?'承辦紀錄已保存。':'尚未填寫處理說明。');
     }else{
       a.status=status.value;a.response=response.value;
       if(a.status!=='已改善'||!a.response.trim()){
         alert('請先將狀態設為「已改善」，並填寫查證及改善結果，才可進行改善後模擬。');return;
       }
       a.improved=true;
-      alertAuditLog.textContent=a.id+' 已完成改善後模擬標記。請人工確認改善證據及剩餘風險。';
+      a.reassessment='已記錄改善措施並完成規則式重新檢查流程。現有情境提醒仍列為待人工覆核；承辦人須逐項核對改善證據、確認原始觸發條件是否排除，並由主管決定是否結案。';
+      a.reassessedAt=new Date().toISOString();
+      appendAudit('rule_based_reassessment', a, a.reassessment + ' 承辦回覆：' + a.response);
+      alertAuditLog.textContent=a.id+' 已完成規則式重新評估流程。風險未自動結案，須人工覆核。';
     }
+    persistLocalState();
     renderAlerts();
   });
+
+  document.getElementById('exportAuditBtn').addEventListener('click', () => {
+    const payload = {
+      report_type: 'AIVAULT tax simulation local audit export',
+      generated_at: new Date().toISOString(),
+      storage_scope: '此瀏覽器本機資料；不是雲端或機關正式稽核紀錄',
+      alerts: alertRecords,
+      audit_events: alertAuditRecords
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'aivault-tax-simulation-audit-' + new Date().toISOString().slice(0,10) + '.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    alertAuditLog.textContent = '已產生本機 JSON 稽核匯出檔。請妥善保存；此檔案不是正式機關稽核紀錄。';
+  });
+
+  loadLocalState();
+  renderAlerts();
+  alertAuditLog.textContent = alertRecords.length
+    ? '已從此瀏覽器載入 ' + alertRecords.length + ' 項提醒及 ' + alertAuditRecords.length + ' 筆稽核事件。'
+    : '尚無已保存的提醒；開始模擬後可在此瀏覽器保存。';
 
   function updateDecisionLog() {
     const lines = [];
