@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f2c4a">
+<title>暗星年度多情境推演與極端危機分析｜AIVAULT 第一基地</title>
+<style>
+:root { --navy:#0f2c4a; --navy2:#1B3A5C; --gold:#D4A843; --bg:#f5f7fa; --card:#fff; --text:#1e2d3d; --muted:#5a6a7a; --border:#e2e8f0; --amber:#b45309; --red:#a33b35; }
+* { box-sizing:border-box; }
+body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Microsoft JhengHei","Noto Sans TC",sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
+header { background:linear-gradient(135deg,var(--navy),var(--navy2)); color:#fff; padding:1.3rem 1rem; }
+header h1 { margin:0; font-size:clamp(1.2rem,4vw,1.55rem); }
+header .sub { margin:.3rem 0 0; font-size:.84rem; opacity:.9; }
+.banner { background:#fff3cd; color:#856404; padding:.65rem 1rem; text-align:center; font-size:.82rem; border-bottom:1px solid #ffeeba; }
+.container { max-width:1180px; margin:0 auto; padding:1rem; }
+.card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1rem; margin-bottom:.9rem; box-shadow:0 1px 3px rgba(0,0,0,.04); }
+.card h2 { margin:0 0 .6rem; color:var(--navy2); font-size:1.05rem; }
+.row { display:flex; flex-wrap:wrap; gap:.6rem; align-items:center; }
+label { font-weight:600; font-size:.88rem; }
+select, input[type=number], input[type=text], textarea { padding:.5rem .65rem; border:1px solid #cbd5e1; border-radius:7px; font:inherit; }
+button { background:var(--navy2); color:#fff; border:none; padding:.55rem .9rem; border-radius:7px; cursor:pointer; font-size:.88rem; }
+button:hover { filter:brightness(1.1); }
+button.secondary { background:#fff; color:var(--navy2); border:1px solid var(--navy2); }
+.notice { background:#fff8e6; border-left:4px solid var(--gold); padding:.55rem .7rem; font-size:.8rem; margin:.5rem 0; border-radius:4px; }
+.scenarios { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:.55rem; max-height:320px; overflow-y:auto; padding:.4rem; border:1px solid var(--border); border-radius:8px; }
+.sc { border:1px solid var(--border); border-radius:8px; padding:.55rem; font-size:.8rem; background:#fafbfc; }
+.sc input { margin-right:.35rem; }
+.level1 { border-left:4px solid #22c55e; }
+.level2 { border-left:4px solid #f59e0b; }
+.level3 { border-left:4px solid #f97316; }
+.level4 { border-left:4px solid #ef4444; }
+.level5 { border-left:4px solid #7f1d1d; }
+.result { display:none; }
+.result.show { display:block; }
+.timeline { display:flex; flex-wrap:wrap; gap:.4rem; margin:.5rem 0; }
+.tl-item { background:#eef3f8; padding:.35rem .6rem; border-radius:6px; font-size:.78rem; }
+.roles { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:.5rem; }
+.role { border:1px solid var(--border); border-radius:8px; padding:.6rem; font-size:.8rem; background:#f8fafc; }
+.matrix { display:grid; grid-template-columns:repeat(4,1fr); gap:.4rem; font-size:.75rem; }
+.matrix div { padding:.5rem; border-radius:6px; text-align:center; background:#f1f5f9; }
+.high { background:#fee2e2; } .med { background:#ffedd5; } .low { background:#dcfce7; }
+.solutions { display:grid; gap:.5rem; }
+.sol { border:1px solid var(--border); border-radius:8px; padding:.65rem; font-size:.82rem; }
+.back { position:fixed; bottom:.8rem; right:.8rem; background:var(--navy2); color:#fff; text-decoration:none; padding:.5rem .85rem; border-radius:999px; font-size:.8rem; font-weight:700; }
+@media (max-width:700px) { .matrix { grid-template-columns:repeat(2,1fr); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>暗星年度多情境推演與極端危機分析</h1>
+  <p class="sub">年度稅務行政風險預測・N 種情境模擬・極端壓力測試・行政改善決策｜AIVAULT 第一基地</p>
+</header>
+<div class="banner">【模擬資料，非真實 AI 推理】本頁為純前端可操作原型，使用虛構稅務行政資料。所有結果均為預設結構化模擬，未呼叫任何 AI 模型或 Gateway。未來接口已預留。</div>
+
+<div class="container">
+  <section class="card">
+    <h2>一、推演設定</h2>
+    <div class="row">
+      <label>分析年度</label>
+      <select id="year"><option>2027</option><option>2028</option><option selected>2029</option></select>
+      <label>推演年期</label>
+      <select id="horizon"><option value="1">1 年</option><option value="3">3 年</option><option value="5">5 年</option></select>
+      <label>情境數量</label>
+      <input type="number" id="count" min="5" max="100" value="20" style="width:70px">
+    </div>
+    <p class="notice">可勾選下方 20 種初始情境（分五級），或使用複合組合。結果一律標示模擬。</p>
+    <div class="scenarios" id="scList"></div>
+    <div class="row" style="margin-top:.7rem">
+      <button type="button" id="runBtn">開始年度推演（模擬）</button>
+      <button type="button" class="secondary" id="compoundBtn">加入複合危機示範</button>
+      <button type="button" class="secondary" id="clearBtn">清除結果</button>
+    </div>
+  </section>
+
+  <div id="output" class="result">
+    <section class="card">
+      <h2>二、推演結果總覽</h2>
+      <div id="summary"></div>
+      <div class="notice" id="simNote"></div>
+    </section>
+
+    <section class="card">
+      <h2>三、事件發展時間軸（模擬）</h2>
+      <div class="timeline" id="timeline"></div>
+    </section>
+
+    <section class="card">
+      <h2>四、多角色審查（模擬角色輸出，非真實模型）</h2>
+      <div class="roles" id="roles"></div>
+    </section>
+
+    <section class="card">
+      <h2>五、定性風險矩陣與比較</h2>
+      <div class="matrix" id="matrix"></div>
+      <p class="notice">無可靠統計資料，僅顯示定性嚴重程度，不提供百分比或金額。</p>
+    </section>
+
+    <section class="card">
+      <h2>六、解決方案與改善計畫（模擬）</h2>
+      <div class="solutions" id="solutions"></div>
+    </section>
+
+    <section class="card">
+      <h2>七、年度工作循環與追蹤（前端展示）</h2>
+      <div id="cycle"></div>
+      <p class="notice">第一階段使用瀏覽器本地暫存虛構資料，不具備跨裝置或永久保存。跨年比較需後端授權後再實作。</p>
+    </section>
+
+    <section class="card">
+      <h2>八、主管決策區</h2>
+      <div class="row">
+        <button type="button" class="secondary">接受建議（模擬）</button>
+        <button type="button" class="secondary">要求重新模擬</button>
+        <button type="button" class="secondary">增加情境</button>
+        <button type="button" class="secondary">產生第二版報告</button>
+      </div>
+      <p style="font-size:.8rem;margin-top:.6rem">AI 僅提供分析與建議，不得自行認定逃漏稅、核定稅額或作成行政處分。正式決定由有權限人員負責。</p>
+    </section>
+  </div>
+</div>
+
+<a class="back" href="ai-tax-law.html">返回稅務法律專區</a>
+
+<script>
+(function(){
+  const SCENARIOS = [
+    {id:1, level:1, name:"稅務案件增加，承辦人工作量上升", type:"一般行政"},
+    {id:2, level:1, name:"申報資料缺漏，造成案件處理延遲", type:"一般行政"},
+    {id:3, level:1, name:"稅法函釋更新，承辦人尚未及時掌握", type:"一般行政"},
+    {id:4, level:1, name:"不同稅務機關對相似案件出現不同處理見解", type:"一般行政"},
+    {id:5, level:1, name:"公文及查核報告製作時間過長", type:"一般行政"},
+    {id:6, level:2, name:"大量企業營業額下降，稅收低於預期", type:"財政風險"},
+    {id:7, level:2, name:"大量案件積壓，超過行政處理能力", type:"行政風險"},
+    {id:8, level:2, name:"稅務 AI 選案錯誤，造成不必要的查核", type:"查核風險"},
+    {id:9, level:2, name:"跨機關資料交換延遲，影響案件審查", type:"行政風險"},
+    {id:10, level:2, name:"法規修正造成既有行政流程需要全面調整", type:"法律風險"},
+    {id:11, level:3, name:"AI 模型出現系統性偏誤，特定產業或群體受到不公平對待", type:"權益風險"},
+    {id:12, level:3, name:"大量行政處分因相同法律適用錯誤遭撤銷", type:"法律風險"},
+    {id:13, level:3, name:"稅務資料庫發生重大故障", type:"系統風險"},
+    {id:14, level:3, name:"重大資安事件造成敏感資料外洩", type:"資安風險"},
+    {id:15, level:3, name:"稅收突然大幅下滑，影響政府財政及行政資源配置", type:"財政風險"},
+    {id:16, level:4, name:"全國性稅務系統長時間中斷", type:"極端危機"},
+    {id:17, level:4, name:"大規模網路攻擊，導致多個稅務機關無法正常作業", type:"極端危機"},
+    {id:18, level:4, name:"AI 查核系統發生大規模錯誤，影響大量案件", type:"極端危機"},
+    {id:19, level:4, name:"重大天然災害導致稅務機關及資料中心同時無法運作", type:"極端危機"},
+    {id:20, level:5, name:"同時發生經濟衰退、稅收下降、系統故障、人力不足及資安事件", type:"複合型災難"}
+  ];
+
+  const list = document.getElementById('scList');
+  SCENARIOS.forEach(s => {
+    const d = document.createElement('div');
+    d.className = 'sc level' + s.level;
+    d.innerHTML = `<label><input type="checkbox" value="${s.id}" checked> <strong>${s.id}. ${s.name}</strong><br><span style="color:#5a6a7a">${s.type} · 第${s.level}級</span></label>`;
+    list.appendChild(d);
+  });
+
+  const output = document.getElementById('output');
+  const summary = document.getElementById('summary');
+  const timeline = document.getElementById('timeline');
+  const roles = document.getElementById('roles');
+  const matrix = document.getElementById('matrix');
+  const solutions = document.getElementById('solutions');
+  const cycle = document.getElementById('cycle');
+  const simNote = document.getElementById('simNote');
+
+  function getSelected() {
+    return Array.from(document.querySelectorAll('#scList input:checked')).map(i => SCENARIOS.find(s => s.id == i.value));
+  }
+
+  function render(selected, compound) {
+    const year = document.getElementById('year').value;
+    const horizon = document.getElementById('horizon').value;
+    const count = document.getElementById('count').value;
+    summary.innerHTML = `<p>分析年度：<strong>${year}</strong>　推演年期：<strong>${horizon} 年</strong>　選定情境數：<strong>${selected.length}</strong>（上限設定 ${count}）</p>
+      <ul>${selected.map(s => `<li>【模擬】${s.name}（${s.type}）</li>`).join('')}</ul>
+      ${compound ? '<p><strong>複合示範已啟用：</strong>稅收下降 + 案件積壓 + 系統中斷（連鎖反應模擬）</p>' : ''}`;
+    simNote.textContent = '本結果由前端預設結構化資料產生，標示為模擬資料，非真實 AI 推理。未呼叫 ai-gateway 或任何模型。';
+
+    timeline.innerHTML = ['事件發生前','初期警訊','危機發生','擴大階段','應變處理','復原階段'].map(t => `<span class="tl-item">${t}</span>`).join('');
+
+    const roleData = [
+      {name:'暗星總分析員', out:'整合各情境背景、觸發條件與連鎖可能。'},
+      {name:'稅法審查員', out:'檢查程序合法性、處分依據與救濟風險。'},
+      {name:'財政分析員', out:'定性評估稅收影響方向，無具體金額。'},
+      {name:'行政管理分析員', out:'評估人力負荷與流程瓶頸。'},
+      {name:'資訊安全審查員', out:'檢查系統中斷與資料外洩可能。'},
+      {name:'極端危機反方審查員', out:'尋找假設漏洞與被忽略的連鎖反應。'}
+    ];
+    roles.innerHTML = roleData.map(r => `<div class="role"><strong>${r.name}</strong><br><span style="color:#5a6a7a">模擬角色輸出，非真實模型</span><br>${r.out}</div>`).join('');
+
+    matrix.innerHTML = [
+      '<div class="low">一般行政<br>低-中</div>',
+      '<div class="med">財政／查核<br>中-高</div>',
+      '<div class="high">系統／資安<br>高</div>',
+      '<div class="high">極端／複合<br>極高</div>'
+    ].join('');
+
+    solutions.innerHTML = selected.slice(0,3).map(s => `
+      <div class="sol">
+        <strong>${s.name}</strong><br>
+        方案A（模擬）：強化監控與早期通報，法律可行性高、行政可行性中。<br>
+        方案B（模擬）：調整流程與人力配置，執行時間較長，需主管核定資源。<br>
+        建議：優先方案A，並要求補充資料後再評估方案B。需主管決定事項：是否啟動跨機關協調。
+      </div>`).join('');
+
+    cycle.innerHTML = `<ul>
+      <li>年初：產生年度風險清單（模擬）</li>
+      <li>每季：更新情境與警訊</li>
+      <li>年中：執行極端壓力測試</li>
+      <li>年底：比較預測與實際（第一階段無真實歷史資料）</li>
+      <li>次年：修正假設（待後端授權）</li>
+    </ul>`;
+
+    output.classList.add('show');
+    output.scrollIntoView({behavior:'smooth'});
+  }
+
+  document.getElementById('runBtn').onclick = () => render(getSelected(), false);
+  document.getElementById('compoundBtn').onclick = () => {
+    render(getSelected(), true);
+  };
+  document.getElementById('clearBtn').onclick = () => output.classList.remove('show');
+})();
+</script>
+</body>
+</html>
