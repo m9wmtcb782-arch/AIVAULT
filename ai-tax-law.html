@@ -71,7 +71,13 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;padding:1rem}
 <button type="button" id="runRuleEngine">執行規則比對</button><button type="button" class="secondary" id="clearRuleEngine">清除／重設</button><div id="ruleEngineResult" class="result" aria-live="polite"></div>
 <div class="notice">教學規則：申報與第三方資料差異達10%、費用比例超過85%、年度收入變動超過±50%、重複記錄或支持文件缺漏會觸發提示。門檻為本頁自行設定，不是國稅局或審計部標準。</div>
 </section>
-<section class="card" id="objection">
+
+<div class="subsection" id="batchTaxAudit">
+<h3>批次案件掃描（虛構資料）</h3>
+<p>一次掃描多筆模擬案件，依提示點數排序，查看觸發規則與查核方向。此處所有案件均為虛構樣本，沒有連接真實納稅人或稅務資料。</p>
+<div class="grid"><button type="button" class="secondary" id="batchLoadSamples">載入六筆測試案件</button><button type="button" id="batchRunScan">批次掃描與排序</button><button type="button" class="secondary" id="batchReset">重設</button></div>
+<div id="batchAuditResults" class="result" aria-live="polite"></div>
+</div><section class="card" id="objection">
 <h2>五、納稅者權利主張流程模擬</h2><p>依序完成下列步驟，系統會產生一份教學摘要。這不是政府申請表，也不會送出任何資料。</p>
 <div class="stepbar" id="stepbar"><span class="step active">1 情境</span><span class="step">2 問題</span><span class="step">3 證據</span><span class="step">4 權利</span><span class="step">5 摘要</span></div>
 <div id="wizardPanel" aria-live="polite"></div>
@@ -229,6 +235,37 @@ document.getElementById("runRuleEngine").addEventListener("click",runTaxRuleEngi
 document.getElementById("rulePresetNormal").addEventListener("click",()=>setTaxPreset(false));
 document.getElementById("rulePresetAnomaly").addEventListener("click",()=>setTaxPreset(true));
 document.getElementById("clearRuleEngine").addEventListener("click",()=>{setTaxPreset(false);const r=document.getElementById("ruleEngineResult");r.classList.remove("show");r.innerHTML="";});
+
+const batchSamples=[
+{id:"SIM-001",declared:1200000,third:1200000,expense:45,change:8,duplicate:false,missing:false},
+{id:"SIM-002",declared:900000,third:1200000,expense:92,change:-68,duplicate:true,missing:true},
+{id:"SIM-003",declared:2000000,third:2100000,expense:62,change:56,duplicate:false,missing:false},
+{id:"SIM-004",declared:650000,third:1000000,expense:78,change:12,duplicate:false,missing:true},
+{id:"SIM-005",declared:1500000,third:1500000,expense:88,change:-54,duplicate:true,missing:false},
+{id:"SIM-006",declared:300000,third:300000,expense:34,change:2,duplicate:false,missing:false}
+];
+function batchRules(x){
+ const alerts=[];let score=0;
+ if(Math.max(x.declared,x.third)>0&&Math.abs(x.declared-x.third)/Math.max(x.declared,x.third)>=.10){score+=2;alerts.push("收入差異達10%");}
+ if(x.expense>85){score+=2;alerts.push("費用比例超過85%");}
+ if(Math.abs(x.change)>50){score+=1;alerts.push("年度變動超過±50%");}
+ if(x.duplicate){score+=3;alerts.push("疑似重複資料");}
+ if(x.missing){score+=2;alerts.push("支持文件缺漏");}
+ const level=score>=5?"高":score>=2?"中":"低";
+ return {score,level,alerts};
+}
+function runBatchScan(){
+ const ranked=batchSamples.map(x=>({...x,...batchRules(x)})).sort((a,b)=>b.score-a.score||a.id.localeCompare(b.id));
+ const countHigh=ranked.filter(x=>x.level==="高").length,countMed=ranked.filter(x=>x.level==="中").length,countLow=ranked.filter(x=>x.level==="低").length;
+ const escBatch=s=>String(s).replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+ const table='<table class="data-table"><thead><tr><th>案件編號</th><th>提示分數</th><th>分級</th><th>觸發規則</th></tr></thead><tbody>'+ranked.map(x=>'<tr><td>'+escBatch(x.id)+'</td><td>'+x.score+'</td><td>'+escBatch(x.level)+'</td><td>'+escBatch(x.alerts.length?x.alerts.join("、"):"未觸發提示")+'</td></tr>').join("")+'</tbody></table>';
+ document.getElementById("batchAuditResults").innerHTML='<h4>批次掃描摘要</h4><p>共 '+ranked.length+' 筆虛構案件｜高提示 '+countHigh+' 筆｜中提示 '+countMed+' 筆｜低提示 '+countLow+' 筆</p><p><b>排序原則：</b>提示分數由高至低；同分依案件編號排列。</p>'+table+'<h4>優先查核方向</h4><ul><li>高提示案件先核實資料來源、交易單據及期間。</li><li>中提示案件逐項確認觸發條件與合理解釋。</li><li>低提示案件仍須注意資料完整，低提示不代表免查或合法保證。</li></ul><div class="notice">這是固定規則的批次模擬，非正式風險評分。AI提示不得直接作為違法或裁罰認定。</div>';
+ document.getElementById("batchAuditResults").classList.add("show");
+}
+document.getElementById("batchLoadSamples").addEventListener("click",runBatchScan);
+document.getElementById("batchRunScan").addEventListener("click",runBatchScan);
+document.getElementById("batchReset").addEventListener("click",()=>{const el=document.getElementById("batchAuditResults");el.innerHTML="";el.classList.remove("show");});
+
 })();
 </script>
 </body>
