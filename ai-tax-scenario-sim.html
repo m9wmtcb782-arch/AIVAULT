@@ -361,6 +361,7 @@ button.active { background:#16a34a; color:#fff; border-color:#16a34a; }
       compoundChain:n!==5||causalChain.textContent.includes('假設性因果鏈'),
       sixRoles:roles.children.length===6,
       solutions:selected.length>0&&solutions.children.length===Math.min(3,selected.length),
+      branchCountMatchesSetting:document.getElementById('branches').children.length===Number(countInput.value),
       decisionControls:document.querySelectorAll('#decisionBtns button[data-act]').length===4
     };
     return {test:n,checks,passed:Object.values(checks).every(Boolean),selectedCount:selected.length,compound:n===5};
@@ -378,13 +379,21 @@ button.active { background:#16a34a; color:#fff; border-color:#16a34a; }
     try{
       document.querySelectorAll('#scList input').forEach(b=>b.checked=false);enforceCount();
       results.push({name:'空選取不產生推演資料',pass:getSelected().length===0});
-      countInput.value='1';enforceCount();results.push({name:'分支數下限為5',pass:Number(countInput.value)===5});
-      countInput.value='150';enforceCount();results.push({name:'分支數上限為100',pass:Number(countInput.value)===100});
+      countInput.value='1';enforceCount();results.push({name:'分支數下限限制為5',pass:Number(countInput.value)===5});
+      countInput.value='150';enforceCount();results.push({name:'分支數上限限制為100',pass:Number(countInput.value)===100});
+      countInput.value='5';render(getSelected(),false);results.push({name:'實際產生5條分支',pass:document.getElementById('branches').children.length===5});
+      countInput.value='100';render(getSelected(),false);results.push({name:'實際產生100條分支',pass:document.getElementById('branches').children.length===100});
       const t5=window.__runTest(5);results.push({name:'複合危機因果鏈',pass:t5.checks.compoundChain});
+      window.__resetScenarioSim();document.querySelector('[data-act="add"]').click();
+      results.push({name:'增加情境按鈕實際新增一個勾選項',pass:document.querySelectorAll('#scList input:checked').length===6});
+      document.querySelector('[data-act="accept"]').click();
+      results.push({name:'接受建議按鈕更新決策狀態',pass:decisionState.accepted===true});
       const v=decisionState.reportVersion;document.querySelector('[data-act="report"]').click();
-      results.push({name:'主管產生第二版報告按鈕',pass:decisionState.reportVersion===v+1});
-      window.__resetScenarioSim();
-      results.push({name:'重設後恢復初始選取與隱藏結果',pass:document.querySelectorAll('#scList input:checked').length===5&&!output.classList.contains('show')});
+      results.push({name:'產生第二版報告按鈕更新版本',pass:decisionState.reportVersion===v+1});
+      document.querySelector('[data-act="resim"]').click();
+      results.push({name:'重新模擬按鈕重新顯示結果',pass:output.classList.contains('show')});
+      document.getElementById('clearBtn').click();
+      results.push({name:'清除按鈕隱藏結果並重設決策',pass:!output.classList.contains('show')&&!decisionState.accepted&&decisionState.reportVersion===1});
     }finally{
       document.querySelectorAll('#scList input').forEach((b,i)=>b.checked=prior[i]);
       countInput.value=priorCount;enforceCount();output.classList.remove('show');compoundMode=false;
