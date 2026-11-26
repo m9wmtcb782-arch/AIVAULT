@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f2c4a">
+<title>AI 稅務模擬與暗星監督工作台｜AIVAULT 第一基地</title>
+<style>
+:root { --navy:#0f2c4a; --navy2:#1B3A5C; --gold:#D4A843; --bg:#f5f7fa; --card:#fff; --text:#1e2d3d; --muted:#5a6a7a; --border:#e2e8f0; }
+* { box-sizing:border-box; }
+body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Microsoft JhengHei","Noto Sans TC",sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
+header { background:linear-gradient(135deg,var(--navy),var(--navy2)); color:#fff; padding:1.3rem 1rem; }
+header h1 { margin:0; font-size:clamp(1.2rem,4vw,1.55rem); }
+header .sub { margin:.3rem 0 0; font-size:.84rem; opacity:.9; }
+.banner { background:#fff3cd; color:#856404; padding:.65rem 1rem; text-align:center; font-size:.82rem; border-bottom:1px solid #ffeeba; }
+.container { max-width:1180px; margin:0 auto; padding:1rem; }
+.card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1rem; margin-bottom:.9rem; box-shadow:0 1px 3px rgba(0,0,0,.04); }
+.card h2 { margin:0 0 .6rem; color:var(--navy2); font-size:1.05rem; }
+.row { display:flex; flex-wrap:wrap; gap:.6rem; align-items:center; }
+label { font-weight:600; font-size:.88rem; }
+select, input[type=number], input[type=text], textarea { padding:.5rem .65rem; border:1px solid #cbd5e1; border-radius:7px; font:inherit; }
+button { background:var(--navy2); color:#fff; border:none; padding:.55rem .9rem; border-radius:7px; cursor:pointer; font-size:.88rem; }
+button:hover { filter:brightness(1.1); }
+button.secondary { background:#fff; color:var(--navy2); border:1px solid var(--navy2); }
+button.active { background:#16a34a; color:#fff; border-color:#16a34a; }
+.notice { background:#fff8e6; border-left:4px solid var(--gold); padding:.55rem .7rem; font-size:.8rem; margin:.5rem 0; border-radius:4px; }
+.scenarios { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:.55rem; max-height:320px; overflow-y:auto; padding:.4rem; border:1px solid var(--border); border-radius:8px; }
+.sc { border:1px solid var(--border); border-radius:8px; padding:.55rem; font-size:.8rem; background:#fafbfc; }
+.sc input { margin-right:.35rem; }
+.level1 { border-left:4px solid #22c55e; } .level2 { border-left:4px solid #f59e0b; } .level3 { border-left:4px solid #f97316; } .level4 { border-left:4px solid #ef4444; } .level5 { border-left:4px solid #7f1d1d; }
+.result { display:none; } .result.show { display:block; }
+.timeline { display:flex; flex-wrap:wrap; gap:.4rem; margin:.5rem 0; }
+.tl-item { background:#eef3f8; padding:.35rem .6rem; border-radius:6px; font-size:.78rem; }
+.roles { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:.5rem; }
+.role { border:1px solid var(--border); border-radius:8px; padding:.6rem; font-size:.8rem; background:#f8fafc; }
+.matrix { display:grid; grid-template-columns:repeat(4,1fr); gap:.4rem; font-size:.75rem; }
+.matrix div { padding:.5rem; border-radius:6px; text-align:center; background:#f1f5f9; }
+.high { background:#fee2e2; } .med { background:#ffedd5; } .low { background:#dcfce7; }
+.solutions { display:grid; gap:.5rem; }
+.alert-card { border:1px solid var(--border); border-left:5px solid #f59e0b; border-radius:9px; padding:.8rem; background:#fff; }
+.alert-card.critical { border-left-color:#b91c1c; }
+.alert-card.high { border-left-color:#ea580c; }
+.alert-card.medium { border-left-color:#d97706; }
+.alert-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:.55rem; margin:.55rem 0; }
+.alert-field { background:#f8fafc; border:1px solid var(--border); border-radius:7px; padding:.55rem; font-size:.82rem; }
+.alert-card textarea { width:100%; min-height:62px; margin:.35rem 0; }
+.alert-card select { max-width:100%; }
+.alert-actions { display:flex; flex-wrap:wrap; gap:.45rem; align-items:center; }
+.sol { border:1px solid var(--border); border-radius:8px; padding:.65rem; font-size:.82rem; }
+.chain { font-size:.84rem; line-height:1.7; }
+.chain li { margin:.25rem 0; }
+.decision-log { background:#f8fafc; border:1px solid var(--border); border-radius:8px; padding:.6rem; font-size:.82rem; min-height:60px; margin-top:.5rem; }
+.gateway { background:#f1f5f9; border-radius:8px; padding:.7rem; font-size:.78rem; font-family:ui-monospace,monospace; white-space:pre-wrap; }
+.back { position:fixed; bottom:.8rem; right:.8rem; background:var(--navy2); color:#fff; text-decoration:none; padding:.5rem .85rem; border-radius:999px; font-size:.8rem; font-weight:700; }
+@media (max-width:700px) { .matrix { grid-template-columns:repeat(2,1fr); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>AI 稅務模擬與暗星監督工作台</h1>
+  <p class="sub">年度風險推演・主動提醒・承辦查證・改善追蹤・主管覆核｜AIVAULT 第一基地</p>
+</header>
+<div class="banner">【目前版本：規則式前端模擬】提醒、改善追蹤與稽核匯出可在本機操作；尚未接通真實暗星模型、雲端資料庫或跨裝置同步。不得將模擬結果視為真實預測或行政認定。</div>
+
+<div class="container">
+  <section class="card">
+    <h2>一、推演設定</h2>
+    <div class="row">
+      <label>分析年度</label>
+      <select id="year"><option>2027</option><option>2028</option><option selected>2029</option></select>
+      <label>推演年期</label>
+      <select id="horizon"><option value="1">1 年</option><option value="3">3 年</option><option value="5">5 年</option></select>
+      <label>推演分支數</label>
+      <input type="number" id="count" min="5" max="100" value="20" style="width:70px">
+      <span id="countHint" style="font-size:.8rem;color:#5a6a7a"></span>
+    </div>
+    <p class="notice">分支數代表本地規則展開的模擬路徑數，不代表同等數量的獨立 AI 推理。最多可選取 22 種基礎情境；實際分支數由所選情境與設定產生。</p>
+    <div class="scenarios" id="scList"></div>
+    <div class="row" style="margin-top:.7rem">
+      <button type="button" id="runBtn">開始年度推演（模擬）</button>
+      <button type="button" class="secondary" id="compoundBtn">啟用複合危機因果鏈</button>
+      <button type="button" class="secondary" id="clearBtn">清除結果</button>
+      <button type="button" class="secondary" id="selfTestBtn">執行功能自我檢查</button>
+    </div>
+    <pre id="selfTestOutput" class="gateway" aria-live="polite">尚未執行自我檢查。</pre>
+  </section>
+
+  <div id="output" class="result">
+    <section class="card">
+      <h2>二、推演結果總覽</h2>
+      <div id="summary"></div>
+      <div class="notice" id="simNote"></div>
+    </section>
+
+    <section class="card" id="darkStarAlertSection">
+      <h2>暗星主動風險提醒與承辦改善工作台</h2>
+      <p class="notice">本區依勾選的虛構情境產生規則式提醒，示範暗星應有的監督工作流程；目前尚未呼叫真實暗星模型或 Gateway。不得將模擬警示當成真實案件認定。</p>
+      <div class="row">
+        <button type="button" id="generateAlertsBtn">暗星分析情境並發出提醒（模擬）</button>
+        <button type="button" class="secondary" id="exportAuditBtn">匯出稽核紀錄</button>
+        <button type="button" class="secondary" id="clearAlertsBtn">清除目前提醒</button>
+      </div>
+      <div id="alertSummary" aria-live="polite"></div>
+      <div id="alertList" class="solutions"></div>
+      <div class="decision-log" id="alertAuditLog">尚無提醒或承辦回覆。</div>
+    </section>
+
+    <section class="card">
+      <h2>推演分支展開（規則式模擬，非獨立 AI 推理）</h2>
+      <p class="notice">每一分支由基礎情境、衝擊程度、復原條件組合產生。這是可重現的假設路徑，不代表統計機率或真實預測。</p>
+      <p id="branchSummary"></p>
+      <div id="branches" class="solutions"></div>
+    </section>
+
+    <section class="card" id="chainSection" style="display:none">
+      <h2>複合危機因果鏈（模擬）</h2>
+      <div class="chain" id="causalChain"></div>
+    </section>
+
+    <section class="card">
+      <h2>三、事件發展時間軸（模擬）</h2>
+      <div class="timeline" id="timeline"></div>
+    </section>
+
+    <section class="card">
+      <h2>四、多角色審查（模擬角色輸出，非真實模型）</h2>
+      <div class="roles" id="roles"></div>
+    </section>
+
+    <section class="card">
+      <h2>五、定性風險矩陣與比較</h2>
+      <div class="matrix" id="matrix"></div>
+      <p class="notice">無可靠統計資料，僅顯示定性嚴重程度，不提供百分比或金額。</p>
+    </section>
+
+    <section class="card">
+      <h2>六、解決方案與改善計畫（模擬）</h2>
+      <div class="solutions" id="solutions"></div>
+    </section>
+
+    <section class="card">
+      <h2>七、年度工作循環與追蹤（前端展示）</h2>
+      <div id="cycle"></div>
+      <p class="notice">第一階段使用瀏覽器本地暫存虛構資料，不具備跨裝置或永久保存。</p>
+    </section>
+
+    <section class="card">
+      <h2>八、主管決策區（可操作）</h2>
+      <div class="row" id="decisionBtns">
+        <button type="button" class="secondary" data-act="accept">接受建議（模擬）</button>
+        <button type="button" class="secondary" data-act="resim">要求重新模擬</button>
+        <button type="button" class="secondary" data-act="add">增加情境</button>
+        <button type="button" class="secondary" data-act="report">產生第二版報告</button>
+      </div>
+      <div class="decision-log" id="decisionLog">尚未做出決策。</div>
+      <p style="font-size:.8rem;margin-top:.6rem">AI 僅提供分析與建議，不得自行認定逃漏稅、核定稅額或作成行政處分。正式決定由有權限人員負責。</p>
+    </section>
+
+    <section class="card">
+      <h2>九、暗星 Gateway 接口定義（預留，尚未實作呼叫）</h2>
+      <p class="notice">以下為未來接入既有 AI Gateway 的契約草案。本原型不發出任何請求。</p>
+      <div class="gateway" id="gatewaySpec"></div>
+    </section>
+  </div>
+</div>
+
+<a class="back" href="ai-tax-law.html">返回稅務法律專區</a>
+
+<script>
+(function(){
+  const SCENARIOS = [
+    {id:1, level:1, name:"申報資料缺漏或欄位矛盾，案件可能延誤", type:"稅務行政"},
+    {id:2, level:1, name:"同一納稅義務人或關係人資料疑似重複", type:"資料勾稽"},
+    {id:3, level:1, name:"稅法修正或函釋更新後，作業流程尚未同步", type:"法規遵循"},
+    {id:4, level:1, name:"相似案件處理見解不一致，可能產生差別待遇", type:"一致性風險"},
+    {id:5, level:1, name:"案件補件、通知或查核程序可能逾期", type:"程序風險"},
+    {id:6, level:2, name:"進銷項、扣抵或申報金額偏離歷史趨勢", type:"申報勾稽風險"},
+    {id:7, level:2, name:"大量案件積壓，超過行政處理能力", type:"行政風險"},
+    {id:8, level:2, name:"稅務 AI 選案錯誤，造成不必要的查核", type:"查核風險"},
+    {id:9, level:2, name:"跨機關資料交換延遲，影響案件審查", type:"行政風險"},
+    {id:10, level:2, name:"法規修正造成既有行政流程需要全面調整", type:"法律風險"},
+    {id:11, level:3, name:"AI 模型出現系統性偏誤，特定產業或群體受到不公平對待", type:"權益風險"},
+    {id:12, level:3, name:"大量行政處分因相同法律適用錯誤遭撤銷", type:"法律風險"},
+    {id:13, level:3, name:"稅務資料庫發生重大故障", type:"系統風險"},
+    {id:14, level:3, name:"重大資安事件造成敏感資料外洩", type:"資安風險"},
+    {id:15, level:3, name:"稅收突然大幅下滑，影響政府財政及行政資源配置", type:"財政風險"},
+    {id:16, level:4, name:"全國性稅務系統長時間中斷", type:"極端危機"},
+    {id:17, level:4, name:"大規模網路攻擊，導致多個稅務機關無法正常作業", type:"極端危機"},
+    {id:18, level:4, name:"AI 查核系統發生大規模錯誤，影響大量案件", type:"極端危機"},
+    {id:19, level:4, name:"重大天然災害導致稅務機關及資料中心同時無法運作", type:"極端危機"},
+    {id:20, level:5, name:"同時發生經濟衰退、稅收下降、系統故障、人力不足及資安事件", type:"複合型災難"},
+    {id:21, level:3, name:"跨年度申報資料不一致，風險可能逐年累積", type:"跨年度勾稽"},
+    {id:22, level:3, name:"關係人或高風險交易出現異常時間序列", type:"交易風險"}
+  ];
+
+  const TEST_PRESETS = {
+    1: [1,2,3,4,5],
+    2: [6,7,15],
+    3: [8,11,18],
+    4: [13,16,17,19],
+    5: [6,7,13,14,16,20]
+  };
+
+  const list = document.getElementById('scList');
+  const countInput = document.getElementById('count');
+  const countHint = document.getElementById('countHint');
+  const output = document.getElementById('output');
+  const summary = document.getElementById('summary');
+  const timeline = document.getElementById('timeline');
+  const roles = document.getElementById('roles');
+  const matrix = document.getElementById('matrix');
+  const solutions = document.getElementById('solutions');
+  const cycle = document.getElementById('cycle');
+  const simNote = document.getElementById('simNote');
+  const chainSection = document.getElementById('chainSection');
+  const causalChain = document.getElementById('causalChain');
+  const decisionLog = document.getElementById('decisionLog');
+  const gatewaySpec = document.getElementById('gatewaySpec');
+
+  let compoundMode = false;
+  let decisionState = { accepted:false, reportVersion:1, added:0 };
+
+  function enforceCount() {
+    const max = Math.max(5, Math.min(100, parseInt(countInput.value,10) || 20));
+    countInput.value = max;
+    const boxes = Array.from(document.querySelectorAll('#scList input'));
+    let checked = 0;
+    boxes.forEach(b => {
+      if (b.checked) {
+        checked++;
+        if (checked > max) b.checked = false;
+      }
+    });
+    countHint.textContent = '推演分支數 ' + max + '；已選基礎情境 ' + document.querySelectorAll('#scList input:checked').length + ' / 22';
+  }
+
+  SCENARIOS.forEach(s => {
+    const d = document.createElement('div');
+    d.className = 'sc level' + s.level;
+    d.innerHTML = '<label><input type="checkbox" value="' + s.id + '" ' + (s.id <= 5 ? 'checked' : '') + '> <strong>' + s.id + '. ' + s.name + '</strong><br><span style="color:#5a6a7a">' + s.type + ' · 第' + s.level + '級</span></label>';
+    list.appendChild(d);
+  });
+  enforceCount();
+  countInput.addEventListener('input', enforceCount);
+  list.addEventListener('change', enforceCount);
+
+  function getSelected() {
+    enforceCount();
+    return Array.from(document.querySelectorAll('#scList input:checked')).map(i => SCENARIOS.find(s => s.id == i.value)).filter(Boolean);
+  }
+
+  function buildCausalChain(selected) {
+    const hasSystem = selected.some(s => [13,16,17,19].includes(s.id));
+    const hasBacklog = selected.some(s => [1,2,7].includes(s.id));
+    const hasRevenue = selected.some(s => [6,15].includes(s.id));
+    const hasAI = selected.some(s => [8,11,18].includes(s.id));
+    const steps = [
+      {label:'觸發條件',text:selected.map(s=>s.name).join('；')||'未選取情境',why:'本鏈只根據勾選情境建立假設，不代表事件必然發生。'},
+      {label:'第一階段影響',text:hasSystem?'系統或資料交換可能中斷，人工備援容量成為關鍵':hasRevenue?'經濟活動或稅收可能下滑，財政資源承受壓力':'案件量、法規或行政流程出現變化',why:'假設觸發條件已發生，仍須由監測資料確認。'},
+      {label:'第二階段傳導',text:hasBacklog||hasSystem?'案件處理速度下降，待辦量可能累積':hasAI?'模型選案或分類錯誤可能擴大人工複核負擔':'跨單位協作與作業時程可能受到影響',why:'傳導關係是風險假設，須以實際流程資料驗證。'},
+      {label:'第三階段權益／財政影響',text:hasAI?'若未及時人工覆核，可能造成不當選案、差別待遇或救濟成本增加':hasRevenue?'可能影響預算執行、公共服務配置及納稅者服務':'可能延誤案件處理、通知或法定程序',why:'不得僅依模型輸出作成對納稅者不利的決定。'},
+      {label:'第二波風險',text:'延遲處理、資訊落差與人力負荷可能相互強化，增加錯誤及爭訟風險',why:'須設定預警門檻、責任單位及人工升級處理條件。'}
+    ];
+    return '<p><strong>假設性因果鏈（非預測）</strong></p><ol>'+steps.map(x=>'<li><strong>'+x.label+'：</strong>'+x.text+'<br><small>'+x.why+'</small></li>').join('')+'</ol>';
+  }
+
+  function render(selected, isCompound) {
+    if(!selected.length){alert('請至少選取一種基礎情境。');return false;}
+    compoundMode = isCompound;
+    const year = document.getElementById('year').value;
+    const horizon = document.getElementById('horizon').value;
+    summary.innerHTML = '<p>分析年度：<strong>' + year + '</strong>　推演年期：<strong>' + horizon + ' 年</strong>　實際推演情境數：<strong>' + selected.length + '</strong></p><ul>' +
+      selected.map(s => '<li>【模擬】' + s.name + '（' + s.type + '）</li>').join('') + '</ul>' +
+      (isCompound ? '<p><strong>複合危機因果鏈已啟用</strong></p>' : '');
+    simNote.textContent = '本結果由前端預設結構化資料產生，標示為模擬資料，非真實 AI 推理。未呼叫 ai-gateway 或任何模型。';
+    const branchCount=Math.max(5,Math.min(100,parseInt(countInput.value,10)||20));
+    const impactModes=['基準情境','行政量能下降','資料延遲','高衝擊情境'];
+    const recoveryModes=['快速復原','一般復原','復原延遲','跨機關協調延遲','備援資源不足'];
+    const branches=Array.from({length:branchCount},(_,i)=>{
+      const scenario=selected[i%selected.length];
+      const impact=impactModes[Math.floor(i/selected.length)%impactModes.length];
+      const recovery=recoveryModes[Math.floor(i/(selected.length*impactModes.length))%recoveryModes.length];
+      return {id:i+1,scenario,impact,recovery};
+    });
+    document.getElementById('branchSummary').textContent='本次產生 '+branches.length+' 條規則式分支；基礎情境 '+selected.length+' 種；每條分支均標記其衝擊與復原假設。';
+    document.getElementById('branches').innerHTML=branches.map(b=>'<div class="sol"><strong>分支 '+b.id+'｜'+b.scenario.name+'</strong><br>衝擊假設：'+b.impact+'<br>復原假設：'+b.recovery+'<br><small>此分支為規則組合，不是獨立模型推理或機率估計。</small></div>').join('');
+
+    if (isCompound) {
+      chainSection.style.display = 'block';
+      causalChain.innerHTML = buildCausalChain(selected);
+    } else {
+      chainSection.style.display = 'none';
+    }
+
+    timeline.innerHTML = Array.from({length:Number(horizon)},(_,i)=>'第 '+(i+1)+' 年：監測與情境更新').concat(['警訊確認','啟動應變','復原與檢討']).map(t=>'<span class="tl-item">'+t+'</span>').join('');
+
+    const roleData = [
+      {name:'暗星總分析員', out:'整合各情境背景、觸發條件與連鎖可能。'},
+      {name:'稅法審查員', out:'檢查程序合法性、處分依據與救濟風險。'},
+      {name:'財政分析員', out:'定性評估稅收影響方向，無具體金額。'},
+      {name:'行政管理分析員', out:'評估人力負荷與流程瓶頸。'},
+      {name:'資訊安全審查員', out:'檢查系統中斷與資料外洩可能。'},
+      {name:'極端危機反方審查員', out:'尋找假設漏洞與被忽略的連鎖反應。'}
+    ];
+    roles.innerHTML = roleData.map(r => '<div class="role"><strong>' + r.name + '</strong><br><span style="color:#5a6a7a">模擬角色輸出，非真實模型</span><br>' + r.out + '</div>').join('');
+
+    matrix.innerHTML = [
+      '<div class="low">一般行政<br>低-中</div>',
+      '<div class="med">財政／查核<br>中-高</div>',
+      '<div class="high">系統／資安<br>高</div>',
+      '<div class="high">極端／複合<br>極高</div>'
+    ].join('');
+
+    solutions.innerHTML = selected.slice(0,3).map(s =>
+      '<div class="sol"><strong>' + s.name + '</strong><br>方案A（模擬）：強化監控與早期通報，法律可行性高、行政可行性中。<br>方案B（模擬）：調整流程與人力配置，執行時間較長，需主管核定資源。<br>建議：優先方案A，並要求補充資料後再評估方案B。需主管決定事項：是否啟動跨機關協調。</div>'
+    ).join('');
+
+    cycle.innerHTML = '<ul><li>年初：產生年度風險清單（模擬）</li><li>每季：更新情境與警訊</li><li>年中：執行極端壓力測試</li><li>年底：比較預測與實際（第一階段無真實歷史資料）</li><li>次年：修正假設（待後端授權）</li></ul>';
+
+    gatewaySpec.textContent = JSON.stringify({
+      integration_status: "CONTRACT DRAFT ONLY — no network request is sent",
+      endpoint: "由既有暗星 Gateway 管理者確認實際路由；不得在前端寫死或猜測 URL",
+      request: {
+        request_id: "UUID generated by trusted gateway/client adapter",
+        agent: "technical-dark-star",
+        task: "tax-risk-scenario-review",
+        mode: "simulation_only",
+        year: year,
+        horizon_years: Number(horizon),
+        scenario_ids: selected.map(s => s.id),
+        compound: isCompound,
+        input_data: "synthetic, non-identifying scenario facts only",
+        required_outputs: ["risk_alerts", "evidence_checklist", "improvement_options", "uncertainties", "human_review_required"],
+        constraints: ["no real taxpayer data", "qualitative only unless validated source data is authorized", "no guilt or fraud determination", "no tax assessment", "no administrative disposition"]
+      },
+      response_contract: {
+        request_id: "must echo the request_id",
+        status: "ok | partial | rejected | error",
+        alerts: "array of {alert_id, risk_level, observed_signal, comparison_baseline, possible_impact, evidence_needed[], recommendation, owner_role, due_rule, uncertainty[]}",
+        follow_up: "human review status and remaining risks; no automatic case disposition",
+        citations: "source identifiers, rule versions and effective dates where applicable",
+        model_disclosure: "model/provider/version and whether multiple roles are separate models or one model with role prompts"
+      },
+      timeout: {client_deadline_ms: 30000, on_timeout: "show timeout and retain local simulation; do not silently retry"},
+      errors: {
+        AUTH_REQUIRED: "identity or permission missing; do not expose token",
+        FORBIDDEN: "user lacks permission for this task",
+        INVALID_INPUT: "schema or validation failure",
+        RATE_LIMITED: "show retry-after if provided; no retry storm",
+        MODEL_UNAVAILABLE: "model or provider unavailable",
+        TIMEOUT: "deadline exceeded",
+        INVALID_RESPONSE: "response failed schema validation",
+        SAFETY_BLOCKED: "request blocked by privacy, legal or safety policy",
+        INTERNAL_ERROR: "generic user message; detailed trace remains server-side"
+      },
+      security: ["credentials and secrets stay server-side", "enforce role-based access control", "minimize and de-identify inputs", "never log raw taxpayer identifiers", "audit request_id, actor, model version, policy version and outcome", "escape rendered model/user text", "validate structured response before display"],
+      retry_policy: "no automatic retry for non-idempotent calls; retry only with same idempotency key after explicit policy approval",
+      status_note: "NOT IMPLEMENTED — this is an interface contract draft, not proof of a live Dark Star connection"
+    }, null, 2);
+
+    updateDecisionLog();
+    output.classList.add('show');
+    output.scrollIntoView({behavior:'smooth'});
+  }
+
+  const alertList = document.getElementById('alertList');
+  const alertSummary = document.getElementById('alertSummary');
+  const alertAuditLog = document.getElementById('alertAuditLog');
+  const ALERT_STORAGE_KEY = 'aivault-tax-sim-alerts-v1';
+  const AUDIT_STORAGE_KEY = 'aivault-tax-sim-audit-v1';
+  let alertRecords = [];
+  let alertAuditRecords = [];
+  let storageAvailable = true;
+
+  function loadLocalState() {
+    try {
+      const savedAlerts = JSON.parse(localStorage.getItem(ALERT_STORAGE_KEY) || '[]');
+      const savedAudit = JSON.parse(localStorage.getItem(AUDIT_STORAGE_KEY) || '[]');
+      alertRecords = Array.isArray(savedAlerts) ? savedAlerts.reduce((items, a) => {
+        if (!a || typeof a.id !== 'string') return items;
+        const scenarioId = Number(String(a.id).split('-')[1]);
+        const rule = ALERT_RULES[scenarioId];
+        const scenario = SCENARIOS.find(s => s.id === scenarioId);
+        if (!rule || !scenario || !Array.isArray(a.evidence)) return items;
+        const allowedStatuses = ['待確認','查證中','已改善','不採納'];
+        items.push({
+          id: String(a.id).slice(0, 60), scenario: scenario.name, ...rule,
+          status: allowedStatuses.includes(a.status) ? a.status : '待確認',
+          response: String(a.response || '').slice(0, 4000),
+          createdAt: String(a.createdAt || '').slice(0, 80),
+          improved: a.improved === true,
+          reassessment: String(a.reassessment || '').slice(0, 2000),
+          reassessedAt: String(a.reassessedAt || '').slice(0, 80),
+          updatedAt: String(a.updatedAt || '').slice(0, 80)
+        });
+        return items;
+      }, []) : [];
+      alertAuditRecords = Array.isArray(savedAudit) ? savedAudit.slice(-500) : [];
+    } catch (_) {
+      storageAvailable = false;
+      alertRecords = [];
+      alertAuditRecords = [];
+    }
+  }
+
+  function persistLocalState() {
+    try {
+      localStorage.setItem(ALERT_STORAGE_KEY, JSON.stringify(alertRecords));
+      localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(alertAuditRecords.slice(-500)));
+      storageAvailable = true;
+      return true;
+    } catch (_) {
+      storageAvailable = false;
+      return false;
+    }
+  }
+
+  function appendAudit(action, alertRecord, detail) {
+    alertAuditRecords.push({
+      event_id: 'TAXSIM-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+      action,
+      alert_id: alertRecord ? alertRecord.id : null,
+      timestamp: new Date().toISOString(),
+      status: alertRecord ? alertRecord.status : null,
+      detail: String(detail || '').slice(0, 2000),
+      storage: 'browser-local-only'
+    });
+    if (alertAuditRecords.length > 500) alertAuditRecords = alertAuditRecords.slice(-500);
+    persistLocalState();
+  }
+
+  const ALERT_RULES = {
+    1: {risk:'高',level:'high',finding:'申報資料欄位缺漏或相互矛盾，可能使案件判斷基礎不完整。',baseline:'與同一案件其他申報欄位、附件及前期資料交叉比對。',impact:'案件延誤、錯誤補正或影響納稅者程序權益。',evidence:['原始申報書與更正紀錄','附件及補件往來紀錄','前期申報資料及資料異動軌跡'],action:'先確認資料來源與差異原因；必要時依程序通知補正，保留通知及送達紀錄。',owner:'承辦人員／股長覆核'},
+    2: {risk:'高',level:'high',finding:'同一納稅義務人、關係人或交易識別資料疑似重複。',baseline:'以統一編號、憑證號碼、交易日期及金額進行重複比對。',impact:'重複計算、錯誤選案或不必要查核，並可能造成納稅者負擔。',evidence:['納稅義務人及關係人識別資料','交易憑證與申報明細','資料匯入及去重紀錄'],action:'先排除資料匯入重複、格式轉換或合法關係企業交易等可能，不得直接推定違法。',owner:'資料管理人員／承辦人員'},
+    3: {risk:'中',level:'medium',finding:'法規或函釋更新後，既有作業指引可能尚未同步。',baseline:'比對法規生效日、內部作業手冊版本及案件適用時點。',impact:'法律適用不一致、行政處分遭撤銷或納稅者權益受影響。',evidence:['新舊法規及函釋版本','內部作業手冊修訂紀錄','案件發生與處理日期'],action:'由法制或專責單位確認適用法規及過渡規定，再更新指引並安排人員通知。',owner:'法制單位／業務主管'},
+    4: {risk:'中',level:'medium',finding:'相似案件可能採取不同審查標準或處理流程。',baseline:'依案件類型、事實要件及適用法規比較處理結果。',impact:'平等原則與行政一致性風險，增加訴願及行政訴訟成本。',evidence:['去識別化相似案件紀錄','審查基準及簽核理由','不同處理結果的事實差異'],action:'建立一致性檢核與差異說明機制；個案仍須依具體事實及法律判斷。',owner:'業務主管／法制單位'},
+    5: {risk:'高',level:'high',finding:'補件、通知或案件處理期限可能接近或已逾期。',baseline:'比對收文日、法定期間、內部服務時限及送達紀錄。',impact:'程序瑕疵、案件延宕及納稅者陳述或救濟權益受影響。',evidence:['案件收文與分案時間','通知及送達證明','補件期限與承辦進度紀錄'],action:'立即核對期限起算及停止／扣除期間規定，通知主管並依程序補救；不得由 AI 自行認定程序效力。',owner:'承辦人員／單位主管'},
+    7: {risk:'高',level:'high',finding:'案件積壓可能超出現有人力與處理量能。',baseline:'比較待辦件數、平均處理時間、案件複雜度及人力配置。',impact:'服務延遲、期限管理失靈及查核品質下降。',evidence:['待辦案件清冊','近季處理量與平均天數','人力及案件分派紀錄'],action:'依急迫性與法定期限排序，調整分案並提出資源需求；不得只以 AI 風險分數決定查核對象。',owner:'單位主管／人力管理單位'},
+    8: {risk:'高',level:'high',finding:'AI 選案結果可能有誤判或對特定產業／群體產生偏差。',baseline:'抽樣比對模型命中率、誤報率、不同群體影響及人工覆核結果。',impact:'不必要查核、差別待遇及納稅者權利受損。',evidence:['模型版本及特徵說明','抽樣覆核與誤報紀錄','不同群體的影響評估'],action:'暫停依單一模型輸出採取不利措施，啟動人工覆核、偏誤檢測及模型治理程序。',owner:'AI 治理人員／稅務主管'},
+    10: {risk:'中',level:'medium',finding:'法規修正可能要求調整既有行政流程、表單或系統規則。',baseline:'逐項對照新法規施行日期與現行流程節點。',impact:'舊流程持續運作可能導致法律適用錯誤或行政成本增加。',evidence:['修法條文及施行日期','現行 SOP 與系統規則','受影響案件清單'],action:'建立法規變更影響清單，完成法制審查、系統測試及人員訓練後再上線。',owner:'法制單位／資訊單位'},
+    11: {risk:'高',level:'high',finding:'模型輸出可能對特定產業或群體產生系統性偏誤。',baseline:'檢查訓練資料代表性、輸入特徵、模型版本及群體差異。',impact:'平等權、程序保障及行政信賴風險。',evidence:['模型卡與資料來源說明','群體差異測試結果','人工覆核與申訴紀錄'],action:'啟動獨立偏誤審查，保留人工判斷及申訴管道；未釐清前不得把模型分數當成違法證據。',owner:'AI 治理委員會／法制單位'},
+    12: {risk:'高',level:'high',finding:'多件案件可能沿用相同法律適用或程序錯誤。',baseline:'抽樣檢視同一法規版本、處分理由及救濟結果。',impact:'大量撤銷、重作及行政信賴受損。',evidence:['相關處分書及法規依據','訴願／訴訟決定摘要','內部審查與簽核紀錄'],action:'先由法制單位確認錯誤範圍與法律效果，再評估個案救濟、重作及流程修正。',owner:'法制單位／業務主管'},
+    13: {risk:'高',level:'high',finding:'稅務資料庫或資料交換服務可能發生重大故障。',baseline:'比對服務可用性、錯誤率、備份狀態及資料同步時間。',impact:'案件中斷、資料不完整及法定期限管理風險。',evidence:['系統監控與錯誤紀錄','備份及還原演練結果','資料同步與完整性檢查'],action:'啟動資訊事件通報與備援程序，核對資料完整性，並提供人工替代流程。',owner:'資訊單位／業務持續營運負責人'},
+    14: {risk:'極高',level:'critical',finding:'可能發生敏感稅務資料未授權存取或外洩。',baseline:'檢查存取紀錄、異常下載、權限變更及資料傳輸紀錄。',impact:'納稅者隱私、保密義務、資安與信任重大風險。',evidence:['系統存取與稽核軌跡','權限及金鑰異動紀錄','事件通報與鑑識紀錄'],action:'依資安事件程序通報、限制受影響權限並保存證據；不得在提醒畫面展示真實敏感個資。',owner:'資安長／個資保護窗口'},
+    18: {risk:'極高',level:'critical',finding:'AI 查核系統可能出現大規模錯誤輸出並影響案件。',baseline:'比較模型版本、輸出分布、人工覆核差異及部署變更時間。',impact:'錯誤選案擴散、程序負擔增加及納稅者權益受損。',evidence:['模型版本與部署紀錄','錯誤輸出樣本（去識別化）','人工覆核與影響案件範圍'],action:'停止自動化不利流程，啟動人工覆核與回復版本評估，完成根因分析後再決定恢復。',owner:'AI 系統負責人／業務主管'},
+    6: {risk:'高',level:'high',finding:'進銷項、扣抵或申報金額相較歷史期間出現明顯偏離。',baseline:'比較同一納稅義務人前期申報、產業季節性、營業規模及更正紀錄。',impact:'可能增加錯誤選案或漏未辨識異常的風險；差異本身不等於違法。',evidence:['本期與前期申報明細','進銷項憑證及更正紀錄','產業季節性與營業規模資料'],action:'先確認期間、會計分類、一次性交易及資料完整性，再由承辦人判斷是否需進一步查證。',owner:'稅務承辦人／資料分析人員'},
+    9: {risk:'中',level:'medium',finding:'跨機關資料交換可能延遲或欄位對應失敗。',baseline:'比對來源機關傳送時間、接收時間、筆數及欄位映射版本。',impact:'資料不完整可能造成案件審查延誤或錯誤風險提示。',evidence:['資料交換批次紀錄','來源與接收筆數核對','欄位映射及錯誤日誌'],action:'先確認資料交換狀態與完整性，必要時啟動補傳及人工替代程序。',owner:'跨機關資料窗口／資訊單位'},
+    15: {risk:'高',level:'high',finding:'稅收或申報總額可能出現異常下降，需區分景氣、政策及資料因素。',baseline:'比較同期、前期、預算假設、產業結構及申報涵蓋率。',impact:'可能影響財政預估與資源配置，但不得以總額變化推定個別納稅者違規。',evidence:['分稅目彙總資料','同期經濟指標與政策變動','申報涵蓋率及資料品質報告'],action:'先做總體因素分解及資料品質檢查，再提出預算與行政量能調整建議。',owner:'財政分析單位／主管機關'},
+    16: {risk:'極高',level:'critical',finding:'全國性稅務系統可能長時間中斷。',baseline:'比對服務可用性、復原時間目標、備援切換與業務持續計畫。',impact:'申報、繳納、案件處理及法定期間管理可能受到重大影響。',evidence:['系統監控與事故時間線','備援切換及復原演練紀錄','人工受理及公告紀錄'],action:'啟動業務持續營運計畫、人工替代程序及對外資訊公告，法定期間處理由權責單位依法確認。',owner:'資訊主管／業務持續營運小組'},
+    17: {risk:'極高',level:'critical',finding:'多個稅務機關可能同時遭受網路攻擊或服務阻斷。',baseline:'比對資安告警、網路流量、端點事件及跨機關服務狀態。',impact:'可能造成服務中斷、資料完整性疑慮及公務運作風險。',evidence:['資安監控告警','端點與網路鑑識紀錄','跨機關通報及應變紀錄'],action:'依資安事件分級通報、隔離受影響系統並保全證據；恢復前完成完整性檢查。',owner:'資安應變小組／各機關資訊主管'},
+    19: {risk:'極高',level:'critical',finding:'重大天然災害可能同時影響機關據點、資料中心及通訊服務。',baseline:'檢視異地備援、供電、通訊、人員安全及服務復原演練。',impact:'核心稅務服務中斷、案件期限與民眾服務可近性受影響。',evidence:['災害應變計畫','異地備援及還原演練','人員聯繫與服務替代紀錄'],action:'優先確保人員安全，啟動異地備援及替代服務，並由主管機關依法公告必要措施。',owner:'災害應變中心／資訊單位'},
+    20: {risk:'極高',level:'critical',finding:'多個重大事件可能同時發生並互相放大。',baseline:'檢查事件時間線、共同依賴資源、單點故障及備援容量。',impact:'可能同時衝擊稅收、服務連續性、程序期限、資料安全及納稅者權益。',evidence:['跨事件時間線','資源與依賴關係圖','備援容量及跨單位應變紀錄'],action:'成立跨單位應變協調，先保全人員與資料，再按服務重要性分階段復原。',owner:'跨機關危機應變小組'},
+    21: {risk:'高',level:'high',finding:'同一案件或納稅義務人跨年度資料可能不一致，且差異逐年累積。',baseline:'按年度比對申報欄位、前期結轉、補正紀錄及法規適用時點。',impact:'可能造成錯誤風險判斷、重複查核或納稅者權益受影響。',evidence:['至少三年度去識別化申報摘要','跨年度更正與補件紀錄','年度欄位定義及法規版本'],action:'建立跨年度差異表，先排除欄位定義變更及合法調整，再由承辦人確認是否需要後續查證。',owner:'跨年度案件承辦人／資料治理人員'},
+    22: {risk:'高',level:'high',finding:'關係人或特定交易序列可能出現時間、金額或交易對象異常集中。',baseline:'比對交易日期序列、關係人揭露、交易頻率及同類型交易基準。',impact:'可能形成查核線索，但不得僅憑關係人身分或交易型態推定不法。',evidence:['去識別化交易明細','關係人揭露及變更紀錄','交易合約、憑證與時間序列'],action:'檢視商業合理性、交易文件及資料品質，並保留對納稅者有利與不利的查證方向。',owner:'專責查核人員／法制覆核人員'}
+  };
+
+  function escapeHTML(value) {
+    const entities = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
+    return String(value ?? '').replace(/[&<>"']/g, ch => entities[ch]);
+  }
+
+  function makeAlerts(selected) {
+    const chosen = selected.filter(s => ALERT_RULES[s.id]);
+    if (!chosen.length) return [];
+    return chosen.map((s,index) => {
+      const rule = ALERT_RULES[s.id];
+      return {id:'DS-'+String(s.id).padStart(2,'0')+'-'+(index+1),scenario:s.name,...rule,status:'待確認',response:'',createdAt:new Date().toLocaleString('zh-TW'),improved:false};
+    });
+  }
+
+  function renderAlerts() {
+    alertSummary.textContent = alertRecords.length
+      ? '暗星已依 ' + alertRecords.length + ' 個模擬異常條件產生提醒。全部為虛構情境，尚未連接真實案件資料。'
+      : '目前沒有提醒。請先執行情境推演，再啟動暗星提醒。';
+    alertList.innerHTML = alertRecords.map((a,i) => '<article class="alert-card '+escapeHTML(a.level)+'"><div class="row" style="justify-content:space-between"><strong>'+escapeHTML(a.id)+'｜'+escapeHTML(a.scenario)+'</strong><strong>風險：'+escapeHTML(a.risk)+'</strong></div><div class="alert-grid"><div class="alert-field"><strong>發現事項</strong><br>'+escapeHTML(a.finding)+'</div><div class="alert-field"><strong>比較基準／觸發原因</strong><br>'+escapeHTML(a.baseline)+'</div><div class="alert-field"><strong>可能影響</strong><br>'+escapeHTML(a.impact)+'</div><div class="alert-field"><strong>建議查證資料</strong><br><ul>'+a.evidence.map(x=>'<li>'+escapeHTML(x)+'</li>').join('')+'</ul></div><div class="alert-field"><strong>改善建議</strong><br>'+escapeHTML(a.action)+'<br><strong>建議負責角色：</strong>'+escapeHTML(a.owner)+'<br><strong>建議期限：</strong>由主管依案件法定期限及急迫性核定</div><div class="alert-field"><strong>提醒時間</strong><br>'+escapeHTML(a.createdAt)+'<br><strong>資料性質：</strong>虛構情境模擬，非真實案件</div></div><label for="status-'+i+'">承辦處理狀態</label><select id="status-'+i+'" data-alert-status="'+i+'"><option '+(a.status==='待確認'?'selected':'')+'>待確認</option><option '+(a.status==='查證中'?'selected':'')+'>查證中</option><option '+(a.status==='已改善'?'selected':'')+'>已改善</option><option '+(a.status==='不採納'?'selected':'')+'>不採納</option></select><label for="response-'+i+'">承辦回覆／查證結果／不採納理由</label><textarea id="response-'+i+'" data-alert-response="'+i+'" placeholder="請填寫查證結果、改善措施或不採納理由">'+escapeHTML(a.response)+'</textarea><div class="alert-actions"><button type="button" data-alert-save="'+i+'">儲存處理紀錄</button><button type="button" class="secondary" data-alert-improve="'+i+'">改善後重新評估（規則式）</button><span>改善狀態：'+(a.improved?'已重新評估，待人工覆核':'尚未重新評估')+'</span></div>'+(a.improved?'<div class="notice"><strong>重新評估結果（規則式）：待人工覆核。</strong><br>'+escapeHTML(a.reassessment || '改善措施已記錄；仍須核對證據及剩餘風險。')+'<br><small>此結果不代表風險已消失，亦非真實暗星模型推理。</small></div>':'')+'</article>').join('');
+    if (!storageAvailable) alertSummary.textContent += '（此瀏覽器目前無法保存本機紀錄，請匯出備份。）';
+  }
+
+  document.getElementById('generateAlertsBtn').addEventListener('click',()=>{
+    const selected=getSelected();
+    if(!selected.length){alert('請先選取至少一種情境。');return;}
+    alertRecords=makeAlerts(selected);
+    appendAudit('alerts_generated', null, '依所選虛構情境建立 ' + alertRecords.length + ' 項規則式提醒。');
+    persistLocalState();
+    renderAlerts();
+    alertAuditLog.textContent='規則式模擬提醒已建立並嘗試保存於本機。請承辦人逐項查證；目前不是暗星模型推理。';
+  });
+  document.getElementById('clearAlertsBtn').addEventListener('click',()=>{
+    const clearedCount = alertRecords.length;
+    alertRecords=[];appendAudit('active_alerts_cleared', null, '清除目前提醒 ' + clearedCount + ' 項；保留稽核歷程。');
+    renderAlerts();alertAuditLog.textContent='目前提醒已清除；稽核歷程保留。所有資料僅存於此瀏覽器。';
+  });
+  alertList.addEventListener('click',e=>{
+    const save=e.target.closest('[data-alert-save]');
+    const improve=e.target.closest('[data-alert-improve]');
+    if(!save&&!improve)return;
+    const i=Number((save||improve).dataset.alertSave ?? (save||improve).dataset.alertImprove);
+    const a=alertRecords[i];if(!a)return;
+    const status=document.querySelector('[data-alert-status="'+i+'"]');
+    const response=document.querySelector('[data-alert-response="'+i+'"]');
+    if(save){
+      const previousStatus = a.status;
+      a.status=status.value;a.response=response.value;
+      a.updatedAt=new Date().toISOString();
+      appendAudit('handler_record_saved', a, '狀態：' + previousStatus + ' → ' + a.status + '；承辦紀錄：' + (a.response || '未填寫'));
+      alertAuditLog.textContent=a.id+' 已更新：'+a.status+'。'+(a.response?'承辦紀錄已保存。':'尚未填寫處理說明。');
+    }else{
+      a.status=status.value;a.response=response.value;
+      if(a.status!=='已改善'||!a.response.trim()){
+        alert('請先將狀態設為「已改善」，並填寫查證及改善結果，才可進行改善後模擬。');return;
+      }
+      a.improved=true;
+      a.reassessment='已記錄改善措施並完成規則式重新檢查流程。現有情境提醒仍列為待人工覆核；承辦人須逐項核對改善證據、確認原始觸發條件是否排除，並由主管決定是否結案。';
+      a.reassessedAt=new Date().toISOString();
+      appendAudit('rule_based_reassessment', a, a.reassessment + ' 承辦回覆：' + a.response);
+      alertAuditLog.textContent=a.id+' 已完成規則式重新評估流程。風險未自動結案，須人工覆核。';
+    }
+    persistLocalState();
+    renderAlerts();
+  });
+
+  document.getElementById('exportAuditBtn').addEventListener('click', () => {
+    const payload = {
+      report_type: 'AIVAULT tax simulation local audit export',
+      generated_at: new Date().toISOString(),
+      storage_scope: '此瀏覽器本機資料；不是雲端或機關正式稽核紀錄',
+      alerts: alertRecords,
+      audit_events: alertAuditRecords
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'aivault-tax-simulation-audit-' + new Date().toISOString().slice(0,10) + '.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    alertAuditLog.textContent = '已產生本機 JSON 稽核匯出檔。請妥善保存；此檔案不是正式機關稽核紀錄。';
+  });
+
+  loadLocalState();
+  renderAlerts();
+  alertAuditLog.textContent = alertRecords.length
+    ? '已從此瀏覽器載入 ' + alertRecords.length + ' 項提醒及 ' + alertAuditRecords.length + ' 筆稽核事件。'
+    : '尚無已保存的提醒；開始模擬後可在此瀏覽器保存。';
+
+  function updateDecisionLog() {
+    const lines = [];
+    if (decisionState.accepted) lines.push('已接受 AI 建議（模擬）');
+    if (decisionState.added) lines.push('已增加 ' + decisionState.added + ' 個情境（模擬）');
+    lines.push('報告版本：第 ' + decisionState.reportVersion + ' 版（模擬）');
+    decisionLog.innerHTML = lines.join('<br>') || '尚未做出決策。';
+  }
+
+  document.getElementById('runBtn').onclick = () => { const selected=getSelected(); if(!selected.length){ alert('請至少選取一種基礎情境。'); return; } render(selected,compoundMode); };
+  document.getElementById('compoundBtn').onclick = () => {
+    compoundMode = true;
+    render(getSelected(), true);
+  };
+  document.getElementById('clearBtn').onclick = () => {
+    output.classList.remove('show');
+    compoundMode = false;
+    decisionState = { accepted:false, reportVersion:1, added:0 };
+    decisionLog.textContent = '尚未做出決策。';
+  };
+
+  document.getElementById('decisionBtns').addEventListener('click', e => {
+    const button=e.target.closest('button[data-act]');
+    if(!button)return;
+    const act=button.dataset.act;
+    if(act==='accept') decisionState.accepted=true;
+    if(act==='resim') render(getSelected(),compoundMode);
+    if(act==='add'){
+      const next=Array.from(document.querySelectorAll('#scList input')).find(b=>!b.checked);
+      if(!next){decisionLog.textContent='22 種基礎情境已全部選取，沒有可新增的情境。';return;}
+      next.checked=true;enforceCount();render(getSelected(),compoundMode);decisionState.added+=1;
+    }
+    if(act==='report') decisionState.reportVersion+=1;
+    updateDecisionLog();
+  });
+
+  window.__runTest = function(n) {
+    const ids=TEST_PRESETS[n]||[];
+    document.querySelectorAll('#scList input').forEach(b=>b.checked=ids.includes(+b.value));
+    countInput.value='20';enforceCount();
+    const selected=getSelected();render(selected,n===5);
+    const checks={
+      nonEmpty:selected.length>0,
+      countWithinBounds:Number(countInput.value)>=5&&Number(countInput.value)<=100,
+      compoundChain:n!==5||causalChain.textContent.includes('假設性因果鏈'),
+      sixRoles:roles.children.length===6,
+      solutions:selected.length>0&&solutions.children.length===Math.min(3,selected.length),
+      branchCountMatchesSetting:document.getElementById('branches').children.length===Number(countInput.value),
+      decisionControls:document.querySelectorAll('#decisionBtns button[data-act]').length===4
+    };
+    return {test:n,checks,passed:Object.values(checks).every(Boolean),selectedCount:selected.length,compound:n===5};
+  };
+  window.__resetScenarioSim=function(){
+    document.querySelectorAll('#scList input').forEach(b=>b.checked=Number(b.value)<=5);
+    countInput.value='20';output.classList.remove('show');compoundMode=false;
+    decisionState={accepted:false,reportVersion:1,added:0};
+    decisionLog.textContent='尚未做出決策。';enforceCount();
+    return {reset:true,selectedCount:document.querySelectorAll('#scList input:checked').length};
+  };
+  window.__scenarioSimSelfTest=function(){
+    const prior=Array.from(document.querySelectorAll('#scList input')).map(b=>b.checked);
+    const priorCount=countInput.value,results=[];
+    try{
+      document.querySelectorAll('#scList input').forEach(b=>b.checked=false);enforceCount();
+      results.push({name:'空選取不產生推演資料',pass:getSelected().length===0});
+      countInput.value='1';enforceCount();results.push({name:'分支數下限限制為5',pass:Number(countInput.value)===5});
+      countInput.value='150';enforceCount();results.push({name:'分支數上限限制為100',pass:Number(countInput.value)===100});
+      document.querySelectorAll('#scList input').forEach(b=>b.checked=[21,22].includes(+b.value));enforceCount();
+      const addedRules=makeAlerts(getSelected());
+      results.push({name:'跨年度差異及高風險交易均可產生提醒',pass:addedRules.length===2&&addedRules.every(a=>a.evidence.length>=3)});
+      document.querySelectorAll('#scList input').forEach(b=>b.checked=Number(b.value)<=5);enforceCount();
+      countInput.value='5';render(getSelected(),false);results.push({name:'實際產生5條分支',pass:document.getElementById('branches').children.length===5});
+      countInput.value='100';render(getSelected(),false);results.push({name:'實際產生100條分支',pass:document.getElementById('branches').children.length===100});
+      const t5=window.__runTest(5);results.push({name:'複合危機因果鏈',pass:t5.checks.compoundChain});
+      results.push({name:'22種基礎情境均有提醒規則',pass:Object.keys(ALERT_RULES).length===22&&makeAlerts(SCENARIOS).length===22});
+      results.push({name:'使用者文字具HTML跳脫保護',pass:escapeHTML('<script>')==='&lt;script&gt;'});
+      let storageTest=false;
+      try{const k=ALERT_STORAGE_KEY+'-test';localStorage.setItem(k,'ok');storageTest=localStorage.getItem(k)==='ok';localStorage.removeItem(k);}catch(_){storageTest=false;}
+      results.push({name:'瀏覽器本機儲存可用',pass:storageTest});
+      window.__resetScenarioSim();document.querySelector('[data-act="add"]').click();
+      results.push({name:'增加情境按鈕實際新增一個勾選項',pass:document.querySelectorAll('#scList input:checked').length===6});
+      document.querySelector('[data-act="accept"]').click();
+      results.push({name:'接受建議按鈕更新決策狀態',pass:decisionState.accepted===true});
+      const v=decisionState.reportVersion;document.querySelector('[data-act="report"]').click();
+      results.push({name:'產生第二版報告按鈕更新版本',pass:decisionState.reportVersion===v+1});
+      document.querySelector('[data-act="resim"]').click();
+      results.push({name:'重新模擬按鈕重新顯示結果',pass:output.classList.contains('show')});
+      document.getElementById('clearBtn').click();
+      results.push({name:'清除按鈕隱藏結果並重設決策',pass:!output.classList.contains('show')&&!decisionState.accepted&&decisionState.reportVersion===1});
+    }finally{
+      document.querySelectorAll('#scList input').forEach((b,i)=>b.checked=prior[i]);
+      countInput.value=priorCount;enforceCount();output.classList.remove('show');compoundMode=false;
+      decisionState={accepted:false,reportVersion:1,added:0};
+    }
+    return {passed:results.every(x=>x.pass),results};
+  };
+  document.getElementById('selfTestBtn').addEventListener('click',()=>{
+    const result=window.__scenarioSimSelfTest();
+    document.getElementById('selfTestOutput').textContent=JSON.stringify(result,null,2);
+  });
+})();
+</script>
+</body>
+</html>
