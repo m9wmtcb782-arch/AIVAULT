@@ -1,0 +1,31 @@
+name: Tax simulation validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "ai-tax-law.html"
+      - "ai-tax-scenario-sim.html"
+      - "scripts/validate-tax-sim.mjs"
+      - ".github/workflows/tax-sim-validation.yml"
+  push:
+    branches: [feat/dark-star-annual-scenario-sim]
+    paths:
+      - "ai-tax-law.html"
+      - "ai-tax-scenario-sim.html"
+      - "scripts/validate-tax-sim.mjs"
+      - ".github/workflows/tax-sim-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  static-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate tax simulation frontend
+        run: node scripts/validate-tax-sim.mjs
