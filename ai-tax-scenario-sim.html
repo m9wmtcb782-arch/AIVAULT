@@ -61,11 +61,11 @@ button.active { background:#16a34a; color:#fff; border-color:#16a34a; }
       <select id="year"><option>2027</option><option>2028</option><option selected>2029</option></select>
       <label>推演年期</label>
       <select id="horizon"><option value="1">1 年</option><option value="3">3 年</option><option value="5">5 年</option></select>
-      <label>情境數量上限</label>
+      <label>推演分支數</label>
       <input type="number" id="count" min="5" max="100" value="20" style="width:70px">
       <span id="countHint" style="font-size:.8rem;color:#5a6a7a"></span>
     </div>
-    <p class="notice">情境數量上限會實際限制勾選與生成數量。超過上限時自動取消較後勾選。</p>
+    <p class="notice">分支數代表本地規則展開的模擬路徑數，不代表同等數量的獨立 AI 推理。最多可選取 20 種基礎情境；實際分支數由所選情境與設定產生。</p>
     <div class="scenarios" id="scList"></div>
     <div class="row" style="margin-top:.7rem">
       <button type="button" id="runBtn">開始年度推演（模擬）</button>
@@ -198,13 +198,13 @@ button.active { background:#16a34a; color:#fff; border-color:#16a34a; }
         if (checked > max) b.checked = false;
       }
     });
-    countHint.textContent = '目前可選上限 ' + max + '，已勾選 ' + document.querySelectorAll('#scList input:checked').length;
+    countHint.textContent = '推演分支數 ' + max + '；已選基礎情境 ' + document.querySelectorAll('#scList input:checked').length + ' / 20';
   }
 
   SCENARIOS.forEach(s => {
     const d = document.createElement('div');
     d.className = 'sc level' + s.level;
-    d.innerHTML = '<label><input type="checkbox" value="' + s.id + '" checked> <strong>' + s.id + '. ' + s.name + '</strong><br><span style="color:#5a6a7a">' + s.type + ' · 第' + s.level + '級</span></label>';
+    d.innerHTML = '<label><input type="checkbox" value="' + s.id + '" ' + (s.id <= 5 ? 'checked' : '') + '> <strong>' + s.id + '. ' + s.name + '</strong><br><span style="color:#5a6a7a">' + s.type + ' · 第' + s.level + '級</span></label>';
     list.appendChild(d);
   });
   enforceCount();
@@ -217,17 +217,18 @@ button.active { background:#16a34a; color:#fff; border-color:#16a34a; }
   }
 
   function buildCausalChain(selected) {
+    const hasSystem = selected.some(s => [13,16,17,19].includes(s.id));
+    const hasBacklog = selected.some(s => [1,2,7].includes(s.id));
+    const hasRevenue = selected.some(s => [6,15].includes(s.id));
+    const hasAI = selected.some(s => [8,11,18].includes(s.id));
     const steps = [
-      '初始觸發：' + (selected[0] ? selected[0].name : '複合風險同時出現'),
-      '→ 系統或資料處理中斷',
-      '→ 案件無法即時處理',
-      '→ 案件大量累積',
-      '→ 行政期限及人民權益受影響',
-      '→ 復原後工作量暴增',
-      '→ 承辦人錯誤率上升',
-      '→ 形成第二波行政與法律風險'
+      {label:'觸發條件',text:selected.map(s=>s.name).join('；')||'未選取情境',why:'本鏈只根據勾選情境建立假設，不代表事件必然發生。'},
+      {label:'第一階段影響',text:hasSystem?'系統或資料交換可能中斷，人工備援容量成為關鍵':hasRevenue?'經濟活動或稅收可能下滑，財政資源承受壓力':'案件量、法規或行政流程出現變化',why:'假設觸發條件已發生，仍須由監測資料確認。'},
+      {label:'第二階段傳導',text:hasBacklog||hasSystem?'案件處理速度下降，待辦量可能累積':hasAI?'模型選案或分類錯誤可能擴大人工複核負擔':'跨單位協作與作業時程可能受到影響',why:'傳導關係是風險假設，須以實際流程資料驗證。'},
+      {label:'第三階段權益／財政影響',text:hasAI?'若未及時人工覆核，可能造成不當選案、差別待遇或救濟成本增加':hasRevenue?'可能影響預算執行、公共服務配置及納稅者服務':'可能延誤案件處理、通知或法定程序',why:'不得僅依模型輸出作成對納稅者不利的決定。'},
+      {label:'第二波風險',text:'延遲處理、資訊落差與人力負荷可能相互強化，增加錯誤及爭訟風險',why:'須設定預警門檻、責任單位及人工升級處理條件。'}
     ];
-    return '<ol>' + steps.map(s => '<li>' + s + '</li>').join('') + '</ol>';
+    return '<p><strong>假設性因果鏈（非預測）</strong></p><ol>'+steps.map(x=>'<li><strong>'+x.label+'：</strong>'+x.text+'<br><small>'+x.why+'</small></li>').join('')+'</ol>';
   }
 
   function render(selected, isCompound) {
@@ -246,7 +247,7 @@ button.active { background:#16a34a; color:#fff; border-color:#16a34a; }
       chainSection.style.display = 'none';
     }
 
-    timeline.innerHTML = ['事件發生前','初期警訊','危機發生','擴大階段','應變處理','復原階段'].map(t => '<span class="tl-item">' + t + '</span>').join('');
+    timeline.innerHTML = Array.from({length:Number(horizon)},(_,i)=>'第 '+(i+1)+' 年：監測與情境更新').concat(['警訊確認','啟動應變','復原與檢討']).map(t=>'<span class="tl-item">'+t+'</span>').join('');
 
     const roleData = [
       {name:'暗星總分析員', out:'整合各情境背景、觸發條件與連鎖可能。'},
@@ -305,7 +306,7 @@ button.active { background:#16a34a; color:#fff; border-color:#16a34a; }
     decisionLog.innerHTML = lines.join('<br>') || '尚未做出決策。';
   }
 
-  document.getElementById('runBtn').onclick = () => render(getSelected(), compoundMode);
+  document.getElementById('runBtn').onclick = () => { const selected=getSelected(); if(!selected.length){ alert('請至少選取一種基礎情境。'); return; } render(selected,compoundMode); };
   document.getElementById('compoundBtn').onclick = () => {
     compoundMode = true;
     render(getSelected(), true);
@@ -314,25 +315,65 @@ button.active { background:#16a34a; color:#fff; border-color:#16a34a; }
     output.classList.remove('show');
     compoundMode = false;
     decisionState = { accepted:false, reportVersion:1, added:0 };
+    decisionLog.textContent = '尚未做出決策。';
   };
 
   document.getElementById('decisionBtns').addEventListener('click', e => {
-    const act = e.target.dataset.act;
-    if (!act) return;
-    if (act === 'accept') { decisionState.accepted = true; e.target.classList.add('active'); }
-    if (act === 'resim') { render(getSelected(), compoundMode); }
-    if (act === 'add') { decisionState.added += 1; }
-    if (act === 'report') { decisionState.reportVersion += 1; }
+    const button=e.target.closest('button[data-act]');
+    if(!button)return;
+    const act=button.dataset.act;
+    if(act==='accept') decisionState.accepted=true;
+    if(act==='resim') render(getSelected(),compoundMode);
+    if(act==='add'){
+      const next=Array.from(document.querySelectorAll('#scList input')).find(b=>!b.checked);
+      if(!next){decisionLog.textContent='20 種基礎情境已全部選取，沒有可新增的情境。';return;}
+      next.checked=true;enforceCount();render(getSelected(),compoundMode);decisionState.added+=1;
+    }
+    if(act==='report') decisionState.reportVersion+=1;
     updateDecisionLog();
   });
 
   window.__runTest = function(n) {
-    const ids = TEST_PRESETS[n] || [];
-    document.querySelectorAll('#scList input').forEach(b => b.checked = ids.includes(+b.value));
-    enforceCount();
-    const selected = getSelected();
-    render(selected, n === 5);
-    return { test: n, count: selected.length, compound: n===5, hasChain: n===5, hasRoles: true, hasSolutions: selected.length>0 };
+    const ids=TEST_PRESETS[n]||[];
+    document.querySelectorAll('#scList input').forEach(b=>b.checked=ids.includes(+b.value));
+    countInput.value='20';enforceCount();
+    const selected=getSelected();render(selected,n===5);
+    const checks={
+      nonEmpty:selected.length>0,
+      countWithinBounds:Number(countInput.value)>=5&&Number(countInput.value)<=100,
+      compoundChain:n!==5||causalChain.textContent.includes('假設性因果鏈'),
+      sixRoles:roles.children.length===6,
+      solutions:selected.length>0&&solutions.children.length===Math.min(3,selected.length),
+      decisionControls:document.querySelectorAll('#decisionBtns button[data-act]').length===4
+    };
+    return {test:n,checks,passed:Object.values(checks).every(Boolean),selectedCount:selected.length,compound:n===5};
+  };
+  window.__resetScenarioSim=function(){
+    document.querySelectorAll('#scList input').forEach(b=>b.checked=Number(b.value)<=5);
+    countInput.value='20';output.classList.remove('show');compoundMode=false;
+    decisionState={accepted:false,reportVersion:1,added:0};
+    decisionLog.textContent='尚未做出決策。';enforceCount();
+    return {reset:true,selectedCount:document.querySelectorAll('#scList input:checked').length};
+  };
+  window.__scenarioSimSelfTest=function(){
+    const prior=Array.from(document.querySelectorAll('#scList input')).map(b=>b.checked);
+    const priorCount=countInput.value,results=[];
+    try{
+      document.querySelectorAll('#scList input').forEach(b=>b.checked=false);enforceCount();
+      results.push({name:'空選取不產生推演資料',pass:getSelected().length===0});
+      countInput.value='1';enforceCount();results.push({name:'分支數下限為5',pass:Number(countInput.value)===5});
+      countInput.value='150';enforceCount();results.push({name:'分支數上限為100',pass:Number(countInput.value)===100});
+      const t5=window.__runTest(5);results.push({name:'複合危機因果鏈',pass:t5.checks.compoundChain});
+      const v=decisionState.reportVersion;document.querySelector('[data-act="report"]').click();
+      results.push({name:'主管產生第二版報告按鈕',pass:decisionState.reportVersion===v+1});
+      window.__resetScenarioSim();
+      results.push({name:'重設後恢復初始選取與隱藏結果',pass:document.querySelectorAll('#scList input:checked').length===5&&!output.classList.contains('show')});
+    }finally{
+      document.querySelectorAll('#scList input').forEach((b,i)=>b.checked=prior[i]);
+      countInput.value=priorCount;enforceCount();output.classList.remove('show');compoundMode=false;
+      decisionState={accepted:false,reportVersion:1,added:0};
+    }
+    return {passed:results.every(x=>x.pass),results};
   };
 })();
 </script>
