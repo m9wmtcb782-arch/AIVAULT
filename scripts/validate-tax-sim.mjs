@@ -12,6 +12,7 @@ const scripts = [...sim.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)]
 assert.equal(scripts.length, 1, "scenario simulator should contain one inline application script");
 for (const [index, source] of scripts.entries()) {
   new vm.Script(source, { filename: "ai-tax-scenario-sim.inline-" + (index + 1) + ".js" });
+  assert.doesNotMatch(source, /\\bfetch\\s*\\(/, "frontend simulator must not make unapproved network calls");
 }
 
 assert.equal((sim.match(/\{id:\d+, level:/g) || []).length, 22, "expected 22 scenario definitions");
