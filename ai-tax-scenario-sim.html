@@ -376,7 +376,25 @@ button.active { background:#16a34a; color:#fff; border-color:#16a34a; }
     try {
       const savedAlerts = JSON.parse(localStorage.getItem(ALERT_STORAGE_KEY) || '[]');
       const savedAudit = JSON.parse(localStorage.getItem(AUDIT_STORAGE_KEY) || '[]');
-      alertRecords = Array.isArray(savedAlerts) ? savedAlerts.filter(a => a && typeof a.id === 'string' && ALERT_RULES[Number(String(a.id).split('-')[1])]) : [];
+      alertRecords = Array.isArray(savedAlerts) ? savedAlerts.reduce((items, a) => {
+        if (!a || typeof a.id !== 'string') return items;
+        const scenarioId = Number(String(a.id).split('-')[1]);
+        const rule = ALERT_RULES[scenarioId];
+        const scenario = SCENARIOS.find(s => s.id === scenarioId);
+        if (!rule || !scenario || !Array.isArray(a.evidence)) return items;
+        const allowedStatuses = ['待確認','查證中','已改善','不採納'];
+        items.push({
+          id: String(a.id).slice(0, 60), scenario: scenario.name, ...rule,
+          status: allowedStatuses.includes(a.status) ? a.status : '待確認',
+          response: String(a.response || '').slice(0, 4000),
+          createdAt: String(a.createdAt || '').slice(0, 80),
+          improved: a.improved === true,
+          reassessment: String(a.reassessment || '').slice(0, 2000),
+          reassessedAt: String(a.reassessedAt || '').slice(0, 80),
+          updatedAt: String(a.updatedAt || '').slice(0, 80)
+        });
+        return items;
+      }, []) : [];
       alertAuditRecords = Array.isArray(savedAudit) ? savedAudit.slice(-500) : [];
     } catch (_) {
       storageAvailable = false;
@@ -600,6 +618,11 @@ button.active { background:#16a34a; color:#fff; border-color:#16a34a; }
       countInput.value='5';render(getSelected(),false);results.push({name:'實際產生5條分支',pass:document.getElementById('branches').children.length===5});
       countInput.value='100';render(getSelected(),false);results.push({name:'實際產生100條分支',pass:document.getElementById('branches').children.length===100});
       const t5=window.__runTest(5);results.push({name:'複合危機因果鏈',pass:t5.checks.compoundChain});
+      results.push({name:'22種基礎情境均有提醒規則',pass:Object.keys(ALERT_RULES).length===22&&makeAlerts(SCENARIOS).length===22});
+      results.push({name:'使用者文字具HTML跳脫保護',pass:escapeHTML('<script>')==='&lt;script&gt;'});
+      let storageTest=false;
+      try{const k=ALERT_STORAGE_KEY+'-test';localStorage.setItem(k,'ok');storageTest=localStorage.getItem(k)==='ok';localStorage.removeItem(k);}catch(_){storageTest=false;}
+      results.push({name:'瀏覽器本機儲存可用',pass:storageTest});
       window.__resetScenarioSim();document.querySelector('[data-act="add"]').click();
       results.push({name:'增加情境按鈕實際新增一個勾選項',pass:document.querySelectorAll('#scList input:checked').length===6});
       document.querySelector('[data-act="accept"]').click();
