@@ -5,7 +5,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(54);
+select plan(70);
 
 -- RLS must be enabled on every audit workspace table.
 select ok((select c.relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='tax_audit_memberships'), 'RLS enabled: memberships');
@@ -123,6 +123,27 @@ select ok(exists(select 1 from pg_trigger where tgrelid='public.tax_audit_action
 select ok(exists(select 1 from pg_trigger where tgrelid='public.tax_audit_evidence'::regclass and tgname='tax_audit_evidence_validate_lineage' and not tgisinternal and tgenabled <> 'D'), 'evidence lineage validation trigger enabled');
 select ok(exists(select 1 from pg_trigger where tgrelid='public.tax_audit_evidence_reviews'::regclass and tgname='tax_audit_evidence_reviews_validate_chain' and not tgisinternal and tgenabled <> 'D'), 'review chain validation trigger enabled');
 select ok(exists(select 1 from pg_trigger where tgrelid='public.tax_audit_actions'::regclass and tgname='tax_audit_actions_history_insert_update' and not tgisinternal and tgenabled <> 'D'), 'action history capture trigger enabled');
+
+-- SECURITY DEFINER helpers and trigger functions must use an empty search_path.
+select ok((select prosecdef from pg_proc where oid='public.is_tax_audit_member()'::regprocedure), 'membership helper is SECURITY DEFINER');
+select ok((select prosecdef from pg_proc where oid='public.has_tax_audit_role(text[])'::regprocedure), 'role helper is SECURITY DEFINER');
+
+select ok((select coalesce(proconfig, array[]::text[]) @> array['search_path=""'] from pg_proc where oid='public.is_tax_audit_member()'::regprocedure), 'membership helper has empty search_path');
+select ok((select coalesce(proconfig, array[]::text[]) @> array['search_path=""'] from pg_proc where oid='public.has_tax_audit_role(text[])'::regprocedure), 'role helper has empty search_path');
+select ok((select coalesce(proconfig, array[]::text[]) @> array['search_path=""'] from pg_proc where oid='public.prevent_tax_audit_evidence_mutation()'::regprocedure), 'evidence guard has empty search_path');
+select ok((select coalesce(proconfig, array[]::text[]) @> array['search_path=""'] from pg_proc where oid='public.prevent_tax_audit_evidence_review_mutation()'::regprocedure), 'review guard has empty search_path');
+select ok((select coalesce(proconfig, array[]::text[]) @> array['search_path=""'] from pg_proc where oid='public.prevent_tax_audit_action_history_mutation()'::regprocedure), 'history guard has empty search_path');
+select ok((select coalesce(proconfig, array[]::text[]) @> array['search_path=""'] from pg_proc where oid='public.validate_tax_audit_evidence_lineage()'::regprocedure), 'evidence lineage validator has empty search_path');
+select ok((select coalesce(proconfig, array[]::text[]) @> array['search_path=""'] from pg_proc where oid='public.validate_tax_audit_evidence_review_chain()'::regprocedure), 'review chain validator has empty search_path');
+select ok((select coalesce(proconfig, array[]::text[]) @> array['search_path=""'] from pg_proc where oid='public.record_tax_audit_action_history()'::regprocedure), 'action history writer has empty search_path');
+
+-- Trigger functions are not directly executable by API roles; triggers invoke them.
+select ok(not has_function_privilege('anon','public.prevent_tax_audit_evidence_mutation()','EXECUTE') and not has_function_privilege('authenticated','public.prevent_tax_audit_evidence_mutation()','EXECUTE'), 'evidence guard cannot be called directly by API roles');
+select ok(not has_function_privilege('anon','public.prevent_tax_audit_evidence_review_mutation()','EXECUTE') and not has_function_privilege('authenticated','public.prevent_tax_audit_evidence_review_mutation()','EXECUTE'), 'review guard cannot be called directly by API roles');
+select ok(not has_function_privilege('anon','public.prevent_tax_audit_action_history_mutation()','EXECUTE') and not has_function_privilege('authenticated','public.prevent_tax_audit_action_history_mutation()','EXECUTE'), 'history guard cannot be called directly by API roles');
+select ok(not has_function_privilege('anon','public.validate_tax_audit_evidence_lineage()','EXECUTE') and not has_function_privilege('authenticated','public.validate_tax_audit_evidence_lineage()','EXECUTE'), 'lineage validator cannot be called directly by API roles');
+select ok(not has_function_privilege('anon','public.validate_tax_audit_evidence_review_chain()','EXECUTE') and not has_function_privilege('authenticated','public.validate_tax_audit_evidence_review_chain()','EXECUTE'), 'review validator cannot be called directly by API roles');
+select ok(not has_function_privilege('anon','public.record_tax_audit_action_history()','EXECUTE') and not has_function_privilege('authenticated','public.record_tax_audit_action_history()','EXECUTE'), 'history writer cannot be called directly by API roles');
 
 select * from finish();
 rollback;
