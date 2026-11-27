@@ -32,7 +32,9 @@ const source = {
 test("maps audit office local final-account stages without collapsing them", () => {
   const [r] = mapAuditOfficeLocalFinalAccounts([source], { unit: "新臺幣千元", rawSha256: "b".repeat(64) });
   assert.equal(r.governmentScope, "臺北市");
-  assert.equal(r.fiscalYear, 113);
+  assert.equal(r.sourceFiscalYear, 113);
+  assert.equal(r.fiscalYear, 2024);
+  assert.equal(r.period, "2024");
   assert.equal(r.periodType, "fiscal-year");
   assert.equal(r.budget, 1000);
   assert.equal(r.finalRealized, 900);
