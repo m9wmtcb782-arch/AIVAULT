@@ -27,8 +27,8 @@ class Dense{
   const batch=this.lastInput.shape[0];assertTensor(gradient,[batch,this.outputSize],'梯度');
   const dx=new Float64Array(batch*this.inputSize);this.gw.fill(0);this.gb.fill(0);
   for(let n=0;n<batch;n++)for(let j=0;j<this.outputSize;j++){
-   const g=gradient.data[n*this.outputSize+j];this.gb[j]+=g/batch;
-   for(let i=0;i<this.inputSize;i++){this.gw[i*this.outputSize+j]+=this.lastInput.data[n*this.inputSize+i]*g/batch;dx[n*this.inputSize+i]+=this.w[i*this.outputSize+j]*g;}
+   const g=gradient.data[n*this.outputSize+j];this.gb[j]+=g;
+   for(let i=0;i<this.inputSize;i++){this.gw[i*this.outputSize+j]+=this.lastInput.data[n*this.inputSize+i]*g;dx[n*this.inputSize+i]+=this.w[i*this.outputSize+j]*g;}
   }
   for(const v of this.gw)finite(v,'weight gradient');for(const v of this.gb)finite(v,'bias gradient');
   this.hasGradients=true;return new Tensor(dx,[batch,this.inputSize]);
