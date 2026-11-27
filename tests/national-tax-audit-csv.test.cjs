@@ -81,7 +81,7 @@ test("evidence manifest supports explicit version lineage and local review histo
   assert.match(html, /id="evidenceVersion"/);
   assert.match(html, /id="supersessionReason"/);
   assert.match(html, /supersedes_evidence_id:priorEvidenceId\|\|null/);
-  assert.match(html, /review_history:reviewEntries/);
+  assert.match(html, /evidenceManifest\.review_history=reviewEntries/);
   assert.match(html, /LOCAL_ONLY_NOT_REGISTERED/);
 });
 
