@@ -3,7 +3,7 @@ const T=window.NCLTensor&&window.NCLTensor.Tensor,M=window.NCLModel;
 if(!T||!M)throw Error('請先載入 NCL Tensor v0.4 與 Model v0.6');
 function seeded(seed){let s=(Number(seed)>>>0)||0x6d2b79f5;return()=>{s+=0x6D2B79F5;let t=s;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return ((t^t>>>14)>>>0)/4294967296;};}
 class CharTokenizer{
- constructor(tokens=[]){this.unkToken='<unk>';this.tokens=[this.unkToken,...Array.from(new Set(tokens.filter(x=>typeof x==='string'&&x!==this.unkToken)))];this.toId=new Map(this.tokens.map((v,i)=>[v,i]);}
+ constructor(tokens=[]){this.unkToken='<unk>';this.tokens=[this.unkToken,...Array.from(new Set(tokens.filter(x=>typeof x==='string'&&x!==this.unkToken)))];this.toId=new Map(this.tokens.map((v,i)=>[v,i]));}
  static fromTexts(texts){if(!Array.isArray(texts)||texts.some(x=>typeof x!=='string'))throw Error('texts 必須是字串陣列');const chars=new Set();for(const s of texts)for(const c of Array.from(s))chars.add(c);return new CharTokenizer([...chars]);}
  encode(text){if(typeof text!=='string')throw Error('encode 只接受字串');return Array.from(text,c=>this.toId.get(c)??0);}
  decode(ids){if(!Array.isArray(ids)&&!ArrayBuffer.isView(ids))throw Error('decode 只接受 ID 陣列');return Array.from(ids,id=>{if(!Number.isSafeInteger(id)||id<0||id>=this.tokens.length)throw Error('Token ID 超出詞彙表');return id===0?'�':this.tokens[id];}).join('');}
