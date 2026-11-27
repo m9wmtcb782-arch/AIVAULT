@@ -50,19 +50,21 @@ export function normalizeFiscalDataset(rows, metadata = {}) {
 }
 
 export function budgetExecution(record) {
-  if (record.actual === null || record.budget === 0) return {
+  if (record.actual === null || record.budget === null || record.budget === undefined || record.budget === 0) return {
     ...record, variance: null, varianceRate: null, executionRate: null,
-    analysisStatus: record.actual === null ? "INSUFFICIENT_ACTUAL" : "ZERO_BUDGET"
+    analysisStatus: record.actual === null ? "INSUFFICIENT_ACTUAL" :
+      (record.budget === null || record.budget === undefined ? "INSUFFICIENT_BUDGET" : "ZERO_BUDGET")
   };
   const variance = record.actual - record.budget;
   return { ...record, variance, varianceRate: variance / Math.abs(record.budget) * 100,
     executionRate: record.actual / record.budget * 100, analysisStatus: "CALCULATED" };
 }
 
-export function compareAcrossYears(records, dimension = "tax") {
+export function compareAcrossYears(records, dimension = ["tax"]) {
+  const dimensions = Array.isArray(dimension) ? dimension : [dimension];
   const groups = new Map();
   for (const record of records) {
-    const key = String(record[dimension] ?? "UNSPECIFIED");
+    const key = [record.unit ?? "UNIT_UNSPECIFIED", ...dimensions.map(d=>String(record[d] ?? "UNSPECIFIED"))].join(" | ");
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(record);
   }
@@ -143,14 +145,16 @@ export function scoreFiscalRisk({ executionRate, growthRate, debtRatio, dataComp
 }
 
 export function buildAuditAnalysis(records, options = {}) {
-  const normalized = records.map(r=>r.year !== undefined && r.dataStatus ? r : normalizeFiscalRecord(r, options.metadata));
+  const normalized = records.map(r=>r.year !== undefined && r.tax !== undefined && Object.prototype.hasOwnProperty.call(r,"actual") && Object.prototype.hasOwnProperty.call(r,"budget")
+    ? r : normalizeFiscalRecord(r, options.metadata));
   const execution = normalized.map(budgetExecution);
+  const analyzable = normalized.filter(r=>r.recordType !== "AGGREGATE");
   return {
     engineVersion:ENGINE_VERSION, generatedAt:options.generatedAt ?? null,
     recordCount:normalized.length, records:execution,
-    annualComparisons:compareAcrossYears(normalized,"tax"),
-    regionalComparisons:compareDimensions(normalized,["year","region"]),
-    anomalies:detectStatisticalAnomalies(normalized,options.anomalyOptions),
+    annualComparisons:compareAcrossYears(analyzable,["tax","region","agency"]),
+    regionalComparisons:compareDimensions(analyzable,["year","region"]),
+    anomalies:detectStatisticalAnomalies(analyzable,options.anomalyOptions),
     methodology:{ currencyAndUnit:"原始單位保留；不同單位不得直接加總或比較",
       anomaly:"同稅目、地區及單位之歷年 robust MAD 偏離",
       humanReview:"統計異常 → 待查核線索 → 人工確認；不得自動升級為已確認問題" }
