@@ -57,7 +57,35 @@ output.textContent="【"+c.title+"】\n狀態："+c.risk+"（示範）\n\n檢查
 document.getElementById("clear").addEventListener("click",()=>output.textContent="尚未選擇情境。請點選上方按鈕開始。");
 const fileInput=document.getElementById("auditCsvFile"), statusEl=document.getElementById("csvStatus"),statsEl=document.getElementById("csvStats"),findingsEl=document.getElementById("csvFindings"),tableEl=document.getElementById("csvTable"),exportBtn=document.getElementById("csvExport");
 let analyzedRows=[],reportLines=[];
-function csvParse(text){text=String(text||"").replace(/^\uFEFF/,"");const rows=[];let row=[],field="",quoted=false;for(let i=0;i<text.length;i++){const c=text[i];if(quoted){if(c==='"'&&text[i+1]==='"'){field+='"';i++;}else if(c==='"'){quoted=false;}else field+=c;}else if(c==='"'){quoted=true;}else if(c===','){row.push(field);field="";}else if(c==='\n'){row.push(field);rows.push(row);row=[];field="";}else if(c==='\r'){if(text[i+1]==='\n')i++;row.push(field);rows.push(row);row=[];field="";}else field+=c;}if(field.length||row.length){row.push(field);rows.push(row);}return rows.filter(r=>r.some(x=>x.trim()));}
+function csvParse(text){
+ text=String(text||"").replace(/^\\uFEFF/,"");
+ const rows=[];let row=[],field="",quoted=false,fieldStarted=false;
+ for(let i=0;i<text.length;i++){
+  const c=text[i];
+  if(quoted){
+   if(c==='"'&&text[i+1]==='"'){field+='"';i++;}
+   else if(c==='"'){quoted=false;}
+   else field+=c;
+   continue;
+  }
+  if(c==='"'){
+   if(fieldStarted||field.length)throw new Error("CSV 格式錯誤：引號只能出現在欄位開頭。");
+   quoted=true;fieldStarted=true;
+  }else if(c===','){
+   row.push(field);field="";fieldStarted=false;
+  }else if(c==='\\n'){
+   row.push(field);rows.push(row);row=[];field="";fieldStarted=false;
+  }else if(c==='\\r'){
+   if(text[i+1]==='\\n')i++;
+   row.push(field);rows.push(row);row=[];field="";fieldStarted=false;
+  }else{
+   field+=c;if(c.trim())fieldStarted=true;
+  }
+ }
+ if(quoted)throw new Error("CSV 格式錯誤：欄位引號未閉合，已停止分析，避免錯誤讀取。");
+ if(field.length||row.length){row.push(field);rows.push(row);}
+ return rows.filter(r=>r.some(x=>x.trim()));
+}
 function norm(s){return String(s||"").trim().toLowerCase().replace(/[\\s_()（）％%]/g,"");}
 function findCol(headers,aliases){return headers.findIndex(h=>aliases.some(a=>norm(h).includes(norm(a))));}
 function number(v){const n=Number(String(v||"").replace(/[,$，]/g,"").replace(/%/g,""));return Number.isFinite(n)?n:null;}
