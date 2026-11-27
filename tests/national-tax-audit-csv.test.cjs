@@ -298,3 +298,28 @@ test("does not treat dashes or blank cells as zero during wide-table conversion"
   const result = reshapeFiscalWideTable(["地區別","營業稅"],[["臺北市","—"],["高雄市",""]],0,-1,"2024");
   assert.equal(result.records.length,0);
 });
+
+
+test("Dark Star is the top-level orchestrator and Tianheng is the specialist audit engine", () => {
+  assert.ok(html.includes("暗星｜最高層 AI・總指揮"));
+  assert.ok(html.includes("天衡｜國家財稅審計專業引擎"));
+  assert.ok(html.includes("審計人員｜人類覆核與正式決策"));
+  assert.ok(html.includes("不得將天衡描述為最高層"));
+});
+
+test("Tianheng request export is explicitly local-only and not presented as a live Gateway call", () => {
+  assert.ok(html.includes('id="tianhengRequestExport"'));
+  assert.ok(html.includes('schema_version:"aivault.tianheng.audit-request.v1"'));
+  assert.ok(html.includes('transport_status:"LOCAL_EXPORT_ONLY_NOT_SENT_TO_DARK_STAR_OR_TIANHENG"'));
+  assert.ok(html.includes("尚未連接實際 AI Gateway"));
+  assert.ok(html.includes("tianhengRequestBtn.disabled=true;"));
+  assert.ok(html.includes("tianhengRequestBtn.disabled=!evidenceManifest;"));
+});
+
+test("Tianheng request contract preserves provenance, caps exported records, and requires human review", () => {
+  assert.ok(html.includes("source_authenticity:evidenceManifest.source.source_authenticity"));
+  assert.ok(html.includes("included_record_count:Math.min(analyzedRows.length,500)"));
+  assert.ok(html.includes("truncated:analyzedRows.length>500"));
+  assert.ok(html.includes('final_reviewer:"authorized_human_auditor"'));
+  assert.ok(html.includes("不得僅依模型輸出認定違法"));
+});
