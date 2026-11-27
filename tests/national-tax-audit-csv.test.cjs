@@ -249,7 +249,7 @@ test("rejects a single file whose explicit unit column mixes units", () => {
 });
 
 test("wide region-by-tax datasets are explicitly identified as requiring reshape", () => {
-  assert.match(html,/function reshapeFiscalWideTable\\(/);
+  assert.ok(html.includes("function reshapeFiscalWideTable("));
 });
 
 const reshapeStart = html.indexOf("function reshapeFiscalWideTable(");
