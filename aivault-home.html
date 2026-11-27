@@ -30,12 +30,9 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#fff;font-f
 .home-nav{position:fixed;top:0;left:0;right:0;z-index:1000;height:56px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:8px;padding:8px 10px;box-sizing:border-box;overflow-x:auto;overflow-y:hidden}
 .home-nav a{height:40px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;padding:0 12px;border-radius:12px;border:1px solid #e2e8f0;background:#fff;color:#334155;text-decoration:none;font-size:14px;font-weight:700;white-space:nowrap}
 @media(max-width:360px){.home-nav a{padding:0 8px;font-size:13px}}
-.tax-entry{position:fixed;top:56px;left:0;right:0;z-index:999;height:48px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 12px;box-sizing:border-box}
-.tax-entry a{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:10px;border:1px solid #e2e8f0;background:#fff;color:#334155;text-decoration:none;font-size:14px;font-weight:700}
-iframe{display:block;position:absolute;top:104px;left:0;width:100%;height:calc(100% - 104px);border:0;background:#fff}
+iframe{display:block;position:absolute;top:56px;left:0;width:100%;height:calc(100% - 56px);border:0;background:#fff}
 html:not(.av-authed) .home-nav{display:none}
-html:not(.av-authed) .tax-entry{top:0}
-html:not(.av-authed) iframe{top:48px;height:calc(100% - 48px)}
+html:not(.av-authed) iframe{top:0;height:100%}
 .town-pub{display:none}html:not(.av-authed) .town-pub{display:inline-flex;position:fixed;left:10px;bottom:calc(env(safe-area-inset-bottom) + 10px);z-index:1001;align-items:center;height:34px;padding:0 12px;border-radius:999px;background:rgba(15,23,42,.82);color:#fff;font:700 13px -apple-system,system-ui,sans-serif;text-decoration:none;box-shadow:0 2px 10px rgba(0,0,0,.3)}
 </style>
 <script>
@@ -46,7 +43,6 @@ window.addEventListener('storage',function(e){if(e.key==='sb-clcddygkaaqqtsbswgd
 <body>
 
 <nav class="home-nav" id="aivaultTopNav" aria-label="AIVAULT 快速入口"></nav>
-<div class="tax-entry"><a href="ai-tax-jarvis-command.html" target="_top">⚖️ AI稅務模擬專區</a></div>
 <a class="town-pub" href="aivault-town.html" target="_top">🏰 AI 協作城</a>
 <iframe id="aivaultApp" src="aivault-home-original-dark.html?v=20261017-guide1" title="AIVAULT"></iframe>
 <script>
@@ -75,6 +71,30 @@ window.addEventListener('storage',function(e){if(e.key==='sb-clcddygkaaqqtsbswgd
   document.querySelectorAll('.home-nav').forEach(function (el) {
     if (el !== nav) el.remove();
   });
+
+  // Inject tax card below digital human in iframe
+  var frame = document.getElementById('aivaultApp');
+  function injectTax() {
+    try {
+      var doc = frame.contentDocument;
+      if (!doc || doc.getElementById('taxSimEntry')) return;
+      var dawn = doc.getElementById('dawnMaleEntry');
+      if (!dawn) return;
+      var card = doc.createElement('a');
+      card.id = 'taxSimEntry';
+      card.href = 'ai-tax-jarvis-command.html';
+      card.target = '_top';
+      card.className = 'agent-card';
+      card.style.cssText = 'margin-bottom:16px;grid-column:1/-1;display:block;text-decoration:none;color:inherit;border-color:rgba(212,168,67,.5);background:linear-gradient(135deg,#1e3a5f,#0f172a);';
+      card.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;"><div><div class="agent-name" style="font-size:15px;">⚖️ AI稅務模擬專區</div><div class="agent-role" style="margin-bottom:0;">12 推理引擎 · 安全指數光圈 · NCL 統籌</div></div><div class="scale-btn" style="flex-shrink:0;width:52px;height:52px;perspective:120px;"><div class="scale-3d" style="width:100%;height:100%;display:grid;place-items:center;font-size:28px;animation:scaleTilt 3s ease-in-out infinite;">⚖️</div></div></div>';
+      var style = doc.createElement('style');
+      style.textContent = '@keyframes scaleTilt{0%,100%{transform:rotateY(0deg) rotateX(0deg)}25%{transform:rotateY(20deg) rotateX(8deg)}50%{transform:rotateY(0deg) rotateX(0deg)}75%{transform:rotateY(-20deg) rotateX(-8deg)}}';
+      doc.head.appendChild(style);
+      dawn.parentNode.insertBefore(card, dawn.nextSibling);
+    } catch (e) {}
+  }
+  frame.addEventListener('load', function () { setTimeout(injectTax, 400); });
+  setTimeout(injectTax, 1200);
 })();
 </script>
 </body>
