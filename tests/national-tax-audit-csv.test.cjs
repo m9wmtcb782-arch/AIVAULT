@@ -156,3 +156,42 @@ test("does not calculate a percentage from a zero baseline", () => {
   ],0);
   assert.equal(trends.length,0);
 });
+
+const matrixStart = html.indexOf("function buildFiscalRiskMatrix(");
+const matrixEnd = html.indexOf("function normalizeYear", matrixStart);
+assert.ok(matrixStart >= 0 && matrixEnd > matrixStart, "fiscal risk matrix helper must exist");
+const buildFiscalRiskMatrix = vm.runInNewContext(html.slice(matrixStart, matrixEnd) + "\\nbuildFiscalRiskMatrix");
+const matrixRow = (year, region, actual, budget) => ({year:String(year),yearValid:true,item:"營業稅",actual,budget,raw:[region]});
+
+test("fiscal risk matrix separates regions and aggregates same-year values", () => {
+  const matrix = buildFiscalRiskMatrix([
+    matrixRow(2024,"臺北市",40,100),
+    matrixRow(2024,"臺北市",30,100),
+    matrixRow(2024,"高雄市",150,100)
+  ],0);
+  assert.equal(matrix.length,2);
+  const taipei = matrix.find(x=>x.region==="臺北市");
+  const kaohsiung = matrix.find(x=>x.region==="高雄市");
+  assert.equal(taipei.actual,70);
+  assert.equal(taipei.achievement,35);
+  assert.ok(taipei.signals.some(x=>x.includes("80%")));
+  assert.equal(kaohsiung.achievement,150);
+  assert.ok(kaohsiung.signals.some(x=>x.includes("120%")));
+});
+
+test("fiscal risk matrix does not calculate achievement when any budget value is missing", () => {
+  const matrix = buildFiscalRiskMatrix([
+    matrixRow(2024,"臺北市",50,100),
+    matrixRow(2024,"臺北市",50,null)
+  ],0);
+  assert.equal(matrix[0].achievement,null);
+  assert.ok(matrix[0].signals.length===0);
+});
+
+test("fiscal risk matrix preserves negative-value signals without treating missing budget as zero", () => {
+  const matrix = buildFiscalRiskMatrix([
+    matrixRow(2024,"臺北市",-10,null)
+  ],0);
+  assert.equal(matrix[0].achievement,null);
+  assert.ok(matrix[0].signals.some(x=>x.includes("負值")));
+});
