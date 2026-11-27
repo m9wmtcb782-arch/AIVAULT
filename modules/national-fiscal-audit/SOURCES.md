@@ -8,7 +8,8 @@
 | DOT-VAT-10Y-46025 | 46025 | 財政部賦稅署 | 近十年營業稅預算數、實徵數、達成率、成長率；每年 | 營業稅跨年比較 |
 | DGBAS-LOCAL-BUDGET-10887 | 10887 | 行政院主計總處 | 各直轄市及縣市總預算彙編；每年 | 地方預算；XML及原始預算書附件，須解析科目與年度 |
 | DGBAS-CENTRAL-UNIT-BUDGET-10890 | 10890 | 行政院主計總處 | 中央各單位及附屬單位預算、決算、會計報表公告網址 | 後續中央政府部門/基金預算與決算連結 |
-| MOF-GOV-REVENUE-EXPENDITURE-6739 | 6739 | 財政部統計處 | 各級政府歲入、歲出賸餘及融資；每年 | 各級政府合併收支與融資分析；須確認扣除政府間重複移轉後的合併口徑 |
+| MOF-GOV-REVENUE-EXPENDITURE-6739 | 6739 | 財政部統計處 | 各級政府歲入、歲出賸餘及融資；每年 | 各級政府合併收支與融資分析；官方說明已確認扣除政府間重複移轉，仍須核對原始欄位及年度版本 |
+| NAO-LOCAL-FINAL-AUDITED-13979 | 13979 | 審計部 | 地方政府總決算歲入歲出決算審定資料；每年 | 含 Budget、Final、Adjustment、Audited 欄位；政府別、基金、機關、科目層級，金額單位需另核資料字典 |
 
 ## 官方資料集頁面
 - https://data.gov.tw/dataset/16910
@@ -17,6 +18,8 @@
 - https://data.gov.tw/dataset/46025
 - https://data.gov.tw/dataset/10887
 - https://data.gov.tw/dataset/10890
+- https://data.gov.tw/dataset/6739
+- https://data.gov.tw/dataset/13979
 
 ## 匯入前必備中繼資料
 - dataset ID、原始下載 URL、下載時間、發布機關、資料集更新時間、授權條款
@@ -30,6 +33,12 @@
 - 16910 是年度稅目預算/實徵比較資料，下載檔若無明確年度欄，匯入者必須由官方資料版本提供年度，不可猜測。
 - 10887 是地方總預算彙編，單位為新臺幣千元；需保留年度與各縣市原始預算書連結。
 - 不同單位、政府別、會計基礎、稅收歸屬不可直接加總或比較。
+
+## 審計部地方政府決算審定資料 13979
+- 官方欄位包含 Government、FiscalYear、Category、FundCode、AuthorityCode、AgencyCode、AccountTitle、Budget、Final_Realized、Final_ReceivablePayable、Final_Encumbrance、Adjustment_*、Audited_*。
+- 此資料可支援地方政府預算、決算、調整及審定階段差異檢查；不可將各階段欄位折疊成單一「實際數」。
+- 官方資料頁未在本輪提供可核實的金額單位定義，因此 adapter 不自行假定元/千元；匯入者必須從資料字典確認後傳入 `unit`。
+- 這是地方政府審定資料，不得與中央政府或全國合併政府資料直接混加。
 
 ## 下載與驗證現況
 官方資料集頁面與欄位資訊已核對；CSV/XML 資源連結已定位。但本工作環境無法成功擷取其 application/octet-stream / XML 原始下載內容，因此目前**尚未完成原始檔下載、SHA-256 封存及真實資料匯入**。不得把合成 fixture 宣稱為政府資料。
