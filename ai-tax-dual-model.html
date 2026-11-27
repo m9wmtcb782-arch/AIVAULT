@@ -17,20 +17,27 @@ pre{background:#050a14;padding:8px;border-radius:6px;overflow:auto;font-size:0.7
 </head>
 <body>
 <h1>AI天衡 · Groq + Gemini 雙模型案件分析</h1>
-<p class="warn">呼叫失敗時標示 MODEL_UNAVAILABLE。不冒充模型輸出。暗星未呼叫標示 NOT_CONNECTED。</p>
+<p class="warn">呼叫失敗或回應無實質分析時標示 MODEL_UNAVAILABLE。不冒充模型輸出。暗星：NOT_CONNECTED。</p>
 
 <div class="panel">
   <h2>輸入稅務案件</h2>
-  <textarea id="caseInput" placeholder="輸入模擬稅務案件描述，例如：申報所得 100,000，第三方資料 500,000，費用比例異常..."></textarea>
+  <textarea id="caseInput" placeholder="輸入模擬稅務案件"></textarea>
   <div>
     <label>Gateway 端點：<input id="gatewayUrl" style="width:70%;background:#050a14;color:#d0e8ff;border:1px solid #1a3a5c;padding:4px;border-radius:4px" placeholder="https://xxx.supabase.co/functions/v1/ai-gateway"></label>
   </div>
   <button onclick="analyze()">執行天衡分析</button>
+  <button onclick="downloadReport()">下載報告 JSON</button>
 </div>
 
 <div id="out"></div>
 
 <script>
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>')
+    .replace(/"/g,'"').replace(/'/g,'&#39;');
+}
+
 const RULE_CHECKS = [
   {id:'income_diff', name:'所得差異', test: c => /\d{3,}/.test(c) && /差異|不符/.test(c)},
   {id:'expense_ratio', name:'費用比例', test: c => /費用.*異常|比例/.test(c)},
@@ -42,17 +49,35 @@ function ruleCheck(text) {
   return RULE_CHECKS.map(r => ({id:r.id, name:r.name, triggered: r.test(text)}));
 }
 
+const STRUCTURED_PROMPT = `請以稅務審查角度分析以下案件，必須用以下 JSON 格式回答（不要額外文字）：
+{"facts":"事實認定","legal_basis":"法律依據","risk":"風險判斷","conclusion":"結論","evidence_gaps":"證據不足處","suggestions":"改善建議"}
+案件：\n`;
+
+function parseStructured(text) {
+  if (!text || typeof text !== 'string') return null;
+  const m = text.match(/\{[\s\S]*\}/);
+  if (!m) return null;
+  try {
+    const o = JSON.parse(m[0]);
+    const required = ['facts','legal_basis','risk','conclusion','evidence_gaps','suggestions'];
+    if (!required.every(k => typeof o[k] === 'string' && o[k].trim().length > 0)) return null;
+    return o;
+  } catch { return null; }
+}
+
 async function callModel(gateway, provider, caseText) {
   const t0 = Date.now();
-  if (!gateway) return {provider, status:'MODEL_UNAVAILABLE', reason:'no gateway url', ms:0, output:null};
+  if (!gateway) return {provider, status:'MODEL_UNAVAILABLE', reason:'no gateway url', ms:0, structured:null, raw:null};
+  const model = provider === 'gemini' ? 'gemini-3.6-flash' : (provider === 'groq' ? 'openai/gpt-oss-120b' : undefined);
+  const body = {
+    message: STRUCTURED_PROMPT + caseText,
+    provider: provider,
+    model: model,
+    capability: 'chat'
+  };
   try {
-    const body = {
-      message: `請以稅務審查角度分析以下案件，列出法律依據、事實認定、風險判斷、改善建議。案件：\n${caseText}`,
-      provider: provider,
-      model: provider === 'gemini' ? 'gemini-3.6-flash' : undefined
-    };
     const ctrl = new AbortController();
-    const timer = setTimeout(()=>ctrl.abort(), 20000);
+    const timer = setTimeout(()=>ctrl.abort(), 25000);
     const res = await fetch(gateway, {
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -61,12 +86,16 @@ async function callModel(gateway, provider, caseText) {
     });
     clearTimeout(timer);
     const ms = Date.now() - t0;
-    if (!res.ok) return {provider, status:'MODEL_UNAVAILABLE', reason:'HTTP '+res.status, ms, output:null};
-    const data = await res.json();
-    const text = data.content || data.text || data.message || data.analysis || JSON.stringify(data).slice(0,2000);
-    return {provider, status:'OK', model: data.model || provider, ms, output: text, rawKeys: Object.keys(data)};
+    if (!res.ok) return {provider, status:'MODEL_UNAVAILABLE', reason:'HTTP '+res.status, ms, structured:null, raw:null};
+    let data;
+    try { data = await res.json(); } catch { return {provider, status:'MODEL_UNAVAILABLE', reason:'invalid JSON', ms, structured:null, raw:null}; }
+    const text = String(data.content || data.text || data.message || data.analysis || '').trim();
+    if (!text || text.length < 20) return {provider, status:'MODEL_UNAVAILABLE', reason:'empty or short response', ms, structured:null, raw:text.slice(0,500)};
+    const structured = parseStructured(text);
+    if (!structured) return {provider, status:'MODEL_UNAVAILABLE', reason:'no structured analysis', ms, structured:null, raw:text.slice(0,1000)};
+    return {provider, status:'OK', model: data.model || model || provider, ms, structured, raw:text.slice(0,1500)};
   } catch(e) {
-    return {provider, status:'MODEL_UNAVAILABLE', reason: e.name==='AbortError'?'timeout':String(e.message||e), ms: Date.now()-t0, output:null};
+    return {provider, status:'MODEL_UNAVAILABLE', reason: e.name==='AbortError'?'timeout':String(e.message||e), ms: Date.now()-t0, structured:null, raw:null};
   }
 }
 
@@ -74,22 +103,26 @@ function crossReview(g, m) {
   if (g.status!=='OK' && m.status!=='OK') return {mode:'RULE_ONLY', consistent:[], conflicts:[], requiresReview:[]};
   if (g.status!=='OK' || m.status!=='OK') {
     const ok = g.status==='OK' ? g : m;
-    return {mode:'SINGLE_MODEL', consistent:[ok.provider+'單獨可用'], conflicts:[], requiresReview:['另一模型不可用，結論需要人工覆核']};
+    return {mode:'SINGLE_MODEL', consistent:[ok.provider+' 單獨可用'], conflicts:[], requiresReview:['另一模型不可用 → REQUIRES_REVIEW']};
   }
-  const gText = (g.output||'').toLowerCase();
-  const mText = (m.output||'').toLowerCase();
-  const keys = ['風險','違法','異常','建議','覆核'];
-  const consistent = keys.filter(k => gText.includes(k) && mText.includes(k));
-  const onlyG = keys.filter(k => gText.includes(k) && !mText.includes(k));
-  const onlyM = keys.filter(k => !gText.includes(k) && mText.includes(k));
-  const conflicts = [...onlyG.map(k=>'Groq提及 '+k+' 但 Gemini 未提'), ...onlyM.map(k=>'Gemini提及 '+k+' 但 Groq 未提')];
+  const fields = ['facts','legal_basis','risk','conclusion','evidence_gaps','suggestions'];
+  const consistent = [];
+  const conflicts = [];
+  fields.forEach(f => {
+    const a = (g.structured[f]||'').trim();
+    const b = (m.structured[f]||'').trim();
+    if (a && b && a === b) consistent.push(f+'：一致');
+    else if (a && b && a !== b) conflicts.push(f+'：Groq=「'+a.slice(0,40)+'」 / Gemini=「'+b.slice(0,40)+'」');
+  });
   return {
     mode:'DUAL',
     consistent,
     conflicts,
-    requiresReview: conflicts.length ? conflicts.map(c=>c+' → REQUIRES_REVIEW') : []
+    requiresReview: conflicts.map(c => c + ' → REQUIRES_REVIEW')
   };
 }
+
+let lastReport = null;
 
 async function analyze() {
   const caseText = document.getElementById('caseInput').value.trim();
@@ -103,40 +136,49 @@ async function analyze() {
   ]);
   const review = crossReview(groq, gemini);
 
-  const report = {
+  lastReport = {
     ts: new Date().toISOString(),
     case: caseText,
-    tianheng: {
-      rules,
-      groq,
-      gemini,
-      crossReview: review
-    },
+    tianheng: { rules, groq, gemini, crossReview: review },
     darkstar: { status: 'NOT_CONNECTED', reason: '本頁未呼叫暗星' },
     mode: (groq.status!=='OK' && gemini.status!=='OK') ? 'RULE_ONLY' : review.mode
   };
 
   let html = '<h2>天衡規則檢查</h2><ul>';
-  rules.forEach(r => html += `<li class="${r.triggered?'warn':'muted'}">${r.name}：${r.triggered?'觸發':'未觸發'}</li>`);
+  rules.forEach(r => html += `<li class="${r.triggered?'warn':'muted'}">${esc(r.name)}：${r.triggered?'觸發':'未觸發'}</li>`);
   html += '</ul>';
 
-  html += '<h2>Groq</h2>';
-  html += `<p><span class="badge ${groq.status==='OK'?'pass':'fail'}">${groq.status}</span> ${groq.ms||0}ms ${groq.reason||''}</p>`;
-  html += `<pre>${groq.output || '(無模型輸出)'}</pre>`;
+  function renderModel(name, m) {
+    let h = `<h2>${esc(name)}</h2>`;
+    h += `<p><span class="badge ${m.status==='OK'?'pass':'fail'}">${esc(m.status)}</span> ${m.ms||0}ms ${esc(m.reason||'')}</p>`;
+    if (m.structured) {
+      h += '<pre>'+esc(JSON.stringify(m.structured,null,2))+'</pre>';
+    } else {
+      h += '<pre class="muted">(無結構化分析)</pre>';
+    }
+    return h;
+  }
+  html += renderModel('Groq', groq);
+  html += renderModel('Gemini', gemini);
 
-  html += '<h2>Gemini</h2>';
-  html += `<p><span class="badge ${gemini.status==='OK'?'pass':'fail'}">${gemini.status}</span> ${gemini.ms||0}ms ${gemini.reason||''}</p>`;
-  html += `<pre>${gemini.output || '(無模型輸出)'}</pre>`;
-
-  html += '<h2>交叉審查</h2>';
-  html += `<p>模式：<span class="badge">${review.mode}</span></p>`;
-  html += `<p>一致：${review.consistent.join('、')||'無'}</p>`;
-  html += `<p class="warn">矛盾：${review.conflicts.join('；')||'無'}</p>`;
-  html += `<p class="warn">REQUIRES_REVIEW：${review.requiresReview.join('；')||'無'}</p>`;
+  html += '<h2>交叉審查（結構化比對）</h2>';
+  html += `<p>模式：<span class="badge">${esc(review.mode)}</span></p>`;
+  html += `<p>一致：${review.consistent.map(esc).join('<br>')||'無'}</p>`;
+  html += `<p class="warn">矛盾：${review.conflicts.map(esc).join('<br>')||'無'}</p>`;
+  html += `<p class="warn">REQUIRES_REVIEW：${review.requiresReview.map(esc).join('<br>')||'無'}</p>`;
 
   html += '<h2>暗星</h2><p class="muted">NOT_CONNECTED</p>';
-  html += '<h2>報告 JSON</h2><pre>'+JSON.stringify(report,null,2)+'</pre>';
+  html += '<h2>報告 JSON</h2><pre>'+esc(JSON.stringify(lastReport,null,2))+'</pre>';
   document.getElementById('out').innerHTML = html;
+}
+
+function downloadReport() {
+  if (!lastReport) { alert('請先執行分析'); return; }
+  const blob = new Blob([JSON.stringify(lastReport,null,2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'tianheng-report-'+Date.now()+'.json';
+  a.click();
 }
 </script>
 </body>
