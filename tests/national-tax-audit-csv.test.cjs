@@ -199,7 +199,7 @@ test("fiscal risk matrix preserves negative-value signals without treating missi
 const mapStart = html.indexOf("function mapFiscalHeaders(");
 const mapEnd = html.indexOf("function number(", mapStart);
 assert.ok(mapStart >= 0 && mapEnd > mapStart, "official fiscal header mapper must exist");
-const mapFiscalHeaders = vm.runInNewContext("function norm(s){return String(s||\"\").trim().toLowerCase();}\\n" + html.slice(mapStart, mapEnd) + "\\nmapFiscalHeaders");
+const mapFiscalHeaders = vm.runInNewContext("function norm(s){return String(s||\"\").trim().toLowerCase();}\n" + html.slice(mapStart, mapEnd) + "\nmapFiscalHeaders");
 
 test("maps common Ministry of Finance fiscal CSV header aliases", () => {
   const mapped = mapFiscalHeaders(["年度", "稅目別", "縣市別", "預算數", "實徵淨額", "單位"]);
@@ -213,4 +213,15 @@ test("marks ambiguous required fiscal columns and missing optional fields explic
   assert.equal(mapped.find(x=>x.key==="item").status,"欄位名稱有歧義，待人工確認");
   assert.equal(mapped.find(x=>x.key==="budget").status,"未提供");
   assert.equal(mapped.find(x=>x.key==="actual").status,"已辨識");
+});
+
+test("fiscal risk matrix keeps different tax items separate within the same region and year", () => {
+  const rows = [
+    {...matrixRow(2024,"臺北市",80,100),item:"營業稅"},
+    {...matrixRow(2024,"臺北市",120,100),item:"綜合所得稅"}
+  ];
+  const matrix = buildFiscalRiskMatrix(rows,0);
+  assert.equal(matrix.length,2);
+  assert.notEqual(matrix[0].item,matrix[1].item);
+  assert.deepEqual(matrix.map(x=>x.achievement).sort((a,b)=>a-b),[80,120]);
 });
