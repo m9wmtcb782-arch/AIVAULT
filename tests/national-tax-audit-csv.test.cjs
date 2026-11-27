@@ -74,3 +74,21 @@ test("computes a stable SHA-256 fingerprint for file bytes", async () => {
   const digest = await helper(new TextEncoder().encode("audit-evidence").buffer);
   assert.equal(digest, "2071e29393ba7f1f11c702bcba27add19865ed6c0e53c15e4ba958002e1fdea6");
 });
+
+
+test("evidence manifest supports explicit version lineage and local review history", () => {
+  assert.match(html, /id="priorEvidenceId"/);
+  assert.match(html, /id="evidenceVersion"/);
+  assert.match(html, /id="supersessionReason"/);
+  assert.match(html, /supersedes_evidence_id:priorEvidenceId\|\|null/);
+  assert.match(html, /review_history:reviewEntries/);
+  assert.match(html, /LOCAL_ONLY_NOT_REGISTERED/);
+});
+
+test("human review interface requires reviewer identity label and rationale", () => {
+  assert.match(html, /id="reviewDecision"/);
+  assert.match(html, /id="reviewerName"/);
+  assert.match(html, /id="reviewNote"/);
+  assert.match(html, /if\(!reviewer\|\|!note\)/);
+  assert.match(html, /record_status:"LOCAL_ONLY_NOT_REGISTERED"/);
+});
