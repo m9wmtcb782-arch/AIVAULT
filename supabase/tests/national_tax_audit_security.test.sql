@@ -5,7 +5,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(70);
+select plan(74);
 
 -- RLS must be enabled on every audit workspace table.
 select ok((select c.relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='tax_audit_memberships'), 'RLS enabled: memberships');
@@ -144,6 +144,12 @@ select ok(not has_function_privilege('anon','public.prevent_tax_audit_action_his
 select ok(not has_function_privilege('anon','public.validate_tax_audit_evidence_lineage()','EXECUTE') and not has_function_privilege('authenticated','public.validate_tax_audit_evidence_lineage()','EXECUTE'), 'lineage validator cannot be called directly by API roles');
 select ok(not has_function_privilege('anon','public.validate_tax_audit_evidence_review_chain()','EXECUTE') and not has_function_privilege('authenticated','public.validate_tax_audit_evidence_review_chain()','EXECUTE'), 'review validator cannot be called directly by API roles');
 select ok(not has_function_privilege('anon','public.record_tax_audit_action_history()','EXECUTE') and not has_function_privilege('authenticated','public.record_tax_audit_action_history()','EXECUTE'), 'history writer cannot be called directly by API roles');
+
+-- Evidence must be anchored to a dataset, directly or through its run.
+select ok(exists(select 1 from pg_trigger where tgrelid='public.tax_audit_evidence'::regclass and tgname='tax_audit_evidence_validate_dataset_link' and not tgisinternal and tgenabled <> 'D'), 'evidence dataset/run linkage trigger enabled');
+select ok((select prosecdef from pg_proc where oid='public.validate_tax_audit_evidence_dataset_link()'::regprocedure), 'evidence dataset linker is SECURITY DEFINER');
+select ok((select coalesce(proconfig, array[]::text[]) @> array['search_path=""'] from pg_proc where oid='public.validate_tax_audit_evidence_dataset_link()'::regprocedure), 'evidence dataset linker has empty search_path');
+select ok(not has_function_privilege('anon','public.validate_tax_audit_evidence_dataset_link()','EXECUTE') and not has_function_privilege('authenticated','public.validate_tax_audit_evidence_dataset_link()','EXECUTE'), 'evidence dataset linker cannot be called directly by API roles');
 
 select * from finish();
 rollback;
