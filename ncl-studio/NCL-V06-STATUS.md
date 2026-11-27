@@ -13,6 +13,10 @@
 - Loader validates format, layer count, dimensions, finite weights, and checksum.
 - Browser acceptance page with 10 test cases.
 
+## Studio integration
+- Studio now loads `ncl-model-v06.js` after Tensor v0.4 and Neural v0.5.
+- Added a direct link to the v0.6 model acceptance page and a visible model-core version indicator.
+
 ## Verification
 - CONFIRMED: source and tests are committed.
 - REQUIRES TEST: browser acceptance page has not been executed in this delivery.
