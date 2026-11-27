@@ -30,7 +30,8 @@ const median = values => {
 /** Canonical record. Amounts remain in the source unit; never mix currencies/units. */
 export function normalizeFiscalRecord(row, metadata = {}) {
   const year = number(first(row, ["year","年度","會計年度","日曆年"]), "year");
-  const budget = number(first(row, ["budget","預算數","預算數(千元)","法定預算"]), "budget");
+  const budgetRaw = first(row, ["budget","預算數","預算數(千元)","法定預算"]);
+  const budget = budgetRaw === undefined ? null : number(budgetRaw, "budget");
   const actualRaw = first(row, ["actual","實徵數","實徵淨額(千元)","決算數","實際數"]);
   const actual = actualRaw === undefined ? null : number(actualRaw, "actual");
   const unit = first(row, ["unit","單位"]) ?? metadata.unit ?? "SOURCE_UNIT_UNSPECIFIED";
@@ -83,7 +84,7 @@ export function compareDimensions(records, dimensions = ["tax","region"]) {
   const groups = new Map();
   for (const record of records) {
     if (record.actual === null) continue;
-    const key = dimensions.map(d=>String(record[d] ?? "UNSPECIFIED")).join(" | ");
+    const key = [record.unit ?? "UNIT_UNSPECIFIED", ...dimensions.map(d=>String(record[d] ?? "UNSPECIFIED"))].join(" | ");
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(record);
   }
@@ -93,7 +94,7 @@ export function compareDimensions(records, dimensions = ["tax","region"]) {
     const budget = budgetValues.length ? budgetValues.reduce((s,v)=>s+v,0) : null;
     return { group, count:items.length, actual, budget,
       variance:budget === null ? null : actual-budget,
-      executionRate:budget ? actual/budget*100 : null, unit:items[0].unit };
+      executionRate:budget !== null && budget !== 0 ? actual/budget*100 : null, unit:items[0].unit };
   });
 }
 
