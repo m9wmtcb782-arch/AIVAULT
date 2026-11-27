@@ -229,7 +229,7 @@ test("fiscal risk matrix keeps different tax items separate within the same regi
 const unitStart = html.indexOf("function detectFiscalUnit(");
 const unitEnd = html.indexOf("function number(", unitStart);
 assert.ok(unitStart >= 0 && unitEnd > unitStart, "fiscal unit detector must exist");
-const detectFiscalUnit = vm.runInNewContext(html.slice(unitStart, unitEnd) + "\\ndetectFiscalUnit");
+const detectFiscalUnit = vm.runInNewContext(html.slice(unitStart, unitEnd) + "\ndetectFiscalUnit");
 
 test("infers thousand-dollar unit from official fiscal CSV headers", () => {
   const result = detectFiscalUnit(["實徵淨額(千元)","預算數(千元)"],[], -1,0,1);
