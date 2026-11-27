@@ -17,6 +17,10 @@
   - `half-restore`: alternates between updating the first half of flattened parameters and restoring that half to its exact pre-update values on the next update call. This is an experimental reversible mode, not a standard optimizer.
 - Added a browser test page with 12 acceptance cases, including a small linear-regression loss-decrease check.
 
+## Studio integration
+- Updated `index.html` to load Runtime v0.3, Tensor v0.4, and Neural v0.5 in dependency order.
+- Added direct links to all three browser acceptance pages and a visible core-version load indicator.
+
 ## Status
 - CONFIRMED: source and browser test page have been committed to the feature branch.
 - REQUIRES TEST: run the browser page and confirm actual results; test code being present is not a passing test.
