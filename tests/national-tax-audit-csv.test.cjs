@@ -92,3 +92,14 @@ test("human review interface requires reviewer identity label and rationale", ()
   assert.match(html, /if\(!reviewer\|\|!note\)/);
   assert.match(html, /record_status:"LOCAL_ONLY_NOT_REGISTERED"/);
 });
+
+
+test("corrective action interface requires owner, deadline and response", () => {
+  assert.match(html, /id="actionTitle"/);
+  assert.match(html, /id="actionOwner"/);
+  assert.match(html, /id="actionDue"/);
+  assert.match(html, /id="actionStatus"/);
+  assert.match(html, /id="actionResponse"/);
+  assert.match(html, /record_status:"LOCAL_ONLY_NOT_REGISTERED"/);
+  assert.match(html, /action_history=actionEntries/);
+});
