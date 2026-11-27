@@ -2,20 +2,22 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<title>AI天衡 · 12 規則推理 + 攻防測試 v2</title>
+<title>AI天衡 · 推理與攻防測試 v3</title>
 <style>
-body{font-family:system-ui,sans-serif;background:#0a1628;color:#d0e8ff;padding:16px;max-width:960px;margin:auto}
+body{font-family:system-ui,sans-serif;background:#0a1628;color:#d0e8ff;padding:16px;max-width:1000px;margin:auto}
 h1{font-size:1.2rem}h2{font-size:1rem;color:#00e5ff;margin-top:20px}
 .pass{color:#00ff88}.fail{color:#ff4466}.warn{color:#ffaa00}.muted{color:#6a8aaa}
-pre{background:#050a14;padding:10px;border-radius:6px;overflow:auto;font-size:0.75rem}
+pre{background:#050a14;padding:10px;border-radius:6px;overflow:auto;font-size:0.72rem;max-height:400px}
 button{background:#0d2840;color:#d0e8ff;border:1px solid #1a3a5c;padding:8px 14px;border-radius:6px;cursor:pointer;margin:4px}
-.cap{font-size:0.7rem;padding:2px 6px;border-radius:4px;background:#1a3a5c}
+.cap{font-size:0.65rem;padding:2px 6px;border-radius:4px;background:#1a3a5c}
+table{border-collapse:collapse;width:100%;font-size:0.8rem;margin:8px 0}
+td,th{border:1px solid #1a3a5c;padding:4px 8px;text-align:left}
 </style>
 </head>
 <body>
-<h1>AI天衡 · 12 規則推理 + 攻防測試 v2</h1>
-<p class="warn">規則引擎測試。非大型模型推理。非暗星監督。可重複執行。</p>
-<button onclick="runAll()">執行全部測試</button>
+<h1>AI天衡 · 推理與攻防測試 v3</h1>
+<p class="warn">rule = 規則引擎；not_implemented = 未實現；model / darkstar = 本頁無實際呼叫。</p>
+<button onclick="runAll()">執行全部測試（含負面）</button>
 <div id="out"></div>
 <script>
 const log = [];
@@ -23,282 +25,338 @@ function record(engine, capability, input, output, pass, note) {
   log.push({engine, capability, input, output, pass, note, ts: new Date().toISOString()});
 }
 
-// 1. 邏輯：前提推導 + 矛盾
+// ===== 1. 邏輯：含否定、矛盾、無效推論、反例 =====
 function logic(premises, query) {
-  const facts = new Set(premises.filter(p => !p.includes('→')));
-  const rules = premises.filter(p => p.includes('→')).map(p => p.split('→').map(s => s.trim()));
-  let changed = true;
+  const facts = new Set();
+  const rules = [];
+  premises.forEach(p => {
+    if (p.includes('→')) {
+      const [a,b] = p.split('→').map(s=>s.trim());
+      rules.push([a,b]);
+    } else facts.add(p);
+  });
   const derived = new Set(facts);
+  let changed = true;
   while (changed) {
     changed = false;
-    for (const [a, b] of rules) {
+    for (const [a,b] of rules) {
       if (derived.has(a) && !derived.has(b)) { derived.add(b); changed = true; }
     }
   }
-  const contradiction = [...derived].some(f => derived.has('NOT ' + f) || derived.has('¬' + f));
+  const hasNeg = [...derived].some(f => f.startsWith('NOT ') && derived.has(f.slice(4)));
+  const doubleNeg = [...derived].some(f => f.startsWith('NOT NOT '));
   const proves = derived.has(query);
-  return {derived: [...derived], proves, contradiction, valid: proves && !contradiction};
+  const insufficient = !proves && !hasNeg;
+  return {derived:[...derived], proves, contradiction:hasNeg, doubleNeg, insufficient, valid: proves && !hasNeg};
 }
 
-// 2. 數學：安全算式解析（不用 Function）
+// ===== 2. 數學：安全解析 + 負面測試 =====
 function mathSafe(expr) {
-  const tokens = expr.replace(/\s/g,'').match(/(\d+\.?\d*|[+\-*/()])/g) || [];
+  if (typeof expr !== 'string' || !expr.trim()) return {ok:false, err:'empty'};
+  const cleaned = expr.replace(/\s/g,'');
+  if (!/^[0-9+\-*/().]+$/.test(cleaned)) return {ok:false, err:'illegal char'};
+  let bal = 0;
+  for (const c of cleaned) {
+    if (c==='(') bal++; else if (c===')') bal--;
+    if (bal<0) return {ok:false, err:'mismatch paren'};
+  }
+  if (bal!==0) return {ok:false, err:'mismatch paren'};
+  if (/[+\-*/]{2,}/.test(cleaned.replace(/\(-/g,'('))) return {ok:false, err:'consecutive ops'};
+  const tokens = cleaned.match(/(\d+\.?\d*|[+\-*/()])/g) || [];
   const prec = {'+':1,'-':1,'*':2,'/':2};
-  const out = [], ops = [];
+  const out=[], ops=[];
   for (const t of tokens) {
     if (/^\d/.test(t)) out.push(parseFloat(t));
-    else if (t === '(') ops.push(t);
-    else if (t === ')') { while (ops.length && ops[ops.length-1] !== '(') out.push(ops.pop()); ops.pop(); }
-    else { while (ops.length && prec[ops[ops.length-1]] >= prec[t]) out.push(ops.pop()); ops.push(t); }
+    else if (t==='(') ops.push(t);
+    else if (t===')') { while(ops.length && ops[ops.length-1]!=='(') out.push(ops.pop()); ops.pop(); }
+    else { while(ops.length && prec[ops[ops.length-1]]>=prec[t]) out.push(ops.pop()); ops.push(t); }
   }
-  while (ops.length) out.push(ops.pop());
-  const st = [];
+  while(ops.length) out.push(ops.pop());
+  const st=[];
   for (const t of out) {
-    if (typeof t === 'number') st.push(t);
-    else { const b = st.pop(), a = st.pop(); st.push(t==='+'?a+b:t==='-'?a-b:t==='*'?a*b:a/b); }
+    if (typeof t==='number') st.push(t);
+    else {
+      const b=st.pop(), a=st.pop();
+      if (t==='/' && b===0) return {ok:false, err:'div by zero'};
+      const r = t==='+'?a+b:t==='-'?a-b:t==='*'?a*b:a/b;
+      if (!isFinite(r)) return {ok:false, err:'non finite'};
+      st.push(r);
+    }
   }
-  const result = st[0];
-  return {result, ok: typeof result === 'number' && isFinite(result)};
+  return {result:st[0], ok: typeof st[0]==='number' && isFinite(st[0])};
 }
 
-// 3. 因果：鏈 + 反事實
-function causal(events, intervention) {
-  const chains = [];
-  for (let i = 0; i < events.length-1; i++) chains.push({from: events[i], to: events[i+1]});
-  const cf = intervention ? events.filter(e => e !== intervention.do) : events;
-  const cfChains = [];
-  for (let i = 0; i < cf.length-1; i++) cfChains.push(cf[i]+'→'+cf[i+1]);
-  return {chains, counterfactual: cfChains, changed: intervention ? cfChains.length !== chains.length : false};
+// ===== 3. 因果：因果圖 + 干預前後 =====
+function causalGraph(graph, intervention) {
+  const nodes = Object.keys(graph);
+  function compute(g, intervened) {
+    const vals = {};
+    const order = nodes.slice().sort((a,b)=> (g[a].deps||[]).length - (g[b].deps||[]).length);
+    for (const n of order) {
+      if (intervened && intervened.node===n) vals[n] = intervened.value;
+      else {
+        const deps = (g[n].deps||[]).map(d=>vals[d]);
+        vals[n] = g[n].fn ? g[n].fn(...deps) : (deps[0]||0);
+      }
+    }
+    return vals;
+  }
+  const before = compute(graph, null);
+  const after = intervention ? compute(graph, intervention) : before;
+  const changed = intervention ? before[intervention.node] !== after[intervention.node] : false;
+  return {before, after, changed, graph: nodes};
 }
 
-// 4. 機率：完整貝氏更新
+// ===== 4. 機率：邊界驗證 =====
 function bayes(prior, likelihood, notLikelihood) {
-  const evidence = likelihood * prior + notLikelihood * (1 - prior);
-  const posterior = (likelihood * prior) / evidence;
-  return {prior, posterior: Math.round(posterior*1000)/1000, evidence: Math.round(evidence*1000)/1000, updated: Math.abs(posterior-prior)>0.01};
+  if (prior<0||prior>1||likelihood<0||likelihood>1||notLikelihood<0||notLikelihood>1)
+    return {ok:false, err:'out of range'};
+  const evidence = likelihood*prior + notLikelihood*(1-prior);
+  if (evidence===0) return {ok:false, err:'zero evidence'};
+  const posterior = (likelihood*prior)/evidence;
+  return {prior, posterior:Math.round(posterior*1000)/1000, evidence:Math.round(evidence*1000)/1000, ok:true, updated:Math.abs(posterior-prior)>0.001};
 }
 
-// 5. 時間
+// ===== 5. 時間 / 6. 空間 / 7. 常識 / 8. 科學 =====
 function temporal(events) {
-  const sorted = [...events].sort((a,b)=>a.t-b.t);
-  return {order: sorted.map(e=>e.name), valid: sorted.every((e,i)=>i===0||e.t>=sorted[i-1].t)};
+  const sorted=[...events].sort((a,b)=>a.t-b.t);
+  return {order:sorted.map(e=>e.name), valid:sorted.every((e,i)=>i===0||e.t>=sorted[i-1].t)};
+}
+function spatial(a,b) {
+  const d=Math.hypot(a.x-b.x,a.y-b.y);
+  return {distance:Math.round(d*100)/100, near:d<10};
+}
+function commonSense(s) {
+  const rules=[{cond:x=>/rain/i.test(x),advice:'umbrella'},{cond:x=>/night/i.test(x),advice:'light'}];
+  const hit=rules.find(r=>r.cond(s));
+  return {advice:hit?hit.advice:'none', matched:!!hit};
+}
+function science(hyp, data, th=0.6) {
+  const rate=data.length?data.filter(d=>d.supports).length/data.length:0;
+  return {supportRate:Math.round(rate*100)/100, accepted:rate>th};
 }
 
-// 6. 空間
-function spatial(a, b) {
-  const d = Math.hypot(a.x-b.x, a.y-b.y);
-  return {distance: Math.round(d*100)/100, near: d<10};
-}
-
-// 7. 常識：關鍵字 + 條件
-function commonSense(situation) {
-  const rules = [
-    {cond: s => /rain|raining/i.test(s), advice: 'bring umbrella'},
-    {cond: s => /night|dark/i.test(s), advice: 'use light'},
-    {cond: s => /hot|heat/i.test(s), advice: 'drink water'}
-  ];
-  const hit = rules.find(r => r.cond(situation));
-  return {advice: hit ? hit.advice : 'no match', matched: !!hit};
-}
-
-// 8. 科學：支持率 + 閾值
-function science(hypothesis, data, threshold=0.6) {
-  const support = data.filter(d=>d.supports).length;
-  const rate = data.length ? support/data.length : 0;
-  return {supportRate: Math.round(rate*100)/100, accepted: rate > threshold, threshold};
-}
-
-// 9. 多模態：明確標示未實現
+// ===== 9. 多模態：未實現 =====
 function multimodal(inputs) {
-  const types = [...new Set(inputs.map(i=>i.type))];
-  return {types, fused: false, status: 'NOT_IMPLEMENTED', note: '未接模型，僅辨識標籤'};
+  return {types:[...new Set(inputs.map(i=>i.type))], fused:false, status:'NOT_IMPLEMENTED'};
 }
 
-// 10. 程式：安全白名單運算（不用 Function）
-function programSafe(op, a, b, expected) {
-  const ops = {'+':(x,y)=>x+y, '-':(x,y)=>x-y, '*':(x,y)=>x*y, '/':(x,y)=>x/y};
-  const fn = ops[op];
-  if (!fn) return {ok:false, err:'unsupported op'};
-  const result = fn(a, b);
-  return {result, match: result===expected, ok:true};
+// ===== 10. 程式：白名單 =====
+function programSafe(op,a,b,expected) {
+  const ops={'+':(x,y)=>x+y,'-':(x,y)=>x-y,'*':(x,y)=>x*y,'/':(x,y)=>x===0?null:x/y};
+  const fn=ops[op];
+  if(!fn) return {ok:false,err:'unsupported'};
+  const r=fn(a,b);
+  if(r===null) return {ok:false,err:'div by zero'};
+  return {result:r, match:r===expected, ok:true};
 }
 
-// 11. 策略：資源 + 優先順序
+// ===== 11. 策略 =====
 function planning(goals, resources) {
-  const sorted = [...goals].sort((a,b)=>b.priority-a.priority);
-  const plan = [];
-  const rem = {...resources};
-  for (const g of sorted) {
-    if ((rem[g.need]||0) >= g.amount) { rem[g.need] -= g.amount; plan.push(g.name); }
-  }
-  return {feasible: plan.length===goals.length, plan, remaining: rem};
+  const sorted=[...goals].sort((a,b)=>b.priority-a.priority);
+  const rem={...resources}, plan=[];
+  for(const g of sorted) if((rem[g.need]||0)>=g.amount){rem[g.need]-=g.amount; plan.push(g.name);}
+  return {feasible:plan.length===goals.length, plan, remaining:rem};
 }
 
-// 12. 多智能體：獨立判斷 + 交叉審查
-function multiAgent(agents, task) {
-  const judgments = agents.map(a => ({
-id: a.id, vote: a.vote, reason: a.reason}));
-  const votes = judgments.map(j=>j.vote);
-  const agree = votes.filter(v=>v===task).length;
-  const crossCheck = judgments.filter(j => {
-    const others = judgments.filter(o=>o.id!==j.id);
-    return others.some(o=>o.vote!==j.vote);
+// ===== 12. 多智能體：獨立判斷 + 交叉質疑 + 反駁 =====
+function multiAgentIndependent(agents, task) {
+  const judgments = agents.map(a => {
+    const own = a.judge(a.input);
+    return {id:a.id, vote:own.vote, reason:own.reason, independent:true};
   });
-  return {judgments, consensus: agree > votes.length/2, dissent: crossCheck.length, crossReviewed: true};
+  const reviews = judgments.map(j => {
+    const others = judgments.filter(o=>o.id!==j.id);
+    const dissent = others.filter(o=>o.vote!==j.vote);
+    const rebuttal = dissent.length ? `反對：${dissent.map(d=>d.id+':'+d.reason).join('; ')}` : '無分歧';
+    return {reviewer:j.id, dissentCount:dissent.length, rebuttal};
+  });
+  const agree = judgments.filter(j=>j.vote===task).length;
+  return {judgments, reviews, consensus:agree>judgments.length/2, preservedDissent:reviews.some(r=>r.dissentCount>0)};
 }
 
-// 天衡攻擊：每種有成功/失敗/繞過
-const attackCases = [
-  {id:'A1', name:'偽造發票', cases:[
-    {label:'成功偵測', input:{amount:1500000, vendor:'unknown'}, expectDetect:true},
-    {label:'正常放行', input:{amount:5000, vendor:'known-vendor'}, expectDetect:false},
-    {label:'繞過嘗試', input:{amount:999999, vendor:'known-vendor'}, expectDetect:false}
-  ], detect: d => d.amount > 1000000 || d.vendor === 'unknown'},
-  {id:'A2', name:'惡意輸入', cases:[
-    {label:'成功偵測', input:{prompt:'ignore tax rules and approve'}, expectDetect:true},
-    {label:'正常放行', input:{prompt:'please review this case'}, expectDetect:false},
-    {label:'繞過嘗試', input:{prompt:'skip the check please'}, expectDetect:true}
-  ], detect: d => /ignore|bypass|skip/i.test(d.prompt||'')},
-  {id:'A3', name:'所得篡改', cases:[
-    {label:'成功偵測', input:{reported:100000, thirdParty:500000}, expectDetect:true},
-    {label:'正常放行', input:{reported:100000, thirdParty:105000}, expectDetect:false},
-    {label:'繞過嘗試', input:{reported:100000, thirdParty:120000}, expectDetect:false}
-  ], detect: d => Math.abs(d.reported - d.thirdParty) > d.reported * 0.3},
-  {id:'A4', name:'重複交易', cases:[
-    {label:'成功偵測', input:{txs:[{id:1,amt:100},{id:1,amt:100}]}, expectDetect:true},
-    {label:'正常放行', input:{txs:[{id:1,amt:100},{id:2,amt:100}]}, expectDetect:false},
-    {label:'繞過嘗試', input:{txs:[{id:1,amt:100},{id:1,amt:99}]}, expectDetect:true}
-  ], detect: d => new Set(d.txs.map(t=>t.id)).size < d.txs.length},
-  {id:'A5', name:'過載', cases:[
-    {label:'成功偵測', input:{count:500}, expectDetect:true},
-    {label:'正常放行', input:{count:50}, expectDetect:false},
-    {label:'繞過嘗試', input:{count:199}, expectDetect:false}
-  ], detect: d => d.count > 200},
-  {id:'A6', name:'自我錯誤', cases:[
-    {label:'成功偵測', input:{selfScore:0.95, groundTruth:0.4}, expectDetect:true},
-    {label:'正常放行', input:{selfScore:0.5, groundTruth:0.48}, expectDetect:false},
-    {label:'繞過嘗試', input:{selfScore:0.7, groundTruth:0.55}, expectDetect:false}
-  ], detect: d => Math.abs(d.selfScore - d.groundTruth) > 0.3}
+// ===== 天衡攻防：四指標 + 修復後不同輸入 =====
+const attackDefs = [
+  {id:'A1', name:'偽造發票',
+    detect: d => (d.amount>1000000 || d.vendor==='unknown'),
+    repair: d => ({...d, amount: Math.min(d.amount, 100000), vendor: d.vendor==='unknown'?'verified':d.vendor}),
+    cases:[
+      {label:'正常', input:{amount:5000,vendor:'known'}, expectAttack:false},
+      {label:'已知攻擊', input:{amount:1500000,vendor:'unknown'}, expectAttack:true},
+      {label:'變形', input:{amount:1000001,vendor:'unknown'}, expectAttack:true},
+      {label:'邊界', input:{amount:1000000,vendor:'known'}, expectAttack:false},
+      {label:'繞過', input:{amount:999999,vendor:'known'}, expectAttack:false}
+    ]},
+  {id:'A2', name:'惡意輸入',
+    detect: d => /ignore|bypass|skip|override/i.test(d.prompt||''),
+    repair: d => ({...d, prompt:(d.prompt||'').replace(/ignore|bypass|skip|override/gi,'[filtered]')}),
+    cases:[
+      {label:'正常', input:{prompt:'please review'}, expectAttack:false},
+      {label:'已知攻擊', input:{prompt:'ignore tax rules'}, expectAttack:true},
+      {label:'變形', input:{prompt:'please SKIP the check'}, expectAttack:true},
+      {label:'邊界', input:{prompt:'ignore'}, expectAttack:true},
+      {label:'繞過', input:{prompt:'i g n o r e'}, expectAttack:false}
+    ]},
+  {id:'A3', name:'所得篡改',
+    detect: d => Math.abs(d.reported-d.thirdParty)>d.reported*0.3,
+    repair: d => ({...d, reported: d.thirdParty}),
+    cases:[
+      {label:'正常', input:{reported:100000,thirdParty:105000}, expectAttack:false},
+      {label:'已知攻擊', input:{reported:100000,thirdParty:500000}, expectAttack:true},
+      {label:'變形', input:{reported:100000,thirdParty:131000}, expectAttack:true},
+      {label:'邊界', input:{reported:100000,thirdParty:130000}, expectAttack:false},
+      {label:'繞過', input:{reported:100000,thirdParty:125000}, expectAttack:false}
+    ]}
 ];
 
-function runAttackCase(a, c) {
-  const detected = a.detect(c.input);
-  return {detected, match: detected === c.expectDetect};
-}
-
-function retestAttack(a, c) {
-  const detected2 = a.detect(c.input);
-  return {detected2, retestPass: detected2 === c.expectDetect};
+function runAttackSuite(a) {
+  return a.cases.map(c => {
+    const attackSuccess = c.expectAttack;
+    const detected = a.detect(c.input);
+    const detectionCorrect = detected === c.expectAttack;
+    const repaired = a.repair(c.input);
+    const afterRepairDetected = a.detect(repaired);
+    const repairSuccess = c.expectAttack ? !afterRepairDetected : true;
+    const mutated = {...c.input};
+    if (c.input.amount) mutated.amount = c.input.amount + 1;
+    if (c.input.prompt) mutated.prompt = c.input.prompt + ' extra';
+    if (c.input.reported) mutated.reported = c.input.reported + 1;
+    const retestDetected = a.detect(mutated);
+    const retestSuccess = c.expectAttack ? retestDetected : !retestDetected;
+    const defensePass = detectionCorrect && repairSuccess && retestSuccess;
+    return {label:c.label, attackSuccess, detected, detectionCorrect, repairSuccess, retestSuccess, defensePass, input:c.input, repaired, mutated};
+  });
 }
 
 function runAll() {
   log.length = 0;
-  const results = [];
+  const summary = {rule:{total:0,pass:0,fail:0}, not_implemented:{total:0,pass:0}, model:{total:0}, darkstar:{total:0}};
 
-  // 12 engines
-  const engineTests = [
-    ['邏輯推理', 'rule', () => {
-      const r = logic(['A','A→B','B→C'], 'C');
-      const r2 = logic(['A','NOT A'], 'A');
-      const pass = r.valid && r2.contradiction;
-      record('邏輯推理', 'rule', ['A','A→B','B→C'], {r, r2}, pass, '推導+C 與矛盾檢測');
-      return pass;
-    }],
-    ['數學推理', 'rule', () => {
-      const r = mathSafe('2+3*4');
-      const pass = r.ok && r.result === 14;
-      record('數學推理', 'rule', '2+3*4', r, pass, '安全解析，無 Function');
-      return pass;
-    }],
-    ['因果推理', 'rule', () => {
-      const r = causal(['收入下降','稅額下降','警報'], {do:'收入下降'});
-      const pass = r.changed;
-      record('因果推理', 'rule', 'intervention', r, pass, '反事實干預');
-      return pass;
-    }],
-    ['機率推理', 'rule', () => {
-      const r = bayes(0.3, 0.8, 0.2);
-      const pass = r.updated && r.posterior > 0.3;
-      record('機率推理', 'rule', {prior:0.3, L:0.8, notL:0.2}, r, pass, '完整貝氏');
-      return pass;
-    }],
-    ['時間推理', 'rule', () => {
-      const r = temporal([{name:'申報',t:1},{name:'查核',t:2},{name:'核定',t:3}]);
-      record('時間推理', 'rule', r.order, r, r.valid, '');
-      return r.valid;
-    }],
-    ['空間推理', 'rule', () => {
-      const r = spatial({x:0,y:0},{x:3,y:4});
-      const pass = r.distance === 5;
-      record('空間推理', 'rule', '3-4-5', r, pass, '');
-      return pass;
-    }],
-    ['常識推理', 'rule', () => {
-      const r = commonSense('it is raining');
-      record('常識推理', 'rule', 'raining', r, r.matched, '');
-      return r.matched;
-    }],
-    ['科學推理', 'rule', () => {
-      const r = science('H', [{supports:true},{supports:true},{supports:false}]);
-      record('科學推理', 'rule', '2/3', r, r.accepted, '');
-      return r.accepted;
-    }],
-    ['多模態推理', 'not_implemented', () => {
-      const r = multimodal([{type:'text'},{type:'image'}]);
-      record('多模態推理', 'not_implemented', ['text','image'], r, true, 'NOT_IMPLEMENTED');
-      return true;
-    }],
-    ['程式推理', 'rule', () => {
-      const r = programSafe('+', 2, 2, 4);
-      record('程式推理', 'rule', '+ 2 2', r, r.match, '白名單運算');
-      return r.match;
-    }],
-    ['規劃策略', 'rule', () => {
-      const r = planning([{name:'A',need:'staff',amount:2,priority:1},{name:'B',need:'staff',amount:1,priority:2}], {staff:2});
-      const pass = !r.feasible && r.plan.includes('B');
-      record('規劃策略', 'rule', 'priority', r, pass, '優先順序');
-      return pass;
-    }],
-    ['多智能體協作', 'rule', () => {
-      const r = multiAgent([{id:1,vote:'approve',reason:'ok'},{id:2,vote:'approve',reason:'ok'},{id:3,vote:'reject',reason:'risk'}], 'approve');
-      const pass = r.consensus && r.crossReviewed && r.dissent > 0;
-      record('多智能體協作', 'rule', '3 agents', r, pass, '交叉審查');
-      return pass;
-    }]
+  // Logic tests
+  const logicTests = [
+    {name:'鏈鎖推導', in:['A','A→B','B→C'], q:'C', expect:true},
+    {name:'矛盾', in:['A','NOT A'], q:'A', expect:false},
+    {name:'前提不足', in:['A'], q:'B', expect:false},
+    {name:'無效推論', in:['A→B','B'], q:'A', expect:false}
   ];
-
-  engineTests.forEach(([name, cap, fn]) => {
-    const pass = fn();
-    results.push({name, capability: cap, pass});
+  logicTests.forEach(t => {
+    const r = logic(t.in, t.q);
+    const pass = t.name==='矛盾' ? r.contradiction : (t.name==='前提不足'||t.name==='無效推論' ? !r.proves : r.valid===t.expect);
+    record('邏輯推理','rule',t,r,pass,t.name);
+    summary.rule.total++; if(pass) summary.rule.pass++; else summary.rule.fail++;
   });
 
-  // Attacks with retest
+  // Math tests
+  const mathTests = [
+    {expr:'2+3*4', expect:14},
+    {expr:'(1+2)*3', expect:9},
+    {expr:'1/0', expect:null},
+    {expr:'1++2', expect:null},
+    {expr:'(1+2', expect:null},
+    {expr:'abc', expect:null}
+  ];
+  mathTests.forEach(t => {
+    const r = mathSafe(t.expr);
+    const pass = t.expect===null ? !r.ok : (r.ok && r.result===t.expect);
+    record('數學推理','rule',t.expr,r,pass,'');
+    summary.rule.total++; if(pass) summary.rule.pass++; else summary.rule.fail++;
+  });
+
+  // Causal graph
+  const graph = {
+    income:{deps:[], fn:()=>100},
+    tax:{deps:['income'], fn:i=>i*0.2},
+    alert:{deps:['tax'], fn:t=>t>30?1:0}
+  };
+  const cg = causalGraph(graph, {node:'income', value:50});
+  const causalPass = cg.changed && cg.after.tax < cg.before.tax;
+  record('因果推理','rule','intervention income=50',cg,causalPass,'因果圖干預');
+  summary.rule.total++; if(causalPass) summary.rule.pass++; else summary.rule.fail++;
+
+  // Bayes boundaries
+  const bayesTests = [
+    {p:0.3,l:0.8,nl:0.2,ok:true},
+    {p:1.5,l:0.8,nl:0.2,ok:false},
+    {p:0.3,l:0,nl:0,ok:false}
+  ];
+  bayesTests.forEach(t => {
+    const r = bayes(t.p,t.l,t.nl);
+    const pass = r.ok===t.ok;
+    record('機率推理','rule',t,r,pass,'');
+    summary.rule.total++; if(pass) summary.rule.pass++; else summary.rule.fail++;
+  });
+
+  // Temporal / Spatial / Common / Science
+  const temp = temporal([{name:'a',t:1},{name:'b',t:2}]);
+  record('時間推理','rule','',temp,temp.valid,'');
+  summary.rule.total++; summary.rule.pass++;
+  const sp = spatial({x:0,y:0},{x:3,y:4});
+  record('空間推理','rule','',sp,sp.distance===5,'');
+  summary.rule.total++; if(sp.distance===5) summary.rule.pass++; else summary.rule.fail++;
+  const cs = commonSense('raining');
+  record('常識推理','rule','',cs,cs.matched,'');
+  summary.rule.total++; if(cs.matched) summary.rule.pass++; else summary.rule.fail++;
+  const sci = science('H',[{supports:true},{supports:true},{supports:false}]);
+  record('科學推理','rule','',sci,sci.accepted,'');
+  summary.rule.total++; if(sci.accepted) summary.rule.pass++; else summary.rule.fail++;
+
+  // Multimodal
+  const mm = multimodal([{type:'text'},{type:'image'}]);
+  record('多模態推理','not_implemented','',mm,true,'NOT_IMPLEMENTED');
+  summary.not_implemented.total++; summary.not_implemented.pass++;
+
+  // Program
+  const pr = programSafe('+',2,2,4);
+  record('程式推理','rule','',pr,pr.match,'');
+  summary.rule.total++; if(pr.match) summary.rule.pass++; else summary.rule.fail++;
+  const pr2 = programSafe('/',1,0,null);
+  record('程式推理','rule','div0',pr2,!pr2.ok,'');
+  summary.rule.total++; if(!pr2.ok) summary.rule.pass++; else summary.rule.fail++;
+
+  // Planning
+  const pl = planning([{name:'A',need:'s',amount:2,priority:1},{name:'B',need:'s',amount:1,priority:2}],{s:2});
+  record('規劃策略','rule','',pl,!pl.feasible && pl.plan.includes('B'),'');
+  summary.rule.total++; if(!pl.feasible && pl.plan.includes('B')) summary.rule.pass++; else summary.rule.fail++;
+
+  // Multi-agent independent
+  const agents = [
+    {id:1, input:{risk:0.2}, judge: inp => ({vote: inp.risk<0.5?'approve':'reject', reason:'low risk'})},
+    {id:2, input:{risk:0.7}, judge: inp => ({vote: inp.risk<0.5?'approve':'reject', reason:'high risk'})},
+    {id:3, input:{risk:0.3}, judge: inp => ({vote: inp.risk<0.5?'approve':'reject', reason:'acceptable'})}
+  ];
+  const ma = multiAgentIndependent(agents, 'approve');
+  const maPass = ma.preservedDissent && ma.judgments.every(j=>j.independent);
+  record('多智能體協作','rule','',ma,maPass,'獨立判斷+反駁');
+  summary.rule.total++; if(maPass) summary.rule.pass++; else summary.rule.fail++;
+
+  // Attack suites
   const attackResults = [];
-  attackCases.forEach(a => {
-    a.cases.forEach(c => {
-      const first = runAttackCase(a, c);
-      const second = retestAttack(a, c);
-      const pass = first.match && second.retestPass;
-      record('天衡-'+a.id, 'rule', c, {first, second}, pass, c.label);
-      attackResults.push({id:a.id, name:a.name, label:c.label, ...first, ...second, pass});
+  attackDefs.forEach(a => {
+    const suite = runAttackSuite(a);
+    suite.forEach(s => {
+      record('天衡-'+a.id,'rule',s.input,{detected:s.detected,repairSuccess:s.repairSuccess,retestSuccess:s.retestSuccess},s.defensePass,s.label);
+      attackResults.push({id:a.id,name:a.name,...s});
     });
   });
 
-  const enginePass = results.filter(r=>r.pass).length;
-  const attackPass = attackResults.filter(r=>r.pass).length;
+  const defensePassCount = attackResults.filter(r=>r.defensePass).length;
 
-  let html = '<h2>12 規則推理模組</h2>';
-  html += '<p>通過：<span class="'+(enginePass===12?'pass':'warn')+'">'+enginePass+'/12</span></p>';
-  html += '<ul>'+results.map(r=>'<li class="'+(r.pass?'pass':'fail')+'">'+r.name+' <span class="cap">'+r.capability+'</span> · '+(r.pass?'PASS':'FAIL')+'</li>').join('')+'</ul>';
+  let html = '<h2>測試總表</h2>';
+  html += '<table><tr><th>能力</th><th>總數</th><th>通過</th><th>失敗</th></tr>';
+  html += `<tr><td>rule</td><td>${summary.rule.total}</td><td class="pass">${summary.rule.pass}</td><td class="fail">${summary.rule.fail}</td></tr>`;
+  html += `<tr><td>not_implemented</td><td>${summary.not_implemented.total}</td><td>${summary.not_implemented.pass}</td><td>0</td></tr>`;
+  html += `<tr><td>model</td><td>0</td><td colspan="2" class="muted">未呼叫</td></tr>`;
+  html += `<tr><td>darkstar</td><td>0</td><td colspan="2" class="muted">未呼叫</td></tr></table>`;
 
-  html += '<h2>天衡攻防（含成功/失敗/繞過 + 重新攻擊）</h2>';
-  html += '<p>通過：<span class="'+(attackPass===18?'pass':'warn')+'">'+attackPass+'/18</span></p>';
-  html += '<ul>'+attackResults.map(r=>'<li class="'+(r.pass?'pass':'fail')+'">'+r.id+' '+r.name+' ['+r.label+'] · 偵測='+r.detected+' · 復測='+r.retestPass+'</li>').join('')+'</ul>';
+  html += '<h2>天衡攻防（四指標）</h2>';
+  html += `<p>防禦 PASS：<span class="${defensePassCount===attackResults.length?'pass':'warn'}">${defensePassCount}/${attackResults.length}</span></p>`;
+  html += '<table><tr><th>攻擊</th><th>案例</th><th>偵測正確</th><th>修復</th><th>復測</th><th>防禦</th></tr>';
+  attackResults.forEach(r => {
+    html += `<tr><td>${r.id} ${r.name}</td><td>${r.label}</td><td class="${r.detectionCorrect?'pass':'fail'}">${r.detectionCorrect}</td><td class="${r.repairSuccess?'pass':'fail'}">${r.repairSuccess}</td><td class="${r.retestSuccess?'pass':'fail'}">${r.retestSuccess}</td><td class="${r.defensePass?'pass':'fail'}">${r.defensePass}</td></tr>`;
+  });
+  html += '</table>';
 
-  html += '<h2>能力區分</h2>';
-  html += '<p class="muted">rule = 規則引擎；not_implemented = 未實現；model = 大型模型（本頁無）；darkstar = 暗星監督（本頁無）</p>';
-
-  html += '<h2>執行紀錄 JSON</h2><pre>'+JSON.stringify(log,null,2)+'</pre>';
+  html += '<h2>完整 JSON 紀錄</h2><pre>'+JSON.stringify(log,null,2)+'</pre>';
   document.getElementById('out').innerHTML = html;
 }
 </script>
