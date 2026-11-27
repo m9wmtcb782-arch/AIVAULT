@@ -1,0 +1,1 @@
+drop table if exists public.ai_tax_simulation_records;

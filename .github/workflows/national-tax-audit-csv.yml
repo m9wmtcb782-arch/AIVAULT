@@ -1,0 +1,23 @@
+name: National tax audit CSV regression tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "national-tax-audit-center.html"
+      - "tests/national-tax-audit-csv.test.cjs"
+      - ".github/workflows/national-tax-audit-csv.yml"
+  workflow_dispatch:
+
+jobs:
+  csv-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run CSV parser and cross-year audit regression tests
+        run: node --test tests/national-tax-audit-csv.test.cjs
