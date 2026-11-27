@@ -71,43 +71,43 @@ select ok(not has_column_privilege('authenticated','public.tax_audit_actions','d
 -- Role matrix regression checks: validate the intended insert grants encoded
 -- by RLS policies. Runtime JWT/RLS simulation remains a separate integration test.
 select ok(
-  (select with_check like '%chief_auditor%' and with_check like '%auditor%'
-          and with_check !~ '(^|[^a-z_])''reviewer''' and with_check not like '%observer%'
+  (select with_check ~ '(^|[^a-z_])''chief_auditor''' and with_check ~ '(^|[^a-z_])''auditor'''
+          and with_check !~ '(^|[^a-z_])''reviewer''' and with_check !~ '(^|[^a-z_])''observer'''
    from pg_policies where schemaname='public' and tablename='tax_audit_datasets'
      and policyname='tax_audit_datasets_insert'),
   'datasets insert restricted to chief auditor and auditor'
 );
 select ok(
-  (select with_check like '%chief_auditor%' and with_check like '%auditor%'
-          and with_check not like '%reviewer%' and with_check not like '%observer%'
+  (select with_check ~ '(^|[^a-z_])''chief_auditor''' and with_check ~ '(^|[^a-z_])''auditor'''
+          and with_check !~ '(^|[^a-z_])''reviewer''' and with_check !~ '(^|[^a-z_])''observer'''
    from pg_policies where schemaname='public' and tablename='tax_audit_runs'
      and policyname='tax_audit_runs_insert'),
   'runs insert restricted to chief auditor and auditor'
 );
 select ok(
-  (select with_check like '%chief_auditor%' and with_check like '%auditor%'
-          and with_check not like '%reviewer%' and with_check not like '%observer%'
+  (select with_check ~ '(^|[^a-z_])''chief_auditor''' and with_check ~ '(^|[^a-z_])''auditor'''
+          and with_check !~ '(^|[^a-z_])''reviewer''' and with_check !~ '(^|[^a-z_])''observer'''
    from pg_policies where schemaname='public' and tablename='tax_audit_findings'
      and policyname='tax_audit_findings_insert'),
   'findings insert restricted to chief auditor and auditor'
 );
 select ok(
-  (select with_check like '%chief_auditor%' and with_check like '%auditor%'
-          and with_check not like '%reviewer%' and with_check not like '%observer%'
+  (select with_check ~ '(^|[^a-z_])''chief_auditor''' and with_check ~ '(^|[^a-z_])''auditor'''
+          and with_check !~ '(^|[^a-z_])''reviewer''' and with_check !~ '(^|[^a-z_])''observer'''
    from pg_policies where schemaname='public' and tablename='tax_audit_actions'
      and policyname='tax_audit_actions_insert'),
   'actions insert restricted to chief auditor and auditor'
 );
 select ok(
-  (select with_check like '%chief_auditor%' and with_check like '%reviewer%'
-          and with_check !~ '(^|[^a-z_])''auditor''' and with_check not like '%observer%'
+  (select with_check ~ '(^|[^a-z_])''chief_auditor''' and with_check ~ '(^|[^a-z_])''reviewer'''
+          and with_check !~ '(^|[^a-z_])''auditor''' and with_check !~ '(^|[^a-z_])''observer'''
    from pg_policies where schemaname='public' and tablename='tax_audit_evidence_reviews'
      and policyname='tax_audit_evidence_reviews_insert'),
   'evidence review insert restricted to chief auditor and reviewer'
 );
 select ok(
-  (select with_check like '%chief_auditor%' and with_check like '%auditor%'
-          and with_check like '%reviewer%' and with_check not like '%observer%'
+  (select with_check ~ '(^|[^a-z_])''chief_auditor''' and with_check ~ '(^|[^a-z_])''auditor'''
+          and with_check ~ '(^|[^a-z_])''reviewer''' and with_check !~ '(^|[^a-z_])''observer'''
    from pg_policies where schemaname='public' and tablename='tax_audit_events'
      and policyname='tax_audit_events_insert'),
   'audit event insert excludes observer'
