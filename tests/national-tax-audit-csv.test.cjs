@@ -199,7 +199,7 @@ test("fiscal risk matrix preserves negative-value signals without treating missi
 const mapStart = html.indexOf("function mapFiscalHeaders(");
 const mapEnd = html.indexOf("function number(", mapStart);
 assert.ok(mapStart >= 0 && mapEnd > mapStart, "official fiscal header mapper must exist");
-const mapFiscalHeaders = vm.runInNewContext("function norm(s){return String(s||\"\").trim().toLowerCase();}\\n" + html.slice(mapStart, mapEnd) + "\\nmapFiscalHeaders");
+const mapFiscalHeaders = vm.runInNewContext("function norm(s){return String(s||\"\").trim().toLowerCase();}\n" + html.slice(mapStart, mapEnd) + "\nmapFiscalHeaders");
 
 test("maps common Ministry of Finance fiscal CSV header aliases", () => {
   const mapped = mapFiscalHeaders(["年度", "稅目別", "縣市別", "預算數", "實徵淨額", "單位"]);
