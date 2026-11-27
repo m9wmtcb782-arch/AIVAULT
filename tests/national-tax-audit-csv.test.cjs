@@ -225,3 +225,29 @@ test("fiscal risk matrix keeps different tax items separate within the same regi
   assert.notEqual(matrix[0].item,matrix[1].item);
   assert.deepEqual(matrix.map(x=>x.achievement).sort((a,b)=>a-b),[80,120]);
 });
+
+const unitStart = html.indexOf("function detectFiscalUnit(");
+const unitEnd = html.indexOf("function number(", unitStart);
+assert.ok(unitStart >= 0 && unitEnd > unitStart, "fiscal unit detector must exist");
+const detectFiscalUnit = vm.runInNewContext(html.slice(unitStart, unitEnd) + "\\ndetectFiscalUnit");
+
+test("infers thousand-dollar unit from official fiscal CSV headers", () => {
+  const result = detectFiscalUnit(["實徵淨額(千元)","預算數(千元)"],[], -1,0,1);
+  assert.equal(result.unit,"千元");
+  assert.equal(result.status,"由欄位標題推定，仍須核對來源");
+});
+
+test("rejects conflicting amount units instead of aggregating incompatible values", () => {
+  const result = detectFiscalUnit(["實徵淨額(千元)","預算數(元)"],[], -1,0,1);
+  assert.equal(result.unit,null);
+  assert.equal(result.status,"單位衝突或多種單位");
+});
+
+test("rejects a single file whose explicit unit column mixes units", () => {
+  const result = detectFiscalUnit(["實徵數","單位"],[["100","千元"],["200","元"]],1,0,-1);
+  assert.equal(result.status,"單位衝突或多種單位");
+});
+
+test("wide region-by-tax datasets are explicitly identified as requiring reshape", () => {
+  assert.match(html,/已辨識為「地區 × 稅目」寬表格式/);
+});
