@@ -17,6 +17,7 @@ const refs = r => [...new Set([...(r.evidenceRefs ?? []), r.sourceId].filter(Boo
 function validateRows(rows) {
   if (!Array.isArray(rows)) throw new TypeError("rows must be an array");
   const seen = new Set();
+  const granularities = new Map();
   for (const [i, r] of rows.entries()) {
     if (!r || typeof r !== "object" || Array.isArray(r))
       throw new TypeError(`Invalid fiscal observation at index ${i}`);
@@ -29,7 +30,12 @@ function validateRows(rows) {
       if (r[field] !== null && r[field] !== undefined && !finite(r[field]))
         throw new TypeError(`Invalid numeric field ${field} at index ${i}`);
     }
-    const key = `${stableKey(r)}|${periodKey(r)}`;
+    const groupKey = stableKey(r);
+    const granularity = r.period.length === 4 ? "annual" : "monthly";
+    if (granularities.has(groupKey) && granularities.get(groupKey) !== granularity)
+      throw new TypeError(`Mixed annual and monthly periods in one alignment group at index ${i}`);
+    granularities.set(groupKey, granularity);
+    const key = `${groupKey}|${periodKey(r)}`;
     if (seen.has(key)) throw new TypeError(`Duplicate government-period observation at index ${i}`);
     seen.add(key);
   }
