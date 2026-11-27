@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NCL v0.3 Runtime Tests</title>
+<style>body{font:15px system-ui;background:#0b1220;color:#e5edf8;margin:0;padding:20px}main{max-width:900px;margin:auto}pre{white-space:pre-wrap;background:#111d2e;border:1px solid #34465c;border-radius:10px;padding:14px}.ok{color:#86efac}.bad{color:#fca5a5}button{padding:10px 14px;border:0;border-radius:8px;background:#2563eb;color:white}</style></head>
+<body><main><h1>NCL Runtime v0.3 — Acceptance Tests</h1><p>純本機測試，不呼叫 API、不使用 GPU、不修改資料。</p><button id="run">執行全部測試</button><p id="summary">尚未執行</p><pre id="results"></pre></main>
+<script src="ncl-runtime-v02.js"></script><script>
+(()=>{'use strict';const cases=[
+['基本變數與算術','let x = 2 + 3 * 4\nprint x','14'],
+['括號優先序','let x = (2 + 3) * 4\nprint x','20'],
+['布林條件成立','when true {\n print "yes"\n}','yes'],
+['布林條件不成立','when false {\n print "no"\n}\nprint "ok"','ok'],
+['repeat 執行次數','repeat 3 {\n print "x"\n}','x\nx\nx'],
+['task 呼叫','task greet {\n print "hello"\n}\nrun greet','hello'],
+['字串串接','let x = "NCL" + " v0.3"\nprint x','NCL v0.3'],
+['比較運算','when 5 >= 5 {\n print "pass"\n}','pass']
+];const errors=[
+['除以零','print 4 / 0','除數不可為 0'],
+['未知變數','print missing','未知變數'],
+['不合法字元','print 1 @ 2','無效字元'],
+['repeat 小數','repeat 1.5 {\n print "x"\n}','repeat 必須是'],
+['repeat 超上限','repeat 1001 {\n print "x"\n}','repeat 必須是'],
+['缺少右括號','print (1 + 2','缺少 )'],
+['多餘右大括號','}','多餘 }'],
+['未閉合區塊','when true {\n print "x"','缺少 }']
+];function run(){let pass=0,total=cases.length+errors.length,lines=[];for(const [name,src,want] of cases){try{const result=NCLv02.execute(NCLv02.parse(src));const ok=result.output===want;pass+=ok?1:0;lines.push((ok?'PASS ':'FAIL ')+name+(ok?'':'｜預期 '+JSON.stringify(want)+'，實際 '+JSON.stringify(result.output)));}catch(e){lines.push('FAIL '+name+'｜意外錯誤：'+e.message);}}for(const [name,src,fragment] of errors){try{NCLv02.execute(NCLv02.parse(src));lines.push('FAIL '+name+'｜預期錯誤但未阻擋');}catch(e){const ok=e.message.includes(fragment);pass+=ok?1:0;lines.push((ok?'PASS ':'FAIL ')+name+(ok?'':'｜錯誤訊息：'+e.message));}}document.getElementById('summary').textContent='通過 '+pass+' / '+total+'；版本 '+NCLv02.version;document.getElementById('summary').className=pass===total?'ok':'bad';document.getElementById('results').textContent=lines.join('\n');}document.getElementById('run').onclick=run;})();
+</script></body></html>
