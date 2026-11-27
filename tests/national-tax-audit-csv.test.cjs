@@ -103,3 +103,12 @@ test("corrective action interface requires owner, deadline and response", () => 
   assert.match(html, /record_status:"LOCAL_ONLY_NOT_REGISTERED"/);
   assert.match(html, /action_history=actionEntries/);
 });
+
+
+test("audit page inline JavaScript parses without syntax errors", () => {
+  const scriptStart = html.lastIndexOf("<script>");
+  const scriptEnd = html.indexOf("</script>", scriptStart);
+  assert.ok(scriptStart >= 0 && scriptEnd > scriptStart, "audit page inline script must exist");
+  const source = html.slice(scriptStart + "<script>".length, scriptEnd);
+  assert.doesNotThrow(() => new vm.Script(source));
+});
