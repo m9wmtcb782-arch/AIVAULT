@@ -97,6 +97,19 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;padding:1rem}
 <details><summary>7. 可以直接提出復查嗎？</summary><p>須先確認是否已有可救濟的稅捐核定或其他行政決定，以及適用法律、法定期間與程序；單純風險提示未必等同可直接復查的核定。</p></details>
 <details><summary>8. 本頁分析可以當成正式法律意見嗎？</summary><p>不可以。本頁是前端教學模擬，未檢索個案卷證或即時法規，不能取代律師、納稅者權利保護官或主管機關的個案協助。</p></details>
 </section>
+<section class="card" id="taxDatabase">
+<h2>十、我的稅務模擬紀錄（Supabase）</h2>
+<p>登入 AIVAULT 後，可將目前畫面中的模擬結果儲存至個人資料庫，並在其他裝置讀取。未登入時仍可使用本機模擬，但不能保存到雲端。</p>
+<div class="notice" id="taxDbStatus" role="status" aria-live="polite">正在確認登入狀態…</div>
+<div class="field"><label for="taxDbTitle">紀錄名稱</label><input id="taxDbTitle" maxlength="120" placeholder="例如：所得資料差異模擬"></div>
+<div style="display:flex;gap:.55rem;flex-wrap:wrap;margin:.7rem 0">
+<button type="button" id="taxDbSave" disabled>儲存目前模擬</button>
+<button type="button" class="secondary" id="taxDbRefresh" disabled>讀取我的紀錄</button>
+</div>
+<div id="taxDbRecords" aria-live="polite"></div>
+<pre id="taxDbRecordView" hidden style="white-space:pre-wrap;overflow-wrap:anywhere;padding:1rem;border:1px solid var(--border);border-radius:10px"></pre>
+<p class="small">資料僅允許登入者讀取及管理自己的紀錄。請勿保存身分證字號、完整帳戶號碼或非必要敏感資料。</p>
+</section>
 <section class="card" id="darkStarLiveVoice">
 <h2>十、暗星即時語音法律助理</h2>
 <p>本區重用 AIVAULT 第一基地既有的暗星即時語音頁面與 live-voice 連線，不建立第二套模型或語音服務。請按下方按鈕後，在語音視窗內自行按「開始」並允許麥克風權限。</p>
@@ -196,5 +209,7 @@ const cases=[
 const list=byId("caseList");cases.forEach((c,i)=>{const b=document.createElement("button");b.type="button";b.className="case-item secondary";b.innerHTML="<b>案例 "+(i+1)+"</b><br>"+esc(c.title);b.addEventListener("click",()=>{show("caseResult",'<h3>'+esc(c.title)+'</h3><p><b>虛構事實：</b>'+esc(c.facts)+'</p><p><b>法律爭點：</b>'+esc(c.issues)+'</p><p><b>法律檢視：</b>'+esc(c.law)+'</p><p><b>機關責任：</b>'+esc(c.duty)+'</p><p><b>納稅者權利：</b>'+esc(c.rights)+'</p><p class="small">此為研究教學案例，具體法律結論仍須依現行法規及證據判斷。</p>');});list.appendChild(b);});
 })();
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="ai-tax-simulation-db.js?v=1"></script>
 </body>
 </html>
