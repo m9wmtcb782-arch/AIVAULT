@@ -114,9 +114,9 @@ test("audit page inline JavaScript parses without syntax errors", () => {
 });
 
 const trendStart = html.indexOf("function buildYearTrends(");
-const trendEnd = html.indexOf("\\nfunction normalizeYear", trendStart);
+const trendEnd = html.indexOf("function normalizeYear", trendStart);
 assert.ok(trendStart >= 0 && trendEnd > trendStart, "cross-year aggregation helper must exist");
-const buildYearTrends = vm.runInNewContext(html.slice(trendStart, trendEnd) + "\\nbuildYearTrends");
+const buildYearTrends = vm.runInNewContext(html.slice(trendStart, trendEnd) + "\nbuildYearTrends");
 const row = (year, item, region, actual) => ({year:String(year),yearValid:true,item,actual,raw:[String(region)]});
 
 test("keeps regional series separate instead of mixing regions", () => {
