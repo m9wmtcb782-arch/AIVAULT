@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIVAULT 稅務指揮中心｜第一基地</title>
+<style>
+:root{--bg:#050a14;--panel:#0a1628;--panel-border:#1a3a5c;--cyan:#00e5ff;--text:#d0e8ff;--muted:#6a8aaa;--warn:#ffaa00;--ok:#00ff88}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:"Segoe UI","Microsoft JhengHei",sans-serif;min-height:100vh}
+header{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;background:#061020;border-bottom:1px solid var(--panel-border)}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:2px}
+.logo-icon{width:32px;height:32px;border:2px solid var(--cyan);border-radius:50%;display:grid;place-items:center;color:var(--cyan)}
+.layout{display:grid;grid-template-columns:200px 1fr 260px;gap:12px;padding:12px}
+.sidebar{background:var(--panel);border:1px solid var(--panel-border);border-radius:10px;padding:12px}
+.nav-item{padding:10px 12px;margin:4px 0;border-radius:6px;color:var(--muted)}
+.nav-item.active{background:#0d2840;color:var(--cyan)}
+.panel{background:var(--panel);border:1px solid var(--panel-border);border-radius:10px;padding:12px;margin-bottom:12px}
+.panel h3{font-size:0.75rem;color:var(--cyan);letter-spacing:1px;margin-bottom:8px}
+.stat{display:flex;justify-content:space-between;font-size:0.85rem;padding:4px 0;border-bottom:1px solid #0d2840}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.7rem;background:#0d2840}
+.badge.ok{background:#003322;color:var(--ok)}
+.badge.warn{background:#332200;color:var(--warn)}
+.orb-wrap{display:grid;place-items:center;padding:20px 0}
+.orb{width:180px;height:180px;border-radius:50%;display:grid;place-items:center;position:relative;background:radial-gradient(circle at 40% 40%,#0d2840,#050a14 70%);border:2px solid #1a3a5c}
+.orb-ring{position:absolute;inset:-12px;border-radius:50%;border:3px solid transparent;pointer-events:none;animation:pulse 2.4s ease-in-out infinite}
+.orb.green .orb-ring{border-color:#00ff88;box-shadow:0 0 24px #00ff88,inset 0 0 12px rgba(0,255,136,.3)}
+.orb.yellow .orb-ring{border-color:#ffaa00;box-shadow:0 0 24px #ffaa00,inset 0 0 12px rgba(255,170,0,.3)}
+.orb.red .orb-ring{border-color:#ff4466;box-shadow:0 0 24px #ff4466,inset 0 0 12px rgba(255,68,102,.3)}
+.orb-label{text-align:center;z-index:1}
+.orb-label .score{font-size:2rem;font-weight:700}
+.orb-label .sub{font-size:0.7rem;color:var(--muted);letter-spacing:1px}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.04);opacity:1}}
+.safety-btns{display:flex;gap:6px;justify-content:center;margin-top:8px}
+.safety-btns button{font-size:0.7rem;padding:4px 10px;border-radius:4px;cursor:pointer;border:1px solid var(--panel-border);background:#0d2840;color:var(--text)}
+.disclaimer{background:#1a1200;color:#ffaa00;padding:6px 12px;text-align:center;font-size:0.75rem;border-bottom:1px solid #332200}
+.right-col{display:flex;flex-direction:column;gap:12px}
+.feed-item{font-size:0.8rem;padding:6px 0;border-bottom:1px solid #0d2840}
+.feed-item.ok{color:var(--ok)}
+.feed-item.warn{color:var(--warn)}
+</style>
+</head>
+<body>
+<div class="disclaimer">【原型展示】純前端模擬。未呼叫外部 AI。結果為結構化示範，非專業審計結論。必須人工覆核。</div>
+<header>
+  <div class="logo"><div class="logo-icon">◈</div><div><div>AIVAULT</div><div style="font-size:0.65rem;color:var(--muted);letter-spacing:1px">TAX COMMAND CENTER</div></div></div>
+  <span class="badge ok">SANDBOX · FICTIONAL DATA</span>
+</header>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="nav-item active" style="font-weight:700;color:var(--cyan);border:1px solid #0088aa;margin-bottom:8px">◈ AI 財稅模擬</div>
+    <div class="nav-item">▣ Command Center</div>
+    <div class="nav-item">◎ Tax Core</div>
+    <div class="nav-item">▤ Scenarios</div>
+    <div class="nav-item">🧠 Rule Engine</div>
+    <div class="nav-item">📚 Knowledge Base</div>
+  </aside>
+  <main>
+    <div class="panel">
+      <h3>安全指數 · SAFETY INDEX</h3>
+      <div class="orb-wrap">
+        <div id="orb" class="orb green">
+          <div class="orb-ring"></div>
+          <div class="orb-label"><div class="score" id="scoreVal">92</div><div class="sub" id="scoreLabel">安全</div></div>
+        </div>
+      </div>
+      <div class="safety-btns">
+        <button onclick="setSafety(92,'green','安全')">綠 · 安全</button>
+        <button onclick="setSafety(68,'yellow','注意')">黃 · 注意</button>
+        <button onclick="setSafety(34,'red','風險')">紅 · 風險</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>TAX CORE OVERVIEW</h3>
+      <div class="stat"><span>Tax Engine</span><span class="badge ok">Active</span></div>
+      <div class="stat"><span>Hengjian AI</span><span class="badge warn">BLOCKED</span></div>
+      <div class="stat"><span>LLMs</span><span>1.5B Local</span></div>
+      <div class="stat"><span>Data Source</span><span>Fictional</span></div>
+    </div>
+  </main>
+  <aside class="right-col">
+    <div class="panel">
+      <h3>STATUS FEED</h3>
+      <div class="feed-item ok">規則引擎就緒</div>
+      <div class="feed-item">合成知識庫已載入</div>
+      <div class="feed-item warn">外部監督 BLOCKED</div>
+      <div class="feed-item warn">必須人工覆核</div>
+    </div>
+  </aside>
+</div>
+<script>
+function setSafety(val, level, label) {
+  document.getElementById('orb').className = 'orb ' + level;
+  document.getElementById('scoreVal').textContent = val;
+  document.getElementById('scoreLabel').textContent = label;
+}
+</script>
+</body>
+</html>
