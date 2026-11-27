@@ -71,5 +71,5 @@ test("computes a stable SHA-256 fingerprint for file bytes", async () => {
   assert.ok(start >= 0 && end > start, "SHA-256 helper must exist in the audit page");
   const helper = vm.runInNewContext(htmlSource.slice(start, end) + "\nsha256Hex", { crypto: webcrypto });
   const digest = await helper(new TextEncoder().encode("audit-evidence").buffer);
-  assert.equal(digest, "d0d2f04f0b5d4c8c6a5f1d2f7c2f3f0d7f5b3e5e5f5a3f6b9f5f8c8d8f8f8f8f");
+  assert.equal(digest, "2071e29393ba7f1f11c702bcba27add19865ed6c0e53c15e4ba958002e1fdea6");
 });
