@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI天衡 · 雙模型案件分析</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#0a1628;color:#d0e8ff;padding:16px;max-width:960px;margin:auto}
+h1{font-size:1.2rem}h2{font-size:1rem;color:#00e5ff;margin-top:16px}
+textarea{width:100%;min-height:100px;background:#050a14;color:#d0e8ff;border:1px solid #1a3a5c;border-radius:6px;padding:8px;font-size:0.9rem}
+button{background:#0d2840;color:#d0e8ff;border:1px solid #1a3a5c;padding:8px 14px;border-radius:6px;cursor:pointer;margin:4px}
+.panel{background:#0a1628;border:1px solid #1a3a5c;border-radius:8px;padding:10px;margin:8px 0}
+.pass{color:#00ff88}.fail{color:#ff4466}.warn{color:#ffaa00}.muted{color:#6a8aaa}
+pre{background:#050a14;padding:8px;border-radius:6px;overflow:auto;font-size:0.75rem;white-space:pre-wrap}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.7rem;background:#1a3a5c}
+</style>
+</head>
+<body>
+<h1>AI天衡 · Groq + Gemini 雙模型案件分析</h1>
+<p class="warn">呼叫失敗時標示 MODEL_UNAVAILABLE。不冒充模型輸出。暗星未呼叫標示 NOT_CONNECTED。</p>
+
+<div class="panel">
+  <h2>輸入稅務案件</h2>
+  <textarea id="caseInput" placeholder="輸入模擬稅務案件描述，例如：申報所得 100,000，第三方資料 500,000，費用比例異常..."></textarea>
+  <div>
+    <label>Gateway 端點：<input id="gatewayUrl" style="width:70%;background:#050a14;color:#d0e8ff;border:1px solid #1a3a5c;padding:4px;border-radius:4px" placeholder="https://xxx.supabase.co/functions/v1/ai-gateway"></label>
+  </div>
+  <button onclick="analyze()">執行天衡分析</button>
+</div>
+
+<div id="out"></div>
+
+<script>
+const RULE_CHECKS = [
+  {id:'income_diff', name:'所得差異', test: c => /\d{3,}/.test(c) && /差異|不符/.test(c)},
+  {id:'expense_ratio', name:'費用比例', test: c => /費用.*異常|比例/.test(c)},
+  {id:'dup_tx', name:'重複交易', test: c => /重複/.test(c)},
+  {id:'missing_doc', name:'憑證缺漏', test: c => /缺|漏/.test(c)}
+];
+
+function ruleCheck(text) {
+  return RULE_CHECKS.map(r => ({id:r.id, name:r.name, triggered: r.test(text)}));
+}
+
+async function callModel(gateway, provider, caseText) {
+  const t0 = Date.now();
+  if (!gateway) return {provider, status:'MODEL_UNAVAILABLE', reason:'no gateway url', ms:0, output:null};
+  try {
+    const body = {
+      message: `請以稅務審查角度分析以下案件，列出法律依據、事實認定、風險判斷、改善建議。案件：\n${caseText}`,
+      provider: provider,
+      model: provider === 'gemini' ? 'gemini-3.6-flash' : undefined
+    };
+    const ctrl = new AbortController();
+    const timer = setTimeout(()=>ctrl.abort(), 20000);
+    const res = await fetch(gateway, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body),
+      signal: ctrl.signal
+    });
+    clearTimeout(timer);
+    const ms = Date.now() - t0;
+    if (!res.ok) return {provider, status:'MODEL_UNAVAILABLE', reason:'HTTP '+res.status, ms, output:null};
+    const data = await res.json();
+    const text = data.content || data.text || data.message || data.analysis || JSON.stringify(data).slice(0,2000);
+    return {provider, status:'OK', model: data.model || provider, ms, output: text, rawKeys: Object.keys(data)};
+  } catch(e) {
+    return {provider, status:'MODEL_UNAVAILABLE', reason: e.name==='AbortError'?'timeout':String(e.message||e), ms: Date.now()-t0, output:null};
+  }
+}
+
+function crossReview(g, m) {
+  if (g.status!=='OK' && m.status!=='OK') return {mode:'RULE_ONLY', consistent:[], conflicts:[], requiresReview:[]};
+  if (g.status!=='OK' || m.status!=='OK') {
+    const ok = g.status==='OK' ? g : m;
+    return {mode:'SINGLE_MODEL', consistent:[ok.provider+'單獨可用'], conflicts:[], requiresReview:['另一模型不可用，結論需要人工覆核']};
+  }
+  const gText = (g.output||'').toLowerCase();
+  const mText = (m.output||'').toLowerCase();
+  const keys = ['風險','違法','異常','建議','覆核'];
+  const consistent = keys.filter(k => gText.includes(k) && mText.includes(k));
+  const onlyG = keys.filter(k => gText.includes(k) && !mText.includes(k));
+  const onlyM = keys.filter(k => !gText.includes(k) && mText.includes(k));
+  const conflicts = [...onlyG.map(k=>'Groq提及 '+k+' 但 Gemini 未提'), ...onlyM.map(k=>'Gemini提及 '+k+' 但 Groq 未提')];
+  return {
+    mode:'DUAL',
+    consistent,
+    conflicts,
+    requiresReview: conflicts.length ? conflicts.map(c=>c+' → REQUIRES_REVIEW') : []
+  };
+}
+
+async function analyze() {
+  const caseText = document.getElementById('caseInput').value.trim();
+  const gateway = document.getElementById('gatewayUrl').value.trim();
+  if (!caseText) { alert('請輸入案件'); return; }
+
+  const rules = ruleCheck(caseText);
+  const [groq, gemini] = await Promise.all([
+    callModel(gateway, 'groq', caseText),
+    callModel(gateway, 'gemini', caseText)
+  ]);
+  const review = crossReview(groq, gemini);
+
+  const report = {
+    ts: new Date().toISOString(),
+    case: caseText,
+    tianheng: {
+      rules,
+      groq,
+      gemini,
+      crossReview: review
+    },
+    darkstar: { status: 'NOT_CONNECTED', reason: '本頁未呼叫暗星' },
+    mode: (groq.status!=='OK' && gemini.status!=='OK') ? 'RULE_ONLY' : review.mode
+  };
+
+  let html = '<h2>天衡規則檢查</h2><ul>';
+  rules.forEach(r => html += `<li class="${r.triggered?'warn':'muted'}">${r.name}：${r.triggered?'觸發':'未觸發'}</li>`);
+  html += '</ul>';
+
+  html += '<h2>Groq</h2>';
+  html += `<p><span class="badge ${groq.status==='OK'?'pass':'fail'}">${groq.status}</span> ${groq.ms||0}ms ${groq.reason||''}</p>`;
+  html += `<pre>${groq.output || '(無模型輸出)'}</pre>`;
+
+  html += '<h2>Gemini</h2>';
+  html += `<p><span class="badge ${gemini.status==='OK'?'pass':'fail'}">${gemini.status}</span> ${gemini.ms||0}ms ${gemini.reason||''}</p>`;
+  html += `<pre>${gemini.output || '(無模型輸出)'}</pre>`;
+
+  html += '<h2>交叉審查</h2>';
+  html += `<p>模式：<span class="badge">${review.mode}</span></p>`;
+  html += `<p>一致：${review.consistent.join('、')||'無'}</p>`;
+  html += `<p class="warn">矛盾：${review.conflicts.join('；')||'無'}</p>`;
+  html += `<p class="warn">REQUIRES_REVIEW：${review.requiresReview.join('；')||'無'}</p>`;
+
+  html += '<h2>暗星</h2><p class="muted">NOT_CONNECTED</p>';
+  html += '<h2>報告 JSON</h2><pre>'+JSON.stringify(report,null,2)+'</pre>';
+  document.getElementById('out').innerHTML = html;
+}
+</script>
+</body>
+</html>
