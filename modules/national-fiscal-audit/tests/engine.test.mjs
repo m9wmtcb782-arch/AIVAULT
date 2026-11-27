@@ -55,3 +55,20 @@ test("aggregate rows are excluded from regional rollups to prevent double counti
   ]);
   assert.equal(result.regionalComparisons[0].actual,300);
 });
+
+
+test("normalizer accepts actual-only public data without fabricating a budget",()=>{
+  const [r]=normalizeFiscalDataset([{年度:2024,實徵數:1234}],{unit:"千元"});
+  assert.equal(r.budget,null);
+  assert.equal(r.actual,1234);
+  assert.equal(budgetExecution(r).analysisStatus,"INSUFFICIENT_BUDGET");
+});
+
+test("regional rollups never combine different source units",()=>{
+  const result=buildAuditAnalysis([
+    {year:2024,tax:"營業稅",region:"臺北市",agency:"A",budget:null,actual:100,unit:"千元",sourceId:"a"},
+    {year:2024,tax:"營業稅",region:"臺北市",agency:"B",budget:null,actual:2,unit:"元",sourceId:"b"}
+  ]);
+  assert.equal(result.regionalComparisons.length,2);
+  assert.deepEqual(new Set(result.regionalComparisons.map(x=>x.unit)),new Set(["千元","元"]));
+});
