@@ -38,3 +38,20 @@ test("end-to-end analysis includes regional comparison and provenance",()=>{
 test("invalid numeric data is rejected, not silently coerced",()=>{
   assert.throws(()=>normalizeFiscalDataset([{年度:2024,預算數:"not-a-number",實徵數:10}]));
 });
+
+test("actual-only regional observations do not invent budget values",()=>{
+  const result=buildAuditAnalysis([
+    {year:2024,tax:"營業稅",region:"臺北市",agency:"UNSPECIFIED",budget:null,actual:300,unit:"千元",sourceId:"fixture",recordType:"TAX_ACTUAL"},
+    {year:2024,tax:"營業稅",region:"新北市",agency:"UNSPECIFIED",budget:null,actual:200,unit:"千元",sourceId:"fixture",recordType:"TAX_ACTUAL"}
+  ]);
+  assert.equal(result.records[0].analysisStatus,"INSUFFICIENT_BUDGET");
+  assert.equal(result.regionalComparisons[0].budget,null);
+  assert.equal(result.regionalComparisons[0].executionRate,null);
+});
+test("aggregate rows are excluded from regional rollups to prevent double counting",()=>{
+  const result=buildAuditAnalysis([
+    {year:2024,tax:"總計",region:"臺北市",agency:"UNSPECIFIED",budget:null,actual:900,unit:"千元",sourceId:"fixture",recordType:"AGGREGATE"},
+    {year:2024,tax:"營業稅",region:"臺北市",agency:"UNSPECIFIED",budget:null,actual:300,unit:"千元",sourceId:"fixture",recordType:"TAX_ACTUAL"}
+  ]);
+  assert.equal(result.regionalComparisons[0].actual,300);
+});
