@@ -18,7 +18,7 @@
 <div class="panel"><div class="muted">官方資料集</div><div class="metric">0 筆匯入</div><p class="muted">需建立來源匯入與驗證流程</p></div>
 <div class="panel"><div class="muted">審計分析引擎</div><div class="metric">Demo</div><p class="muted">下方規則為本機示範</p></div>
 </section>
-<section class="panel"><h2>官方資料來源候選清單</h2><p class="muted">連結到政府公開資料平台的來源頁；匯入前仍需核對欄位、期間、單位、更新日期及授權。</div>
+<section class="panel"><h2>官方資料來源候選清單</h2><p class="muted">連結到政府公開資料平台的來源頁；匯入前仍需核對欄位、期間、單位、更新日期及授權。</p>
 <div class="grid">
 <div class="source"><strong>年度稅收預算與實徵比較</strong><p>全國稅收預算、實徵淨額與差異</p><a href="https://data.gov.tw/dataset/16910" target="_blank" rel="noopener">政府資料開放平台 ↗</a></div>
 <div class="source"><strong>直接稅與間接稅年度實徵</strong><p>年度總額與稅型結構</p><a href="https://data.gov.tw/dataset/6743" target="_blank" rel="noopener">政府資料開放平台 ↗</a></div>
@@ -88,7 +88,7 @@ function normalizeYear(value){const raw=String(value||"").trim();const m=raw.mat
 function clearAnalysis(){analyzedRows=[];reportLines=[];fileInput.value="";evidenceEl.hidden=true;evidenceEl.textContent="";statusEl.textContent="尚未選擇資料檔。";statsEl.innerHTML="";findingsEl.hidden=true;findingsEl.textContent="";tableEl.innerHTML="";exportBtn.disabled=true;}
 fileInput.addEventListener("change",async()=>{const file=fileInput.files?.[0];if(!file)return;clearAnalysis();statusEl.textContent="讀取檔案："+file.name;try{const text=await file.text();const importedAt=new Date().toISOString();let fileHash="NOT_AVAILABLE";try{fileHash=await sha256Hex(await file.arrayBuffer());}catch(hashError){fileHash="NOT_AVAILABLE: "+hashError.message;}const sourceUrl=sourceUrlEl.value.trim();const parsed=csvParse(text);if(parsed.length<2)throw new Error("CSV 內容不足，至少需要標題列與一筆資料。");const headers=parsed[0];const itemCol=findCol(headers,["項目別","稅目別","稅目","項目","taxitem","item"]);const yearCol=findCol(headers,["年度","年別","年份","year"]);const budgetCol=findCol(headers,["預算數","預算","budget"]);const actualCol=findCol(headers,["實徵淨額","實徵數","實徵","actual","revenue"]);if(itemCol<0||actualCol<0)throw new Error("找不到必要欄位：需包含「項目別/稅目」及「實徵淨額/實徵數」。請確認CSV標題列。");
 const findings=[];const parsedRows=parsed.slice(1).map((r,index)=>{const yr=yearCol>=0?normalizeYear(r[yearCol]):{year:"",valid:false};const actual=number(r[actualCol]);const budget=budgetCol>=0?number(r[budgetCol]):null;return {line:index+2,item:r[itemCol]?.trim()||"（未命名）",year:yr.year,yearValid:yr.valid,budget,actual,raw:r};});
-const duplicateMap=new Map();for(const r of parsedRows){const signature=r.raw.join("\\u0001");if(!duplicateMap.has(signature))duplicateMap.set(signature,[]);duplicateMap.get(signature).push(r.line);}const duplicateGroups=[...duplicateMap.values()].filter(lines=>lines.length>1);const duplicateLineNumbers=duplicateGroups.flat();
+const duplicateMap=new Map();for(const r of parsedRows){const signature=r.raw.join("\u0001");if(!duplicateMap.has(signature))duplicateMap.set(signature,[]);duplicateMap.get(signature).push(r.line);}const duplicateGroups=[...duplicateMap.values()].filter(lines=>lines.length>1);const duplicateLineNumbers=duplicateGroups.flat();
 const invalidRows=parsedRows.filter(r=>r.actual===null);
 analyzedRows=parsedRows.filter(r=>r.actual!==null);
 if(!analyzedRows.length)throw new Error("沒有可解析的實徵金額數值。");
