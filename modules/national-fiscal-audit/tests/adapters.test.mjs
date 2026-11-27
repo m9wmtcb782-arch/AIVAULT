@@ -20,3 +20,9 @@ test("6742 maps each tax column and flags aggregates to prevent double count",()
  assert.equal(r.find(x=>x.tax==="營利事業所得稅").recordType,"TAX_ACTUAL");
 });
 test("wide adapter requires explicit dimension",()=>assert.throws(()=>mapMofWideTaxRows(fx.mof6742,{...meta,year:2024})));
+
+import { mapAuditOfficeLocalFinalAccounts } from "../audit-office-local-final-accounts.js";
+test("Audit Office dataset 13979 keeps budget, final, adjustment and audited stages separate",()=>{
+ const [r]=mapAuditOfficeLocalFinalAccounts([{Government:"臺北市",FiscalYear:"113",Category:"A",AccountTitle:"稅課收入",Budget:"100",Final_Realized:"90",Adjustment_Realized:"2",Audited_Realized:"88"}],{unit:"新臺幣千元"});
+ assert.equal(r.budget,100);assert.equal(r.finalRealized,90);assert.equal(r.adjustmentRealized,2);assert.equal(r.auditedRealized,88);
+});
