@@ -1,0 +1,22 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NCL Tensor v0.4 Tests</title><style>body{font:15px system-ui;background:#0b1220;color:#e5edf8;padding:20px}main{max-width:900px;margin:auto}pre{white-space:pre-wrap;background:#111d2e;padding:14px;border-radius:10px}.ok{color:#86efac}.bad{color:#fca5a5}button{padding:10px 14px;background:#2563eb;color:white;border:0;border-radius:8px}</style></head><body><main><h1>NCL Tensor v0.4 — CPU Reference Tests</h1><p>本測試只驗證 JavaScript CPU 參考運算，不代表 GPU、Metal 或神經網路訓練。</p><button id="run">執行全部測試</button><p id="summary">尚未執行</p><pre id="out"></pre></main><script src="ncl-tensor-v04.js"></script><script>
+(()=>{'use strict';const T=NCLTensor.Tensor,tests=[
+['建立向量',()=>JSON.stringify(T.vector([1,2,3]).toArray())==='[1,2,3]'],
+['建立矩陣',()=>JSON.stringify(T.from([[1,2],[3,4]],[2,2]).toArray())==='[[1,2],[3,4]]'],
+['零矩陣',()=>JSON.stringify(T.zeros([2,2]).toArray())==='[[0,0],[0,0]]'],
+['單位資料',()=>JSON.stringify(T.ones([3]).toArray())==='[1,1,1]'],
+['矩陣加法',()=>JSON.stringify(T.add(T.from([[1,2],[3,4]],[2,2]),T.ones([2,2])).toArray())==='[[2,3],[4,5]]'],
+['矩陣減法',()=>JSON.stringify(T.subtract(T.from([[2,3]],[1,2]),T.ones([1,2])).toArray())==='[[1,2]]'],
+['純量縮放',()=>JSON.stringify(T.scale(T.vector([1,-2]),3).toArray())==='[3,-6]'],
+['ReLU',()=>JSON.stringify(T.relu(T.vector([-1,0,2])).toArray())==='[0,0,2]'],
+['轉置',()=>JSON.stringify(T.transpose(T.from([[1,2,3],[4,5,6]],[2,3])).toArray())==='[[1,4],[2,5],[3,6]]'],
+['矩陣乘法',()=>JSON.stringify(T.matmul(T.from([[1,2],[3,4]],[2,2]),T.from([[5,6],[7,8]],[2,2])).toArray())==='[[19,22],[43,50]]'],
+['矩陣乘法非方陣',()=>JSON.stringify(T.matmul(T.from([[1,2,3]],[1,3]),T.from([[1],[2],[3]],[3,1])).toArray())==='[[14]]'],
+['Softmax 機率總和',()=>{const a=T.softmax(T.vector([1,2,3])).toArray();return Math.abs(a.reduce((x,y)=>x+y,0)-1)<1e-12;}],
+['Softmax 大數穩定性',()=>T.softmax(T.vector([1000,1001])).toArray().every(Number.isFinite)],
+['MSE',()=>Math.abs(T.mse(T.vector([1,2]),T.vector([2,4]))-2.5)<1e-12],
+['維度不符會拒絕',()=>{try{T.from([1,2],[3]);return false}catch(e){return e.message.includes('資料數量');}}],
+['矩陣乘法不相容會拒絕',()=>{try{T.matmul(T.from([[1,2]],[1,2]),T.from([[1,2]],[1,2]));return false}catch(e){return e.message.includes('維度不相容');}}],
+['非有限數字會拒絕',()=>{try{T.vector([NaN]);return false}catch(e){return e.message.includes('有限數字');}}],
+['shape 維度錯誤會拒絕',()=>{try{T.zeros([2,0]);return false}catch(e){return e.message.includes('正安全整數');}}]
+];document.getElementById('run').onclick=()=>{let pass=0;const lines=[];for(const [name,fn] of tests){try{const ok=fn();if(ok)pass++;lines.push((ok?'PASS ':'FAIL ')+name);}catch(e){lines.push('FAIL '+name+'｜'+e.message);}}document.getElementById('summary').textContent='通過 '+pass+' / '+tests.length+'｜'+NCLTensor.version+'｜'+NCLTensor.backend;document.getElementById('summary').className=pass===tests.length?'ok':'bad';document.getElementById('out').textContent=lines.join('\n');};})();
+</script></body></html>
