@@ -104,11 +104,16 @@
     const title = ($('taxDbTitle') && $('taxDbTitle').value.trim()) || '稅務模擬紀錄';
     setControls(false);
     status('正在安全儲存到個人資料庫…');
-    const { error } = await client.from('ai_tax_simulation_records').insert({ title, payload });
-    setControls(true);
-    if (error) { status('儲存失敗：' + error.message, true); return; }
-    status('儲存成功。這筆紀錄已綁定你的登入帳號。');
-    await refreshRecords();
+    try {
+      const { error } = await client.from('ai_tax_simulation_records').insert({ title, payload });
+      if (error) { status('儲存失敗：' + error.message, true); return; }
+      status('儲存成功。這筆紀錄已綁定你的登入帳號。');
+      await refreshRecords();
+    } catch (error) {
+      status('儲存時發生連線錯誤：' + error.message, true);
+    } finally {
+      setControls(!!currentUser);
+    }
   }
   async function deleteRecord(id) {
     if (!client || !currentUser || !id) return;
@@ -127,6 +132,12 @@
     client = window.supabase.createClient(PROJECT_URL, PUBLISHABLE_KEY, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
     });
+    client.auth.onAuthStateChange((_event, session) => {
+      currentUser = session && session.user ? session.user : null;
+      setControls(!!currentUser);
+      if (currentUser) queueMicrotask(() => refreshRecords());
+      else status('尚未登入 AIVAULT。一般模擬仍可使用；登入後才能保存及讀取個人紀錄。', true);
+    });
     const { data, error } = await client.auth.getUser();
     if (error || !data.user) {
       currentUser = null; setControls(false);
@@ -136,12 +147,6 @@
     currentUser = data.user; setControls(true);
     status('已確認登入身分，正在連接個人資料庫…');
     await refreshRecords();
-    client.auth.onAuthStateChange((_event, session) => {
-      currentUser = session && session.user ? session.user : null;
-      setControls(!!currentUser);
-      if (currentUser) refreshRecords();
-      else status('登入狀態已結束；個人紀錄暫不可讀取。', true);
-    });
   }
   document.addEventListener('DOMContentLoaded', () => {
     $('taxDbSave')?.addEventListener('click', saveSnapshot);
