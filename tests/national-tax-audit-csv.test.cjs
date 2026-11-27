@@ -61,6 +61,7 @@ test("normalizes ROC years to Gregorian years", () => {
 test("rejects unrecognized year values", () => {
   assert.equal(normalizeYear("未知").valid, false);
   assert.equal(normalizeYear("301").valid, false);
+  assert.equal(normalizeYear("24").valid, false);
 });
 
 
