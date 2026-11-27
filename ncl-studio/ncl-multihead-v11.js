@@ -12,7 +12,7 @@ class MultiHeadAttention{
  }
  backward(g){if(!this.cache)throw Error('backward 前必須先 forward');const {x,q,k,v,joined,b,s}=this.cache,d=this.dimension,hd=this.headDim;if(!(g instanceof T)||g.shape.join(',')!==x.shape.join(','))throw Error('梯度 shape 不符');const p=this.params,gr=this.grads,dx=new Float64Array(x.data.length),dJoined=new Float64Array(x.data.length),dQ=new Float64Array(q.length),dK=new Float64Array(k.length),dV=new Float64Array(v.length);
   for(const name of Object.keys(gr))gr[name].fill(0);
-  for(let n=0;n<b;n++)for(let t=0;t<s;t++)for(let i=0;i<d;i++){const row=(n*s+t)*d;gr.bo[i]+=g.data[row+i];for(let j=0;j<d;j++){gr.wo[j*d+i]+=joined[row+j]*g.data[row+i];dJoined[row+j]+=g.data[row+i]*p.wo[i*d+j];}}
+  for(let n=0;n<b;n++)for(let t=0;t<s;t++)for(let i=0;i<d;i++){const row=(n*s+t)*d;gr.bo[i]+=g.data[row+i];for(let j=0;j<d;j++){gr.wo[j*d+i]+=joined[row+j]*g.data[row+i];dJoined[row+j]+=g.data[row+i]*p.wo[j*d+i];}}
   const scale=1/Math.sqrt(hd);
   for(let n=0;n<b;n++)for(let h=0;h<this.heads;h++)for(let i=0;i<s;i++){const probs=new Float64Array(i+1),dots=new Float64Array(i+1);let max=-Infinity;for(let j=0;j<=i;j++){let dot=0;for(let z=0;z<hd;z++)dot+=q[(n*s+i)*d+h*hd+z]*k[(n*s+j)*d+h*hd+z];probs[j]=dot*scale;max=Math.max(max,probs[j]);}let sum=0;for(let j=0;j<=i;j++){probs[j]=Math.exp(probs[j]-max);sum+=probs[j];}for(let j=0;j<=i;j++)probs[j]/=sum;
    let weighted=0;for(let j=0;j<=i;j++){let dot=0;for(let z=0;z<hd;z++){const oi=(n*s+i)*d+h*hd+z,vj=(n*s+j)*d+h*hd+z;dot+=dJoined[oi]*v[vj];dV[vj]+=probs[j]*dJoined[oi];}dots[j]=dot;weighted+=probs[j]*dot;}for(let j=0;j<=i;j++){const ds=probs[j]*(dots[j]-weighted)*scale;for(let z=0;z<hd;z++){const qi=(n*s+i)*d+h*hd+z,kj=(n*s+j)*d+h*hd+z;dQ[qi]+=ds*k[kj];dK[kj]+=ds*q[qi];}}}
