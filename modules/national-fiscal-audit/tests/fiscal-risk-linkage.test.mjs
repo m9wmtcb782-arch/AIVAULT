@@ -49,6 +49,7 @@ test("rejects invalid thresholds, malformed periods and duplicate group-period o
   assert.throws(() => analyzeFiscalRiskLinkages([row], { debtGrowthPct: -1 }), /Invalid threshold/);
   assert.throws(() => analyzeFiscalRiskLinkages([{ ...row, period: "2024-13" }]), /Invalid period label/);
   assert.throws(() => analyzeFiscalRiskLinkages([row, row]), /Duplicate government-period/);
+  assert.throws(() => analyzeFiscalRiskLinkages([row, { ...row, period: "2024-01" }]), /Mixed annual and monthly periods/);
 });
 
 test("does not calculate growth from zero or negative prior-period bases", () => {
