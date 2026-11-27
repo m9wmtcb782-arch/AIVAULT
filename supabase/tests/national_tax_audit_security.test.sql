@@ -5,7 +5,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(74);
+select plan(78);
 
 -- RLS must be enabled on every audit workspace table.
 select ok((select c.relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='tax_audit_memberships'), 'RLS enabled: memberships');
@@ -150,6 +150,18 @@ select ok(exists(select 1 from pg_trigger where tgrelid='public.tax_audit_eviden
 select ok((select prosecdef from pg_proc where oid='public.validate_tax_audit_evidence_dataset_link()'::regprocedure), 'evidence dataset linker is SECURITY DEFINER');
 select ok((select coalesce(proconfig, array[]::text[]) @> array['search_path=""'] from pg_proc where oid='public.validate_tax_audit_evidence_dataset_link()'::regprocedure), 'evidence dataset linker has empty search_path');
 select ok(not has_function_privilege('anon','public.validate_tax_audit_evidence_dataset_link()','EXECUTE') and not has_function_privilege('authenticated','public.validate_tax_audit_evidence_dataset_link()','EXECUTE'), 'evidence dataset linker cannot be called directly by API roles');
+
+-- Membership rows are never directly enumerable through the Data API.
+select ok(not has_table_privilege('anon','public.tax_audit_memberships','SELECT'), 'anon cannot enumerate audit memberships');
+select ok(not has_table_privilege('authenticated','public.tax_audit_memberships','SELECT'), 'authenticated cannot enumerate audit memberships');
+
+-- Only authenticated callers may invoke the narrowly scoped membership helpers.
+select ok(not has_function_privilege('anon','public.is_tax_audit_member()','EXECUTE')
+          and not has_function_privilege('anon','public.has_tax_audit_role(text[])','EXECUTE'),
+          'anon cannot execute membership helpers');
+select ok(has_function_privilege('authenticated','public.is_tax_audit_member()','EXECUTE')
+          and has_function_privilege('authenticated','public.has_tax_audit_role(text[])','EXECUTE'),
+          'authenticated can execute membership helpers');
 
 select * from finish();
 rollback;
