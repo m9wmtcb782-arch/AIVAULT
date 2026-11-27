@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
+const { webcrypto } = require("node:crypto");
 
 const html = fs.readFileSync("national-tax-audit-center.html", "utf8");
 const start = html.indexOf("function csvParse(text){");
@@ -60,4 +61,15 @@ test("normalizes ROC years to Gregorian years", () => {
 test("rejects unrecognized year values", () => {
   assert.equal(normalizeYear("未知").valid, false);
   assert.equal(normalizeYear("301").valid, false);
+});
+
+
+test("computes a stable SHA-256 fingerprint for file bytes", async () => {
+  const htmlSource = fs.readFileSync("national-tax-audit-center.html", "utf8");
+  const start = htmlSource.indexOf("async function sha256Hex(buffer){");
+  const end = htmlSource.indexOf("\nfunction normalizeYear", start);
+  assert.ok(start >= 0 && end > start, "SHA-256 helper must exist in the audit page");
+  const helper = vm.runInNewContext(htmlSource.slice(start, end) + "\nsha256Hex", { crypto: webcrypto });
+  const digest = await helper(new TextEncoder().encode("audit-evidence").buffer);
+  assert.equal(digest, "d0d2f04f0b5d4c8c6a5f1d2f7c2f3f0d7f5b3e5e5f5a3f6b9f5f8c8d8f8f8f8f");
 });
