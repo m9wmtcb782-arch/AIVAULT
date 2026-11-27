@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AIVAULT 稅務指揮中心</title>
+<title>AIVAULT 稅務指揮中心｜AI衡鑑</title>
 <style>
 :root{--bg:#050a14;--panel:#0a1628;--panel-border:#1a3a5c;--cyan:#00e5ff;--text:#d0e8ff;--muted:#6a8aaa;--warn:#ffaa00;--ok:#00ff88}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -17,37 +17,42 @@ header{display:flex;align-items:center;justify-content:space-between;padding:10p
 .nav-item.active{background:#0d2840;color:var(--cyan)}
 .panel{background:var(--panel);border:1px solid var(--panel-border);border-radius:10px;padding:10px;margin-bottom:10px}
 .panel h3{font-size:0.7rem;color:var(--cyan);letter-spacing:1px;margin-bottom:6px}
-.orb{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;position:relative;background:radial-gradient(circle at 40% 40%,#0d2840,#050a14 70%);border:2px solid #1a3a5c;cursor:pointer}
-.orb-ring{position:absolute;inset:-6px;border-radius:50%;border:2px solid transparent;pointer-events:none;animation:pulse 2.4s ease-in-out infinite}
-.orb.green .orb-ring{border-color:#00ff88;box-shadow:0 0 12px #00ff88}
-.orb.yellow .orb-ring{border-color:#ffaa00;box-shadow:0 0 12px #ffaa00}
-.orb.red .orb-ring{border-color:#ff4466;box-shadow:0 0 12px #ff4466}
-.orb-label .score{font-size:0.75rem;font-weight:700}
+.stat{display:flex;justify-content:space-between;font-size:0.75rem;padding:3px 0;border-bottom:1px solid #0d2840}
+.badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:0.6rem;background:#0d2840}
+.badge.ok{background:#003322;color:var(--ok)}
+.badge.warn{background:#332200;color:var(--warn)}
+.orb{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;position:relative;background:radial-gradient(circle at 40% 40%,#0d2840,#050a14 70%);border:2px solid #1a3a5c;cursor:pointer}
+.orb-ring{position:absolute;inset:-5px;border-radius:50%;border:2px solid transparent;pointer-events:none;animation:pulse 2.4s ease-in-out infinite}
+.orb.green .orb-ring{border-color:#00ff88;box-shadow:0 0 10px #00ff88}
+.orb.yellow .orb-ring{border-color:#ffaa00;box-shadow:0 0 10px #ffaa00}
+.orb.red .orb-ring{border-color:#ff4466;box-shadow:0 0 10px #ff4466}
+.orb-label .score{font-size:0.7rem;font-weight:700}
 @keyframes pulse{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.05);opacity:1}}
 .disclaimer{background:#1a1200;color:#ffaa00;padding:5px 10px;text-align:center;font-size:0.7rem;border-bottom:1px solid #332200}
 .right-col{display:flex;flex-direction:column;gap:10px}
 .feed-item{font-size:0.7rem;padding:4px 0;border-bottom:1px solid #0d2840}
 .feed-item.ok{color:var(--ok)}
 .feed-item.warn{color:var(--warn)}
-.badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:0.6rem;background:#0d2840}
-.badge.ok{background:#003322;color:var(--ok)}
+button{background:#0d2840;border:1px solid var(--panel-border);color:var(--text);padding:6px 10px;border-radius:4px;cursor:pointer;font-size:0.75rem}
 </style>
 </head>
 <body>
-<div class="disclaimer">【原型】NCL 統籌 · 人類觀察 · 點擊光圈查看趨勢 · 改善防範</div>
+<div class="disclaimer">【原型展示】AI衡鑑 · 多模型推理 · 非單一規則 · 必須人工覆核</div>
 <header>
-  <div class="logo"><div class="logo-icon">◈</div><div><div>AIVAULT</div><div style="font-size:0.6rem;color:var(--muted)">TAX COMMAND</div></div></div>
-  <span class="badge ok">NCL</span>
+  <div class="logo"><div class="logo-icon">◈</div><div><div>AIVAULT</div><div style="font-size:0.6rem;color:var(--muted)">TAX COMMAND · AI衡鑑</div></div></div>
+  <span class="badge ok">12 ENGINES</span>
 </header>
 <div class="layout">
   <aside class="sidebar">
-    <div class="nav-item active" style="font-weight:700;color:var(--cyan);border:1px solid #0088aa;margin-bottom:6px">◈ AI 財稅模擬</div>
-    <div class="nav-item">▣ Command</div>
+    <div class="nav-item active" style="font-weight:700;color:var(--cyan);border:1px solid #0088aa;margin-bottom:6px">◈ AI衡鑑</div>
+    <div class="nav-item">▣ Command Center</div>
     <div class="nav-item">◎ Tax Core</div>
+    <div class="nav-item">▤ Scenarios</div>
+    <div class="nav-item">📚 Knowledge</div>
   </aside>
   <main>
     <div class="panel">
-      <h3>12 推理引擎 · 點擊光圈</h3>
+      <h3>12 推理引擎 · 點擊光圈查看趨勢</h3>
       <div id="engineOrbs" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;justify-items:center"></div>
     </div>
     <div id="chartPanel" class="panel" style="display:none">
@@ -55,14 +60,53 @@ header{display:flex;align-items:center;justify-content:space-between;padding:10p
       <canvas id="trendCanvas" width="280" height="120" style="width:100%;background:#050a14;border-radius:6px"></canvas>
       <div id="chartNote" style="font-size:0.7rem;color:var(--muted);margin-top:4px"></div>
     </div>
+    <div class="panel">
+      <h3>TAX CORE OVERVIEW</h3>
+      <div class="stat"><span>Tax Engine</span><span class="badge ok">Active</span></div>
+      <div class="stat"><span>AI衡鑑</span><span class="badge ok">Ready</span></div>
+      <div class="stat"><span>LLMs</span><span>1.5B Local</span></div>
+      <div class="stat"><span>Data Source</span><span>Fictional</span></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="panel">
+        <h3>ACTIVE MODULES</h3>
+        <div class="stat">Rule Engine <span class="badge ok">Active</span></div>
+        <div class="stat">Scenario Agent <span class="badge ok">Ready</span></div>
+        <div class="stat">Audit Agent <span class="badge">Standby</span></div>
+        <div class="stat">NCL 統籌 <span class="badge ok">Active</span></div>
+      </div>
+      <div class="panel">
+        <h3>SIMULATION STATUS</h3>
+        <div class="stat">單事件模擬 <span class="badge ok">Ready</span></div>
+        <div class="stat">多年期推演 <span class="badge">Standby</span></div>
+        <div class="stat">複合危機 <span class="badge">Standby</span></div>
+        <div class="stat">人工覆核 <span class="badge warn">Required</span></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>QUICK ACTIONS</h3>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+        <button onclick="alert('新增情境（原型）')">＋ 新增情境</button>
+        <button onclick="alert('執行模擬（原型）')">▶ 執行模擬</button>
+        <button onclick="alert('匯出 JSON（原型）')">↓ 匯出 JSON</button>
+        <button onclick="alert('檢索法條（原型）')">🔍 檢索法條</button>
+      </div>
+    </div>
   </main>
   <aside class="right-col">
     <div class="panel">
-      <h3>STATUS</h3>
-      <div class="feed-item ok">NCL 統籌 12 引擎</div>
-      <div class="feed-item">點擊光圈查看趨勢</div>
-      <div class="feed-item">人類觀察 · 改善防範</div>
+      <h3>STATUS FEED</h3>
+      <div class="feed-item ok">12 引擎全部必須參與</div>
+      <div class="feed-item">全方位考量 + 避險處理</div>
+      <div class="feed-item">NCL 統籌 · 人類觀察</div>
       <div class="feed-item warn">必須人工覆核</div>
+      <div class="feed-item">純前端原型</div>
+    </div>
+    <div class="panel">
+      <h3>LLM STATUS</h3>
+      <div class="stat">Qwen 1.5B <span class="badge ok">Local</span></div>
+      <div class="stat">Gemini <span class="badge warn">BLOCKED</span></div>
+      <div class="stat">Rule Engine <span class="badge ok">Active</span></div>
     </div>
   </aside>
 </div>
@@ -85,7 +129,7 @@ document.getElementById('engineOrbs').innerHTML = ENGINES.map(e => `
   <div onclick="showTrend(${e.id})" style="text-align:center;cursor:pointer">
     <div class="orb ${e.level}"><div class="orb-ring"></div>
       <div class="orb-label"><div class="score">${e.score}</div></div></div>
-    <div style="font-size:0.6rem;margin-top:3px;color:var(--muted)">${e.name}</div>
+    <div style="font-size:0.55rem;margin-top:2px;color:var(--muted)">${e.name}</div>
   </div>
 `).join('');
 function showTrend(id) {
