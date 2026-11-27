@@ -88,9 +88,11 @@ export function compareDimensions(records, dimensions = ["tax","region"]) {
     groups.get(key).push(record);
   }
   return [...groups.entries()].map(([group, items]) => {
-    const actual = items.reduce((s,r)=>s+r.actual,0);
-    const budget = items.reduce((s,r)=>s+r.budget,0);
-    return { group, count:items.length, actual, budget, variance:actual-budget,
+    const actual = items.reduce((s,r)=>s+(r.actual ?? 0),0);
+    const budgetValues = items.map(r=>r.budget).filter(v=>v !== null && v !== undefined);
+    const budget = budgetValues.length ? budgetValues.reduce((s,v)=>s+v,0) : null;
+    return { group, count:items.length, actual, budget,
+      variance:budget === null ? null : actual-budget,
       executionRate:budget ? actual/budget*100 : null, unit:items[0].unit };
   });
 }
