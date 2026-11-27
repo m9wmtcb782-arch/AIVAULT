@@ -58,7 +58,7 @@ document.getElementById("clear").addEventListener("click",()=>output.textContent
 const fileInput=document.getElementById("auditCsvFile"), statusEl=document.getElementById("csvStatus"),statsEl=document.getElementById("csvStats"),findingsEl=document.getElementById("csvFindings"),tableEl=document.getElementById("csvTable"),exportBtn=document.getElementById("csvExport");
 let analyzedRows=[],reportLines=[];
 function csvParse(text){
- text=String(text||"").replace(/^\\uFEFF/,"");
+ text=String(text||"").replace(/^\uFEFF/,"");
  const rows=[];let row=[],field="",quoted=false,fieldStarted=false;
  for(let i=0;i<text.length;i++){
   const c=text[i];
@@ -71,16 +71,10 @@ function csvParse(text){
   if(c==='"'){
    if(fieldStarted||field.length)throw new Error("CSV 格式錯誤：引號只能出現在欄位開頭。");
    quoted=true;fieldStarted=true;
-  }else if(c===','){
-   row.push(field);field="";fieldStarted=false;
-  }else if(c==='\\n'){
-   row.push(field);rows.push(row);row=[];field="";fieldStarted=false;
-  }else if(c==='\\r'){
-   if(text[i+1]==='\\n')i++;
-   row.push(field);rows.push(row);row=[];field="";fieldStarted=false;
-  }else{
-   field+=c;if(c.trim())fieldStarted=true;
-  }
+  }else if(c===','){row.push(field);field="";fieldStarted=false;}
+  else if(c==='\n'){row.push(field);rows.push(row);row=[];field="";fieldStarted=false;}
+  else if(c==='\r'){if(text[i+1]==='\n')i++;row.push(field);rows.push(row);row=[];field="";fieldStarted=false;}
+  else{field+=c;if(c.trim())fieldStarted=true;}
  }
  if(quoted)throw new Error("CSV 格式錯誤：欄位引號未閉合，已停止分析，避免錯誤讀取。");
  if(field.length||row.length){row.push(field);rows.push(row);}
