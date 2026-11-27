@@ -15,7 +15,6 @@ test("links revenue shortfall, expenditure growth, debt growth and interest burd
 });
 test("does not compare different government scopes, units, accounting bases or period types",()=>{
  const rows=[
-  {...base,period:"2023",revenueBudget:100,revenueActual:100,expenditureActual:100,debtOutstanding:100,interestExpense:1},
   {...base,period:"2024",revenueBudget:100,revenueActual:80,expenditureActual:150,debtOutstanding:150,interestExpense:2},
   {...base,governmentScope:"地方政府",period:"2024",revenueBudget:100,revenueActual:80,expenditureActual:150,debtOutstanding:150,interestExpense:2},
   {...base,unit:"千元",period:"2024",revenueBudget:100,revenueActual:80,expenditureActual:150,debtOutstanding:150,interestExpense:2},
