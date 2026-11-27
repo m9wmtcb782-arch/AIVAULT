@@ -254,9 +254,14 @@ test("wide region-by-tax datasets are explicitly identified as requiring reshape
 
 const reshapeStart = html.indexOf("function reshapeFiscalWideTable(");
 const reshapeEnd = html.indexOf("function number(", reshapeStart);
+const numberStart = html.indexOf("function number(");
+const numberEnd = html.indexOf("async function sha256Hex", numberStart);
+const yearStart = html.indexOf("function normalizeYear(");
+const yearEnd = html.indexOf("\nfunction clearAnalysis", yearStart);
 assert.ok(reshapeStart >= 0 && reshapeEnd > reshapeStart, "wide fiscal table reshaper must exist");
+assert.ok(numberStart >= 0 && numberEnd > numberStart && yearStart >= 0 && yearEnd > yearStart, "wide table dependencies must exist");
 const reshapeFiscalWideTable = vm.runInNewContext(
-  "function number(v){const raw=String(v??\"\").trim();if(!raw)return null;const cleaned=raw.replace(/[,$，]/g,\"\").replace(/%/g,\"\");if(!cleaned||!/^[-+]?(?:\\\\d+\\\\.?\\\\d*|\\\\.\\\\d+)$/.test(cleaned))return null;const n=Number(cleaned);return Number.isFinite(n)?n:null;} function normalizeYear(v){const m=String(v||\"\").trim().match(/(\\\\d{3,4})/);if(!m)return {year:\"\",valid:false};const n=Number(m[1]);if(n>=1911&&n<=2200)return {year:String(n),valid:true};if(n>=1&&n<=300)return {year:String(n+1911),valid:true};return {year:\"\",valid:false};}\\n" + html.slice(reshapeStart, reshapeEnd) + "\\nreshapeFiscalWideTable"
+  html.slice(numberStart, numberEnd) + "\n" + html.slice(yearStart, yearEnd) + "\n" + html.slice(reshapeStart, reshapeEnd) + "\nreshapeFiscalWideTable"
 );
 
 test("reshapes region-by-tax wide table into long rows while preserving source provenance", () => {
