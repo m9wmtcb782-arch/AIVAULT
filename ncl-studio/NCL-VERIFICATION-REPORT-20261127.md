@@ -13,7 +13,7 @@
 | v0.6 Model | 10 | 10 PASS / 0 FAIL |
 | v0.7 Activation／Adam | 13 | 13 PASS / 0 FAIL |
 | v0.8 Tokenizer／Embedding | 12 | 12 PASS / 0 FAIL |\n| v0.9 Positional Encoding／Causal Attention | 11 | 11 PASS / 0 FAIL |
-| **合計** | **92** | **91 PASS / 0 FAIL** |
+| **合計** | **92** | **92 PASS / 0 FAIL** |
 
 ## CONFIRMED
 - 七套測試頁的測試函式均在 V8 harness 實際執行。
@@ -28,4 +28,4 @@
 - v0.9 已加入單頭 causal attention 與 Q/K/V 手動反向梯度；新增中心差分數值梯度檢查，Q/K/V 最大誤差約 8.7e-11；尚未實作多頭 attention、投影矩陣及完整 Transformer Block。
 
 ## 結論
-目前可以確認的是 CPU JavaScript 參考實作的 81 項自動測試通過。不能推論 NCL 已能執行 70B 模型，也不能將 V8 harness 結果描述為 iPhone 真機測試。
+目前可以確認的是 CPU JavaScript 參考實作的 92 項自動測試通過。不能推論 NCL 已能執行 70B 模型，也不能將 V8 harness 結果描述為 iPhone 真機測試。
