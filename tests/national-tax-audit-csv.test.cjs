@@ -127,7 +127,7 @@ test("keeps regional series separate instead of mixing regions", () => {
     row(2024,"營業稅","高雄市",900)
   ],0);
   assert.equal(trends.length,2);
-  assert.deepEqual(trends.map(x=>[x.region,x.pct]).sort(),[["臺北市",20],["高雄市",-10]].sort());
+  assert.deepEqual(JSON.parse(JSON.stringify(trends.map(x=>[x.region,x.pct]).sort())),[["臺北市",20],["高雄市",-10]].sort());
 });
 
 test("does not compare across a missing year", () => {
@@ -203,7 +203,7 @@ const mapFiscalHeaders = vm.runInNewContext("function norm(s){return String(s||\
 
 test("maps common Ministry of Finance fiscal CSV header aliases", () => {
   const mapped = mapFiscalHeaders(["年度", "稅目別", "縣市別", "預算數", "實徵淨額", "單位"]);
-  assert.deepEqual(mapped.map(x=>x.status), ["已辨識","已辨識","已辨識","已辨識","已辨識","已辨識"]);
+  assert.deepEqual(JSON.parse(JSON.stringify(mapped.map(x=>x.status))), ["已辨識","已辨識","已辨識","已辨識","已辨識","已辨識"]);
   assert.equal(mapped.find(x=>x.key==="actual").index,4);
   assert.equal(mapped.find(x=>x.key==="region").index,2);
 });
@@ -223,7 +223,7 @@ test("fiscal risk matrix keeps different tax items separate within the same regi
   const matrix = buildFiscalRiskMatrix(rows,0);
   assert.equal(matrix.length,2);
   assert.notEqual(matrix[0].item,matrix[1].item);
-  assert.deepEqual(matrix.map(x=>x.achievement).sort((a,b)=>a-b),[80,120]);
+  assert.deepEqual(JSON.parse(JSON.stringify(matrix.map(x=>x.achievement).sort((a,b)=>a-b))),[80,120]);
 });
 
 const unitStart = html.indexOf("function detectFiscalUnit(");
