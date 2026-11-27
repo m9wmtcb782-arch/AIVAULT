@@ -153,7 +153,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $$
 declare
   linked_dataset_id uuid;
 begin
@@ -180,7 +180,7 @@ begin
 
   return new;
 end;
-$;
+$$;
 
 revoke all on function public.validate_tax_audit_evidence_dataset_link() from public, anon, authenticated;
 alter function public.validate_tax_audit_evidence_dataset_link() set search_path = '';
