@@ -160,7 +160,7 @@ test("does not calculate a percentage from a zero baseline", () => {
 const matrixStart = html.indexOf("function buildFiscalRiskMatrix(");
 const matrixEnd = html.indexOf("function normalizeYear", matrixStart);
 assert.ok(matrixStart >= 0 && matrixEnd > matrixStart, "fiscal risk matrix helper must exist");
-const buildFiscalRiskMatrix = vm.runInNewContext(html.slice(matrixStart, matrixEnd) + "\\nbuildFiscalRiskMatrix");
+const buildFiscalRiskMatrix = vm.runInNewContext(html.slice(matrixStart, matrixEnd) + "\nbuildFiscalRiskMatrix");
 const matrixRow = (year, region, actual, budget) => ({year:String(year),yearValid:true,item:"營業稅",actual,budget,raw:[region]});
 
 test("fiscal risk matrix separates regions and aggregates same-year values", () => {
@@ -194,4 +194,23 @@ test("fiscal risk matrix preserves negative-value signals without treating missi
   ],0);
   assert.equal(matrix[0].achievement,null);
   assert.ok(matrix[0].signals.some(x=>x.includes("負值")));
+});
+
+const mapStart = html.indexOf("function mapFiscalHeaders(");
+const mapEnd = html.indexOf("function number(", mapStart);
+assert.ok(mapStart >= 0 && mapEnd > mapStart, "official fiscal header mapper must exist");
+const mapFiscalHeaders = vm.runInNewContext("function norm(s){return String(s||\"\").trim().toLowerCase().replace(/[\\\\s_()（）％%]/g,\"\");}\\n" + html.slice(mapStart, mapEnd) + "\\nmapFiscalHeaders");
+
+test("maps common Ministry of Finance fiscal CSV header aliases", () => {
+  const mapped = mapFiscalHeaders(["年度", "稅目別", "縣市別", "預算數", "實徵淨額", "單位"]);
+  assert.deepEqual(mapped.map(x=>x.status), ["已辨識","已辨識","已辨識","已辨識","已辨識","已辨識"]);
+  assert.equal(mapped.find(x=>x.key==="actual").index,4);
+  assert.equal(mapped.find(x=>x.key==="region").index,2);
+});
+
+test("marks ambiguous required fiscal columns and missing optional fields explicitly", () => {
+  const mapped = mapFiscalHeaders(["稅目","稅目別","實徵淨額"]);
+  assert.equal(mapped.find(x=>x.key==="item").status,"欄位名稱有歧義，待人工確認");
+  assert.equal(mapped.find(x=>x.key==="budget").status,"未提供");
+  assert.equal(mapped.find(x=>x.key==="actual").status,"已辨識");
 });
