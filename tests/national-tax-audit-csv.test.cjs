@@ -251,3 +251,45 @@ test("rejects a single file whose explicit unit column mixes units", () => {
 test("wide region-by-tax datasets are explicitly identified as requiring reshape", () => {
   assert.match(html,/已辨識為「地區 × 稅目」寬表格式/);
 });
+
+const reshapeStart = html.indexOf("function reshapeFiscalWideTable(");
+const reshapeEnd = html.indexOf("function number(", reshapeStart);
+assert.ok(reshapeStart >= 0 && reshapeEnd > reshapeStart, "wide fiscal table reshaper must exist");
+const reshapeFiscalWideTable = vm.runInNewContext(
+  "function number(v){const raw=String(v??\"\").trim();if(!raw)return null;const cleaned=raw.replace(/[,$，]/g,\"\").replace(/%/g,\"\");if(!cleaned||!/^[-+]?(?:\\\\d+\\\\.?\\\\d*|\\\\.\\\\d+)$/.test(cleaned))return null;const n=Number(cleaned);return Number.isFinite(n)?n:null;} function normalizeYear(v){const m=String(v||\"\").trim().match(/(\\\\d{3,4})/);if(!m)return {year:\"\",valid:false};const n=Number(m[1]);if(n>=1911&&n<=2200)return {year:String(n),valid:true};if(n>=1&&n<=300)return {year:String(n+1911),valid:true};return {year:\"\",valid:false};}\\n" + html.slice(reshapeStart, reshapeEnd) + "\\nreshapeFiscalWideTable"
+);
+
+test("reshapes region-by-tax wide table into long rows while preserving source provenance", () => {
+  const result = reshapeFiscalWideTable(
+    ["地區別","關稅","所得稅小計","營利事業所得稅","綜合所得稅","總計"],
+    [["臺北市","10","50","30","20","60"],["高雄市","5","25","15","10","30"]],
+    0,-1,"113"
+  );
+  assert.equal(result.records.length,6);
+  assert.equal(result.records[0].year,"2024");
+  assert.equal(result.records[0].item,"關稅");
+  assert.equal(result.records[0].sourceColumn,"關稅");
+  assert.equal(result.records[0].sourceRegion,"臺北市");
+  assert.equal(result.excludedColumns.length,2);
+  assert.equal(result.nationalTotals.length,0);
+});
+
+test("keeps national total rows separate from regional audit rows", () => {
+  const result = reshapeFiscalWideTable(
+    ["地區別","營業稅","總計"],
+    [["總計","300","300"],["臺北市","200","200"],["高雄市","100","100"]],
+    0,-1,"2024"
+  );
+  assert.equal(result.records.length,2);
+  assert.equal(result.nationalTotals.length,1);
+  assert.equal(result.nationalTotals[0].actual,300);
+});
+
+test("requires an explicit year when a wide fiscal file has no year column", () => {
+  assert.throws(() => reshapeFiscalWideTable(["地區別","營業稅"],[["臺北市","100"]],0,-1,""),/寬表資料年度/);
+});
+
+test("does not treat dashes or blank cells as zero during wide-table conversion", () => {
+  const result = reshapeFiscalWideTable(["地區別","營業稅"],[["臺北市","—"],["高雄市",""]],0,-1,"2024");
+  assert.equal(result.records.length,0);
+});
