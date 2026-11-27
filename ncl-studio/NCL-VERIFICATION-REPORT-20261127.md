@@ -1,4 +1,4 @@
-# NCL 驗收執行報告 — 2026-11-27（更新至 v1.1-alpha.1）
+# NCL 驗收執行報告 — 2026-11-27（更新至 v1.3-alpha.1）
 
 ## 執行方式
 以隔離 JavaScript V8 執行環境載入分支上的核心原始碼，並以最小 DOM stub 觸發各測試頁的實際測試函式。這是程式邏輯執行，不等同 Safari／Chrome 真實瀏覽器、iPhone 裝置或 GPU 驗證。
@@ -17,10 +17,11 @@
 | v1.0-alpha.1 Transformer 整合 | 10 | 10 PASS / 0 FAIL |
 | v1.1-alpha.1 Multi-Head Attention | 10 | 10 PASS / 0 FAIL |
 | v1.2-alpha.1 Transformer Block | 13 | 13 PASS / 0 FAIL |
-| **合計** | **125** | **125 PASS / 0 FAIL** |
+| v1.3-alpha.1 Causal Language Model | 12 | 12 PASS / 0 FAIL |
+| **合計** | **137** | **137 PASS / 0 FAIL** |
 
 ## CONFIRMED
-- 十套測試頁的測試函式均在 V8 harness 實際執行。
+- 十一套測試頁的測試函式均在 V8 harness 實際執行。
 - v0.7 XOR 小型資料訓練測試通過（只證明該固定小型測試案例能降低 MSE）。
 - v0.8 字元 Tokenizer encode/decode、UNK、Embedding forward/backward、重複 token 梯度累積、SGD 更新、存檔載入測試通過。
 
@@ -34,6 +35,7 @@
 - v1.0-alpha.1 整合 Embedding → Positional Encoding → 單頭 Causal Attention；僅 Embedding 權重可訓練。
 - v1.1-alpha.1 新增可訓練多頭 Causal Attention、Q/K/V/O 投影矩陣與手動反向傳播；10/10 測試通過。Q/K/V/O 權重梯度與輸入梯度中心差分最大誤差分別約 5.9e-11、4.5e-11。
 - v1.2-alpha.1 新增以 v1.1 Multi-Head Attention 為核心的 Transformer Block，包含 Pre-LayerNorm、兩條 Residual、ReLU MLP 與完整 Block 手動反向傳播；LayerNorm gamma/beta、MLP 權重與 bias 均可訓練，並加入中心差分驗證。測試頁 13/13 通過；獨立數值檢查最大絕對誤差：LayerNorm 輸入梯度約 9.01e-11，MLP 參數梯度約 5.35e-12。
+- v1.3-alpha.1 新增 CausalLanguageModel，整合字元 Tokenizer 對應的 Token IDs、Embedding、Sinusoidal Positional Encoding、多層 Transformer Block、詞彙輸出層、Next-token Cross-Entropy、端到端手動反向傳播、trainStep、predictNext 與 checksum 存檔/載入。測試頁 12/12 通過；固定小型樣本 40 次訓練，loss 從約 2.3069 降至 1.5726。輸出投影權重梯度已做中心差分驗證。
 
 ## 結論
-目前可以確認的是 CPU JavaScript 參考實作的 125 項自動測試通過。不能推論 NCL 已能執行 70B 模型，也不能將 V8 harness 結果描述為 iPhone 真機測試。
+目前可以確認的是 CPU JavaScript 參考實作的 137 項自動測試通過。不能推論 NCL 已能執行 70B 模型，也不能將 V8 harness 結果描述為 iPhone 真機測試。
