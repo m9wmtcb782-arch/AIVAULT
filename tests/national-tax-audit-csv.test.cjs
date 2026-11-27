@@ -28,3 +28,36 @@ test("rejects unterminated quoted fields", () => {
 test("rejects quotes embedded in unquoted fields", () => {
   assert.throws(() => csvParse('稅目,備註\n營"業稅,測試'), /欄位開頭/);
 });
+
+
+function extractFunction(name, nextMarker) {
+  const start = html.indexOf("function " + name + "(");
+  const end = html.indexOf(nextMarker, start);
+  assert.ok(start >= 0 && end > start, name + " helper must exist");
+  return html.slice(start, end);
+}
+
+const numberSource = extractFunction("number", "\nfunction normalizeYear");
+const parseNumber = vm.runInNewContext(numberSource + "\nnumber");
+const yearSource = extractFunction("normalizeYear", "\nfunction clearAnalysis");
+const normalizeYear = vm.runInNewContext(yearSource + "\nnormalizeYear");
+
+test("parses formatted numeric amounts and decimals", () => {
+  assert.equal(parseNumber("1,234.50"), 1234.5);
+  assert.equal(parseNumber("－100"), null);
+  assert.equal(parseNumber("-100"), -100);
+});
+test("does not coerce blank or malformed amounts to zero", () => {
+  assert.equal(parseNumber(""), null);
+  assert.equal(parseNumber("   "), null);
+  assert.equal(parseNumber("N/A"), null);
+  assert.equal(parseNumber("12abc"), null);
+});
+test("normalizes ROC years to Gregorian years", () => {
+  assert.deepEqual(JSON.parse(JSON.stringify(normalizeYear("民國113年"))), {year:"2024",valid:true});
+  assert.deepEqual(JSON.parse(JSON.stringify(normalizeYear("2024"))), {year:"2024",valid:true});
+});
+test("rejects unrecognized year values", () => {
+  assert.equal(normalizeYear("未知").valid, false);
+  assert.equal(normalizeYear("301").valid, false);
+});
