@@ -6,11 +6,11 @@
 - Causal mask prevents position i from attending to positions after i.
 - Manual backward gradients for query, key, and value.
 - Bounds: sequence length 4096 and total attention cells 10,000,000.
-- 10 browser acceptance cases.
+- 11 browser acceptance cases (actual test page count).
 
 ## Limitations
 - Single head only; no learned Q/K/V/O projection matrices.
 - Not a complete Transformer block; no residual connection, layer normalization, MLP block, dropout, or KV cache.
-- Attention is a standalone operation and is not yet integrated with Embedding/Sequential unified training and model serialization.
+- v1.0-alpha.1 now integrates Embedding → positional encoding → single-head causal attention for inference and Embedding-only training; it is not a full trainable Transformer.
 - CPU JavaScript reference only; no native Metal/GPU backend.
-- Test page is authored; execution status pending.
+- v0.9 test page contains 11 cases; V8 harness execution is tracked in the main verification report.
