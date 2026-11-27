@@ -112,3 +112,47 @@ test("audit page inline JavaScript parses without syntax errors", () => {
   const source = html.slice(scriptStart + "<script>".length, scriptEnd);
   assert.doesNotThrow(() => new vm.Script(source));
 });
+
+const trendStart = html.indexOf("function buildYearTrends(");
+const trendEnd = html.indexOf("\\nfunction normalizeYear", trendStart);
+assert.ok(trendStart >= 0 && trendEnd > trendStart, "cross-year aggregation helper must exist");
+const buildYearTrends = vm.runInNewContext(html.slice(trendStart, trendEnd) + "\\nbuildYearTrends");
+const row = (year, item, region, actual) => ({year:String(year),yearValid:true,item,actual,raw:[String(region)]});
+
+test("keeps regional series separate instead of mixing regions", () => {
+  const trends = buildYearTrends([
+    row(2023,"營業稅","臺北市",100),
+    row(2024,"營業稅","臺北市",120),
+    row(2023,"營業稅","高雄市",1000),
+    row(2024,"營業稅","高雄市",900)
+  ],0);
+  assert.equal(trends.length,2);
+  assert.deepEqual(trends.map(x=>[x.region,x.pct]).sort(),[["臺北市",20],["高雄市",-10]].sort());
+});
+
+test("does not compare across a missing year", () => {
+  const trends = buildYearTrends([
+    row(2021,"營業稅","臺北市",100),
+    row(2023,"營業稅","臺北市",130)
+  ],0);
+  assert.equal(trends.length,0);
+});
+
+test("aggregates same-year rows before calculating the annual change", () => {
+  const trends = buildYearTrends([
+    row(2023,"營業稅","臺北市",40),
+    row(2023,"營業稅","臺北市",60),
+    row(2024,"營業稅","臺北市",150)
+  ],0);
+  assert.equal(trends.length,1);
+  assert.equal(trends[0].previous,100);
+  assert.equal(trends[0].pct,50);
+});
+
+test("does not calculate a percentage from a zero baseline", () => {
+  const trends = buildYearTrends([
+    row(2023,"營業稅","臺北市",0),
+    row(2024,"營業稅","臺北市",50)
+  ],0);
+  assert.equal(trends.length,0);
+});
