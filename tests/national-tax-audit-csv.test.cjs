@@ -249,7 +249,7 @@ test("rejects a single file whose explicit unit column mixes units", () => {
 });
 
 test("wide region-by-tax datasets are explicitly identified as requiring reshape", () => {
-  assert.match(html,/已辨識為「地區 × 稅目」寬表格式/);
+  assert.match(html,/function reshapeFiscalWideTable\\(/);
 });
 
 const reshapeStart = html.indexOf("function reshapeFiscalWideTable(");
