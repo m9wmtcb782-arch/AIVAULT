@@ -145,6 +145,51 @@ alter function public.validate_tax_audit_evidence_lineage() set search_path = ''
 alter function public.validate_tax_audit_evidence_review_chain() set search_path = '';
 alter function public.record_tax_audit_action_history() set search_path = '';
 
+-- Evidence must be traceable to a national tax dataset. When an evidence item
+-- is attached to a run only, resolve and persist that run's dataset_id. When both
+-- are supplied, reject cross-dataset references.
+create or replace function public.validate_tax_audit_evidence_dataset_link()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $
+declare
+  linked_dataset_id uuid;
+begin
+  if new.run_id is not null then
+    select r.dataset_id
+      into linked_dataset_id
+      from public.tax_audit_runs r
+      where r.id = new.run_id;
+
+    if not found then
+      raise exception 'Evidence run does not exist.';
+    end if;
+
+    if new.dataset_id is null then
+      new.dataset_id := linked_dataset_id;
+    elsif new.dataset_id is distinct from linked_dataset_id then
+      raise exception 'Evidence dataset must match the dataset attached to its run.';
+    end if;
+  end if;
+
+  if new.dataset_id is null then
+    raise exception 'Evidence must be linked to a dataset or a run attached to a dataset.';
+  end if;
+
+  return new;
+end;
+$;
+
+revoke all on function public.validate_tax_audit_evidence_dataset_link() from public, anon, authenticated;
+alter function public.validate_tax_audit_evidence_dataset_link() set search_path = '';
+
+drop trigger if exists tax_audit_evidence_validate_dataset_link on public.tax_audit_evidence;
+create trigger tax_audit_evidence_validate_dataset_link
+  before insert on public.tax_audit_evidence
+  for each row execute function public.validate_tax_audit_evidence_dataset_link();
+
 -- Explicitly document that application roles cannot delete or rewrite evidence,
 -- reviews, event records, or action history. Database owners remain privileged.
 comment on table public.tax_audit_events is
