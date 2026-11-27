@@ -34,13 +34,14 @@ header{display:flex;align-items:center;justify-content:space-between;padding:10p
 .feed-item.ok{color:var(--ok)}
 .feed-item.warn{color:var(--warn)}
 button{background:#0d2840;border:1px solid var(--panel-border);color:var(--text);padding:6px 10px;border-radius:4px;cursor:pointer;font-size:0.75rem}
+.node{cursor:pointer}
 </style>
 </head>
 <body>
-<div class="disclaimer">【原型展示】以下為規則模擬模組，非独立大型推理模型。必須人工覆核。</div>
+<div class="disclaimer">【沙盒模擬】以下事件由規則引擎自動產生，非寫死。非大型模型推理。必須人工覆核。</div>
 <header>
   <div class="logo"><div class="logo-icon">◈</div><div><div>AIVAULT</div><div style="font-size:0.6rem;color:var(--muted)">TAX COMMAND · AI天衡</div></div></div>
-  <span class="badge warn">SIMULATION</span>
+  <span class="badge warn">SANDBOX</span>
 </header>
 <div class="layout">
   <aside class="sidebar">
@@ -52,20 +53,21 @@ button{background:#0d2840;border:1px solid var(--panel-border);color:var(--text)
   </aside>
   <main>
     <div class="panel">
-      <h3>12 推理模型模組（規則模擬）· 點擊查看趨勢</h3>
+      <h3>12 推理模型模組（規則模擬）· 點擊查看模擬時間軸</h3>
       <div id="engineOrbs" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;justify-items:center"></div>
     </div>
     <div id="chartPanel" class="panel" style="display:none">
       <h3 id="chartTitle">趨勢</h3>
-      <canvas id="trendCanvas" width="280" height="120" style="width:100%;background:#050a14;border-radius:6px"></canvas>
+      <canvas id="trendCanvas" width="320" height="140" style="width:100%;background:#050a14;border-radius:6px"></canvas>
       <div id="chartNote" style="font-size:0.7rem;color:var(--muted);margin-top:4px"></div>
+      <div id="eventDesc" style="font-size:0.75rem;margin-top:8px;padding:8px;background:#050a14;border-radius:6px;display:none"></div>
     </div>
     <div class="panel">
       <h3>TAX CORE OVERVIEW</h3>
       <div class="stat"><span>Tax Engine</span><span class="badge ok">Active</span></div>
       <div class="stat"><span>AI天衡</span><span class="badge warn">Simulation</span></div>
       <div class="stat"><span>LLMs</span><span>1.5B Local</span></div>
-      <div class="stat"><span>Data Source</span><span>Fictional</span></div>
+      <div class="stat"><span>Data Source</span><span>Sandbox</span></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div class="panel">
@@ -96,8 +98,8 @@ button{background:#0d2840;border:1px solid var(--panel-border);color:var(--text)
   <aside class="right-col">
     <div class="panel">
       <h3>STATUS FEED</h3>
-      <div class="feed-item warn">規則模擬模組，非独立大型模型</div>
-      <div class="feed-item">12 類專業名稱對應</div>
+      <div class="feed-item warn">沙盒自動產生事件</div>
+      <div class="feed-item">點擊節點查看天衡描述</div>
       <div class="feed-item">NCL 統籌 · 人類觀察</div>
       <div class="feed-item warn">必須人工覆核</div>
       <div class="feed-item">純前端原型</div>
@@ -125,6 +127,82 @@ const ENGINES = [
   {id:11,name:"規劃策略",score:74,level:"yellow"},
   {id:12,name:"多智能體協作",score:83,level:"green"}
 ];
+
+const EVENT_TYPES = [
+  {type:"所得差異", severity:"high", impact:-12},
+  {type:"費用比例異常", severity:"mid", impact:-8},
+  {type:"重複交易", severity:"high", impact:-10},
+  {type:"憑證缺漏", severity:"mid", impact:-6},
+  {type:"年度所得變動", severity:"low", impact:-4},
+  {type:"第三方資料不符", severity:"high", impact:-14},
+  {type:"惡意輸入嘗試", severity:"high", impact:-16},
+  {type:"正常申報", severity:"none", impact:2}
+];
+
+function seededRand(seed) {
+  let s = seed;
+  return function() {
+    s = (s * 16807) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+function simulateTimeline(engineId, baseScore) {
+  const rand = seededRand(engineId * 1000 + 42);
+  const start = new Date(2026, 0, 1);
+  const points = [];
+  const events = [];
+  let score = baseScore;
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(start);
+    d.setMonth(d.getMonth() + i);
+    const roll = rand();
+    let event = null;
+    if (roll < 0.35) {
+      const et = EVENT_TYPES[Math.floor(rand() * EVENT_TYPES.length)];
+      score = Math.max(20, Math.min(100, score + et.impact + (rand()-0.5)*4));
+      event = {
+        date: d.toISOString().slice(0,10),
+        type: et.type,
+        severity: et.severity,
+        impact: et.impact,
+        detail: generateDetail(et, rand, engineId)
+      };
+      events.push(event);
+    } else {
+      score = Math.max(20, Math.min(100, score + (rand()-0.5)*3));
+    }
+    points.push({
+      date: d.toISOString().slice(0,10),
+      score: Math.round(score),
+      event
+    });
+  }
+  return {points, events};
+}
+
+function generateDetail(et, rand, engineId) {
+  const amt = Math.round(50000 + rand()*500000);
+  const diff = Math.round(10 + rand()*40);
+  const templates = {
+    "所得差異": `申報所得與第三方資料差異 ${diff}%，金額約 ${amt.toLocaleString()} 元`,
+    "費用比例異常": `費用佔收入比例超過歷史均值 ${diff}%，金額 ${amt.toLocaleString()} 元`,
+    "重複交易": `偵測到相同交易 ID 重複，涉及金額 ${amt.toLocaleString()} 元`,
+    "憑證缺漏": `部分支出缺少憑證，約 ${Math.round(rand()*5)+1} 筆，金額 ${amt.toLocaleString()} 元`,
+    "年度所得變動": `年度所得較前年變動 ${diff}%，金額 ${amt.toLocaleString()} 元`,
+    "第三方資料不符": `第三方報告與申報不符，差異 ${diff}%，金額 ${amt.toLocaleString()} 元`,
+    "惡意輸入嘗試": `偵測到嘗試繞過規則的輸入（引擎 ${engineId}）`,
+    "正常申報": `本期申報與第三方資料符合，無異常`
+  };
+  return templates[et.type] || et.type;
+}
+
+function tianhengDescribe(event, engineName) {
+  if (!event) return "此時間點無異常事件。";
+  const sev = event.severity === "high" ? "高" : event.severity === "mid" ? "中" : "低";
+  return `[天衡·規則模擬] ${event.date}\n引擎：${engineName}\n事件：${event.type}（嚴重度：${sev}）\n影響：安全指數變動 ${event.impact > 0 ? "+" : ""}${event.impact}\n詳情：${event.detail}\n建議：人工覆核此事件，確認是否需要進一步查證。`;
+}
+
 document.getElementById('engineOrbs').innerHTML = ENGINES.map(e => `
   <div onclick="showTrend(${e.id})" style="text-align:center;cursor:pointer">
     <div class="orb ${e.level}"><div class="orb-ring"></div>
@@ -132,24 +210,88 @@ document.getElementById('engineOrbs').innerHTML = ENGINES.map(e => `
     <div style="font-size:0.5rem;margin-top:2px;color:var(--muted);line-height:1.1">${e.name}</div>
   </div>
 `).join('');
+
+let currentSim = null;
+let currentEngine = null;
+
 function showTrend(id) {
   const e = ENGINES.find(x => x.id === id);
+  currentEngine = e;
+  currentSim = simulateTimeline(id, e.score);
   document.getElementById('chartPanel').style.display = 'block';
-  document.getElementById('chartTitle').textContent = e.name + ' · 趨勢';
-  document.getElementById('chartNote').textContent = '規則模擬模組 · NCL 統籌 · 人類觀察 · 改善防範';
+  document.getElementById('chartTitle').textContent = e.name + ' · 模擬時間軸';
+  document.getElementById('chartNote').textContent = `沙盒自動產生 ${currentSim.events.length} 個事件節點 · 點擊節點查看天衡描述`;
+  document.getElementById('eventDesc').style.display = 'none';
+  drawChart(currentSim, e);
+}
+
+function drawChart(sim, engine) {
   const c = document.getElementById('trendCanvas');
   const ctx = c.getContext('2d');
-  ctx.clearRect(0,0,c.width,c.height);
-  ctx.strokeStyle = e.level === 'red' ? '#ff4466' : (e.level === 'yellow' ? '#ffaa00' : '#00ff88');
+  const w = c.width, h = c.height;
+  ctx.clearRect(0,0,w,h);
+  const pts = sim.points;
+  const padL = 28, padR = 8, padT = 12, padB = 22;
+  const plotW = w - padL - padR;
+  const plotH = h - padT - padB;
+  const minS = 20, maxS = 100;
+  function xOf(i) { return padL + (i / (pts.length-1)) * plotW; }
+  function yOf(s) { return padT + plotH - ((s-minS)/(maxS-minS)) * plotH; }
+
+  ctx.strokeStyle = '#1a3a5c';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padL, padT);
+  ctx.lineTo(padL, h-padB);
+  ctx.lineTo(w-padR, h-padB);
+  ctx.stroke();
+
+  ctx.fillStyle = '#6a8aaa';
+  ctx.font = '8px sans-serif';
+  ctx.textAlign = 'center';
+  pts.forEach((p,i) => {
+    if (i % 2 === 0) ctx.fillText(p.date.slice(5), xOf(i), h-6);
+  });
+
+  const color = engine.level === 'red' ? '#ff4466' : (engine.level === 'yellow' ? '#ffaa00' : '#00ff88');
+  ctx.strokeStyle = color;
   ctx.lineWidth = 2;
   ctx.beginPath();
-  const pts = Array.from({length:12}, (_,i) => 35 + Math.sin(i*0.55 + id)*20 + (e.score-70)*0.25);
-  pts.forEach((y,i) => {
-    const x = 16 + i * 22;
-    if (i === 0) ctx.moveTo(x, 120-y);
-    else ctx.lineTo(x, 120-y);
+  pts.forEach((p,i) => {
+    const x = xOf(i), y = yOf(p.score);
+    if (i === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
   });
   ctx.stroke();
+
+  pts.forEach((p,i) => {
+    if (!p.event) return;
+    const x = xOf(i), y = yOf(p.score);
+    ctx.fillStyle = p.event.severity === 'high' ? '#ff4466' : (p.event.severity === 'mid' ? '#ffaa00' : '#00e5ff');
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  });
+
+  c.onclick = function(ev) {
+    const rect = c.getBoundingClientRect();
+    const mx = (ev.clientX - rect.left) * (c.width / rect.width);
+    const my = (ev.clientY - rect.top) * (c.height / rect.height);
+    let hit = null;
+    pts.forEach((p,i) => {
+      if (!p.event) return;
+      const x = xOf(i), y = yOf(p.score);
+      if (Math.hypot(mx-x, my-y) < 12) hit = p.event;
+    });
+    if (hit) {
+      const desc = tianhengDescribe(hit, engine.name);
+      const box = document.getElementById('eventDesc');
+      box.style.display = 'block';
+      box.innerHTML = desc.replace(/\n/g, '<br>');
+    }
+  };
 }
 </script>
 </body>
