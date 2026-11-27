@@ -38,7 +38,7 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;padding:1rem}
 <h2>研究架構與操作導覽</h2>
 <p>本專區探討人工智慧運用於稅捐稽徵時，如何兼顧行政效能、依法行政、納稅者權利及演算法課責。</p>
 <div class="flow"><span>AI風險篩選</span><span class="arrow">→</span><span>事實調查</span><span class="arrow">→</span><span>依法判斷</span><span class="arrow">→</span><span>理由與救濟</span></div>
-<p class="small">本頁所有模擬均在瀏覽器本機執行，不傳送使用者輸入資料，不連接資料庫或付費模型。</p>
+<p class="small">風險評分、權利主張流程及法律情境分析均在瀏覽器本機依固定規則執行，不會送出這些模擬欄位，也不會呼叫付費模型。暗星即時語音是獨立功能：載入後仍須由你主動按「開始」並授權麥克風；啟動時會透過 AIVAULT Supabase Edge Function 建立即時連線，語音／文字內容可能傳送至該服務及其設定的模型供應端。請勿輸入身分證字號、帳戶資料或其他不必要的敏感資訊。</p>
 </section>
 <section class="card">
 <h2>一、AI稅務應用與法律界線</h2>
@@ -142,7 +142,7 @@ byId("loadDarkStarVoice").addEventListener("click",()=>{
 });
 byId("closeDarkStarVoice").addEventListener("click",()=>{
  const frame=byId("darkStarVoiceFrame");
- try{frame.contentWindow.postMessage({type:"aivault-dark-star-stop"},"*");}catch(e){}
+ try{const channel=new BroadcastChannel("aivault-dark-star-video");channel.postMessage({type:"stop"});channel.close();}catch(e){}
  frame.src="about:blank";delete frame.dataset.loaded;byId("darkStarVoiceFrameWrap").hidden=true;
  byId("closeDarkStarVoice").disabled=true;byId("darkStarVoiceStatus").textContent="狀態：語音視窗已關閉。";
 });
@@ -154,10 +154,10 @@ const problems={
 "資料缺漏":["確認缺漏項目是否為法定應提出資料，以及通知內容與期限。","準備可補充的附件、說明書及無法提出的原因證明。"],
 "其他情況":["具體記錄AI提示、機關通知、時間及對權利的影響。","整理往來公文、資料來源、相關證據及疑義。"]
 };
-let wizardStep=0;const wizard={scenario:"AI風險提示要求進一步說明",problem:"個人資料錯誤",evidence:"",right:"調查階段"};
+let wizardStep=0;const wizard={scenario:"AI風險提示要求進一步說明",problem:"個人資料錯誤",evidence:"",right:"尚未收到機關通知"};
 function renderWizard(){
  const labels=["情境","問題","證據","權利","摘要"];document.querySelectorAll("#stepbar .step").forEach((n,i)=>{n.classList.toggle("active",i===wizardStep);n.textContent=(i+1)+" "+labels[i];});
- byId("wizardPrev").disabled=wizardStep===0;byId("wizardNext").textContent=wizardStep===4?"完成":"下一步";
+ byId("wizardPrev").disabled=wizardStep===0;byId("wizardNext").textContent=wizardStep===4?"重新開始":"下一步";
  let html="";
  if(wizardStep===0)html='<div class="field"><label for="wScenario">目前遇到的情境（虛構描述）</label><textarea id="wScenario" maxlength="500">'+esc(wizard.scenario)+'</textarea></div>';
  if(wizardStep===1)html='<div class="field"><label for="wProblem">主要問題類型</label><select id="wProblem">'+Object.keys(problems).map(x=>'<option '+(x===wizard.problem?'selected':'')+'>'+esc(x)+'</option>').join("")+'</select></div><p class="small">選擇最接近的類型；如有多項問題，可在摘要中補充。</p>';
