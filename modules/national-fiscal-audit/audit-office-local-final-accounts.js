@@ -16,8 +16,10 @@ const numberOrNull = (value, field, rowIndex) => {
 };
 const yearValue = (value, i) => {
   const year = Number(value);
-  if (!Number.isInteger(year) || year < 1900 || year > 2200) throw new TypeError(`Invalid FiscalYear at row ${i}`);
-  return year;
+  if (!Number.isInteger(year) || year < 1 || year > 2200) throw new TypeError(`Invalid FiscalYear at row ${i}`);
+  // Dataset 13979 uses Taiwan ROC fiscal-year labels (e.g. 113); normalize to Gregorian
+  // for period alignment while retaining the exact source year below.
+  return year < 300 ? year + 1911 : year;
 };
 
 /**
@@ -36,6 +38,7 @@ export function mapAuditOfficeLocalFinalAccounts(rows, metadata = {}) {
     if (accountTitle === null || String(accountTitle).trim() === "") throw new TypeError(`Missing AccountTitle at row ${i}`);
     return {
       governmentScope: String(government),
+      sourceFiscalYear: Number(pick(row, ["FiscalYear"])),
       fiscalYear: yearValue(pick(row, ["FiscalYear"]), i),
       period: String(yearValue(pick(row, ["FiscalYear"]), i)),
       periodType: "fiscal-year",
