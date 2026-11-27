@@ -12,7 +12,8 @@
 | v0.5 Neural | 12 | 12 PASS / 0 FAIL |
 | v0.6 Model | 10 | 10 PASS / 0 FAIL |
 | v0.7 Activation／Adam | 13 | 13 PASS / 0 FAIL |
-| v0.8 Tokenizer／Embedding | 12 | 12 PASS / 0 FAIL |\n| v0.9 Positional Encoding／Causal Attention | 11 | 11 PASS / 0 FAIL |
+| v0.8 Tokenizer／Embedding | 12 | 12 PASS / 0 FAIL |
+| v0.9 Positional Encoding／Causal Attention | 11 | 11 PASS / 0 FAIL |
 | **合計** | **92** | **92 PASS / 0 FAIL** |
 
 ## CONFIRMED
