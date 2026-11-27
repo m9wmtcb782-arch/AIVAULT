@@ -214,3 +214,14 @@ test("marks ambiguous required fiscal columns and missing optional fields explic
   assert.equal(mapped.find(x=>x.key==="budget").status,"未提供");
   assert.equal(mapped.find(x=>x.key==="actual").status,"已辨識");
 });
+
+test("fiscal risk matrix keeps different tax items separate within the same region and year", () => {
+  const rows = [
+    {...matrixRow(2024,"臺北市",80,100),item:"營業稅"},
+    {...matrixRow(2024,"臺北市",120,100),item:"綜合所得稅"}
+  ];
+  const matrix = buildFiscalRiskMatrix(rows,0);
+  assert.equal(matrix.length,2);
+  assert.notEqual(matrix[0].item,matrix[1].item);
+  assert.deepEqual(matrix.map(x=>x.achievement).sort((a,b)=>a-b),[80,120]);
+});
